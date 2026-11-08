@@ -357,6 +357,7 @@ async fn execute() -> Result<(), String> {
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
                 oo-load sync uses the same flags, requires an explicit sync mode and --run-id ID.\n\
                 oo-load publish --generation ID --library ID uses --stack, --source and --target.\n\
+                [--outcome-run ID] records that cycle's per-table outcomes; ID is minted unless they equal --generation's.\n\
                 oo-load prune --library ID [--retain-seconds 86400] uses --stack, --source and --target.\n\
                 It prepares a verified data cut; pending is NOT a Gateway-ready semantic publication.\n\
                 --run-id ID overrides the target run_id; reuse it only to resume that cycle.\n\
@@ -381,6 +382,7 @@ async fn execute() -> Result<(), String> {
             "--handoff",
             "--run-id",
             "--generation",
+            "--outcome-run",
             "--library",
             "--retain-seconds",
         ]
@@ -409,12 +411,15 @@ async fn execute() -> Result<(), String> {
         {
             return Err("publication_arguments".into());
         }
-        if (prune && opts.contains_key("--generation"))
+        if (prune && (opts.contains_key("--generation") || opts.contains_key("--outcome-run")))
             || (publish && opts.contains_key("--retain-seconds"))
         {
             return Err("publication_arguments".into());
         }
-    } else if opts.contains_key("--generation") || opts.contains_key("--library") {
+    } else if opts.contains_key("--generation")
+        || opts.contains_key("--outcome-run")
+        || opts.contains_key("--library")
+    {
         return Err("publication_subcommand_required".into());
     } else if opts.contains_key("--retain-seconds") {
         return Err("prune_subcommand_required".into());
@@ -483,6 +488,7 @@ async fn execute() -> Result<(), String> {
                 .ok_or("generation_required")?
                 .clone(),
             tables,
+            outcome_run: opts.get("--outcome-run").cloned(),
         };
         let mut conn = target_connection(&target, &store).await?;
         let candidate =

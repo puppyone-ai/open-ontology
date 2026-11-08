@@ -175,31 +175,35 @@ def run_cycle(config, generation, output, guard, result, active_generation=lambd
         for row in reports if row.get('status') == 'stale']
     if sync.returncode == 4:
         raise ValueError('all_tables_stale')
+    current = generation
     retained_runs = {row['retained_run'] for row in reports if row.get('status') != 'stale'}
     fresh_runs = {row['retained_run'] for row in reports if row.get('status') == 'fresh'}
-    if len(fresh_runs) == 1:
-        # No-op and stale tables may keep older cuts in a partial candidate.
-        retained_runs = fresh_runs
-    elif not fresh_runs and len(retained_runs) > 1:
-        # Every table is unchanged, but an earlier partial cut left them on
-        # different retained runs: re-confirm the active publication. oo-load
-        # refuses the replay unless the recomputed cut is byte-identical.
-        active = active_generation()
-        if not active:
-            raise ValueError('mixed_retained_runs')
-        retained_runs = {active}
-    if len(retained_runs) != 1:
+    if len(fresh_runs) > 1:
         raise ValueError('mixed_retained_runs')
-    # C5 no-ops retain the sealed parent, not a fictitious new run.
-    generation = retained_runs.pop()
-    result['published_generation'] = generation
+    if fresh_runs:
+        # No-op and stale tables may keep older cuts in a partial candidate.
+        anchor = fresh_runs.pop()
+    elif len(retained_runs) == 1:
+        # C5 no-ops retain the sealed parent, not a fictitious new run.
+        anchor = retained_runs.pop()
+    else:
+        # Every table is unchanged or stale, on different retained runs (or none
+        # healthy at all): re-confirm the active publication if there is one.
+        anchor = active_generation() or current
     guard()
-    prepared = command([loader, 'publish', *common, '--generation', generation,
-                        '--library', config['library']], output, 'candidate')
+    # Per-table outcomes always come from this cycle. oo-load replays `anchor`
+    # only when its recorded outcomes equal this cycle's; otherwise it mints
+    # the cut at this cycle's run, which keeps each table's retained data.
+    prepared = command([loader, 'publish', *common, '--generation', anchor,
+                        '--outcome-run', current, '--library', config['library']], output, 'candidate')
     candidate = json.loads(prepared.stdout)
     if prepared.returncode and (json.loads(prepared.stderr).get('error') !=
                                 'publication_semantic_admission_required' or candidate.get('state') != 'pending'):
         raise ValueError('candidate_failed')
+    generation = candidate.get('run', anchor)
+    if generation not in (anchor, current):
+        raise ValueError('candidate_failed')
+    result['published_generation'] = generation
     guard()
     build = data_only(config, generation, output, [t['table'] for t in result['stale_tables']])
     result['review_pending'] = build.get('review_pending', [])
@@ -240,9 +244,10 @@ def run_cycle(config, generation, output, guard, result, active_generation=lambd
                 raise ValueError('gateway_reload_failed') from None
             time.sleep(1)
     save(output / 'gateway.json', measured)
-    # The Gateway now serves this receipt: the published data is current as of
-    # this cycle whether it was newly activated or an exact replay.
-    result['data_verified_at'] = measured.get('measured_at') or timestamp()
+    # The Gateway now serves this receipt. Its data is current as of this cycle
+    # only if every table it calls fresh/noop was read and verified now.
+    if receipt_matches_cycle(candidate, reports):
+        result['data_verified_at'] = measured.get('measured_at') or timestamp()
     guard()
     pruned = command([loader, 'prune', *common, '--library', config['library'],
                       '--retain-seconds', str(config.get('retain_seconds', 86400))], output, 'prune')
@@ -251,6 +256,26 @@ def run_cycle(config, generation, output, guard, result, active_generation=lambd
     stage = 'partial' if sync.returncode == 3 else 'succeeded'
     return dict(result, stage=stage, result=stage, reason='stale_tables' if stage == 'partial' else None,
                 model_calls=0, **measured)
+
+def table_name(table):
+    return table['schema'] + '.' + table['name'] if isinstance(table, dict) else table
+
+
+def receipt_matches_cycle(candidate, reports):
+    """Whether the cut records exactly this cycle's per-table health."""
+    try:
+        shards = candidate['receipt']['shards']
+        tables = shards[0]['receipt']['tables'] if len(shards) == 1 else None
+        published = {t['schema'] + '.' + t['table']: t['status'] for t in tables}
+    except (KeyError, TypeError, IndexError):
+        return False
+    observed = {table_name(row['table']): row.get('status') for row in reports if 'table' in row}
+    healthy = ('fresh', 'noop')
+    return (len(published) == len(tables) and published.keys() == observed.keys()
+            and all((status in healthy and observed[name] in healthy)
+                    or (status == 'stale' and observed[name] == 'stale')
+                    for name, status in published.items()))
+
 
 def complete(config, binding, result):
     payload = dict(reason=None, stale_tables=[], review_pending=[], data_published_at=None,

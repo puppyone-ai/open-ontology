@@ -214,6 +214,13 @@ pub(super) async fn run(
     let binding = super::binding(source)?;
     let durable_lineage = serde_json::to_string(&(&live_lineage, &sync.slot, &sync.publication))
         .map_err(|_| "sync_lineage")?;
+    // Pre-0129 bindings stored relation shapes in the lineage (see c1::prepare).
+    let legacy_lineage = serde_json::to_string(&(
+        lineage(&mut feedback_conn, &tables).await?,
+        &sync.slot,
+        &sync.publication,
+    ))
+    .map_err(|_| "sync_lineage")?;
     let mut conn = target_connection(target, store).await?;
     let mut engine = PostgresEngine::new(config.clone());
     let mut admission = c1::prepare(
@@ -224,6 +231,7 @@ pub(super) async fn run(
         target,
         budget,
         &durable_lineage,
+        Some(&legacy_lineage),
         &sync.initial_position,
     )
     .await?;

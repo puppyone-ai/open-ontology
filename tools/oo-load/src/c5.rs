@@ -68,6 +68,19 @@ fn durable_ranges(previous: &TableChunkPlan, live: TableChunkPlan) -> TableChunk
     }
 }
 
+async fn legacy_proven<E: epoch::Epoch>(
+    engine: &mut E,
+    source: &Source,
+    store: &SecretStore,
+    table: &TableRef,
+    stored: &str,
+) -> Result<bool, String> {
+    Ok(engine
+        .legacy_lineage(source, store, table)
+        .await?
+        .is_some_and(|legacy| legacy == stored))
+}
+
 fn needs_read(old: Option<&RangeDigest>, new: &RangeDigest, hint: bool, full: bool) -> bool {
     hint || full || old != Some(new)
 }
@@ -181,11 +194,33 @@ async fn run_table<E: epoch::Epoch>(
     let started = std::time::Instant::now();
     let mut target = PgTarget::new(conn, &binding(source)?, &config.run_id, table).await?;
     target = documents::target(target, source)?;
-    let sealed = target.sealed_columns().await?;
+    let mut sealed = target.sealed_columns().await?;
     let live_columns = engine
         .column_shape(table, budget)
         .await
         .map_err(|e| e.to_string())?;
+    let mut schema_upgrade = None;
+    if sealed.is_none()
+        && let Some(live) = live_columns.as_deref()
+    {
+        // Upgrade from the pre-0129 layout: no catalog, but the stored C5
+        // lineage still folds in the table shape the old fence accepted.
+        // Seal only when that exact lineage is reproduced now; never infer.
+        let previous = target.c5_baseline().await?;
+        if let Some(old) = previous.lineage.as_deref()
+            && legacy_proven(engine, source, store, table, old).await?
+        {
+            let lineage = engine
+                .epoch(source, store, std::slice::from_ref(table))
+                .await
+                .map_err(|_| "c5_source_epoch")?;
+            target
+                .adopt_legacy_catalog(Some(&previous.run), live, Some((old, &lineage)))
+                .await?;
+            sealed = target.sealed_columns().await?;
+            schema_upgrade = Some("legacy_lineage_sealed");
+        }
+    }
     let classification = oo_load::schema::classify(
         sealed.as_ref().map(|s| s.columns.as_slice()),
         live_columns.as_deref(),
@@ -208,13 +243,19 @@ async fn run_table<E: epoch::Epoch>(
         .plan_chunks(table, budget)
         .await
         .map_err(|e| e.to_string())?;
-    let previous = target.c5_baseline().await?;
-    if previous
-        .lineage
-        .as_ref()
-        .is_some_and(|old| old != &live_lineage)
+    let mut previous = target.c5_baseline().await?;
+    if let Some(old) = previous.lineage.clone()
+        && old != live_lineage
     {
-        return Err("c5_rebaseline_required_lineage".into());
+        // A catalog sealed before the lineage format changed: the same proof.
+        if !legacy_proven(engine, source, store, table, &old).await? {
+            return Err("c5_rebaseline_required_lineage".into());
+        }
+        target
+            .adopt_legacy_lineage(&previous.run, &old, &live_lineage)
+            .await?;
+        previous = target.c5_baseline().await?;
+        schema_upgrade = Some("legacy_lineage_rewritten");
     }
     if classification == oo_load::schema::Classification::Rebuild {
         let before = target.generations().await?;
@@ -366,6 +407,7 @@ async fn run_table<E: epoch::Epoch>(
         "run_id":config.run_id,
         "retained_run":retained_run,
         "schema_class":classification.as_str(),
+        "schema_upgrade":schema_upgrade,
         "target":target.relation(),"replay":replay,"ranges_replaced":receipts.len(),
         "payload_bytes":payload_bytes,"source_read_bytes":source_read_bytes,
         "target_write_bytes":if replay {0} else {target.write_bytes().await?},

@@ -11,15 +11,9 @@ fn hash(bytes: &[u8]) -> String {
 /// Unknown failures remain global. Never classify driver text by substring:
 /// these are closed connector renderings, not SQL messages or row values.
 pub fn stale_reason(error: &str) -> Option<&str> {
-    if let Some(drift) = error.strip_prefix("schema_drift:")
-        && let Some((column, kind)) = drift.rsplit_once(':')
-        && !column.is_empty()
-        && !column.contains([':', '\n', '\r', '\0'])
-        && matches!(
-            kind,
-            "dropped" | "renamed" | "nullability" | "type" | "key" | "collation" | "ordinal"
-        )
-    {
+    // Producers build named drift through `stale_grammar`; anything else with
+    // this prefix (a raw column name) is not a table classification.
+    if crate::stale_grammar::parse_drift(error).is_some() {
         return Some(error);
     }
     match error {
@@ -235,7 +229,10 @@ pub async fn record(
     state: &str,
     reason: Option<&str>,
 ) -> Result<()> {
-    if !matches!(state, "fresh" | "noop" | "stale") || (state == "stale") != reason.is_some() {
+    if !matches!(state, "fresh" | "noop" | "stale")
+        || (state == "stale") != reason.is_some()
+        || reason.is_some_and(|r| !crate::stale_grammar::valid(r))
+    {
         return Err("sync_table_state");
     }
     let identity = hash(&serde_json::to_vec(&(source, table)).map_err(|_| "sync_scope")?);
@@ -325,16 +322,47 @@ mod tests {
             "collation",
             "ordinal",
         ] {
-            let reason = format!("schema_drift:payload:{kind}");
-            assert_eq!(stale_reason(&reason), Some(reason.as_str()));
+            for column in [
+                "c.payload",
+                "c.PAYLOAD",
+                "c.user%3aId",
+                "unpublished_column",
+            ] {
+                let reason = format!("schema_drift:{column}:{kind}");
+                assert_eq!(stale_reason(&reason), Some(reason.as_str()));
+            }
         }
         for reason in [
             "schema_drift::type",
-            "schema_drift:payload:unknown",
-            "schema_drift:payload\n:type",
-            "schema_drift:payload:detail:type",
+            "schema_drift:payload:type",
+            "schema_drift:PAYLOAD:type",
+            "schema_drift:c.payload:unknown",
+            "schema_drift:c.payload\n:type",
+            "schema_drift:c.payload:detail:type",
         ] {
             assert_eq!(stale_reason(reason), None);
+        }
+    }
+
+    #[test]
+    fn every_classified_reason_is_in_the_shared_grammar() {
+        for error in [
+            "c5_rebaseline_required_lineage",
+            "c5_rebaseline_required_plan",
+            "c5_rebaseline_required_active_sync",
+            "schema_unproven",
+            "load_schema_drift",
+            "c5_range_changed_retry",
+            "source error: catalog fact=missing_table",
+            "source error: privilege fact=statement_denied",
+            "source error: budget fact=call_timeout",
+            "source error: budget fact=max_row",
+            "source error: privilege fact=database sqlstate=42501",
+            "source error: budget fact=database sqlstate=57014",
+            "schema_drift:c.%e5%90%8d:type",
+        ] {
+            let reason = stale_reason(error).unwrap();
+            assert!(crate::stale_grammar::valid(reason), "{reason}");
         }
     }
 

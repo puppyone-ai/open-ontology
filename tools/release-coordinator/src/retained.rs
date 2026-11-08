@@ -86,16 +86,13 @@ const ISOLATED_TABLE_KEYS: [&str; 18] = [
     "target_generation",
 ];
 
+/// The loader's closed stale-reason grammar, compiled from the same file.
+#[path = "../../../crates/oo-pipeline/src/stale_grammar.rs"]
+#[allow(dead_code)]
+mod stale_grammar;
+
 fn stale_reason_code(value: &Value) -> bool {
-    value.as_str().is_some_and(|s| {
-        (1..=128).contains(&s.len())
-            && s.as_bytes()[0].is_ascii_lowercase()
-            && s.bytes().all(|b| {
-                b.is_ascii_lowercase()
-                    || b.is_ascii_digit()
-                    || matches!(b, b'_' | b':' | b'.' | b'-')
-            })
-    })
+    value.as_str().is_some_and(stale_grammar::valid)
 }
 
 fn bounded_text(value: &Value) -> bool {
@@ -106,11 +103,14 @@ fn bounded_text(value: &Value) -> bool {
 
 /// Fresh and no-op tables carry no stale fields; a stale table names its
 /// reason and since-time and keeps the run that produced its retained data.
-fn isolated_outcome(table: &Value) -> bool {
+/// A fresh table was written by this cut's own run.
+fn isolated_outcome(table: &Value, run_id: &str) -> bool {
     run_token(table["retained_run"].as_str().unwrap_or(""))
         && match table["status"].as_str() {
-            Some("fresh" | "noop") => {
-                table["stale_reason"].is_null() && table["stale_since"].is_null()
+            Some(status @ ("fresh" | "noop")) => {
+                table["stale_reason"].is_null()
+                    && table["stale_since"].is_null()
+                    && (status == "noop" || table["retained_run"] == run_id)
             }
             Some("stale") => {
                 stale_reason_code(&table["stale_reason"]) && bounded_text(&table["stale_since"])
@@ -119,19 +119,25 @@ fn isolated_outcome(table: &Value) -> bool {
         }
 }
 
+/// `list` names every stale table exactly once, with its own reason and since.
 fn stale_tables_match(list: &Value, tables: &[Value]) -> bool {
     let Some(list) = list.as_array() else {
         return false;
     };
     let stale: Vec<&Value> = tables.iter().filter(|t| t["status"] == "stale").collect();
+    let mut used = vec![false; stale.len()];
     list.len() == stale.len()
         && list.iter().all(|entry| {
             closed(entry, &["reason", "since", "table"])
-                && stale.iter().any(|t| {
-                    entry["table"]["schema"] == t["schema"]
+                && closed(&entry["table"], &["name", "schema"])
+                && stale.iter().zip(used.iter_mut()).any(|(t, used)| {
+                    let same = !*used
+                        && entry["table"]["schema"] == t["schema"]
                         && entry["table"]["name"] == t["table"]
                         && entry["reason"] == t["stale_reason"]
-                        && entry["since"] == t["stale_since"]
+                        && entry["since"] == t["stale_since"];
+                    *used |= same;
+                    same
                 })
         })
 }
@@ -286,7 +292,7 @@ pub fn validate_cut(cut: &Value, generation: &str) -> Result<(), StoreError> {
     for table in tables {
         let (storage_schema, name) = crate::native_publication::storage_names(table)?;
         if !(if isolated {
-            closed(table, &ISOLATED_TABLE_KEYS) && isolated_outcome(table)
+            closed(table, &ISOLATED_TABLE_KEYS) && isolated_outcome(table, generation)
         } else {
             closed(table, &TABLE_KEYS)
         })
@@ -1044,5 +1050,60 @@ mod isolation_cut_tests {
         assert!(validate_cut(&cut(mixed, Some(json!([]))), GEN).is_err());
         let extra = vec![outcome(table("a"), "fresh", None, None)];
         assert!(validate_cut(&cut(extra, None), GEN).is_err());
+    }
+
+    fn stale(name: &str, reason: &str) -> (Value, Value) {
+        let since = "2026-11-08T00:00:00Z";
+        (
+            outcome(table(name), "stale", Some(reason), Some(since)),
+            json!({"table":{"schema":"app","name":name},"reason":reason,"since":since}),
+        )
+    }
+
+    #[test]
+    fn loader_drift_reasons_with_raw_case_and_non_ascii_names_are_accepted() {
+        let wide = format!("schema_drift:h.{}:type", "0123456789abcdef");
+        let upper = format!("schema_drift:c.{}:nullability", "P".repeat(63));
+        for reason in [
+            "schema_drift:c.PAYLOAD:dropped",
+            "schema_drift:c.userId:renamed",
+            "schema_drift:c.%e5%90%8d%e5%89%8d:type",
+            "schema_drift:c.a%3ab:collation",
+            "schema_drift:unpublished_column:key",
+            upper.as_str(),
+            wide.as_str(),
+        ] {
+            let (t, entry) = stale("b", reason);
+            let tables = vec![outcome(table("a"), "fresh", None, None), t];
+            assert!(validate_cut(&cut(tables, Some(json!([entry]))), GEN).is_ok(), "{reason}");
+        }
+        for reason in [
+            "schema_drift:PAYLOAD:dropped",
+            "schema_drift:c.payload:unknown",
+            "schema_drift:c.%61:type",
+            "mystery_code",
+        ] {
+            let (t, entry) = stale("b", reason);
+            let tables = vec![outcome(table("a"), "fresh", None, None), t];
+            assert!(validate_cut(&cut(tables, Some(json!([entry]))), GEN).is_err(), "{reason}");
+        }
+    }
+
+    #[test]
+    fn stale_list_is_one_to_one_and_fresh_rows_carry_the_cut_run() {
+        let (b, b_entry) = stale("b", "source_timeout");
+        let (c, c_entry) = stale("c", "source_timeout");
+        let tables = vec![b.clone(), c.clone()];
+        assert!(validate_cut(&cut(tables.clone(), Some(json!([b_entry, c_entry]))), GEN).is_ok());
+        // One stale table repeated while another is omitted.
+        assert!(validate_cut(&cut(tables, Some(json!([b_entry, b_entry]))), GEN).is_err());
+        let mut extra = b_entry.clone();
+        extra["table"]["extra"] = json!(1);
+        assert!(validate_cut(&cut(vec![b], Some(json!([extra]))), GEN).is_err());
+        let mut fresh = outcome(table("a"), "fresh", None, None);
+        fresh["retained_run"] = json!("run_prev");
+        assert!(validate_cut(&cut(vec![fresh.clone()], Some(json!([]))), GEN).is_err());
+        fresh["status"] = json!("noop");
+        assert!(validate_cut(&cut(vec![fresh], Some(json!([]))), GEN).is_ok());
     }
 }

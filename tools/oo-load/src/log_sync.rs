@@ -279,6 +279,8 @@ async fn prepare<E: Epoch>(
         target,
         budget,
         &lineage,
+        // MySQL/Oracle C1 lineage never carried a table shape: no legacy proof.
+        None,
         &config.initial_position,
     )
     .await?;

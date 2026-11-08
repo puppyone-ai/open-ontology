@@ -16,6 +16,7 @@ pub(super) struct Admission {
     pub attempts: BTreeMap<TableRef, u8>,
     pub mysql_alter: BTreeMap<TableRef, BTreeSet<String>>,
     pub previous_columns: BTreeMap<TableRef, Vec<String>>,
+    pub schema_upgrades: BTreeMap<TableRef, &'static str>,
 }
 
 pub(super) async fn prepare<E: SourceEngine>(
@@ -26,6 +27,7 @@ pub(super) async fn prepare<E: SourceEngine>(
     config: &TargetConfig,
     budget: &ReadBudget,
     lineage: &str,
+    legacy_lineage: Option<&str>,
     initial: &Watermark,
 ) -> Result<Admission, String> {
     // A capability probe may enumerate/lock publication members. Connectivity
@@ -57,6 +59,7 @@ pub(super) async fn prepare<E: SourceEngine>(
             attempts: BTreeMap::new(),
             mysql_alter: BTreeMap::new(),
             previous_columns: BTreeMap::new(),
+            schema_upgrades: BTreeMap::new(),
         });
     }
     let mut classes = BTreeMap::new();
@@ -65,9 +68,36 @@ pub(super) async fn prepare<E: SourceEngine>(
     let mut attempts = BTreeMap::new();
     let mut mysql_alter = BTreeMap::new();
     let mut previous_columns = BTreeMap::new();
+    // Pre-0129 PostgreSQL C1 bindings fenced every table's column shape in the
+    // durable lineage. Reproducing that exact lineage now proves the shape the
+    // old fence accepted; only then may a missing catalog be sealed.
+    let legacy_proven = match legacy_lineage {
+        Some(legacy) => {
+            oo_pipeline::engine_sync_pg::stored_lineage(conn, &binding)
+                .await?
+                .as_deref()
+                == Some(legacy)
+        }
+        None => false,
+    };
+    let mut upgrades = BTreeMap::new();
     for table in tables {
         let mut target = PgTarget::new(conn, &binding, &config.run_id, table).await?;
-        let sealed = target.sealed_columns().await?;
+        let mut sealed = target.sealed_columns().await?;
+        if sealed.is_none()
+            && legacy_proven
+            && let Ok(Some(live)) = engine.column_shape(table, budget).await
+        {
+            match target.adopt_legacy_catalog(None, &live, None).await {
+                Ok(()) => {
+                    sealed = target.sealed_columns().await?;
+                    upgrades.insert(table.clone(), "legacy_lineage_sealed");
+                }
+                // The generation's columns are not all present: stays unproven.
+                Err("schema_unproven") => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
         if let Some(sealed) = &sealed {
             let mut columns = sealed.columns.clone();
             columns.sort_by_key(|column| column.ordinal);
@@ -166,6 +196,7 @@ pub(super) async fn prepare<E: SourceEngine>(
         attempts,
         mysql_alter,
         previous_columns,
+        schema_upgrades: upgrades,
     })
 }
 
@@ -300,6 +331,7 @@ pub(super) async fn report(
                 "attempts":admission.attempts.get(&position.table),
                 "durable_position":position.position,
                 "schema_class":admission.classes.get(&position.table),
+                "schema_upgrade":admission.schema_upgrades.get(&position.table),
                 "alignment":admission.repair_proofs.get(&position.table),
                 "new_generations":u8::from(admission.repaired.contains(&position.table)), "gateway_published":false,
                 "source_time":"unmeasured"

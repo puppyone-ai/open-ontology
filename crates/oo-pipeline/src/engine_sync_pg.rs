@@ -27,6 +27,24 @@ fn quote(value: &str) -> Result<String> {
     Ok(format!("\"{}\"", value.replace('"', "\"\"")))
 }
 
+/// The durable C1 lineage of a source binding, if any, before `open` may
+/// rewrite it. Read-only.
+pub async fn stored_lineage(conn: &mut PgConnection, source: &str) -> Result<Option<String>> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_state') IS NOT NULL")
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(db)?;
+    if !installed {
+        return Ok(None);
+    }
+    sqlx::query_scalar("SELECT lineage FROM _oo_load.sync_state WHERE source=$1")
+        .bind(hash(source.as_bytes()))
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)
+}
+
 fn pg_shape_only_lineage_upgrade(old: &str, new: &str) -> bool {
     let parse = |s: &str| serde_json::from_str::<(String, String, String)>(s).ok();
     let (Some((old, old_slot, old_publication)), Some((new, slot, publication))) =
@@ -332,12 +350,7 @@ impl<'a> PgSync<'a> {
     /// Persist the fence before capture may exclude this table. Restored source
     /// access does not clear it: only an aligned replacement may rejoin C1.
     pub async fn quarantine(&mut self, table: &TableRef, reason: &str) -> Result<()> {
-        if crate::engine_isolation::stale_reason(reason) != Some(reason)
-            && !matches!(
-                reason,
-                "source_permission" | "source_timeout" | "table_budget" | "rebaseline_required"
-            )
-        {
+        if !crate::stale_grammar::valid(reason) {
             return Err("sync_table_reason");
         }
         let binding = self

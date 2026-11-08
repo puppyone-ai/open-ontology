@@ -49,6 +49,7 @@ pub mod engine_sync_pg;
 pub mod full_import;
 pub mod jsonb_document;
 pub mod native_catalog;
+pub mod stale_grammar;
 pub use full_import::{ApprovedColumn, approved_column_typmod, approved_columns};
 pub mod c1_buffer_position;
 pub mod c1_key;

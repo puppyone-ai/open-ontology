@@ -112,6 +112,7 @@ async fn retained_engine_publication_candidate() {
         .unwrap(),
         generation: "first".into(),
         tables: vec![table.clone()],
+        outcome_run: None,
     };
     for run in ["first", "second"] {
         let mut target = PgTarget::new(&mut db, &request.source_binding, run, &table)
@@ -621,6 +622,69 @@ async fn retained_engine_publication_candidate() {
     partial.generation = "interrupted".into();
     assert_eq!(
         publish_generation(&mut db, &partial).await.unwrap_err(),
+        "publication_cycle_incomplete"
+    );
+    // Per-table outcomes come from the current cycle, never the replayed anchor.
+    for (run, anchor, states, minted) in [
+        // Stale now, healthy in the anchor: a replay would hide STALE_DATA.
+        ("stale-now", "recovered", ["stale", "noop"], true),
+        // The same stale interval as the anchor: an exact replay.
+        ("stale-again", "stale-now", ["stale", "noop"], false),
+        // Recovered now, stale in the anchor: a replay would keep it stale.
+        ("recovered-now", "stale-now", ["noop", "noop"], true),
+    ] {
+        isolation::begin(&mut db, &partial.source_binding, run, &partial.tables)
+            .await
+            .unwrap();
+        for (table, state) in partial.tables.iter().zip(states) {
+            isolation::record(
+                &mut db,
+                &partial.source_binding,
+                run,
+                table,
+                state,
+                (state == "stale").then_some("source_permission"),
+            )
+            .await
+            .unwrap();
+        }
+        isolation::finish(&mut db, &partial.source_binding, run)
+            .await
+            .unwrap();
+        let mut current = partial.clone();
+        current.generation = anchor.into();
+        current.outcome_run = Some(run.into());
+        let candidate = publish_generation(&mut db, &current).await.unwrap();
+        assert_eq!(candidate["run"], if minted { run } else { anchor }, "{run}");
+        let receipt = &candidate["receipt"]["shards"][0]["receipt"];
+        assert_eq!(receipt["run_id"], candidate["run"]);
+        for (table, state) in receipt["tables"].as_array().unwrap().iter().zip(states) {
+            assert_eq!(
+                table["status"] == "stale",
+                state == "stale",
+                "{run}: {table}"
+            );
+            assert_eq!(
+                table["stale_reason"].as_str(),
+                (state == "stale").then_some("source_permission")
+            );
+        }
+        assert_eq!(
+            candidate["stale_tables"].as_array().unwrap().len(),
+            usize::from(states[0] == "stale"),
+        );
+        assert_eq!(
+            candidate["data_vector"][0]["storage_relation"],
+            base["data_vector"][0]["storage_relation"],
+            "retained data stays from the retained runs"
+        );
+    }
+    // A cycle that never completed cannot be the outcome source.
+    let mut current = partial.clone();
+    current.generation = "recovered".into();
+    current.outcome_run = Some("interrupted".into());
+    assert_eq!(
+        publish_generation(&mut db, &current).await.unwrap_err(),
         "publication_cycle_incomplete"
     );
     println!(

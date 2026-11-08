@@ -24,6 +24,14 @@ fn publication_flags_cannot_be_used_as_load_or_sync() {
             vec!["--library", "owned"],
             "publication_subcommand_required",
         ),
+        (
+            vec!["--outcome-run", "current"],
+            "publication_subcommand_required",
+        ),
+        (
+            vec!["prune", "--outcome-run", "current"],
+            "publication_arguments",
+        ),
         (vec!["publish", "--c5", "unused"], "publication_arguments"),
         (vec!["publish", "--sync", "unused"], "publication_arguments"),
         (
