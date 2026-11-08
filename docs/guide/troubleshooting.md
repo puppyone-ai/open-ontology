@@ -738,8 +738,8 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `publication_unverified` | [review-and-publication](#review-and-publication) | [`build_retained.rs:225`](../../crates/oo-cli/src/admin/build_retained.rs#L225) |
 | `review_required` | [review-and-publication](#review-and-publication) | [`build.rs:288`](../../crates/oo-cli/src/admin/build.rs#L288) |
 | `server_error` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:107`](../../crates/oo-gateway/src/auth_device.rs#L107) |
-| `sink_bytes` | [configuration-and-source](#configuration-and-source) | [`lib.rs:63`](../../tools/oo-load/src/lib.rs#L63) |
+| `sink_bytes` | [configuration-and-source](#configuration-and-source) | [`c1_repair.rs:28`](../../tools/oo-load/src/c1_repair.rs#L28) |
 | `sink_rows` | [configuration-and-source](#configuration-and-source) | [`lib.rs:50`](../../tools/oo-load/src/lib.rs#L50) |
 | `temporarily_unavailable` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:132`](../../crates/oo-gateway/src/auth_device.rs#L132) |
-| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:555`](../../tools/oo-load/src/main.rs#L555) |
-| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:551`](../../tools/oo-load/src/main.rs#L551) |
+| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:557`](../../tools/oo-load/src/main.rs#L557) |
+| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:553`](../../tools/oo-load/src/main.rs#L553) |
