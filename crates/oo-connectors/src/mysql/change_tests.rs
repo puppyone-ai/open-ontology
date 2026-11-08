@@ -732,6 +732,34 @@ fn classified_ddl_parser_never_admits_statement_dml_or_ambiguous_names() {
 }
 
 #[test]
+fn only_account_management_statements_are_row_neutral() {
+    for sql in [
+        "GRANT SELECT ON `fixture`.`items` TO 'fixture_reader'@'%'",
+        "REVOKE SELECT ON `fixture`.* FROM 'fixture_reader'@'%'",
+        "CREATE USER 'u'@'%' IDENTIFIED WITH 'caching_sha2_password'",
+        "ALTER USER 'u'@'%' ACCOUNT LOCK",
+        "DROP USER 'u'@'%'",
+        "DROP ROLE r",
+        "SET DEFAULT ROLE r TO 'u'@'%'",
+        "FLUSH PRIVILEGES",
+    ] {
+        assert!(account_statement(&sql.to_ascii_uppercase()), "{sql}");
+    }
+    for sql in [
+        "/* GRANT */ DELETE FROM items",
+        "DELETE FROM items",
+        "DROP TABLE items",
+        "CREATE TABLE user(id int)",
+        "ALTER TABLE items ADD n int",
+        "SET @x=1",
+        "INSERT INTO grants VALUES(1)",
+        "GRANTED",
+    ] {
+        assert!(!account_statement(&sql.to_ascii_uppercase()), "{sql}");
+    }
+}
+
+#[test]
 fn projection_uses_proven_ordinals_and_rejects_ambiguous_history() {
     let names = |values: &[&str]| values.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
     let published = names(&["id", "payload"]);

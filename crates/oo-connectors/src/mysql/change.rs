@@ -615,6 +615,17 @@ impl MysqlChanges {
                             images.clear();
                             commit = true;
                         }
+                        // Account management is its own implicitly committed
+                        // transaction and cannot change rows or table shape.
+                        // Access is rechecked table by table on every cycle.
+                        _ if account_statement(&sql) => {
+                            if !changes.is_empty() {
+                                return Err(SourceError::protocol(
+                                    "binlog_statement_new_generation_rebaseline",
+                                ));
+                            }
+                            commit = true;
+                        }
                         // DDL or statement DML may invalidate the cached schema. Fail closed.
                         _ => {
                             let table = alter_table(e.query().as_ref(), e.schema().as_ref())
@@ -754,6 +765,19 @@ impl MysqlChanges {
             return Err(SourceError::protocol("binlog_incomplete_transaction"));
         }
         Ok(None)
+    }
+}
+
+/// `sql` is the trimmed, upper-cased query text. A leading comment or any
+/// other statement is not admitted.
+fn account_statement(sql: &str) -> bool {
+    let words: Vec<_> = sql.split_whitespace().take(3).collect();
+    match words.as_slice() {
+        ["GRANT" | "REVOKE", ..] => true,
+        ["CREATE" | "ALTER" | "DROP" | "RENAME", "USER" | "ROLE", ..] => true,
+        ["SET", "PASSWORD", ..] | ["SET", "DEFAULT", "ROLE"] => true,
+        ["FLUSH", "PRIVILEGES", ..] => true,
+        _ => false,
     }
 }
 
