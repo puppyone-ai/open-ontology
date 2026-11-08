@@ -183,6 +183,7 @@ ID 格式 `S<sprint>-<车道>-<序号>`。“测试 / 退出”列末尾的 `AT-
 | S6-A-01 | A | 现场加固 3（D22）：状态语义拆分——`oo status` 给出 `data_published_at`、最近一期 `cycle.result`（succeeded/partial/review_required/failed）与原因、逐表 `stale`/`review_pending` 及原因；健康按服务与数据发布时间判定，`partial` 为降级而非失败；文档与故障排查同步 | crates/oo-cli、deploy/lite/lifecycle.py、docs/guide | 单测 + T9 状态用例；生成文档检查 |
 | S6-B-02 | B | 现场加固 4（D23）：发布绑定按逻辑身份校验——用 schema/关系名、relkind、列定义（序号、名称、`format_type`）、规范化视图定义与发布方写入的身份记录替代 OID、relfilenode、类型 OID；保持防替换（换表、改列、改视图仍拒绝）；`pg_dump`/`pg_restore` 与物理迁移后发布仍有效 | crates/oo-gateway/src/publication_binding.rs、migrations | 篡改负例全部仍拒绝；逻辑备份恢复后查询成功（T9）；Gateway 套件 |
 | S6-H-01 | H | 现场加固测试 T9 与回归：T9（单表隔离、结构分级、语义按表复核、状态语义、逻辑恢复）在 PG 17、MySQL 8.4、Oracle 23；固定 SHA 重测 P0 全版本 T2/T3/T4/T7；矩阵重生成；独立审阅 | tools/oo-test、evidence-index、matrix-baseline | 全部通过或命名残留；审阅无阻断项 |
+| S6-H-02 | H | 生产影响测试 T10（D24）：在源库持续前台 OLTP 负载下，分别测量首次全量拉库、C1、C5 对生产吞吐与延迟的影响，以及各引擎副作用（PG xmin/死元组/槽保留 WAL；MySQL history list/Threads_running；Oracle undo/ORA-01555/LogMiner CPU）；超出预算则落地缓解（C5 只重读变化范围、自适应限流、分块短事务+C5 修正替代长快照、备库读取、时间窗）并复测 | tools/oo-test/t10.py、证据、缓解代码与文档 | PostgreSQL 17、MySQL 8.4、Oracle 23（优先），前台 p95 增幅 ≤20%、p99 ≤50%、吞吐降幅 ≤5%、零前台错误，或命名残留与运维建议 |
 
 ## 5. 测试与校验方案
 
@@ -211,6 +212,10 @@ ID 格式 `S<sprint>-<车道>-<序号>`。“测试 / 退出”列末尾的 `AT-
 | T9-10 | 目标库 `pg_dump`/`pg_restore` 恢复 | 发布绑定仍有效、查询成功；换表/改列/改视图篡改仍被拒绝 |
 | T9-11 | 全局错误（源不可达） | 整期 failed，不发布，数据发布时间不推进 |
 | T9-12 | 弱 CPU（2 vCPU 容器）Gateway 预热与查询 | 优化构建在预热上限内，记录对 dev 构建的倍数 |
+| T10-01 | 首次全量拉库 × 前台 OLTP | 记录基线与拉库期间 p50/p95/p99、吞吐、错误；源 CPU/IO；PG backend_xmin 年龄与热表死元组增长、MySQL history list length、Oracle undo 使用与 ORA-01555 |
+| T10-02 | C1 持续同步 × 前台 OLTP | 同上；PG 槽保留 WAL，Oracle LogMiner CPU |
+| T10-03 | C5 周期 × 前台 OLTP | 同上；空闲与有变化两种周期 |
+| T10-04 | 超预算时的缓解复测 | 同一负载下缓解后的同一组指标 |
 | L5 | 上千表夹具 T5；连通性指标；数据-only 周期零模型调用 | 执行者 G | 审核摘要、调用计量 |
 
 **每个 sprint 末**：主线程在 P0 全版本跑一次 T0–T5（本机原生 + amd64 仿真），把结果写入 `state.json`；未通过的项不进下个 sprint 的“已完成”。
@@ -270,6 +275,7 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D21 | 交付构建默认优化 | 现场经验第 13 条：dev 构建在弱 CPU 上使 Gateway 目录预热超时、查询 12–20 秒。lite 镜像改为 release，并保留运行时检查（debug-assertions、overflow-checks）；CLI 原本即 release | S6-M-05 |
 | D22 | 故障按表隔离与状态分层 | 产品已声明逐表一致（`consistency=per_table`），故障应隔离到表：单表失败 stale 并保留上一代、其余 partial 发布；结构变化按已发布投影分级、证明而非推断；语义复核按表；状态分为数据发布时间、整期结果与逐表原因，告警按数据发布时间。依据现场经验第 1–9 条 | S6-M-06、S6-M-07、S6-G-01、S6-A-01 |
 | D23 | 发布绑定基于逻辑身份 | 现场经验第 14 条：OID/relfilenode 绑定使任何备份恢复、迁移、升级都让发布失效。改为逻辑身份 + 发布方身份记录，篡改检测能力不降低 | S6-B-02 |
+| D24 | 生产影响预算 | 产品读取生产库，首次全量与持续同步都不得明显影响源库正常吞吐：以前台负载 p95/p99 延迟与吞吐相对基线的变化为准（p95 ≤+20%、p99 ≤+50%、吞吐 ≤−5%、零错误），并披露长事务/日志保留等副作用；超出时优先降低读取（只读变化范围、自适应限流、短事务分块），再给出备库与时间窗建议。所有者 2026-11-08 要求 | S6-H-02 |
 
 ## 10. 提交规范
 

@@ -1555,6 +1555,17 @@
    "branch": "v0.2/field-hardening",
    "commits": [],
    "evidence": []
+  },
+  {
+   "id": "S6-H-02",
+   "sprint": "S6",
+   "lane": "H",
+   "title": "生产影响测试 T10 与缓解（D24）",
+   "status": "pending",
+   "owner": null,
+   "branch": null,
+   "commits": [],
+   "evidence": []
   }
  ],
  "blocked": [],
