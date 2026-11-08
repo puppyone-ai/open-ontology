@@ -3079,21 +3079,13 @@ fn stale_table_warning(
         .iter()
         .find_map(|key| row[*key].as_str().filter(|s| !s.trim().is_empty()))
         .unwrap_or("reason unavailable");
-    // Named drift is shown only in the loader's grammar, which names published
-    // columns alone. Any other drift text (an older raw column name, possibly
-    // unpublished or a key) is reduced to the generic class.
+    // This warning has no role context, and a loaded column is not
+    // necessarily visible to the caller's role, so Agents never get a column
+    // name here: only the drift kind. The owner sees the full reason in
+    // `oo status` (review R8).
     let reason: String = if reason.starts_with("schema_drift:") {
         match stale_grammar::parse_drift(reason) {
-            Some((stale_grammar::DriftColumn::Published(name), kind)) => {
-                let name: String = name.chars().filter(|c| !c.is_control()).collect();
-                format!("schema_drift:{kind} (published column {name:?})")
-            }
-            Some((stale_grammar::DriftColumn::Hashed(digest), kind)) => {
-                format!("schema_drift:{kind} (published column sha256 prefix {digest})")
-            }
-            Some((stale_grammar::DriftColumn::Unpublished, kind)) => {
-                format!("schema_drift:unpublished_column:{kind}")
-            }
+            Some((_, kind)) => format!("schema_drift:{kind}"),
             None => "schema_drift".into(),
         }
     } else {
@@ -3137,7 +3129,7 @@ fn stale_status_is_optional_scoped_and_preserves_reason() {
 }
 
 #[test]
-fn stale_drift_names_only_published_columns() {
+fn stale_drift_never_names_columns_to_agents() {
     use serde_json::json;
     let message = |reason: &str| {
         stale_table_warning(
@@ -3148,27 +3140,20 @@ fn stale_drift_names_only_published_columns() {
         .unwrap()
         .message
     };
-    assert!(
-        message("schema_drift:c.userId:type")
-            .ends_with("schema_drift:type (published column \"userId\")")
-    );
-    assert!(message("schema_drift:c.%e5%90%8d:dropped").ends_with("(published column \"名\")"));
-    assert!(
-        message("schema_drift:unpublished_column:key")
-            .ends_with("schema_drift:unpublished_column:key")
-    );
-    assert!(
-        message("schema_drift:h.0123456789abcdef:type")
-            .ends_with("sha256 prefix 0123456789abcdef)")
-    );
-    // Raw legacy names, including unpublished key columns, are never echoed.
-    for raw in [
-        "schema_drift:secret_key:key",
-        "schema_drift:SSN:dropped",
-        "schema_drift:x",
+    for (reason, shown) in [
+        ("schema_drift:c.userId:type", "schema_drift:type"),
+        ("schema_drift:c.%e5%90%8d:dropped", "schema_drift:dropped"),
+        ("schema_drift:unpublished_column:key", "schema_drift:key"),
+        ("schema_drift:h.0123456789abcdef:type", "schema_drift:type"),
+        ("schema_drift:secret_key:key", "schema_drift"),
+        ("schema_drift:SSN:dropped", "schema_drift"),
+        ("schema_drift:x", "schema_drift"),
     ] {
-        let text = message(raw);
-        assert!(text.ends_with("Reason: schema_drift"), "{text}");
+        let text = message(reason);
+        assert!(text.ends_with(&format!("Reason: {shown}")), "{text}");
+        for name in ["userId", "名", "secret_key", "SSN", "0123456789abcdef"] {
+            assert!(!text.contains(name), "{text}");
+        }
     }
 }
 
