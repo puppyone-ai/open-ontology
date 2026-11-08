@@ -67,6 +67,9 @@ impl SlotStatus {
 pub struct PostgresChanges {
     engine: PostgresEngine,
     config: CaptureConfig,
+    quarantined: BTreeSet<TableRef>,
+    table_positions: BTreeMap<TableRef, u64>,
+    projections: BTreeMap<TableRef, Vec<String>>,
 }
 
 impl PostgresChanges {
@@ -77,7 +80,25 @@ impl PostgresChanges {
         Ok(Self {
             engine: PostgresEngine::new(source),
             config,
+            quarantined: BTreeSet::new(),
+            table_positions: BTreeMap::new(),
+            projections: BTreeMap::new(),
         })
+    }
+
+    /// Call only after persisting the table fence. The coordinator must retain
+    /// source history at the frozen table position, not acknowledge this skip.
+    pub fn quarantine(&mut self, tables: BTreeSet<TableRef>) {
+        self.quarantined = tables;
+    }
+
+    /// Aligned table positions can lead the shared cursor after rebaseline.
+    pub fn table_positions(&mut self, positions: BTreeMap<TableRef, u64>) {
+        self.table_positions = positions;
+    }
+    /// Supplied only after native classification against the sealed catalog.
+    pub fn projections(&mut self, projections: BTreeMap<TableRef, Vec<String>>) {
+        self.projections = projections;
     }
 
     pub async fn preflight(&mut self) -> Result<SlotStatus, SourceError> {
@@ -144,7 +165,7 @@ impl PostgresChanges {
             s,
             sqlx::query(
                 "SELECT count(*)::int8, bool_and(pubinsert AND pubupdate AND pubdelete), \
-             bool_or(pubviaroot), bool_or(pg_get_userbyid(pubowner)=current_user) \
+             bool_or(pubviaroot), bool_or(pg_get_userbyid(pubowner)=current_user), bool_or(puballtables) \
              FROM pg_publication WHERE pubname=$1",
             )
             .bind(&self.config.publication),
@@ -156,15 +177,45 @@ impl PostgresChanges {
         {
             return Err(SourceError::privilege("publication_missing_or_incomplete"));
         }
-        let rows = session::fetch_all(
-            s,
-            sqlx::query(
-                "SELECT schemaname::text, tablename::text, to_jsonb(p)->>'rowfilter' \
-             FROM pg_publication_tables p WHERE pubname=$1",
-            )
-            .bind(&self.config.publication),
-        )
-        .await?;
+        // pg_publication_tables opens every relation, including a quarantined
+        // one under an exclusive lock. Explicit members can be proven from
+        // catalogs without opening those relations.
+        if !self.quarantined.is_empty() {
+            if cell_bool(&publication, 4)? {
+                return Err(SourceError::config(
+                    "quarantine_requires_explicit_publication",
+                ));
+            }
+            if s.major >= 15 {
+                let schemas = session::fetch_control(
+                    s,
+                    sqlx::query(
+                        "SELECT count(*)::int8 FROM pg_publication_namespace n
+                     JOIN pg_publication p ON p.oid=n.pnpubid WHERE p.pubname=$1",
+                    )
+                    .bind(&self.config.publication),
+                )
+                .await?;
+                if cell_i64(&schemas, 0)? != 0 {
+                    return Err(SourceError::config(
+                        "quarantine_requires_explicit_publication",
+                    ));
+                }
+            }
+        }
+        let members = if self.quarantined.is_empty() {
+            "SELECT schemaname::text, tablename::text, to_jsonb(p)->>'rowfilter' \
+             FROM pg_publication_tables p WHERE pubname=$1"
+        } else {
+            "SELECT n.nspname::text,c.relname::text,
+             CASE WHEN c.relkind='p' AND NOT p.pubviaroot THEN 'partition_leaf_scope'
+                  ELSE to_jsonb(r)->>'prqual' END
+             FROM pg_publication_rel r JOIN pg_publication p ON p.oid=r.prpubid
+             JOIN pg_class c ON c.oid=r.prrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+             WHERE p.pubname=$1"
+        };
+        let rows =
+            session::fetch_all(s, sqlx::query(members).bind(&self.config.publication)).await?;
         let mut actual = BTreeSet::new();
         for r in rows {
             if cell_opt_string(&r, 2)?.is_some() {
@@ -189,6 +240,12 @@ impl PostgresChanges {
             ));
         }
         for (schema, table) in expected {
+            if self.quarantined.contains(&TableRef {
+                schema: schema.clone(),
+                name: table.clone(),
+            }) {
+                continue;
+            }
             let facts = session::fetch_control(s, sqlx::query(
                 "SELECT has_table_privilege(c.oid,'SELECT'), \
                  has_table_privilege(c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER') \
@@ -321,12 +378,20 @@ impl PostgresChanges {
         let mut images = Vec::new();
         let mut image_bytes = 0u64;
         let mut checked_relations = BTreeSet::new();
-        for (kind, relation, old, new) in events {
+        for (kind, relation, mut old, mut new) in events {
             let table = TableRef {
                 schema: relation.schema.clone(),
                 name: relation.table.clone(),
             };
             self.engine.selected(&table)?;
+            if self.quarantined.contains(&table)
+                || self
+                    .table_positions
+                    .get(&table)
+                    .is_some_and(|position| *position >= end)
+            {
+                continue;
+            }
             if checked_relations.insert(relation.oid) {
                 let current = session::fetch_control(s, sqlx::query(
                     "SELECT c.oid::int8 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace \
@@ -340,17 +405,64 @@ impl PostgresChanges {
                     ));
                 }
             }
-            let shape = catalog
+            let mut shape = catalog
                 .tables
                 .iter()
                 .find(|t| t.schema == table.schema && t.name == table.name)
-                .ok_or_else(|| SourceError::catalog("pg_relation_drift"))?;
-            if shape.columns.len() != relation.columns.len()
-                || shape
-                    .columns
+                .ok_or_else(|| SourceError::catalog("pg_relation_drift"))?
+                .clone();
+            let mut relation = (*relation).clone();
+            if let Some(names) = self.projections.get(&table) {
+                let indexes = names
                     .iter()
-                    .zip(&relation.columns)
-                    .any(|(a, b)| a.name != b.0 || a.type_oid != i64::from(b.1) || a.typmod != b.2)
+                    .map(|name| {
+                        relation
+                            .columns
+                            .iter()
+                            .position(|c| &c.0 == name)
+                            .ok_or_else(|| {
+                                SourceError::catalog("rebaseline_required_relation_drift")
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let project = |cells: Vec<Cell>| {
+                    indexes
+                        .iter()
+                        .map(|i| {
+                            cells
+                                .get(*i)
+                                .cloned()
+                                .ok_or_else(|| SourceError::protocol("pg_tuple_shape"))
+                        })
+                        .collect()
+                };
+                old = old.map(project).transpose()?;
+                new = new.map(project).transpose()?;
+                relation.columns = indexes
+                    .iter()
+                    .map(|i| relation.columns[*i].clone())
+                    .collect();
+                shape.columns = names
+                    .iter()
+                    .map(|name| {
+                        shape
+                            .columns
+                            .iter()
+                            .find(|c| &c.name == name)
+                            .cloned()
+                            .ok_or_else(|| {
+                                SourceError::catalog("rebaseline_required_relation_drift")
+                            })
+                    })
+                    .collect::<Result<_, _>>()?;
+            }
+            if shape.columns.len() != relation.columns.len()
+                || shape.columns.iter().zip(&relation.columns).any(|(a, b)| {
+                    a.name != b.0
+                        || a.type_oid != i64::from(b.1)
+                        || (a.typmod != b.2
+                            && !(self.projections.contains_key(&table) && a.type_oid == 1043))
+                })
             {
                 return Err(SourceError::catalog("rebaseline_required_relation_drift"));
             }
@@ -372,7 +484,7 @@ impl PostgresChanges {
                 .ok_or_else(|| SourceError::protocol("pg_tuple"))?;
             let image = image(
                 s,
-                shape,
+                &shape,
                 &relation,
                 cells,
                 &catalog.schema_hash,

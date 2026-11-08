@@ -83,6 +83,7 @@ pub struct PgTarget<'a> {
     document_column: Option<String>,
     source_columns: Option<Vec<oo_connectors::engine::SourceColumnShape>>,
     projection: Option<Vec<String>>,
+    pub(crate) c1_rebaseline: bool,
 }
 
 impl<'a> PgTarget<'a> {
@@ -153,6 +154,7 @@ impl<'a> PgTarget<'a> {
             document_column: None,
             source_columns: None,
             projection: None,
+            c1_rebaseline: false,
         })
     }
 
@@ -225,7 +227,7 @@ impl Target for PgTarget<'_> {
             .fetch_one(&mut *self.conn)
             .await
             .map_err(db)?;
-            if active {
+            if active && !self.c1_rebaseline {
                 return Err("load_rebaseline_required_active_sync");
             }
         }

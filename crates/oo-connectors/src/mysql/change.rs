@@ -23,6 +23,11 @@ pub struct MysqlChanges {
     source_uuid: String,
     source_epoch: String,
     mariadb_anchor: Option<Vec<(u32, u32, u64)>>,
+    classified_alter: BTreeMap<TableRef, std::collections::BTreeSet<String>>,
+    quarantined: std::collections::BTreeSet<TableRef>,
+    table_positions: BTreeMap<TableRef, Watermark>,
+    projections: BTreeMap<TableRef, Vec<String>>,
+    previous_columns: BTreeMap<TableRef, Vec<String>>,
 }
 
 /// Actual retained history, measured from the oldest readable binlog event.
@@ -116,6 +121,11 @@ impl MysqlEngine {
             source_uuid,
             source_epoch,
             mariadb_anchor,
+            classified_alter: Default::default(),
+            quarantined: Default::default(),
+            table_positions: BTreeMap::new(),
+            projections: BTreeMap::new(),
+            previous_columns: BTreeMap::new(),
         })
     }
 }
@@ -178,8 +188,9 @@ async fn image(
     engine: &mut MysqlEngine,
     meta: &TableMeta,
     row: &BinlogRow,
+    indexes: &[usize],
 ) -> Result<(Vec<KeyValue>, RecordBatch)> {
-    if row.len() != meta.columns.len() {
+    if indexes.len() != meta.columns.len() || indexes.iter().any(|i| *i >= row.len()) {
         return Err(SourceError::protocol(
             "binlog_schema_new_generation_rebaseline",
         ));
@@ -189,7 +200,7 @@ async fn image(
     let mut raw_values = Vec::with_capacity(meta.columns.len());
     for (i, column) in meta.columns.iter().enumerate() {
         let value = row
-            .as_ref(i)
+            .as_ref(indexes[i])
             .ok_or_else(|| SourceError::protocol("binlog_partial_image"))?;
         let mut value = Value::try_from(value.clone())
             .map_err(|_| SourceError::protocol("binlog_partial_image"))?;
@@ -283,6 +294,74 @@ async fn image(
 }
 
 impl MysqlChanges {
+    /// Only a coordinator that checked native facts against the sealed
+    /// projection may admit these DDL boundaries. Row decoding stays strict.
+    pub fn allow_classified_alter(
+        &mut self,
+        clauses: BTreeMap<TableRef, std::collections::BTreeSet<String>>,
+        quarantined: std::collections::BTreeSet<TableRef>,
+    ) {
+        self.classified_alter = clauses;
+        self.quarantined = quarantined;
+    }
+    /// File positions must be aligned SHOW BINARY LOG STATUS boundaries, never
+    /// offsets inside a transaction. Repaired history needs no current-schema decode.
+    pub fn table_positions(&mut self, positions: BTreeMap<TableRef, Watermark>) {
+        self.table_positions = positions;
+    }
+    pub fn projections(
+        &mut self,
+        projections: BTreeMap<TableRef, Vec<String>>,
+        previous_columns: BTreeMap<TableRef, Vec<String>>,
+    ) {
+        self.projections = projections;
+        self.previous_columns = previous_columns;
+    }
+
+    fn projected_meta(
+        &self,
+        table: &TableRef,
+        mut meta: TableMeta,
+        width: usize,
+    ) -> Result<(TableMeta, Vec<usize>)> {
+        let Some(names) = self.projections.get(table) else {
+            if width != meta.columns.len() {
+                return Err(SourceError::protocol(
+                    "binlog_schema_new_generation_rebaseline",
+                ));
+            }
+            return Ok((meta, (0..width).collect()));
+        };
+        let indexes = projection_indexes(
+            names,
+            &meta.names,
+            self.previous_columns.get(table).map(Vec::as_slice),
+            width,
+        )?;
+        meta.columns = names
+            .iter()
+            .map(|name| {
+                meta.columns
+                    .iter()
+                    .find(|c| &c.plan.name == name)
+                    .cloned()
+                    .ok_or_else(|| SourceError::protocol("binlog_projection"))
+            })
+            .collect::<Result<_>>()?;
+        meta.names = names.clone();
+        meta.key_positions = meta
+            .key
+            .columns
+            .iter()
+            .map(|key| {
+                names
+                    .iter()
+                    .position(|name| name == &key.name)
+                    .ok_or_else(|| SourceError::protocol("binlog_projection_key"))
+            })
+            .collect::<Result<_>>()?;
+        Ok((meta, indexes))
+    }
     /// Persist with the durable cursor; compare on reconstruction before replay.
     pub fn source_epoch(&self) -> &str {
         &self.source_epoch
@@ -536,11 +615,42 @@ impl MysqlChanges {
                             images.clear();
                             commit = true;
                         }
+                        // Account management is its own implicitly committed
+                        // transaction and cannot change rows or table shape.
+                        // Access is rechecked table by table on every cycle.
+                        _ if account_statement(&sql) => {
+                            if !changes.is_empty() {
+                                return Err(SourceError::protocol(
+                                    "binlog_statement_new_generation_rebaseline",
+                                ));
+                            }
+                            commit = true;
+                        }
                         // DDL or statement DML may invalidate the cached schema. Fail closed.
                         _ => {
-                            return Err(SourceError::protocol(
-                                "binlog_statement_new_generation_rebaseline",
-                            ));
+                            let table = alter_table(e.query().as_ref(), e.schema().as_ref())
+                                .ok_or_else(|| {
+                                    SourceError::protocol(
+                                        "binlog_statement_new_generation_rebaseline",
+                                    )
+                                })?;
+                            let covered = self
+                                .table_positions
+                                .get(&table)
+                                .map(|floor| covered_file_event(&file, position, floor))
+                                .transpose()?
+                                .unwrap_or(false);
+                            let proven = alter_clause(e.query().as_ref()).is_some_and(|clause| {
+                                self.classified_alter
+                                    .get(&table)
+                                    .is_some_and(|clauses| clauses.contains(&clause))
+                            });
+                            if !covered && !proven && !self.quarantined.contains(&table) {
+                                return Err(SourceError::protocol(
+                                    "binlog_statement_new_generation_rebaseline",
+                                ));
+                            }
+                            commit = true;
                         }
                     }
                 }
@@ -558,21 +668,27 @@ impl MysqlChanges {
                         schema: tme.database_name().into_owned(),
                         name: tme.table_name().into_owned(),
                     };
+                    if let Some(floor) = self.table_positions.get(&table)
+                        && covered_file_event(&file, position, floor)?
+                    {
+                        continue;
+                    }
                     if let Some(meta) = self.engine.tables.get(&table).cloned() {
-                        if tme.columns_count() != meta.columns.len() as u64 {
-                            return Err(SourceError::protocol(
-                                "binlog_schema_new_generation_rebaseline",
-                            ));
-                        }
+                        let (meta, indexes) =
+                            self.projected_meta(&table, meta, tme.columns_count() as usize)?;
                         for pair in rows.rows(tme) {
                             let (before, after) =
                                 pair.map_err(|_| SourceError::protocol("binlog_row"))?;
                             let before = match before.as_ref() {
-                                Some(row) => Some(image(&mut self.engine, &meta, row).await?),
+                                Some(row) => {
+                                    Some(image(&mut self.engine, &meta, row, &indexes).await?)
+                                }
                                 None => None,
                             };
                             let after = match after.as_ref() {
-                                Some(row) => Some(image(&mut self.engine, &meta, row).await?),
+                                Some(row) => {
+                                    Some(image(&mut self.engine, &meta, row, &indexes).await?)
+                                }
                                 None => None,
                             };
                             let (change, batch) = match (before, after) {
@@ -649,6 +765,123 @@ impl MysqlChanges {
             return Err(SourceError::protocol("binlog_incomplete_transaction"));
         }
         Ok(None)
+    }
+}
+
+/// `sql` is the trimmed, upper-cased query text. A leading comment or any
+/// other statement is not admitted.
+fn account_statement(sql: &str) -> bool {
+    let words: Vec<_> = sql.split_whitespace().take(3).collect();
+    matches!(
+        words.as_slice(),
+        ["GRANT" | "REVOKE", ..]
+            | ["CREATE" | "ALTER" | "DROP" | "RENAME", "USER" | "ROLE", ..]
+            | ["SET", "PASSWORD", ..]
+            | ["SET", "DEFAULT", "ROLE"]
+            | ["FLUSH", "PRIVILEGES", ..]
+    )
+}
+
+fn alter_table(sql: &str, database: &str) -> Option<TableRef> {
+    let sql = sql.trim();
+    let prefix = sql.get(..12)?;
+    if !prefix.eq_ignore_ascii_case("ALTER TABLE ") {
+        return None;
+    }
+    let rest = sql.get(12..)?.trim_start();
+    let end = rest.find(char::is_whitespace)?;
+    let name = &rest[..end];
+    let parts: Vec<_> = name.split('.').collect();
+    let identifier = |s: &str| {
+        let s = s
+            .strip_prefix('`')
+            .and_then(|s| s.strip_suffix('`'))
+            .unwrap_or(s);
+        (!s.is_empty() && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_'))
+            .then(|| s.to_owned())
+    };
+    match parts.as_slice() {
+        [name] => Some(TableRef {
+            schema: identifier(database)?,
+            name: identifier(name)?,
+        }),
+        [schema, name] => Some(TableRef {
+            schema: identifier(schema)?,
+            name: identifier(name)?,
+        }),
+        _ => None,
+    }
+}
+
+fn alter_clause(sql: &str) -> Option<String> {
+    let rest = sql.trim().get(12..)?.trim_start();
+    let end = rest.find(char::is_whitespace)?;
+    Some(
+        rest[end..]
+            .trim()
+            .trim_end_matches(';')
+            .replace('`', "")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase(),
+    )
+}
+
+fn covered_file_event(file: &str, position: u64, floor: &Watermark) -> Result<bool> {
+    let Watermark::MysqlFilePos {
+        file: end,
+        position: high,
+    } = floor
+    else {
+        return Err(SourceError::config(
+            "binlog_table_floor_requires_file_position",
+        ));
+    };
+    let split = |name: &str| -> Result<(String, u64)> {
+        let (prefix, number) = name.rsplit_once('.').ok_or_else(rebaseline)?;
+        Ok((prefix.into(), number.parse().map_err(|_| rebaseline())?))
+    };
+    let (prefix, sequence) = split(file)?;
+    let (end_prefix, end_sequence) = split(end)?;
+    if prefix != end_prefix {
+        return Err(rebaseline());
+    }
+    Ok((sequence, position) <= (end_sequence, *high))
+}
+
+fn projection_indexes(
+    names: &[String],
+    current: &[String],
+    previous: Option<&[String]>,
+    width: usize,
+) -> Result<Vec<usize>> {
+    let indexes = |columns: &[String]| {
+        names
+            .iter()
+            .map(|name| {
+                columns
+                    .iter()
+                    .position(|n| n == name)
+                    .ok_or_else(|| SourceError::protocol("binlog_projection"))
+            })
+            .collect::<Result<Vec<_>>>()
+    };
+    let live = (current.len() == width)
+        .then(|| indexes(current))
+        .transpose()?;
+    let old = previous
+        .filter(|p| p.len() == width)
+        .map(indexes)
+        .transpose()?;
+    match (live, old) {
+        (Some(a), Some(b)) if a != b => Err(SourceError::protocol(
+            "binlog_ambiguous_projection_rebaseline",
+        )),
+        (Some(a), _) | (_, Some(a)) => Ok(a),
+        _ => Err(SourceError::protocol(
+            "binlog_schema_new_generation_rebaseline",
+        )),
     }
 }
 

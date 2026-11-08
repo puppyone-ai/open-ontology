@@ -6,6 +6,11 @@ use oo_connectors::engine::{ChangeBatch, ChangeSource, ReadBudget, Watermark};
 /// The target atomically commits row changes, tombstones and the position.
 pub trait Target {
     fn position(&mut self) -> impl std::future::Future<Output = Result<Watermark>>;
+    /// May lag the source cursor when a table is quarantined. Releasing logs
+    /// past this point would erase unapplied history.
+    fn feedback_position(&mut self) -> impl std::future::Future<Output = Result<Watermark>> {
+        self.position()
+    }
     fn apply(
         &mut self,
         from: &Watermark,
@@ -69,8 +74,12 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     if !compare(&from, &earliest)? {
         return Err("sync_rebaseline_required_retention");
     }
+    let floor = target.feedback_position().await?;
+    if !compare(&from, &floor)? || !compare(&floor, &earliest)? {
+        return Err("sync_rebaseline_required_retention");
+    }
     // Also repairs feedback lost after the previous successful target commit.
-    feedback.acknowledge(&from).await?;
+    feedback.acknowledge(&floor).await?;
     let Some(batch) = source
         .next_batch(&from, budget)
         .await
@@ -90,7 +99,11 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     if target.position().await? != batch.position {
         return Err("sync_target_position");
     }
-    feedback.acknowledge(&batch.position).await?;
+    let floor = target.feedback_position().await?;
+    if !compare(&batch.position, &floor)? {
+        return Err("sync_feedback_ahead");
+    }
+    feedback.acknowledge(&floor).await?;
     Ok(true)
 }
 
@@ -127,10 +140,14 @@ mod tests {
         position: u64,
         fail: bool,
         events: Arc<Mutex<Vec<u64>>>,
+        feedback_floor: Option<u64>,
     }
     impl Target for Store {
         async fn position(&mut self) -> Result<Watermark> {
             Ok(pos(self.position))
+        }
+        async fn feedback_position(&mut self) -> Result<Watermark> {
+            Ok(pos(self.feedback_floor.unwrap_or(self.position)))
         }
         async fn apply(&mut self, _: &Watermark, batch: &ChangeBatch) -> Result<()> {
             if self.fail {
@@ -171,6 +188,7 @@ mod tests {
             position: 10,
             fail: false,
             events: events.clone(),
+            feedback_floor: None,
         };
         let mut ack = Ack {
             events: events.clone(),
@@ -201,6 +219,7 @@ mod tests {
             position: 10,
             fail: true,
             events: events.clone(),
+            feedback_floor: None,
         };
         let mut ack = Ack {
             events: events.clone(),
@@ -226,6 +245,45 @@ mod tests {
             Err("sync_position_not_advanced")
         );
     }
+    #[tokio::test]
+    async fn quarantine_retains_history_despite_healthy_cursor_progress() {
+        let events = Arc::new(Mutex::new(vec![]));
+        let mut source = Source {
+            floor: 10,
+            next: 30,
+        };
+        let mut store = Store {
+            position: 20,
+            fail: false,
+            events: events.clone(),
+            feedback_floor: Some(10),
+        };
+        let mut ack = Ack {
+            events: events.clone(),
+            fail: false,
+        };
+        let budget = ReadBudget::default();
+        assert!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after)
+                .await
+                .unwrap()
+        );
+        assert_eq!(store.position, 30);
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        source.floor = 11;
+        assert_eq!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
+            Err("sync_rebaseline_required_retention")
+        );
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        store.feedback_floor = Some(31);
+        assert_eq!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
+            Err("sync_rebaseline_required_retention")
+        );
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+    }
+
     #[test]
     fn file_numbers_are_numeric_and_prefix_changes_require_rebaseline() {
         let p = |file: &str| Watermark::MysqlFilePos {
