@@ -138,12 +138,12 @@ def gateway_probe(config, receipt):
     return {'receipt_sha256': receipt['receipt_sha256'], 'measured_at': timestamp()}
 
 
-def cycle(config, generation, output, guard=lambda: None):
+def cycle(config, generation, output, guard=lambda: None, active_generation=lambda: None):
     result = {'stage': 'failed', 'result': 'failed', 'reason': None,
               'stale_tables': [], 'review_pending': [], 'data_published_at': None,
               'data_verified_at': None, 'published_generation': None}
     try:
-        return run_cycle(config, generation, output, guard, result)
+        return run_cycle(config, generation, output, guard, result, active_generation)
     except Exception as error:
         # Carry activation evidence even when a later Gateway probe/prune fails.
         allowed = {'sync_failed', 'all_tables_stale', 'candidate_failed', 'publish_failed',
@@ -154,7 +154,7 @@ def cycle(config, generation, output, guard=lambda: None):
         save(output / 'result.json', result)
         raise
 
-def run_cycle(config, generation, output, guard, result):
+def run_cycle(config, generation, output, guard, result, active_generation=lambda: None):
     output.mkdir(mode=0o700)
     common = ['--stack', config['stack'], '--source', config['source'], '--target', config['target'],
               '--secrets-dir', config['secrets_dir']]
@@ -184,7 +184,7 @@ def run_cycle(config, generation, output, guard, result):
         # Every table is unchanged, but an earlier partial cut left them on
         # different retained runs: re-confirm the active publication. oo-load
         # refuses the replay unless the recomputed cut is byte-identical.
-        active = last_published_generation(config)
+        active = active_generation()
         if not active:
             raise ValueError('mixed_retained_runs')
         retained_runs = {active}
@@ -308,7 +308,10 @@ def work(config):
         thread = threading.Thread(target=beat, daemon=True)
         thread.start()
         try:
-            result = cycle(config['cycle'], 'scheduled-' + task, root / task, guard)
+            # The schedule config, not the nested cycle config, holds the
+            # control-DB binding the active-publication lookup needs.
+            result = cycle(config['cycle'], 'scheduled-' + task, root / task, guard,
+                           lambda: last_published_generation(config))
             guard()
             done = complete(config, binding, result)
             if done not in ('succeeded', 'failed'):

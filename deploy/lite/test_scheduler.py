@@ -112,7 +112,6 @@ class Tests(unittest.TestCase):
                             'gateway_document': {'envelope': {'producer': {'artifact': {}}}}}).encode())
                     return Mock(returncode=0)
                 with patch.object(scheduler, 'command', side_effect=fake), patch.object(
-                        scheduler, 'last_published_generation', return_value=active), patch.object(
                         scheduler, 'data_only', return_value={'stage': 'data_only', 'review_pending': []}), \
                         patch.object(builder, 'pinned', return_value=b'{}'), patch.object(
                         scheduler, 'gateway_probe', return_value={'receipt_sha256': 'receipt',
@@ -120,15 +119,33 @@ class Tests(unittest.TestCase):
                     out = root / 'cycle'
                     if active is None:
                         with self.assertRaisesRegex(ValueError, 'mixed_retained_runs'):
-                            scheduler.cycle(config, 'run_new', out)
+                            scheduler.cycle(config, 'run_new', out, active_generation=lambda: active)
                         self.assertEqual(generations, [])
                     else:
-                        result = scheduler.cycle(config, 'run_new', out)
+                        result = scheduler.cycle(config, 'run_new', out, active_generation=lambda: active)
                         self.assertEqual(generations, ['run_active'])
                         self.assertEqual(result['result'], 'succeeded')
                         self.assertIsNone(result['data_published_at'])
                         self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
                         self.assertEqual(result['published_generation'], 'run_active')
+
+    def test_active_generation_lookup_uses_the_schedule_config(self):
+        # The worker passes the top-level schedule config (project and control
+        # psql), which the nested cycle config does not carry.
+        top = {'project': '11111111-2222-4333-8444-555555555555', 'control_psql_command': ['psql'],
+               'cycle': {'library': 'owned'}}
+        seen = []
+        def fake_sql(config, text):
+            seen.append((config, text))
+            return 'run_active\n'
+        with patch.object(scheduler, 'sql', side_effect=fake_sql):
+            self.assertEqual(scheduler.last_published_generation(top), 'run_active')
+        self.assertIs(seen[0][0], top)
+        self.assertIn(top['project'], seen[0][1])
+        with patch.object(scheduler, 'sql', return_value="bad'value"):
+            self.assertIsNone(scheduler.last_published_generation(top))
+        with self.assertRaises(KeyError):
+            scheduler.last_published_generation(top['cycle'])
 
     def test_fresh_catalog_controls_data_only_admission(self):
         for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy'):
@@ -193,7 +210,7 @@ class Tests(unittest.TestCase):
 
     def test_worker_preserves_named_export_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
-            def cycle(config, generation, output, guard):
+            def cycle(config, generation, output, guard, active_generation=lambda: None):
                 output.mkdir()
                 raise ValueError('source_catalog_export_failed')
             responses = [json.dumps({'status': 'claimed', 'task_id': PROJECT, 'generation': 1}), 'failed']
@@ -255,7 +272,7 @@ class Tests(unittest.TestCase):
     def test_worker_records_review_failure_without_disabling_schedule(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = dict(project=PROJECT, work_dir=tmp, cycle={})
-            def cycle(config, generation, output, guard):
+            def cycle(config, generation, output, guard, active_generation=lambda: None):
                 output.mkdir()
                 return {'stage': 'review_required', 'model_calls': 0}
             responses = [json.dumps({'status': 'claimed', 'task_id': PROJECT, 'generation': 1}), 'failed']
@@ -270,7 +287,7 @@ class Tests(unittest.TestCase):
 
     def test_expired_completion_never_claims_success(self):
         with tempfile.TemporaryDirectory() as tmp:
-            def cycle(config, generation, output, guard):
+            def cycle(config, generation, output, guard, active_generation=lambda: None):
                 output.mkdir()
                 return {'stage': 'succeeded'}
             responses = [json.dumps({'status': 'claimed', 'task_id': PROJECT, 'generation': 1}), 'lost_lease', 'lost_lease']
