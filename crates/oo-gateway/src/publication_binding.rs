@@ -381,6 +381,8 @@ impl BindingCheck {
         }
         // Migration 0135 is an explicit, publisher-controlled upgrade. Never
         // manufacture identities on a read path or fall back after installation.
+        // 0136 binds routine dependencies of views; an identity digest without
+        // it cannot see a replaced function, so its absence is drift too.
         let installation = tx
             .query_one(
                 "SELECT to_regclass('_oo.publication_identity') IS NOT NULL
@@ -388,7 +390,8 @@ impl BindingCheck {
                     (SELECT count(*)=2 FROM pg_catalog.pg_event_trigger
                      WHERE evtname IN ('oo_publication_identity_ddl','oo_publication_identity_drop')
                      AND evtenabled='O'
-                     AND evtfoid=to_regprocedure('_oo.publication_identity_invalidate()'))",
+                     AND evtfoid=to_regprocedure('_oo.publication_identity_invalidate()'))
+                    AND to_regprocedure('_oo.publication_routine_identity(oid[])') IS NOT NULL",
                 &[],
             )
             .await

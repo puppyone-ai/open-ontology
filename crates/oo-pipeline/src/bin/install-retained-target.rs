@@ -160,6 +160,21 @@ async fn install_logical_identity(db: &mut PgConnection) -> Result<(), &'static 
         .await
         .map_err(|_| "logical_publication")?;
     }
+    // Routine dependencies of published views (0136); for fresh and
+    // already-installed targets alike, applied once.
+    let routines: bool = sqlx::query_scalar(
+        "SELECT to_regprocedure('_oo.publication_routine_identity(oid[])') IS NOT NULL",
+    )
+    .fetch_one(&mut *db)
+    .await
+    .map_err(|_| "logical_publication_routines")?;
+    if !routines {
+        db.execute(include_str!(
+            "../../migrations/0136_publication_routine_identity.sql"
+        ))
+        .await
+        .map_err(|_| "logical_publication_routines")?;
+    }
     Ok(())
 }
 

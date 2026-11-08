@@ -44,6 +44,61 @@ class TableReview(unittest.TestCase):
             self.assertTrue(pending[0]['changes'])
             self.assertNotIn('new', [c['name'] for c in current['tables'][1]['columns']])
 
+    def test_library_remainder_is_stable_for_unchanged_sources(self):
+        old, new = facts(cut(1)), facts(cut(2))
+        self.assertEqual(semantics.library_data_only_digest(old), semantics.library_data_only_digest(new))
+        self.assertEqual(semantics.library_review_pending(old, new, 'owned'), [])
+        _, source = fixture()
+        first, second = self.observed(source), self.observed(copy.deepcopy(source))
+        self.assertEqual(semantics.library_data_only_digest(first), semantics.library_data_only_digest(second))
+        self.assertEqual(semantics.table_data_only_digests(first), semantics.table_data_only_digests(second))
+        # Counts are evidence, not semantics: row-count drift keeps the digest.
+        counted = copy.deepcopy(first)
+        for item in counted['relationship_candidates']:
+            item['evidence']['matched'] = item['evidence']['non_null'] = 99
+        self.assertEqual(semantics.library_data_only_digest(first), semantics.library_data_only_digest(counted))
+
+    def test_relationship_candidate_change_requires_library_review(self):
+        _, source = fixture()
+        old = self.observed(source)
+        for mutate in (lambda f: f['relationship_candidates'].pop(),
+                       lambda f: f['relationship_candidates'][-1].update(cardinality='one_to_one'),
+                       lambda f: f['relationship_candidates'][-1]['evidence'].update(containment='0.5')):
+            current = copy.deepcopy(old)
+            self.assertEqual(current['relationship_candidates'][-1]['provenance'], 'inferred')
+            mutate(current)
+            self.assertEqual(semantics.table_review_pending(old, current), [])
+            self.assertEqual(semantics.library_review_pending(old, current, 'owned'), [
+                {'table': 'library:owned', 'scope': 'library', 'changes': ['relationship_candidates']}])
+        # An observed source change that drops an inferred edge is library-scoped too.
+        changed = copy.deepcopy(source)
+        changed['tables'][0]['columns'][0]['comment'] = 'changed'
+        self.assertTrue(semantics.library_review_pending(old, self.observed(changed), 'owned'))
+
+    def test_report_change_requires_library_review_only(self):
+        _, source = fixture()
+        old = self.observed(source)
+        old['report_definitions_observation'] = {'dataset': 'app.accounts', 'definitions': [
+            {'active': '1', 'module_name': 'Accounts', 'sql_text': 'SELECT COUNT(*) FROM accounts'}]}
+        current = copy.deepcopy(old)
+        current['report_definitions_observation']['definitions'][0]['sql_text'] = 'SELECT 1 FROM accounts'
+        self.assertEqual(semantics.table_review_pending(old, current), [])
+        self.assertEqual(semantics.library_review_pending(old, current, 'owned'), [
+            {'table': 'library:owned', 'scope': 'library', 'changes': ['reports']}])
+        self.assertNotEqual(semantics.data_only_digest(old), semantics.data_only_digest(current))
+
+    def test_one_table_comment_marks_only_that_table(self):
+        _, source = fixture()
+        old = self.observed(source)
+        for index, path in ((1, None), (1, 1), (2, None)):
+            changed = copy.deepcopy(source)
+            target = changed['tables'][index] if path is None else changed['tables'][index]['columns'][path]
+            target['comment'] = 'changed'
+            current = self.observed(changed)
+            self.assertEqual(semantics.library_review_pending(old, current, 'owned'), [])
+            self.assertEqual([r['table'] for r in semantics.table_review_pending(old, current)],
+                             ['app.' + source['tables'][index]['name']])
+
     def test_reviewed_projection_allows_extra_columns_but_not_missing_or_retyped(self):
         current = facts(cut(1))
         reviewed = dict(protocol='oo.owner-reviewed-registry/v1', status='reviewed',

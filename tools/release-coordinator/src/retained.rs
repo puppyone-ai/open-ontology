@@ -696,6 +696,61 @@ async fn role_guard(
     Ok(None)
 }
 
+/// Whether the open fence has a current logical publication identity
+/// (migration 0135). Targets without the identity table have none to check.
+async fn identity_current(
+    tx: &Transaction<'_>,
+    role: &str,
+    relation: &str,
+) -> Result<Option<bool>, StoreError> {
+    let installed: bool = tx
+        .query_one(
+            "SELECT to_regclass('_oo.publication_identity') IS NOT NULL",
+            &[],
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    if !installed {
+        return Ok(None);
+    }
+    // The same predicate the Gateway binds a receipt to, never a weaker one.
+    let current: bool = tx
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM oo_publish_target.fence f JOIN _oo.publication_identity i              ON i.role_name=f.role_name AND i.schema_name=f.schema_name AND i.relation_name=f.relation_name              WHERE f.role_name=$1 AND f.schema_name='_oo' AND f.relation_name=$2 AND f.state='open'              AND i.valid AND i.publication_id=f.opened_pack_digest AND i.generation=f.opened_version              AND i.relation_identity_sha256=_oo.publication_relation_digest(i.schema_name,i.relation_name))",
+            p!(role, relation),
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    Ok(Some(current))
+}
+
+/// On a replayed (already open, same Pack) fence, mint a missing or invalid
+/// identity with the publisher's own fence write: the 0135 trigger recomputes
+/// the relation digest exactly as on a normal open. `None`: still not current.
+async fn replay_identity(
+    tx: &Transaction<'_>,
+    role: &str,
+    relation: &str,
+) -> Result<Option<&'static str>, StoreError> {
+    match identity_current(tx, role, relation).await? {
+        None => return Ok(Some("not_installed")),
+        Some(true) => return Ok(Some("current")),
+        Some(false) => {}
+    }
+    tx.execute(
+        "UPDATE oo_publish_target.fence SET state='open'          WHERE role_name=$1 AND schema_name='_oo' AND relation_name=$2 AND state='open'",
+        p!(role, relation),
+    )
+    .await
+    .map_err(query_error)?;
+    Ok(match identity_current(tx, role, relation).await? {
+        Some(true) => Some("reminted"),
+        _ => None,
+    })
+}
+
 /// Open each reviewed fence closed -> granted -> open, then activate the head.
 /// One transaction: a failed semantic admission leaves every fence and the head unchanged.
 pub async fn publish_reviewed_registry(
@@ -854,7 +909,14 @@ async fn body(
             && pack.as_deref() == Some(review.pack_digest.as_str())
             && opened == sorted
         {
-            fences.push(json!({"dataset":b.dataset,"relation":b.physical,"fence_state":"open","outcome":"replay"}));
+            // Fences opened before migration 0135 (or tombstoned since) have no
+            // current identity record; re-mint it through the fence trigger.
+            let identity = match replay_identity(tx, role, &b.physical).await? {
+                Some(identity) => identity,
+                None => return Ok(refusal("publication_identity_unavailable")),
+            };
+            fences.push(json!({"dataset":b.dataset,"relation":b.physical,"fence_state":"open","outcome":"replay",
+                "identity":identity}));
             continue;
         }
         replay = false;
@@ -959,6 +1021,10 @@ async fn body(
 #[cfg(test)]
 #[path = "../tests/observations/retained.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/observations/retained_replay_identity.rs"]
+mod replay_identity_tests;
 
 #[cfg(test)]
 mod isolation_cut_tests {

@@ -33,8 +33,13 @@ def publication_health(history, services_up, now=None):
         (history.get('tables') or {}).get(key) for key in ('stale','review_pending'))
     status='healthy' if services_up and fresh else 'unhealthy'
     if status=='healthy' and degraded:status='degraded'
+    # A library-scoped pending entry stops every publication until review, so
+    # surface it even while the last publication is still fresh.
+    library=any(isinstance(row,dict) and row.get('scope')=='library'
+                for row in (history.get('tables') or {}).get('review_pending') or [])
     return {'status':status,'healthy':status=='healthy','data_age_seconds':age,
-            'alert':None if fresh else 'data_publication_overdue' if published else 'data_publication_unmeasured'}
+            'alert':('library_review_required' if library else None) if fresh else
+            'data_publication_overdue' if published else 'data_publication_unmeasured'}
 
 def active_publication(root,argv,env):
     """Initial builds predate the first scheduled event; consult the DB head."""
