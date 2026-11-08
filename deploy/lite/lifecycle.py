@@ -408,7 +408,12 @@ def provision_retained(root,argv,env,request,port):
          f"GRANT oo_r_owner TO {DATA_LOGIN} WITH INHERIT FALSE, SET TRUE;\n"
          f"GRANT CONNECT ON DATABASE postgres TO {DATA_LOGIN};\n"
          f"GRANT USAGE ON SCHEMA _oo,oo_publish_target TO {DATA_LOGIN};\n"
-         f"GRANT SELECT ON ALL TABLES IN SCHEMA _oo,oo_publish_target TO {DATA_LOGIN};\n"
+         "GRANT SELECT ON _oo.physical_mappings,_oo.table_freshness,"
+         "_oo.source_watermark,_oo.table_quality,_oo.apply_receipts,"
+         "_oo.full_import_run,_oo.full_import_table,_oo.full_import_quality,"
+         "_oo.publication_identity,_oo.native_library_source_status,"
+         "_oo.native_library_head,_oo.native_library_publication,"
+         f"oo_publish_target.fence TO {DATA_LOGIN};\n"
          "GRANT EXECUTE ON FUNCTION _oo.lookup_physical_mapping(text,text,bigint,text,text,text,text) "
          f"TO {DATA_LOGIN};\n"
          f"ALTER ROLE {DATA_LOGIN} SET default_transaction_read_only=on;\n")

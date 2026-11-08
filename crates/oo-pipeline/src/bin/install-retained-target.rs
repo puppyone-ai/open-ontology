@@ -136,6 +136,15 @@ async fn install_logical_identity(db: &mut PgConnection) -> Result<(), &'static 
             .await
             .map_err(|_| "logical_publication")?;
     if !installed {
+        db.execute(
+            "DO $$ BEGIN
+             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='oo_target_admin') THEN
+                 CREATE ROLE oo_target_admin NOLOGIN;
+             END IF;
+             END $$;",
+        )
+        .await
+        .map_err(|_| "logical_publication_role")?;
         db.execute(include_str!(
             "../../migrations/0135_logical_publication_identity.sql"
         ))
