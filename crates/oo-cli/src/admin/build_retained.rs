@@ -296,13 +296,34 @@ pub(super) fn builder(
     let mut command = Command::new("python3");
     // Save the result in the child before returning, including on parent SIGKILL.
     command.args(["-c", "import importlib.util,json,os,sys\np,c,o,r=sys.argv[1:]\nsys.path.insert(0,os.path.dirname(p))\ns=importlib.util.spec_from_file_location('retained_build',p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)\nos.umask(0o077)\nv=m.run(c,o)\nm.save(r,v)\nprint(json.dumps(v))"])
-        .arg(text(runtime, "builder_script")?).arg(config_path).arg(output).arg(&receipt)
+        .arg(text(runtime, "builder_script")?).arg(config_path).arg(&output).arg(&receipt)
         .env("OO_SELFBUILD_BUDGET_BIN", binary("selfbuild-budget")?);
     let (code, _, _) = invoke(command, vec![], 1800)?;
     if code != 0 {
-        return Err(Failure::local("BUILD_BUILDER_FAILED"));
+        // The Builder process finished with an error (e.g. one transient
+        // model reply): its output can no longer change, so keep it aside as
+        // evidence and let `--resume` start a fresh attempt. A Builder that
+        // was interrupted mid-run still refuses above, never restarted.
+        keep_failed_output(root, &output)?;
+        return Err(Failure::local(
+            "BUILD_BUILDER_FAILED: the draft step failed; run oo build --resume to try again",
+        ));
     }
     review::read(&receipt)
+}
+
+/// Move a finished-but-failed Builder output aside (`builder-failed-<n>`),
+/// so the next resume starts a fresh attempt while the evidence is kept.
+fn keep_failed_output(root: &Path, output: &Path) -> Result<Option<PathBuf>> {
+    if !output.exists() {
+        return Ok(None);
+    }
+    let kept = (1..1000)
+        .map(|n| root.join(format!("builder-failed-{n}")))
+        .find(|path| !path.exists())
+        .ok_or_else(|| Failure::local("BUILD_BUILDER_FAILED"))?;
+    fs::rename(output, &kept).map_err(|_| Failure::local("BUILD_BUILDER_FAILED"))?;
+    Ok(Some(kept))
 }
 
 pub(super) fn publish(
@@ -453,6 +474,36 @@ fn pin_source_catalog(
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
+
+    #[test]
+    fn failed_builder_output_is_kept_aside_for_a_fresh_resume() {
+        let root = std::env::temp_dir().join(format!("oo-keep-failed-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("builder")).unwrap();
+        fs::write(root.join("builder/partial.json"), b"{}").unwrap();
+        assert_eq!(
+            keep_failed_output(&root, &root.join("builder"))
+                .ok()
+                .unwrap(),
+            Some(root.join("builder-failed-1"))
+        );
+        assert!(!root.join("builder").exists());
+        assert!(root.join("builder-failed-1/partial.json").exists());
+        fs::create_dir_all(root.join("builder")).unwrap();
+        assert_eq!(
+            keep_failed_output(&root, &root.join("builder"))
+                .ok()
+                .unwrap(),
+            Some(root.join("builder-failed-2"))
+        );
+        assert_eq!(
+            keep_failed_output(&root, &root.join("builder"))
+                .ok()
+                .unwrap(),
+            None
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn hidden_catalog_command_rejects_bad_arguments_before_io() {
