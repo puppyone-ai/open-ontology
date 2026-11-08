@@ -49,6 +49,93 @@ const TABLE_KEYS: [&str; 14] = [
     "target_generation",
 ];
 
+const ISOLATED_SHARD_KEYS: [&str; 14] = [
+    "applied_pos",
+    "consistency",
+    "consistency_grade",
+    "cross_table_consistent",
+    "position_codec",
+    "position_lineage",
+    "protocol",
+    "run_id",
+    "run_ids",
+    "source_generation",
+    "source_id",
+    "stale_tables",
+    "tables",
+    "target_generation",
+];
+const ISOLATED_TABLE_KEYS: [&str; 18] = [
+    "accepted_rows",
+    "applied_pos",
+    "capture_method",
+    "consistency_grade",
+    "delete_detection",
+    "physical_name",
+    "recipe_sha256",
+    "retained_run",
+    "run_id",
+    "schema",
+    "source_generation",
+    "stale_reason",
+    "stale_since",
+    "status",
+    "storage_schema",
+    "storage_table",
+    "table",
+    "target_generation",
+];
+
+fn stale_reason_code(value: &Value) -> bool {
+    value.as_str().is_some_and(|s| {
+        (1..=128).contains(&s.len())
+            && s.as_bytes()[0].is_ascii_lowercase()
+            && s.bytes().all(|b| {
+                b.is_ascii_lowercase()
+                    || b.is_ascii_digit()
+                    || matches!(b, b'_' | b':' | b'.' | b'-')
+            })
+    })
+}
+
+fn bounded_text(value: &Value) -> bool {
+    value
+        .as_str()
+        .is_some_and(|s| (1..=64).contains(&s.len()) && !s.chars().any(char::is_control))
+}
+
+/// Fresh and no-op tables carry no stale fields; a stale table names its
+/// reason and since-time and keeps the run that produced its retained data.
+fn isolated_outcome(table: &Value) -> bool {
+    run_token(table["retained_run"].as_str().unwrap_or(""))
+        && match table["status"].as_str() {
+            Some("fresh" | "noop") => {
+                table["stale_reason"].is_null() && table["stale_since"].is_null()
+            }
+            Some("stale") => {
+                stale_reason_code(&table["stale_reason"]) && bounded_text(&table["stale_since"])
+            }
+            _ => false,
+        }
+}
+
+fn stale_tables_match(list: &Value, tables: &[Value]) -> bool {
+    let Some(list) = list.as_array() else {
+        return false;
+    };
+    let stale: Vec<&Value> = tables.iter().filter(|t| t["status"] == "stale").collect();
+    list.len() == stale.len()
+        && list.iter().all(|entry| {
+            closed(entry, &["reason", "since", "table"])
+                && stale.iter().any(|t| {
+                    entry["table"]["schema"] == t["schema"]
+                        && entry["table"]["name"] == t["table"]
+                        && entry["reason"] == t["stale_reason"]
+                        && entry["since"] == t["stale_since"]
+                })
+        })
+}
+
 macro_rules! p {
     ($($value:expr),* $(,)?) => {
         &[$(&$value as &(dyn postgres_types::ToSql + Sync)),*]
@@ -166,7 +253,7 @@ pub fn validate_cut(cut: &Value, generation: &str) -> Result<(), StoreError> {
         &["source_id", "anchor_run", "receipt", "receipt_sha256"],
     ) || shard["anchor_run"] != generation
         || shard["receipt_sha256"].as_str() != Some(crate::canon::canonical_sha(receipt).as_str())
-        || !closed(receipt, &SHARD_KEYS)
+        || !(closed(receipt, &SHARD_KEYS) || closed(receipt, &ISOLATED_SHARD_KEYS))
         || receipt["protocol"] != RECEIPT_PROTOCOL
         || receipt["source_id"] != source
         || receipt["run_id"] != generation
@@ -190,9 +277,19 @@ pub fn validate_cut(cut: &Value, generation: &str) -> Result<(), StoreError> {
     if names.len() != tables.len() {
         return Err(StoreError::Input);
     }
+    // Per-table isolation (plan D22): an isolated cut carries every table's
+    // outcome, and `stale_tables` lists exactly the stale ones.
+    let isolated = receipt.get("stale_tables").is_some();
+    if isolated && !stale_tables_match(&receipt["stale_tables"], tables) {
+        return Err(StoreError::Input);
+    }
     for table in tables {
         let (storage_schema, name) = crate::native_publication::storage_names(table)?;
-        if !closed(table, &TABLE_KEYS)
+        if !(if isolated {
+            closed(table, &ISOLATED_TABLE_KEYS) && isolated_outcome(table)
+        } else {
+            closed(table, &TABLE_KEYS)
+        })
             || storage_schema != schema
             || names.iter().filter(|n| n.as_str() == Some(name)).count() != 1
             || !seen.insert(name)
@@ -862,3 +959,90 @@ async fn body(
 #[cfg(test)]
 #[path = "../tests/observations/retained.rs"]
 mod tests;
+
+#[cfg(test)]
+mod isolation_cut_tests {
+    use super::*;
+
+    const GEN: &str = "run_a";
+
+    fn table(name: &str) -> Value {
+        json!({"schema":"app","table":name,"storage_schema":"app","storage_table":name,
+            "run_id":GEN,"physical_name":format!("pt_{}", "a".repeat(60)),
+            "accepted_rows":1,"recipe_sha256":"b".repeat(64),"source_generation":2,
+            "target_generation":2,"applied_pos":"0","capture_method":"c5_diff",
+            "delete_detection":"reconcile","consistency_grade":"B"})
+    }
+
+    fn cut(mut tables: Vec<Value>, stale: Option<Value>) -> Value {
+        for (i, t) in tables.iter_mut().enumerate() {
+            t["physical_name"] = json!(format!("pt_{}{}", "a".repeat(59), i));
+        }
+        let names: Vec<Value> = tables.iter().map(|t| t["table"].clone()).collect();
+        let manifest = json!({"protocol":"oo.library.membership/v1","library_id":"lib",
+            "sources":[{"source_id":"src","schema":"app","tables":names}]});
+        let mut receipt = json!({"protocol":RECEIPT_PROTOCOL,"source_id":"src","run_id":GEN,
+            "run_ids":[GEN],"source_generation":2,"target_generation":2,
+            "position_codec":"snapshot-zero/v1","position_lineage":"oo-load.retained",
+            "applied_pos":"0","consistency":"retained_generation","consistency_grade":"B",
+            "cross_table_consistent":false,"tables":tables});
+        if let Some(stale) = stale {
+            receipt["stale_tables"] = stale;
+        }
+        json!({"library":{"protocol":crate::native_library::PROTOCOL,"library_id":"lib",
+            "manifest_sha256":crate::canon::canonical_sha(&manifest),"manifest":manifest,
+            "expected_tables":names.len(),"shards":["src"]},
+            "shards":[{"source_id":"src","anchor_run":GEN,
+                "receipt_sha256":crate::canon::canonical_sha(&receipt),"receipt":receipt}]})
+    }
+
+    fn outcome(mut t: Value, status: &str, reason: Option<&str>, since: Option<&str>) -> Value {
+        t["retained_run"] = json!(if status == "stale" { "run_prev" } else { GEN });
+        t["status"] = json!(status);
+        t["stale_reason"] = json!(reason);
+        t["stale_since"] = json!(since);
+        t
+    }
+
+    #[test]
+    fn legacy_cut_is_still_valid() {
+        assert!(validate_cut(&cut(vec![table("a"), table("b")], None), GEN).is_ok());
+    }
+
+    #[test]
+    fn isolated_cut_with_matching_stale_list_is_valid() {
+        let t = vec![
+            outcome(table("a"), "fresh", None, None),
+            outcome(
+                table("b"),
+                "stale",
+                Some("source_permission"),
+                Some("2026-11-08T00:00:00Z"),
+            ),
+        ];
+        let stale = json!([{"table":{"schema":"app","name":"b"},"reason":"source_permission",
+            "since":"2026-11-08T00:00:00Z"}]);
+        assert!(validate_cut(&cut(t, Some(stale)), GEN).is_ok());
+    }
+
+    #[test]
+    fn isolated_cut_rejects_inconsistent_outcomes() {
+        let fresh_with_reason = vec![outcome(table("a"), "fresh", Some("x"), None)];
+        assert!(validate_cut(&cut(fresh_with_reason, Some(json!([]))), GEN).is_err());
+        let stale_without_reason = vec![outcome(table("a"), "stale", None, Some("t"))];
+        assert!(validate_cut(&cut(stale_without_reason, Some(json!([]))), GEN).is_err());
+        let unknown_status = vec![outcome(table("a"), "maybe", None, None)];
+        assert!(validate_cut(&cut(unknown_status, Some(json!([]))), GEN).is_err());
+        let unlisted = vec![outcome(
+            table("a"),
+            "stale",
+            Some("source_timeout"),
+            Some("t"),
+        )];
+        assert!(validate_cut(&cut(unlisted, Some(json!([]))), GEN).is_err());
+        let mixed = vec![table("a")];
+        assert!(validate_cut(&cut(mixed, Some(json!([]))), GEN).is_err());
+        let extra = vec![outcome(table("a"), "fresh", None, None)];
+        assert!(validate_cut(&cut(extra, None), GEN).is_err());
+    }
+}
