@@ -277,6 +277,9 @@ def position(h, sid, table):
                    f"WHERE left(identity,40)='{prefix}';")
     return json.loads(text)
 
+BULK_ROWS = 20000
+
+
 def concurrent_rejoin(h):
     """T1: writer overlaps the full-table repair, then exact source/target equality."""
     sid = "fhp_c1_writer"
@@ -303,6 +306,15 @@ def concurrent_rejoin(h):
         for table in (bad, good):
             h.src(f"INSERT INTO {table} VALUES(2,'during-quarantine',2);"
                   f"UPDATE {table} SET payload='before-rejoin' WHERE id=1;")
+        # Enough quarantined rows that the repair snapshot spans real time,
+        # so the writer commits inside its correction window (log_events>0).
+        last = 100000 + BULK_ROWS - 1
+        h.src(f"INSERT INTO {bad} SELECT 100000+LEVEL-1,'bulk',LEVEL FROM dual "
+              f"CONNECT BY LEVEL<={BULK_ROWS};" if engine == "oracle" else
+              f"SET SESSION cte_max_recursion_depth={BULK_ROWS + 1};"
+              f"INSERT INTO {bad} WITH RECURSIVE s(g) AS (SELECT 100000 UNION ALL "
+              f"SELECT g+1 FROM s WHERE g<{last}) SELECT g,'bulk',g FROM s;" if engine == "mysql" else
+              f"INSERT INTO {bad} SELECT g,'bulk',g FROM generate_series(100000,{last}) g;")
         code, outputs, error = cycle(h, sid, sid + "-quarantine", "c1")
         held = position(h, sid, bad)
         quarantined = (code == 3 and held["position"] == frozen["position"]
@@ -312,7 +324,7 @@ def concurrent_rejoin(h):
         access(True)
         def write():
             count = 0
-            while not stop.is_set() and count < 100:
+            while not stop.is_set() and count < 2000:
                 key = 1000 + count // 4
                 for table in (bad, good):
                     statement = [
