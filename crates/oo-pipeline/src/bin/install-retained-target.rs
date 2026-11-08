@@ -107,6 +107,19 @@ async fn execute() -> Result<&'static str, &'static str> {
             .fetch_one(&mut db)
             .await
             .map_err(|_| "database")?;
+    // Sealed column catalog (lane FH-P2, migration 0129); idempotent.
+    sqlx::raw_sql(
+        "CREATE SCHEMA IF NOT EXISTS _oo_load; REVOKE ALL ON SCHEMA _oo_load FROM PUBLIC;",
+    )
+    .execute(&mut db)
+    .await
+    .map_err(|_| "sealed_column_catalog")?;
+    sqlx::raw_sql(include_str!(
+        "../../migrations/0129_sealed_column_catalog.sql"
+    ))
+    .execute(&mut db)
+    .await
+    .map_err(|_| "sealed_column_catalog")?;
     if installed {
         install_logical_identity(&mut db).await?;
         return Ok("already_installed");
