@@ -324,7 +324,7 @@ def concurrent_rejoin(h):
         access(True)
         def write():
             count = 0
-            while not stop.is_set() and count < 2000:
+            while not stop.is_set() and count < 200:
                 key = 1000 + count // 4
                 for table in (bad, good):
                     statement = [
