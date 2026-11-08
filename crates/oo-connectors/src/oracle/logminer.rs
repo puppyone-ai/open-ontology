@@ -102,9 +102,24 @@ pub struct OracleLogMiner {
     rebaseline: BTreeSet<TableRef>,
     retained_floor: u64,
     admitted_scn: u64,
+    classified_ddl: bool,
+    table_positions: BTreeMap<TableRef, u64>,
 }
 
 impl OracleLogMiner {
+    /// The coordinator must validate the native projection before and after
+    /// capture. Unknown dictionary/row errors still require rebaseline.
+    pub fn allow_classified_ddl(&mut self) {
+        self.classified_ddl = true;
+    }
+    pub fn table_positions(&mut self, positions: BTreeMap<TableRef, u64>) {
+        self.table_positions = positions;
+    }
+    /// Exclusion is legal only after the coordinator persists quarantine.
+    pub fn quarantine(&mut self, tables: &BTreeSet<TableRef>) {
+        self.tables.retain(|table, _| !tables.contains(table));
+        self.rebaseline.retain(|table| !tables.contains(table));
+    }
     /// Resume with the transaction floor captured before the aligned baseline.
     /// Persist it with DBID/resetlogs and the cursor; advancing a commit SCN
     /// does not permit advancing this floor.
@@ -179,6 +194,8 @@ impl OracleLogMiner {
             rebaseline: BTreeSet::new(),
             retained_floor: 0,
             admitted_scn: 0,
+            classified_ddl: false,
+            table_positions: BTreeMap::new(),
         };
         reader.check_logging()?;
         let files = reader.inventory()?;
@@ -332,9 +349,14 @@ impl OracleLogMiner {
         } else {
             ""
         };
+        let data_only = if self.classified_ddl {
+            " AND OPERATION_CODE IN (1,2,3)"
+        } else {
+            ""
+        };
         let sql = format!(
             "SELECT {} FROM v$logmnr_contents WHERE SEG_OWNER=:b1 AND TABLE_NAME=:b2 \
-             AND NVL(COMMIT_SCN,SCN)>:b3{pdb_clause} ORDER BY COMMIT_SCN,SCN,RS_ID,SSN",
+             AND NVL(COMMIT_SCN,SCN)>:b3{pdb_clause}{data_only} ORDER BY COMMIT_SCN,SCN,RS_ID,SSN",
             projections.join(",")
         );
         let mut binds = vec![
@@ -345,17 +367,22 @@ impl OracleLogMiner {
         if let Some(pdb) = &self.pdb {
             binds.push(Bind::Text(pdb.clone()));
         }
+        let invalid_operation = if self.classified_ddl {
+            "STATUS<>0"
+        } else {
+            "OPERATION_CODE=5 OR STATUS<>0"
+        };
         let invalid = self.engine.scalar(
             &format!(
                 "SELECT TO_CHAR(COUNT(*)) FROM v$logmnr_contents \
              WHERE SEG_OWNER=:b1 AND TABLE_NAME=:b2 AND SCN>:b3{pdb_clause} \
-             AND (OPERATION_CODE=5 OR STATUS<>0)"
+             AND ({invalid_operation})"
             ),
             &binds,
         )?;
         if invalid.as_deref() != Some("0") {
             self.rebaseline.insert(table.clone());
-            return Err(SourceError::catalog("logminer_table_rebaseline"));
+            return Err(SourceError::catalog("logminer_table_status_rebaseline"));
         }
         let rows = self
             .engine
@@ -375,13 +402,20 @@ impl OracleLogMiner {
             let commit = number(row[0].as_deref())?;
             let sequence = number(row[1].as_deref())?;
             let operation = number(row[4].as_deref())?;
-            if !matches!(operation, 1..=3)
-                || row[5].as_deref() != Some("0")
-                || row[7].as_deref() != Some("0")
-                || number(row[6].as_deref()).map_or(true, |start| start < floor)
-            {
+            let refusal = if !matches!(operation, 1..=3) {
+                Some("logminer_operation_rebaseline")
+            } else if row[5].as_deref() != Some("0") {
+                Some("logminer_row_status_rebaseline")
+            } else if row[7].as_deref() != Some("0") {
+                Some("logminer_continuation_rebaseline")
+            } else if number(row[6].as_deref()).map_or(true, |start| start < floor) {
+                Some("logminer_transaction_floor_rebaseline")
+            } else {
+                None
+            };
+            if let Some(refusal) = refusal {
                 self.rebaseline.insert(table.clone());
-                return Err(SourceError::catalog("logminer_table_rebaseline"));
+                return Err(SourceError::catalog(refusal));
             }
             let mut before = Vec::new();
             let mut after = Vec::new();
@@ -507,7 +541,10 @@ impl OracleLogMiner {
                     .checked_duration_since(Instant::now())
                     .ok_or(SourceError::budget("logminer_deadline"))?;
                 self.engine.set_timeout(remaining)?;
-                let next = self.table_changes(&table, &meta, from, self.retained_floor, budget)?;
+                let table_from =
+                    from.max(self.table_positions.get(&table).copied().unwrap_or(from));
+                let next =
+                    self.table_changes(&table, &meta, table_from, self.retained_floor, budget)?;
                 bytes += next
                     .iter()
                     .map(|event| event.5.get_array_memory_size())

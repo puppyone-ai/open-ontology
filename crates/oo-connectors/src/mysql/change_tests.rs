@@ -705,3 +705,64 @@ async fn live_handoff() {
     wa.disconnect().await.unwrap();
     wb.disconnect().await.unwrap();
 }
+#[test]
+fn classified_ddl_parser_never_admits_statement_dml_or_ambiguous_names() {
+    let table = TableRef {
+        schema: "fixture".into(),
+        name: "items".into(),
+    };
+    for sql in [
+        "ALTER TABLE items ADD extra int",
+        "alter table `fixture`.`items` MODIFY payload varchar(160)",
+    ] {
+        assert_eq!(alter_table(sql, "fixture"), Some(table.clone()));
+    }
+    for sql in [
+        "DELETE FROM items",
+        "TRUNCATE TABLE items",
+        "DROP TABLE items",
+        "CREATE TABLE items(id int)",
+        "ALTER TABLE `odd name` ADD n int",
+        "ALTER TABLE a.b.c ADD n int",
+        "ALTER TABLE items",
+        "/* comment */ ALTER TABLE items ADD n int",
+    ] {
+        assert_eq!(alter_table(sql, "fixture"), None, "{sql}");
+    }
+}
+
+#[test]
+fn projection_uses_proven_ordinals_and_rejects_ambiguous_history() {
+    let names = |values: &[&str]| values.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    let published = names(&["id", "payload"]);
+    let old = names(&["id", "payload"]);
+    let live = names(&["id", "payload", "extra"]);
+    assert_eq!(
+        projection_indexes(&published, &live, Some(&old), 2).unwrap(),
+        vec![0, 1]
+    );
+    assert_eq!(
+        projection_indexes(&published, &live, Some(&old), 3).unwrap(),
+        vec![0, 1]
+    );
+    assert!(projection_indexes(&published, &live, Some(&old), 4).is_err());
+    let moved = names(&["extra", "id", "payload"]);
+    assert!(projection_indexes(&published, &moved, Some(&live), 3).is_err());
+    assert_eq!(
+        alter_clause("ALTER TABLE `items` MODIFY `payload` varchar(160) NOT NULL;"),
+        Some("modify payload varchar(160) not null".into())
+    );
+}
+
+#[test]
+fn aligned_table_floor_skips_only_covered_file_events() {
+    let floor = Watermark::MysqlFilePos {
+        file: "bin.000010".into(),
+        position: 100,
+    };
+    assert!(covered_file_event("bin.000009", 999, &floor).unwrap());
+    assert!(covered_file_event("bin.000010", 100, &floor).unwrap());
+    assert!(!covered_file_event("bin.000010", 101, &floor).unwrap());
+    assert!(!covered_file_event("bin.000011", 4, &floor).unwrap());
+    assert!(covered_file_event("other.000010", 4, &floor).is_err());
+}
