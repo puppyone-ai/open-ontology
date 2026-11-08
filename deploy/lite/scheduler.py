@@ -3,6 +3,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+import re
 import os
 from pathlib import Path
 import ssl
@@ -12,6 +13,9 @@ import threading
 import time
 import urllib.request
 import uuid
+
+# Closed refusal codes the loader prints for a candidate (publication_*).
+PUBLICATION_REFUSAL = re.compile(r'publication_[a-z0-9_]{1,64}')
 
 KIND = 'lite_retained'
 
@@ -154,7 +158,9 @@ def cycle(config, generation, output, guard=lambda: None, active_generation=lamb
                    'gateway_reload_failed', 'prune_failed', 'source_catalog_export_failed',
                    'retained_origin_shape_drift', 'lease_lost', 'mixed_retained_runs'}
         result['stage'] = result['result'] = 'failed'
-        result['reason'] = str(error) if str(error) in allowed else 'retained_cycle_failed'
+        named = str(error).startswith('candidate_failed:') and PUBLICATION_REFUSAL.fullmatch(
+            str(error).split(':', 1)[1])
+        result['reason'] = str(error) if str(error) in allowed or named else 'retained_cycle_failed'
         save(output / 'result.json', result)
         raise
 
@@ -201,9 +207,17 @@ def run_cycle(config, generation, output, guard, result, active_generation=lambd
     prepared = command([loader, 'publish', *common, '--generation', anchor,
                         '--outcome-run', current, '--library', config['library']], output, 'candidate')
     candidate = json.loads(prepared.stdout)
-    if prepared.returncode and (json.loads(prepared.stderr).get('error') !=
-                                'publication_semantic_admission_required' or candidate.get('state') != 'pending'):
-        raise ValueError('candidate_failed')
+    if prepared.returncode:
+        try:
+            refused = json.loads(prepared.stderr).get('error')
+        except (ValueError, AttributeError):
+            refused = None
+        if refused != 'publication_semantic_admission_required' or candidate.get('state') != 'pending':
+            # Name the loader's closed refusal (e.g. a tampered published view)
+            # so `oo status` shows the cause, not a generic failure.
+            if isinstance(refused, str) and PUBLICATION_REFUSAL.fullmatch(refused):
+                raise ValueError('candidate_failed:' + refused)
+            raise ValueError('candidate_failed')
     generation = candidate.get('run', anchor)
     if generation not in (anchor, current):
         raise ValueError('candidate_failed')

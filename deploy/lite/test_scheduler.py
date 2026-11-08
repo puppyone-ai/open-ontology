@@ -204,6 +204,28 @@ class Tests(unittest.TestCase):
         with self.assertRaises(KeyError):
             scheduler.last_published_generation(top['cycle'])
 
+    def test_candidate_refusal_names_its_closed_cause(self):
+        for stderr, reason in [(b'{"error":"publication_mapped_view_mismatch"}',
+                                'candidate_failed:publication_mapped_view_mismatch'),
+                               (b'{"error":"Bad Thing; DROP"}', 'candidate_failed'),
+                               (b'not json', 'candidate_failed')]:
+            with self.subTest(stderr=stderr), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                config = dict(stack='s', source='s', target='t', secrets_dir='p', library='owned',
+                              login='owner', publisher_config='p',
+                              builder={'origin': {'reviewed_registry': {}}},
+                              pack_path=str(root / 'pack'), document_path=str(root / 'document'))
+                def fake(argv, output, label, data=None):
+                    if label == 'sync':
+                        return Mock(returncode=0, stdout=json.dumps(
+                            {'status': 'fresh', 'retained_run': 'run_new', 'table': 'app.a'}).encode())
+                    return Mock(returncode=1, stdout=b'{}', stderr=stderr)
+                with patch.object(scheduler, 'command', side_effect=fake):
+                    out = root / 'cycle'
+                    with self.assertRaises(ValueError):
+                        scheduler.cycle(config, 'run_new', out)
+                    self.assertEqual(json.loads((out / 'result.json').read_text())['reason'], reason)
+
     def test_fresh_catalog_controls_data_only_admission(self):
         for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy',
                        'inferred_edge', 'report'):
