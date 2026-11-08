@@ -138,6 +138,21 @@ impl OracleLogMiner {
         &self.identity
     }
 
+    /// Checked before any target state is written for a cycle: a refusal for
+    /// cleared database logging must leave a fresh binding untouched.
+    pub fn require_logging(engine: &mut OracleEngine) -> Result<(), SourceError> {
+        let rows = engine.query(
+            "SELECT log_mode, supplemental_log_data_min FROM v$database",
+            &[],
+            1,
+        )?;
+        let row = rows.first();
+        validate_logging(
+            row.and_then(|r| r.first()).and_then(Option::as_deref),
+            row.and_then(|r| r.get(1)).and_then(Option::as_deref),
+        )
+    }
+
     pub fn new(
         mut engine: OracleEngine,
         data: &mut OracleEngine,
@@ -253,16 +268,7 @@ impl OracleLogMiner {
     fn check_logging(&mut self) -> Result<(), SourceError> {
         // Recreating a controlfile can preserve the tables but clear logging.
         // An empty LogMiner result in that state is not a no-change proof.
-        let rows = self.engine.query(
-            "SELECT log_mode, supplemental_log_data_min FROM v$database",
-            &[],
-            1,
-        )?;
-        let row = rows.first();
-        validate_logging(
-            row.and_then(|r| r.first()).and_then(Option::as_deref),
-            row.and_then(|r| r.get(1)).and_then(Option::as_deref),
-        )
+        Self::require_logging(&mut self.engine)
     }
 
     fn inventory(&mut self) -> Result<Vec<LogFile>, SourceError> {

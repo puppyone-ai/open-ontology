@@ -435,15 +435,34 @@ pub(super) async fn oracle(
         &engine.source_epoch().map_err(|e| e.to_string())?,
         true,
     )?;
+    let mining = config
+        .mining
+        .take()
+        .ok_or("oracle_mining_connection_required")?;
+    {
+        // Source-wide logging refusal precedes any target write, including
+        // the fresh binding's initial position.
+        let root = OracleConnectConfig::new(
+            &source.host,
+            source.port,
+            &mining.service,
+            &mining.user,
+            zeroize::Zeroizing::new(store.read(&mining.password.secret_ref)?),
+        );
+        let mut root = match worker {
+            Some(worker) => {
+                OracleEngine::connect_worker(root, &mut std::process::Command::new(worker))
+            }
+            None => OracleEngine::connect(root),
+        }
+        .map_err(|e| e.to_string())?;
+        OracleLogMiner::require_logging(&mut root).map_err(|e| e.to_string())?;
+    }
     let mut setup = prepare(&mut engine, source, tables, target, store, budget, &config).await?;
     if let Some(code) = setup.1.replay {
         setup.0.close().await.map_err(|_| "sync_target_close")?;
         return c1::outcome(code);
     }
-    let mining = config
-        .mining
-        .take()
-        .ok_or("oracle_mining_connection_required")?;
     for table in setup.1.repairs.clone() {
         let root = OracleConnectConfig::new(
             &source.host,
