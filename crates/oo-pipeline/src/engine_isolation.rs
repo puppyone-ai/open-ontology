@@ -10,7 +10,18 @@ fn hash(bytes: &[u8]) -> String {
 
 /// Unknown failures remain global. Never classify driver text by substring:
 /// these are closed connector renderings, not SQL messages or row values.
-pub fn stale_reason(error: &str) -> Option<&'static str> {
+pub fn stale_reason(error: &str) -> Option<&str> {
+    if let Some(drift) = error.strip_prefix("schema_drift:")
+        && let Some((column, kind)) = drift.rsplit_once(':')
+        && !column.is_empty()
+        && !column.contains([':', '\n', '\r', '\0'])
+        && matches!(
+            kind,
+            "dropped" | "renamed" | "nullability" | "type" | "key" | "collation" | "ordinal"
+        )
+    {
+        return Some(error);
+    }
     match error {
         "c5_rebaseline_required_lineage"
         | "c5_rebaseline_required_plan"
@@ -302,6 +313,30 @@ pub async fn finish(conn: &mut PgConnection, source: &str, run: &str) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn named_schema_reasons_preserve_only_the_closed_kind_set() {
+        for kind in [
+            "dropped",
+            "renamed",
+            "nullability",
+            "type",
+            "key",
+            "collation",
+            "ordinal",
+        ] {
+            let reason = format!("schema_drift:payload:{kind}");
+            assert_eq!(stale_reason(&reason), Some(reason.as_str()));
+        }
+        for reason in [
+            "schema_drift::type",
+            "schema_drift:payload:unknown",
+            "schema_drift:payload\n:type",
+            "schema_drift:payload:detail:type",
+        ] {
+            assert_eq!(stale_reason(reason), None);
+        }
+    }
 
     #[test]
     fn exact_exit_contract() {

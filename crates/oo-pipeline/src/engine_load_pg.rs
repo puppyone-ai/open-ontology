@@ -16,6 +16,9 @@ mod c5;
 pub use c5::{C5Baseline, C5Part, TableContentDigest, same_ranges};
 #[path = "engine_load_generation.rs"]
 mod generation;
+#[path = "engine_load_schema.rs"]
+mod schema;
+pub use schema::SealedColumnCatalog;
 
 fn db(_: sqlx::Error) -> &'static str {
     "load_target"
@@ -78,6 +81,8 @@ pub struct PgTarget<'a> {
     plan: String,
     fields: Option<Vec<DecodedField>>,
     document_column: Option<String>,
+    source_columns: Option<Vec<oo_connectors::engine::SourceColumnShape>>,
+    projection: Option<Vec<String>>,
 }
 
 impl<'a> PgTarget<'a> {
@@ -133,6 +138,10 @@ impl<'a> PgTarget<'a> {
             .execute(&mut *conn)
             .await
             .map_err(db)?;
+        sqlx::raw_sql(include_str!("../migrations/0129_sealed_column_catalog.sql"))
+            .execute(&mut *conn)
+            .await
+            .map_err(db)?;
         Ok(Self {
             conn,
             view: format!("t_{}", &identity[..40]),
@@ -142,6 +151,8 @@ impl<'a> PgTarget<'a> {
             plan: String::new(),
             fields: None,
             document_column: None,
+            source_columns: None,
+            projection: None,
         })
     }
 
@@ -232,6 +243,13 @@ impl Target for PgTarget<'_> {
     }
 
     async fn stage(&mut self, receipt: &ChunkReceipt, decoded: &DecodedStream) -> Result<()> {
+        let projected;
+        let decoded = if let Some(names) = &self.projection {
+            projected = self.project(decoded.clone(), names)?;
+            &projected
+        } else {
+            decoded
+        };
         if self
             .document_column
             .as_ref()
@@ -435,7 +453,44 @@ impl Target for PgTarget<'_> {
             self.fields.as_ref().ok_or("load_schema")?,
         )
         .await?;
-        sqlx::query(AssertSqlSafe(format!(
+        let existing: Vec<(String, String)> = sqlx::query_as(
+            "SELECT attname::text,format_type(atttypid,atttypmod) FROM pg_attribute
+             WHERE attrelid=to_regclass($1) AND attnum>0 AND NOT attisdropped ORDER BY attnum",
+        )
+        .bind(format!("oo_load_data.{}", self.view))
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        let next = self
+            .fields
+            .as_ref()
+            .ok_or("load_schema")?
+            .iter()
+            .map(|f| {
+                column(f).map(|(_, ty)| {
+                    (
+                        f.name.clone(),
+                        match ty.as_str() {
+                            "timestamp" => "timestamp without time zone".into(),
+                            "timestamptz" => "timestamp with time zone".into(),
+                            _ => ty,
+                        },
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        // DROP has no CASCADE. A changed-type intake alias with unexpected
+        // dependants fails atomically; immutable published generations survive.
+        if !existing.is_empty() && existing != next {
+            sqlx::query(AssertSqlSafe(format!(
+                "DROP VIEW oo_load_data.{}",
+                quote(&self.view)?,
+            )))
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
+        }
+        sqlx::raw_sql(AssertSqlSafe(format!(
             "CREATE OR REPLACE VIEW oo_load_data.{} AS SELECT {fields} FROM _oo_load.{}",
             quote(&self.view)?,
             quote(&sealed)?
@@ -453,6 +508,14 @@ impl Target for PgTarget<'_> {
             .map_err(db)?;
         sqlx::query("INSERT INTO _oo_load.current VALUES($1,$2) ON CONFLICT(identity) DO UPDATE SET run=EXCLUDED.run")
             .bind(&self.identity).bind(&self.run).execute(&mut *tx).await.map_err(db)?;
+        schema::seal_columns(
+            &mut tx,
+            &self.identity,
+            &self.run,
+            self.source_columns.as_deref(),
+            self.fields.as_ref().ok_or("load_schema")?,
+        )
+        .await?;
         tx.commit().await.map_err(db)
     }
 }

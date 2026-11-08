@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import runner
 import t1
@@ -66,6 +67,16 @@ def schema_case(h, kind, tag=None, mode="c5"):
         statement = f"ALTER TABLE {bad} DROP COLUMN n;"
     elif kind == "rename_column":
         statement = f"ALTER TABLE {bad} RENAME COLUMN payload TO label;"
+    elif kind == "nullability":
+        statement = (f"ALTER TABLE {bad} MODIFY (payload NULL);" if oracle else
+                     f"ALTER TABLE {bad} MODIFY payload varchar(80) NULL;" if mysql else
+                     f"ALTER TABLE {bad} ALTER COLUMN payload DROP NOT NULL;")
+    elif kind == "unpublished_only":
+        h.src(f"ALTER TABLE {bad} ADD extra {'VARCHAR2' if oracle else 'varchar'}(40);")
+        first_code, _, _ = cycle(h, sid, sid + "-added")
+        if first_code != 0:
+            raise RuntimeError("unpublished_column_add_failed")
+        statement = f"ALTER TABLE {bad} DROP COLUMN extra;"
     else:
         raise ValueError(kind)
     h.src(statement)
@@ -78,7 +89,7 @@ def schema_case(h, kind, tag=None, mode="c5"):
     by_table = {r.get("table", {}).get("name", "").lower(): r for r in outputs}
     good_rows = target_rows(h, sid, good)
     good_updated = any("healthy" in row.values() for row in good_rows)
-    drift = kind in ("drop_column", "rename_column")
+    drift = kind in ("drop_column", "rename_column", "nullability")
     if drift:
         stale = by_table.get(bad, {})
         passed = (code == 3 and stale.get("status") == "stale"
@@ -89,6 +100,9 @@ def schema_case(h, kind, tag=None, mode="c5"):
         after_columns = h.target_columns(h.relations[(sid, bad)])
         if kind == "add_column":
             passed = passed and after_columns == columns
+        if kind == "unpublished_only":
+            passed = (passed and after_columns == columns
+                      and by_table.get(bad, {}).get("schema_class") == "unpublished_only")
         if kind == "widen_string":
             passed = passed and by_table.get(bad, {}).get("new_generations") == 0
         if kind == "widen_type":
@@ -147,13 +161,79 @@ def unproven(h):
     sid = "fhp_unproven"
     pair(h, sid)
     # Baselines predating the formal catalog must not acquire proof by inference.
-    _, exists = h.tgt("SELECT to_regclass('_oo_load.sealed_column_catalog') IS NOT NULL;")
+    _, exists = h.tgt("SELECT to_regclass('_oo_load.column_catalog') IS NOT NULL;")
     if exists.strip() == "t":
-        h.tgt("DELETE FROM _oo_load.sealed_column_catalog;")
+        h.tgt("DELETE FROM _oo_load.column_catalog;")
     code, outputs, error = cycle(h, sid, sid + "-missing")
     passed = (code == 4 and len(outputs) == 2
               and all(r.get("stale_reason") == "schema_unproven" for r in outputs))
     return {"status": "passed" if passed else "failed", "exit": code, "error": error, "tables": outputs}
+
+def timeout(h):
+    sid = "fhp_timeout"
+    bad, good = pair(h, sid)
+    before = target_rows(h, sid, bad)
+    h.src(f"UPDATE {good} SET payload='healthy' WHERE id=1;")
+    original_argv = h.argv
+    h.argv = lambda *a, **kw: original_argv(*a, **kw) + ["--statement-timeout-ms", "500"]
+    pool = ThreadPoolExecutor(max_workers=1)
+    holder = None
+    pid = None
+    oracle = h.run.engine == "oracle"
+    try:
+        if oracle:
+            # Fixture-owner VPD callback delays parsing only this table. The
+            # product reader still issues ordinary SELECTs with its own budget.
+            h.root_sql(f"""
+ALTER SESSION SET CONTAINER={h.service};
+CREATE OR REPLACE FUNCTION SYS.FHP_TIMEOUT_POLICY(s VARCHAR2,t VARCHAR2)
+RETURN VARCHAR2 AUTHID DEFINER AS BEGIN DBMS_SESSION.SLEEP(3); RETURN '1=1'; END;
+/
+BEGIN DBMS_RLS.ADD_POLICY(object_schema=>'FIXTURE',object_name=>'{bad.upper()}',
+policy_name=>'FHP_TIMEOUT',function_schema=>'SYS',policy_function=>'FHP_TIMEOUT_POLICY',
+statement_types=>'SELECT'); END;
+/
+""")
+        else:
+            lock = (f"BEGIN; LOCK TABLE {bad} IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(90) /*fhp_timeout_holder*/; ROLLBACK;"
+                    if h.run.engine == "postgres" else
+                    f"LOCK TABLES {bad} WRITE; SELECT SLEEP(90) /*fhp_timeout_holder*/; UNLOCK TABLES;")
+            holder = pool.submit(h.src, lock, False)
+            for _ in range(100):
+                query = ("SELECT pid FROM pg_stat_activity WHERE pid<>pg_backend_pid() AND query LIKE '%fhp_timeout_holder%' AND wait_event='PgSleep';"
+                         if h.run.engine == "postgres" else
+                         "SELECT ID FROM information_schema.PROCESSLIST WHERE ID<>CONNECTION_ID() AND INFO LIKE '%fhp_timeout_holder%';")
+                _, text = h.src(query)
+                ids = [line.strip() for line in text.splitlines() if line.strip().isdigit()]
+                if ids:
+                    pid = int(ids[0])
+                    break
+                time.sleep(.1)
+            if pid is None:
+                raise RuntimeError("timeout_lock_not_acquired")
+        code, outputs, error = cycle(h, sid, sid + "-blocked")
+        by_table = {r.get("table", {}).get("name", "").lower(): r for r in outputs}
+        passed = (code == 3 and by_table.get(bad, {}).get("stale_reason") == "source_timeout"
+                  and target_rows(h, sid, bad) == before
+                  and any("healthy" in row.values() for row in target_rows(h, sid, good)))
+    finally:
+        h.argv = original_argv
+        if oracle:
+            h.root_sql(f"""
+ALTER SESSION SET CONTAINER={h.service};
+BEGIN DBMS_RLS.DROP_POLICY(object_schema=>'FIXTURE',object_name=>'{bad.upper()}',policy_name=>'FHP_TIMEOUT'); END;
+/
+DROP FUNCTION SYS.FHP_TIMEOUT_POLICY;
+""")
+        elif pid is not None:
+            h.src(f"SELECT pg_terminate_backend({pid});" if h.run.engine == "postgres" else f"KILL CONNECTION {pid};")
+        if holder is not None:
+            holder.result(timeout=100)
+        pool.shutdown()
+    recovery, recovered, recovery_error = cycle(h, sid, sid + "-recovered")
+    return {"status": "passed" if passed and recovery == 0 else "failed",
+            "exit": code, "error": error, "tables": outputs, "recovery_exit": recovery,
+            "recovery_error": recovery_error, "recovery": recovered}
 
 
 def unavailable(h):
@@ -195,17 +275,19 @@ def main():
               "scope": "C5 live source isolation; publication separately tested on owned PG target"}
     cases = {
         "T9-01": permission,
+        "T9-02": timeout,
         "T9-03": lambda h: schema_case(h, "add_column"),
+        "T9-03-unpublished": lambda h: schema_case(h, "unpublished_only"),
         "T9-04": lambda h: schema_case(h, "widen_string"),
         "T9-05": lambda h: schema_case(h, "widen_type"),
         "T9-06-drop": lambda h: schema_case(h, "drop_column"),
         "T9-06-rename": lambda h: schema_case(h, "rename_column"),
+        "T9-06-nullability": lambda h: schema_case(h, "nullability"),
         "T9-07": unproven,
         "T9-11": unavailable,
     }
     try:
         h.prepare()
-        report["cases"]["T9-02"] = {"status": "not_run", "reason": "timeout_injection_not_implemented"}
         for name, case in cases.items():
             started = time.monotonic()
             try:

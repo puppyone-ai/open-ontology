@@ -1,4 +1,5 @@
 //! Bounded canonical IPC collection for the engine-neutral pipeline.
+pub mod schema;
 use arrow_array::RecordBatch;
 use arrow_ipc::writer::StreamWriter;
 use oo_connectors::{

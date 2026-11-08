@@ -239,10 +239,19 @@ async fn run_engine<E: SourceEngine>(
         sink = documents::target(sink, source)?;
         let (receipts, replay) = match sink.completed().await? {
             Some(receipts) => (receipts, true),
-            None => (
-                engine_load::load(engine, table, budget, oo_load::IpcSink::new, &mut sink).await?,
-                false,
-            ),
+            None => {
+                sink.source_columns(
+                    engine
+                        .column_shape(table, budget)
+                        .await
+                        .map_err(|e| e.to_string())?,
+                );
+                (
+                    engine_load::load(engine, table, budget, oo_load::IpcSink::new, &mut sink)
+                        .await?,
+                    false,
+                )
+            }
         };
         let bytes = sink.write_bytes().await?;
         println!(
@@ -339,7 +348,7 @@ async fn execute() -> Result<(), String> {
         if key == "--help" {
             println!(
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
-                [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
+                [--secrets-dir DIR] [--chunk-rows N] [--statement-timeout-ms N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
                 [--dm8-worker EXECUTABLE]\n\
                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
@@ -361,6 +370,7 @@ async fn execute() -> Result<(), String> {
             "--target",
             "--secrets-dir",
             "--chunk-rows",
+            "--statement-timeout-ms",
             "--oracle-worker",
             "--db2-worker",
             "--dm8-worker",
@@ -387,6 +397,7 @@ async fn execute() -> Result<(), String> {
             "--handoff",
             "--run-id",
             "--chunk-rows",
+            "--statement-timeout-ms",
             "--oracle-worker",
             "--db2-worker",
             "--dm8-worker",
@@ -489,6 +500,13 @@ async fn execute() -> Result<(), String> {
         }
     }
     let mut budget = ReadBudget::default();
+    if let Some(timeout) = opts.get("--statement-timeout-ms") {
+        let timeout: u64 = timeout.parse().map_err(|_| "statement_timeout")?;
+        if !(100..=budget.statement_timeout_ms).contains(&timeout) {
+            return Err("statement_timeout".into());
+        }
+        budget.statement_timeout_ms = timeout;
+    }
     if let Some(rows) = opts.get("--chunk-rows") {
         budget.max_chunk_rows = rows.parse().map_err(|_| "chunk_rows")?;
         if budget.max_chunk_rows == 0 || budget.max_chunk_rows > 100_000 {

@@ -10,25 +10,10 @@ pub(super) trait Epoch: SourceEngine {
         tables: &[TableRef],
     ) -> Result<String, String>;
 
-    /// Catalog fingerprint for engines whose epoch does not cover columns.
-    async fn shape(&mut self, _table: &TableRef) -> Result<Option<String>, String> {
-        Ok(None)
-    }
-
     /// Let engines that only read chunks they planned read the durable C5
     /// partition (after `plan_chunks` of the same key and strategy).
     fn adopt_plan(&mut self, _plan: &engine::TableChunkPlan) -> Result<(), String> {
         Ok(())
-    }
-}
-
-/// C5 lineage: instance epoch plus, where separate, the table's catalog shape.
-/// Rename/widen/nullability DDL can leave every range digest equal; a changed
-/// shape must refuse (`c5_rebaseline_required_lineage`), never publish stale columns.
-pub(super) fn c5_lineage(epoch: String, shape: Option<String>) -> String {
-    match shape {
-        Some(shape) => format!("{epoch}{SHAPE}{shape}"),
-        None => epoch,
     }
 }
 
@@ -56,7 +41,18 @@ impl Epoch for PostgresEngine {
             .await
             .map_err(String::from);
         control.close().await.map_err(|_| "epoch_source_close")?;
-        result
+        // The column catalog is compared by the shared projection classifier.
+        // Keep instance/timeline/database and relation identity in this fence.
+        let mut value: serde_json::Value =
+            serde_json::from_str(&result?).map_err(|_| "epoch_shape")?;
+        if let Some(relations) = value.get_mut(1).and_then(|v| v.as_array_mut()) {
+            for relation in relations {
+                relation.as_array_mut().ok_or("epoch_shape")?.truncate(2);
+            }
+        } else {
+            return Err("epoch_shape".into());
+        }
+        serde_json::to_string(&value).map_err(|_| "epoch_shape".into())
     }
 }
 
@@ -73,20 +69,9 @@ impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
     ) -> Result<String, String> {
         self.source_epoch().await.map_err(|e| e.to_string())
     }
-
-    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
-        self.table_shape(table)
-            .await
-            .map(Some)
-            .map_err(|e| e.to_string())
-    }
 }
 
 impl Epoch for oo_connectors::oracle::engine::OracleEngine {
-    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
-        self.table_shape(table).map(Some).map_err(|e| e.to_string())
-    }
-
     async fn epoch(
         &mut self,
         _: &Source,
@@ -102,12 +87,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shape_is_part_of_c5_lineage_but_not_of_the_handoff_epoch() {
-        let a = c5_lineage("uuid".into(), Some("s1".into()));
-        let b = c5_lineage("uuid".into(), Some("s2".into()));
-        assert_ne!(a, b);
-        assert_eq!(epoch_part(&a), "uuid");
-        assert_eq!(c5_lineage("pg".into(), None), "pg");
+    fn legacy_shape_suffix_is_not_part_of_the_handoff_epoch() {
+        assert_eq!(epoch_part("uuid#shape:s1"), "uuid");
         assert_eq!(epoch_part("pg"), "pg");
     }
 }

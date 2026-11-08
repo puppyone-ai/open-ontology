@@ -190,10 +190,16 @@ impl PgTarget<'_> {
             };
         }
         next.source_digests = digests;
+        let sealed_columns = self.sealed_columns().await?;
+        let catalog_changed = match (&self.source_columns, sealed_columns) {
+            (Some(live), Some(sealed)) => live != &sealed.columns,
+            _ => false,
+        };
         // An established no-change cycle writes no target rows or metadata.
         if replacements.is_empty()
             && next.source_digests == previous.source_digests
             && next.lineage == previous.lineage
+            && !catalog_changed
         {
             return Ok(());
         }
@@ -260,6 +266,17 @@ impl PgTarget<'_> {
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+        if catalog_changed {
+            sqlx::query("UPDATE _oo_load.column_catalog SET columns=$2::jsonb WHERE identity=$1")
+                .bind(&self.identity)
+                .bind(
+                    serde_json::to_string(&self.source_columns)
+                        .map_err(|_| "load_column_catalog")?,
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
+        }
         tx.commit().await.map_err(db)
     }
 

@@ -47,6 +47,8 @@ type Result<T> = std::result::Result<T, SourceError>;
 
 #[path = "declared.rs"]
 mod declared;
+#[path = "shape.rs"]
+mod shape;
 
 /// Server error: maximum statement execution time exceeded.
 const ER_QUERY_TIMEOUT: u16 = 3024;
@@ -1897,6 +1899,14 @@ impl MysqlEngine {
 }
 
 impl SourceEngine for MysqlEngine {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> std::result::Result<Option<Vec<crate::engine::SourceColumnShape>>, SourceError> {
+        self.export_shape(table, budget).await
+    }
+
     async fn declared_catalog(
         &mut self,
         tables: &[TableRef],
