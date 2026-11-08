@@ -363,10 +363,17 @@ pub(super) fn run(
         if current["status"] == "complete" {
             // Reconcile the deployment: starts the Gateway service on the
             // reviewed publication if it is not already serving it.
-            if let Invocation::AdminReport(_, exit) = lite::run("up", config, stack)?
+            if let Invocation::AdminReport(report, exit) = lite::run("up", config, stack)?
                 && exit != 0
             {
-                return Err(Failure::local("BUILD_LITE_GATEWAY_SERVICE"));
+                // Name the deployment state so the cause is not hidden.
+                let status = serde_json::from_str::<Value>(&report)
+                    .ok()
+                    .and_then(|v| v["status"].as_str().map(str::to_owned))
+                    .unwrap_or_else(|| "unknown".into());
+                return Err(Failure::local(format!(
+                    "BUILD_LITE_GATEWAY_SERVICE: deployment status {status} after the build; run oo status --json"
+                )));
             }
             deployment.service("gateway")?;
             return build::completion(&current, &state, json_output);
