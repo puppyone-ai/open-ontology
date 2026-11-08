@@ -3060,6 +3060,11 @@ fn record_receipt(
 }
 
 // JSON extraction tolerates older targets without the lane-P status columns.
+/// The loader's closed stale-reason grammar, compiled from the same file.
+#[path = "../../oo-pipeline/src/stale_grammar.rs"]
+#[allow(dead_code)]
+mod stale_grammar;
+
 fn stale_table_warning(
     schema: &str,
     table: &str,
@@ -3074,11 +3079,30 @@ fn stale_table_warning(
         .iter()
         .find_map(|key| row[*key].as_str().filter(|s| !s.trim().is_empty()))
         .unwrap_or("reason unavailable");
-    let reason: String = reason
-        .chars()
-        .filter(|c| !c.is_control())
-        .take(256)
-        .collect();
+    // Named drift is shown only in the loader's grammar, which names published
+    // columns alone. Any other drift text (an older raw column name, possibly
+    // unpublished or a key) is reduced to the generic class.
+    let reason: String = if reason.starts_with("schema_drift:") {
+        match stale_grammar::parse_drift(reason) {
+            Some((stale_grammar::DriftColumn::Published(name), kind)) => {
+                let name: String = name.chars().filter(|c| !c.is_control()).collect();
+                format!("schema_drift:{kind} (published column {name:?})")
+            }
+            Some((stale_grammar::DriftColumn::Hashed(digest), kind)) => {
+                format!("schema_drift:{kind} (published column sha256 prefix {digest})")
+            }
+            Some((stale_grammar::DriftColumn::Unpublished, kind)) => {
+                format!("schema_drift:unpublished_column:{kind}")
+            }
+            None => "schema_drift".into(),
+        }
+    } else {
+        reason
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(256)
+            .collect()
+    };
     Some(QualityWarning {
         code: "STALE_DATA",
         schema: schema.into(),
@@ -3110,6 +3134,42 @@ fn stale_status_is_optional_scoped_and_preserves_reason() {
             .message
             .ends_with("reason unavailable")
     );
+}
+
+#[test]
+fn stale_drift_names_only_published_columns() {
+    use serde_json::json;
+    let message = |reason: &str| {
+        stale_table_warning(
+            "app",
+            "items",
+            &json!({"sync_state":"stale","stale_reason":reason}),
+        )
+        .unwrap()
+        .message
+    };
+    assert!(
+        message("schema_drift:c.userId:type")
+            .ends_with("schema_drift:type (published column \"userId\")")
+    );
+    assert!(message("schema_drift:c.%e5%90%8d:dropped").ends_with("(published column \"名\")"));
+    assert!(
+        message("schema_drift:unpublished_column:key")
+            .ends_with("schema_drift:unpublished_column:key")
+    );
+    assert!(
+        message("schema_drift:h.0123456789abcdef:type")
+            .ends_with("sha256 prefix 0123456789abcdef)")
+    );
+    // Raw legacy names, including unpublished key columns, are never echoed.
+    for raw in [
+        "schema_drift:secret_key:key",
+        "schema_drift:SSN:dropped",
+        "schema_drift:x",
+    ] {
+        let text = message(raw);
+        assert!(text.ends_with("Reason: schema_drift"), "{text}");
+    }
 }
 
 fn project_held(held: &[HeldMap], tables: &[QualityTable], snapshot: &mut QualitySnapshot) {

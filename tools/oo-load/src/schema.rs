@@ -9,7 +9,13 @@ pub enum Classification {
     UnpublishedOnly,
     Widening,
     Rebuild,
-    Drift { column: String, kind: &'static str },
+    /// `published` is false for key columns outside the projection and for
+    /// new columns: their names are never exposed in a stale reason.
+    Drift {
+        column: String,
+        kind: &'static str,
+        published: bool,
+    },
     Unproven,
 }
 
@@ -28,7 +34,27 @@ impl Classification {
 
     pub fn stale_reason(&self) -> Option<String> {
         match self {
-            Self::Drift { column, kind } => Some(format!("schema_drift:{column}:{kind}")),
+            Self::Drift {
+                column,
+                kind,
+                published,
+            } => {
+                use oo_pipeline::stale_grammar as g;
+                let token = if *published {
+                    g::encode_column(column).or_else(|| {
+                        use sha2::Digest;
+                        g::hashed(&format!("{:x}", sha2::Sha256::digest(column.as_bytes())))
+                    })
+                } else {
+                    Some(g::UNPUBLISHED.into())
+                };
+                // Kinds are closed constants; a failure here is a bug, not drift.
+                Some(
+                    token
+                        .and_then(|t| g::drift(&t, kind))
+                        .unwrap_or_else(|| "schema_drift".into()),
+                )
+            }
             Self::Unproven => Some("schema_unproven".into()),
             _ => None,
         }
@@ -54,7 +80,7 @@ pub fn classify(
             && columns.iter().all(|c| {
                 c.ordinal > 0
                     && !c.name.is_empty()
-                    && !c.name.contains([':', '\n', '\r', '\0'])
+                    && !c.name.contains('\0')
                     && !c.source_type.is_empty()
                     && !c.target_type.is_empty()
             })
@@ -72,6 +98,7 @@ pub fn classify(
     let drift = |column: &str, kind| Classification::Drift {
         column: column.into(),
         kind,
+        published: published.iter().any(|p| p == column),
     };
     let order = |columns: &[SourceColumnShape]| {
         let mut columns: Vec<_> = columns
@@ -357,10 +384,79 @@ mod tests {
                     classify(Some(&sealed), Some(&live), &published),
                     Classification::Drift {
                         column: "payload".into(),
-                        kind
+                        kind,
+                        published: true,
                     }
                 );
             }
+        }
+    }
+
+    #[test]
+    fn drift_reasons_follow_the_shared_grammar_and_hide_unpublished_names() {
+        use oo_pipeline::stale_grammar::{DriftColumn, parse_drift, valid};
+        let wide = "é".repeat(31) + "x";
+        let long = "Q".repeat(63);
+        for name in [
+            "PAYLOAD",
+            "userId",
+            "a:b",
+            "名前",
+            long.as_str(),
+            wide.as_str(),
+        ] {
+            let sealed = vec![
+                column("id", "bigint", "bigint", 1),
+                column(name, "text", "text", 2),
+            ];
+            let live = vec![
+                sealed[0].clone(),
+                SourceColumnShape {
+                    nullable: true,
+                    ..sealed[1].clone()
+                },
+            ];
+            let class = classify(Some(&sealed), Some(&live), &["id".into(), name.into()]);
+            let reason = class.stale_reason().unwrap();
+            assert!(valid(&reason), "{reason}");
+            // The engine-side classifier accepts what the publisher validates.
+            assert_eq!(
+                oo_pipeline::engine_isolation::stale_reason(&reason),
+                Some(reason.as_str())
+            );
+            let (column, kind) = parse_drift(&reason).unwrap();
+            assert_eq!(kind, "nullability");
+            if name.len() == 63 && !name.is_ascii() {
+                assert!(matches!(column, DriftColumn::Hashed(_)), "{reason}");
+            } else {
+                assert_eq!(column, DriftColumn::Published(name.into()));
+            }
+        }
+        // A key column outside the projection and a new key column stay unnamed.
+        let mut sealed = vec![column("id", "bigint", "bigint", 1)];
+        sealed.push(SourceColumnShape {
+            unique_key_ordinals: [("uk".to_string(), 1)].into(),
+            ..column("SecretKey", "text", "text", 2)
+        });
+        let mut live = sealed.clone();
+        live[1].unique_key_ordinals = Default::default();
+        for live in [live, {
+            let mut l = vec![sealed[0].clone()];
+            l.push(SourceColumnShape {
+                primary_key_ordinal: Some(1),
+                ..column("NewKey", "text", "text", 3)
+            });
+            l
+        }] {
+            let sealed = if live.len() == 2 && live[1].name == "NewKey" {
+                vec![sealed[0].clone()]
+            } else {
+                sealed.clone()
+            };
+            let reason = classify(Some(&sealed), Some(&live), &["id".into()])
+                .stale_reason()
+                .unwrap();
+            assert_eq!(reason, "schema_drift:unpublished_column:key");
         }
     }
 

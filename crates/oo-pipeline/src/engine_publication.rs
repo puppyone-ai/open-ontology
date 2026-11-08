@@ -24,6 +24,11 @@ pub struct PublicationRequest {
     pub source_binding: String,
     pub generation: String,
     pub tables: Vec<TableRef>,
+    /// The sync cycle whose per-table outcomes the cut must record. When it
+    /// differs from `generation`, `generation` is replayed only if both cycles
+    /// recorded the same outcomes; otherwise the cut is minted at this run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome_run: Option<String>,
 }
 
 fn digest(v: &Value) -> String {
@@ -50,7 +55,10 @@ fn logical(s: &str) -> Result<String> {
 }
 
 fn validate(r: &PublicationRequest) -> Result<()> {
-    for value in [&r.library_id, &r.generation] {
+    for value in [&r.library_id, &r.generation]
+        .into_iter()
+        .chain(r.outcome_run.as_ref())
+    {
         if value.is_empty()
             || value.len() > 128
             || !value
@@ -158,9 +166,14 @@ async fn outcome(
                  FROM _oo_load.sync_table_results WHERE source=$1 AND run=$2 AND identity=$3 FOR SHARE",
             ).bind(&source).bind(&request.generation).bind(identity)
                 .fetch_optional(&mut **tx).await.map_err(db)?.ok_or("publication_table_result_missing")?;
+            let retained_run = row.0.ok_or("publication_retained_generation_missing")?;
+            // A fresh table was written by this very cycle.
+            if row.1 == "fresh" && retained_run != request.generation {
+                return Err("publication_outcome_run");
+            }
             return Ok(Outcome {
                 isolated: true,
-                retained_run: row.0.ok_or("publication_retained_generation_missing")?,
+                retained_run,
                 status: row.1,
                 stale_reason: row.2,
                 stale_since: row.3,
@@ -174,6 +187,81 @@ async fn outcome(
         stale_reason: None,
         stale_since: None,
     })
+}
+
+/// Whether `current` is a completed cycle over the same scope that recorded
+/// the same per-table health as `request.generation`: the same retained run,
+/// stale or not, and the same reason and stale interval. Fresh and no-op are
+/// the same health; both were read and verified in their cycle.
+async fn same_outcomes(
+    tx: &mut Transaction<'_, Postgres>,
+    request: &PublicationRequest,
+    current: &str,
+) -> Result<bool> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_cycles') IS NOT NULL")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(db)?;
+    if !installed {
+        return Err("publication_cycle_incomplete");
+    }
+    let source = hash(request.source_binding.as_bytes());
+    let mut states = Vec::new();
+    for run in [current, request.generation.as_str()] {
+        let cycle: Option<(String, String)> = sqlx::query_as(
+            "SELECT state,scope::text FROM _oo_load.sync_cycles WHERE source=$1 AND run=$2 FOR SHARE",
+        )
+        .bind(&source)
+        .bind(run)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(db)?;
+        states.push(match cycle {
+            Some((state, scope)) => {
+                if serde_json::from_str::<Vec<TableRef>>(&scope).map_err(|_| "publication_scope")?
+                    != request.tables
+                {
+                    return Err("publication_cycle_scope");
+                }
+                Some(state)
+            }
+            None => None,
+        });
+    }
+    if !states[0]
+        .as_deref()
+        .is_some_and(|s| matches!(s, "succeeded" | "partial"))
+    {
+        return Err("publication_cycle_incomplete");
+    }
+    if !states[1]
+        .as_deref()
+        .is_some_and(|s| matches!(s, "succeeded" | "partial"))
+    {
+        return Ok(false);
+    }
+    let (differ, current_rows, anchor_rows): (i64, i64, i64) = sqlx::query_as(
+        "SELECT count(*) FILTER (WHERE a.identity IS NULL
+            OR c.retained_run IS DISTINCT FROM a.retained_run
+            OR (c.state='stale') <> (a.state='stale')
+            OR c.reason IS DISTINCT FROM a.reason
+            OR c.since IS DISTINCT FROM a.since),
+          count(*),
+          (SELECT count(*) FROM _oo_load.sync_table_results WHERE source=$1 AND run=$3)
+         FROM _oo_load.sync_table_results c
+         LEFT JOIN _oo_load.sync_table_results a
+           ON a.source=c.source AND a.run=$3 AND a.identity=c.identity
+         WHERE c.source=$1 AND c.run=$2",
+    )
+    .bind(&source)
+    .bind(current)
+    .bind(&request.generation)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(db)?;
+    let tables = request.tables.len() as i64;
+    Ok(differ == 0 && current_rows == tables && anchor_rows == tables)
 }
 
 async fn verify(
@@ -405,7 +493,6 @@ pub async fn publish_generation(
     request
         .tables
         .sort_by(|a, b| (&a.schema, &a.name).cmp(&(&b.schema, &b.name)));
-    let r = &request;
     let mut tx = conn.begin().await.map_err(db)?;
     sqlx::query(
         "SELECT set_config('lock_timeout','5s',true),set_config('statement_timeout','120s',true)",
@@ -414,7 +501,7 @@ pub async fn publish_generation(
     .await
     .map_err(db)?;
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
-        .bind(format!("oo-load-library:{}", r.library_id))
+        .bind(format!("oo-load-library:{}", request.library_id))
         .execute(&mut *tx)
         .await
         .map_err(db)?;
@@ -422,11 +509,19 @@ pub async fn publish_generation(
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
         .bind(format!(
             "oo-load-cycle:{}",
-            hash(r.source_binding.as_bytes())
+            hash(request.source_binding.as_bytes())
         ))
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+    // Never let an older cycle's per-table health stand for this cycle's.
+    if let Some(current) = request.outcome_run.take()
+        && current != request.generation
+        && !same_outcomes(&mut tx, &request, &current).await?
+    {
+        request.generation = current;
+    }
+    let r = &request;
     let mut verified = Vec::new();
     for table in &r.tables {
         verified.push(verify(&mut tx, r, table).await?);
@@ -732,7 +827,8 @@ pub async fn publish_generation(
         json!({"protocol":"oo.load.publication-candidate/v1","state":"pending",
         "gateway_published":false,"receipt_sha256":sha,"receipt":cut,
         "data_vector":vector,"data_vector_sha256":digest(&json!(vector)),
-        "generation":generation,"config_digest":config,"stale_tables":stale_tables}),
+        "generation":generation,"run":r.generation,"config_digest":config,
+        "stale_tables":stale_tables}),
     )
 }
 
@@ -878,6 +974,7 @@ mod tests {
                 schema: "app".into(),
                 name: "items".into(),
             }],
+            outcome_run: None,
         }
     }
     #[test]
@@ -894,7 +991,13 @@ mod tests {
         let mut r = request();
         r.source_id = "not a source".into();
         assert_eq!(validate(&r), Err("publication_source_binding"));
+        let mut r = request();
+        r.outcome_run = Some("bad run".into());
+        assert_eq!(validate(&r), Err("publication_identity"));
+        r.outcome_run = Some("cycle-2".into());
+        assert!(validate(&r).is_ok());
         let mut value = serde_json::to_value(request()).unwrap();
+        assert!(value.get("outcome_run").is_none());
         value["verified"] = json!(true);
         assert!(serde_json::from_value::<PublicationRequest>(value).is_err());
         let mut oracle = request();

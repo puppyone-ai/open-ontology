@@ -200,7 +200,7 @@ async fn quarantined_table_freezes_while_healthy_table_commits_atomically() {
             .unwrap();
         assert_eq!(target.table_positions().await.unwrap()[0].position, initial);
         target
-            .quarantine(&tables[0], "schema_drift:payload:renamed")
+            .quarantine(&tables[0], "schema_drift:c.payload:renamed")
             .await
             .unwrap();
         assert_eq!(

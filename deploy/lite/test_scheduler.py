@@ -16,6 +16,25 @@ import retained_build as builder
 from test_retained_catalog import fixture, RelatedDb
 
 
+def candidate(run, rows):
+    """An oo-load pending candidate whose receipt records `rows`' statuses."""
+    tables = []
+    for row in rows:
+        table = row['table']
+        schema, name = ((table['schema'], table['name']) if isinstance(table, dict)
+                        else table.split('.'))
+        tables.append({'schema': schema, 'table': name, 'status': row['status']})
+    return json.dumps({'state': 'pending', 'run': run,
+                       'receipt': {'shards': [{'receipt': {'tables': tables}}]}}).encode()
+
+
+def cycle_config(root):
+    return dict(stack='s', source='s', target='t', secrets_dir='p', library='owned',
+                login='owner', publisher_config='p',
+                builder={'origin': {'reviewed_registry': {}}},
+                pack_path=str(root / 'pack'), document_path=str(root / 'document'))
+
+
 class Tests(unittest.TestCase):
     def test_service_liveness_is_not_last_cycle_success(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -44,19 +63,19 @@ class Tests(unittest.TestCase):
                               builder={'origin': {'reviewed_registry': {}}},
                               pack_path=str(root / 'pack'), document_path=str(root / 'document'))
                 commands = []
+                rows = [{'status': 'noop' if outcome == 'replay' else 'fresh',
+                         'retained_run': 'run', 'table': 'app.a'}]
+                if outcome != 'replay':
+                    rows.append({'status': 'noop', 'retained_run': 'older', 'table': 'app.c'})
+                if code in (3, 4):
+                    rows.append({'status': 'stale', 'table': {'schema': 'app', 'name': 'b'},
+                                 'stale_reason': 'source_timeout', 'stale_detail': 'timeout'})
                 def fake(argv, output, label, data=None):
                     commands.append(label)
                     if label == 'sync':
-                        rows = [{'status': 'noop' if outcome == 'replay' else 'fresh',
-                                 'retained_run': 'run', 'table': 'app.a'}]
-                        if outcome != 'replay':
-                            rows.append({'status': 'noop', 'retained_run': 'older', 'table': 'app.c'})
-                        if code in (3, 4):
-                            rows.append({'status': 'stale', 'table': {'schema': 'app', 'name': 'b'},
-                                         'stale_reason': 'source_timeout', 'stale_detail': 'timeout'})
                         return Mock(returncode=code, stdout=b'\n'.join(json.dumps(r).encode() for r in rows))
                     if label == 'candidate':
-                        return Mock(returncode=1, stdout=b'{"state":"pending"}',
+                        return Mock(returncode=1, stdout=candidate('run', rows),
                                     stderr=b'{"error":"publication_semantic_admission_required"}')
                     if label == 'publisher':
                         return Mock(returncode=int(failure == 'publish_failed'), stdout=json.dumps({
@@ -88,46 +107,84 @@ class Tests(unittest.TestCase):
                     if code in (3, 4):
                         self.assertEqual(result['stale_tables'][0]['table'], 'app.b')
 
+    def run_outcome_cycle(self, rows, returned, receipt_rows=None, active=None):
+        """One cycle with oo-load mocked: it publishes `returned` with `receipt_rows`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            publishes = []
+            def fake(argv, output, label, data=None):
+                if label == 'sync':
+                    code = 3 if any(r['status'] == 'stale' for r in rows) else 0
+                    return Mock(returncode=code, stdout=b'\n'.join(json.dumps(r).encode() for r in rows))
+                if label == 'candidate':
+                    publishes.append((argv[argv.index('--generation') + 1],
+                                      argv[argv.index('--outcome-run') + 1]))
+                    return Mock(returncode=1, stdout=candidate(returned, receipt_rows or rows),
+                                stderr=b'{"error":"publication_semantic_admission_required"}')
+                if label == 'publisher':
+                    return Mock(returncode=0, stdout=json.dumps({
+                        'state': 'ready', 'outcome': 'replay', 'receipt_sha256': 'receipt',
+                        'gateway_document': {'envelope': {'producer': {'artifact': {}}}}}).encode())
+                return Mock(returncode=0)
+            with patch.object(scheduler, 'command', side_effect=fake), patch.object(
+                    scheduler, 'data_only', return_value={'stage': 'data_only', 'review_pending': []}), \
+                    patch.object(builder, 'pinned', return_value=b'{}'), patch.object(
+                    scheduler, 'gateway_probe', return_value={'receipt_sha256': 'receipt',
+                                                              'measured_at': '2026-11-08T00:00:00Z'}):
+                result = scheduler.cycle(cycle_config(root), 'run_new', root / 'cycle',
+                                         active_generation=lambda: active)
+            return result, publishes
+
     def test_all_noop_cycle_reconfirms_the_active_publication(self):
-        for active in ('run_active', None):
-            with self.subTest(active=active), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                config = dict(stack='s', source='s', target='t', secrets_dir='p', library='owned',
-                              login='owner', publisher_config='p',
-                              builder={'origin': {'reviewed_registry': {}}},
-                              pack_path=str(root / 'pack'), document_path=str(root / 'document'))
-                generations = []
-                def fake(argv, output, label, data=None):
-                    if label == 'sync':
-                        rows = [{'status': 'noop', 'retained_run': 'run_a', 'table': 'app.a'},
-                                {'status': 'noop', 'retained_run': 'run_b', 'table': 'app.b'}]
-                        return Mock(returncode=0, stdout=b'\n'.join(json.dumps(r).encode() for r in rows))
-                    if label == 'candidate':
-                        generations.append(argv[argv.index('--generation') + 1])
-                        return Mock(returncode=1, stdout=b'{"state":"pending"}',
-                                    stderr=b'{"error":"publication_semantic_admission_required"}')
-                    if label == 'publisher':
-                        return Mock(returncode=0, stdout=json.dumps({
-                            'state': 'ready', 'outcome': 'replay', 'receipt_sha256': 'receipt',
-                            'gateway_document': {'envelope': {'producer': {'artifact': {}}}}}).encode())
-                    return Mock(returncode=0)
-                with patch.object(scheduler, 'command', side_effect=fake), patch.object(
-                        scheduler, 'data_only', return_value={'stage': 'data_only', 'review_pending': []}), \
-                        patch.object(builder, 'pinned', return_value=b'{}'), patch.object(
-                        scheduler, 'gateway_probe', return_value={'receipt_sha256': 'receipt',
-                                                                  'measured_at': '2026-11-08T00:00:00Z'}):
-                    out = root / 'cycle'
-                    if active is None:
-                        with self.assertRaisesRegex(ValueError, 'mixed_retained_runs'):
-                            scheduler.cycle(config, 'run_new', out, active_generation=lambda: active)
-                        self.assertEqual(generations, [])
-                    else:
-                        result = scheduler.cycle(config, 'run_new', out, active_generation=lambda: active)
-                        self.assertEqual(generations, ['run_active'])
-                        self.assertEqual(result['result'], 'succeeded')
-                        self.assertIsNone(result['data_published_at'])
-                        self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
-                        self.assertEqual(result['published_generation'], 'run_active')
+        rows = [{'status': 'noop', 'retained_run': 'run_a', 'table': 'app.a'},
+                {'status': 'noop', 'retained_run': 'run_b', 'table': 'app.b'}]
+        result, publishes = self.run_outcome_cycle(rows, 'run_active', active='run_active')
+        self.assertEqual(publishes, [('run_active', 'run_new')])
+        self.assertEqual(result['result'], 'succeeded')
+        self.assertIsNone(result['data_published_at'])
+        self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
+        self.assertEqual(result['published_generation'], 'run_active')
+        # Without an active publication the cut is minted at this cycle.
+        result, publishes = self.run_outcome_cycle(rows, 'run_new', active=None)
+        self.assertEqual(publishes, [('run_new', 'run_new')])
+        self.assertEqual(result['published_generation'], 'run_new')
+
+    def test_stale_now_fresh_in_anchor_publishes_current_outcomes(self):
+        rows = [{'status': 'stale', 'table': {'schema': 'app', 'name': 'a'},
+                 'stale_reason': 'source_permission'},
+                {'status': 'noop', 'retained_run': 'run_anchor', 'table': 'app.b'}]
+        # oo-load refuses to replay the anchor (whose receipt says a is fresh).
+        result, publishes = self.run_outcome_cycle(rows, 'run_new')
+        self.assertEqual(publishes, [('run_anchor', 'run_new')])
+        self.assertEqual(result['published_generation'], 'run_new')
+        self.assertEqual(result['result'], 'partial')
+        self.assertEqual(result['stale_tables'][0]['table'], 'app.a')
+        self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
+        # A receipt that still calls the stale table fresh never verifies data.
+        old = [dict(rows[0], status='fresh', retained_run='run_anchor'), rows[1]]
+        result, _ = self.run_outcome_cycle(rows, 'run_anchor', receipt_rows=old)
+        self.assertIsNone(result['data_verified_at'])
+
+    def test_recovered_now_stale_in_anchor_publishes_current_outcomes(self):
+        rows = [{'status': 'noop', 'retained_run': 'run_a', 'table': 'app.a'},
+                {'status': 'noop', 'retained_run': 'run_b', 'table': 'app.b'}]
+        result, publishes = self.run_outcome_cycle(rows, 'run_new', active='run_active')
+        self.assertEqual(publishes, [('run_active', 'run_new')])
+        self.assertEqual(result['published_generation'], 'run_new')
+        self.assertEqual(result['result'], 'succeeded')
+        self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
+        stale = [rows[0], {'status': 'stale', 'table': 'app.b'}]
+        result, _ = self.run_outcome_cycle(rows, 'run_active', receipt_rows=stale,
+                                           active='run_active')
+        self.assertIsNone(result['data_verified_at'])
+        # A receipt missing a table, or with an extra one, is not this cycle's.
+        result, _ = self.run_outcome_cycle(rows, 'run_new', receipt_rows=rows[:1])
+        self.assertIsNone(result['data_verified_at'])
+
+    def test_candidate_for_a_foreign_run_cannot_publish(self):
+        rows = [{'status': 'noop', 'retained_run': 'run_a', 'table': 'app.a'}]
+        with self.assertRaisesRegex(ValueError, 'candidate_failed'):
+            self.run_outcome_cycle(rows, 'run_other')
 
     def test_active_generation_lookup_uses_the_schedule_config(self):
         # The worker passes the top-level schedule config (project and control
