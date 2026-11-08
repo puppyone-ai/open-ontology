@@ -39,8 +39,11 @@ Check `data_published_at` separately from `cycle.result`. `partial` means the
 fresh tables were published while `tables.stale` retained older data; use each
 table's reason and `since` to diagnose it. An all-stale sync or a global source
 failure does not publish. Failed cycles do not reset the publication clock.
-`data_publication_overdue` means its age exceeds twice the interval plus
-60 seconds, even if the latest attempt was a no-op.
+Health follows `data_verified_at`: the newest cycle that confirmed the served
+publication is current, either by activating a new one or by an exact replay
+when the source had no changes. `data_publication_overdue` means that time is
+older than twice the interval plus 60 seconds; a source with no new rows stays
+healthy while cycles keep confirming it.
 
 Comment/FK changes and new columns mark only the affected table
 `review_pending`. Scheduling continues with the last reviewed registry and
@@ -58,6 +61,27 @@ library` and the changed inputs, and `alert` is `library_review_required`.
 Nothing is published until the owner reviews a new draft; the last reviewed
 publication keeps serving. Unchanged sources keep the same library digest
 across generations, because row counts and ratios are normalized.
+
+Agents see a stale table's reason without column names (for example
+`schema_drift:type`); the owner sees the full reason in `oo status --json`.
+
+### Upgrading an existing deployment
+
+- C5 tables (the lite default) seal their column catalog on the first cycle
+  after the upgrade when the live source still matches the previous lineage;
+  any table that changed meanwhile stays `schema_unproven` until it is
+  rebaselined. The legacy lineage did not record collation or charset, so a
+  collation change made before the upgrade is not detected by that first seal.
+- C1 (log CDC) tables on MySQL and Oracle never recorded a column shape: run
+  one explicit rebaseline per source after upgrading. PostgreSQL C1 seals like C5.
+- The logical publication identity (migrations 0135/0136) is installed by
+  `oo up`. Records valid before 0136 are re-minted by the installer; an
+  identity invalidated by a later change to a published view, relation or a
+  routine it uses is never re-approved automatically and needs a new review
+  and publication.
+- Routines a published view calls dynamically (for example `EXECUTE` inside a
+  PL/pgSQL body) cannot be followed through catalog dependencies. Publish views
+  only over routines the publisher owns.
 
 After upgrading the CLI/runtime, run `oo up` for the owned deployment to
 install the additive lite cycle journal. Existing schedule configuration and
@@ -751,5 +775,5 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `sink_bytes` | [configuration-and-source](#configuration-and-source) | [`c1_repair.rs:28`](../../tools/oo-load/src/c1_repair.rs#L28) |
 | `sink_rows` | [configuration-and-source](#configuration-and-source) | [`lib.rs:50`](../../tools/oo-load/src/lib.rs#L50) |
 | `temporarily_unavailable` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:132`](../../crates/oo-gateway/src/auth_device.rs#L132) |
-| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:557`](../../tools/oo-load/src/main.rs#L557) |
-| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:553`](../../tools/oo-load/src/main.rs#L553) |
+| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:563`](../../tools/oo-load/src/main.rs#L563) |
+| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:559`](../../tools/oo-load/src/main.rs#L559) |
