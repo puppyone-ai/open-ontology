@@ -489,7 +489,7 @@ class Harness:
     def c1(self, sid, required=True, drain=True):
         results = []
         for _ in range(8 if drain else 1):
-            code, receipts, error = self.call(sid, sid + "-sync", "--sync", self.sync[sid], required=False)
+            code, receipts, error = self.call(sid, f"{sid}-sync-{self.calls}", "--sync", self.sync[sid], required=False)
             results.append({"exit": code, "error": error, "receipts": receipts})
             if code or not drain or all(r.get("batches", 0) == 0 for r in receipts):
                 break
@@ -925,7 +925,9 @@ def t4_case(h, case):
         from t9_isolation import schema_case
         steps = []
         for path in h.paths:
-            sid = "t4_isolation_" + case + "_" + path
+            # Oracle LogMiner reports identifiers over 30 bytes as UNSUPPORTED;
+            # keep every engine's fixture names within that limit.
+            sid = "t4_" + case + "_" + path
             try:
                 result = schema_case(h, case, tag=sid, mode=path)
                 steps.append(dict(result, stage="published_projection", passed=result["status"] == "passed"))
@@ -1145,6 +1147,12 @@ def main(argv=None):
     lane = t1.LANE
     for version in versions:
         t1.LANE = "E19" if args.engine == "oracle" and version == "19" else lane
+        if t1.LANE == "fhp":
+            existing = subprocess.run(
+                ["docker", "ps", "--filter", "label=oo.lane=fhp", "-q"],
+                capture_output=True, text=True, check=True)
+            if existing.stdout.strip():
+                raise RuntimeError("fhp_fixture_resources_still_running")
         path = root / f"{args.engine}-{version}"
         path.mkdir()
         if not disk_ready(args.min_free_gb, args.disk_wait_minutes):
