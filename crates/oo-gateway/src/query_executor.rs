@@ -3065,7 +3065,9 @@ fn stale_table_warning(
     table: &str,
     row: &serde_json::Value,
 ) -> Option<QualityWarning> {
-    if row["state"] != "stale" && row["stale"] != true {
+    // oo-load per-table isolation records `sync_state` (plan D22) beside the
+    // publication `state`, which stays `live` for retained data.
+    if row["state"] != "stale" && row["stale"] != true && row["sync_state"] != "stale" {
         return None;
     }
     let reason = ["stale_reason", "reason", "failure_reason"]
@@ -3092,6 +3094,7 @@ fn stale_status_is_optional_scoped_and_preserves_reason() {
     for row in [
         json!({"state":"stale","stale_reason":"SCHEMA_CHANGED"}),
         json!({"stale":true,"reason":"SCHEMA_CHANGED"}),
+        json!({"state":"live","sync_state":"stale","stale_reason":"SCHEMA_CHANGED"}),
     ] {
         let warning = stale_table_warning("app", "items", &row).unwrap();
         assert_eq!(
