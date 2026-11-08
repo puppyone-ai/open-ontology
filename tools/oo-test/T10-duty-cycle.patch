@@ -1,0 +1,40 @@
+--- a/tools/oo-load/src/main.rs
++++ b/tools/oo-load/src/main.rs
+@@ -351,7 +351,7 @@
+             println!(
+                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
+                 [--secrets-dir DIR] [--chunk-rows N] [--statement-timeout-ms N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
+-                [--dm8-worker EXECUTABLE]\n\
++                [--dm8-worker EXECUTABLE] [--duty-cycle-percent N]\n\
+                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
+                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
+                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
+@@ -374,6 +374,7 @@
+             "--secrets-dir",
+             "--chunk-rows",
+             "--statement-timeout-ms",
++            "--duty-cycle-percent",
+             "--oracle-worker",
+             "--db2-worker",
+             "--dm8-worker",
+@@ -402,6 +403,7 @@
+             "--run-id",
+             "--chunk-rows",
+             "--statement-timeout-ms",
++            "--duty-cycle-percent",
+             "--oracle-worker",
+             "--db2-worker",
+             "--dm8-worker",
+@@ -508,6 +510,12 @@
+         }
+     }
+     let mut budget = ReadBudget::default();
++    if let Some(duty) = opts.get("--duty-cycle-percent") {
++        budget.duty_cycle_percent = duty.parse().map_err(|_| "duty_cycle_percent")?;
++        if !(1..=100).contains(&budget.duty_cycle_percent) {
++            return Err("duty_cycle_percent".into());
++        }
++    }
+     if let Some(timeout) = opts.get("--statement-timeout-ms") {
+         let timeout: u64 = timeout.parse().map_err(|_| "statement_timeout")?;
+         if !(100..=budget.statement_timeout_ms).contains(&timeout) {
