@@ -226,6 +226,21 @@ class Tests(unittest.TestCase):
                         scheduler.cycle(config, 'run_new', out)
                     self.assertEqual(json.loads((out / 'result.json').read_text())['reason'], reason)
 
+    def test_c5_full_reads_are_periodic_not_every_cycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            every = scheduler.c5_full_read_every({})
+            self.assertEqual(every, 24)
+            cycles = [scheduler.next_c5_cycle(root, every) for _ in range(49)]
+            full = [c for c in cycles if c % every == 0]
+            self.assertEqual(cycles[0] % every, 0)  # first cycle verifies fully
+            self.assertEqual(len(full), 3)  # cycles 1, 25 and 49 of 49
+            self.assertEqual(cycles, list(range(24, 73)))
+        for bad in (0, -1, True, '24', 10001):
+            with self.assertRaisesRegex(ValueError, 'schedule_c5_full_read_every'):
+                scheduler.c5_full_read_every({'c5_full_read_every': bad})
+        self.assertEqual(scheduler.c5_full_read_every({'c5_full_read_every': 1}), 1)
+
     def test_fresh_catalog_controls_data_only_admission(self):
         for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy',
                        'inferred_edge', 'report'):

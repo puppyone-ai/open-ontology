@@ -171,8 +171,12 @@ def run_cycle(config, generation, output, guard, result, active_generation=lambd
     loader = config.get('loader', 'oo-load')
     guard()
     c5 = output / 'c5.json'
-    # Full-read reconciliation is deliberate for lite; no guessed CDC position.
-    save(c5, {'cycle': 1, 'full_read_every': 1})
+    # Every cycle compares per-chunk source digests; only chunks whose digest
+    # changed are re-read, plus a bounded periodic full read (default every
+    # 24 cycles) that still catches a digest collision (plan D24: keep source
+    # pressure low). No guessed CDC position.
+    every = c5_full_read_every(config)
+    save(c5, {'cycle': next_c5_cycle(output.parent, every), 'full_read_every': every})
     sync = command([loader, 'sync', *common, '--run-id', generation, '--c5', c5], output, 'sync')
     if sync.returncode not in (0, 3, 4):
         raise ValueError('sync_failed')
@@ -301,6 +305,29 @@ def complete(config, binding, result):
     payload.update(result, result=result['stage'])
     encoded = json.dumps(payload, separators=(',', ':')).replace("'", "''")
     return sql(config, f"SELECT jobs.complete_lite_cycle({binding},'{encoded}'::jsonb);")
+
+
+C5_FULL_READ_EVERY = 24
+
+
+def c5_full_read_every(config):
+    value = config.get('c5_full_read_every', C5_FULL_READ_EVERY)
+    if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 10000:
+        raise ValueError('schedule_c5_full_read_every')
+    return value
+
+
+def next_c5_cycle(root, every):
+    """Monotonic per-deployment cycle number. oo-load fully re-reads when the
+    number is a multiple of `every`; the first cycle is one of them."""
+    path = root / 'c5-cycle.json'
+    try:
+        previous = int(json.loads(path.read_text())['cycle'])
+    except (OSError, ValueError, KeyError, TypeError):
+        previous = every - 1
+    current = max(previous, 0) + 1
+    save(path, {'cycle': current})
+    return current
 
 
 def last_published_generation(config):

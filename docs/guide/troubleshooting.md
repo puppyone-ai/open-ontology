@@ -66,6 +66,13 @@ across generations, because row counts and ratios are normalized.
 Agents see a stale table's reason without column names (for example
 `schema_drift:type`); the owner sees the full reason in `oo status --json`.
 
+Each scheduled C5 cycle compares per-chunk digests computed by the source
+and transfers only chunks whose digest changed; every 24th cycle (and the first
+cycle after deployment) re-reads all chunks to catch a digest collision. The
+schedule key `c5_full_read_every` (1–10000) changes that period; 1 restores a
+full read every cycle. Digest computation itself still scans each table at the
+source on every cycle.
+
 ### Upgrading an existing deployment
 
 - C5 tables (the lite default) seal their column catalog on the first cycle
