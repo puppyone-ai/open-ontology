@@ -18,9 +18,13 @@ from datetime import datetime, timezone
 
 def publication_health(history, services_up, now=None):
     published=history.get('data_published_at')
+    # An unchanged source is current data, not an overdue one: health follows
+    # the newest cycle that confirmed the served publication (activation or
+    # exact replay), falling back to the publication time.
+    verified=history.get('data_verified_at') or published
     try:
         age=((now or datetime.now(timezone.utc))-datetime.fromisoformat(
-            published.replace('Z','+00:00'))).total_seconds()
+            verified.replace('Z','+00:00'))).total_seconds()
         fresh=0 <= age <= 2*history.get('interval_seconds',3600)+history.get('grace_seconds',60)
     except (AttributeError,TypeError,ValueError):
         age=None
@@ -75,7 +79,7 @@ def service_status(row):
 
 def control_status(root,argv,env):
     empty={'last_success':None,'last_failure':None,'next_due':None}
-    split={'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
+    split={'data_published_at':None,'data_verified_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
     path=root/'work/operator/schedule.json'
     if not path.exists():
         return {**empty,**split,'schedule_basis':'control_db','schedule_status':'not_configured'}
@@ -93,11 +97,13 @@ def control_status(root,argv,env):
    ORDER BY event_id DESC LIMIT 1),
  'data_published_at', (SELECT payload->'data_published_at' FROM jobs.lite_cycle_events
    WHERE project_id='%s' AND payload->>'data_published_at' IS NOT NULL ORDER BY event_id DESC LIMIT 1),
+ 'data_verified_at', (SELECT payload->'data_verified_at' FROM jobs.lite_cycle_events
+   WHERE project_id='%s' AND payload->>'data_verified_at' IS NOT NULL ORDER BY event_id DESC LIMIT 1),
  'tables', coalesce((SELECT jsonb_build_object('stale',payload->'stale_tables',
    'review_pending',payload->'review_pending') FROM jobs.lite_cycle_events
    WHERE project_id='%s' ORDER BY event_id DESC LIMIT 1),
    '{"stale":[],"review_pending":[]}'::jsonb),
-""" % (project,project,project)) if 'cycle' in config else ''
+""" % (project,project,project,project)) if 'cycle' in config else ''
         # The socket is inside this owned control container, never a source DB.
         # One read-only snapshot; enqueue/fire success is not job completion.
         sql=f"""
@@ -591,7 +597,7 @@ def main(request):
     owner=root/'owner.json'
     if action!='up' and not owner.exists():
         return {'status':'not_started','gateway_health':{'status':'unmeasured'},'services':[],
-                'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
+                'data_published_at':None,'data_verified_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]}}
     image=request['image'] if action=='up' else json.loads(read_private(owner))['image']
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
@@ -679,7 +685,7 @@ def main(request):
         try:gateway=health(root,request['stack'],port,argv,env)
         except Exception:gateway={'status':'unavailable','nearest_credential_expiry_ms':None}
     history=({'last_success':None,'last_failure':None,'next_due':None,
-              'data_published_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]},
+              'data_published_at':None,'data_verified_at':None,'cycle':None,'tables':{'stale':[],'review_pending':[]},
               'schedule_basis':'control_db','schedule_status':'stopped'}
              if action=='down' else control_status(root,argv,env))
     if action!='down' and not history.get('data_published_at'):
@@ -695,7 +701,11 @@ def main(request):
     pending=[] if status in ('healthy','degraded') else ['worker admission/migrations','scheduler bindings',
         'Builder target binding and publication','Gateway operator configuration']
     build=None
-    if status=='foundations_only' and (root/'work/operator/build-runtime.json').exists():
+    # Right after the first build no scheduled cycle has run yet and the
+    # scheduler services are only now starting: that is retained_ready, not an
+    # unhealthy deployment (the first `oo build` reconciles with `up`).
+    first_cycle_pending=(status=='unhealthy' and not history.get('cycle'))
+    if (status=='foundations_only' or first_cycle_pending) and (root/'work/operator/build-runtime.json').exists():
         # Retained chain provisioned (D16): `oo build` runs in this runtime.
         # A completed first build is not a measured scheduled cycle.
         chain=root/'work/build/.oo/chain.json'

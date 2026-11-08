@@ -88,6 +88,48 @@ class Tests(unittest.TestCase):
                     if code in (3, 4):
                         self.assertEqual(result['stale_tables'][0]['table'], 'app.b')
 
+    def test_all_noop_cycle_reconfirms_the_active_publication(self):
+        for active in ('run_active', None):
+            with self.subTest(active=active), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                config = dict(stack='s', source='s', target='t', secrets_dir='p', library='owned',
+                              login='owner', publisher_config='p',
+                              builder={'origin': {'reviewed_registry': {}}},
+                              pack_path=str(root / 'pack'), document_path=str(root / 'document'))
+                generations = []
+                def fake(argv, output, label, data=None):
+                    if label == 'sync':
+                        rows = [{'status': 'noop', 'retained_run': 'run_a', 'table': 'app.a'},
+                                {'status': 'noop', 'retained_run': 'run_b', 'table': 'app.b'}]
+                        return Mock(returncode=0, stdout=b'\n'.join(json.dumps(r).encode() for r in rows))
+                    if label == 'candidate':
+                        generations.append(argv[argv.index('--generation') + 1])
+                        return Mock(returncode=1, stdout=b'{"state":"pending"}',
+                                    stderr=b'{"error":"publication_semantic_admission_required"}')
+                    if label == 'publisher':
+                        return Mock(returncode=0, stdout=json.dumps({
+                            'state': 'ready', 'outcome': 'replay', 'receipt_sha256': 'receipt',
+                            'gateway_document': {'envelope': {'producer': {'artifact': {}}}}}).encode())
+                    return Mock(returncode=0)
+                with patch.object(scheduler, 'command', side_effect=fake), patch.object(
+                        scheduler, 'last_published_generation', return_value=active), patch.object(
+                        scheduler, 'data_only', return_value={'stage': 'data_only', 'review_pending': []}), \
+                        patch.object(builder, 'pinned', return_value=b'{}'), patch.object(
+                        scheduler, 'gateway_probe', return_value={'receipt_sha256': 'receipt',
+                                                                  'measured_at': '2026-11-08T00:00:00Z'}):
+                    out = root / 'cycle'
+                    if active is None:
+                        with self.assertRaisesRegex(ValueError, 'mixed_retained_runs'):
+                            scheduler.cycle(config, 'run_new', out)
+                        self.assertEqual(generations, [])
+                    else:
+                        result = scheduler.cycle(config, 'run_new', out)
+                        self.assertEqual(generations, ['run_active'])
+                        self.assertEqual(result['result'], 'succeeded')
+                        self.assertIsNone(result['data_published_at'])
+                        self.assertEqual(result['data_verified_at'], '2026-11-08T00:00:00Z')
+                        self.assertEqual(result['published_generation'], 'run_active')
+
     def test_fresh_catalog_controls_data_only_admission(self):
         for change in ('unchanged', 'fk_removed', 'comment', 'column_comment', 'new_column', 'legacy'):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp:

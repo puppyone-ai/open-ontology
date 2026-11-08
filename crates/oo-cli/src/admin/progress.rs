@@ -39,7 +39,8 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
         return Ok(Invocation::AdminReport(
             json!({"protocol":"oo.build-progress/v1","status":"not_started",
                 "last_success":null,"last_failure":null,"next_due":null,
-                "data_published_at":null,"cycle":null,"tables":{"stale":[],"review_pending":[]},
+                "data_published_at":null,"data_verified_at":null,"cycle":null,
+                "tables":{"stale":[],"review_pending":[]},
                 "nearest_credential_expiry":null,"gateway_health":"unmeasured"})
             .to_string(),
             0,
@@ -85,6 +86,7 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
 
 pub(super) fn unmeasured_publication(state: &mut Value) {
     state["data_published_at"] = Value::Null;
+    state["data_verified_at"] = Value::Null;
     state["cycle"] = Value::Null;
     state["tables"] = json!({"stale":[],"review_pending":[]});
 }
@@ -134,6 +136,10 @@ pub(super) fn display_status(state: &Value) -> String {
         format!(
             "Data published at: {}",
             state["data_published_at"].as_str().unwrap_or("unmeasured")
+        ),
+        format!(
+            "Data verified current at: {}",
+            state["data_verified_at"].as_str().unwrap_or("unmeasured")
         ),
         format!(
             "Cycle: {} at {} ({})",

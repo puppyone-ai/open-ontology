@@ -27,3 +27,16 @@ class StatusTests(unittest.TestCase):
             report = lifecycle.publication_health(history, True, now)
             self.assertEqual(report['status'], 'unhealthy')
             self.assertIsNotNone(report['alert'])
+
+    def test_unchanged_source_stays_healthy_through_verified_replays(self):
+        from datetime import datetime, timezone
+        now = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
+        history = {'data_published_at': '2026-11-01T00:00:00Z', 'data_verified_at': '2026-11-08T11:30:00Z',
+                   'interval_seconds': 3600, 'grace_seconds': 60, 'cycle': {'result': 'succeeded'},
+                   'tables': {'stale': [], 'review_pending': []}}
+        self.assertEqual(lifecycle.publication_health(history, True, now)['status'], 'healthy')
+        stale = dict(history, data_verified_at='2026-11-08T08:00:00Z')
+        report = lifecycle.publication_health(stale, True, now)
+        self.assertEqual(report['status'], 'unhealthy')
+        self.assertEqual(report['alert'], 'data_publication_overdue')
+

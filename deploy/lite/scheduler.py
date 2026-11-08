@@ -140,7 +140,8 @@ def gateway_probe(config, receipt):
 
 def cycle(config, generation, output, guard=lambda: None):
     result = {'stage': 'failed', 'result': 'failed', 'reason': None,
-              'stale_tables': [], 'review_pending': [], 'data_published_at': None}
+              'stale_tables': [], 'review_pending': [], 'data_published_at': None,
+              'data_verified_at': None, 'published_generation': None}
     try:
         return run_cycle(config, generation, output, guard, result)
     except Exception as error:
@@ -179,10 +180,19 @@ def run_cycle(config, generation, output, guard, result):
     if len(fresh_runs) == 1:
         # No-op and stale tables may keep older cuts in a partial candidate.
         retained_runs = fresh_runs
+    elif not fresh_runs and len(retained_runs) > 1:
+        # Every table is unchanged, but an earlier partial cut left them on
+        # different retained runs: re-confirm the active publication. oo-load
+        # refuses the replay unless the recomputed cut is byte-identical.
+        active = last_published_generation(config)
+        if not active:
+            raise ValueError('mixed_retained_runs')
+        retained_runs = {active}
     if len(retained_runs) != 1:
         raise ValueError('mixed_retained_runs')
     # C5 no-ops retain the sealed parent, not a fictitious new run.
     generation = retained_runs.pop()
+    result['published_generation'] = generation
     guard()
     prepared = command([loader, 'publish', *common, '--generation', generation,
                         '--library', config['library']], output, 'candidate')
@@ -230,6 +240,9 @@ def run_cycle(config, generation, output, guard, result):
                 raise ValueError('gateway_reload_failed') from None
             time.sleep(1)
     save(output / 'gateway.json', measured)
+    # The Gateway now serves this receipt: the published data is current as of
+    # this cycle whether it was newly activated or an exact replay.
+    result['data_verified_at'] = measured.get('measured_at') or timestamp()
     guard()
     pruned = command([loader, 'prune', *common, '--library', config['library'],
                       '--retain-seconds', str(config.get('retain_seconds', 86400))], output, 'prune')
@@ -240,10 +253,20 @@ def run_cycle(config, generation, output, guard, result):
                 model_calls=0, **measured)
 
 def complete(config, binding, result):
-    payload = dict(reason=None, stale_tables=[], review_pending=[], data_published_at=None)
+    payload = dict(reason=None, stale_tables=[], review_pending=[], data_published_at=None,
+                   data_verified_at=None, published_generation=None)
     payload.update(result, result=result['stage'])
     encoded = json.dumps(payload, separators=(',', ':')).replace("'", "''")
     return sql(config, f"SELECT jobs.complete_lite_cycle({binding},'{encoded}'::jsonb);")
+
+
+def last_published_generation(config):
+    """The anchor run of the newest cycle that activated or replayed a publication."""
+    project_id = project(config)
+    row = sql(config, "SELECT payload->>'published_generation' FROM jobs.lite_cycle_events "
+                      f"WHERE project_id='{project_id}' AND payload->>'published_generation' IS NOT NULL "
+                      "AND payload->>'data_verified_at' IS NOT NULL ORDER BY event_id DESC LIMIT 1;").strip()
+    return row if row and all(c.isalnum() or c in '_-' for c in row) and len(row) <= 64 else None
 
 
 def timestamp():

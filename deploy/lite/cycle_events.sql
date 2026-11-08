@@ -23,6 +23,8 @@ BEGIN
        OR octet_length(p_payload::text) > 1048576
        OR p_payload->>'result' IS NULL
        OR p_payload->>'result' NOT IN ('succeeded','partial','review_required','failed')
+       OR (p_payload ? 'published_generation' AND p_payload->>'published_generation' IS NOT NULL
+           AND p_payload->>'published_generation' !~ '^[A-Za-z0-9_-]{1,64}$')
        OR NOT EXISTS (SELECT 1 FROM jobs.tasks WHERE id=p_task
                       AND project_id=p_project AND kind='lite_retained') THEN
         RAISE EXCEPTION 'invalid lite cycle payload';
@@ -38,7 +40,11 @@ BEGIN
         'result',p_payload->'result','reason',p_payload->'reason',
         'stale_tables',coalesce(p_payload->'stale_tables','[]'::jsonb),
         'review_pending',coalesce(p_payload->'review_pending','[]'::jsonb),
-        'data_published_at',p_payload->'data_published_at');
+        'data_published_at',p_payload->'data_published_at',
+        -- Last time a cycle confirmed the published data is current (activated
+        -- or an exact replay); an unchanged source keeps this moving.
+        'data_verified_at',p_payload->'data_verified_at',
+        'published_generation',p_payload->'published_generation');
     IF p_payload->>'result' IN ('failed','review_required')
        AND p_payload->>'data_published_at' IS NULL THEN
         IF body->'stale_tables' = '[]'::jsonb THEN
