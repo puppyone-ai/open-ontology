@@ -74,9 +74,18 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     if !compare(&from, &earliest)? {
         return Err("sync_rebaseline_required_retention");
     }
-    let floor = target.feedback_position().await?;
-    if !compare(&from, &floor)? || !compare(&floor, &earliest)? {
+    let mut floor = target.feedback_position().await?;
+    if !compare(&from, &floor)? {
         return Err("sync_rebaseline_required_retention");
+    }
+    if !compare(&floor, &earliest)? {
+        // Only quarantined tables can hold the feedback floor below the
+        // healthy cursor. They rejoin through a fresh snapshot corrected with
+        // the log after it, never from their frozen position, so log already
+        // removed below the floor costs them nothing: keep isolating them
+        // instead of failing every table (plan D22). The healthy cursor check
+        // above still refuses lost history for tables that are being applied.
+        floor = earliest.clone();
     }
     // Also repairs feedback lost after the previous successful target commit.
     feedback.acknowledge(&floor).await?;
@@ -270,18 +279,29 @@ mod tests {
         );
         assert_eq!(store.position, 30);
         assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        // Log removed below a quarantined table's frozen floor: the healthy
+        // cursor (30) is still retained, so the source keeps running and the
+        // feedback floor moves up to the earliest retained position.
         source.floor = 11;
+        assert!(
+            !step(&mut source, &mut store, &mut ack, &budget, at_or_after)
+                .await
+                .unwrap()
+        );
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110, 111]);
+        // History lost for the healthy cursor itself still refuses.
+        source.floor = 31;
         assert_eq!(
             step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
             Err("sync_rebaseline_required_retention")
         );
-        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        source.floor = 11;
         store.feedback_floor = Some(31);
         assert_eq!(
             step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
             Err("sync_rebaseline_required_retention")
         );
-        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110, 111]);
     }
 
     #[test]
