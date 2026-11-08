@@ -154,9 +154,41 @@ pub fn valid(reason: &str) -> bool {
     CODES.contains(&reason) || parse_drift(reason).is_some()
 }
 
+/// A stored reason from before this grammar (e.g. `schema_drift:payload:type`
+/// recorded by an older build) maps to its closed code, so an upgraded
+/// quarantine keeps working (review N2). Grammar sentences pass unchanged.
+pub fn normalize_stored(reason: &str) -> String {
+    if valid(reason) {
+        return reason.to_owned();
+    }
+    let code = reason.split(':').next().unwrap_or("");
+    if CODES.contains(&code) {
+        code.to_owned()
+    } else {
+        "schema_unproven".to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_stored_reasons_map_to_closed_codes() {
+        assert_eq!(
+            normalize_stored("schema_drift:payload:type"),
+            "schema_drift"
+        );
+        assert_eq!(
+            normalize_stored("schema_drift:Payload Col:weird"),
+            "schema_drift"
+        );
+        assert_eq!(normalize_stored("source_permission"), "source_permission");
+        assert_eq!(normalize_stored("something_old"), "schema_unproven");
+        let current = "schema_drift:unpublished_column:type";
+        assert_eq!(normalize_stored(current), current);
+        assert!(valid(&normalize_stored("x:y:z")));
+    }
 
     #[test]
     fn mixed_case_non_ascii_and_63_byte_names_round_trip() {

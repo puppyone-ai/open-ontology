@@ -390,7 +390,9 @@ impl<'a> PgSync<'a> {
                 table: binding.table.clone(),
                 retained_run: binding.run.clone(),
                 position: serde_json::from_str(&position).map_err(|_| "sync_position")?,
-                stale_reason: reason,
+                // Reasons stored by an older build keep the table quarantined
+                // under the current grammar instead of failing the source.
+                stale_reason: reason.map(|r| crate::stale_grammar::normalize_stored(&r)),
                 stale_since: since,
             });
         }
