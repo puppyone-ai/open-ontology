@@ -140,6 +140,8 @@ pub struct MysqlEngine {
     password: Zeroizing<String>,
     options: EngineOptions,
     conn: Option<Conn>,
+    single_snapshot: bool,
+    snapshot_started: bool,
     basics: Option<Basics>,
     tables: HashMap<TableRef, TableMeta>,
     duty: DutyCycle,
@@ -401,6 +403,8 @@ impl MysqlEngine {
             password,
             options,
             conn: None,
+            single_snapshot: false,
+            snapshot_started: false,
             basics: None,
             tables: HashMap::new(),
             duty,
@@ -434,6 +438,32 @@ impl MysqlEngine {
         self.config.mysql_port = tunnel.address().port();
         self.tunnel = Some(tunnel);
         Ok(self)
+    }
+
+    pub fn with_single_snapshot(mut self) -> Self {
+        self.single_snapshot = true;
+        self
+    }
+
+    pub fn read_consistency(&self) -> &'static str {
+        if self.single_snapshot {
+            "single"
+        } else {
+            "chunk_consistent"
+        }
+    }
+
+    pub async fn prepare_table_snapshot(&mut self) -> Result<()> {
+        if self.single_snapshot && !self.snapshot_started {
+            self.ensure_basics().await?;
+            self.exec(
+                "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+                vec![],
+            )
+            .await?;
+            self.snapshot_started = true;
+        }
+        Ok(())
     }
 
     /// Resource receipt (T8). `peak_connections` counts this engine's own
@@ -481,6 +511,9 @@ impl MysqlEngine {
     async fn ensure_conn(&mut self) -> Result<()> {
         if self.conn.is_some() {
             return Ok(());
+        }
+        if self.snapshot_started {
+            return Err(SourceError::protocol("single_snapshot_lost"));
         }
         if !mysql_ident(&self.config.mysql_database) {
             return Err(SourceError::config("database_ident"));
@@ -1413,15 +1446,19 @@ impl MysqlEngine {
     ) -> Result<(Option<Watermark>, Option<Watermark>, Vec<Row>, u64)> {
         let low = self.read_watermark().await?;
         let body = async {
-            self.exec(
-                if self.family == EngineFamily::Tidb {
-                    "START TRANSACTION WITH CONSISTENT SNAPSHOT"
-                } else {
-                    "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"
-                },
-                vec![],
-            )
-            .await?;
+            if !self.single_snapshot {
+                self.exec(
+                    if self.family == EngineFamily::Tidb {
+                        "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                    } else {
+                        "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"
+                    },
+                    vec![],
+                )
+                .await?;
+            } else if !self.snapshot_started {
+                return Err(SourceError::protocol("single_snapshot_not_started"));
+            }
             let (rows, bytes) = self.read_pages(chunk, budget).await?;
             let proof = self.chunk_digest(chunk).await?;
             if proof.rows != rows.len() as u64 {
@@ -1442,7 +1479,7 @@ impl MysqlEngine {
                 }
             };
         let end = if result.is_ok() { "COMMIT" } else { "ROLLBACK" };
-        if self.conn.is_some() {
+        if self.conn.is_some() && !self.single_snapshot {
             let closed = tokio::time::timeout(Duration::from_secs(1), self.exec(end, vec![])).await;
             match closed {
                 Ok(Ok(_)) => {}
@@ -2140,6 +2177,31 @@ mod tests {
         ] {
             assert_ne!(digest, shape_digest(columns, keys).unwrap());
         }
+    }
+
+    #[tokio::test]
+    async fn lost_single_snapshot_never_reconnects_as_a_new_snapshot() {
+        let config = MysqlConfig {
+            mysql_host: "localhost".into(),
+            mysql_port: 3306,
+            mysql_database: "fixture".into(),
+            mysql_user: "reader".into(),
+            mysql_ca_file: Default::default(),
+            mysql_tls_server_name: None,
+            secret_ref: crate::SecretRef::new("secret://fixture").unwrap(),
+            connect_timeout_ms: 1000,
+        };
+        let mut engine =
+            MysqlEngine::new(config, Zeroizing::new(String::new()), Default::default());
+        assert_eq!(engine.read_consistency(), "chunk_consistent");
+        engine = engine.with_single_snapshot();
+        assert_eq!(engine.read_consistency(), "single");
+        engine.snapshot_started = true;
+        assert_eq!(
+            engine.ensure_conn().await.unwrap_err().fact(),
+            Some("single_snapshot_lost")
+        );
+        assert_eq!(engine.stats.connects, 0);
     }
 
     #[test]

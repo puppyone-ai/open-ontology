@@ -64,6 +64,7 @@ pub struct PostgresEngine {
     session: Option<PgSession>,
     protection: Protection,
     snapshot: Option<String>,
+    snapshot_owner: Option<PgSession>,
     plans: BTreeMap<TableRef, Planned>,
     revision: u32,
     /// Actual EXPLAIN output, suitable for a caller's evidence bundle.
@@ -90,6 +91,7 @@ impl PostgresEngine {
             session: None,
             protection: Protection::default(),
             snapshot: None,
+            snapshot_owner: None,
             plans: BTreeMap::new(),
             revision: 0,
             explains: BTreeMap::new(),
@@ -141,6 +143,44 @@ impl PostgresEngine {
         } else {
             Err(SourceError::config("selected_table"))
         }
+    }
+
+    /// Keep physical locators alive only for their table, not the keyed binding.
+    /// An explicitly supplied external snapshot continues to cover all tables.
+    pub async fn prepare_table_snapshot(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<(), SourceError> {
+        if self.snapshot.is_some() && self.snapshot_owner.is_none() {
+            return Ok(());
+        }
+        if let Some(owner) = self.snapshot_owner.take() {
+            self.snapshot = None;
+            owner.conn.close().await.map_err(crate::error::map_sqlx)?;
+        }
+        self.plans.clear();
+        let columns = self.export_shape(table, budget).await?;
+        let columns = columns.as_deref().unwrap_or(&[]);
+        let keyed = columns.iter().any(|c| c.primary_key_ordinal.is_some())
+            || columns
+                .iter()
+                .flat_map(|c| c.unique_key_ordinals.keys())
+                .any(|index| {
+                    columns
+                        .iter()
+                        .filter(|c| c.unique_key_ordinals.contains_key(index))
+                        .all(|c| !c.nullable)
+                });
+        if !keyed {
+            let mut owner = self.connect().await?;
+            owner.begin().await?;
+            let row =
+                session::fetch_one(&mut owner, sqlx::query("SELECT pg_export_snapshot()")).await?;
+            self.snapshot = Some(cell_string(&row, 0)?);
+            self.snapshot_owner = Some(owner);
+        }
+        Ok(())
     }
 
     async fn connect(&mut self) -> Result<PgSession, SourceError> {
