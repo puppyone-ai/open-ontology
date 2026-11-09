@@ -315,7 +315,11 @@ fn map_driver(e: &DriverError) -> SourceError {
                 1017 | 28000 => (SourceErrorKind::Auth, "authentication_failed"),
                 _ => (SourceErrorKind::Protocol, "oracle_worker_error"),
             };
-            SourceError::new(kind, Some(fact), None)
+            // Unknown codes keep the ORA number so field failures stay diagnosable.
+            let code = (fact == "oracle_worker_error" && (1..=99_999).contains(code))
+                .then(|| crate::error::SqlState::parse(&format!("{code:05}")))
+                .flatten();
+            SourceError::new(kind, Some(fact), code)
         }
     }
 }
@@ -2573,6 +2577,25 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_worker_codes_keep_the_ora_number() {
+        let e = map_driver(&DriverError::Worker {
+            code: 2049,
+            timeout: false,
+        });
+        assert_eq!(e.sqlstate(), Some("02049"));
+        let known = map_driver(&DriverError::Worker {
+            code: 1555,
+            timeout: false,
+        });
+        assert_eq!(known.sqlstate(), None);
+        let none = map_driver(&DriverError::Worker {
+            code: 0,
+            timeout: false,
+        });
+        assert_eq!(none.sqlstate(), None);
+    }
 
     #[test]
     fn serial_reads_preserve_sql_and_bind_positions() {

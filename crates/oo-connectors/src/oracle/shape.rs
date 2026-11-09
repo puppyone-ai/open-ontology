@@ -29,14 +29,15 @@ impl OracleEngine {
         table: &TableRef,
         budget: &ReadBudget,
     ) -> Result<Vec<SourceColumnShape>, SourceError> {
-        self.query(
+        // A readability probe: LOB columns must not need a value budget (the
+        // thick worker refuses unbudgeted LOB result sets even with zero rows).
+        self.sample_statement(
             &format!(
                 "SELECT * FROM {}.{} WHERE 1=0",
                 keyset::ident(&table.schema)?,
                 keyset::ident(&table.name)?
             ),
             &[],
-            1,
         )?;
         let meta = self.load_meta(table)?;
         let mut remaining = budget.max_chunk_bytes;
