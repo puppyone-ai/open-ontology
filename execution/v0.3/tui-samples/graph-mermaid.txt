@@ -1,0 +1,31 @@
+flowchart LR
+  %% oo.adjudication/v1 summary sha256:3edff19048749eb3fde98138c6cf75634d3873e310f4c2a08b13fcea32e22b17
+  customers["客户<br/>id · 48k"]
+  orders["订单<br/>id · 1.2M"]
+  shipments["运单<br/>id · 982k"]
+  parcels["包裹<br/>id · 2.4M"]
+  warehouses["仓库<br/>code · 36"]
+  routes["线路<br/>id · 420"]
+  vehicles["车辆<br/>id · 310"]
+  drivers["司机<br/>id · 540"]
+  stations["网点<br/>id · 1.8k"]
+  status_codes["状态码<br/>code · 14"]
+  calendar["日历<br/>day · 3.7k"]
+  shipment_events["运单事件<br/>id · 11M"]
+  employees["员工<br/>id · 2.1k"]
+  orders -->|"N:1 customer_id"| customers
+  shipments -->|"N:1 order_id"| orders
+  parcels -->|"N:1 shipment_id"| shipments
+  shipments -->|"N:1 route_id"| routes
+  shipments -.->|"rejected: containment 0.71 < 0.98"| warehouses
+  routes -->|"N:1 origin_station_id"| stations
+  vehicles -->|"N:1 home_station_id"| stations
+  drivers -->|"1:1 vehicle_id"| vehicles
+  shipments -->|"N:1 driver_id"| drivers
+  shipment_events -->|"N:1 shipment_id"| shipments
+  shipment_events -->|"N:1 status_code"| status_codes
+  orders -->|"N:1 order_date"| calendar
+  employees -->|"N:1 manager_id"| employees
+  employees -->|"N:1 station_id"| stations
+  stations -->|"N:1 manager_id"| employees
+  drivers -.->|"rejected: containment 0.64 < 0.9"| employees

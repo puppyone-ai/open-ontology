@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect──● tables──◉ build──○ confirm──○ deliver ─╮
+│ build ························································ ··· ···· ·· ··   ··     · ·     1/5 · about 0:31 left │
+│                                                                                                                      │
+│ ● load       ████████████████████████████████  12/12 tables      0:42                                                │
+│ │            copy selected tables into the private replica                                                           │
+│ │                                                                                                                    │
+│ ◉ profile    ██████████████████▋·············  7/12 tables       eta 0:31 ⠹                                          │
+│ ┆            measure keys, containment, formats, cardinality                                                         │
+│ ┆                                                                                                                    │
+│ ○ draft      ································                                                                        │
+│ ┆            draft the ontology (model, bounded calls)                                                               │
+│ ┆                                                                                                                    │
+│ ○ adjudicate ································                                                                        │
+│ ┆            decide warn items from data evidence                                                                    │
+│ ┆                                                                                                                    │
+│ ○ compile    ································                                                                        │
+│              compile and verify the role pack                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                        ·                                 ·                    ·      │
+│                                                                          •          · ·                •   ·   ·     │
+│                ✦                ·                                             ·•    ·         ··    ·  ·  ·  •   ·✦  │
+╰ q stop watching (the build continues)  ⏎ continue when done  ────────────────────────────────────────────────────────╯

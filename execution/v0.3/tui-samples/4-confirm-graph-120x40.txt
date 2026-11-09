@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect──● tables──● build──◉ confirm──○ deliver ─╮
+│  graph  │  relations  │  entity                    summary 3edff190… ┊ decisions ··········· ·  ·   by data evidence │
+│                                                                      ┊                                               │
+│          │ id · 2.1k ├1╯     │ id · 310 │    │ id · 1.8k │           ┊ ▸ ○ sensitive routes.mobile… visible    0.91  │
+│          ╰──┬──┬──┬──╯       ╰───┬──┬───╯    ╰──┬─┬─┬─┬──╯           ┊     format hits 0 · name hit                  │
+│             1  N  1              1  N           1 N 1 1              ┊     sensitive.name_only_refuted               │
+│             ╰┄┄┼╮ ╰──────────────┼──┼───────────┼─╯ │ │              ┊   ◌ sensitive customers.pho… hidden     0.98  │
+│                ╰┼────────────────┼──┼───────────╯   │ │              ┊     distinct 0.97 · format hits 0.982         │
+│                 ┆  ╭─────────────╯  ╰───────────────┼─╯              ┊     sensitive.format_phone                    │
+│                 ┆  │              ╭─────────────────╯                ┊   ◌ sensitive drivers.id_nu… hidden     0.99  │
+│                 1  1              N                                  ┊     distinct 1 · format hits 1                │
+│            ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮             ┊     sensitive.format_national_id              │
+│            │ 司机     │    │ 线路     │    │ 包裹      │             ┊   ✗ relation  司机 → 员工    rejected   0.38  │
+│            │ id · 540 │    │ id · 420 │    │ id · 2.4M │             ┊     containment 0.64 < 0.9                    │
+│            ╰─────┬────╯    ╰─────┬────╯    ╰─────┬─────╯             ┊     relation.containment_insufficient         │
+│                  1               1               N                   ┊   ✗ relation  运单 → 仓库    rejected   0.41  │
+│                  ╰────────────╮  ╰╮ ╭────────────╯                   ┊     containment 0.71 < 0.98                   │
+│                               N   N 1                                ┊     relation.containment_insufficient         │
+│                            ┏━━┷━━━┷━┷━━┓                             ┊   ↓ metric    avg_parcel_we… demoted    0.44  │
+│                            ┃ 运单      ┃                             ┊     non empty · recompute match · unit consi… │
+│                            ┃ id · 982k ┃                             ┊     metric.unit_mismatch                      │
+│                            ┗━━┯━━┯━━┯━━┛                             ┊   ✓ relation  网点 → 员工    adopted     0.9  │
+│                               N  1  N                                ┊     many-to-one · containment 0.93 · joins 2… │
+│                 ╭─────────────╯  ╰╮ ╰┄┄ ✗ 0.71 ┄┄╮                   ┊     relation.containment_with_signal          │
+│                 1                 N              1                   ┊   ✓ relation  线路 → 网点    adopted    0.93  │
+│           ╭─────┴─────╮    ╭──────┴───╮    ╭─────┴─────╮             ┊     many-to-one · containment 0.97 · joins 2… │
+│           │ 订单      │    │ 运单事件 │    │ 仓库      │             ┊     relation.containment_with_signal          │
+│           │ id · 1.2M │    │ id · 11M │    │ code · 36 │             ┊   ✓ relation  订单 → 日历    adopted    0.94  │
+│           ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯             ┊     many-to-one · containment 1 · joins 7 · … │
+│               N   N              N                                   ┊     relation.containment_strict               │
+│               ╰──╮│              ╰────────────────╮                  ┊   ✓ relation  车辆 → 网点    adopted    0.95  │
+│                  │╰───────────────╮               │                  ┊     many-to-one · containment 1 · joins 1 · … │
+│                  1                1               1                  ┊     relation.containment_strict               │
+│           ╭──────┴─────╮    ╭─────┴────╮    ╭─────┴─────╮            ┊   ✓ relation  员工 → 员工    adopted    0.95  │
+│           │ 日历       │    │ 客户     │    │ 状态码    │            ┊     many-to-one · containment 0.994 · joins … │
+│           │ day · 3.7k │    │ id · 48k │    │ code · 14 │            ┊     relation.containment_strict               │
+│           ╰────────────╯    ╰──────────╯    ╰───────────╯            ┊   ✓ relation  运单 → 线路    adopted    0.96  │
+│                                                                      ┊     many-to-one · containment 0.991 · joins … │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations ↕           ┊     relation.containment_strict               │
+╰ tab view  ←↑↓→ select  f focus  j/k decisions  o override  ⏎ confirm publish  q quit  ───────────────────────────────╯
