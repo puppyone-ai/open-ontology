@@ -876,7 +876,7 @@ def ddl(h, case):
     if case == "drop_column":
         return [f"ALTER TABLE {t} DROP COLUMN n;"], ("id", "payload")
     if case == "rename_column":
-        if my and h.run.version == "5.7":
+        if my and h.run.version.startswith("5."):
             return [f"ALTER TABLE {t} CHANGE COLUMN payload label varchar(80) NOT NULL;"], ("id", "label", "n")
         return [f"ALTER TABLE {t} RENAME COLUMN payload TO label;"], ("id", "label", "n")
     if case == "widen_type":

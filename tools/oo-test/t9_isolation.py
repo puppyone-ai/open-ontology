@@ -28,7 +28,9 @@ def pair(h, sid, mode="c5"):
     for table in tables:
         definition = ("id NUMBER(18) PRIMARY KEY,payload VARCHAR2(80) NOT NULL,n NUMBER(10) NOT NULL"
                       if oracle else "id bigint PRIMARY KEY,payload varchar(80) NOT NULL,n int NOT NULL")
-        h.src(f"CREATE TABLE {table}({definition});")
+        # MySQL 5.7 defaults to latin1, which binlog capture refuses by design.
+        charset = " DEFAULT CHARSET=utf8mb4" if h.run.engine == "mysql" else ""
+        h.src(f"CREATE TABLE {table}({definition}){charset};")
         if oracle:
             h.src(f"GRANT SELECT,FLASHBACK ON {table} TO fixture_reader;")
             if mode == "c1":
@@ -76,7 +78,9 @@ def schema_case(h, kind, tag=None, mode="c5"):
     elif kind == "drop_column":
         statement = f"ALTER TABLE {bad} DROP COLUMN n;"
     elif kind == "rename_column":
-        statement = f"ALTER TABLE {bad} RENAME COLUMN payload TO label;"
+        statement = (f"ALTER TABLE {bad} CHANGE COLUMN payload label varchar(80) NOT NULL;"
+                     if mysql and h.run.version.startswith("5.") else
+                     f"ALTER TABLE {bad} RENAME COLUMN payload TO label;")
     elif kind == "nullability":
         statement = (f"ALTER TABLE {bad} MODIFY (payload NULL);" if oracle else
                      f"ALTER TABLE {bad} MODIFY payload varchar(80) NULL;" if mysql else

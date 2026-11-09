@@ -33,6 +33,15 @@ def rows(text):
     return [json.loads(line) for line in text.splitlines() if line.startswith("{")]
 
 
+def sync_receipts(receipts):
+    """Keep the cycle receipts; per-table status lines must not be stale."""
+    stale = [r["table"] for r in receipts if "table" in r and r.get("status") == "stale"]
+    if stale:
+        raise RuntimeError("table stale")
+    aggregate = [r for r in receipts if "table" not in r]
+    return aggregate or receipts
+
+
 def canonical(text):
     return [tuple(part.strip() for part in line.replace("\t", "|").split("|"))
             for line in text.splitlines() if line.strip()]
@@ -137,7 +146,7 @@ def run_cycles(run, binary, worker_image):
                                     "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
                 with SourceMeter(run, (0 if mode == "C1" else 10)+cycle, 3 if mode == "C1" else 1) as meter:
                     _, text = run.command(command + ["--sync" if mode == "C1" else "--c5", str(store / "cycle.json")], timeout=600)
-                receipts = rows(text)
+                receipts = sync_receipts(rows(text))
                 comparisons = {}
                 for table, relation in relations.items():
                     _, expected = run.sql(f"SELECT id,payload FROM {schema}.{table} ORDER BY id;")
@@ -353,9 +362,11 @@ def run_cycles(run, binary, worker_image):
                         run.sql("\n".join(statements)+"\nCOMMIT;", admin=True)
                     before = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                         "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
+                    config["run_id"] = f"oracle-c1-{cycle}"
+                    runner.write_json(store / "target.json", config)
                     with SourceMeter(run, 30+cycle, 2, include_logminer=True) as meter:
                         _, text = run.command(command + ["--sync", str(store / "cycle.json")], timeout=600)
-                    receipts = rows(text)
+                    receipts = sync_receipts(rows(text))
                     comparisons = {}
                     for table, relation in c1_relations.items():
                         _, expected = run.sql(f"SELECT id,payload FROM FIXTURE.{table} ORDER BY id;")
@@ -527,7 +538,7 @@ def family_acceptance(config_path, binary):
                 runner.write_json(store / 'cycle.json', policy)
                 args += [mode, str(store / 'cycle.json')]
             code, text = run.command(args, timeout=600, required=required)
-            return code, rows(text)
+            return code, sync_receipts(rows(text)) if mode == '--sync' else rows(text)
 
         def compare_table(table, relation):
             if not __import__('re').fullmatch(r'oo_load_data\.[a-z0-9_]+', relation):

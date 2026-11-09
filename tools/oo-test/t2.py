@@ -16,6 +16,22 @@ from t1 import LaneRun, SourceMeter, configure_pg, private
 ROOT = runner.ROOT
 
 
+
+def sync_receipts(receipts):
+    """Keep the cycle receipts; per-table status lines must not be stale."""
+    stale = [r["table"] for r in receipts if "table" in r and r.get("status") == "stale"]
+    if stale:
+        raise RuntimeError("table stale")
+    aggregate = [r for r in receipts if "table" not in r]
+    return aggregate or receipts
+
+
+def set_run_id(store, run_id):
+    """Each sync is its own cycle; reusing a run id is an idempotent replay."""
+    config = json.loads((store / "target.json").read_text())
+    config["run_id"] = run_id
+    runner.write_json(store / "target.json", config)
+
 def lsn(value):
     hi, lo = value.split("/")
     return (int(hi, 16) << 32) | int(lo, 16)
@@ -117,15 +133,17 @@ def run_postgres(run, binary):
                 thread.start()
             before_bytes = measure(run)
             with SourceMeter(run, cycle, 2) as meter:
+                set_run_id(store, f"c1-{cycle}-concurrent")
                 _, concurrent = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
                 if thread:
                     thread.join(timeout=60)
                     if thread.is_alive() or errors:
                         raise RuntimeError("writer failed")
                     thread = None
+                set_run_id(store, f"c1-{cycle}-drained")
                 _, drained = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
-            rows = [json.loads(line) for text in (concurrent, drained) for line in text.splitlines()
-                    if line.startswith("{")]
+            rows = [row for text in (concurrent, drained) for row in sync_receipts(
+                [json.loads(line) for line in text.splitlines() if line.startswith("{")])]
             for row in rows:
                 position = row["durable_position"]["lsn"]
                 if position < previous:
@@ -239,6 +257,7 @@ def run_postgres(run, binary):
         source["id"] = "fixture"
         command[command.index("--source")+1] = "fixture"
         runner.write_json(store / "stack.json", stack)
+        set_run_id(store, "c1-expired")
         code, _ = run.command(command + ["--sync", str(store / "sync.json")],
                               timeout=300, required=False)
         error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
