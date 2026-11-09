@@ -42,11 +42,22 @@ class PreparationTests(unittest.TestCase):
     def test_oracle_preparation_uses_calibrated_timeout(self):
         h = object.__new__(t10.ImpactOracleHarness)
         h.load_timeout = 6000
+        h.load_rate = None
         with patch.object(t10.OracleHarness, 'call', return_value=(0, [], None)) as call:
             h.call('s', 'run')
             self.assertEqual(call.call_args.args[-1], 6000)
             h.call('s', 'run', timeout=42)
             self.assertEqual(call.call_args.args[-1], 42)
+
+    def test_oracle_timeout_tracks_current_binding_rows_not_seed_rows(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_rate, h.timeout_records = 1000, []
+        h.tables = Mock(return_value=['bulk', 'other'])
+        h.src = Mock(return_value=(0, '3000000'))
+        h.size_timeout('later_binding')
+        self.assertEqual(h.load_timeout, 9000)
+        self.assertEqual(h.timeout_records[0]['rows'], 3000000)
+        self.assertEqual(h.timeout_records[0]['tables'], ['bulk', 'other'])
 
 
 class MathTests(unittest.TestCase):

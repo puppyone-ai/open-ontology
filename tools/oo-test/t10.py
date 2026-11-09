@@ -207,9 +207,26 @@ def oracle_timeout(rows, rows_per_second):
 class ImpactOracleHarness(OracleHarness):
     load_timeout = 900
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.load_rate = None
+        self.timeout_records = []
+
     def call(self, sid, run_id, mode=None, policy=None, required=True, timeout=None):
+        if timeout is None and mode is None and self.load_rate is not None:
+            self.size_timeout(sid)
         return super().call(sid, run_id, mode, policy, required,
                             self.load_timeout if timeout is None else timeout)
+
+    def size_timeout(self, sid):
+        tables = self.tables(sid)
+        _, count = self.src("SELECT " + "+".join(
+            f"(SELECT COUNT(*) FROM {table})" for table in tables) + " FROM dual;")
+        rows = int(count.strip())
+        self.load_timeout = oracle_timeout(rows, self.load_rate)
+        self.timeout_records.append({
+            'source': sid, 'tables': tables, 'rows': rows, 'rows_per_second': self.load_rate,
+            'factor': 3, 'minimum_seconds': 900, 'timeout_seconds': self.load_timeout})
 
     def measure_load_rate(self):
         self.src('CREATE TABLE t10_probe AS SELECT * FROM bulk WHERE id<=20000;'
@@ -221,6 +238,7 @@ class ImpactOracleHarness(OracleHarness):
         self.snapshot('t10_rate_probe', ['t10_probe'])
         elapsed = time.monotonic() - started
         rate = rows / elapsed
+        self.load_rate = rate
         _, total = self.src('SELECT (SELECT COUNT(*) FROM bulk)+'
                             '(SELECT COUNT(*) FROM items)+(SELECT COUNT(*) FROM other) FROM dual;')
         total = int(total.strip())
@@ -671,6 +689,7 @@ def main(argv=None):
         prepare(h)
         if args.engine == 'oracle':
             report['load_timeout_calibration'] = h.measure_load_rate()
+            report['load_timeout_sizing'] = h.timeout_records
         elif args.engine == 'postgres':
             _, setting = h.src('SHOW max_slot_wal_keep_size;')
             report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
@@ -718,6 +737,8 @@ def main(argv=None):
                 h.target = t3t4.DurableAgentDB(run)
                 h.target.start()
                 t1.private(h.store / 'target-password', h.target.password)
+                if args.engine == 'oracle':
+                    h.size_timeout(sid)
                 action = lambda: loader(h, sid, sid, duty100=name == 'initial_duty100')
             elif name == 'c1':
                 # Preparation failure must not hide independent C5 measurements.
