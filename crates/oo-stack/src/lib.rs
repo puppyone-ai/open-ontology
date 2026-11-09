@@ -4,6 +4,7 @@
 pub mod credentials;
 pub mod secret;
 pub mod stack;
+pub mod status;
 
 pub use stack::{Stack, parse, validate};
 

@@ -8,7 +8,7 @@ use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::stack::{Result, secret_name};
+use super::stack::{Result, secret_name, secret_reference};
 
 pub struct SecretStore {
     root: PathBuf,
@@ -48,6 +48,16 @@ impl SecretStore {
     }
 
     pub fn read(&self, name: &str) -> Result<String> {
+        if !secret_reference(name) {
+            return Err("SECRET_NAME");
+        }
+        if let Some(variable) = name.strip_prefix("env:") {
+            let value = std::env::var(variable).map_err(|_| "SECRET_ENV")?;
+            return checked_text(value.into_bytes());
+        }
+        if let Some(path) = name.strip_prefix("file:") {
+            return read_external(Path::new(path));
+        }
         if !secret_name(name) {
             return Err("SECRET_NAME");
         }
@@ -75,7 +85,14 @@ impl SecretStore {
     /// Path of a checked private file, for tools that must open it themselves
     /// (for example an OpenSSH identity). The bytes are not returned.
     pub fn path(&self, name: &str) -> Result<PathBuf> {
+        if name.starts_with("env:") {
+            // Path-only consumers must not silently materialize an environment secret.
+            return Err("SECRET_PATH_REQUIRED");
+        }
         self.read(name)?;
+        if let Some(path) = name.strip_prefix("file:") {
+            return Ok(PathBuf::from(path));
+        }
         Ok(self.root.join(name))
     }
 
@@ -100,6 +117,40 @@ impl SecretStore {
             .and_then(|_| file.sync_all())
             .map_err(|_| "SECRET_WRITE")
     }
+}
+
+fn checked_text(bytes: Vec<u8>) -> Result<String> {
+    if bytes.is_empty() || bytes.len() > 65_536 {
+        return Err("SECRET_BUDGET");
+    }
+    let value = String::from_utf8(bytes).map_err(|_| "SECRET_UTF8")?;
+    if value.contains('\0') {
+        return Err("SECRET_UTF8");
+    }
+    Ok(value)
+}
+
+fn read_external(path: &Path) -> Result<String> {
+    check_parents(path.parent().ok_or("SECRET_PATH")?)?;
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)
+        .map_err(|_| "SECRET_OPEN")?;
+    let meta = file.metadata().map_err(|_| "SECRET_STAT")?;
+    if !meta.is_file()
+        || !matches!(meta.mode() & 0o7777, 0o400 | 0o600)
+        || meta.uid() != process_owner()?
+        || meta.nlink() != 1
+        || meta.len() > 65_536
+    {
+        return Err("SECRET_FILE");
+    }
+    let mut bytes = Vec::new();
+    file.take(65_537)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "SECRET_READ")?;
+    checked_text(bytes)
 }
 
 fn inspect(file: &File) -> Result<()> {

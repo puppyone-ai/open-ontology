@@ -87,6 +87,9 @@ pub fn parse() -> Result<Invocation, Failure> {
         return result;
     }
     let args = expand_long_options(&args);
+    if let Some(result) = crate::profile::dispatch(&args) {
+        return result;
+    }
     if let Some(result) = crate::lifecycle::dispatch(&args) {
         return result;
     }
@@ -1089,6 +1092,9 @@ Credential commands:
   oo share-prompt --grant-file <file> [--role <role>]
                                  Agent setup prompt with a one-time code (admin)
   oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Local delivery: oo profile list | oo use NAME | oo check --json
+Agent setup: oo mcp-config --agent claude|cursor|codex --profile NAME
+MCP runtime: oo mcp --stdio --profile NAME
 Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
 
 Use -h or --help on any command; help never reads credentials or connects.

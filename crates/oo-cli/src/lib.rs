@@ -14,11 +14,15 @@ pub(crate) const QUERY_MAX_ROWS: u32 = 2_000;
 pub(crate) const QUERY_TIMEOUT_MAX_MS: u32 = 120_000;
 
 mod args;
+pub mod check;
 mod lifecycle;
 mod load;
+pub mod mcp_config;
 mod outcome;
+pub mod profile;
 mod render;
 mod run;
+pub mod share_prompt;
 pub(crate) mod tui;
 
 pub fn run() -> u8 {

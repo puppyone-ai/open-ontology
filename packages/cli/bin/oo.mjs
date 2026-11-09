@@ -59,7 +59,8 @@ export function timeContext(timezone, at = new Date().toISOString()) {
   };
 }
 
-export function nativeBinary(root = packageRoot, platform = process.platform, arch = process.arch) {
+export function nativeBinary(root = packageRoot, platform = process.platform, arch = process.arch, helper = null) {
+  if (helper !== null && !['oo-mysql-doctor', 'mcp-gateway'].includes(helper)) fail('NATIVE_MANIFEST_INVALID', 'Unknown packaged helper.');
   const target = `${platform}-${arch}`;
   let manifest, base;
   try {
@@ -77,8 +78,8 @@ export function nativeBinary(root = packageRoot, platform = process.platform, ar
   if (!Object.hasOwn(manifest.binaries, target)) {
     fail('UNSUPPORTED_PLATFORM', `${target} is not packaged. Available: ${Object.keys(manifest.binaries).join(', ') || 'none'}.`);
   }
-  const entry = manifest.binaries[target];
-  const relative = `native/${target}/oo${platform === 'win32' ? '.exe' : ''}`;
+  const entry = helper ? manifest.binaries[target][helper === 'mcp-gateway' ? 'mcp_gateway' : 'mysql_doctor'] : manifest.binaries[target];
+  const relative = `native/${target}/${helper ?? 'oo'}${platform === 'win32' ? '.exe' : ''}`;
   if (!object(entry) || entry.path !== relative || typeof entry.sha256 !== 'string'
       || !/^[a-f0-9]{64}$/i.test(entry.sha256)) {
     fail('NATIVE_MANIFEST_INVALID', 'The selected executable path or SHA256 is invalid.');
@@ -98,6 +99,20 @@ export function nativeBinary(root = packageRoot, platform = process.platform, ar
     fail('NATIVE_NOT_EXECUTABLE', 'The packaged native executable is not executable.');
   }
   return binary;
+}
+
+export function installationReport(root = packageRoot, platform = process.platform, arch = process.arch) {
+  const binary = nativeBinary(root, platform, arch);
+  const helper = join(dirname(binary), `oo-mysql-doctor${platform === 'win32' ? '.exe' : ''}`);
+  if (existsSync(helper)) {
+    nativeBinary(root, platform, arch, 'oo-mysql-doctor');
+    return { native_verified: true, mysql_doctor: 'packaged_verified', runtime_tested: false };
+  }
+  const pin = join(dirname(binary), 'oo-lite-image');
+  const valid = existsSync(pin) && lstatSync(pin).isFile() && statSync(pin).size < 4096
+    && /^(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}\n?$/.test(readFileSync(pin, 'utf8'));
+  if (!valid) fail('MYSQL_DOCTOR_INSTALL', 'Neither a verified MySQL helper nor a pinned runtime is installed.');
+  return { native_verified: true, mysql_doctor: 'requires_pinned_docker_runtime', runtime_tested: false };
 }
 
 function configDirectory() {
@@ -158,10 +173,21 @@ function validateProfile(profile) {
   return profile;
 }
 
+function profilePath(dir) {
+  const pointer = join(dir, 'active-profile.json');
+  if (!existsSync(pointer)) return join(dir, 'config.json');
+  privatePath(pointer);
+  if (statSync(pointer).size > 16384) fail('CONFIG_INVALID', 'Invalid active profile.');
+  const name = JSON.parse(readFileSync(pointer, 'utf8')).profile;
+  if (typeof name !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(name)) fail('CONFIG_INVALID', 'Invalid active profile.');
+  privatePath(join(dir, 'profiles'), true);
+  return join(dir, 'profiles', `${name}.json`);
+}
+
 function readProfile(dir) {
   try {
     privatePath(dir, true);
-    const path = join(dir, 'config.json');
+    const path = profilePath(dir);
     privatePath(path);
     if (statSync(path).size > 16384) throw new Error();
     return validateProfile(JSON.parse(readFileSync(path, 'utf8')));
@@ -248,6 +274,7 @@ async function configure(args) {
     // Immutable token files keep old readers consistent while config.json switches atomically.
     if (managedToken) atomicWrite(managedToken, token);
     atomicWrite(join(dir, 'config.json'), `${JSON.stringify(profile, null, 2)}\n`);
+    if (existsSync(join(dir, 'active-profile.json'))) unlinkSync(join(dir, 'active-profile.json'));
   } catch (error) {
     if (managedToken && existsSync(managedToken)) unlinkSync(managedToken);
     throw error;
@@ -347,6 +374,11 @@ function delegate(binary, args, businessTimezone = null) {
 
 async function main(args) {
   args = expandLongOptions(args);
+  if (args[0] === 'install-check') {
+    if (args.length > 2 || (args.length === 2 && args[1] !== '--json')) fail('CONFIG_ARGUMENTS', 'Use oo install-check [--json].');
+    process.stdout.write(`${JSON.stringify(installationReport())}\n`);
+    return 0;
+  }
   if (args[0] === 'help') {
     // `oo help --help` asks for help about help: show the top-level help.
     if (args.length === 2 && (args[1] === '--help' || args[1] === '-h')) args = ['help'];
@@ -364,7 +396,13 @@ async function main(args) {
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
   }
-  if (['login', 'whoami', 'share-prompt', 'token'].includes(args[0])) {
+  if (args[0] === 'mcp') {
+    if (!args.includes('--help') && !args.includes('-h')) {
+      nativeBinary(packageRoot, process.platform, process.arch, 'mcp-gateway');
+    }
+    return delegate(nativeBinary(), args);
+  }
+  if (['login', 'whoami', 'share-prompt', 'token', 'profile', 'use', 'mcp-config', 'check'].includes(args[0])) {
     return delegate(nativeBinary(), args);
   }
   if (args[0] === 'configure') {
@@ -424,7 +462,7 @@ async function main(args) {
     const profile = readProfile(dir);
     if (!profile) fail('CONFIG_INVALID', 'Configure a Gateway profile before changing its business timezone.');
     profile.business_timezone = rest[1];
-    atomicWrite(join(dir, 'config.json'), `${JSON.stringify(profile, null, 2)}\n`);
+    atomicWrite(profilePath(dir), `${JSON.stringify(profile, null, 2)}\n`);
     process.stdout.write(args.includes('--json')
       ? `${JSON.stringify({ configured: true, business_timezone: profile.business_timezone, credentials_changed: false })}\n`
       : `Business timezone: ${profile.business_timezone}. Credentials and routing are unchanged.\n`);

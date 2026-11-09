@@ -128,7 +128,14 @@ pub(super) fn display(state: &Value) -> String {
 }
 
 pub(super) fn display_status(state: &Value) -> String {
+    let mut safe = state.clone();
+    oo_stack::status::review_status(&mut safe);
+    let state = &safe;
     let mut lines = vec![
+        format!(
+            "Review: {}",
+            state["review_state"].as_str().unwrap_or("unmeasured")
+        ),
         format!(
             "Health: {}",
             state["status"].as_str().unwrap_or("unmeasured")
@@ -157,7 +164,7 @@ pub(super) fn display_status(state: &Value) -> String {
                     if key == "stale" {
                         format!("{} since {}", row["reason"], row["since"])
                     } else {
-                        row["changes"].to_string()
+                        row["code"].as_str().unwrap_or("unmeasured").to_owned()
                     }
                 ));
             }
@@ -320,11 +327,12 @@ mod tests {
             "sync_failed",
             "stale: app.a",
             "source_timeout",
-            "review_pending: app.b",
-            "comment",
+            "held_by_review",
         ] {
             assert!(text.contains(expected), "{expected}");
         }
+        assert!(!text.contains("comment"));
+        assert!(!text.contains("app.b"));
     }
     #[test]
     fn screens_distinguish_work_rates_retries_and_unpublished_outputs() {

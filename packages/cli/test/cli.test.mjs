@@ -10,12 +10,32 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nativeArgs, nativeBinary, timeContext, expandLongOptions } from '../bin/oo.mjs';
+import { nativeArgs, nativeBinary, timeContext, expandLongOptions, installationReport } from '../bin/oo.mjs';
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const digest = data => createHash('sha256').update(data).digest('hex');
 const target = `${process.platform}-${process.arch}`;
 const integration = (name, fn) => test(name, { skip: process.platform === 'win32', timeout: 15000 }, fn);
+
+test('post-install check distinguishes packaged helper from untested runtime fallback', t => {
+  const f = fixture(t);
+  assert.throws(() => installationReport(f.pkg), /MYSQL_DOCTOR_INSTALL/);
+  writeFileSync(join(dirname(f.binary), 'oo-lite-image'), `registry.example/oo@sha256:${'a'.repeat(64)}\n`);
+  assert.deepEqual(installationReport(f.pkg), {
+    native_verified: true, mysql_doctor: 'requires_pinned_docker_runtime', runtime_tested: false,
+  });
+  const helper = join(dirname(f.binary), 'oo-mysql-doctor');
+  copyFileSync(f.binary, helper);
+  assert.throws(() => installationReport(f.pkg), /NATIVE_MANIFEST_INVALID/);
+  const manifest = JSON.parse(readFileSync(f.manifestPath, 'utf8'));
+  manifest.binaries[target].mysql_doctor = {
+    path: `native/${target}/oo-mysql-doctor`, sha256: digest(readFileSync(helper)),
+  };
+  writeFileSync(f.manifestPath, JSON.stringify(manifest));
+  assert.equal(installationReport(f.pkg).mysql_doctor, 'packaged_verified');
+  writeFileSync(helper, 'tampered');
+  assert.throws(() => installationReport(f.pkg), /NATIVE_DIGEST_MISMATCH/);
+});
 
 test('business dates use the explicit timezone, not UTC or a fabricated business calendar', () => {
   const value = timeContext('Asia/Shanghai', '2026-10-29T19:43:38Z');
@@ -353,6 +373,14 @@ integration('help aliases and config help work without profiles or credentials',
   }
   assert.notEqual(f.run(['help', '--token-file']).status, 0);
   assert.deepEqual(output(f.run(['-V', '--json'])), output(f.run(['--version', '--json'])));
+});
+
+integration('MCP help works without a bridge but launching requires a verified bridge', t => {
+  const f = fixture(t);
+  for (const args of [['mcp', '--help'], ['mcp', '-h'], ['help', 'mcp']]) {
+    assert.equal(f.run(args).status, 0);
+  }
+  assert.notEqual(f.run(['mcp', '--stdio', '--profile', 'example']).status, 0);
 });
 
 integration('untrusted saved config, permissive files and symlink config directories fail closed', t => {

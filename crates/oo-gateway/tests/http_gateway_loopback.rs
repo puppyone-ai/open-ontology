@@ -18,6 +18,31 @@ use tokio::sync::oneshot;
 const BODY_LIMIT: usize = 32;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn preflight_endpoints_require_authentication_and_never_echo_input() {
+    let (addr, shutdown) = spawn_probe().await;
+    for (method, path, body) in [
+        ("GET", "/v1/check/readiness", ""),
+        (
+            "POST",
+            "/v1/check/answerable",
+            "{\"question\":\"private-canary\"}",
+        ),
+        ("POST", "/v1/entities/customer/resolve", "{}"),
+        ("POST", "/v1/values/search", "{}"),
+        ("POST", "/v1/feedback/gap", "{}"),
+    ] {
+        let (status, response) = exchange(addr, &format!(
+            "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()
+        )).await;
+        assert_eq!(status, 401, "{path}");
+        let error: Value = serde_json::from_slice(&response).unwrap();
+        assert_eq!(error["error"]["code"], "UNAUTHENTICATED");
+        assert!(!String::from_utf8_lossy(&response).contains("private-canary"));
+    }
+    let _ = shutdown.send(());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_states_the_loopback_boundary_and_hides_the_bearer() {
     let (addr, shutdown) = spawn_probe().await;
     let (status, body) = exchange(

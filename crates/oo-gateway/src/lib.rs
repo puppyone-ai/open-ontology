@@ -27,6 +27,7 @@ pub mod public_surface;
 mod publication_binding;
 pub mod query_executor;
 pub mod reviewed_policy;
+pub mod semantic_coverage;
 pub mod sql_guard;
 
 pub use policy::{

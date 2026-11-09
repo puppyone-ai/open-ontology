@@ -91,13 +91,13 @@ fn read_code(input: impl Read) -> Result<String> {
     }
     Ok(code.to_owned())
 }
-fn runtime() -> Result<tokio::runtime::Runtime> {
+pub(crate) fn runtime() -> Result<tokio::runtime::Runtime> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .map_err(|_| local())
 }
-fn directory() -> Result<PathBuf> {
+pub(crate) fn directory() -> Result<PathBuf> {
     let path = std::env::var_os("OO_CONFIG_DIR")
         .map(PathBuf::from)
         .or_else(|| {
@@ -109,7 +109,7 @@ fn directory() -> Result<PathBuf> {
     }
     Ok(path)
 }
-fn private(path: &Path, dir: bool) -> Result<()> {
+pub(crate) fn private(path: &Path, dir: bool) -> Result<()> {
     let m = fs::symlink_metadata(path).map_err(|_| local())?;
     // Reuse the existing safe owner probe rather than introducing unsafe getuid.
     if m.file_type().is_symlink()
@@ -121,7 +121,7 @@ fn private(path: &Path, dir: bool) -> Result<()> {
     }
     Ok(())
 }
-fn mkdir(path: &Path) -> Result<()> {
+pub(crate) fn mkdir(path: &Path) -> Result<()> {
     fs::DirBuilder::new()
         .recursive(true)
         .mode(0o700)
@@ -129,7 +129,7 @@ fn mkdir(path: &Path) -> Result<()> {
         .map_err(|_| local())?;
     private(path, true)
 }
-fn read_json(path: &Path, secret: bool) -> Result<Value> {
+pub(crate) fn read_json(path: &Path, secret: bool) -> Result<Value> {
     if secret {
         private(path, false)?;
     }
@@ -155,7 +155,7 @@ fn read_json(path: &Path, secret: bool) -> Result<Value> {
     }
     Ok(v)
 }
-fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
+pub(crate) fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
     let mut f = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -169,7 +169,7 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
     }
     Ok(())
 }
-fn atomic(path: &Path, value: &Value) -> Result<()> {
+pub(crate) fn atomic(path: &Path, value: &Value) -> Result<()> {
     let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
     write_new(&tmp, value.to_string().as_bytes())?;
     let result = fs::rename(&tmp, path).map_err(|_| local());
@@ -178,12 +178,12 @@ fn atomic(path: &Path, value: &Value) -> Result<()> {
     }
     result
 }
-fn saved(dir: &Path) -> Result<Value> {
+pub(crate) fn saved(dir: &Path) -> Result<Value> {
     if !dir.exists() {
         return Ok(json!({"schema_version":1}));
     }
     private(dir, true)?;
-    let p = dir.join("config.json");
+    let p = crate::profile::active_path(dir).map_err(|_| local())?;
     if !p.exists() {
         return Ok(json!({"schema_version":1}));
     }
@@ -239,6 +239,7 @@ fn options(args: &[String], command: &str) -> Result<BTreeMap<String, String>> {
             "--agent",
             "--raw-token",
             "--npm-registry",
+            "--json",
         ],
     };
     let mut out = BTreeMap::new();
@@ -275,7 +276,7 @@ fn options(args: &[String], command: &str) -> Result<BTreeMap<String, String>> {
     }
     Ok(out)
 }
-fn endpoint(gateway: &str) -> Result<Url> {
+pub(crate) fn endpoint(gateway: &str) -> Result<Url> {
     let u = Url::parse(gateway).map_err(|_| bad())?;
     if u.scheme() != "https"
         || u.host_str().is_none()
@@ -320,12 +321,12 @@ fn connection(mut profile: Value, opts: &BTreeMap<String, String>) -> Result<Val
     }
     Ok(profile)
 }
-struct Http {
+pub(crate) struct Http {
     client: Client,
     base: String,
 }
 impl Http {
-    fn new(p: &Value, admin: bool) -> Result<Self> {
+    pub(crate) fn new(p: &Value, admin: bool) -> Result<Self> {
         let u = endpoint(text(p, "gateway")?)?;
         let mut b = Client::builder()
             .https_only(true)
@@ -363,7 +364,7 @@ impl Http {
             base: u.as_str().trim_end_matches('/').into(),
         })
     }
-    async fn call(
+    pub(crate) async fn call(
         &self,
         path: &str,
         body: Option<Value>,
@@ -415,7 +416,7 @@ impl Http {
         Ok((status, v))
     }
 }
-fn success((status, v): (u16, Value)) -> Result<Value> {
+pub(crate) fn success((status, v): (u16, Value)) -> Result<Value> {
     if status == 401 || status == 403 {
         return Err(Failure::auth(
             "Access expired, revoked or refused; ask an administrator to renew access, then run oo login",
@@ -523,7 +524,7 @@ async fn identity(http: &Http, token: &str) -> Result<Value> {
         json!({"principal_id":v["principal_id"],"role":v["role"],"project_id":v["project_id"],"expires_at_ms":v["expires_at_ms"],"protocol_version":v["protocol_version"]}),
     )
 }
-fn read_token(p: &Value) -> Result<String> {
+pub(crate) fn read_token(p: &Value) -> Result<String> {
     let t = load::read_token_file(
         p["token_file"]
             .as_str()
@@ -741,19 +742,21 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
         })?;
         p["token_file"] = json!(path);
         p["identity"] = who.clone();
-        atomic(&dir.join("config.json"), &p).map_err(|_| Failure::local(format!(
+        crate::profile::save(&dir, name, &p).map_err(|_| Failure::local(format!(
             "LOGIN_PROFILE_SAVE_FAILED: credential saved in tokens/{name}.token (0600); active profile unchanged. Configure the saved token file or ask the administrator to revoke it."
         )))?;
         let mut report = who;
         report["read_check"] = json!("passed");
         report["profile"] = json!(name);
+        report["share_prompt"] = json!(crate::share_prompt::render(name).map_err(|_| bad())?);
         return Ok(if opts.contains_key("--json") {
             report.to_string()
         } else {
             format!(
-                "Logged in as {} ({}); read check passed.",
+                "Logged in as {} ({}); read check passed.\n{}",
                 text(&report, "principal_id")?,
-                text(&report, "role")?
+                text(&report, "role")?,
+                text(&report, "share_prompt")?
             )
         });
     }
@@ -810,14 +813,19 @@ async fn execute(command: &str, args: &[String]) -> Result<String> {
         return Err(protocol());
     }
     let expires = issued["expires_at_ms"].as_u64().ok_or_else(protocol)?;
-    Ok(prompt(
+    let rendered = prompt(
         &http.base,
         material,
         raw,
         agent,
         expires,
         npm_registry.as_deref(),
-    ))
+    );
+    Ok(if opts.contains_key("--json") {
+        json!({"share_prompt": rendered}).to_string()
+    } else {
+        rendered
+    })
 }
 async fn token_command(args: &[String]) -> Result<String> {
     let (command, mut rest) = args.split_first().ok_or_else(bad)?;

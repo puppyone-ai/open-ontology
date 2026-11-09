@@ -18,6 +18,9 @@ import urllib.error
 ROOT = Path(__file__).resolve().parents[3]
 os.umask(0o077)
 RUN = Path(sys.argv[1]).resolve()
+META_ONLY = sys.argv[2:] == ["--meta-only"]
+if sys.argv[2:] and not META_ONLY:
+    raise SystemExit("optional argument: --meta-only")
 if not RUN.is_relative_to(ROOT / "evidence"):
     raise SystemExit("run must be within this worktree's evidence directory")
 RUN.mkdir(parents=True, exist_ok=True)
@@ -71,14 +74,21 @@ try:
     checksum = hashlib.sha256(v1.encode()).hexdigest()
     sql(v1 + f"INSERT INTO oo_token_control.install_manifest VALUES (true,'{checksum}'); INSERT INTO oo_token_control.token_record (token_sha256,token_kind,project_id,principal_id,role_name,claims_canonical,policy_version,knowledge_version,audience_url,issued_at_ms,absolute_deadline_ms,last_used_ms,revocation_floor) VALUES (repeat('a',64),'client','legacy','alice','reader','{{}}','v1','v1','https://gateway.example/',1000,2000,1000,0);", "upgrade", "oo_token_admin")
     env = dict(os.environ, OO_TOKEN_FIXTURE=str(WORK))
-    with (RUN / "real-pg.log").open("w") as log:
-        result = subprocess.run(["cargo", "test", "--locked", "-p", "oo-gateway", "--test", "token_lifecycle", "--", "--ignored", "--nocapture", "--test-threads=1"], cwd=ROOT, env=env, stdout=log, stderr=log)
-    if result.returncode:
-        raise RuntimeError("tests failed; see real-pg.log")
+    if not META_ONLY:
+        with (RUN / "real-pg.log").open("w") as log:
+            result = subprocess.run(["cargo", "test", "--locked", "-p", "oo-gateway", "--test", "token_lifecycle", "--", "--ignored", "--nocapture", "--test-threads=1"], cwd=ROOT, env=env, stdout=log, stderr=log)
+        if result.returncode:
+            raise RuntimeError("tests failed; see real-pg.log")
     with (RUN / "meta-pg.log").open("w") as log:
         result = subprocess.run(["cargo", "test", "--locked", "-p", "oo-gateway", "--lib", "token_meta_pg", "--", "--ignored", "--nocapture"], cwd=ROOT, env=env, stdout=log, stderr=log)
     if result.returncode:
         raise RuntimeError("meta tests failed; see meta-pg.log")
+    if META_ONLY:
+        (RUN / "fixture-summary.json").write_text(json.dumps({
+            "engine": version.strip(), "test_exit": result.returncode,
+            "scope": "authenticated meta and semantic route contracts",
+        }, indent=2))
+        raise SystemExit(0)
     # Real HTTP/TLS and CLI checks use only this newly created fixture.
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
