@@ -565,7 +565,11 @@ async fn access_log(State(state): State<AppState>, request: Request, next: Next)
         path_raw.as_str(),
         "/v1/query" | "/v1/freshness" | "/v1/tables" | "/v1/sql/validate" | "/v1/pack/metadata"
     ) || path_raw.starts_with("/v1/knowledge/")
-        || path_raw.starts_with("/v1/tables/");
+        || path_raw.starts_with("/v1/tables/")
+        || path_raw.starts_with("/v1/check/")
+        || path_raw.starts_with("/v1/entities/")
+        || path_raw == "/v1/values/search"
+        || path_raw == "/v1/feedback/gap";
     let response = if uses_pack {
         let catalog = match state
             .inner
@@ -630,11 +634,16 @@ fn logged_path(path: &str, probe: bool) -> &'static str {
         "/v1/sql/validate" => "/v1/sql/validate",
         "/v1/query" => "/v1/query",
         "/v1/freshness" => "/v1/freshness",
+        "/v1/check/readiness" => "/v1/check/readiness",
+        "/v1/check/answerable" => "/v1/check/answerable",
+        "/v1/values/search" => "/v1/values/search",
+        "/v1/feedback/gap" => "/v1/feedback/gap",
         "/v1/knowledge/search" => "/v1/knowledge/search",
         "/v1/operations" => "/v1/operations",
         "/slow" if probe => "/slow",
         "/hold" if probe => "/hold",
         path if path.starts_with("/v1/tables/") => "/v1/tables/item",
+        path if path.starts_with("/v1/entities/") => "/v1/entities/item/resolve",
         path if path.starts_with("/v1/knowledge/") => "/v1/knowledge/item",
         path if path.starts_with("/v1/queries/") && path.ends_with("/cancel") => {
             "/v1/queries/cancel"

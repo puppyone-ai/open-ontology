@@ -27,6 +27,9 @@ async fn preflight_endpoints_require_authentication_and_never_echo_input() {
             "/v1/check/answerable",
             "{\"question\":\"private-canary\"}",
         ),
+        ("POST", "/v1/entities/customer/resolve", "{}"),
+        ("POST", "/v1/values/search", "{}"),
+        ("POST", "/v1/feedback/gap", "{}"),
     ] {
         let (status, response) = exchange(addr, &format!(
             "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()

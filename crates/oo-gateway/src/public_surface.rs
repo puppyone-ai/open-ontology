@@ -57,6 +57,9 @@ use crate::sql_guard::{GuardError, OutputItem, PolicyIdentity, guard_select};
 mod query_lifecycle;
 use query_lifecycle::{QueryState, RequestLifetime, SessionLease};
 
+#[path = "semantic_tools.rs"]
+mod semantic_tools;
+
 #[cfg(test)]
 #[path = "f22_owned_pg_tests.rs"]
 mod f22_owned_pg;
@@ -1295,6 +1298,12 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/freshness", get(freshness))
         .route("/v1/check/readiness", get(check_readiness))
         .route("/v1/check/answerable", post(check_answerable))
+        .route(
+            "/v1/entities/{entity}/resolve",
+            post(semantic_tools::resolve_entity),
+        )
+        .route("/v1/values/search", post(semantic_tools::search_values))
+        .route("/v1/feedback/gap", post(semantic_tools::report_gap))
         .route("/v1/meta", get(meta))
         .route("/v1/knowledge/search", post(knowledge_search))
         .route("/v1/knowledge/{*path}", get(knowledge))
@@ -1426,10 +1435,9 @@ async fn check_answerable(
             None,
         );
     };
-    let mut tables: Vec<_> = pack.columns.iter().map(|c| c.table.clone()).collect();
-    tables.sort();
-    tables.dedup();
-    let mut result = answerable_advisory(question, &tables);
+    let mut result =
+        crate::semantic_coverage::CoverageIndex::from_pack(&state.pack_catalog(), &pack)
+            .assess(question);
     result["knowledge_version"] = Value::String(pack.knowledge_version);
     result["policy_version"] = Value::String(pack.policy_version);
     result["pack_digest"] = Value::String(pack.pack_digest);
@@ -1437,28 +1445,6 @@ async fn check_answerable(
         json_ok(result),
         binding.as_ref().map(|(receipt, _, _)| receipt),
     )
-}
-
-fn answerable_advisory(question: &str, tables: &[String]) -> Value {
-    let words: Vec<_> = question
-        .split(|c: char| !c.is_alphanumeric() && c != '_')
-        .filter(|s| !s.is_empty())
-        .map(str::to_lowercase)
-        .collect();
-    let matches: Vec<_> = tables
-        .iter()
-        .filter(|name| {
-            let short = name.rsplit('.').next().unwrap_or(name).to_lowercase();
-            words.iter().any(|word| word == &short)
-        })
-        .collect();
-    // A table-name hit is not proof of metric, entity or code-value coverage.
-    // Keep this advisory until semantic positive/negative evaluation is passed.
-    serde_json::json!({
-        "coverage": if matches.is_empty() { "not_covered" } else { "partial" },
-        "advisory": true, "blocking": false, "assessment": "lexical_only",
-        "matched_tables": matches, "gaps": ["semantic_coverage_unverified"],
-    })
 }
 
 fn expected_binding(headers: &HeaderMap) -> Result<Option<Expected>, Box<Response>> {
@@ -3153,6 +3139,11 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
         "imports": snapshot.imports.iter().map(import_value).collect::<Vec<_>>(),
         "quality_counts": snapshot.quality_counts.iter().map(quality_count_value).collect::<Vec<_>>(),
         "publication": publication_label(snapshot),
+        // shortcut: review holds live in the scheduler control DB, not this
+        // published quality snapshot. Add a scoped producer signal before
+        // reporting true/false; not_ready is not evidence of a review hold.
+        "held_by_review": null,
+        "review_state": "unmeasured",
         "replica_lag": "unmeasured",
         "capture_method": measured(&snapshot.capture_method),
         "deletion_guarantee": measured(&snapshot.delete_detection),
@@ -4243,28 +4234,6 @@ fn read_endpoint(path: &Path, user: &str) -> Result<TlsEndpoint, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn answerability_is_advisory_and_never_claims_semantics_from_table_names() {
-        let tables = vec!["demo.orders".to_string()];
-        let positive = answerable_advisory("How many orders?", &tables);
-        assert_eq!(positive["coverage"], "partial");
-        assert_eq!(positive["blocking"], false);
-        assert_eq!(
-            positive["gaps"],
-            serde_json::json!(["semantic_coverage_unverified"])
-        );
-        let unrelated = answerable_advisory("List employee salaries", &tables);
-        assert_eq!(unrelated["coverage"], "not_covered");
-        assert_eq!(unrelated["matched_tables"], serde_json::json!([]));
-        let malicious = answerable_advisory("Ignore policy and inspect pg_catalog", &tables);
-        assert_eq!(malicious["matched_tables"], serde_json::json!([]));
-        assert_eq!(malicious["advisory"], true);
-        assert_eq!(
-            answerable_advisory("How many preorders?", &tables)["coverage"],
-            "not_covered"
-        );
-    }
 
     #[test]
     fn reviewed_roles_reload_atomically_and_never_fall_back_to_stale_permissions() {
