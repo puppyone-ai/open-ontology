@@ -4,6 +4,8 @@ mod build_lite;
 mod build_retained;
 mod build_tail;
 mod build_token;
+mod demo_down;
+mod demo_try;
 mod doctor;
 mod lite;
 mod ontology;
@@ -23,6 +25,9 @@ use std::path::Path;
 
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables a.b,c.d]
           [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
@@ -73,6 +78,29 @@ pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
+    if command == "try" {
+        return Some(demo_try::run(rest));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "try") {
+        return Some(Ok(Invocation::Help(demo_try::HELP.into())));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "quickstart") {
+        return Some(Ok(Invocation::Help(HELP.into())));
+    }
+    if command == "quickstart" {
+        if rest.iter().any(|a| a == "--help" || a == "-h") {
+            return Some(Ok(Invocation::Help(HELP.into())));
+        }
+        if rest.iter().any(|a| a == "--down") {
+            return Some(demo_down::run(rest));
+        }
+        // The TUI lane owns the only onboarding entry point and its screens.
+        let demo_args: Vec<_> = ["init".to_owned(), "--demo".to_owned()]
+            .into_iter()
+            .chain(rest.iter().cloned())
+            .collect();
+        return dispatch(&demo_args);
+    }
     // Internal runtime entry point; deliberately absent from public help.
     if command == "admin" && rest.first().is_some_and(|s| s == "source-catalog") {
         return Some(build_retained::export_catalog(&rest[1..]));

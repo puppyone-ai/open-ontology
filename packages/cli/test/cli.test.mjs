@@ -206,7 +206,8 @@ integration('all existing commands and arbitrary SQL arguments pass through with
     ['freshness', '--summary'], ['knowledge', 'cat', 'README.md'],
     ['knowledge', 'search', '--offset', '20', '--limit', '10', 'order'],
     ['cancel', 'q_actual001'], ['status', 'q_actual001'], ['operations'],
-    ['agent-skill', '--json'], ['query', '--help'],
+    ['agent-skill', '--json'], ['query', '--help'], ['try', '--role', 'ops'],
+    ['quickstart', '--yes'], ['quickstart', '--down', '--json'],
   ]) assert.deepEqual(output(f.run(args)).argv, args);
   const marker = join(f.root, 'shell-must-not-run');
   const sql = `SELECT '--gateway https://evil.example', '$(touch ${marker})';\n-- " \`touch ${marker}\` ; & |`;
@@ -222,6 +223,17 @@ integration('native stdout, stderr and exit code pass through', t => {
   assert.equal(result.status, 23);
   assert.equal(result.stderr, 'fixture stderr');
   assert.deepEqual(JSON.parse(result.stdout).argv, ['tables']);
+});
+
+integration('demo try uses the saved profile while quickstart cleanup does not', t => {
+  const f = fixture(t);
+  const profile = f.configure();
+  const args = output(f.run(['try', '--role', 'ops', '--json'])).argv;
+  assert(args.includes(profile.token_file));
+  assert.deepEqual(args.slice(-4), ['--transport', 'production', '--auth', 'external']);
+  assert.deepEqual(output(f.run(['try', '--help'])).argv, ['try', '--help']);
+  assert.deepEqual(output(f.run(['quickstart', '--down', '--json'])).argv,
+    ['quickstart', '--down', '--json']);
 });
 
 integration('stdin token stays private, off argv, off display and out of the package', t => {

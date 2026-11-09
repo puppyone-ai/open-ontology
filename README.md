@@ -16,6 +16,25 @@
   </p>
 </div>
 
+## Quickstart (v0.3 preview)
+
+```sh
+npm install -g @reduxxx888/ontology-cli
+oo quickstart --yes
+oo try
+```
+
+**Pending integration, not a released three-command experience.** The demo
+fixture and curated no-model Packs are available locally; the `oo init --demo`
+TUI handoff, publication and enrollment still need integration. GHCR remains
+private: the public image-pull step is pending publication. Use the matching
+locally built lite image for development; do not assume npm installs this lane.
+See [verified scope and local commands](deploy/lite/demo/README.md). No
+install-to-first-answer p50/p95 is claimed.
+
+For a working bring-your-own-database flow, see
+[Connect your database](docs/guide/connect-your-database.md).
+
 **Your data ≠ your agent's world**
 
 In an agent's worldview, an ontology answers three questions: what data a company has, how that data relates, and how the agent should understand it.
@@ -59,29 +78,13 @@ Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model 
 
 ## ![](docs/assets/readme/icons/bonfire.svg) Try it
 
-There is no one-command setup yet. Build the CLI from source:
+The v0.3 demo entry point is the three-command preview at the top of this
+page. `oo quickstart` delegates to `oo init --demo`; it does not bypass the
+onboarding confirmation. `oo try` uses fixed gold SQL, not a model.
 
-```bash
-git clone https://github.com/puppyone-ai/open-ontology.git
-cd open-ontology
-
-rustup toolchain install 1.94.0 --profile minimal
-cargo +1.94.0 build --locked -p oo-cli --bin oo
-```
-
-Then point it at a running Gateway:
-
-```bash
-OO=./target/debug/oo
-CONN=(--json --gateway https://oo.example.com --transport production
-  --auth external --token-file "$HOME/.config/open-ontology/client.token"
-  --ca-file "$HOME/.config/open-ontology/ca.pem")
-
-"$OO" tables "${CONN[@]}"
-"$OO" query 'SELECT COUNT(*) FROM logistics.shipments' "${CONN[@]}"
-```
-
-No Gateway yet? Start with the [trusted demo](deploy/trusted-demo/README.md) on public sample data, or the [logistics commands](deploy/logistics-demo/COMMANDS.md) for the full loop with an agent.
+For your own source, follow [Connect your database](docs/guide/connect-your-database.md).
+Older source-build and manual fixture instructions are collected under
+[Legacy demos](docs/legacy/README.md); they are not the quickstart.
 
 ## ![](docs/assets/readme/icons/sun.svg) Roadmap
 
