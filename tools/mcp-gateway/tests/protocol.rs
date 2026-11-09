@@ -8,13 +8,15 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use rmcp::ClientLifecycleMode;
 use rmcp::model::{
     CallToolRequestParams, ClientCapabilities, ClientConfig, ErrorCode, Implementation,
     PaginatedRequestParams, ProtocolVersion,
 };
-use rmcp::service::{ClientInitializeError, ClientServiceExt, RoleClient, RunningService, ServiceError};
+use rmcp::service::{
+    ClientInitializeError, ClientServiceExt, RoleClient, RunningService, ServiceError,
+};
 use rmcp::transport::TokioChildProcess;
-use rmcp::ClientLifecycleMode;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
@@ -41,7 +43,50 @@ fn client_config(version: ProtocolVersion) -> ClientConfig {
     .with_protocol_version(version)
 }
 
-async fn spawn(lifecycle: ClientLifecycleMode, version: ProtocolVersion) -> Result<Session, ClientInitializeError> {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn named_profile_transport_keeps_requests_on_stdin() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("oo-mcp-profile-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let cli = dir.join("oo");
+    std::fs::write(
+        &cli,
+        r#"#!/bin/sh
+test "$#" = 3 && test "$1" = mcp-request && test "$2" = --profile && test "$3" = demo || exit 2
+input=$(cat)
+test "$input" = '{"body":null,"path":"/v1/check/readiness"}' || exit 3
+printf '%s\n' '{"status":200,"body":{"ready":false,"pack_published":false}}'
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_mcp-gateway"));
+    command
+        .env_clear()
+        .env("PATH", std::env::var("PATH").unwrap_or_default())
+        .env("OO_MCP_PROFILE", "demo")
+        .env("OO_MCP_CLI", &cli)
+        .kill_on_drop(true);
+    let (transport, _) = TokioChildProcess::builder(command).spawn().unwrap();
+    let running = client_config(ProtocolVersion::V_2025_11_25)
+        .serve_with_lifecycle(transport, ClientLifecycleMode::Initialize)
+        .await
+        .unwrap();
+    let result = running
+        .peer()
+        .call_tool(CallToolRequestParams::new("check_readiness"))
+        .await
+        .unwrap();
+    let encoded = serde_json::to_value(result).unwrap();
+    assert_eq!(encoded["structuredContent"]["ready"], false);
+    drop(running);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+async fn spawn(
+    lifecycle: ClientLifecycleMode,
+    version: ProtocolVersion,
+) -> Result<Session, ClientInitializeError> {
     let seq = TEMP_SEQ.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("oo-a388-proto-{}-{seq}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
@@ -79,8 +124,14 @@ fn assert_process_has_no_bearer(pid: u32, token_file: &Path) {
     let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).expect("cmdline");
     let environ = std::fs::read(format!("/proc/{pid}/environ")).expect("environ");
     assert!(!contains_bytes(&cmdline, b"ooct_"), "bearer prefix in argv");
-    assert!(!contains_bytes(&cmdline, b"local-proof-token"), "token file contents in argv");
-    assert!(!contains_bytes(&environ, b"local-proof-token"), "token file contents in environ");
+    assert!(
+        !contains_bytes(&cmdline, b"local-proof-token"),
+        "token file contents in argv"
+    );
+    assert!(
+        !contains_bytes(&environ, b"local-proof-token"),
+        "token file contents in environ"
+    );
     let file = token_file.to_string_lossy();
     assert!(
         contains_bytes(&environ, file.as_bytes()),
@@ -89,7 +140,9 @@ fn assert_process_has_no_bearer(pid: u32, token_file: &Path) {
 }
 
 fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack.windows(needle.len()).any(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 fn assert_stderr(stderr: &str) {
@@ -99,23 +152,53 @@ fn assert_stderr(stderr: &str) {
     );
     assert!(!stderr.contains("jsonrpc"), "protocol bytes on stderr");
     assert!(!stderr.contains("ooct_"), "decoy bearer logged");
-    assert!(!stderr.contains("local-proof-token"), "token file contents logged");
+    assert!(
+        !stderr.contains("local-proof-token"),
+        "token file contents logged"
+    );
 }
 
 fn assert_tools(tools: &[rmcp::model::Tool]) {
     let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
-    assert_eq!(names, ["session_current", "pack_metadata", "query"]);
+    assert_eq!(
+        names,
+        [
+            "session_current",
+            "pack_metadata",
+            "query",
+            "list_tables",
+            "describe_table",
+            "resolve_entity",
+            "search_values",
+            "validate_sql",
+            "get_freshness",
+            "read_knowledge",
+            "search_knowledge",
+            "report_gap",
+            "check_readiness",
+            "check_answerable"
+        ]
+    );
     for tool in tools {
         let annotations = tool.annotations.as_ref().expect("annotations");
-        assert_eq!(annotations.read_only_hint, Some(true));
+        assert_eq!(annotations.read_only_hint, Some(tool.name != "report_gap"));
         assert_eq!(annotations.destructive_hint, Some(false));
-        assert_eq!(annotations.idempotent_hint, Some(true));
+        assert_eq!(annotations.idempotent_hint, Some(tool.name != "report_gap"));
         assert_eq!(annotations.open_world_hint, Some(false));
-        assert_eq!(tool.input_schema.get("additionalProperties"), Some(&serde_json::Value::Bool(false)));
+        assert_eq!(
+            tool.input_schema.get("additionalProperties"),
+            Some(&serde_json::Value::Bool(false))
+        );
     }
-    let query = tools.iter().find(|tool| tool.name == "query").expect("query");
+    let query = tools
+        .iter()
+        .find(|tool| tool.name == "query")
+        .expect("query");
     assert_eq!(
-        query.input_schema.get("required").and_then(|value| value.as_array()),
+        query
+            .input_schema
+            .get("required")
+            .and_then(|value| value.as_array()),
         Some(&vec![serde_json::Value::String("sql".to_owned())])
     );
 }
@@ -130,16 +213,28 @@ async fn initialize_previous_version_lists_gateway_tools_only() {
     .expect("initialize 2025-11-25");
     let info = session.running.peer().peer_info().expect("peer info");
     assert_eq!(info.protocol_version, ProtocolVersion::V_2025_11_25);
-    let tools = session.running.peer().list_tools(None).await.expect("tools");
+    let tools = session
+        .running
+        .peer()
+        .list_tools(None)
+        .await
+        .expect("tools");
     assert_tools(&tools.tools);
     assert_eq!(tools.ttl_ms, Some(0));
     assert_eq!(tools.cache_scope, Some(rmcp::model::CacheScope::Private));
-    let prompts = session.running.peer().list_prompts(None).await.expect("prompts");
+    let prompts = session
+        .running
+        .peer()
+        .list_prompts(None)
+        .await
+        .expect("prompts");
     assert!(prompts.prompts.is_empty(), "prompts were invented");
     let cursor = session
         .running
         .peer()
-        .list_tools(Some(PaginatedRequestParams::default().with_cursor(Some("next".to_owned()))))
+        .list_tools(Some(
+            PaginatedRequestParams::default().with_cursor(Some("next".to_owned())),
+        ))
         .await
         .expect_err("cursor");
     match cursor {
@@ -161,9 +256,15 @@ async fn initialize_previous_version_lists_gateway_tools_only() {
     }
     let stderr = session.finish().await;
     assert_stderr(&stderr);
-    assert!(stderr.contains("method=initialize status=200"), "initialize log");
+    assert!(
+        stderr.contains("method=initialize status=200"),
+        "initialize log"
+    );
     assert!(stderr.contains("method=tools/list status=200"), "tools log");
-    assert!(stderr.contains("method=tools/call status=32601"), "export log");
+    assert!(
+        stderr.contains("method=tools/call status=32601"),
+        "export log"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -178,11 +279,19 @@ async fn discover_target_version_lists_the_same_tools() {
     .expect("discover 2026-07-28");
     let info = session.running.peer().peer_info().expect("peer info");
     assert_eq!(info.protocol_version, ProtocolVersion::V_2026_07_28);
-    let tools = session.running.peer().list_tools(None).await.expect("tools");
+    let tools = session
+        .running
+        .peer()
+        .list_tools(None)
+        .await
+        .expect("tools");
     assert_tools(&tools.tools);
     let stderr = session.finish().await;
     assert_stderr(&stderr);
-    assert!(stderr.contains("method=server/discover status=200"), "discover log");
+    assert!(
+        stderr.contains("method=server/discover status=200"),
+        "discover log"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -203,7 +312,11 @@ async fn initialize_rejects_unknown_and_non_handshake_versions() {
         };
         match error {
             ClientInitializeError::JsonRpcError(error) => {
-                assert_eq!(error.code, ErrorCode::UNSUPPORTED_PROTOCOL_VERSION, "{encoded}");
+                assert_eq!(
+                    error.code,
+                    ErrorCode::UNSUPPORTED_PROTOCOL_VERSION,
+                    "{encoded}"
+                );
                 assert_eq!(error.code.0, -32022, "{encoded}");
             }
             other => panic!("{encoded} failed as {other}"),

@@ -3,6 +3,20 @@ use serde_json::json;
 use std::{fs, process::Command};
 
 #[test]
+fn delivery_help_requires_no_profile_or_network() {
+    for command in ["profile", "use", "check", "mcp-config", "mcp"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_oo"))
+            .args([command, "--help"])
+            .env_remove("HOME")
+            .env("OO_CONFIG_DIR", "invalid-relative-path")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{command}");
+        assert!(String::from_utf8_lossy(&output.stdout).contains("oo use NAME"));
+    }
+}
+
+#[test]
 fn two_databases_keep_credentials_and_trust_isolated() {
     let root = std::env::temp_dir().join(format!("oo-delivery-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();

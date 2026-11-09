@@ -1323,6 +1323,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "oo-builder"
+version = "0.1.0"
+dependencies = [
+ "oo-core",
+ "oo-jobs",
+ "serde",
+ "serde_json",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "oo-core"
 version = "0.1.0"
 dependencies = [
@@ -1349,6 +1360,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "getrandom 0.2.17",
+ "oo-builder",
  "oo-core",
  "pg_query",
  "postgres-protocol",
@@ -1364,6 +1376,13 @@ dependencies = [
  "tower",
  "tower-http",
  "zeroize",
+]
+
+[[package]]
+name = "oo-jobs"
+version = "0.1.0"
+dependencies = [
+ "oo-core",
 ]
 
 [[package]]
@@ -1788,9 +1807,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -2166,9 +2185,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.53.1"
+version = "1.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
 dependencies = [
  "bytes",
  "libc",

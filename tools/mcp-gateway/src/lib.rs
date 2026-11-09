@@ -11,22 +11,20 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use http::{parse_loopback_port, GatewayClient};
+use http::{GatewayClient, parse_loopback_port};
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, CacheScope, DiscoverResult, ErrorCode,
+    CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, DiscoverResult, ErrorCode,
     Implementation, InitializeRequestParams, InitializeResult, ListPromptsResult,
     ListResourcesResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion,
-    ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource, ResourceContents,
-    ServerCapabilities, ServerConfig, Tool, ToolAnnotations,
+    ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+    ResourceContents, ServerCapabilities, ServerConfig, Tool, ToolAnnotations,
 };
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{ErrorData as McpError, ServerHandler, ServiceExt};
 use serde_json::{Map as JsonMap, Value};
 
-const SUPPORTED: &[ProtocolVersion] = &[
-    ProtocolVersion::V_2025_11_25,
-    ProtocolVersion::V_2026_07_28,
-];
+const SUPPORTED: &[ProtocolVersion] =
+    &[ProtocolVersion::V_2025_11_25, ProtocolVersion::V_2026_07_28];
 
 const READY_LINE: &str = "oo-mcp-gateway: stdio ready oauth=false remote_export=disabled";
 
@@ -59,6 +57,23 @@ pub fn run() -> i32 {
 
 impl GatewayServer {
     fn from_env() -> Result<Self, &'static str> {
+        if let Ok(name) = std::env::var("OO_MCP_PROFILE") {
+            if name.is_empty()
+                || name.len() > 64
+                || !name
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
+            {
+                return Err("profile");
+            }
+            let cli = PathBuf::from(std::env::var_os("OO_MCP_CLI").ok_or("cli")?);
+            if !cli.is_absolute() || !cli.is_file() {
+                return Err("cli");
+            }
+            return Ok(Self {
+                client: GatewayClient::profile(cli, name),
+            });
+        }
         let url = std::env::var("OO_MCP_GATEWAY_URL").map_err(|_| "gateway_url")?;
         let port = parse_loopback_port(&url)?;
         let token_file = std::env::var("OO_MCP_TOKEN_FILE").map_err(|_| "token_file")?;
@@ -88,7 +103,11 @@ impl GatewayServer {
         }
     }
 
-    async fn gateway_tool(&self, path: &str, body: Option<Value>) -> Result<CallToolResult, McpError> {
+    async fn gateway_tool(
+        &self,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<CallToolResult, McpError> {
         let reply = match body {
             None => self.client.get(path).await,
             Some(body) => self.client.post_json(path, &body).await,
@@ -96,7 +115,7 @@ impl GatewayServer {
         match reply {
             Ok(reply) => {
                 log_status("tools/call", reply.status);
-                if (200..300).contains(&reply.status) {
+                if (200..300).contains(&reply.status) && reply.body.get("error").is_none() {
                     Ok(CallToolResult::structured(reply.body))
                 } else {
                     Ok(CallToolResult::structured_error(reply.body))
@@ -179,13 +198,28 @@ impl ServerHandler for GatewayServer {
             }
             "query" => {
                 let sql = required_sql(request.arguments.as_ref())?;
-                self.gateway_tool("/v1/sql", Some(serde_json::json!({ "sql": sql })))
+                let path = if self.client.is_profile() {
+                    "/v1/query"
+                } else {
+                    "/v1/sql"
+                };
+                self.gateway_tool(path, Some(serde_json::json!({ "sql": sql })))
+                    .await
+                    .map(CallToolResponse::from)
+            }
+            name if TOOL_ROUTES.iter().any(|(n, _, _)| *n == name) => {
+                let (path, body) = tool_request(name, request.arguments.as_ref())?;
+                self.gateway_tool(&path, body)
                     .await
                     .map(CallToolResponse::from)
             }
             _ => {
                 log_status("tools/call", 32601);
-                Err(McpError::new(ErrorCode::METHOD_NOT_FOUND, "unknown tool", None))
+                Err(McpError::new(
+                    ErrorCode::METHOD_NOT_FOUND,
+                    "unknown tool",
+                    None,
+                ))
             }
         }
     }
@@ -278,7 +312,7 @@ fn server_config() -> ServerConfig {
     .with_protocol_version(ProtocolVersion::V_2025_11_25)
     .with_server_info(Implementation::new("oo-mcp-gateway", "0.1.0"))
     .with_instructions(
-        "Loopback gateway tools only. OAuth is not implemented. Remote filesystem export is disabled.",
+        "First check_readiness, then check_answerable (advisory, never blocks queries). Discover only the role's published semantic tables with list_tables, describe_table and read_knowledge; resolve entities and code values before validate_sql and query. Cite query_id and freshness. Report gaps and refusals honestly; no raw-database browsing or export. OAuth is not implemented.",
     )
 }
 
@@ -288,7 +322,7 @@ fn tool_list() -> Vec<Tool> {
         .destructive(false)
         .idempotent(true)
         .open_world(false);
-    vec![
+    let mut tools = vec![
         Tool::new(
             "session_current",
             "GET /v1/session/current. The role comes from the bearer token.",
@@ -303,11 +337,129 @@ fn tool_list() -> Vec<Tool> {
         .with_annotations(annotations.clone()),
         Tool::new(
             "query",
-            "POST /v1/sql. Returns the gateway JSON body.",
+            "Execute read-only SQL through the role-scoped Gateway. Validate first; cite query_id and freshness. A refusal is not an empty result.",
             query_schema(),
         )
         .with_annotations(annotations),
-    ]
+    ];
+    for (name, _, field) in TOOL_ROUTES {
+        let schema = match field {
+            Some(field) => {
+                let mut properties = JsonMap::new();
+                properties.insert(
+                    (*field).into(),
+                    serde_json::json!({"type":"string", "minLength":1, "maxLength":2048}),
+                );
+                if *name == "resolve_entity" {
+                    properties.insert("entity".into(), serde_json::json!({"type":"string"}));
+                }
+                if *name == "search_values" {
+                    properties.insert("column".into(), serde_json::json!({"type":"string"}));
+                }
+                let mut required = vec![*field];
+                if *name == "resolve_entity" {
+                    required.push("entity");
+                }
+                if *name == "search_values" {
+                    required.push("column");
+                }
+                object_schema(properties, &required)
+            }
+            None => empty_schema(),
+        };
+        tools.push(Tool::new(*name, format!("Published role-scoped Gateway operation: {name}. A refusal is not an empty result."), schema)
+            .with_annotations(ToolAnnotations::new().read_only(*name != "report_gap")
+                .destructive(false).idempotent(*name != "report_gap").open_world(false)));
+    }
+    tools
+}
+
+const TOOL_ROUTES: &[(&str, &str, Option<&str>)] = &[
+    ("list_tables", "/v1/tables", None),
+    ("describe_table", "/v1/tables/", Some("table")),
+    ("resolve_entity", "/v1/entities/", Some("text")),
+    ("search_values", "/v1/values/search", Some("text")),
+    ("validate_sql", "/v1/sql/validate", Some("sql")),
+    ("get_freshness", "/v1/freshness", None),
+    ("read_knowledge", "/v1/knowledge/", Some("path")),
+    ("search_knowledge", "/v1/knowledge/search", Some("q")),
+    ("report_gap", "/v1/feedback/gap", Some("description")),
+    ("check_readiness", "/v1/check/readiness", None),
+    ("check_answerable", "/v1/check/answerable", Some("question")),
+];
+
+fn tool_request(
+    name: &str,
+    args: Option<&JsonMap<String, Value>>,
+) -> Result<(String, Option<Value>), McpError> {
+    let (_, route, field) = TOOL_ROUTES
+        .iter()
+        .find(|(n, _, _)| *n == name)
+        .ok_or_else(|| McpError::invalid_params("unknown tool", None))?;
+    let empty = JsonMap::new();
+    let args = args.unwrap_or(&empty);
+    let bad = || McpError::invalid_params("invalid tool arguments", None);
+    let Some(field) = field else {
+        return if args.is_empty() {
+            Ok(((*route).into(), None))
+        } else {
+            Err(bad())
+        };
+    };
+    let extra = match name {
+        "resolve_entity" => Some("entity"),
+        "search_values" => Some("column"),
+        _ => None,
+    };
+    if args.len() != 1 + usize::from(extra.is_some()) {
+        return Err(bad());
+    }
+    let value = args
+        .get(*field)
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty() && s.len() <= 2048 && !s.contains('\0'))
+        .ok_or_else(bad)?;
+    if let Some(extra) = extra {
+        let identifier = args
+            .get(extra)
+            .and_then(Value::as_str)
+            .filter(|s| safe_identifier(s))
+            .ok_or_else(bad)?;
+        if name == "resolve_entity" {
+            return Ok((
+                format!("{route}{identifier}/resolve"),
+                Some(serde_json::json!({"text":value})),
+            ));
+        }
+        return Ok(((*route).into(), Some(Value::Object(args.clone()))));
+    }
+    if name == "describe_table" {
+        if !safe_identifier(value) {
+            return Err(bad());
+        }
+        return Ok((format!("{route}{value}"), None));
+    }
+    if name == "read_knowledge" {
+        if validate_path(value).is_err()
+            || !value.is_ascii()
+            || value
+                .bytes()
+                .any(|b| b <= 0x20 || b == 0x7f || b"%?#".contains(&b))
+        {
+            return Err(bad());
+        }
+        return Ok((format!("{route}{value}"), None));
+    }
+    Ok(((*route).into(), Some(Value::Object(args.clone()))))
+}
+
+fn safe_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 256
+        && !value.contains("..")
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_.".contains(&b))
 }
 
 fn empty_schema() -> Arc<JsonMap<String, Value>> {
@@ -322,7 +474,10 @@ fn query_schema() -> Arc<JsonMap<String, Value>> {
     object_schema(properties, &["sql"])
 }
 
-fn object_schema(properties: JsonMap<String, Value>, required: &[&str]) -> Arc<JsonMap<String, Value>> {
+fn object_schema(
+    properties: JsonMap<String, Value>,
+    required: &[&str],
+) -> Arc<JsonMap<String, Value>> {
     let mut schema = JsonMap::new();
     schema.insert("type".to_owned(), Value::String("object".to_owned()));
     schema.insert("additionalProperties".to_owned(), Value::Bool(false));
@@ -330,14 +485,23 @@ fn object_schema(properties: JsonMap<String, Value>, required: &[&str]) -> Arc<J
     if !required.is_empty() {
         schema.insert(
             "required".to_owned(),
-            Value::Array(required.iter().map(|name| Value::String((*name).to_owned())).collect()),
+            Value::Array(
+                required
+                    .iter()
+                    .map(|name| Value::String((*name).to_owned()))
+                    .collect(),
+            ),
         );
     }
     Arc::new(schema)
 }
 
 fn reject_cursor(method: &str, request: &Option<PaginatedRequestParams>) -> Result<(), McpError> {
-    if request.as_ref().and_then(|params| params.cursor.as_ref()).is_some() {
+    if request
+        .as_ref()
+        .and_then(|params| params.cursor.as_ref())
+        .is_some()
+    {
         log_status(method, 32602);
         return Err(McpError::invalid_params("pagination is not used", None));
     }
@@ -345,7 +509,11 @@ fn reject_cursor(method: &str, request: &Option<PaginatedRequestParams>) -> Resu
 }
 
 fn reject_arguments(request: &CallToolRequestParams) -> Result<(), McpError> {
-    if request.arguments.as_ref().is_some_and(|arguments| !arguments.is_empty()) {
+    if request
+        .arguments
+        .as_ref()
+        .is_some_and(|arguments| !arguments.is_empty())
+    {
         log_status("tools/call", 32602);
         return Err(McpError::invalid_params("arguments are not accepted", None));
     }
@@ -408,7 +576,10 @@ fn validate_path(path: &str) -> Result<(), ()> {
     {
         return Err(());
     }
-    if path.split('/').any(|segment| segment.is_empty() || segment == "." || segment == "..") {
+    if path
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
         return Err(());
     }
     Ok(())
@@ -420,7 +591,86 @@ fn log_status(method: &str, status: u16) {
 
 #[cfg(test)]
 mod tests {
-    use super::{knowledge_path, tool_list};
+    use super::{knowledge_path, required_sql, tool_list, tool_request};
+    use serde_json::json;
+
+    #[test]
+    fn each_semantic_tool_has_a_strict_gateway_contract() {
+        for (name, args, route, post) in [
+            ("list_tables", json!({}), "/v1/tables", false),
+            (
+                "describe_table",
+                json!({"table":"demo.orders"}),
+                "/v1/tables/demo.orders",
+                false,
+            ),
+            (
+                "resolve_entity",
+                json!({"entity":"customer","text":"example"}),
+                "/v1/entities/customer/resolve",
+                true,
+            ),
+            (
+                "search_values",
+                json!({"column":"demo.orders.status","text":"shipped"}),
+                "/v1/values/search",
+                true,
+            ),
+            (
+                "validate_sql",
+                json!({"sql":"select 1"}),
+                "/v1/sql/validate",
+                true,
+            ),
+            ("get_freshness", json!({}), "/v1/freshness", false),
+            (
+                "read_knowledge",
+                json!({"path":"entities/orders.md"}),
+                "/v1/knowledge/entities/orders.md",
+                false,
+            ),
+            (
+                "search_knowledge",
+                json!({"q":"orders"}),
+                "/v1/knowledge/search",
+                true,
+            ),
+            (
+                "report_gap",
+                json!({"description":"missing metric"}),
+                "/v1/feedback/gap",
+                true,
+            ),
+            ("check_readiness", json!({}), "/v1/check/readiness", false),
+            (
+                "check_answerable",
+                json!({"question":"How many orders?"}),
+                "/v1/check/answerable",
+                true,
+            ),
+        ] {
+            let (path, body) = tool_request(name, args.as_object()).unwrap();
+            assert_eq!(path, route, "{name}");
+            assert_eq!(body.is_some(), post, "{name}");
+            let mut extra = args.as_object().unwrap().clone();
+            extra.insert("role".into(), json!("administrator"));
+            assert!(tool_request(name, Some(&extra)).is_err(), "{name}");
+        }
+        assert_eq!(
+            required_sql(json!({"sql":"select 1"}).as_object()).unwrap(),
+            "select 1"
+        );
+        assert!(required_sql(json!({"sql":"select 1","role":"admin"}).as_object()).is_err());
+        for path in [
+            "../private",
+            "a%2fb",
+            "a?role=admin",
+            "a\r\nx:y",
+            "/private",
+        ] {
+            assert!(tool_request("read_knowledge", json!({"path":path}).as_object()).is_err());
+        }
+    }
 
     #[test]
     fn knowledge_uris_stay_inside_the_pack_path() {
@@ -436,9 +686,27 @@ mod tests {
     }
 
     #[test]
-    fn advertised_tools_are_the_three_gateway_routes() {
+    fn advertised_tools_include_preflight_and_semantic_routes() {
         let tools = tool_list();
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
-        assert_eq!(names, ["session_current", "pack_metadata", "query"]);
+        assert_eq!(
+            names,
+            [
+                "session_current",
+                "pack_metadata",
+                "query",
+                "list_tables",
+                "describe_table",
+                "resolve_entity",
+                "search_values",
+                "validate_sql",
+                "get_freshness",
+                "read_knowledge",
+                "search_knowledge",
+                "report_gap",
+                "check_readiness",
+                "check_answerable"
+            ]
+        );
     }
 }
