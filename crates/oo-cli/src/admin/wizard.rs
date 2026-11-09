@@ -1,41 +1,48 @@
-//! Configuration wizard. A saved configuration is not a deployed/reviewed pack.
+//! `oo init`: connect, choose tables, then the remaining configuration
+//! questions, preflight and an optional build. A saved configuration is not a
+//! deployed/reviewed pack. Screens and their visual language live in
+//! `crate::tui`; this module supplies the real probes and side effects.
 use std::fs::{self, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use crossterm::execute;
-use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
-};
+use crate::tui::app::{self, ConnectRequest, Term};
+use crate::tui::screens::{Check, Status, connect};
+use crate::tui::theme::Theme;
 use oo_stack::secret::SecretStore;
-use ratatui::Terminal;
-use ratatui::backend::CrosstermBackend;
-use ratatui::widgets::{Block, Paragraph, Wrap};
 use serde_json::{Value, json};
 
 use super::{Failure, Invocation, doctor};
 
+/// Product stage (0 connect … 4 deliver) for a legacy wizard step number.
+fn stage(step: u8) -> usize {
+    match step {
+        1 => 0,
+        2 => 1,
+        3..=5 => 2,
+        6 => 3,
+        _ => 4,
+    }
+}
+
 pub(super) struct Screen {
-    terminal: Terminal<CrosstermBackend<io::Stdout>>,
+    term: Term,
 }
 
 impl Screen {
     pub(super) fn open() -> Result<Self, Failure> {
-        enable_raw_mode().map_err(|_| Failure::local("TUI_TERMINAL"))?;
-        if execute!(io::stdout(), EnterAlternateScreen).is_err() {
-            let _ = disable_raw_mode();
-            return Err(Failure::local("TUI_TERMINAL"));
-        }
-        match Terminal::new(CrosstermBackend::new(io::stdout())) {
-            Ok(terminal) => Ok(Self { terminal }),
-            Err(_) => {
-                let _ = execute!(io::stdout(), LeaveAlternateScreen);
-                let _ = disable_raw_mode();
-                Err(Failure::local("TUI_TERMINAL"))
-            }
-        }
+        Self::with(Theme::from_env(false))
+    }
+
+    pub(super) fn with(theme: Theme) -> Result<Self, Failure> {
+        Ok(Self {
+            term: Term::open(theme).map_err(Failure::local)?,
+        })
+    }
+
+    pub(super) fn term(&mut self) -> &mut Term {
+        &mut self.term
     }
 
     pub(super) fn prompt(
@@ -45,101 +52,41 @@ impl Screen {
         default: &str,
         secret: bool,
     ) -> Result<String, Failure> {
-        let mut value = String::new();
-        let mut scroll = 0u16;
-        loop {
-            // Secret contents and lengths never enter a render buffer.
-            let shown = if secret { "[hidden]" } else { value.as_str() };
-            let hint = if secret || default.is_empty() {
-                String::new()
-            } else {
-                format!("\nDefault: {default}")
-            };
-            let text = format!(
-                "{label}{hint}\n\n> {shown}\n\nEnter: accept   Esc / Ctrl-C: cancel   Up/Down: scroll\n\
-                 Credentials already entered remain saved on cancellation."
-            );
-            self.terminal
-                .draw(|frame| {
-                    frame.render_widget(
-                        Paragraph::new(text)
-                            .wrap(Wrap { trim: false })
-                            .scroll((scroll, 0))
-                            .block(
-                                Block::bordered()
-                                    .title(format!("Open Ontology / step {step} of 7")),
-                            ),
-                        frame.area(),
-                    );
-                })
-                .map_err(|_| Failure::local("TUI_RENDER"))?;
-            match event::read().map_err(|_| Failure::local("TUI_INPUT"))? {
-                Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    if key.code == KeyCode::Esc
-                        || (key.code == KeyCode::Char('c')
-                            && key.modifiers.contains(KeyModifiers::CONTROL))
-                    {
-                        return Err(Failure::local("TUI_CANCELLED"));
-                    }
-                    match key.code {
-                        KeyCode::Up => scroll = scroll.saturating_sub(1),
-                        KeyCode::Down => scroll = scroll.saturating_add(1),
-                        KeyCode::PageUp => scroll = scroll.saturating_sub(10),
-                        KeyCode::PageDown => scroll = scroll.saturating_add(10),
-                        KeyCode::Enter => {
-                            return Ok(if value.is_empty() {
-                                default.into()
-                            } else {
-                                value
-                            });
-                        }
-                        KeyCode::Backspace => {
-                            value.pop();
-                        }
-                        KeyCode::Char(c)
-                            if !c.is_control()
-                                && value.len() + c.len_utf8() <= 4096
-                                && !key
-                                    .modifiers
-                                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-                        {
-                            value.push(c);
-                        }
-                        _ => (),
-                    }
+        app::prompt(&mut self.term, stage(step), label, default, secret).map_err(Failure::local)
+    }
+
+    /// Build progress: the five-stage timeline when the chain state names
+    /// stages, otherwise the plain status text. Returns true when the user
+    /// asked to stop watching.
+    pub(super) fn progress(&mut self, state: &Value, text: &str) -> Result<bool, Failure> {
+        use crate::tui::screens::build;
+        let timeline = state["stages"].as_array().is_some_and(|s| {
+            s.iter()
+                .any(|st| st["name"].as_str().and_then(build::product_stage).is_some())
+        });
+        let view = build::from_chain(state);
+        self.term
+            .draw(|area, buf, theme| {
+                if timeline {
+                    build::render(&view, area, buf, theme);
+                } else {
+                    crate::tui::screens::prompt(2, text, "", "", false, 0, area, buf, theme);
                 }
-                _ => (),
-            }
-        }
-    }
-
-    pub(super) fn progress(&mut self, text: &str) -> Result<bool, Failure> {
-        self.terminal
-            .draw(|frame| {
-                frame.render_widget(
-                    Paragraph::new(text)
-                        .wrap(Wrap { trim: false })
-                        .block(Block::bordered().title("Open Ontology / execution")),
-                    frame.area(),
-                );
             })
-            .map_err(|_| Failure::local("TUI_RENDER"))?;
-        if event::poll(std::time::Duration::ZERO).map_err(|_| Failure::local("TUI_INPUT"))?
-            && let Event::Key(key) = event::read().map_err(|_| Failure::local("TUI_INPUT"))?
-        {
-            return Ok(key.kind == KeyEventKind::Press
-                && (matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
-                    || (key.code == KeyCode::Char('c')
-                        && key.modifiers.contains(KeyModifiers::CONTROL))));
-        }
-        Ok(false)
-    }
-}
-
-impl Drop for Screen {
-    fn drop(&mut self) {
-        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
-        let _ = disable_raw_mode();
+            .map_err(Failure::local)?;
+        Ok(self
+            .term
+            .key(std::time::Duration::ZERO)
+            .map_err(Failure::local)?
+            .is_some_and(|key| {
+                matches!(
+                    key.code,
+                    crossterm::event::KeyCode::Esc | crossterm::event::KeyCode::Char('q')
+                ) || (key.code == crossterm::event::KeyCode::Char('c')
+                    && key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL))
+            }))
     }
 }
 
@@ -331,46 +278,513 @@ fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
     super::execute("build", &args)
 }
 
-pub(super) fn run() -> Result<Invocation, Failure> {
+/// Options for `oo init` / `oo quickstart` beyond `--config`.
+#[derive(Default)]
+pub(super) struct InitOptions {
+    pub demo: bool,
+    pub catalog: Option<std::path::PathBuf>,
+    pub tables: Option<Vec<String>>,
+    pub tables_recommended: bool,
+    pub config: Option<std::path::PathBuf>,
+    pub profile: Option<String>,
+    pub no_anim: bool,
+    pub json: bool,
+}
+
+pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Failure> {
+    let bad = || Failure::usage("ADMIN_ARGUMENT: invalid init option");
+    let mut opts = InitOptions {
+        demo,
+        ..InitOptions::default()
+    };
+    let mut seen = std::collections::HashSet::new();
+    let mut index = 0;
+    while index < args.len() {
+        let (key, inline) = match args[index].split_once('=') {
+            Some((k, v)) if k.starts_with("--") => (k, Some(v.to_owned())),
+            _ => (args[index].as_str(), None),
+        };
+        if !seen.insert(key.to_owned()) {
+            return Err(Failure::usage("ADMIN_ARGUMENT: duplicate option"));
+        }
+        let mut value = || -> Result<String, Failure> {
+            if let Some(v) = &inline {
+                return Ok(v.clone());
+            }
+            index += 1;
+            args.get(index)
+                .filter(|s| !s.is_empty() && !s.starts_with('-'))
+                .cloned()
+                .ok_or_else(bad)
+        };
+        match key {
+            "--demo" => opts.demo = true,
+            "--yes" => (),
+            "--json" => opts.json = true,
+            "--no-anim" => opts.no_anim = true,
+            "--tables-recommended" => opts.tables_recommended = true,
+            "--catalog" => opts.catalog = Some(value()?.into()),
+            "--config" => opts.config = Some(value()?.into()),
+            "--profile" => {
+                let name = value()?;
+                if !crate::tui::backend::profile_name(&name) {
+                    return Err(bad());
+                }
+                opts.profile = Some(name);
+            }
+            "--tables" => {
+                opts.tables = Some(list(&value()?));
+            }
+            _ => return Err(bad()),
+        }
+        index += 1;
+    }
+    if opts.tables.is_some() && opts.tables_recommended {
+        return Err(Failure::usage(
+            "ADMIN_ARGUMENT: --tables and --tables-recommended are exclusive",
+        ));
+    }
+    Ok(opts)
+}
+
+fn zh() -> bool {
+    ["OO_LANG", "LC_ALL", "LANG"]
+        .iter()
+        .find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()))
+        .is_some_and(|v| v.starts_with("zh"))
+}
+
+fn catalog_tables(
+    opts: &InitOptions,
+) -> Result<Option<Vec<crate::tui::scorer::TableMeta>>, Failure> {
+    if let Some(path) = &opts.catalog {
+        let value = crate::tui::adjudication::read_json(path)
+            .map_err(|_| Failure::local("TABLE_CATALOG_IO"))?;
+        return crate::tui::scorer::from_catalog(&value)
+            .map(Some)
+            .map_err(Failure::usage);
+    }
+    Ok(opts.demo.then(crate::tui::screens::select::demo_tables))
+}
+
+/// Entry for every `oo init` / `oo quickstart` form except plain `--config`.
+pub(super) fn init(opts: &InitOptions) -> Result<Invocation, Failure> {
+    let tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !opts.json;
+    if opts.tables.is_some() || opts.tables_recommended || (!tty && opts.demo) {
+        return select_tables(opts);
+    }
+    if !tty {
+        return Err(Failure::usage(
+            "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",
+        ));
+    }
+    run(opts)
+}
+
+/// Non-TTY screen 2: score the catalog and save an explicit list.
+fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
+    use crate::tui::scorer::{recommended, score};
+    let tables = catalog_tables(opts)?.ok_or_else(|| {
+        Failure::usage("TABLE_CATALOG_REQUIRED: pass --catalog CATALOG.json or --demo")
+    })?;
+    let scored = score(&tables);
+    let chosen = match &opts.tables {
+        Some(list) => {
+            if list.iter().any(|t| !scored.iter().any(|s| &s.table == t)) {
+                return Err(Failure::usage(
+                    "TABLES_UNKNOWN: every table must be in the catalog",
+                ));
+            }
+            let mut list = list.clone();
+            list.sort();
+            list.dedup();
+            list
+        }
+        None => recommended(&scored),
+    };
+    if chosen.is_empty() {
+        return Err(Failure::usage("TABLES_EMPTY"));
+    }
+    let saved = match &opts.config {
+        Some(path) => {
+            save_scope(path, &chosen)?;
+            true
+        }
+        None => false,
+    };
+    let zh = zh();
+    Ok(Invocation::AdminReport(
+        if opts.json {
+            json!({"protocol":"oo.init-tables/v1","demo":opts.demo,
+                "tables":scored.iter().map(|s| json!({"table":s.table,"verdict":s.verdict,
+                    "reason":s.reason,"text":s.reason.text(zh),"referenced_by":s.referenced_by,"rows":s.rows})).collect::<Vec<_>>(),
+                "selected":chosen,"saved":saved})
+            .to_string()
+        } else {
+            let mut out = String::new();
+            for s in &scored {
+                let mark = if chosen.contains(&s.table) {
+                    "◉"
+                } else {
+                    "○"
+                };
+                out.push_str(&format!(
+                    "{mark} {} {:<32} {}\n",
+                    s.verdict.glyph(),
+                    s.table,
+                    s.reason.text(zh)
+                ));
+            }
+            out.push_str(&format!(
+                "{} of {} tables selected{}",
+                chosen.len(),
+                scored.len(),
+                if saved {
+                    "; saved as an explicit scope.include list"
+                } else {
+                    ""
+                }
+            ));
+            out
+        },
+        0,
+    ))
+}
+
+/// Replace the first source's `scope.include` with an explicit list.
+fn save_scope(path: &Path, tables: &[String]) -> Result<(), Failure> {
+    let stack = super::read_stack(path)?;
+    let mut value = serde_json::to_value(&stack).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    let source = value["sources"]
+        .get_mut(0)
+        .ok_or_else(|| Failure::usage("STACK_SOURCE_REQUIRED"))?;
+    source["scope"]["include"] = json!(tables);
+    let stack = oo_stack::parse(&value.to_string()).map_err(Failure::usage)?;
+    let mut bytes =
+        serde_json::to_vec_pretty(&stack).map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    bytes.push(b'\n');
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temp = parent.join(format!(".oo-stack-{}.tmp", std::process::id()));
+    let result = save_new_bytes(&temp, &bytes)
+        .and_then(|()| fs::rename(&temp, path).map_err(|_| Failure::local("ADMIN_CONFIG_IO")));
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn save_new_bytes(path: &Path, bytes: &[u8]) -> Result<(), Failure> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))?;
+    file.write_all(bytes)
+        .and_then(|_| file.sync_all())
+        .map_err(|_| Failure::local("ADMIN_CONFIG_IO"))
+}
+
+/// Store a secret under the first free name `base`, `base-2`, ...
+fn store_new(store: &SecretStore, base: &str, value: &[u8]) -> Result<Value, Failure> {
+    for n in 1..=20 {
+        let name = if n == 1 {
+            base.to_owned()
+        } else {
+            format!("{base}-{n}")
+        };
+        if store.write_new(&name, value).is_ok() {
+            return Ok(json!({"secret_ref":name}));
+        }
+    }
+    Err(Failure::local("SECRET_NAME_EXHAUSTED"))
+}
+
+/// Screen 1 probe for a real database: engine, TCP reachability and TLS
+/// material. Account, CDC and catalog checks need the table list and run in
+/// `oo doctor` after screen 2. Nothing here authenticates or writes.
+fn probe(request: &ConnectRequest) -> Vec<Check> {
+    if request.demo {
+        return demo_checks();
+    }
+    let Some(dsn) = &request.dsn else {
+        return vec![
+            Check::new("connection string", Status::Fail, "incomplete")
+                .fix("scheme://user@host:port/database"),
+        ];
+    };
+    let mut checks = vec![Check::new(
+        "engine",
+        Status::Pass,
+        &format!("{} (from your input)", dsn.engine),
+    )];
+    let started = std::time::Instant::now();
+    let reached = std::net::ToSocketAddrs::to_socket_addrs(&(dsn.host.as_str(), dsn.port))
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .and_then(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).ok()
+        });
+    checks.push(match reached {
+        Some(_) => Check::new(
+            "reachable",
+            Status::Pass,
+            &format!(
+                "{}:{} answered in {} ms",
+                dsn.host,
+                dsn.port,
+                started.elapsed().as_millis()
+            ),
+        ),
+        None => Check::new(
+            "reachable",
+            Status::Warn,
+            &format!("{}:{} did not answer", dsn.host, dsn.port),
+        )
+        .fix("check host, port and firewall; an SSH jump host can be added next"),
+    });
+    let needs_ca = matches!(dsn.engine.as_str(), "postgres" | "mysql" | "kingbase");
+    checks.push(match (&request.ca, needs_ca) {
+        (Some(_), _) => Check::new("TLS", Status::Pass, "CA file given; verified by oo doctor"),
+        (None, true) => Check::new("TLS", Status::Warn, "a CA file is required for this engine")
+            .fix("you will be asked for the CA PEM path next"),
+        (None, false) => Check::new("TLS", Status::Pass, "engine-native TLS settings"),
+    });
+    for name in ["read-only account", "CDC capability", "catalog access"] {
+        checks.push(Check::new(
+            name,
+            Status::Waiting,
+            "checked by oo doctor after you choose tables",
+        ));
+    }
+    checks
+}
+
+fn demo_checks() -> Vec<Check> {
+    vec![
+        Check::new(
+            "demo catalog",
+            Status::Pass,
+            "OO-Logistics subset bundled with oo",
+        ),
+        Check::new(
+            "demo runtime",
+            Status::Waiting,
+            "started by oo quickstart (V3-M-01); not by this preview",
+        ),
+    ]
+}
+
+/// Doctor report (`oo.doctor/v1`) as checklist rows.
+pub(super) fn doctor_checks(report: &Value) -> Vec<Check> {
+    let status = |v: &Value| match v.as_str() {
+        Some("ok") => Status::Pass,
+        Some("blocked" | "failed") => Status::Fail,
+        Some("warn" | "degraded") => Status::Warn,
+        _ => Status::Waiting,
+    };
+    let text = |v: &Value, keys: &[&str]| {
+        keys.iter()
+            .find_map(|k| match &v[*k] {
+                Value::String(s) => Some(s.clone()),
+                Value::Array(a) => a.first().and_then(Value::as_str).map(str::to_owned),
+                _ => None,
+            })
+            .unwrap_or_default()
+    };
+    let mut checks = Vec::new();
+    for source in report["sources"].as_array().into_iter().flatten() {
+        let id = source["source_id"].as_str().unwrap_or("source");
+        checks.push(Check::new(
+            &format!("source {id}"),
+            status(&source["status"]),
+            &text(source, &["error", "scope_error"]),
+        ));
+        if let Some(fields) = source.as_object() {
+            for (name, value) in fields {
+                if value.get("status").is_some_and(Value::is_string) {
+                    checks.push(
+                        Check::new(
+                            &name.replace('_', " "),
+                            status(&value["status"]),
+                            &text(value, &["error", "detail"]),
+                        )
+                        .fix(&text(value, &["dba_statements", "fix", "advice"])),
+                    );
+                }
+            }
+        }
+    }
+    checks.push(Check::new(
+        "model probe",
+        status(&report["model"]["status"]),
+        &text(&report["model"], &["error"]),
+    ));
+    checks
+}
+
+fn show_checks(screen: &mut Screen, dsn_masked: &str, checks: Vec<Check>) -> Result<(), Failure> {
+    let mut state = connect::Connect::new();
+    state.dsn = dsn_masked.to_owned();
+    state.checks = checks;
+    state
+        .checks
+        .push(Check::new("next", Status::Waiting, "press ⏎ to continue"));
+    loop {
+        screen
+            .term()
+            .draw(|area, buf, theme| connect::render(&state, area, buf, theme))
+            .map_err(Failure::local)?;
+        if let Some(key) = screen
+            .term()
+            .key(std::time::Duration::from_millis(100))
+            .map_err(Failure::local)?
+        {
+            match key.code {
+                crossterm::event::KeyCode::Enter => return Ok(()),
+                crossterm::event::KeyCode::Esc => return Err(Failure::local("TUI_CANCELLED")),
+                _ => (),
+            }
+        }
+        state.frame += 1;
+    }
+}
+
+/// `oo quickstart` / `oo init --demo` on a TTY: every screen on the bundled
+/// demo catalog and adjudication. The demo runtime and pack are V3-M-01; this
+/// preview starts nothing and writes nothing.
+fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
+    let mut term = Term::open(theme).map_err(Failure::local)?;
+    app::splash(&mut term).map_err(Failure::local)?;
+    let mut start = connect::Connect::new();
+    start.mode = 2;
+    let Some(_) = app::connect(&mut term, start, &probe).map_err(Failure::local)? else {
+        return Err(Failure::local("TUI_CANCELLED"));
+    };
+    let tables = catalog_tables(&InitOptions {
+        demo: true,
+        catalog: opts.catalog.clone(),
+        ..InitOptions::default()
+    })?
+    .unwrap_or_default();
+    let Some(selected) = app::select(&mut term, &tables, zh()).map_err(Failure::local)? else {
+        return Err(Failure::local("TUI_CANCELLED"));
+    };
+    let done = json!({"stages":[
+        {"name":"load","status":"done"},{"name":"profile","status":"done"},{"name":"draft","status":"done"},
+        {"name":"adjudicate","status":"done"},{"name":"compile","status":"done"}]});
+    let mut first = true;
+    app::build(&mut term, &mut || {
+        (std::mem::take(&mut first).then(|| done.clone()), true)
+    })
+    .map_err(Failure::local)?;
+    let adj = crate::tui::adjudication::parse(
+        serde_json::from_str(include_str!("../../tests/fixtures/adjudication.json"))
+            .map_err(|_| Failure::local("DEMO_ADJUDICATION"))?,
+    )
+    .map_err(Failure::local)?;
+    let Some((confirm, overrides)) =
+        app::confirm(&mut term, adj, &crate::tui::adjudication::now_rfc3339())
+            .map_err(Failure::local)?
+    else {
+        return Err(Failure::local("TUI_CANCELLED"));
+    };
+    let profile = opts.profile.clone().unwrap_or_else(|| "demo".into());
+    app::deliver(&mut term, &crate::tui::backend::Pending, &profile).map_err(Failure::local)?;
+    drop(term);
+    Ok(Invocation::Help(
+        json!({"protocol":"oo.quickstart-preview/v1","selected":selected,
+            "publish_confirm":confirm,"overrides":overrides.items.len(),"written":false,
+            "note":"preview only: the demo runtime and pack are started by V3-M-01"})
+        .to_string(),
+    ))
+}
+
+pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
+    let theme = Theme::from_env(opts.no_anim);
+    if opts.demo {
+        return demo(opts, theme);
+    }
     if Path::new("stack.yaml").symlink_metadata().is_ok() {
         return Err(Failure::local("TUI_CONFIG_EXISTS_OR_IO"));
     }
+    let tables = catalog_tables(opts)?;
     let home = std::env::var_os("HOME").ok_or_else(|| Failure::local("SECRET_HOME"))?;
     let parent = Path::new(&home).join(".config/open-ontology");
     fs::create_dir_all(&parent).map_err(|_| Failure::local("SECRET_DIRECTORY"))?;
     let store = SecretStore::create(parent.join("secrets")).map_err(Failure::local)?;
-    let mut screen = Screen::open()?;
-    let engine = screen.prompt(1, "Engine: postgres / oracle / mysql", "postgres", false)?;
+    let mut screen = Screen::with(theme)?;
+    app::splash(screen.term()).map_err(Failure::local)?;
+    let Some(conn) =
+        app::connect(screen.term(), connect::Connect::new(), &probe).map_err(Failure::local)?
+    else {
+        return Err(Failure::local("TUI_CANCELLED"));
+    };
+    if conn.mode == 2 {
+        drop(screen);
+        return demo(opts, theme);
+    }
+    let dsn = conn.dsn().map_err(Failure::usage)?;
+    let masked = if conn.mode == 0 {
+        connect::mask(&conn.dsn)
+    } else {
+        format!(
+            "{}://{}@{}:{}/{}",
+            dsn.engine, dsn.user, dsn.host, dsn.port, dsn.database
+        )
+    };
+    let user = if dsn.user.is_empty() {
+        screen.prompt(1, "Read-only user", "", false)?
+    } else {
+        dsn.user.clone()
+    };
+    let database = if dsn.database.is_empty() {
+        screen.prompt(1, "Database or Oracle service", "", false)?
+    } else {
+        dsn.database.clone()
+    };
+    let password = match &dsn.password {
+        Some(value) => store_new(&store, "source-password", value.as_bytes())?,
+        None => secret(&mut screen, &store, 1, "Source password", "source-password")?,
+    };
     let mut source = json!({
-        "id": screen.prompt(1, "Source ID", "source", false)?,
-        "engine": engine,
-        "host": screen.prompt(1, "Source host", "localhost", false)?,
-        "port": screen.prompt(1, "Source port", match engine.as_str() {
-            "oracle" => "1521", "mysql" => "3306", _ => "5432"
-        }, false)?.parse::<u16>().map_err(|_| Failure::usage("STACK_SOURCE_PORT"))?,
-        "database": screen.prompt(1, "Database or Oracle service", "", false)?,
-        "user": screen.prompt(1, "Read-only user", "", false)?,
-        "password": secret(&mut screen, &store, 1, "Source password", "source-password")?,
+        "id": "source", "engine": dsn.engine, "host": dsn.host, "port": dsn.port,
+        "database": database, "user": user, "password": password,
     });
-    let ca = screen.prompt(
-        1,
-        "TLS CA PEM file path (imported into secret store; required for PostgreSQL/MySQL)",
-        "",
-        false,
-    )?;
+    let ca = match conn.ca_path() {
+        Some(path) => path.to_owned(),
+        None => screen.prompt(
+            1,
+            "TLS CA PEM file path (imported into secret store; required for PostgreSQL/MySQL)",
+            "",
+            false,
+        )?,
+    };
     if !ca.is_empty() {
         let name = screen.prompt(1, "TLS CA secret name (new file)", "source-ca", false)?;
         source["tls_ca"] = import_file(&store, &name, Path::new(&ca), true)?;
-    } else if matches!(engine.as_str(), "postgres" | "mysql") {
+    } else if matches!(dsn.engine.as_str(), "postgres" | "mysql") {
         return Err(Failure::usage("TUI_CA_FILE_REQUIRED"));
     }
     if let Some(ssh) = source_ssh(&mut screen, &store)? {
         source["ssh"] = ssh;
     }
-    source["scope"] = json!({
-        "include":list(&screen.prompt(2, "Include schema.table entries, comma separated (wildcard discovery not yet available)", "*", false)?),
-        "exclude":list(&screen.prompt(2, "Exclude tables or schema.*, comma separated", "", false)?),
-    });
+    let include = match &tables {
+        Some(tables) => app::select(screen.term(), tables, zh())
+            .map_err(Failure::local)?
+            .ok_or_else(|| Failure::local("TUI_CANCELLED"))?,
+        None => list(&screen.prompt(2, "Table discovery is not available for this engine yet.\nInclude schema.table entries, comma separated (or rerun with --catalog CATALOG.json to choose from a list)", "", false)?),
+    };
+    let exclude = if tables.is_some() {
+        Vec::new()
+    } else {
+        list(&screen.prompt(2, "Exclude tables or schema.*, comma separated", "", false)?)
+    };
+    source["scope"] = json!({"include":include,"exclude":exclude});
     let provider = screen.prompt(
         3,
         "Provider: openai-compatible / anthropic",
@@ -415,18 +829,15 @@ pub(super) fn run() -> Result<Invocation, Failure> {
         .to_string(),
     )
     .map_err(Failure::usage)?;
-    screen.prompt(
-        5,
-        "Run read-only doctor and bounded model probe (two minimal completions). Enter to run.",
-        "",
-        false,
-    )?;
+    // Read-only doctor and the bounded model probe, shown as a checklist.
     let preflight = doctor::run(&stack, true)?;
     let (report, exit) = match preflight {
         Invocation::AdminReport(report, exit) => (report, exit),
         _ => return Err(Failure::local("TUI_PREFLIGHT_PROTOCOL")),
     };
-    screen.prompt(5, &format!("Preflight (exit {exit}):\n{report}\n\nEnter to continue. Blocked preflight never deploys."), "", false)?;
+    let report: Value =
+        serde_json::from_str(&report).map_err(|_| Failure::local("TUI_PREFLIGHT_PROTOCOL"))?;
+    show_checks(&mut screen, &masked, doctor_checks(&report))?;
     let confirm = screen.prompt(6,
         "Type SAVE for configuration only, or BUILD to run oo up and oo build: deploy, load, Self-build, owner review, publication, Gateway and share prompt. BUILD requires passing preflight. Credentials remain saved on cancellation.",
         "", false)?;

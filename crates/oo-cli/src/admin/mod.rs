@@ -23,6 +23,9 @@ use std::path::Path;
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
@@ -103,6 +106,7 @@ fn is_admin(command: &str) -> bool {
             | "ontology"
             | "token"
             | "share-prompt"
+            | "quickstart"
     )
 }
 
@@ -119,6 +123,23 @@ fn admin_status(args: &[String]) -> bool {
 }
 
 fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    let v03_init = rest.iter().any(|a| {
+        matches!(
+            a.split('=').next().unwrap_or(a),
+            "--demo"
+                | "--catalog"
+                | "--tables"
+                | "--tables-recommended"
+                | "--no-anim"
+                | "--profile"
+        )
+    });
+    if command == "quickstart" || (command == "init" && v03_init) {
+        if rest.iter().any(|s| s == "--help" || s == "-h") {
+            return Ok(Invocation::Help(HELP.into()));
+        }
+        return wizard::init(&wizard::parse_init(rest, command == "quickstart")?);
+    }
     if command == "review" {
         return review::run(rest);
     }
@@ -322,7 +343,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     let Some(config) = config else {
         if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !json {
-            return wizard::run();
+            return wizard::run(&wizard::InitOptions::default());
         }
         return Err(Failure::usage(
             "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",
