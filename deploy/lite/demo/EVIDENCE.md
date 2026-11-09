@@ -101,3 +101,68 @@ Requested coordinator clarification (not applied here):
 +recursively sorted object keys, preserved array order, compact separators,
 +unescaped Unicode and no final newline.
 ```
+
+## Resume verification (2026-11-09)
+
+The resumed worktree contained the three completed lane commits and an
+untracked coordinator resume card, but no unfinished product edits. Product
+code and prior evidence were preserved. This rerun still has **partial**
+acceptance; it does not promote the original fixture checks to quickstart.
+
+Raw outputs: `evidence/v3-m-20261109-resume/`; isolated Docker run:
+`evidence/v3-m-20261109-resume-live/`. The same local lite image digest above
+was used, without pulling or publishing images.
+
+| Command | Result |
+| --- | --- |
+| `cargo check --workspace --locked` | pass |
+| `cargo build --locked -p oo-cli --bin oo -p oo-builder --bin selfbuild-budget` | pass |
+| `cargo fmt -p oo-cli -- --check` | pass |
+| `cargo test -p oo-cli --locked` | 96 passed, 3 existing opt-in tests ignored |
+| `npm test --prefix packages/cli` | 44 passed after building the native binary |
+| `python3 -m unittest discover -s deploy/lite -p test_demo.py -v` | 8 passed after building the compiler; neither Pack recompilation skipped |
+| `python3 specs/scripts/check_spec.py` | pass |
+| `python3 specs/scripts/check_plan.py` | pass |
+| `python3 specs/scripts/check_v02_plan.py` | pass |
+| `python3 deploy/lite/test_demo_live.py --run-id v3-m-20261109-resume-live --oo target/debug/oo --image <same local lite digest>` | fixture and native teardown pass |
+
+The first offline attempt ran before the local binaries existed: npm tests
+failed with `ENOENT`, and Python skipped compiler verification. Those outputs
+remain as `npm-tests.log` and `demo-tests.log`; successful post-build reruns
+are separate `*-built.log` files. This was a missing test prerequisite,
+not a claimed pre-existing base failure or a skipped test counted as passing.
+
+The fresh PostgreSQL 17.10 Linux aarch64 run on macOS arm64 checked all 10
+tables / 20,522 rows, declared keys and relations, both roles' exact gold
+results and row/column restrictions, and the TLS verify-full read-only reader.
+Fixture startup took 8.209 seconds with warm images, not first-answer timing.
+
+The native QS probes used a new empty HOME and only PATH/HOME/XDG_CONFIG_HOME
+in their environment, with no model variables or existing credentials:
+
+- QS-01 local: `target/debug/oo quickstart --yes --json` exited 2,
+  `ADMIN_ARGUMENT: unknown option`.
+- QS-02 no model: `target/debug/oo init --demo --yes --json` exited 2 with
+  the same error. The dispatcher delegates correctly; the TUI-owned init
+  parser in this checkout does not accept `--demo`.
+- QS-03: `target/debug/oo try --json --gateway https://localhost:1 --transport
+  production --auth external --token-file evidence/v3-m-20261109-resume/absent-demo-token`
+  exited 1 with `passed:false`: each query failed authentication locally.
+  No Gateway denial or durable audit acceptance is claimed. The localhost
+  endpoint is deliberately unprovisioned, not a substitute demo service.
+- QS-05 local: native teardown and repeat teardown passed. All owned demo
+  containers, volumes and networks were removed. The run preserved all 184
+  pre-existing containers (11 running), 62 networks and 103 volumes.
+
+The missing init entry, publication/enrollment chain and query receipt fields
+remain integration gates described above. No TUI/shared API changes were
+made, no model-backed rebuild was attempted, and Cargo.lock is unchanged.
+The untracked coordinator resume card was left untouched.
+
+| Resume artifact | SHA-256 |
+| --- | --- |
+| `v3-m-20261109-resume/cargo-check.log` | `3fbef65ab46525d52aa1c4e1a698e3d80b6db81b14c1e865824e717075ea54ee` |
+| `v3-m-20261109-resume/cli-tests.log` | `c62277f2e5f93f53836e100886a5a56a4c27351b0f67c6f3821d72e83a264cfc` |
+| `v3-m-20261109-resume/demo-tests-built.log` | `2e2d0120dd618854c8f8424fd28fcac4473d44d7083301860f72a6f39a2a483a` |
+| `v3-m-20261109-resume/qs-probes.json` | `2ca8e44cc474d320d2387feca00379735a6fac5b220309942b3fabe2af565d35` |
+| `v3-m-20261109-resume-live/result.json` | `d0add3af4194da4fb6a9756eb0770153f41c82c0d461e59cc0dca3301112185a` |
