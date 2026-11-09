@@ -269,6 +269,7 @@ async fn run_table<E: epoch::Epoch>(
             "run_id":config.run_id, "status":"fresh", "schema_class":"rebuild",
             "retained_run":config.run_id, "new_generations":after-before,
             "generation":after, "gateway_published":false,
+            "read_metadata":read_metadata(engine, budget),
             "target_write_bytes":target.write_bytes().await?
         }));
     }
@@ -406,7 +407,7 @@ async fn run_table<E: epoch::Epoch>(
     if !(1..=100).contains(&duty) {
         return Err("c5_budget".into());
     }
-    tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
+    tokio::time::sleep(cycle_rest(engine.family(), started.elapsed(), duty)).await;
     // Small changed ranges also need a floor between metadata bursts.
     tokio::time::sleep(Duration::from_secs(1)).await;
     let output = serde_json::json!({
@@ -422,9 +423,23 @@ async fn run_table<E: epoch::Epoch>(
         "target_write_bytes":if replay {0} else {target.write_bytes().await?},
         "generation":after,"new_generations":after-before,
         "write_basis":"committed_logical_stage_tuples_excluding_indexes_wal_metadata",
-        "publication":"local_table_view","gateway_published":false,"consistency":"B","source_time":"unmeasured"
+        "publication":"local_table_view","gateway_published":false,
+        "consistency":engine.consistency(),"source_time":"unmeasured"
     });
     Ok(output)
+}
+
+fn cycle_rest(family: EngineFamily, elapsed: Duration, duty: u32) -> Duration {
+    // These adapters already pace each operation. Counting target work and
+    // their sleeps as source work again can add hours of idle source time.
+    if matches!(
+        family,
+        EngineFamily::Postgres | EngineFamily::Mysql | EngineFamily::Kingbase
+    ) {
+        Duration::ZERO
+    } else {
+        elapsed * (100 - duty) / duty
+    }
 }
 
 fn accept_proof(
@@ -451,6 +466,28 @@ fn accept_proof(
 mod tests {
     use super::*;
     use oo_connectors::engine::{ChunkSpec, KeyShape, KeyValue};
+
+    #[test]
+    fn paced_adapters_do_not_repay_duty_sleep_as_source_work() {
+        for family in [
+            EngineFamily::Postgres,
+            EngineFamily::Mysql,
+            EngineFamily::Kingbase,
+        ] {
+            assert_eq!(
+                cycle_rest(family, Duration::from_secs(600), 25),
+                Duration::ZERO
+            );
+        }
+        assert_eq!(
+            cycle_rest(EngineFamily::Oracle, Duration::from_secs(600), 25),
+            Duration::from_secs(1800)
+        );
+        assert_eq!(
+            cycle_rest(EngineFamily::Oracle, Duration::from_secs(600), 100),
+            Duration::ZERO
+        );
+    }
 
     fn plan(bounds: &[i64], key: &str) -> TableChunkPlan {
         let table = TableRef {
