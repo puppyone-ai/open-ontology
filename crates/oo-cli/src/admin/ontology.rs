@@ -12,6 +12,7 @@ use std::process::{Command, Stdio};
 pub const HELP: &str = "\
 oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
+oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.

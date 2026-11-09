@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━●━◉ deliver ─╮
+│ deliver ·····················   ·  CLI profile + share prompt · MCP optional │
+│                                                                              │
+│ profile  logistics   ○ profile store not available in this build (V3-B-01)   │
+│                                                                              │
+│ share prompt  c copy                                                         │
+│ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
+│ ┆ You can answer business questions from the "logistics" ontology with the ┆ │
+│ ┆ oo CLI. Start wi╭─ MCP configuration for ──────────────╮ `oo --profile   ┆ │
+│ ┆ logistics descri│ ▸ Claude Code                        │`oo --profile    ┆ │
+│ ┆ logistics query`│   Cursor                             │                 ┆ │
+│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│   Codex                              │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
+│                   │                                      │                   │
+│ readiness         │ ⏎ show   esc back                    │                   │
+│ · pack published  ╰──────────────────────────────────────╯ build             │
+│ · gateway reachable  readiness check not available in this build             │
+│ · visible tables     readiness check not available in this build             │
+│ · freshness          readiness check not available in this build             │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ ○ readiness not confirmed yet                                                │
+╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯

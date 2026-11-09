@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ○ paste a connection string                                                  │
+│ ◉ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ engine    postgres                                                           │
+│ host      db.internal                                                        │
+│ port      5432 (default)                                                     │
+│ database  logistics                                                          │
+│ user      oo_reader                                                          │
+│ password  ••••••▏                                                            │
+│ CA file                                                                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯

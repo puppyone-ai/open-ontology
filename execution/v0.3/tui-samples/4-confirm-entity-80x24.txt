@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│ 客户 ············································  ····     ·   lg.customers │
+│                                                                              │
+│ key       id                                                                 │
+│ display   name                                                               │
+│ rows      48k (48210)                                                        │
+│                                                                              │
+│ relations                                                                    │
+│   订单 >─1 客户  via orders.customer_id  ✓                                   │
+│                                                                              │
+│ decisions on this table                                                      │
+│   ◌ sensitive  customers.phone       98% of values match a phone number …    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ tab view  ←→ entity  o override  ⏎ confirm publish  q quit  ─────────────────╯

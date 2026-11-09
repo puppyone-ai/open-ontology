@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━◉ build──○ confirm──○ deliver ─╮
+│ build ························································ ··· ···· ·· ··   ··     · ·     1/5 · about 0:31 left │
+│                                                                                                                      │
+│ █████████████████████ ████████████▓▒░······ ····················· ····················· ·····················   31%  │
+│                                                                                                                      │
+│ ● load       ▕████████████████████████████████████▏ 12/12 tables   0:42     passed                                   │
+│ │            copy selected tables into the private replica                                                           │
+│ │                                                                                                                    │
+│ ◉ profile    ▕█████████████████████▒▒▒············▏ 7/12 tables    eta 0:31 running                                  │
+│ ┆            measure keys, containment, formats, cardinality                                                         │
+│ ┆                                                                                                                    │
+│ ○ draft      ▕····································▏                         queued                                   │
+│ ┆            draft the ontology (model, bounded calls)                                                               │
+│ ┆                                                                                                                    │
+│ ○ adjudicate ▕····································▏                         queued                                   │
+│ ┆            decide warn items from data evidence                                                                    │
+│ ┆                                                                                                                    │
+│ ○ compile    ▕····································▏                         queued                                   │
+│              compile and verify the role pack                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ pace         ▃▅▇██▇▅▃▃▅▇█▇▅▃▃▅▇█▇▅  2 tables/s                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+╰ q stop watching (the build continues)  ⏎ continue when done  ────────────────────────────────────────────────────────╯

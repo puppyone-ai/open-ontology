@@ -257,7 +257,7 @@ pub(super) fn build(
                 latest = state;
             }
             if let Some(screen) = &mut screen
-                && screen.progress(&display(&latest))?
+                && screen.progress(&latest, &display(&latest))?
             {
                 return Err(Failure::local(
                     "BUILD_INTERRUPTED: use oo status and oo build --resume",

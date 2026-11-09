@@ -1,0 +1,49 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│   订单     >─1 客户    via orders.customer_id    ✓ 0.99                      │
+│   运单     >─1 订单    via shipments.order_id    ✓ 0.98                      │
+│   包裹     >─1 运单    via parcels.shipment_id   ✓ 0.99                      │
+│   运单     >─1 线路    via shipments.route_id    ✓ 0.96                      │
+│ ▸ 运单     >┄1 仓库    via shipments.origin_wh   ✗ containment 0.71 < 0.98   │
+│   线路     >─1 网点    via routes.origin_statio… ✓ 0.93                      │
+│   车辆     >─1 网点    via vehicles.home_statio… ✓ 0.95                      │
+│   司机     1─1 车辆    via drivers.vehicle_id    ✓ 0.97                      │
+│   运单     >─1 司机    via shipments.driver_id   ✓ 0.96                      │
+│   运单事件 >─1 运单    via shipment_events.ship… ✓ 0.99                      │
+│   运单事件 >─1 状态码  via shipment_events.stat… ✓ 0.99                      │
+│   订单     >─1 日历    via orders.order_date     ✓ 0.94                      │
+│   员工     >─1 员工    via employees.manager_id  ✓ 0.95                      │
+│   员工     >─1 网点    via employees.station_id  ✓ 0.97                      │
+│   网点     >─1 员工    via stations.manager_id   ✓ 0.9                       │
+│   司机     1┄1 员工    via drivers.employee_id   ✗ containment 0.64 < 0.9    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ tab view  ↑↓ select  o override  ⏎ confirm publish  q quit  ─────────────────╯
+--- colour layer ---
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
+f..ddddd..f..AAAAAAAAA..f..dddddd..f..ddddddddd..............fffffff.fffffffff.f
+f..............................................................................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddd....G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddd....G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddddd...G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddd....G.GGGG......................f
+f.A.A.A......RRR.i.i.....ddd.ddddddddddddddddddd...R.RRRRRRRRRRR.RRRR.R.RRRR...f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddddddd.G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddddddd.G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddd....G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddddd...G.GGGG......................f
+f...i.i.i.i..BBB.i.i.....ddd.ddddddddddddddddddddd.G.GGGG......................f
+f...i.i.i.i..BBB.i.i.i...ddd.ddddddddddddddddddddd.G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddd.....G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddddd..G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.dddddddddddddddddddd..G.GGGG......................f
+f...i.i......BBB.i.i.....ddd.ddddddddddddddddddd...G.GGG.......................f
+f...i.i......RRR.i.i.....ddd.ddddddddddddddddddd...R.RRRRRRRRRRR.RRRR.R.RRR....f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f.AAA.dddd..AA.dddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..ffffffffffffffffff

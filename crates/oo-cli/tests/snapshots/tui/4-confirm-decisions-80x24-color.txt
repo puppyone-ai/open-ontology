@@ -1,0 +1,49 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│ decisions ·································· ······  ·      by data evidence │
+│                                                                              │
+│ ▸ ○ sensitive routes.mobile_code                      visible    ▰▰▰▰▰ 0.91  │
+│     format hits 0 · name hit                                                 │
+│   ◌ sensitive customers.phone                         hidden     ▰▰▰▰▰ 0.98  │
+│     distinct 0.97 · format hits 0.982                                        │
+│   ◌ sensitive drivers.id_number                       hidden     ▰▰▰▰▰ 0.99  │
+│     distinct 1 · format hits 1                                               │
+│   ✗ relation  司机 → 员工                             rejected   ▰▰▱▱▱ 0.38  │
+│     contain ▕██████···┊▏ 0.64<0.9  one-to-one · joins 0 · name 0.9 · parent… │
+│   ✗ relation  运单 → 仓库                             rejected   ▰▰▱▱▱ 0.41  │
+│     contain ▕███████··┊▏ 0.71<0.98  many-to-one · joins 0 · name 0.42 · par… │
+│   ↓ metric    avg_parcel_weight                       demoted    ▰▰▱▱▱ 0.44  │
+│     non empty · recompute match · unit consistent ✗ · window stable          │
+│   ✓ relation  网点 → 员工                             adopted    ▰▰▰▰▰  0.9  │
+│     contain ▕█████████┊▏ 0.93≥0.9  many-to-one · joins 2 · name 0.6 · paren… │
+│   ✓ relation  线路 → 网点                             adopted    ▰▰▰▰▰ 0.93  │
+│     contain ▕██████████▏ 0.97≥0.9  many-to-one · joins 2 · name 0.8 · paren… │
+│   ✓ relation  订单 → 日历                             adopted    ▰▰▰▰▰ 0.94  │
+│     contain ▕██████████▏ 1≥0.9  many-to-one · joins 7 · name 0.3 · parent u… │
+╰ tab view  ↑↓ select  o override  ⏎ confirm publish  q quit  ─────────────────╯
+--- colour layer ---
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
+f..ddddd..f..ddddddddd..f..dddddd..f..AAAAAAAAA..............fffffff.fffffffff.f
+f..............................................................................f
+f.iiiiiiiii.ffffffffffffffffffffffffffffffffff.ffffff..f......dd.dddd.dddddddd.f
+f..............................................................................f
+f.A.d.ddddddddd.AAAAAAAAAAAAAAAAAA......................ddddddd....EEEEE.dddd..f
+f.....ffffff.ffff.f.f.ffff.fff.................................................f
+f...A.ddddddddd.iiiiiiiiiiiiiii.........................AAAAAA.....EEEEE.dddd..f
+f.....ffffffff.ffff.f.ffffff.ffff.fffff........................................f
+f...A.ddddddddd.iiiiiiiiiiiiiiiii.......................AAAAAA.....EEEEE.dddd..f
+f.....ffffffff.f.f.ffffff.ffff.f...............................................f
+f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...YYfff.dddd..f
+f.....fffffff.fRRRRRRfffif.RRRRRRRR..ffffffffff.f.fffff.f.f.ffff.fff.f.fffffff.f
+f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...YYfff.dddd..f
+f.....fffffff.fRRRRRRRffif.RRRRRRRRR..fffffffffff.f.fffff.f.f.ffff.ffff.f.ffff.f
+f...Y.dddddd....iiiiiiiiiiiiiiiii.......................YYYYYYY....YYfff.dddd..f
+f.....fff.fffff.f.fffffffff.fffff.f.ffff.ffffffffff.f.f.ffffff.ffffff..........f
+f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE..ddd..f
+f.....fffffff.fGGGGGGGGGif.dddddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.f
+f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE.dddd..f
+f.....fffffff.fGGGGGGGGGGf.dddddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.f
+f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE.dddd..f
+f.....fffffff.fGGGGGGGGGGf.ddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.ff.f
+f.AAA.dddd..AA.dddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..ffffffffffffffffff

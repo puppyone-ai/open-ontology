@@ -7,6 +7,7 @@ mod build_token;
 mod doctor;
 mod lite;
 mod ontology;
+mod ontology_graph;
 mod progress;
 mod remote;
 mod review;
@@ -23,11 +24,15 @@ use std::path::Path;
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -103,6 +108,7 @@ fn is_admin(command: &str) -> bool {
             | "ontology"
             | "token"
             | "share-prompt"
+            | "quickstart"
     )
 }
 
@@ -119,19 +125,40 @@ fn admin_status(args: &[String]) -> bool {
 }
 
 fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    let v03_init = rest.iter().any(|a| {
+        matches!(
+            a.split('=').next().unwrap_or(a),
+            "--demo"
+                | "--catalog"
+                | "--tables"
+                | "--tables-recommended"
+                | "--no-anim"
+                | "--profile"
+        )
+    });
+    if command == "quickstart" || (command == "init" && v03_init) {
+        if rest.iter().any(|s| s == "--help" || s == "-h") {
+            return Ok(Invocation::Help(HELP.into()));
+        }
+        return wizard::init(&wizard::parse_init(rest, command == "quickstart")?);
+    }
     if command == "review" {
         return review::run(rest);
     }
     if command == "ontology" {
-        return ontology::run(rest)
-            .map(Invocation::Help)
-            .map_err(|message| {
-                if message == "ADMIN_ARGUMENT" {
-                    Failure::usage(message)
-                } else {
-                    Failure::local(message)
-                }
-            });
+        let graph = rest.first().is_some_and(|s| s == "graph");
+        let result = if graph {
+            ontology_graph::run(&rest[1..])
+        } else {
+            ontology::run(rest)
+        };
+        return result.map(Invocation::Help).map_err(|message| {
+            if message == "ADMIN_ARGUMENT" {
+                Failure::usage(message)
+            } else {
+                Failure::local(message)
+            }
+        });
     }
     if rest.iter().any(|s| s == "--help" || s == "-h") {
         return Ok(Invocation::Help(HELP.into()));
@@ -322,7 +349,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     let Some(config) = config else {
         if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !json {
-            return wizard::run();
+            return wizard::run(&wizard::InitOptions::default());
         }
         return Err(Failure::usage(
             "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",

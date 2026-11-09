@@ -1,0 +1,209 @@
+# 1-connect: 8 frames at 80x24; the last one is the still frame
+
+── frame 10 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 11 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 12 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 13 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠸ read-only account  checking privileges…                                    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 14 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠼ read-only account  checking privileges…                                    │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works        │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by you…  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 15 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠴ read-only account  checking privileges…                                    │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works        │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by you…  │
+│ · catalog access     after the account check                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 16 · checks arrive, one row a frame ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠦ read-only account  checking privileges…                                    │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works        │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by you…  │
+│ · catalog access     after the account check                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+
+── frame 18446744073709551615 · still ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠴ read-only account  checking privileges…                                    │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works        │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by you…  │
+│ · catalog access     after the account check                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯

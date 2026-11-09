@@ -26,6 +26,27 @@ confirms the G14 summary and supplies a reason. Missing FK mappings, stale summa
 hashes and invalid registry/Pack contents fail compilation even if approved.
 Model-supplied certification never substitutes for this decision.
 
+## v0.3: graph confirm with evidence adjudication (D28)
+
+When the Builder's `oo.adjudication/v1` is available (`--adjudication FILE`, or
+`adjudication.json` beside `--out`), the per-item prompts above are replaced by
+the ontology graph screen (`crate::tui::screens::confirm`): Graph / Relations /
+Entity tabs plus the decisions panel. The product has already decided every warn
+item from data evidence (containment, uniqueness, format hit rates, metric
+reconciliation, code coverage); each decision shows its evidence, score and rule
+and can be overridden (`o`). Showing a column the product hid needs a reason.
+
+The owner confirms once (Enter, then a short reason). The confirmation
+`oo.publish-confirm/v1` binds the summary hash recomputed after overrides and is
+written beside `--out` (`<stem>.publish-confirm.json`, `<stem>.overrides.json`
+when there are overrides); existing files are never replaced. Every review
+candidate then records `accept` with the reason
+`adjudicated default; publish-confirm sha256:<summary>`, and the G14 gate takes
+the confirm reason. Non-TTY passes `--confirm CONFIRM.json [--overrides O.json]`;
+a confirmation that does not match the recomputed summary, or has no reason, is
+refused (`REVIEW_CONFIRM_BINDING`). `--review-file` keeps the per-item path.
+The same screen is `oo ontology graph` (see `oo ontology graph --help`).
+
 An interrupted TTY review retains `<out-stem>.pending.json`. Rerunning with the
 same input/output resumes saved item decisions; the input digest must match.
 The G14 summary is always recomputed and reconfirmed. A file lock serializes
