@@ -15,6 +15,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod adjudication;
 pub mod budget;
 mod canonical;
 mod captured_pg;
