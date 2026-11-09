@@ -14,6 +14,17 @@ import t10
 
 
 class PreparationTests(unittest.TestCase):
+    def test_pg_slot_retention_is_set_at_startup_not_shadowed_by_command_line(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g')
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        run.slot_wal_keep_size = '-1'
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(['docker', 'create', '--name', run.name, 'image'])
+        args = command.call_args.args[1]
+        self.assertIn('max_slot_wal_keep_size=-1', args)
+        self.assertNotIn('max_slot_wal_keep_size=256MB', args)
+
     def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
         import itertools
         h = object.__new__(t10.ImpactHarness)

@@ -164,6 +164,7 @@ class ImpactSource(t3t4.Source):
         super().__init__(*args, **kwargs)
         self.foreground_key = SCALE + 1
         self.foreground_lock = threading.Lock()
+        self.slot_wal_keep_size = "-1"
 
     def next_foreground_key(self):
         # Calibration and every phase write the same source table.
@@ -548,7 +549,6 @@ def prepare(h):
     h.prepare()
     # Same full T1 row scale, with the T3/T4 narrow synthetic schema.
     if h.run.engine == 'postgres':
-        h.src("ALTER SYSTEM SET max_slot_wal_keep_size='-1';SELECT pg_reload_conf();")
         h.src(f"INSERT INTO bulk SELECT i,'bulk-'||i,i FROM generate_series({t3t4.BULK_ROWS+1},{SCALE}) i;")
         h.src(f"CREATE ROLE t10_writer LOGIN PASSWORD '{h.run.secret}';"
               "GRANT USAGE ON SCHEMA public TO t10_writer;"

@@ -94,7 +94,8 @@ class Source(LaneRun):
                             "--enforce-gtid-consistency=ON"]
             elif self.engine == "postgres":
                 command += ["-c", "wal_level=logical", "-c", "max_replication_slots=64",
-                            "-c", "max_wal_senders=64", "-c", "max_slot_wal_keep_size=256MB"]
+                            "-c", "max_wal_senders=64", "-c",
+                            "max_slot_wal_keep_size=" + getattr(self, "slot_wal_keep_size", "256MB")]
             return runner.Run.command(self, command, **kwargs)
         return super().command(command, **kwargs)
 
