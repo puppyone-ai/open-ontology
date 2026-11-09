@@ -251,6 +251,9 @@ def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
                 work(index)
             except Exception as exc:
                 error = type(exc).__name__  # Driver messages can contain credentials.
+                code = getattr(exc.args[0], 'full_code', None) if exc.args else None
+                if isinstance(code, str) and re.fullmatch(r'(ORA|DPY|DPI)-[0-9]{4,5}', code):
+                    error += ':' + code
             record = dict(intended=intended, actual=actual, end=clock() - start, error=error)
             with lock:
                 results.append(record)

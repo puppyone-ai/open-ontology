@@ -138,6 +138,20 @@ class SchedulerTests(unittest.TestCase):
         self.assertTrue(all(r['error'] == 'ValueError' for r in rows))
         self.assertNotIn('sensitive', json.dumps(rows))
 
+    def test_only_allowlisted_oracle_codes_survive_error_sanitizing(self):
+        class DriverError:
+            full_code = 'ORA-00020'
+            def __str__(self):
+                return 'sensitive driver details'
+        def bad(_):
+            raise RuntimeError(DriverError())
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError:ORA-00020' for r in rows))
+        self.assertNotIn('sensitive', json.dumps(rows))
+        DriverError.full_code = 'ORA-00020 sensitive details'
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError' for r in rows))
+
     def test_completion_driven_phase(self):
         done = threading.Event()
         rows, _ = t10.open_loop(lambda _: done.set(), 100, None, finished=done, workers=1)
