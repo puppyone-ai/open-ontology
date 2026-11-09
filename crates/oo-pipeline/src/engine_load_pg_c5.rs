@@ -203,6 +203,11 @@ impl PgTarget<'_> {
         {
             return Ok(());
         }
+        if !replacements.is_empty() {
+            next.run = self.run.clone();
+        }
+        let encoded = self.encode_metadata(&next)?;
+        let publication_plan = self.encode_metadata(plan)?;
         let mut tx = self.conn.begin().await.map_err(db)?;
         let current: String =
             sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1 FOR UPDATE")
@@ -243,7 +248,7 @@ impl PgTarget<'_> {
             sqlx::query("INSERT INTO _oo_load.publications VALUES($1,$2,$3::jsonb,$4)")
                 .bind(&self.identity)
                 .bind(&self.run)
-                .bind(&self.plan)
+                .bind(&publication_plan)
                 .bind(&self.stage)
                 .execute(&mut *tx)
                 .await
@@ -254,7 +259,6 @@ impl PgTarget<'_> {
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
-            next.run = self.run.clone();
         }
         sqlx::query(
             "INSERT INTO _oo_load.c5_state VALUES($1,$2,$3::jsonb)
@@ -262,7 +266,7 @@ impl PgTarget<'_> {
         )
         .bind(&self.identity)
         .bind(&next.run)
-        .bind(serde_json::to_string(&next).map_err(|_| "c5_state")?)
+        .bind(encoded)
         .execute(&mut *tx)
         .await
         .map_err(db)?;

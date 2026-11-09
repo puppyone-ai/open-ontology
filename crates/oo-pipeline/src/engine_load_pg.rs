@@ -84,9 +84,22 @@ pub struct PgTarget<'a> {
     source_columns: Option<Vec<oo_connectors::engine::SourceColumnShape>>,
     projection: Option<Vec<String>>,
     pub(crate) c1_rebaseline: bool,
+    read_metadata: Option<serde_json::Value>,
 }
 
 impl<'a> PgTarget<'a> {
+    pub fn read_metadata(&mut self, metadata: serde_json::Value) {
+        self.read_metadata = Some(metadata);
+    }
+
+    fn encode_metadata(&self, value: &impl serde::Serialize) -> Result<String> {
+        let mut value = serde_json::to_value(value).map_err(|_| "load_metadata")?;
+        if let Some(metadata) = &self.read_metadata {
+            value["read_metadata"] = metadata.clone();
+        }
+        serde_json::to_string(&value).map_err(|_| "load_metadata")
+    }
+
     /// Opt in only for a source adapter's declared full-document column.
     /// Ordinary text, including text named `_document`, remains text by default.
     pub fn with_jsonb_document(mut self, name: &str) -> Result<Self> {
@@ -155,6 +168,7 @@ impl<'a> PgTarget<'a> {
             source_columns: None,
             projection: None,
             c1_rebaseline: false,
+            read_metadata: None,
         })
     }
 
@@ -281,6 +295,7 @@ impl Target for PgTarget<'_> {
         if definitions.is_empty() {
             return Err("load_schema");
         }
+        let encoded = self.encode_metadata(receipt)?;
         let mut tx = self.conn.begin().await.map_err(db)?;
         let definition = definitions.join(",");
         sqlx::query("INSERT INTO _oo_load.schemas VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING")
@@ -309,7 +324,6 @@ impl Target for PgTarget<'_> {
         .execute(&mut *tx)
         .await
         .map_err(db)?;
-        let encoded = serde_json::to_string(receipt).map_err(|_| "load_receipt")?;
         let prior: Option<String> = sqlx::query_scalar(
             "SELECT receipt::text FROM _oo_load.chunks WHERE stage=$1 AND chunk=$2",
         )
@@ -409,6 +423,7 @@ impl Target for PgTarget<'_> {
     }
 
     async fn publish(&mut self, plan: &TableChunkPlan) -> Result<()> {
+        let publication_plan = self.encode_metadata(plan)?;
         if serde_json::to_string(plan).map_err(|_| "load_plan")? != self.plan {
             return Err("load_plan_changed");
         }
@@ -503,7 +518,7 @@ impl Target for PgTarget<'_> {
         sqlx::query("INSERT INTO _oo_load.publications VALUES($1,$2,$3::jsonb,$4)")
             .bind(&self.identity)
             .bind(&self.run)
-            .bind(&self.plan)
+            .bind(&publication_plan)
             .bind(&self.stage)
             .execute(&mut *tx)
             .await
