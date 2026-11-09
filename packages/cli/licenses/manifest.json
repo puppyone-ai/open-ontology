@@ -243,6 +243,26 @@
       "upstream_url": "https://raw.githubusercontent.com/tiberius-rs/tiberius/7fd75bb7070fe6ea41374698abf78928bb983bda/LICENSE-APACHE.txt",
       "vcs_commit": "7fd75bb7070fe6ea41374698abf78928bb983bda",
       "version": "0.1.0"
+    },
+    {
+      "file": "rmcp-0cde3c5cf3e6-LICENSE.txt",
+      "license": "Apache-2.0",
+      "name": "rmcp",
+      "path_in_vcs": "crates/rmcp",
+      "provenance": {
+        "crate_manifest_sha256": "549e268c14b284c2bcc22303348a19b0f5227097eb41b37f2e2c1adeaa29c4ff",
+        "crate_manifest_url": "https://raw.githubusercontent.com/modelcontextprotocol/rust-sdk/0cde3c5cf3e6aff0cc852ce6045f107e95991f48/crates/rmcp/Cargo.toml",
+        "registry_vcs_info_sha256": "b2f51ec38e76d73d7f5c64dab677b72a57639ac3969837a4d0ebd99dafb17184",
+        "workspace_manifest_sha256": "28da463c128376de0548c597aa807cbf5e1d6bf20bca2a00ee320e4a444622b0",
+        "workspace_manifest_url": "https://raw.githubusercontent.com/modelcontextprotocol/rust-sdk/0cde3c5cf3e6aff0cc852ce6045f107e95991f48/Cargo.toml"
+      },
+      "repository": "https://github.com/modelcontextprotocol/rust-sdk",
+      "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+      "source": "crates.io",
+      "upstream_path": "LICENSE",
+      "upstream_url": "https://raw.githubusercontent.com/modelcontextprotocol/rust-sdk/0cde3c5cf3e6aff0cc852ce6045f107e95991f48/LICENSE",
+      "vcs_commit": "0cde3c5cf3e6aff0cc852ce6045f107e95991f48",
+      "version": "3.5.0"
     }
   ],
   "verification": "Original license bytes fetched from exact upstream commits. Crate version, repository, declared license and Cargo VCS commit/path checked against installed registry sources and pinned upstream Cargo manifests. No legal approval."

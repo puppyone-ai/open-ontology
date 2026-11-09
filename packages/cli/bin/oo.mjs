@@ -60,7 +60,7 @@ export function timeContext(timezone, at = new Date().toISOString()) {
 }
 
 export function nativeBinary(root = packageRoot, platform = process.platform, arch = process.arch, helper = null) {
-  if (helper !== null && helper !== 'oo-mysql-doctor') fail('NATIVE_MANIFEST_INVALID', 'Unknown packaged helper.');
+  if (helper !== null && !['oo-mysql-doctor', 'mcp-gateway'].includes(helper)) fail('NATIVE_MANIFEST_INVALID', 'Unknown packaged helper.');
   const target = `${platform}-${arch}`;
   let manifest, base;
   try {
@@ -78,7 +78,7 @@ export function nativeBinary(root = packageRoot, platform = process.platform, ar
   if (!Object.hasOwn(manifest.binaries, target)) {
     fail('UNSUPPORTED_PLATFORM', `${target} is not packaged. Available: ${Object.keys(manifest.binaries).join(', ') || 'none'}.`);
   }
-  const entry = helper ? manifest.binaries[target].mysql_doctor : manifest.binaries[target];
+  const entry = helper ? manifest.binaries[target][helper === 'mcp-gateway' ? 'mcp_gateway' : 'mysql_doctor'] : manifest.binaries[target];
   const relative = `native/${target}/${helper ?? 'oo'}${platform === 'win32' ? '.exe' : ''}`;
   if (!object(entry) || entry.path !== relative || typeof entry.sha256 !== 'string'
       || !/^[a-f0-9]{64}$/i.test(entry.sha256)) {
@@ -395,6 +395,12 @@ async function main(args) {
     process.stdout.write(args[1] === '--json'
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
+  }
+  if (args[0] === 'mcp') {
+    if (!args.includes('--help') && !args.includes('-h')) {
+      nativeBinary(packageRoot, process.platform, process.arch, 'mcp-gateway');
+    }
+    return delegate(nativeBinary(), args);
   }
   if (['login', 'whoami', 'share-prompt', 'token', 'profile', 'use', 'mcp-config', 'check'].includes(args[0])) {
     return delegate(nativeBinary(), args);

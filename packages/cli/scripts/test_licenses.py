@@ -9,6 +9,15 @@ from licenses import TARGETS, load_supplements, outside_git, package_inventory, 
 
 
 class LicenseInventoryTests(unittest.TestCase):
+    def test_bridge_closure_requires_its_own_package_not_the_cli(self):
+        packages = [{"id": name, "name": name, "version": "1.0.0"}
+                    for name in ("mcp-gateway", "rmcp", "live-only")]
+        tree = {"aarch64-apple-darwin": "mcp-gateway v1.0.0\nrmcp v1.0.0"}
+        selected = select_packages({"packages": packages}, tree, "mcp-gateway")
+        self.assertEqual([item["package"]["name"] for item in selected], ["mcp-gateway", "rmcp"])
+        with self.assertRaisesRegex(RuntimeError, "oo-cli is missing"):
+            select_packages({"packages": packages}, tree)
+
     def test_ignored_artifacts_allowed_but_tracked_source_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
@@ -52,6 +61,9 @@ class LicenseInventoryTests(unittest.TestCase):
             supplements = load_supplements(directory)
             record, body = package_inventory(package, TARGETS, root, set(), supplements)
             self.assertEqual(record["unresolved"], [])
+            trailing, _ = package_inventory({**package, "repository": package["repository"] + "/"},
+                                           TARGETS, root, set(), supplements)
+            self.assertEqual(trailing["unresolved"], [])
             self.assertIn("Fixture license body", body)
             file = record["license_files"][0]
             self.assertEqual(file["sha256"], manifest["supplements"][0]["sha256"])

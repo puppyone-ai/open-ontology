@@ -375,6 +375,14 @@ integration('help aliases and config help work without profiles or credentials',
   assert.deepEqual(output(f.run(['-V', '--json'])), output(f.run(['--version', '--json'])));
 });
 
+integration('MCP help works without a bridge but launching requires a verified bridge', t => {
+  const f = fixture(t);
+  for (const args of [['mcp', '--help'], ['mcp', '-h'], ['help', 'mcp']]) {
+    assert.equal(f.run(args).status, 0);
+  }
+  assert.notEqual(f.run(['mcp', '--stdio', '--profile', 'example']).status, 0);
+});
+
 integration('untrusted saved config, permissive files and symlink config directories fail closed', t => {
   const f = fixture(t);
   const valid = f.configure();

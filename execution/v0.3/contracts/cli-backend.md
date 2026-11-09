@@ -14,10 +14,10 @@ never remote bodies or secret bytes.
   implement `oo use NAME` and `oo profile list`. `active-profile.json` selects
   the named profile; absent a pointer, existing `config.json` is the legacy default.
 - `check::readiness(profile: &Value) -> async Result<Value, &'static str>`
-  reads authenticated HTTPS tables and freshness. `ready` requires a live
-  publication and at least one visible table. It returns freshness without
-  upgrading source-time claims. It is not a source-real-time or atomic
-  cross-request snapshot guarantee.
+  reads the authenticated HTTPS `/v1/check/readiness` endpoint, which binds
+  tables and freshness to one publication. `ready` requires a live publication
+  and at least one visible table. It preserves source-time uncertainty and
+  does not promise an atomic source-database snapshot.
 - `mcp_config::render(agent: &str, profile: &str) -> Result<String, &'static str>`
   supports `claude`, `cursor` (JSON), `codex` (TOML). The command is
   `oo mcp --stdio --profile NAME`; no URL, token or CA bytes appear.
@@ -30,3 +30,7 @@ render prompt into both text and `share_prompt` JSON field, optionally render
 MCP config, then await readiness. Copy-to-clipboard and `m` key belong to TUI.
 Do not display a green readiness result on a returned error or `ready: false`.
 `oo init --profile` / post-publish token issuance remain owned by the init lane.
+
+The MCP command requires the packaged `mcp-gateway` sibling. Release build
+integration is supplied as `packages/cli/v03-release-integration.patch` for the
+coordinator; no binary download or TLS bypass occurs on missing installations.

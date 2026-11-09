@@ -99,7 +99,18 @@ export async function stage({ output, binaries, notices, root = packageRoot, par
       doctor = await readFile(join(dirname(path), 'oo-mysql-doctor'));
       checkBinary(doctor, target);
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    verified.push({ target, path, bytes, image, doctor });
+    let mcp;
+    try {
+      mcp = await readFile(join(dirname(path), 'mcp-gateway'));
+      checkBinary(mcp, target);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (!partial && !mcp) throw new Error('release staging requires an MCP bridge for every target');
+    for (const [present, name] of [[mcp, 'mcp-gateway'], [doctor, 'oo-mysql-doctor']]) {
+      if (present && !inventory.dependencies.some(item => item.name === name)) {
+        throw new Error(`dependency notices missing for ${name}`);
+      }
+    }
+    verified.push({ target, path, bytes, image, doctor, mcp });
   }
   // Construct an allowlisted clean directory; never npm-pack the repository.
   await mkdir(output, { mode: 0o700 });
@@ -112,13 +123,18 @@ export async function stage({ output, binaries, notices, root = packageRoot, par
   await writeFile(join(output, 'dependencies.json'), dependencies);
   await writeFile(join(output, 'SKILL.md'), skill);
   const manifest = { schema_version: 1, skill_sha256: sha256(skill), binaries: {} };
-  for (const { target, bytes, image, doctor } of verified) {
+  for (const { target, bytes, image, doctor, mcp } of verified) {
     const relative = `native/${target}/oo${target.startsWith('win32-') ? '.exe' : ''}`;
     await mkdir(dirname(join(output, relative)), { recursive: true });
     await writeFile(join(output, relative), bytes);
     await chmod(join(output, relative), 0o755);
     await writeFile(join(dirname(join(output, relative)), 'oo-lite-image'), image);
     manifest.binaries[target] = { path: relative, sha256: sha256(bytes) };
+    if (mcp) {
+      const path = `native/${target}/mcp-gateway${target.startsWith('win32-') ? '.exe' : ''}`;
+      await writeFile(join(output, path), mcp, { mode: 0o755 });
+      manifest.binaries[target].mcp_gateway = { path, sha256: sha256(mcp) };
+    }
     if (doctor) {
       const path = `native/${target}/oo-mysql-doctor${target.startsWith('win32-') ? '.exe' : ''}`;
       await writeFile(join(output, path), doctor, { mode: 0o755 });

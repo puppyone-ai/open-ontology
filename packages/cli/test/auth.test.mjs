@@ -125,6 +125,15 @@ async function fixture(t) {
   linkSync(native, join(installed, relative));
   writeFileSync(join(installed, 'native/manifest.json'), JSON.stringify({ schema_version: 1,
     binaries: { [target]: { path: relative, sha256: createHash('sha256').update(readFileSync(native)).digest('hex') } } }));
+  if (process.env.OO_MCP_TEST_BINARY) {
+    const bridge = process.env.OO_MCP_TEST_BINARY;
+    const path = `native/${target}/mcp-gateway`;
+    linkSync(bridge, join(installed, path));
+    const manifestPath = join(installed, 'native/manifest.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.binaries[target].mcp_gateway = { path, sha256: createHash('sha256').update(readFileSync(bridge)).digest('hex') };
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+  }
   const key = join(root, 'server.key'), cert = join(root, 'server.crt');
   const created = spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes',
     '-keyout', key, '-out', cert, '-days', '2', '-subj', '/CN=localhost',
@@ -189,6 +198,12 @@ async function fixture(t) {
       res.statusCode = state.readStatus;
       return res.end(state.readStatus === 200 ? '{"tables":[]}' : '{"error":{"code":"FORBIDDEN"}}');
     }
+    if (req.url === '/v1/check/readiness') return res.end(JSON.stringify(state.readiness ?? {
+      ready: false, pack_published: false, gateway_reachable: true, visible_tables: 0,
+      freshness: { publication: 'not_ready', source_time: 'unmeasured' },
+    }));
+    if (req.url === '/v1/query') return res.end(JSON.stringify({ query_id: 'fixture_query',
+      rows: [[1]], returned_rows: 1, truncated: false }));
     res.statusCode = 404;
     res.end('{}');
   });
@@ -209,8 +224,54 @@ async function fixture(t) {
     assert(!stdout.includes(token) && !stderr.includes(token), 'CLI output must not reveal credential material');
     return { status, stdout, stderr };
   }
-  return { root, dir, cert, gateway, token, cli, state, seen };
+  return { root, dir, cert, gateway, token, cli, state, seen, entry: join(installed, 'bin/oo.mjs') };
 }
+
+test('packaged stdio profile completes MCP handshake, readiness and query over HTTPS', {
+  skip: !process.env.OO_MCP_TEST_BINARY && 'set OO_MCP_TEST_BINARY to the built bridge',
+  timeout: 20000,
+}, async t => {
+  const f = await fixture(t);
+  const login = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert,
+    '--code-stdin', '--profile', 'mcp-fixture', '--json'], 'OO-0000-0000');
+  assert.equal(login.status, 0, login.stderr);
+  const child = spawn(process.execPath, [f.entry, 'mcp', '--stdio', '--profile', 'mcp-fixture'],
+    { env: { ...process.env, OO_CONFIG_DIR: f.dir }, stdio: ['pipe', 'pipe', 'pipe'] });
+  t.after(() => { child.kill('SIGTERM'); });
+  let stderr = '', buffer = '';
+  child.stderr.on('data', b => { stderr += b; });
+  const pending = new Map();
+  child.stdout.on('data', chunk => {
+    buffer += chunk;
+    let newline;
+    while ((newline = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, newline);
+      buffer = buffer.slice(newline + 1);
+      if (line.trim()) {
+        const message = JSON.parse(line);
+        pending.get(message.id)?.(message);
+      }
+    }
+  });
+  let id = 0;
+  const call = (method, params) => new Promise((resolveReply, reject) => {
+    const current = ++id;
+    const timer = setTimeout(() => { pending.delete(current); reject(new Error('MCP fixture deadline')); }, 5000);
+    pending.set(current, message => { clearTimeout(timer); pending.delete(current); resolveReply(message); });
+    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: current, method, params }) + '\n');
+  });
+  const init = await call('initialize', { protocolVersion: '2025-11-25', capabilities: {},
+    clientInfo: { name: 'owned-fixture', version: '1' } });
+  assert.equal(init.result.protocolVersion, '2025-11-25');
+  child.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n');
+  const ready = await call('tools/call', { name: 'check_readiness', arguments: {} });
+  assert.equal(ready.result.structuredContent.ready, false);
+  const query = await call('tools/call', { name: 'query', arguments: { sql: 'select 1' } });
+  assert.equal(query.result.structuredContent.query_id, 'fixture_query');
+  assert.deepEqual(query.result.structuredContent.rows, [[1]]);
+  assert(f.seen.includes('/v1/check/readiness') && f.seen.includes('/v1/query'));
+  assert(!stderr.includes(f.token));
+});
 
 test('HTTPS enrollment stores a 0600 reference-only profile after identity and read verification', async t => {
   const f = await fixture(t);
@@ -240,6 +301,54 @@ test('HTTPS enrollment stores a 0600 reference-only profile after identity and r
   const expired = await f.cli(['whoami']);
   assert.equal(expired.status, 4);
   assert.match(expired.stderr, /renew.*login/);
+});
+
+test('MCP profile adapter uses verified HTTPS and refuses administrative routes', async t => {
+  const f = await fixture(t);
+  f.state.direct = true;
+  const login = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert,
+    '--code-stdin', '--profile', 'mcp-fixture', '--json'], 'OO-0000-0000');
+  assert.equal(login.status, 0, login.stderr);
+  const response = await f.cli(['mcp-request', '--profile', 'mcp-fixture'],
+    JSON.stringify({ path: '/v1/tables' }));
+  assert.equal(response.status, 0, response.stderr);
+  assert.deepEqual(JSON.parse(response.stdout), { status: 200, body: { tables: [] } });
+  f.state.readStatus = 403;
+  const refused = await f.cli(['mcp-request', '--profile', 'mcp-fixture'],
+    JSON.stringify({ path: '/v1/tables' }));
+  assert.deepEqual(JSON.parse(refused.stdout), { status: 403, body: { error: { code: 'GATEWAY_REFUSED' } } });
+  const before = f.seen.length;
+  const admin = await f.cli(['mcp-request', '--profile', 'mcp-fixture'],
+    JSON.stringify({ path: '/internal/v1/tokens', body: { operation: 'issue' } }));
+  assert.equal(admin.status, 1);
+  assert.equal(f.seen.length, before);
+});
+
+test('readiness requires publication and visible tables, not just HTTPS success', async t => {
+  const f = await fixture(t);
+  const login = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert,
+    '--code-stdin', '--profile', 'ready-fixture', '--json'], 'OO-0000-0000');
+  assert.equal(login.status, 0, login.stderr);
+  const unavailable = await f.cli(['check', '--json']);
+  assert.equal(unavailable.status, 1);
+  assert.equal(JSON.parse(unavailable.stdout).ready, false);
+  f.state.readiness = { ready: true, pack_published: true, gateway_reachable: true,
+    visible_tables: 1, freshness: { publication: 'live', source_time: 'unmeasured' } };
+  const ready = await f.cli(['check', '--json']);
+  assert.equal(ready.status, 0, ready.stderr);
+  assert.equal(JSON.parse(ready.stdout).freshness.source_time, 'unmeasured');
+  for (const invalid of [
+    { pack_published: false }, { gateway_reachable: false }, { visible_tables: 0 },
+    { visible_tables: null }, { freshness: null }, { freshness: {} },
+    { freshness: { publication: 'not_ready' } }, { ready: 'true' },
+  ]) {
+    const valid = f.state.readiness;
+    f.state.readiness = { ...valid, ...invalid };
+    const result = await f.cli(['check', '--json']);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /READINESS_PROTOCOL/);
+    f.state.readiness = valid;
+  }
 });
 
 test('standalone native cache expires, rejects clock rollback, and checks data commands before sending credentials', async t => {

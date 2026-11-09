@@ -21,6 +21,8 @@
     "native/*/oo-lite-image",
     "native/*/oo-mysql-doctor",
     "native/*/oo-mysql-doctor.exe",
+    "native/*/mcp-gateway",
+    "native/*/mcp-gateway.exe",
     "README.md",
     "LICENSE",
     "NOTICE",
