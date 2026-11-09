@@ -58,20 +58,27 @@ def summarize(requests, duration):
 
 
 def windows(requests, duration):
+    starts = range(0, math.ceil(duration), WINDOW)
+    cohorts = [[] for _ in starts]
+    completions = [0 for _ in starts]
+    # Bucket once: long loads must not rescan millions of rows per window.
+    for row in requests:
+        if 0 <= row['intended'] < duration:
+            cohorts[int(row['intended'] // WINDOW)].append(row)
+        if row['error'] is None and 0 <= row['end'] < duration:
+            completions[int(row['end'] // WINDOW)] += 1
     result = []
-    for start in range(0, math.ceil(duration), WINDOW):
+    for index, start in enumerate(starts):
         end = min(start + WINDOW, duration)
         selected = [dict(r, intended=r['intended'] - start,
                          actual=None if r['actual'] is None else r['actual'] - start,
                          end=r['end'] - start)
-                    for r in requests if start <= r['intended'] < end]
+                    for r in cohorts[index]]
         summary = summarize(selected, end - start)
         # Completions, unlike latency cohorts, belong to their completion window.
-        summary['achieved_rate'] = sum(r['error'] is None and start <= r['end'] < end
-                                       for r in requests) / (end - start)
+        summary['achieved_rate'] = completions[index] / (end - start)
         result.append(dict(summary, start_seconds=start))
     return result
-
 
 def verdict(baseline, phase):
     valid = (baseline and baseline['requests'] > 0 and phase['requests'] > 0

@@ -55,6 +55,39 @@ class MathTests(unittest.TestCase):
         self.assertIsNone(t10.summarize([], 0)['p99_ms'])
 
 
+class WindowScalingTests(unittest.TestCase):
+    def test_boundary_and_late_rows_match_reference(self):
+        rows = [dict(intended=start, actual=None if error else start + .2,
+                     end=end, error=error, extra='retained')
+                for start, end, error in (
+                    (10, 20, None), (9.9, 10, None), (0, 25, None),
+                    (20, 20.1, 'DatabaseError'), (20.2, 21, None),
+                    (21, 22, None), (19, 20.9, None), (-1, .1, None))]
+        expected = []
+        for start in (0, 10, 20):
+            end = min(start + 10, 21)
+            cohort = [dict(r, intended=r['intended'] - start,
+                           actual=None if r['actual'] is None else r['actual'] - start,
+                           end=r['end'] - start)
+                      for r in rows if start <= r['intended'] < end]
+            summary = t10.summarize(cohort, end - start)
+            summary['achieved_rate'] = sum(
+                r['error'] is None and start <= r['end'] < end for r in rows) / (end - start)
+            expected.append(dict(summary, start_seconds=start))
+        self.assertEqual(t10.windows(rows, 21), expected)
+
+    def test_long_phase_visits_input_once(self):
+        class Counted(list):
+            visits = 0
+            def __iter__(self):
+                for row in super().__iter__():
+                    self.visits += 1
+                    yield row
+        rows = Counted(dict(intended=i, actual=i, end=i + .1, error=None)
+                       for i in range(1000))
+        self.assertEqual(len(t10.windows(rows, 1000)), 100)
+        self.assertEqual(rows.visits, len(rows))
+
 class VerdictTests(unittest.TestCase):
     def setUp(self):
         self.base = dict(requests=100, errors=0, achieved_rate=100, p95_ms=10, p99_ms=20)
