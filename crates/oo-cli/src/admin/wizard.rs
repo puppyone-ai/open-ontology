@@ -348,10 +348,12 @@ pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Fai
 }
 
 fn zh() -> bool {
-    ["OO_LANG", "LC_ALL", "LANG"]
-        .iter()
-        .find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()))
-        .is_some_and(|v| v.starts_with("zh"))
+    crate::tui::theme::lang_zh()
+}
+
+/// Interface copy in the system language.
+fn tr(en: &'static str, zh_text: &'static str) -> &'static str {
+    if zh() { zh_text } else { en }
 }
 
 fn catalog_tables(
@@ -513,14 +515,22 @@ fn probe(request: &ConnectRequest) -> Vec<Check> {
     }
     let Some(dsn) = &request.dsn else {
         return vec![
-            Check::new("connection string", Status::Fail, "incomplete")
-                .fix("scheme://user@host:port/database"),
+            Check::new(
+                tr("connection string", "连接串"),
+                Status::Fail,
+                tr("incomplete", "不完整"),
+            )
+            .fix("scheme://user@host:port/database"),
         ];
     };
     let mut checks = vec![Check::new(
-        "engine",
+        tr("engine", "引擎"),
         Status::Pass,
-        &format!("{} (from your input)", dsn.engine),
+        &format!(
+            "{} {}",
+            dsn.engine,
+            tr("(from your input)", "（来自你的输入）")
+        ),
     )];
     let started = std::time::Instant::now();
     let reached = std::net::ToSocketAddrs::to_socket_addrs(&(dsn.host.as_str(), dsn.port))
@@ -529,36 +539,82 @@ fn probe(request: &ConnectRequest) -> Vec<Check> {
         .and_then(|addr| {
             std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).ok()
         });
+    let reachable = tr("reachable", "可达");
     checks.push(match reached {
         Some(_) => Check::new(
-            "reachable",
+            reachable,
             Status::Pass,
-            &format!(
-                "{}:{} answered in {} ms",
-                dsn.host,
-                dsn.port,
-                started.elapsed().as_millis()
-            ),
+            &if zh() {
+                format!(
+                    "{}:{} 在 {} ms 内响应",
+                    dsn.host,
+                    dsn.port,
+                    started.elapsed().as_millis()
+                )
+            } else {
+                format!(
+                    "{}:{} answered in {} ms",
+                    dsn.host,
+                    dsn.port,
+                    started.elapsed().as_millis()
+                )
+            },
         ),
         None => Check::new(
-            "reachable",
+            reachable,
             Status::Warn,
-            &format!("{}:{} did not answer", dsn.host, dsn.port),
+            &format!(
+                "{}:{} {}",
+                dsn.host,
+                dsn.port,
+                tr("did not answer", "没有响应")
+            ),
         )
-        .fix("check host, port and firewall; an SSH jump host can be added next"),
+        .fix(tr(
+            "check host, port and firewall; an SSH jump host can be added next",
+            "检查主机、端口和防火墙；下一步可以加 SSH 跳板机",
+        )),
     });
     let needs_ca = matches!(dsn.engine.as_str(), "postgres" | "mysql" | "kingbase");
     checks.push(match (&request.ca, needs_ca) {
-        (Some(_), _) => Check::new("TLS", Status::Pass, "CA file given; verified by oo doctor"),
-        (None, true) => Check::new("TLS", Status::Warn, "a CA file is required for this engine")
-            .fix("you will be asked for the CA PEM path next"),
-        (None, false) => Check::new("TLS", Status::Pass, "engine-native TLS settings"),
+        (Some(_), _) => Check::new(
+            "TLS",
+            Status::Pass,
+            tr(
+                "CA file given; verified by oo doctor",
+                "已给 CA 文件；由 oo doctor 校验",
+            ),
+        ),
+        (None, true) => Check::new(
+            "TLS",
+            Status::Warn,
+            tr(
+                "a CA file is required for this engine",
+                "这种引擎需要 CA 文件",
+            ),
+        )
+        .fix(tr(
+            "you will be asked for the CA PEM path next",
+            "下一步会问你 CA PEM 文件路径",
+        )),
+        (None, false) => Check::new(
+            "TLS",
+            Status::Pass,
+            tr("engine-native TLS settings", "使用引擎自带的 TLS 设置"),
+        ),
     });
-    for name in ["read-only account", "CDC capability", "catalog access"] {
+    for name in [
+        tr("read-only account", "只读账号"),
+        tr("CDC capability", "CDC 能力"),
+        tr("catalog access", "目录访问"),
+    ] {
         checks.push(Check::new(
             name,
             Status::Waiting,
-            "checked by oo doctor after you choose tables",
+            tr(
+                "checked by oo doctor after you choose tables",
+                "选表后由 oo doctor 检查",
+            ),
         ));
     }
     checks
@@ -567,14 +623,20 @@ fn probe(request: &ConnectRequest) -> Vec<Check> {
 fn demo_checks() -> Vec<Check> {
     vec![
         Check::new(
-            "demo catalog",
+            tr("demo catalog", "示例目录"),
             Status::Pass,
-            "OO-Logistics subset bundled with oo",
+            tr(
+                "OO-Logistics subset bundled with oo",
+                "oo 自带的 OO-Logistics 子集",
+            ),
         ),
         Check::new(
-            "demo runtime",
+            tr("demo runtime", "示例运行时"),
             Status::Waiting,
-            "started by oo quickstart (V3-M-01); not by this preview",
+            tr(
+                "started by oo quickstart (V3-M-01); not by this preview",
+                "由 oo quickstart 启动（V3-M-01），预览不启动",
+            ),
         ),
     ]
 }
@@ -631,9 +693,11 @@ fn show_checks(screen: &mut Screen, dsn_masked: &str, checks: Vec<Check>) -> Res
     let mut state = connect::Connect::new();
     state.dsn = dsn_masked.to_owned();
     state.checks = checks;
-    state
-        .checks
-        .push(Check::new("next", Status::Waiting, "press ⏎ to continue"));
+    state.checks.push(Check::new(
+        tr("next", "下一步"),
+        Status::Waiting,
+        tr("press ⏎ to continue", "按 ⏎ 继续"),
+    ));
     loop {
         screen
             .term()
@@ -671,7 +735,7 @@ fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
         ..InitOptions::default()
     })?
     .unwrap_or_default();
-    let Some(selected) = app::select(&mut term, &tables, zh()).map_err(Failure::local)? else {
+    let Some(selected) = app::select(&mut term, &tables).map_err(Failure::local)? else {
         return Err(Failure::local("TUI_CANCELLED"));
     };
     let done = json!({"stages":[
@@ -774,7 +838,7 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
         source["ssh"] = ssh;
     }
     let include = match &tables {
-        Some(tables) => app::select(screen.term(), tables, zh())
+        Some(tables) => app::select(screen.term(), tables)
             .map_err(Failure::local)?
             .ok_or_else(|| Failure::local("TUI_CANCELLED"))?,
         None => list(&screen.prompt(2, "Table discovery is not available for this engine yet.\nInclude schema.table entries, comma separated (or rerun with --catalog CATALOG.json to choose from a list)", "", false)?),

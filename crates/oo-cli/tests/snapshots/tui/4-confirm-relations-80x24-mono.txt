@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
 │   订单     >─1 客户    via orders.customer_id    ✓ 0.99                      │

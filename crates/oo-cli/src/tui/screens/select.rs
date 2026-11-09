@@ -8,8 +8,9 @@ use ratatui::layout::Rect;
 
 use super::{Action, input, put};
 use crate::tui::adjudication::magnitude;
+use crate::tui::fx;
 use crate::tui::scorer::{Scored, TableMeta, Verdict, recommended, score};
-use crate::tui::theme::{self, Theme, Tone, fit, heading, width};
+use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading, width};
 
 #[derive(Clone, Debug)]
 pub struct Select {
@@ -19,13 +20,14 @@ pub struct Select {
     pub scroll: usize,
     pub search: String,
     pub searching: bool,
-    pub zh: bool,
     pub error: Option<String>,
+    /// Animation frame: verdicts sweep in two rows a frame, the meter fills.
+    pub frame: usize,
 }
 
 impl Select {
     /// Recommendations start selected: `a` restores them after edits.
-    pub fn new(tables: &[TableMeta], zh: bool) -> Self {
+    pub fn new(tables: &[TableMeta]) -> Self {
         let rows = score(tables);
         let chosen = recommended(&rows).into_iter().collect();
         Select {
@@ -35,8 +37,8 @@ impl Select {
             scroll: 0,
             search: String::new(),
             searching: false,
-            zh,
             error: None,
+            frame: 0,
         }
     }
 
@@ -100,7 +102,7 @@ pub fn key(state: &mut Select, key: KeyEvent) -> Action {
         }
         KeyCode::Enter => {
             if state.chosen.is_empty() {
-                state.error = Some("select at least one table".into());
+                state.error = Some(NONE_SELECTED.into());
             } else {
                 return Action::Next;
             }
@@ -110,20 +112,24 @@ pub fn key(state: &mut Select, key: KeyEvent) -> Action {
     Action::None
 }
 
-pub const HINTS: [(&str, &str); 6] = [
-    ("␣", "toggle"),
-    ("a", "accept recommendations"),
-    ("/", "search"),
-    ("n", "none"),
-    ("⏎", "save list"),
-    ("q", "quit"),
+pub const HINTS: [Hint; 6] = [
+    ("␣", "toggle", "勾选"),
+    ("a", "recommended", "用推荐"),
+    ("/", "search", "搜索"),
+    ("n", "none", "全不选"),
+    ("⏎", "save", "保存"),
+    ("q", "quit", "退出"),
 ];
+
+/// Frames the opening sweep takes.
+pub const SWEEP_FRAMES: usize = 9;
 
 pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
     let inner = theme::frame(buf, area, theme, 1, &HINTS);
     if inner.height < 8 {
         return;
     }
+    let frame = theme.frame(state.frame);
     let count = |v: Verdict| state.rows.iter().filter(|r| r.verdict == v).count();
     heading(
         buf,
@@ -131,38 +137,47 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
         inner.y,
         inner.width,
         theme,
-        "tables",
-        &format!("{} of {} selected", state.chosen.len(), state.rows.len()),
+        theme.t("tables", "选表"),
+        &if theme.zh {
+            format!("已选 {} / {}", state.chosen.len(), state.rows.len())
+        } else {
+            format!("{} of {} selected", state.chosen.len(), state.rows.len())
+        },
     );
-    // Summary line + selection meter (dot ramp: ● chosen, · not).
-    let meter_w = usize::from(inner.width)
-        .saturating_sub(48)
-        .min(state.rows.len())
-        .min(40);
-    let chosen_in_meter = if state.rows.is_empty() {
-        0
-    } else {
-        (state.chosen.len() * meter_w).div_ceil(state.rows.len())
-    };
-    put(
-        buf,
-        inner.x,
-        inner.y + 1,
-        inner.width,
-        vec![
-            theme.span("✓ ", Tone::Ok),
-            theme.span(
-                format!("{} recommend   ", count(Verdict::Recommend)),
-                Tone::Dim,
+    // Summary line + selection meter (progress-bar style, fills on entry).
+    let mut spans = vec![
+        theme.span("✓ ", Tone::Ok),
+        theme.span(
+            format!(
+                "{} {}   ",
+                count(Verdict::Recommend),
+                theme.t("recommend", "推荐")
             ),
-            theme.span("? ", Tone::Warn),
-            theme.span(format!("{} maybe   ", count(Verdict::Maybe)), Tone::Dim),
-            theme.span("✗ ", Tone::Faint),
-            theme.span(format!("{} skip   ", count(Verdict::Skip)), Tone::Dim),
-            theme.span("●".repeat(chosen_in_meter), Tone::Accent),
-            theme.span("·".repeat(meter_w - chosen_in_meter), Tone::Faint),
-        ],
-    );
+            Tone::Dim,
+        ),
+        theme.span("? ", Tone::Warn),
+        theme.span(
+            format!("{} {}   ", count(Verdict::Maybe), theme.t("maybe", "待定")),
+            Tone::Dim,
+        ),
+        theme.span("✗ ", Tone::Faint),
+        theme.span(
+            format!("{} {}   ", count(Verdict::Skip), theme.t("skip", "跳过")),
+            Tone::Dim,
+        ),
+    ];
+    let used: usize = spans.iter().map(ratatui::text::Span::width).sum();
+    let meter_w = usize::from(inner.width).saturating_sub(used + 2).min(30);
+    if meter_w >= 6 && !state.rows.is_empty() {
+        let fill = state.chosen.len() as f64 / state.rows.len() as f64
+            * f64::from(fx::ease_out(fx::progress(frame, SWEEP_FRAMES)));
+        let (done, rest) = fx::bar(fill, meter_w - 2);
+        spans.push(theme.span("▕", Tone::Faint));
+        spans.push(theme.span(done, Tone::Accent));
+        spans.push(theme.span(rest, Tone::Faint));
+        spans.push(theme.span("▏", Tone::Faint));
+    }
+    put(buf, inner.x, inner.y + 1, inner.width, spans);
     let top = inner.y + 3;
     let list_h = usize::from(inner.bottom().saturating_sub(top + 2));
     let visible = state.visible();
@@ -186,10 +201,13 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
         let row = &state.rows[i];
         let on = pos == cursor;
         let picked = state.chosen.contains(&row.table);
-        let (glyph, tone) = match row.verdict {
-            Verdict::Recommend => ("✓", Tone::Ok),
-            Verdict::Maybe => ("?", Tone::Warn),
-            Verdict::Skip => ("✗", Tone::Faint),
+        // Verdicts sweep in top to bottom, two rows a frame.
+        let swept = frame == usize::MAX || (pos - scroll) < frame.saturating_mul(2);
+        let (glyph, tone) = match (swept, row.verdict) {
+            (false, _) => ("·", Tone::Faint),
+            (true, Verdict::Recommend) => ("✓", Tone::Ok),
+            (true, Verdict::Maybe) => ("?", Tone::Warn),
+            (true, Verdict::Skip) => ("✗", Tone::Faint),
         };
         let name_tone = if row.verdict == Verdict::Skip && !picked {
             Tone::Dim
@@ -197,7 +215,12 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             Tone::Ink
         };
         let rows = row.rows.map_or("—".to_owned(), magnitude);
-        let reason_w = usize::from(inner.width).saturating_sub(name_w + 18);
+        let reason_w = usize::from(inner.width).saturating_sub(name_w + 20);
+        let reason = if swept {
+            fit(&row.reason.text(theme.zh), reason_w)
+        } else {
+            String::new()
+        };
         let mut spans = vec![
             theme.span(if on { "▸ " } else { "  " }, Tone::Accent),
             theme.span(
@@ -206,8 +229,12 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             ),
             theme.span(format!("{glyph} "), tone),
             theme.span(theme::pad(&row.table, name_w), name_tone),
-            theme.span(format!("{rows:>6}  "), Tone::Dim),
-            theme.span(fit(&row.reason.text(state.zh), reason_w), Tone::Dim),
+            theme.span(format!("{rows:>6} "), Tone::Dim),
+            theme.span(
+                format!("{} ", fx::magnitude_bar(row.rows)),
+                if picked { Tone::Ember } else { Tone::Faint },
+            ),
+            theme.span(reason, Tone::Dim),
         ];
         if on {
             spans[3] =
@@ -223,28 +250,42 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             inner.x + 4,
             y,
             inner.width,
-            vec![theme.span(format!("· · · {more} more below"), Tone::Faint)],
+            vec![theme.span(
+                if theme.zh {
+                    format!("↓ 下面还有 {more} 张")
+                } else {
+                    format!("↓ {more} more below")
+                },
+                Tone::Faint,
+            )],
         );
     }
     let foot = inner.bottom() - 1;
     if state.searching || !state.search.is_empty() {
-        put(buf, inner.x, foot, 8, vec![theme.span("search", Tone::Dim)]);
+        let label = theme.t("search", "搜索");
+        let lw = width(label) as u16 + 1;
+        put(buf, inner.x, foot, lw, vec![theme.span(label, Tone::Dim)]);
         input(
             buf,
-            inner.x + 7,
+            inner.x + lw,
             foot,
-            inner.width.saturating_sub(7),
+            inner.width.saturating_sub(lw),
             theme,
             &state.search,
             state.searching,
         );
     } else if let Some(error) = &state.error {
+        let text = if error == NONE_SELECTED {
+            theme.t(NONE_SELECTED, "至少选一张表").to_owned()
+        } else {
+            error.clone()
+        };
         put(
             buf,
             inner.x,
             foot,
             inner.width,
-            vec![theme.span(format!("✗ {error}"), Tone::Bad)],
+            vec![theme.span(format!("✗ {text}"), Tone::Bad)],
         );
     } else {
         put(
@@ -253,12 +294,17 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             foot,
             inner.width,
             vec![theme.span(
-                "rules + catalog metadata only · no data rows read · names never leave this machine",
+                theme.t(
+                    "catalog metadata only · no rows read · nothing leaves this machine",
+                    "只用目录元数据 · 不读数据行 · 不出本机",
+                ),
                 Tone::Faint,
             )],
         );
     }
 }
+
+const NONE_SELECTED: &str = "select at least one table";
 
 pub fn demo_tables() -> Vec<TableMeta> {
     let value: serde_json::Value =
@@ -274,7 +320,7 @@ mod tests {
 
     #[test]
     fn keys_toggle_accept_and_search() {
-        let mut s = Select::new(&demo_tables(), false);
+        let mut s = Select::new(&demo_tables());
         let recommended = s.chosen.len();
         assert!(recommended > 5);
         key(&mut s, KeyEvent::from(KeyCode::Char(' ')));
@@ -296,20 +342,35 @@ mod tests {
 
     #[test]
     fn snapshots() {
-        let mut state = Select::new(&demo_tables(), false);
+        let mut state = Select::new(&demo_tables());
         state.cursor = 2;
         snapshot::all_sizes("2-tables", |area, buf, theme| {
             render(&state, area, buf, theme)
         });
-        let mut zh = Select::new(&demo_tables(), true);
+        let mut zh = Select::new(&demo_tables());
         zh.searching = true;
         zh.search = "ship".into();
         snapshot::check(
-            "2-tables-zh-search",
+            "2-tables-search",
             80,
             24,
-            Theme::MONO,
+            Theme::MONO.zh(),
             |area, buf, theme| render(&zh, area, buf, theme),
         );
+    }
+
+    #[test]
+    fn opening_sweep_frames() {
+        let state = Select::new(&demo_tables());
+        let frames: Vec<(usize, &str)> = (0..SWEEP_FRAMES)
+            .step_by(2)
+            .map(|f| (f, "verdicts sweep in, meter fills"))
+            .chain([(usize::MAX, "still")])
+            .collect();
+        snapshot::frames("2-tables", 80, 24, false, &frames, |f, area, buf, theme| {
+            let mut s = state.clone();
+            s.frame = f;
+            render(&s, area, buf, theme);
+        });
     }
 }

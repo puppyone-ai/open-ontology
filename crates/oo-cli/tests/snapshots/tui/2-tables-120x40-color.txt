@@ -1,32 +1,30 @@
-╭ ◆ open ontology ─────────────────────────────────────────────────● connect──◉ tables──○ build──○ confirm──○ deliver ─╮
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━◉ tables──○ build──○ confirm──○ deliver ─╮
 │ tables ···························································· ···· ·· ··   ·· ·   · ·        13 of 23 selected │
-│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ●●●●●●●●●●●●●··········                                                      │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕███████████████▉············▏                                               │
 │                                                                                                                      │
-│   ◉ ✓ lg.shipments          982k  hub: referenced by 3 tables                                                        │
-│   ◉ ✓ lg.stations           1.8k  hub: referenced by 3 tables                                                        │
-│ ▸ ◉ ✓ lg.calendar           3.7k  referenced by 1 table                                                              │
-│   ◉ ✓ lg.customers           48k  referenced by 1 table                                                              │
-│   ◉ ✓ lg.drivers             540  referenced by 1 table                                                              │
-│   ◉ ✓ lg.employees          2.1k  referenced by 1 table                                                              │
-│   ◉ ✓ lg.orders             1.2M  referenced by 1 table                                                              │
-│   ◉ ✓ lg.routes              420  referenced by 1 table                                                              │
-│   ◉ ✓ lg.status_codes         14  code table: small, referenced by 1                                                 │
-│   ◉ ✓ lg.vehicles            310  referenced by 1 table                                                              │
-│   ◉ ✓ lg.parcels            2.4M  business-like name (parcel)                                                        │
-│   ◉ ✓ lg.shipment_events     11M  links 2 tables                                                                     │
-│   ◉ ✓ lg.warehouses           36  business-like name (warehouse)                                                     │
-│   ○ ? lg.price_rules          88  no strong signal either way                                                        │
-│   ○ ✗ lg.audit_trail        530k  name looks technical (audit*)                                                      │
-│   ○ ✗ lg.django_migrations   212  name looks technical (django_*)                                                    │
-│   ○ ✗ lg.import_tmp            0  name looks technical (*_tmp)                                                       │
-│   ○ ✗ lg.kpi_snapshot       3.6k  no primary or unique key                                                           │
-│   ○ ✗ lg.notes                 0  empty table                                                                        │
-│   ○ ✗ lg.orders_bak         1.2M  name looks technical (*_bak)                                                       │
-│   ○ ✗ lg.parcels_2026_10    210k  partition child; the parent is listed                                              │
-│   ○ ✗ lg.session_tokens     3.3k  name looks technical (session*)                                                    │
-│   ○ ✗ lg.shipment_log       8.1M  name looks technical (*_log)                                                       │
-│                                                                                                                      │
-│                                                                                                                      │
+│   ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables                                                       │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables                                                       │
+│ ▸ ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                                                             │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                                                             │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                                                             │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                                                             │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                                                             │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                                                             │
+│   ◉ ✓ lg.status_codes         14 ▁ code table: small, referenced by 1                                                │
+│   ◉ ✓ lg.vehicles            310 ▁ referenced by 1 table                                                             │
+│   ◉ ✓ lg.parcels            2.4M ▇ business-like name (parcel)                                                       │
+│   ◉ ✓ lg.shipment_events     11M ▇ links 2 tables                                                                    │
+│   ◉ ✓ lg.warehouses           36 ▁ business-like name (warehouse)                                                    │
+│   ○ ? lg.price_rules          88 ▁ no strong signal either way                                                       │
+│   ○ ✗ lg.audit_trail        530k ▅ name looks technical (audit*)                                                     │
+│   ○ ✗ lg.django_migrations   212 ▁ name looks technical (django_*)                                                   │
+│   ○ ✗ lg.import_tmp            0   name looks technical (*_tmp)                                                      │
+│   ○ ✗ lg.kpi_snapshot       3.6k ▃ no primary or unique key                                                          │
+│   ○ ✗ lg.notes                 0   empty table                                                                       │
+│   ○ ✗ lg.orders_bak         1.2M ▇ name looks technical (*_bak)                                                      │
+│   ○ ✗ lg.parcels_2026_10    210k ▅ partition child; the parent is listed                                             │
+│   ○ ✗ lg.session_tokens     3.3k ▃ name looks technical (session*)                                                   │
+│   ○ ✗ lg.shipment_log       8.1M ▇ name looks technical (*_log)                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
@@ -36,38 +34,38 @@
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
-│ rules + catalog metadata only · no data rows read · names never leave this machine                                   │
-╰ ␣ toggle  a accept recommendations  / search  n none  ⏎ save list  q quit  ──────────────────────────────────────────╯
+│                                                                                                                      │
+│                                                                                                                      │
+│ catalog metadata only · no rows read · nothing leaves this machine                                                   │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────────────────────────────────────────────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.fffffffffffffffffffffffffffffffffffffffffffffffffd.dddddddffA.AAAAAAfff.ffffffff.ffffffffff.fffffff.ff
+f.A.iiii.iiiiiiii.fffffffffffffffffffffffffffffffffffffffffffffffffE.dddddddEEA.AAAAAAfff.ffffffff.ffffffffff.fffffff.ff
 f.iiiiii.ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.ffff.ff.ff...ff.f...f.f........dd.dd.dd.dddddddd.f
-f.G.dd.ddddddddd...Y.d.ddddd...f.d.dddd...AAAAAAAAAAAAAffffffffff......................................................f
+f.G.dd.ddddddddd...Y.d.ddddd...f.d.dddd...fAAAAAAAAAAAAAAAAfffffffffffff...............................................f
 f......................................................................................................................f
-f...A.G.iiiiiiiiiiii..........dddd..dddd.dddddddddd.dd.d.dddddd........................................................f
-f...A.G.iiiiiiiiiii...........dddd..dddd.dddddddddd.dd.d.dddddd........................................................f
-f.A.A.G.AAAAAAAAAAA...........dddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiiiiii...........ddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiiii.............ddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiiiiii..........dddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiii.............dddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiii..............ddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiiiiiiiii.........dd..dddd.dddddd.dddddd.dddddddddd.dd.d.................................................f
-f...A.G.iiiiiiiiiii............ddd..dddddddddd.dd.d.ddddd..............................................................f
-f...A.G.iiiiiiiiii............dddd..ddddddddddddd.dddd.dddddddd........................................................f
-f...A.G.iiiiiiiiiiiiiiiiii.....ddd..ddddd.d.dddddd.....................................................................f
-f...A.G.iiiiiiiiiiiii...........dd..ddddddddddddd.dddd.ddddddddddd.....................................................f
-f...f.Y.iiiiiiiiiiiiii..........dd..dd.dddddd.dddddd.dddddd.ddd........................................................f
-f...f.f.dddddddddddddd........dddd..dddd.ddddd.ddddddddd.dddddddd......................................................f
-f...f.f.dddddddddddddddddddd...ddd..dddd.ddddd.ddddddddd.dddddddddd....................................................f
-f...f.f.ddddddddddddd............d..dddd.ddddd.ddddddddd.ddddddd.......................................................f
-f...f.f.ddddddddddddddd.......dddd..dd.ddddddd.dd.dddddd.ddd...........................................................f
-f...f.f.dddddddd.................d..ddddd.ddddd........................................................................f
-f...f.f.ddddddddddddd.........dddd..dddd.ddddd.ddddddddd.ddddddd.......................................................f
-f...f.f.dddddddddddddddddd....dddd..ddddddddd.dddddd.ddd.dddddd.dd.dddddd..............................................f
-f...f.f.ddddddddddddddddd.....dddd..dddd.ddddd.ddddddddd.dddddddddd....................................................f
-f...f.f.ddddddddddddddd.......dddd..dddd.ddddd.ddddddddd.ddddddd.......................................................f
-f......................................................................................................................f
-f......................................................................................................................f
+f...A.G.iiiiiiiiiiii..........dddd.E.dddd.dddddddddd.dd.d.dddddd.......................................................f
+f...A.G.iiiiiiiiiii...........dddd.E.dddd.dddddddddd.dd.d.dddddd.......................................................f
+f.A.A.G.AAAAAAAAAAA...........dddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiiiiii...........ddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiiii.............ddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiiiiii..........dddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiii.............dddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiii..............ddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiiiiiiiii.........dd.E.dddd.dddddd.dddddd.dddddddddd.dd.d................................................f
+f...A.G.iiiiiiiiiii............ddd.E.dddddddddd.dd.d.ddddd.............................................................f
+f...A.G.iiiiiiiiii............dddd.E.ddddddddddddd.dddd.dddddddd.......................................................f
+f...A.G.iiiiiiiiiiiiiiiiii.....ddd.E.ddddd.d.dddddd....................................................................f
+f...A.G.iiiiiiiiiiiii...........dd.E.ddddddddddddd.dddd.ddddddddddd....................................................f
+f...f.Y.iiiiiiiiiiiiii..........dd.f.dd.dddddd.dddddd.dddddd.ddd.......................................................f
+f...f.f.dddddddddddddd........dddd.f.dddd.ddddd.ddddddddd.dddddddd.....................................................f
+f...f.f.dddddddddddddddddddd...ddd.f.dddd.ddddd.ddddddddd.dddddddddd...................................................f
+f...f.f.ddddddddddddd............d...dddd.ddddd.ddddddddd.ddddddd......................................................f
+f...f.f.ddddddddddddddd.......dddd.f.dd.ddddddd.dd.dddddd.ddd..........................................................f
+f...f.f.dddddddd.................d...ddddd.ddddd.......................................................................f
+f...f.f.ddddddddddddd.........dddd.f.dddd.ddddd.ddddddddd.ddddddd......................................................f
+f...f.f.dddddddddddddddddd....dddd.f.ddddddddd.dddddd.ddd.dddddd.dd.dddddd.............................................f
+f...f.f.ddddddddddddddddd.....dddd.f.dddd.ddddd.ddddddddd.dddddddddd...................................................f
+f...f.f.ddddddddddddddd.......dddd.f.dddd.ddddd.ddddddddd.ddddddd......................................................f
 f......................................................................................................................f
 f......................................................................................................................f
 f......................................................................................................................f
@@ -77,5 +75,7 @@ f...............................................................................
 f......................................................................................................................f
 f......................................................................................................................f
 f......................................................................................................................f
-f.fffff.f.fffffff.ffffffff.ffff.f.ff.ffff.ffff.ffff.f.fffff.fffff.fffff.ffff.fffffff...................................f
-f.A.dddddd..A.dddddd.ddddddddddddddd..A.dddddd..A.dddd..A.dddd.dddd..A.dddd..fffffffffffffffffffffffffffffffffffffffffff
+f......................................................................................................................f
+f......................................................................................................................f
+f.fffffff.ffffffff.ffff.f.ff.ffff.ffff.f.fffffff.ffffff.ffff.fffffff...................................................f
+f.A.dddddd..A.ddddddddddd..A.dddddd..A.dddd..A.dddd..A.dddd..fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff

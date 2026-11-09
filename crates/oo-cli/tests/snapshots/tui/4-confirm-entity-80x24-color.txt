@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
 │ 客户 ············································  ····     ·   lg.customers │
@@ -23,7 +23,7 @@
 │                                                                              │
 ╰ tab view  ←→ entity  o override  ⏎ confirm publish  q quit  ─────────────────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffdfdfdfA.AAAAAAAff.ff
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
 f..ddddd..f..ddddddddd..f..AAAAAA..f..ddddddddd..............fffffff.fffffffff.f
 f..............................................................................f
 f.i.i..ffffffffffffffffffffffffffffffffffffffffffff..ffff.....f...dddddddddddd.f

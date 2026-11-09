@@ -1,9 +1,9 @@
 ╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
 │ connect ·············  ·     read-only · nothing is written to your database │
 │                                                                              │
-│ ▸ paste a connection string                                                  │
-│   fill in fields                                                             │
-│   no database? use the demo                                                  │
+│ ◉ paste a connection string                                                  │
+│ ○ fill in fields                                                             │
+│ ○ no database? use the demo                                                  │
 │                                                                              │
 │ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
 │   ● postgres  db.internal:5432 / logistics as oo_reader                      │
@@ -20,5 +20,5 @@
 │ · catalog access     after the account check                                 │
 │                                                                              │
 │                                                                              │
-│                         ·                          ·                    •··  │
+│                                                                              │
 ╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯

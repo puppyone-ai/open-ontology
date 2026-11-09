@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
 │   订单     >─1 客户    via orders.customer_id    ✓ 0.99                      │
@@ -23,7 +23,7 @@
 │                                                                              │
 ╰ tab view  ↑↓ select  o override  ⏎ confirm publish  q quit  ─────────────────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffdfdfdfA.AAAAAAAff.ff
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
 f..ddddd..f..AAAAAAAAA..f..dddddd..f..ddddddddd..............fffffff.fffffffff.f
 f..............................................................................f
 f...i.i......BBB.i.i.....ddd.dddddddddddddddddd....G.GGGG......................f

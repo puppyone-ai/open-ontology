@@ -7,7 +7,8 @@ use ratatui::layout::Rect;
 
 use super::{Action, Check, Status, checklist, put};
 use crate::tui::backend::McpClient;
-use crate::tui::theme::{self, Theme, Tone, fit, heading, width};
+use crate::tui::fx;
+use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading, width};
 
 #[derive(Clone, Debug)]
 pub struct Deliver {
@@ -74,13 +75,18 @@ pub fn key(state: &mut Deliver, key: KeyEvent) -> (Action, Request) {
     }
 }
 
-pub const HINTS: [(&str, &str); 5] = [
-    ("c", "copy"),
-    ("m", "MCP config"),
-    ("p", "prompt"),
-    ("r", "re-check"),
-    ("⏎", "done"),
+pub const HINTS: [Hint; 5] = [
+    ("c", "copy", "复制"),
+    ("m", "MCP config", "MCP 配置"),
+    ("p", "prompt", "提示词"),
+    ("r", "re-check", "重新检查"),
+    ("⏎", "done", "完成"),
 ];
+
+/// Frames until the ready moment: one readiness row a frame.
+pub fn ready_frame(state: &Deliver) -> usize {
+    state.checks.len()
+}
 
 /// Word-wrap by display width.
 fn wrap(text: &str, cols: usize) -> Vec<String> {
@@ -112,9 +118,13 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         inner.y,
         inner.width,
         theme,
-        "deliver",
-        "CLI profile + share prompt · MCP optional",
+        theme.t("deliver", "交付"),
+        theme.t(
+            "CLI profile + share prompt · MCP optional",
+            "CLI profile + 分享提示词 · MCP 可选",
+        ),
     );
+    let frame = theme.frame(state.frame);
     let mut y = inner.y + 2;
     let (mark, tone, note) = match &state.profile_note {
         Ok(note) => ("●", Tone::Ok, note.clone()),
@@ -126,7 +136,7 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         y,
         inner.width,
         vec![
-            theme.span("profile  ", Tone::Dim),
+            theme.span(theme.t("profile  ", "profile  "), Tone::Dim),
             theme.span(state.profile.clone(), Tone::Accent),
             theme.span(format!("   {mark} "), tone),
             theme.span(
@@ -145,17 +155,24 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
     let (title, note, body) = match &state.mcp {
         Some((client, text)) => (
             format!("MCP · {}", client.name()),
-            "profile name only, no credentials · p prompt",
+            theme.t(
+                "profile name only, no credentials · p prompt",
+                "只含 profile 名，不含凭据 · p 看提示词",
+            ),
             text.clone(),
         ),
-        None => ("share prompt".to_owned(), "", state.share_prompt.clone()),
+        None => (
+            theme.t("share prompt", "分享提示词").to_owned(),
+            "",
+            state.share_prompt.clone(),
+        ),
     };
     let lines = wrap(&body, text_w);
     let max_lines = usize::from(inner.height.saturating_sub(15)).clamp(3, 10);
     let copied = if state.copied {
-        "  ✓ copied"
+        theme.t("  ✓ copied", "  ✓ 已复制")
     } else {
-        "  c copy"
+        theme.t("  c copy", "  c 复制")
     };
     put(
         buf,
@@ -212,7 +229,11 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 theme.span("┆ ", Tone::Faint),
                 theme.span(
                     theme::pad(
-                        &format!("… {} more lines (copied in full)", lines.len() - max_lines),
+                        &if theme.zh {
+                            format!("… 还有 {} 行（复制时完整）", lines.len() - max_lines)
+                        } else {
+                            format!("… {} more lines (copied in full)", lines.len() - max_lines)
+                        },
                         text_w,
                     ),
                     Tone::Faint,
@@ -235,8 +256,13 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         inner.x,
         y,
         inner.width,
-        vec![theme.span("readiness", Tone::Ink)],
+        vec![theme.span(theme.t("readiness", "就绪检查"), Tone::Ink)],
     );
+    let shown = if frame == usize::MAX {
+        usize::MAX
+    } else {
+        frame + 1
+    };
     checklist(
         buf,
         Rect::new(
@@ -248,27 +274,80 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         theme,
         &state.checks,
         state.frame,
+        shown,
     );
-    // Final light.
-    let (light, tone, text) = if state.ready() {
-        ("●", Tone::Ok, "ready: hand the prompt to your agent")
-    } else if state.checks.iter().any(|c| c.status == Status::Fail) {
-        ("●", Tone::Bad, "not ready: see the failed check")
+    // Final light. Ready gets a ceremony: once every check has ticked in, a
+    // banner with a glint across it and a one-shot burst over the ✓.
+    let foot = inner.bottom() - 1;
+    let settled = frame == usize::MAX || frame >= ready_frame(state);
+    if state.ready() && settled {
+        let local = if frame == usize::MAX {
+            usize::MAX
+        } else {
+            frame - ready_frame(state)
+        };
+        banner(buf, Rect::new(inner.x, foot, inner.width, 1), theme, local);
+        if local != usize::MAX {
+            // Centred over the banner's words, in the blank rows above it.
+            let words = theme::width(theme.t(
+                "✓ ready · hand the prompt to your agent",
+                "✓ 就绪 · 把提示词交给你的 Agent",
+            ));
+            let ox = i32::from(inner.x) + (words / 2) as i32;
+            for (dx, dy, c, tone) in fx::burst(local) {
+                let x = ox + dx;
+                let y = i32::from(foot) - 2 + dy;
+                if x < i32::from(inner.x)
+                    || x >= i32::from(inner.right())
+                    || y < i32::from(inner.y)
+                    || y >= i32::from(foot)
+                {
+                    continue;
+                }
+                let cell = &mut buf[(x as u16, y as u16)];
+                if cell.symbol() == " " {
+                    let mut tmp = [0u8; 4];
+                    cell.set_symbol(c.encode_utf8(&mut tmp))
+                        .set_style(theme.style(tone));
+                }
+            }
+        }
     } else {
-        ("○", Tone::Warn, "readiness not confirmed yet")
-    };
-    put(
-        buf,
-        inner.x,
-        inner.bottom() - 1,
-        inner.width,
-        vec![
-            theme.span(format!("{light} "), tone),
-            theme.span(text, Tone::Ink),
-        ],
-    );
+        let (light, tone, text) = if !settled {
+            ("○", Tone::Faint, theme.t("checking…", "检查中…"))
+        } else if state.checks.iter().any(|c| c.status == Status::Fail) {
+            (
+                "●",
+                Tone::Bad,
+                theme.t("not ready: see the failed check", "未就绪：看失败的那一项"),
+            )
+        } else {
+            (
+                "○",
+                Tone::Warn,
+                theme.t("readiness not confirmed yet", "就绪状态还没确认"),
+            )
+        };
+        put(
+            buf,
+            inner.x,
+            foot,
+            inner.width,
+            vec![
+                theme.span(format!("{light} "), tone),
+                theme.span(text, Tone::Ink),
+            ],
+        );
+    }
     if state.mcp_menu {
-        let m = super::modal(buf, area, theme, "MCP configuration for", 40, 7);
+        let m = super::modal(
+            buf,
+            area,
+            theme,
+            theme.t("MCP configuration for", "生成 MCP 配置"),
+            40,
+            7,
+        );
         for (k, client) in McpClient::ALL.iter().enumerate() {
             let on = k == state.mcp_choice;
             put(
@@ -287,9 +366,46 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
             m.x,
             m.y + 4,
             m.width,
-            vec![theme.span("⏎ show   esc back", Tone::Faint)],
+            vec![theme.span(
+                theme.t("⏎ show   esc back", "⏎ 显示   esc 返回"),
+                Tone::Faint,
+            )],
         );
     }
+}
+
+/// Frames the ready banner's glint takes to cross.
+const GLINT_FRAMES: usize = 8;
+
+/// `✓ ready · hand the prompt to your agent ━━━━━━` with a glint crossing it
+/// in the first frames after the ready moment (after ascii.rest kit `glint`).
+fn banner(buf: &mut Buffer, area: Rect, theme: &Theme, local: usize) {
+    let text = theme.t(
+        "ready · hand the prompt to your agent",
+        "就绪 · 把提示词交给你的 Agent",
+    );
+    let mut cells: Vec<(String, Tone)> = vec![("✓".into(), Tone::Ok), (" ".into(), Tone::Faint)];
+    for c in text.chars() {
+        cells.push((c.to_string(), Tone::Ink));
+    }
+    cells.push((" ".into(), Tone::Faint));
+    let used: usize = cells.iter().map(|(c, _)| width(c)).sum();
+    for _ in used..usize::from(area.width) {
+        cells.push(("━".into(), Tone::Ember));
+    }
+    if local < GLINT_FRAMES {
+        let at = (local as f32 + 0.5) / GLINT_FRAMES as f32 * (cells.len() as f32 + 6.0) - 3.0;
+        let mut x = 0f32;
+        for (c, tone) in &mut cells {
+            let d = (x - at).abs();
+            if d < 2.4 && c.as_str() != " " {
+                *tone = Tone::Hot;
+            }
+            x += width(c) as f32;
+        }
+    }
+    let spans = cells.into_iter().map(|(c, t)| theme.span(c, t)).collect();
+    put(buf, area.x, area.y, area.width, spans);
 }
 
 #[cfg(test)]
@@ -356,6 +472,30 @@ mod tests {
             24,
             Theme::MONO,
             |area, buf, theme| render(&pending, area, buf, theme),
+        );
+    }
+
+    #[test]
+    fn ready_ceremony_frames() {
+        let mut state = sample();
+        state.mcp = None;
+        state.copied = false;
+        let frames: Vec<(usize, &str)> = (0..15)
+            .step_by(2)
+            .map(|f| (f, "checks tick in, then glint and burst"))
+            .chain([(usize::MAX, "still")])
+            .collect();
+        snapshot::frames(
+            "5-deliver",
+            80,
+            24,
+            false,
+            &frames,
+            |f, area, buf, theme| {
+                let mut s = state.clone();
+                s.frame = f;
+                render(&s, area, buf, theme);
+            },
         );
     }
 }

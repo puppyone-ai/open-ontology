@@ -1,0 +1,157 @@
+# 2-tables: 6 frames at 80x24; the last one is the still frame
+
+── frame 0 · verdicts sweep in, meter fills ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕····························▏       │
+│                                                                              │
+│ ▸ ◉ · lg.shipments          982k ▅                                           │
+│   ◉ · lg.stations           1.8k ▃                                           │
+│   ◉ · lg.calendar           3.7k ▃                                           │
+│   ◉ · lg.customers           48k ▃                                           │
+│   ◉ · lg.drivers             540 ▁                                           │
+│   ◉ · lg.employees          2.1k ▃                                           │
+│   ◉ · lg.orders             1.2M ▇                                           │
+│   ◉ · lg.routes              420 ▁                                           │
+│   ◉ · lg.status_codes         14 ▁                                           │
+│   ◉ · lg.vehicles            310 ▁                                           │
+│   ◉ · lg.parcels            2.4M ▇                                           │
+│   ◉ · lg.shipment_events     11M ▇                                           │
+│   ◉ · lg.warehouses           36 ▁                                           │
+│   ○ · lg.price_rules          88 ▁                                           │
+│   ○ · lg.audit_trail        530k ▅                                           │
+│   ○ · lg.django_migrations   212 ▁                                           │
+│   ○ · lg.import_tmp            0                                             │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯
+
+── frame 2 · verdicts sweep in, meter fills ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕█████████▏··················▏       │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ · lg.drivers             540 ▁                                           │
+│   ◉ · lg.employees          2.1k ▃                                           │
+│   ◉ · lg.orders             1.2M ▇                                           │
+│   ◉ · lg.routes              420 ▁                                           │
+│   ◉ · lg.status_codes         14 ▁                                           │
+│   ◉ · lg.vehicles            310 ▁                                           │
+│   ◉ · lg.parcels            2.4M ▇                                           │
+│   ◉ · lg.shipment_events     11M ▇                                           │
+│   ◉ · lg.warehouses           36 ▁                                           │
+│   ○ · lg.price_rules          88 ▁                                           │
+│   ○ · lg.audit_trail        530k ▅                                           │
+│   ○ · lg.django_migrations   212 ▁                                           │
+│   ○ · lg.import_tmp            0                                             │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯
+
+── frame 4 · verdicts sweep in, meter fills ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕█████████████▉··············▏       │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                     │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                     │
+│   ◉ · lg.status_codes         14 ▁                                           │
+│   ◉ · lg.vehicles            310 ▁                                           │
+│   ◉ · lg.parcels            2.4M ▇                                           │
+│   ◉ · lg.shipment_events     11M ▇                                           │
+│   ◉ · lg.warehouses           36 ▁                                           │
+│   ○ · lg.price_rules          88 ▁                                           │
+│   ○ · lg.audit_trail        530k ▅                                           │
+│   ○ · lg.django_migrations   212 ▁                                           │
+│   ○ · lg.import_tmp            0                                             │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯
+
+── frame 6 · verdicts sweep in, meter fills ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕███████████████▋············▏       │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                     │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.status_codes         14 ▁ code table: small, referenced by 1        │
+│   ◉ ✓ lg.vehicles            310 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.parcels            2.4M ▇ business-like name (parcel)               │
+│   ◉ ✓ lg.shipment_events     11M ▇ links 2 tables                            │
+│   ◉ · lg.warehouses           36 ▁                                           │
+│   ○ · lg.price_rules          88 ▁                                           │
+│   ○ · lg.audit_trail        530k ▅                                           │
+│   ○ · lg.django_migrations   212 ▁                                           │
+│   ○ · lg.import_tmp            0                                             │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯
+
+── frame 8 · verdicts sweep in, meter fills ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕███████████████▉············▏       │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                     │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.status_codes         14 ▁ code table: small, referenced by 1        │
+│   ◉ ✓ lg.vehicles            310 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.parcels            2.4M ▇ business-like name (parcel)               │
+│   ◉ ✓ lg.shipment_events     11M ▇ links 2 tables                            │
+│   ◉ ✓ lg.warehouses           36 ▁ business-like name (warehouse)            │
+│   ○ ? lg.price_rules          88 ▁ no strong signal either way               │
+│   ○ ✗ lg.audit_trail        530k ▅ name looks technical (audit*)             │
+│   ○ ✗ lg.django_migrations   212 ▁ name looks technical (django_*)           │
+│   ○ · lg.import_tmp            0                                             │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯
+
+── frame 18446744073709551615 · still ──
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕███████████████▉············▏       │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                     │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.status_codes         14 ▁ code table: small, referenced by 1        │
+│   ◉ ✓ lg.vehicles            310 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.parcels            2.4M ▇ business-like name (parcel)               │
+│   ◉ ✓ lg.shipment_events     11M ▇ links 2 tables                            │
+│   ◉ ✓ lg.warehouses           36 ▁ business-like name (warehouse)            │
+│   ○ ? lg.price_rules          88 ▁ no strong signal either way               │
+│   ○ ✗ lg.audit_trail        530k ▅ name looks technical (audit*)             │
+│   ○ ✗ lg.django_migrations   212 ▁ name looks technical (django_*)           │
+│   ○ ✗ lg.import_tmp            0   name looks technical (*_tmp)              │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯

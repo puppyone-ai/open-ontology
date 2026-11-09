@@ -1,7 +1,7 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
-│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮                 │
+│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
 │                │ 司机     │    │ 线路     │    │ 包裹      │                 │
 │                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
 │      ╭─ confirm publication ──────────────────────────────────────────╮      │
@@ -20,15 +20,15 @@
 │               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
 │               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
 │                                                                              │
-│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations ↕                   │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffdfdfdfA.AAAAAAAff.ff
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
 f..AAAAA..f..ddddddddd..f..dddddd..f..ddddddddd..............fffffff.fffffffff.f
 f..............................................................................f
-f................ffffffffffff....ffffffffffff....fffffffffffff.................f
-f................f.i.i......f....f.i.i......f....f.i.i.......f.................f
-f................f.dd.d.ddd.f....f.dd.d.ddd.f....f.dd.d.dddd.f.................f
+f................iiiiiiiiiiii....iiiiiiiiiiii....iiiiiiiiiiiii.d.d.dddd.ddddd..f
+f................i.i.i......i....i.i.i......i....i.i.i.......i.................f
+f................i.dd.d.ddd.i....i.dd.d.ddd.i....i.dd.d.dddd.i.................f
 f......AA.AAAAAAA.AAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA......f
 f......A.ddddddd..AAAAAAAAAAAAAAAAAAAAAAAAAA............................A......f
 f......A.ii.iiiiiiii.i.ii.iiiiiiiii.i.i.iiiiiiii........................A......f
@@ -41,9 +41,9 @@ f......A................................................................A......f
 f......A................................................................A......f
 f......A.A.ddddddd.ddd.ddddd...AAA.dddd.................................A......f
 f......AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA......f
-f...............f.i.i.......f....f.i.i.i.i..f....f.i.i.......f.................f
-f...............f.dd.d.dddd.f....f.dd.d.ddd.f....f.dddd.d.dd.f.................f
-f...............fffffffffffff....ffffffffffff....fffffffffffff.................f
+f...............i.i.i.......i....i.i.i.i.i..i....i.i.i.......i.................f
+f...............i.dd.d.dddd.i....i.dd.d.ddd.i....i.dddd.d.dd.i.................f
+f...............iiiiiiiiiiiii....iiiiiiiiiiii....iiiiiiiiiiiii.................f
 f..............................................................................f
-f.AAA.ddddddddddd..R.dddddddd...ff.ffffffff.f.ff.fffffffff.f...................f
+f.AAA.ddddddddddd..R.dddddddd...ff.ffffffff.f.ff.fffffffff.f.f.f.ffff.fffff....f
 f.AAA.dddd..AAAA.dddddd..A.ddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..fffffff

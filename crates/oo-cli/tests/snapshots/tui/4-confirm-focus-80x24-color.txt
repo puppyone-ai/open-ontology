@@ -1,6 +1,7 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 648cce8b… │
 │                                                                              │
+│                  ╭────────╮    ╭─────────╮    ╭─────────╮                    │
 │                  │ 实体0  │    │ 实体6   │    │ 实体8   │                    │
 │                  │ id · 1 │    │ id · 1M │    │ id · 10 │                    │
 │                  ╰────┬───╯    ╰────┬────╯    ╰────┬────╯                    │
@@ -18,32 +19,31 @@
 │                        ╭─────┴─────╮    ╭────┴───╮                           │
 │                        │ 实体5     │    │ 实体7  │                           │
 │                        │ id · 100k │    │ id · 1 │                           │
-│                        ╰───────────╯    ╰────────╯                           │
 │                                                                              │
-│ N─1 many-to-one  ┄ rejected   focus 实体1 · 6 of 30 entities · one hop ↕     │
+│ N─1 many-to-one  ┄ rejected   focus 实体1 · 6 of 30 entities · one hop · ↓ 2 │
 ╰ tab view  ←↑↓→ move focus  o override  ⏎ confirm publish  q quit  ───────────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffdfdfdfA.AAAAAAAff.ff
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
 f..AAAAA..f..ddddddddd..f..dddddd..f..ddddddddd..............fffffff.fffffffff.f
 f..............................................................................f
-f..................f.i.i.i..f....f.i.i.i...f....f.i.i.i...f....................f
-f..................f.dd.d.d.f....f.dd.d.dd.f....f.dd.d.dd.f....................f
-f..................ffffffffff....fffffffffff....fffffffffff....................f
+f..................iiiiiiiiii....iiiiiiiiiii....iiiiiiiiiii....................f
+f..................i.i.i.i..i....i.i.i.i...i....i.i.i.i...i....................f
+f..................i.dd.d.d.i....i.dd.d.dd.i....i.dd.d.dd.i....................f
+f..................iiiiiiiiii....iiiiiiiiiii....iiiiiiiiiii....................f
 f.......................A.............A..............A.........................f
-f.......................BBBBBBBBBBBBB.BB.............B.........................f
-f...................................B..BBBBBBBBBBBBBBB.........................f
+f.......................AAAAAAAAAAAAA.AA.............A.........................f
+f...................................A..AAAAAAAAAAAAAAA.........................f
 f...................................A..AA......................................f
 f................................AAAAAAAAAAA...................................f
 f................................A.A.A.A...A...................................f
 f................................A.dd.d.dd.A...................................f
 f................................AAAAAAAAAAA...................................f
 f....................................A..A......................................f
-f..............................BBBBBBB..BBBBBBBB...............................f
+f..............................AAAAAAA..AAAAAAAA...............................f
 f..............................A...............A...............................f
-f........................fffffffffffff....ffffffffff...........................f
-f........................f.i.i.i.....f....f.i.i.i..f...........................f
-f........................f.dd.d.dddd.f....f.dd.d.d.f...........................f
-f........................fffffffffffff....ffffffffff...........................f
+f........................iiiiiiiiiiiii....iiiiiiiiii...........................f
+f........................i.i.i.i.....i....i.i.i.i..i...........................f
+f........................i.dd.d.dddd.i....i.dd.d.d.i...........................f
 f..............................................................................f
-f.AAA.ddddddddddd..R.dddddddd...fffff.f.f.f.f.f.ff.ff.ffffffff.f.fff.fff.f.....f
+f.AAA.ddddddddddd..R.dddddddd...fffff.f.f.f.f.f.ff.ff.ffffffff.f.fff.fff.f.f.f.f
 f.AAA.dddd..AAAA.dddd.ddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..ffffffffffff

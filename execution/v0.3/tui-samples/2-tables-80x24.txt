@@ -1,24 +1,24 @@
-╭ ◆ open ontology ───────────────────────────────────────────●─◉ tables─○─○─○ ─╮
+╭ ◆ open ontology ───────────────────────────────────────────●━◉ tables─○─○─○ ─╮
 │ tables ·································· ······  ·    ·   13 of 23 selected │
-│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ●●●●●●●●●●●●●··········              │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ▕███████████████▉············▏       │
 │                                                                              │
-│   ◉ ✓ lg.shipments          982k  hub: referenced by 3 tables                │
-│   ◉ ✓ lg.stations           1.8k  hub: referenced by 3 tables                │
-│ ▸ ◉ ✓ lg.calendar           3.7k  referenced by 1 table                      │
-│   ◉ ✓ lg.customers           48k  referenced by 1 table                      │
-│   ◉ ✓ lg.drivers             540  referenced by 1 table                      │
-│   ◉ ✓ lg.employees          2.1k  referenced by 1 table                      │
-│   ◉ ✓ lg.orders             1.2M  referenced by 1 table                      │
-│   ◉ ✓ lg.routes              420  referenced by 1 table                      │
-│   ◉ ✓ lg.status_codes         14  code table: small, referenced by 1         │
-│   ◉ ✓ lg.vehicles            310  referenced by 1 table                      │
-│   ◉ ✓ lg.parcels            2.4M  business-like name (parcel)                │
-│   ◉ ✓ lg.shipment_events     11M  links 2 tables                             │
-│   ◉ ✓ lg.warehouses           36  business-like name (warehouse)             │
-│   ○ ? lg.price_rules          88  no strong signal either way                │
-│   ○ ✗ lg.audit_trail        530k  name looks technical (audit*)              │
-│   ○ ✗ lg.django_migrations   212  name looks technical (django_*)            │
-│   ○ ✗ lg.import_tmp            0  name looks technical (*_tmp)               │
-│     · · · 6 more below                                                       │
-│ rules + catalog metadata only · no data rows read · names never leave this m │
-╰ ␣ toggle  a accept recommendations  / search  n none  ⏎ save list  ──────────╯
+│   ◉ ✓ lg.shipments          982k ▅ hub: referenced by 3 tables               │
+│   ◉ ✓ lg.stations           1.8k ▃ hub: referenced by 3 tables               │
+│ ▸ ◉ ✓ lg.calendar           3.7k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.customers           48k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.drivers             540 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.employees          2.1k ▃ referenced by 1 table                     │
+│   ◉ ✓ lg.orders             1.2M ▇ referenced by 1 table                     │
+│   ◉ ✓ lg.routes              420 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.status_codes         14 ▁ code table: small, referenced by 1        │
+│   ◉ ✓ lg.vehicles            310 ▁ referenced by 1 table                     │
+│   ◉ ✓ lg.parcels            2.4M ▇ business-like name (parcel)               │
+│   ◉ ✓ lg.shipment_events     11M ▇ links 2 tables                            │
+│   ◉ ✓ lg.warehouses           36 ▁ business-like name (warehouse)            │
+│   ○ ? lg.price_rules          88 ▁ no strong signal either way               │
+│   ○ ✗ lg.audit_trail        530k ▅ name looks technical (audit*)             │
+│   ○ ✗ lg.django_migrations   212 ▁ name looks technical (django_*)           │
+│   ○ ✗ lg.import_tmp            0   name looks technical (*_tmp)              │
+│     ↓ 6 more below                                                           │
+│ catalog metadata only · no rows read · nothing leaves this machine           │
+╰ ␣ toggle  a recommended  / search  n none  ⏎ save  q quit  ──────────────────╯

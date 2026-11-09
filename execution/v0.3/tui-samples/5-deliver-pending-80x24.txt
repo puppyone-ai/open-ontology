@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─●─◉ deliver ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━●━◉ deliver ─╮
 │ deliver ·····················   ·  CLI profile + share prompt · MCP optional │
 │                                                                              │
 │ profile  logistics   ○ profile store not available in this build (V3-B-01)   │

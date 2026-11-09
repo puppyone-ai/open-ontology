@@ -11,8 +11,11 @@ use super::{Action, blit, input, modal, put};
 use crate::tui::adjudication::{
     self, Adjudication, Item, Override, Overrides, evidence_line, flip, magnitude, number,
 };
+use crate::tui::fx;
+#[cfg(test)]
+use crate::tui::graph::REVEAL_FRAMES;
 use crate::tui::graph::{self, FOCUS_THRESHOLD, View};
-use crate::tui::theme::{self, Theme, Tone, fit, heading, width};
+use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading, width};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tab {
@@ -53,6 +56,8 @@ pub struct Confirm {
     pub now: String,
     /// Set when the user confirmed: the publish-confirm document.
     pub confirmed: Option<Value>,
+    /// Animation frame for the graph reveal; the runner advances it.
+    pub frame: usize,
 }
 
 pub const PANEL_MIN_WIDTH: u16 = 110;
@@ -76,6 +81,7 @@ impl Confirm {
             width: 120,
             now: now.into(),
             confirmed: None,
+            frame: 0,
         }
     }
 
@@ -186,6 +192,58 @@ pub fn subject(adj: &Adjudication, item: &Item) -> String {
         parts[parts.len() - 2..].join(".")
     } else {
         text.into()
+    }
+}
+
+/// Display word for a decision value.
+fn decision_word<'a>(decision: &'a str, theme: &Theme) -> &'a str {
+    if !theme.zh {
+        return decision;
+    }
+    match decision {
+        "adopted" => "采纳",
+        "rejected" => "拒绝",
+        "hidden" => "隐藏",
+        "visible" => "可见",
+        "demoted" => "降级",
+        "certified" => "认证",
+        "complete" => "完整",
+        "incomplete" => "不完整",
+        other => other,
+    }
+}
+
+/// Display word for an item class.
+fn class_word(class: &str, theme: &Theme) -> &'static str {
+    match class {
+        "sensitive" => theme.t("sensitive", "敏感"),
+        "relation" => theme.t("relation", "关系"),
+        "metric" => theme.t("metric", "指标"),
+        "entity_key" => theme.t("key", "主键"),
+        "code_table" => theme.t("codes", "代码表"),
+        _ => theme.t("other", "其他"),
+    }
+}
+
+/// The reason in the interface language: Chinese copy per rule, else the
+/// adjudicator's own sentence.
+fn reason_text<'a>(item: &'a Item, theme: &Theme) -> &'a str {
+    if !theme.zh {
+        return &item.reason;
+    }
+    match item.rule_id.as_str() {
+        "relation.declared_fk" => "声明了外键，数据也吻合",
+        "relation.containment_strict" => "包含度达标，父键唯一",
+        "relation.containment_with_signal" => "包含度达标，且有命名和 JOIN 证据",
+        "relation.containment_insufficient" => "包含度不足，未采纳",
+        "sensitive.format_phone" => "大部分值符合电话号码格式",
+        "sensitive.format_national_id" => "值符合身份证件格式",
+        "sensitive.name_only_refuted" => "只是名字像个人信息，值不符合",
+        "metric.reconciled" => "对账检查全部通过",
+        "metric.unit_mismatch" => "单位混用，降级为示例查询",
+        "entity_key.unique_non_null" => "唯一且不为空",
+        "code_table.coverage" => "代码值基本都在代码表里",
+        _ => &item.reason,
     }
 }
 
@@ -405,31 +463,28 @@ fn main_width(width: u16, wide: bool) -> u16 {
     }
 }
 
-pub fn hints(state: &Confirm) -> Vec<(&'static str, &'static str)> {
-    let mut h = vec![("tab", "view")];
+pub fn hints(state: &Confirm) -> Vec<Hint> {
+    let mut h: Vec<Hint> = vec![("tab", "view", "视图")];
     match state.tab {
         Tab::Graph => {
-            h.push((
-                "←↑↓→",
-                if state.focus.is_some() {
-                    "move focus"
-                } else {
-                    "select"
-                },
-            ));
+            h.push(if state.focus.is_some() {
+                ("←↑↓→", "move focus", "移动焦点")
+            } else {
+                ("←↑↓→", "select", "选择")
+            });
             if state.base.graph.entities.len() <= FOCUS_THRESHOLD {
-                h.push(("f", "focus"));
+                h.push(("f", "focus", "聚焦"));
             }
         }
-        Tab::Relations | Tab::Decisions => h.push(("↑↓", "select")),
-        Tab::Entity => h.push(("←→", "entity")),
+        Tab::Relations | Tab::Decisions => h.push(("↑↓", "select", "选择")),
+        Tab::Entity => h.push(("←→", "entity", "实体")),
     }
     if state.wide() {
-        h.push(("j/k", "decisions"));
+        h.push(("j/k", "decisions", "决策"));
     }
-    h.push(("o", "override"));
-    h.push(("⏎", "confirm publish"));
-    h.push(("q", "quit"));
+    h.push(("o", "override", "改判"));
+    h.push(("⏎", "confirm publish", "确认发布"));
+    h.push(("q", "quit", "退出"));
     h
 }
 
@@ -448,12 +503,12 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
     };
     // Tabs.
     let mut tabs = vec![
-        (Tab::Graph, "graph"),
-        (Tab::Relations, "relations"),
-        (Tab::Entity, "entity"),
+        (Tab::Graph, theme.t("graph", "图谱")),
+        (Tab::Relations, theme.t("relations", "关系")),
+        (Tab::Entity, theme.t("entity", "实体")),
     ];
     if !wide {
-        tabs.push((Tab::Decisions, "decisions"));
+        tabs.push((Tab::Decisions, theme.t("decisions", "决策")));
     }
     let mut spans = Vec::new();
     for (k, (tab, name)) in tabs.iter().enumerate() {
@@ -469,11 +524,12 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
     let changes = state.overrides.items.len();
     let short = &state.effective.summary_sha256[..8.min(state.effective.summary_sha256.len())];
     let tail = format!(
-        "summary {short}…{}",
-        if changes > 0 {
-            format!(" · {changes} override(s)")
-        } else {
-            String::new()
+        "{} {short}…{}",
+        theme.t("summary", "摘要"),
+        match (changes > 0, theme.zh) {
+            (false, _) => String::new(),
+            (true, false) => format!(" · {changes} override(s)"),
+            (true, true) => format!(" · 改判 {changes} 项"),
         }
     );
     let used: usize = spans.iter().map(Span::width).sum();
@@ -518,7 +574,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
             error,
         }) => {
             let it = state.effective.items.iter().find(|i| &i.id == item);
-            let inner = modal(buf, area, theme, "override", 64, 10);
+            let inner = modal(buf, area, theme, theme.t("override", "改判"), 64, 10);
             if let Some(it) = it {
                 let (g1, t1) = decision_glyph(&it.decision);
                 let (g2, t2) = decision_glyph(to);
@@ -528,7 +584,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.y,
                     inner.width,
                     vec![
-                        theme.span(format!("{} ", it.class), Tone::Dim),
+                        theme.span(format!("{} ", class_word(&it.class, theme)), Tone::Dim),
                         theme.span(subject(&state.effective, it), Tone::Ink),
                     ],
                 );
@@ -538,9 +594,9 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.y + 2,
                     inner.width,
                     vec![
-                        theme.span(format!("{g1} {}", it.decision), t1),
+                        theme.span(format!("{g1} {}", decision_word(&it.decision, theme)), t1),
                         theme.span("  →  ", Tone::Faint),
-                        theme.span(format!("{g2} {to}"), t2),
+                        theme.span(format!("{g2} {}", decision_word(to, theme)), t2),
                     ],
                 );
                 put(
@@ -548,7 +604,10 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.x,
                     inner.y + 3,
                     inner.width,
-                    vec![theme.span(fit(&it.reason, usize::from(inner.width)), Tone::Faint)],
+                    vec![theme.span(
+                        fit(reason_text(it, theme), usize::from(inner.width)),
+                        Tone::Faint,
+                    )],
                 );
             }
             put(
@@ -556,7 +615,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.x,
                 inner.y + 5,
                 8,
-                vec![theme.span("reason", Tone::Dim)],
+                vec![theme.span(theme.t("reason", "理由"), Tone::Dim)],
             );
             input(
                 buf,
@@ -583,14 +642,21 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.width,
                 vec![
                     theme.span("⏎", Tone::Accent),
-                    theme.span(" apply   ", Tone::Dim),
+                    theme.span(theme.t(" apply   ", " 应用   "), Tone::Dim),
                     theme.span("esc", Tone::Accent),
-                    theme.span(" cancel", Tone::Dim),
+                    theme.span(theme.t(" cancel", " 取消"), Tone::Dim),
                 ],
             );
         }
         Some(Modal::Confirm { reason, error }) => {
-            let inner = modal(buf, area, theme, "confirm publication", 66, 12);
+            let inner = modal(
+                buf,
+                area,
+                theme,
+                theme.t("confirm publication", "确认发布"),
+                66,
+                12,
+            );
             let c = adjudication::counts(&state.effective);
             let h = &state.effective.summary_sha256;
             put(
@@ -599,7 +665,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.y,
                 inner.width,
                 vec![
-                    theme.span("summary  ", Tone::Dim),
+                    theme.span(theme.t("summary  ", "摘要  "), Tone::Dim),
                     theme.span(
                         format!(
                             "sha256:{}…{}",
@@ -616,10 +682,17 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.y + 1,
                 inner.width,
                 vec![theme.span(
-                    format!(
-                        "{} entities · {} relations · {} rejected",
-                        c["entities"], c["relations"], c["rejected_relations"]
-                    ),
+                    if theme.zh {
+                        format!(
+                            "{} 个实体 · {} 条关系 · 拒绝 {} 条",
+                            c["entities"], c["relations"], c["rejected_relations"]
+                        )
+                    } else {
+                        format!(
+                            "{} entities · {} relations · {} rejected",
+                            c["entities"], c["relations"], c["rejected_relations"]
+                        )
+                    },
                     Tone::Ink,
                 )],
             );
@@ -629,12 +702,21 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.y + 2,
                 inner.width,
                 vec![theme.span(
-                    format!(
-                        "{} hidden columns · {} demoted metrics · {} override(s)",
-                        c["hidden_columns"],
-                        c["demoted_metrics"],
-                        state.overrides.items.len()
-                    ),
+                    if theme.zh {
+                        format!(
+                            "隐藏 {} 列 · 降级 {} 个指标 · 改判 {} 项",
+                            c["hidden_columns"],
+                            c["demoted_metrics"],
+                            state.overrides.items.len()
+                        )
+                    } else {
+                        format!(
+                            "{} hidden columns · {} demoted metrics · {} override(s)",
+                            c["hidden_columns"],
+                            c["demoted_metrics"],
+                            state.overrides.items.len()
+                        )
+                    },
                     Tone::Ink,
                 )],
             );
@@ -645,7 +727,10 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.width,
                 vec![theme.span(
                     fit(
-                        "Publishing binds this exact graph and these decisions.",
+                        theme.t(
+                            "Publishing binds this exact graph and these decisions.",
+                            "发布会绑定这一版图谱和这些决策。",
+                        ),
                         usize::from(inner.width),
                     ),
                     Tone::Faint,
@@ -656,7 +741,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.x,
                 inner.y + 6,
                 8,
-                vec![theme.span("reason", Tone::Dim)],
+                vec![theme.span(theme.t("reason", "理由"), Tone::Dim)],
             );
             input(
                 buf,
@@ -683,9 +768,12 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 inner.width,
                 vec![
                     theme.span("⏎", Tone::Accent),
-                    theme.span(" confirm and write   ", Tone::Dim),
+                    theme.span(
+                        theme.t(" confirm and write   ", " 确认并写入   "),
+                        Tone::Dim,
+                    ),
                     theme.span("esc", Tone::Accent),
-                    theme.span(" back", Tone::Dim),
+                    theme.span(theme.t(" back", " 返回"), Tone::Dim),
                 ],
             );
         }
@@ -698,7 +786,8 @@ fn render_graph(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
     let view_h = usize::from(area.height.saturating_sub(2));
     let view_w = usize::from(area.width);
     let (mut ox, mut oy) = (0usize, 0usize);
-    if let Some(b) = canvas.boxes.iter().find(|b| b.0 == state.selected) {
+    let sel = canvas.boxes.iter().find(|b| b.0 == state.selected);
+    if let Some(b) = sel {
         if canvas.width > view_w {
             ox = (b.1 + b.3 / 2)
                 .saturating_sub(view_w / 2)
@@ -710,6 +799,21 @@ fn render_graph(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 .min(canvas.height - view_h);
         }
     }
+    oy = snap_top(&canvas.boxes, oy);
+    let above = canvas.boxes.iter().filter(|b| b.2 < oy).count();
+    let below = canvas
+        .boxes
+        .iter()
+        .filter(|b| b.2 + b.4 > oy + view_h)
+        .count();
+    let cells = match sel {
+        Some(b) => graph::reveal(
+            &canvas,
+            (b.1 + b.3 / 2, b.2 + b.4 / 2),
+            theme.frame(state.frame),
+        ),
+        None => canvas.cells.clone(),
+    };
     let left = view_w.saturating_sub(canvas.width) / 2;
     blit(
         buf,
@@ -720,38 +824,75 @@ fn render_graph(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
             view_h as u16,
         ),
         theme,
-        &canvas.cells,
+        &cells,
         (ox, oy),
     );
+    // Say what is off screen instead of cutting it silently.
+    if above > 0 {
+        let text = if theme.zh {
+            format!(" ↑ 上方还有 {above} 个 ")
+        } else {
+            format!(" ↑ {above} more above ")
+        };
+        let tw = width(&text) as u16;
+        if area.width > tw {
+            put(
+                buf,
+                area.right() - tw,
+                area.y,
+                tw,
+                vec![theme.span(text, Tone::Dim)],
+            );
+        }
+    }
     let total = state.effective.graph.entities.len();
-    let status = match &canvas.focus {
-        Some(f) => format!(
+    let status = match (&canvas.focus, theme.zh) {
+        (Some(f), false) => format!(
             "focus {} · {} of {total} entities · one hop",
             label(&state.effective, f),
             canvas.shown.len()
         ),
-        None => format!(
+        (Some(f), true) => format!(
+            "聚焦 {} · {total} 个实体中的 {} 个 · 一跳",
+            label(&state.effective, f),
+            canvas.shown.len()
+        ),
+        (None, false) => format!(
             "{total} entities · {} relations",
             state.effective.graph.edges.len()
         ),
+        (None, true) => format!(
+            "{total} 个实体 · {} 条关系",
+            state.effective.graph.edges.len()
+        ),
     };
-    let more = if canvas.height > view_h || canvas.width > view_w {
-        " ↕"
-    } else {
-        ""
+    let more = match (below > 0, theme.zh) {
+        (false, _) => String::new(),
+        (true, false) => format!(" · ↓ {below} more below"),
+        (true, true) => format!(" · ↓ 下方还有 {below} 个"),
     };
     let mut spans = vec![
         theme.span("N─1 ", Tone::Accent),
-        theme.span("many-to-one  ", Tone::Dim),
+        theme.span(theme.t("many-to-one  ", "多对一  "), Tone::Dim),
         theme.span("┄ ", Tone::Bad),
-        theme.span("rejected  ", Tone::Dim),
+        theme.span(theme.t("rejected  ", "已拒绝  "), Tone::Dim),
     ];
     if area.width >= 90 {
         spans.push(theme.span("━ ", Tone::Accent));
-        spans.push(theme.span("selected  ", Tone::Dim));
+        spans.push(theme.span(theme.t("selected  ", "选中  "), Tone::Dim));
     }
     spans.push(theme.span(format!(" {status}{more}"), Tone::Faint));
     put(buf, area.x, area.bottom() - 1, area.width, spans);
+}
+
+/// Move a vertical scroll offset up so no box is cut through its top edge.
+fn snap_top(boxes: &[(String, usize, usize, usize, usize)], oy: usize) -> usize {
+    boxes
+        .iter()
+        .filter(|b| b.2 < oy && oy < b.2 + b.4)
+        .map(|b| b.2)
+        .min()
+        .unwrap_or(oy)
 }
 
 fn render_relations(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
@@ -781,6 +922,7 @@ fn render_relations(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         } else {
             format!("✗ {}", r.note)
         };
+        let via = theme.t("via", "经");
         let used = 2 + from_w + 5 + to_w + 2 + via_w;
         let mut spans = vec![
             theme.span(if on { "▸ " } else { "  " }, Tone::Accent),
@@ -791,7 +933,7 @@ fn render_relations(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
             ),
             theme.span(theme::pad(&r.to, to_w), Tone::Ink),
             theme.span(
-                format!("  {} ", theme::pad(&format!("via {}", r.via), via_w - 1)),
+                format!("  {} ", theme::pad(&format!("{via} {}", r.via), via_w - 1)),
                 Tone::Dim,
             ),
             theme.span(
@@ -822,12 +964,16 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
     };
     heading(buf, area.x, area.y, area.width, theme, &e.label, &e.table);
     let rows = [
-        ("key", e.key.join(", ")),
-        ("display", e.display.clone().unwrap_or_else(|| "—".into())),
+        (theme.t("key", "主键"), e.key.join(", ")),
         (
-            "rows",
-            e.rows
-                .map_or("unknown".into(), |r| format!("{} ({r})", magnitude(r))),
+            theme.t("display", "显示名"),
+            e.display.clone().unwrap_or_else(|| "—".into()),
+        ),
+        (
+            theme.t("rows", "行数"),
+            e.rows.map_or(theme.t("unknown", "未知").into(), |r| {
+                format!("{} ({r})", magnitude(r))
+            }),
         ),
     ];
     let mut y = area.y + 2;
@@ -850,9 +996,10 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
         area.x,
         y,
         area.width,
-        vec![theme.span("relations", Tone::Dim)],
+        vec![theme.span(theme.t("relations", "关系"), Tone::Dim)],
     );
     y += 1;
+    let via = theme.t("via", "经");
     for r in graph::relations(adj).iter().zip(&adj.graph.edges) {
         let (line, edge) = r;
         if edge.from != e.id && edge.to != e.id {
@@ -873,7 +1020,7 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     if line.adopted { Tone::Info } else { Tone::Bad },
                 ),
                 theme.span(format!(" {}", line.to), Tone::Ink),
-                theme.span(format!("  via {}", line.via), Tone::Dim),
+                theme.span(format!("  {via} {}", line.via), Tone::Dim),
                 theme.span(
                     if line.adopted {
                         "  ✓".to_owned()
@@ -905,7 +1052,10 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
             area.x,
             y,
             area.width,
-            vec![theme.span("decisions on this table", Tone::Dim)],
+            vec![theme.span(
+                theme.t("decisions on this table", "这张表上的决策"),
+                Tone::Dim,
+            )],
         );
         y += 1;
         for item in own {
@@ -920,10 +1070,13 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 area.width - 2,
                 vec![
                     theme.span(format!("{g} "), t),
-                    theme.span(theme::pad(&item.class, 11), Tone::Dim),
+                    theme.span(theme::pad(class_word(&item.class, theme), 11), Tone::Dim),
                     theme.span(theme::pad(&subject(adj, item), 22), Tone::Ink),
                     theme.span(
-                        fit(&item.reason, usize::from(area.width).saturating_sub(40)),
+                        fit(
+                            reason_text(item, theme),
+                            usize::from(area.width).saturating_sub(40),
+                        ),
                         Tone::Faint,
                     ),
                 ],
@@ -941,8 +1094,8 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         area.y,
         area.width,
         theme,
-        "decisions",
-        "by data evidence",
+        theme.t("decisions", "决策"),
+        theme.t("by data evidence", "依据数据证据"),
     );
     let per = if area.height >= 30 { 3 } else { 2 };
     let top = area.y + 2;
@@ -954,70 +1107,163 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         let on = k == cursor;
         let (g, t) = decision_glyph(&item.decision);
         let changed = state.overrides.items.contains_key(&item.id);
-        let score = item
-            .scores
-            .get("confidence")
-            .map(number)
-            .unwrap_or_default();
-        let class = match item.class.as_str() {
-            "entity_key" => "key",
-            "code_table" => "codes",
-            other => other,
-        };
+        let conf = item.scores.get("confidence").and_then(Value::as_f64);
         let w = usize::from(area.width);
-        let subj_w = w.saturating_sub(2 + 2 + 10 + 11 + 5);
+        let subj_w = w.saturating_sub(2 + 2 + 10 + 11 + 11);
+        let subject_text = format!(
+            "{} ",
+            theme::pad(&subject(&state.effective, item), subj_w.saturating_sub(1))
+        );
         let mut spans = vec![
             theme.span(if on { "▸ " } else { "  " }, Tone::Accent),
             theme.span(format!("{g} "), t),
-            theme.span(theme::pad(class, 10), Tone::Dim),
-            theme.span(
-                format!(
-                    "{} ",
-                    theme::pad(&subject(&state.effective, item), subj_w - 1)
-                ),
-                Tone::Ink,
-            ),
+            theme.span(theme::pad(class_word(&item.class, theme), 10), Tone::Dim),
+            theme.span(subject_text.clone(), Tone::Ink),
             theme.span(
                 theme::pad(
-                    &format!("{}{}", if changed { "✎" } else { "" }, item.decision),
+                    &format!(
+                        "{}{}",
+                        if changed { "✎" } else { "" },
+                        decision_word(&item.decision, theme)
+                    ),
                     11,
                 ),
                 if changed { Tone::Accent } else { t },
             ),
-            theme.span(format!("{score:>4}"), Tone::Dim),
         ];
+        // Confidence as pips plus the number (after ascii.rest cpu-meters).
+        if let Some(c) = conf {
+            let (on_pips, off_pips) = fx::pips(c);
+            spans.push(theme.span(on_pips, if c >= 0.8 { Tone::Ember } else { Tone::Warn }));
+            spans.push(theme.span(off_pips, Tone::Faint));
+            spans.push(theme.span(format!("{:>5}", number(&serde_json::json!(c))), Tone::Dim));
+        }
         if on && (panel || state.tab == Tab::Decisions) {
-            spans[3] = Span::styled(
-                format!(
-                    "{} ",
-                    theme::pad(&subject(&state.effective, item), subj_w - 1)
-                ),
-                theme.selected(),
-            );
+            spans[3] = Span::styled(subject_text, theme.selected());
         }
         put(buf, area.x, y, area.width, spans);
-        let evidence = if matches!(item.decision.as_str(), "rejected") {
+        // Evidence: containment as a bar with its threshold tick, then the
+        // rest of the evidence (or what was missing) in words.
+        let mut ev = Vec::new();
+        let mut used = 0usize;
+        let containment = item.evidence.get("containment").and_then(Value::as_f64);
+        if let Some(c) = containment {
+            let need = needed_containment(item, &state.effective);
+            let cols = 10;
+            ev.push(theme.span(theme.t("contain ", "包含 "), Tone::Faint));
+            ev.push(theme.span("▕", Tone::Faint));
+            for (ch, filled) in fx::evidence_bar(c, need, cols) {
+                let tone = match (filled, c >= need) {
+                    (true, true) => Tone::Ok,
+                    (true, false) => Tone::Bad,
+                    (false, _) if ch == '┊' => Tone::Ink,
+                    (false, _) => Tone::Faint,
+                };
+                ev.push(theme.span(ch.to_string(), tone));
+            }
+            ev.push(theme.span("▏", Tone::Faint));
+            let cmp = if c >= need { "≥" } else { "<" };
+            let txt = format!(
+                " {}{cmp}{}  ",
+                number(&serde_json::json!(c)),
+                number(&serde_json::json!(need))
+            );
+            used += width(theme.t("contain ", "包含 ")) + cols + 2 + width(&txt);
+            ev.push(theme.span(txt, if c >= need { Tone::Dim } else { Tone::Bad }));
+        }
+        let words = if item.decision == "rejected" && containment.is_none() {
             adjudication::missing_evidence(item, &state.effective.thresholds)
+        } else if containment.is_some() {
+            evidence_rest(item)
         } else {
             evidence_line(item)
         };
-        put(
-            buf,
-            area.x + 4,
-            y + 1,
-            area.width.saturating_sub(4),
-            vec![theme.span(fit(&evidence, w.saturating_sub(4)), Tone::Faint)],
-        );
+        ev.push(theme.span(
+            fit(
+                &localise_evidence(&words, theme),
+                w.saturating_sub(4 + used),
+            ),
+            Tone::Faint,
+        ));
+        put(buf, area.x + 4, y + 1, area.width.saturating_sub(4), ev);
         if per == 3 {
             put(
                 buf,
                 area.x + 4,
                 y + 2,
                 area.width.saturating_sub(4),
-                vec![theme.span(fit(&item.rule_id, w.saturating_sub(4)), Tone::Faint)],
+                vec![theme.span(
+                    fit(reason_text(item, theme), w.saturating_sub(4)),
+                    Tone::Faint,
+                )],
             );
         }
     }
+}
+
+/// The containment threshold that applied to a relation item.
+fn needed_containment(item: &Item, adj: &Adjudication) -> f64 {
+    let get = |k: &str| item.evidence.get(k).and_then(Value::as_f64);
+    let th = |k: &str, d: f64| adj.thresholds.get(k).and_then(Value::as_f64).unwrap_or(d);
+    let signal = get("name_similarity").is_some_and(|s| s >= 0.5)
+        || get("join_cooccurrence").is_some_and(|j| j > 0.0);
+    if signal {
+        th("relation_containment_with_signal", 0.9)
+    } else {
+        th("relation_containment_strict", 0.98)
+    }
+}
+
+/// Evidence words without the containment figure (drawn as a bar).
+fn evidence_rest(item: &Item) -> String {
+    let mut rest = item.clone();
+    rest.evidence.remove("containment");
+    evidence_line(&rest)
+}
+
+/// Evidence words in the interface language: each `·`-separated part keeps
+/// its figures, its English name is swapped for the Chinese one.
+fn localise_evidence(words: &str, theme: &Theme) -> String {
+    if !theme.zh {
+        return words.to_owned();
+    }
+    const NAMES: [(&str, &str); 20] = [
+        ("parent not unique", "父键不唯一"),
+        ("parent unique", "父键唯一"),
+        ("many-to-one", "多对一"),
+        ("one-to-many", "一对多"),
+        ("one-to-one", "一对一"),
+        ("many-to-many", "多对多"),
+        ("format hits", "格式命中"),
+        ("name hit", "名称命中"),
+        ("recompute match", "重算一致"),
+        ("unit consistent", "单位一致"),
+        ("window stable", "窗口稳定"),
+        ("non empty", "非空"),
+        ("non-null", "非空率"),
+        ("distinct", "区分度"),
+        ("containment", "包含度"),
+        ("joins", "JOIN 共现"),
+        ("name", "命名"),
+        ("rows", "行"),
+        ("parent", "父键"),
+        ("not adopted", "未采纳"),
+    ];
+    words
+        .split(" · ")
+        .map(|part| {
+            for (en, zh) in NAMES {
+                if let Some(rest) = part.strip_prefix(en) {
+                    return format!("{zh}{rest}");
+                }
+                if let Some(head) = part.strip_suffix(&format!(" {en}")) {
+                    return format!("{head} {zh}");
+                }
+            }
+            part.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 #[cfg(test)]
@@ -1168,5 +1414,52 @@ pub(crate) mod tests {
         snapshot::all_sizes("4-confirm-focus", |area, buf, theme| {
             render(&big, area, buf, theme)
         });
+        snapshot::check(
+            "4-confirm-decisions",
+            80,
+            24,
+            Theme::MONO.zh(),
+            |area, buf, theme| render(&dec, area, buf, theme),
+        );
+    }
+
+    #[test]
+    fn graph_view_never_cuts_a_box_top() {
+        for (w, h) in [(80u16, 24u16), (120, 40)] {
+            let s = Confirm::new(fixture(), "t");
+            let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+            render(&s, buf.area, &mut buf, &Theme::MONO);
+            let text = super::super::buffer_text(&buf);
+            // The first graph row (inside frame, tab bar and blank) must not
+            // start mid-box: no box side without a top edge above it.
+            let row = text.lines().nth(3).unwrap();
+            let first = row.trim_start_matches('│').trim();
+            assert!(
+                !first.starts_with('│') && !first.starts_with('┃'),
+                "{w}x{h} first graph row cuts a box: {row}"
+            );
+        }
+    }
+
+    #[test]
+    fn reveal_frames() {
+        let s = Confirm::new(fixture(), "t");
+        let frames: Vec<(usize, &str)> = (0..REVEAL_FRAMES)
+            .step_by(2)
+            .map(|f| (f, "radar reveal from the selected hub"))
+            .chain([(usize::MAX, "still")])
+            .collect();
+        snapshot::frames(
+            "4-confirm-graph",
+            80,
+            24,
+            false,
+            &frames,
+            |f, area, buf, theme| {
+                let mut c = s.clone();
+                c.frame = f;
+                render(&c, area, buf, theme);
+            },
+        );
     }
 }

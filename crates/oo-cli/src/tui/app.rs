@@ -18,12 +18,15 @@ use serde_json::Value;
 use super::adjudication::{Adjudication, Overrides};
 use super::backend::{Delivery, osc52};
 use super::fx::{SPLASH_FRAME_MS, SPLASH_FRAMES};
+use super::graph::REVEAL_FRAMES;
 use super::scorer::TableMeta;
 use super::screens::{self, Action, Check, Status};
 use super::theme::Theme;
 
 pub type Result<T> = std::result::Result<T, &'static str>;
 const TICK: Duration = Duration::from_millis(100);
+/// Tick while a one-shot animation plays.
+const FAST: Duration = Duration::from_millis(70);
 
 pub struct Term {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
@@ -143,11 +146,14 @@ pub fn connect(
                     dsn: state.dsn().ok(),
                     ca: state.ca_path().map(str::to_owned),
                 };
+                let zh = term.theme.zh;
+                let t = |en: &'static str, cn: &'static str| if zh { cn } else { en };
                 state.checks = vec![Check::new(
-                    "read-only checks",
+                    t("read-only checks", "只读检查"),
                     Status::Running,
-                    "connecting…",
+                    t("connecting…", "连接中…"),
                 )];
+                state.checks_at = state.frame;
                 let checks = std::thread::scope(|scope| -> Result<Vec<Check>> {
                     let job = scope.spawn(|| probe(&request));
                     while !job.is_finished() {
@@ -160,13 +166,14 @@ pub fn connect(
                     job.join().map_err(|_| "TUI_PROBE")
                 })?;
                 state.checks = checks;
+                state.checks_at = state.frame;
                 checked_for = Some(snapshot);
                 if state.checks.iter().all(|c| c.status != Status::Fail) {
                     state.error = None;
                     state.checks.push(Check::new(
-                        "ready",
+                        t("ready", "就绪"),
                         Status::Pass,
-                        "press ⏎ again to choose tables",
+                        t("press ⏎ again to choose tables", "再按 ⏎ 去选表"),
                     ));
                 }
             }
@@ -176,11 +183,14 @@ pub fn connect(
 }
 
 /// Screen 2. Returns the explicit table list, or `None` on quit.
-pub fn select(term: &mut Term, tables: &[TableMeta], zh: bool) -> Result<Option<Vec<String>>> {
-    let mut state = screens::select::Select::new(tables, zh);
+pub fn select(term: &mut Term, tables: &[TableMeta]) -> Result<Option<Vec<String>>> {
+    let mut state = screens::select::Select::new(tables);
     loop {
         term.draw(|area, buf, theme| screens::select::render(&state, area, buf, theme))?;
-        if let Some(key) = term.key(TICK)? {
+        let sweeping = term.theme.motion && state.frame < screens::select::SWEEP_FRAMES;
+        let key = term.key(if sweeping { FAST } else { TICK })?;
+        state.frame = state.frame.saturating_add(1);
+        if let Some(key) = key {
             match screens::select::key(&mut state, key) {
                 Action::Quit => return Ok(None),
                 Action::Next => return Ok(Some(state.selection())),
@@ -196,16 +206,31 @@ pub fn select(term: &mut Term, tables: &[TableMeta], zh: bool) -> Result<Option<
 pub fn build(term: &mut Term, poll: &mut dyn FnMut() -> (Option<Value>, bool)) -> Result<bool> {
     let mut state = screens::build::Build::new();
     let started = Instant::now();
+    let mut sampled = Instant::now();
     loop {
         let (latest, finished) = poll();
         if let Some(latest) = latest {
-            let frame = state.frame;
+            let (frame, history) = (state.frame, std::mem::take(&mut state.history));
             state = screens::build::from_chain(&latest);
             state.frame = frame;
+            state.history = history;
         }
         state.frame += 1;
+        // One throughput sample a second, the last minute kept.
+        if sampled.elapsed() >= Duration::from_secs(1) {
+            sampled = Instant::now();
+            state.history.push(state.completed());
+            if state.history.len() > 61 {
+                state.history.remove(0);
+            }
+        }
         if finished {
-            state.note = format!("finished in {}s · ⏎ continue", started.elapsed().as_secs());
+            let secs = started.elapsed().as_secs();
+            state.note = if term.theme.zh {
+                format!("用时 {secs} 秒 · ⏎ 继续")
+            } else {
+                format!("finished in {secs}s · ⏎ continue")
+            };
         }
         term.draw(|area, buf, theme| screens::build::render(&state, area, buf, theme))?;
         if let Some(key) = term.key(TICK)? {
@@ -230,7 +255,15 @@ pub fn confirm(
     loop {
         state.width = term.width();
         term.draw(|area, buf, theme| screens::confirm::render(&state, area, buf, theme))?;
-        if let Some(key) = term.key(TICK)? {
+        let revealing = term.theme.motion && state.frame < REVEAL_FRAMES;
+        let key = term.key(if revealing { FAST } else { TICK })?;
+        state.frame = state.frame.saturating_add(1);
+        if revealing && key.is_some() {
+            // The first key only skips the reveal.
+            state.frame = REVEAL_FRAMES;
+            continue;
+        }
+        if let Some(key) = key {
             match screens::confirm::key(&mut state, key) {
                 Action::Quit => return Ok(None),
                 Action::Next => {
@@ -257,12 +290,19 @@ pub fn deliver(term: &mut Term, delivery: &dyn Delivery, profile: &str) -> Resul
         checks: delivery.check(profile),
         frame: 0,
     };
+    let ceremony = screens::deliver::ready_frame(&state) + super::fx::BURST_FRAMES;
     loop {
         term.draw(|area, buf, theme| screens::deliver::render(&state, area, buf, theme))?;
-        let Some(key) = term.key(TICK)? else {
+        let busy = term.theme.motion && state.frame < ceremony;
+        let Some(key) = term.key(if busy { FAST } else { TICK })? else {
             state.frame += 1;
             continue;
         };
+        if busy {
+            // The first key during the ceremony only finishes it.
+            state.frame = ceremony;
+            continue;
+        }
         let (action, request) = screens::deliver::key(&mut state, key);
         match request {
             Request::Copy => {

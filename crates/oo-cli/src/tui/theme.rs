@@ -27,6 +27,11 @@ pub enum Tone {
     Bad,
     /// Lines and links in the graph.
     Info,
+    /// Deep layer of the warm axis: shadows, finished rail, low heat.
+    Ember,
+    /// Highlight layer of the warm axis: glint core, the one cell that just
+    /// changed, peak heat. Never used for steady text.
+    Hot,
 }
 
 impl Tone {
@@ -42,16 +47,28 @@ impl Tone {
             Tone::Warn => 'Y',
             Tone::Bad => 'R',
             Tone::Info => 'B',
+            Tone::Ember => 'E',
+            Tone::Hot => 'H',
         }
     }
 }
 
 /// Rendering mode. `color == false` honours `NO_COLOR`; `motion == false`
-/// freezes every effect on its resolved frame.
+/// freezes every effect on its resolved frame; `zh` picks Chinese copy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Theme {
     pub color: bool,
     pub motion: bool,
+    pub zh: bool,
+}
+
+/// Interface language from the environment: `OO_LANG` first, then `LC_ALL`,
+/// then `LANG`; Chinese when the first one set starts with `zh`.
+pub fn lang_zh() -> bool {
+    ["OO_LANG", "LC_ALL", "LANG"]
+        .iter()
+        .find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()))
+        .is_some_and(|v| v.to_ascii_lowercase().starts_with("zh"))
 }
 
 impl Theme {
@@ -59,15 +76,18 @@ impl Theme {
     pub const MONO: Theme = Theme {
         color: false,
         motion: false,
+        zh: false,
     };
     #[cfg(test)]
     pub const COLOR: Theme = Theme {
         color: true,
         motion: false,
+        zh: false,
     };
 
     /// Terminal defaults: colour unless `NO_COLOR`; motion unless disabled or
-    /// reduced. Callers already know whether stdout is a TTY.
+    /// reduced; language from the locale. Callers already know whether stdout
+    /// is a TTY.
     pub fn from_env(no_anim_flag: bool) -> Theme {
         let set = |name: &str| std::env::var_os(name).is_some_and(|v| !v.is_empty());
         let color = !set("NO_COLOR") && std::env::var("TERM").map_or(true, |t| t != "dumb");
@@ -76,13 +96,34 @@ impl Theme {
             && !set("OO_NO_ANIM")
             && !set("OO_REDUCED_MOTION")
             && !set("REDUCE_MOTION");
-        Theme { color, motion }
+        Theme {
+            color,
+            motion,
+            zh: lang_zh(),
+        }
+    }
+
+    /// The same theme with Chinese copy (tests and samples).
+    #[cfg(test)]
+    pub const fn zh(self) -> Theme {
+        Theme { zh: true, ..self }
+    }
+
+    /// Pick the copy for the interface language.
+    pub fn t<'a>(&self, en: &'a str, zh: &'a str) -> &'a str {
+        if self.zh { zh } else { en }
+    }
+
+    /// Animation frame to draw: the live frame with motion, else the resolved
+    /// still frame (`usize::MAX`).
+    pub fn frame(&self, live: usize) -> usize {
+        if self.motion { live } else { usize::MAX }
     }
 
     pub fn style(&self, tone: Tone) -> Style {
         if !self.color {
             return match tone {
-                Tone::Accent | Tone::Bad => Style::new().add_modifier(Modifier::BOLD),
+                Tone::Accent | Tone::Bad | Tone::Hot => Style::new().add_modifier(Modifier::BOLD),
                 Tone::Faint | Tone::Dim => Style::new().add_modifier(Modifier::DIM),
                 _ => Style::new(),
             };
@@ -96,9 +137,11 @@ impl Theme {
             Tone::Warn => Color::Indexed(221),
             Tone::Bad => Color::Indexed(203),
             Tone::Info => Color::Indexed(110),
+            Tone::Ember => Color::Indexed(173),
+            Tone::Hot => Color::Indexed(223),
         };
         let style = Style::new().fg(fg);
-        if tone == Tone::Accent {
+        if matches!(tone, Tone::Accent | Tone::Hot) {
             style.add_modifier(Modifier::BOLD)
         } else {
             style
@@ -119,6 +162,8 @@ impl Theme {
     pub fn tone_of(&self, style: Style) -> Option<Tone> {
         [
             Tone::Accent,
+            Tone::Hot,
+            Tone::Ember,
             Tone::Ok,
             Tone::Warn,
             Tone::Bad,
@@ -137,15 +182,14 @@ impl Theme {
 
 /// Glyph vocabulary shared by all screens.
 pub mod glyph {
-    /// Dot-density ramp, darkest to brightest.
-    pub const RAMP: [char; 4] = [' ', '·', '•', '●'];
-    pub const ACCENTS: [char; 4] = ['✦', '+', '◆', '∙'];
     pub const SPINNER: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     /// Eighth blocks for smooth bars.
     pub const BAR: [char; 8] = ['▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
     pub const STEP_DONE: &str = "●";
     pub const STEP_NOW: &str = "◉";
     pub const STEP_TODO: &str = "○";
+    /// Sparkline levels.
+    pub const SPARK: [char; 8] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 }
 
 /// Display width in terminal columns (CJK counts two).
@@ -186,17 +230,20 @@ pub fn pad(text: &str, cols: usize) -> String {
     format!("{text}{}", " ".repeat(cols.saturating_sub(w)))
 }
 
-pub const STEPS: [&str; 5] = ["connect", "tables", "build", "confirm", "deliver"];
+pub const STEPS: [(&str, &str); 5] = [
+    ("connect", "连接"),
+    ("tables", "选表"),
+    ("build", "构建"),
+    ("confirm", "确认"),
+    ("deliver", "交付"),
+];
+
+/// A key hint: key, English label, Chinese label.
+pub type Hint = (&'static str, &'static str, &'static str);
 
 /// The rounded frame every screen sits in: brand mark and step rail on the top
 /// border, key hints on the bottom border. Returns the inner area.
-pub fn frame(
-    buf: &mut Buffer,
-    area: Rect,
-    theme: &Theme,
-    step: usize,
-    hints: &[(&str, &str)],
-) -> Rect {
+pub fn frame(buf: &mut Buffer, area: Rect, theme: &Theme, step: usize, hints: &[Hint]) -> Rect {
     if area.width < 20 || area.height < 6 {
         return area;
     }
@@ -222,20 +269,31 @@ pub fn frame(
         theme.span("◆", Tone::Accent),
         theme.span(" open ontology ", Tone::Ink),
     ];
+    // The step rail is a fuse: the stretch already walked is a heavy warm
+    // line, the rest a faint thin one.
     let mut rail = Vec::new();
     let compact = area.width < 100;
-    for (index, name) in STEPS.iter().enumerate() {
+    for (index, (en, zh)) in STEPS.iter().enumerate() {
+        let name = theme.t(en, zh);
         let (mark, tone) = match index.cmp(&step) {
-            std::cmp::Ordering::Less => (glyph::STEP_DONE, Tone::Dim),
+            std::cmp::Ordering::Less => (glyph::STEP_DONE, Tone::Ember),
             std::cmp::Ordering::Equal => (glyph::STEP_NOW, Tone::Accent),
             std::cmp::Ordering::Greater => (glyph::STEP_TODO, Tone::Faint),
         };
         if index > 0 {
-            rail.push(theme.span(if compact { "─" } else { "──" }, Tone::Faint));
+            let walked = index <= step;
+            let seg = match (compact, walked) {
+                (true, true) => "━",
+                (true, false) => "─",
+                (false, true) => "━━",
+                (false, false) => "──",
+            };
+            rail.push(theme.span(seg, if walked { Tone::Ember } else { Tone::Faint }));
         }
         rail.push(theme.span(mark, tone));
         if !compact || index == step {
-            rail.push(theme.span(format!(" {name}"), tone));
+            let name_tone = if index < step { Tone::Dim } else { tone };
+            rail.push(theme.span(format!(" {name}"), name_tone));
         }
     }
     rail.push(theme.span(" ", Tone::Faint));
@@ -258,7 +316,8 @@ pub fn frame(
     // Bottom: key hints, dropped from the right when the frame is narrow.
     let mut spans = vec![theme.span(" ", Tone::Faint)];
     let mut used = 1;
-    for (key, label) in hints {
+    for (key, en, zh) in hints {
+        let label = theme.t(en, zh);
         let need = width(key) + width(label) + 3;
         if used + need + 2 > inner_w {
             break;

@@ -1,9 +1,9 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
 │ connect ············································  ····     ·  ·  read-only · nothing is written to your database │
 │                                                                                                                      │
-│ ▸ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
-│   fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
-│   no database? use the demo                                                                                          │
+│ ◉ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
+│ ○ fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
+│ ○ no database? use the demo                                                                                          │
 │                                                                                                                      │
 │                                                                                                                      │
 │ read-only checks ············································   ···        advice only; oo never runs DBA statements │
@@ -34,17 +34,17 @@
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
-│                                                        ·                                 ·                    ·      │
-│                                                                          •          · ·                •   ·   ·     │
-│                ✦                ·                                             ·•    ·         ··    ·  ·  ·  •   ·✦  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
 ╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────────────────────────────────────────────╯
 --- colour layer ---
 f.A.iiii.iiiiiiii.fffffffffffffffffffffffffffffffffffffffffffffffffA.AAAAAAAfff.fffffffff.ffffffff.ffffffffff.fffffff.ff
 f.iiiiiii.ffffffffffffffffffffffffffffffffffffffffffff..ffff.....f..f..ddddddddd.d.ddddddd.dd.ddddddd.dd.dddd.dddddddd.f
 f......................................................................................................................f
 f.A.iiiii.i.iiiiiiiiii.iiiiii.......A.iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiA..........................f
-f...dddd.dd.dddddd....................G.iiiiiiii..dddddddddddddddd.d.ddddddddd.dd.ddddddddd............................f
-f...dd.ddddddddd.ddd.ddd.dddd..........................................................................................f
+f.f.dddd.dd.dddddd....................G.iiiiiiii..dddddddddddddddd.d.ddddddddd.dd.ddddddddd............................f
+f.f.dd.ddddddddd.ddd.ddd.dddd..........................................................................................f
 f......................................................................................................................f
 f......................................................................................................................f
 f.iiiiiiiii.iiiiii.ffffffffffffffffffffffffffffffffffffffffffff...fff........dddddd.ddddd.dd.ddddd.dddd.ddd.dddddddddd.f
@@ -75,7 +75,7 @@ f...............................................................................
 f......................................................................................................................f
 f......................................................................................................................f
 f......................................................................................................................f
-f........................................................f.................................f....................f......f
-f..........................................................................f..........f.f................f...f...f.....f
-f................A................f.............................................ff....f.........ff....f..f..f..f...fA..f
+f......................................................................................................................f
+f......................................................................................................................f
+f......................................................................................................................f
 f.AA.dddddd..AAA.dddd.ddddd..A.ddddddd..AAA.dddd..ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff

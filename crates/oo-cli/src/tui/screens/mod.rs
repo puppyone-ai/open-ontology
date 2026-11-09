@@ -68,14 +68,16 @@ pub fn put(buf: &mut Buffer, x: u16, y: u16, w: u16, spans: Vec<Span<'_>>) {
     buf.set_line(x, y, &Line::from(spans), w);
 }
 
-/// Checklist: status glyph, name, detail; fix text on its own line. Returns
-/// rows used.
+/// Checklist: status glyph, name, detail; fix text on its own line. Only the
+/// first `shown` checks are drawn (staggered reveal, after ascii.rest `scan`).
+/// Returns rows used.
 pub fn checklist(
     buf: &mut Buffer,
     area: Rect,
     theme: &Theme,
     checks: &[Check],
     frame: usize,
+    shown: usize,
 ) -> u16 {
     let mut y = area.y;
     let name_w = checks
@@ -85,7 +87,7 @@ pub fn checklist(
         .unwrap_or(0)
         .min(22)
         + 2;
-    for check in checks {
+    for check in checks.iter().take(shown) {
         if y >= area.bottom() {
             break;
         }
@@ -126,7 +128,7 @@ pub fn checklist(
                 y,
                 area.width.saturating_sub(2 + name_w as u16),
                 vec![
-                    theme.span("fix ", tone),
+                    theme.span(theme.t("fix ", "修复 "), tone),
                     theme.span(fit(&check.fix, w), Tone::Ink),
                 ],
             );
@@ -233,44 +235,6 @@ pub fn blit(
     }
 }
 
-/// Ambient dot field in the blank rows at the bottom of `area`: densest in
-/// the bottom-right corner, thinning up and to the left, with a rare accent.
-/// Deterministic (hash of position), so snapshots stay stable.
-pub fn ambient(buf: &mut Buffer, area: Rect, theme: &Theme) {
-    let mut band = 0u16;
-    while band < 6 && band < area.height {
-        let y = area.bottom() - 1 - band;
-        if (area.left()..area.right()).any(|x| !buf[(x, y)].symbol().trim().is_empty()) {
-            break;
-        }
-        band += 1;
-    }
-    if band < 2 {
-        return;
-    }
-    // Leave one blank row between content and the field.
-    let rows = band - 1;
-    for k in 0..rows {
-        let y = area.bottom() - 1 - k;
-        let vy = 1.0 - f32::from(k) / f32::from(rows);
-        for x in area.left()..area.right() {
-            let vx = f32::from(x - area.left()) / f32::from(area.width.max(1));
-            let p = 0.22 * vy * vy * vx.powf(1.6);
-            let u = (fx::hash(u32::from(x), u32::from(y), 17) % 1000) as f32 / 1000.0;
-            if u < p {
-                let (c, tone) = if u < p * 0.04 {
-                    ("✦", Tone::Accent)
-                } else if u < p * 0.25 {
-                    ("•", Tone::Faint)
-                } else {
-                    ("·", Tone::Faint)
-                };
-                buf[(x, y)].set_symbol(c).set_style(theme.style(tone));
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 /// Plain-text grid of a buffer (wide glyphs occupy their columns once).
 pub fn buffer_text(buf: &Buffer) -> String {
@@ -361,9 +325,14 @@ pub(crate) mod snapshot {
             );
         }
         let mode = if theme.color { "color" } else { "mono" };
+        let lang = if theme.zh { "-zh" } else { "" };
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/snapshots/tui")
-            .join(format!("{name}-{w}x{h}-{mode}.txt"));
+            .join(format!("{name}{lang}-{w}x{h}-{mode}.txt"));
+        if !theme.color && std::env::var_os("OO_UPDATE_SAMPLES").is_some() {
+            let sample = samples_dir().join(format!("{name}{lang}-{w}x{h}.txt"));
+            std::fs::write(sample, &text).unwrap();
+        }
         if std::env::var_os("OO_UPDATE_SNAPSHOTS").is_some() {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, &text).unwrap();
@@ -378,20 +347,75 @@ pub(crate) mod snapshot {
         assert_eq!(text, expected, "snapshot {} differs", path.display());
     }
 
-    /// Every screen at 80×24 and 120×40, mono and colour.
+    /// Every screen at 80×24 and 120×40, mono and colour, plus the Chinese
+    /// copy at 80×24 mono.
     pub fn all_sizes(name: &str, draw: impl Fn(Rect, &mut Buffer, &Theme)) {
         for (w, h) in [(80, 24), (120, 40)] {
             for theme in [Theme::MONO, Theme::COLOR] {
                 check(name, w, h, theme, &draw);
             }
         }
+        check(name, 80, 24, Theme::MONO.zh(), &draw);
+    }
+
+    fn samples_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../execution/v0.3/tui-samples")
+    }
+
+    /// A key animation frame by frame, as plain text, for previewing motion:
+    /// `execution/v0.3/tui-samples/<name>-frames.txt`. The file is checked
+    /// like a snapshot; `OO_UPDATE_SAMPLES=1` rewrites it. `draw` gets the
+    /// frame index and a theme with motion on.
+    pub fn frames(
+        name: &str,
+        w: u16,
+        h: u16,
+        zh: bool,
+        frames: &[(usize, &str)],
+        draw: impl Fn(usize, Rect, &mut Buffer, &Theme),
+    ) {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        let theme = Theme {
+            color: false,
+            motion: true,
+            zh,
+        };
+        let mut text = format!(
+            "# {name}: {} frames at {w}x{h}; the last one is the still frame\n",
+            frames.len()
+        );
+        for (frame, label) in frames {
+            let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
+            terminal
+                .draw(|f| {
+                    let area = f.area();
+                    draw(*frame, area, f.buffer_mut(), &theme);
+                })
+                .unwrap();
+            text.push_str(&format!("\n── frame {frame} · {label} ──\n"));
+            text.push_str(&buffer_text(terminal.backend().buffer()));
+        }
+        let path = samples_dir().join(format!("{name}-frames.txt"));
+        if std::env::var_os("OO_UPDATE_SAMPLES").is_some() {
+            std::fs::write(&path, &text).unwrap();
+            return;
+        }
+        let expected = std::fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing {}; run with OO_UPDATE_SAMPLES=1", path.display()));
+        assert_eq!(text, expected, "frames {} differ", path.display());
     }
 }
 
 /// The splash: dot-shaded orb, scattered accents, wordmark. `frame` past the
 /// last index is the resolved still frame.
 pub fn splash(frame: usize, area: Rect, buf: &mut Buffer, theme: &Theme) {
-    let cells = fx::splash(usize::from(area.width), usize::from(area.height), frame);
+    let cells = fx::splash(
+        usize::from(area.width),
+        usize::from(area.height),
+        theme.frame(frame),
+        theme.zh,
+    );
     blit(buf, area, theme, &cells, (0, 0));
 }
 
@@ -404,6 +428,16 @@ mod splash_tests {
         snapshot::all_sizes("0-splash", |area, buf, theme| {
             splash(usize::MAX, area, buf, theme)
         });
+    }
+
+    #[test]
+    fn splash_frames() {
+        let frames: Vec<(usize, &str)> = [0, 2, 4, 6, 8, 10, 12, 14]
+            .iter()
+            .map(|&f| (f, "dust condenses, glint, tagline decodes"))
+            .chain([(usize::MAX, "still")])
+            .collect();
+        snapshot::frames("0-splash", 80, 24, false, &frames, splash);
     }
 }
 
@@ -426,14 +460,18 @@ pub fn prompt(
         area,
         theme,
         step,
-        &[("⏎", "accept"), ("esc", "cancel"), ("↑↓", "scroll")],
+        &[
+            ("⏎", "accept", "确定"),
+            ("esc", "cancel", "取消"),
+            ("↑↓", "scroll", "滚动"),
+        ],
     );
     if inner.height < 6 {
         return;
     }
     let mut text = label.to_owned();
     if !secret && !default.is_empty() {
-        text.push_str(&format!("\n\ndefault: {default}"));
+        text.push_str(&format!("\n\n{} {default}", theme.t("default:", "默认：")));
     }
     Paragraph::new(text)
         .style(theme.style(Tone::Ink))
@@ -463,7 +501,10 @@ pub fn prompt(
         inner.bottom() - 1,
         inner.width,
         vec![theme.span(
-            "credentials already entered stay saved if you cancel",
+            theme.t(
+                "credentials already entered stay saved if you cancel",
+                "已输入的凭据在取消后仍会保留",
+            ),
             Tone::Faint,
         )],
     );

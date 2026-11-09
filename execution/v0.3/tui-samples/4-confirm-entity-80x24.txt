@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
 │ 客户 ············································  ····     ·   lg.customers │

@@ -1,0 +1,24 @@
+╭ ◆ open ontology ─────────────────────────────────────────────●━●━●━●━◉ 交付 ─╮
+│ 交付 ······················ ···  ·  ·    CLI profile + 分享提示词 · MCP 可选 │
+│                                                                              │
+│ profile  logistics   ● token saved · switch with oo use logistics            │
+│                                                                              │
+│ MCP · Codex  ✓ 已复制  只含 profile 名，不含凭据 · p 看提示词                │
+│ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
+│ ┆ # ~/.codex/config.toml                                                   ┆ │
+│ ┆ [mcp_servers.open-ontology]                                              ┆ │
+│ ┆ command = "oo"                                                           ┆ │
+│ ┆ args = ["mcp", "--profile", "logistics"]                                 ┆ │
+│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
+│                                                                              │
+│ 就绪检查                                                                     │
+│ ✓ pack published     generation 3 · 13 entities                              │
+│ ✓ gateway reachable  https://127.0.0.1:8443 · 4 ms                           │
+│ ✓ visible tables     11 tables for role analyst                              │
+│ ✓ freshness          published 2 min ago                                     │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ ✓ 就绪 · 把提示词交给你的 Agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+╰ c 复制  m MCP 配置  p 提示词  r 重新检查  ⏎ 完成  ───────────────────────────╯

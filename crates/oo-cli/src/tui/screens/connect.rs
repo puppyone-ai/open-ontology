@@ -6,15 +6,21 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 use super::{Action, Check, checklist, input, put};
-use crate::tui::theme::{self, Theme, Tone, fit, heading};
+use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading};
 
-pub const MODES: [&str; 3] = [
-    "paste a connection string",
-    "fill in fields",
-    "no database? use the demo",
+pub const MODES: [(&str, &str); 3] = [
+    ("paste a connection string", "粘贴连接串"),
+    ("fill in fields", "逐项填写"),
+    ("no database? use the demo", "没有数据库？用示例库"),
 ];
-pub const FIELDS: [&str; 7] = [
-    "engine", "host", "port", "database", "user", "password", "CA file",
+pub const FIELDS: [(&str, &str); 7] = [
+    ("engine", "引擎"),
+    ("host", "主机"),
+    ("port", "端口"),
+    ("database", "数据库"),
+    ("user", "用户"),
+    ("password", "密码"),
+    ("CA file", "CA 文件"),
 ];
 const MASK: &str = "••••••";
 
@@ -169,6 +175,8 @@ pub struct Connect {
     pub field: usize,
     pub checks: Vec<Check>,
     pub frame: usize,
+    /// Frame at which the current checks arrived; rows reveal one a frame.
+    pub checks_at: usize,
     pub error: Option<String>,
     /// Engine label once detected.
     pub detected: Option<String>,
@@ -273,11 +281,11 @@ pub fn key(state: &mut Connect, key: KeyEvent) -> Action {
     Action::None
 }
 
-pub const HINTS: [(&str, &str); 4] = [
-    ("↑↓", "choose"),
-    ("tab", "next field"),
-    ("⏎", "connect"),
-    ("esc", "quit"),
+pub const HINTS: [Hint; 4] = [
+    ("↑↓", "choose", "选择"),
+    ("tab", "next field", "下一项"),
+    ("⏎", "connect", "连接"),
+    ("esc", "quit", "退出"),
 ];
 
 pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
@@ -292,12 +300,15 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
         inner.y,
         inner.width,
         theme,
-        "connect",
-        "read-only · nothing is written to your database",
+        theme.t("connect", "连接"),
+        theme.t(
+            "read-only · nothing is written to your database",
+            "只读 · 不会写入你的数据库",
+        ),
     );
     let left_w: u16 = if wide { 32 } else { inner.width };
     let mut y = inner.y + 2;
-    for (index, label) in MODES.iter().enumerate() {
+    for (index, (en, zh)) in MODES.iter().enumerate() {
         let on = index == state.mode;
         put(
             buf,
@@ -305,8 +316,11 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             y,
             left_w,
             vec![
-                theme.span(if on { "▸ " } else { "  " }, Tone::Accent),
-                theme.span(*label, if on { Tone::Ink } else { Tone::Dim }),
+                theme.span(
+                    if on { "◉ " } else { "○ " },
+                    if on { Tone::Accent } else { Tone::Faint },
+                ),
+                theme.span(theme.t(en, zh), if on { Tone::Ink } else { Tone::Dim }),
             ],
         );
         y += 1;
@@ -323,7 +337,10 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             ry += 1;
             let hint = match (state.dsn.is_empty(), state.dsn()) {
                 (true, _) => vec![theme.span(
-                    "e.g. postgres://reader@db.internal:5432/logistics",
+                    format!(
+                        "{} postgres://reader@db.internal:5432/logistics",
+                        theme.t("e.g.", "例如")
+                    ),
                     Tone::Faint,
                 )],
                 (false, Ok(d)) => vec![
@@ -338,7 +355,10 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     ),
                 ],
                 (false, Err(_)) => vec![theme.span(
-                    "○ keep typing: scheme://user@host:port/database",
+                    theme.t(
+                        "○ keep typing: scheme://user@host:port/database",
+                        "○ 继续输入：scheme://user@host:port/database",
+                    ),
                     Tone::Faint,
                 )],
             };
@@ -346,7 +366,8 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             ry += 1;
         }
         1 => {
-            for (index, name) in FIELDS.iter().enumerate() {
+            for (index, (en, zh)) in FIELDS.iter().enumerate() {
+                let name = theme.t(en, zh);
                 if ry >= inner.bottom() {
                     break;
                 }
@@ -359,7 +380,9 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 let shown = if value.is_empty() && index == 2 {
                     engine_of(state.fields[0].trim())
                         .and_then(default_port)
-                        .map_or(String::new(), |p| format!("{p} (default)"))
+                        .map_or(String::new(), |p| {
+                            format!("{p} ({})", theme.t("default", "默认"))
+                        })
                 } else {
                     value
                 };
@@ -381,11 +404,20 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             }
         }
         _ => {
-            for line in [
-                "A local PostgreSQL with an OO-Logistics subset: 12 tables,",
-                "a code table and a calendar. Read-only user, local CA.",
-                "No model key needed; the demo ships a reviewed ontology.",
-            ] {
+            let lines: [&str; 3] = if theme.zh {
+                [
+                    "本地 PostgreSQL，内含 OO-Logistics 子集：12 张表，",
+                    "一张代码表和一张日历表。只读账号，本地 CA。",
+                    "不需要模型 key；示例库自带审核过的本体。",
+                ]
+            } else {
+                [
+                    "A local PostgreSQL with an OO-Logistics subset: 12 tables,",
+                    "a code table and a calendar. Read-only user, local CA.",
+                    "No model key needed; the demo ships a reviewed ontology.",
+                ]
+            };
+            for line in lines {
                 put(
                     buf,
                     rx + 2,
@@ -418,9 +450,18 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             cy,
             inner.width,
             theme,
-            "read-only checks",
-            "advice only; oo never runs DBA statements",
+            theme.t("read-only checks", "只读检查"),
+            theme.t(
+                "advice only; oo never runs DBA statements",
+                "只给建议；oo 从不执行 DBA 语句",
+            ),
         );
+        let frame = theme.frame(state.frame);
+        let shown = if frame == usize::MAX {
+            usize::MAX
+        } else {
+            frame.saturating_sub(state.checks_at) + 1
+        };
         checklist(
             buf,
             Rect::new(
@@ -432,9 +473,9 @@ pub fn render(state: &Connect, area: Rect, buf: &mut Buffer, theme: &Theme) {
             theme,
             &state.checks,
             state.frame,
+            shown,
         );
     }
-    super::ambient(buf, inner, theme);
 }
 
 #[cfg(test)]
@@ -544,5 +585,27 @@ mod tests {
             super::super::buffer_text(&buf)
         };
         assert!(!text.contains("hunter2"));
+    }
+
+    #[test]
+    fn check_rows_reveal_one_a_frame() {
+        let mut state = sample();
+        state.checks_at = 10;
+        let frames: Vec<(usize, &str)> = (10..17)
+            .map(|f| (f, "checks arrive, one row a frame"))
+            .chain([(usize::MAX, "still")])
+            .collect();
+        snapshot::frames(
+            "1-connect",
+            80,
+            24,
+            false,
+            &frames,
+            |f, area, buf, theme| {
+                let mut s = state.clone();
+                s.frame = f;
+                render(&s, area, buf, theme);
+            },
+        );
     }
 }

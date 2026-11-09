@@ -1,49 +1,49 @@
-                                 ·         ·
-              ∙                 •  ••••• ••·•···
-                      ◆       ●●••●••••••••••·•···                     +
-                          ••●●••●●••••••••••••·······  ·✦
-                          ●●••●●••●●•••••••••·•·····     +
-         +       ·      ●●••●●••●●••••••••••••········
-                      •●••●●••●●••••••••••••········               ✦
-                   ·  ••●●••●●••●••••••••••·•········      ◆
-                     •••••●●••••••••••••••••········                ·
-                     •••••••••••••••••••••········          ·  ·
-                     •••••••••••••••••••········· ·
-              ◆       ••••••••••••••••········· ·
-                      •••••••••••·••············
-                      ··••··••··••············                                 ◆
-                       ····•················
-                         ·············· ··                 ·
-                     ◆    ··········  ·                      ·
-                            ··  ·                      ◆
 
 
-                      ∙
-       ∙                 · o p e n   o n t o l o g y
-                          database → ontology → agent
-                   ◆
+                                ✦
+
+
+         ✦
+
+       ██╗ ███╗ ████╗█╗  █╗    ██╗ █╗  █╗█████╗ ██╗ █╗    ██╗  ███╗█╗  █╗
+      █╔═█╗█╔═█╗█╔══╝██╗ █║   █╔═█╗██╗ █║╚═█╔═╝█╔═█╗█║   █╔═█╗█╔══╝╚█╗█╔╝
+      █║ █║███╔╝███╗ █╔█╗█║   █║ █║█╔█╗█║  █║  █║ █║█║   █║ █║█║██╗ ╚█╔╝
+      █║ █║█╔═╝ █╔═╝ █║╚██║   █║ █║█║╚██║  █║  █║ █║█║   █║ █║█║╚█║  █║
+      ╚██╔╝█║   ████╗█║ ╚█║   ╚██╔╝█║ ╚█║  █║  ╚██╔╝████╗╚██╔╝╚███║  █║
+       ╚═╝ ╚╝   ╚═══╝╚╝  ╚╝    ╚═╝ ╚╝  ╚╝  ╚╝   ╚═╝ ╚═══╝ ╚═╝  ╚══╝  ╚╝
+
+
+                       database  ─▶  ontology  ─▶  agent
+
+                            •
+
+
+
+       ✦
+
+                   ✦
 --- colour layer ---
-.................................f.........f
-..............f.................A..AAAAi.iiiiiii
-......................f.......AAAAAAAAAAiiiiiiiiid.....................A
-..........................AAAAAAAAAAAAAAAiiiiiiiiiddd..ff
-..........................AAAAAAAAAAAAAAAiiiiiiiiidd.....f
-.........A.......f......AAAAAAAAAAAAAAAAiiiiiiiiiidddd
-......................AAAAAAAAAAAAAAAAAiiiiiiiiiiidd...............A
-...................f..AAAAAAAAAAAAAAAAiiiiiiiiiiidddd......f
-.....................AAAAAAAAAAAAAAAAiiiiiiiiiiidddd................f
-.....................AAAAAAAAAAAAAAiiiiiiiiiiiiddd..........f..f
-.....................iAAAAAAAAAAiiiiiiiiiiiiiiddd.d
-..............A.......iiiiiiiiiiiiiiiiiiiiiiddd.d
-......................iiiiiiiiiiiiiiiiiiiidddddd
-......................iiiiiiiiiiiiiiiiiidddddd.................................A
-.......................iiiiiiiiiiiiiiddddddd
-.........................iiiiiiiidddddd.dd.................f
-.....................A....dddddddddd..d......................f
-............................dd..d......................f
 
 
-......................f
-.......A.................f.i.i.i.i...i.i.i.i.i.i.i.i
-..........................dddddddd.d.dddddddd.d.ddddd
-...................A
+................................E
+
+
+.........E
+
+.......iiE.iiiE.iiiiEiE..iE....AAE.AE..AEAAAAAE.AAE.AE....AAE..AAAEAE..AE
+......iEEiEiEEiEiEEEEiiE.iE...AEEAEAAE.AEEEAEEEAEEAEAE...AEEAEAEEEEEAEAEE
+......iE.iEiiiEEiiiE.iEiEiE...AE.AEAEAEAE..AE..AE.AEAE...AE.AEAEAAE.EAEE
+......iE.iEiEEE.iEEE.iEEiiE...AE.AEAEEAAE..AE..AE.AEAE...AE.AEAEEAE..AE
+......EiiEEiE...iiiiEiE.EiE...EAAEEAE.EAE..AE..EAAEEAAAAEEAAEEEAAAE..AE
+.......EEE.EE...EEEEEEE..EE....EEE.EE..EE..EE...EEE.EEEEE.EEE..EEEE..EE
+
+
+.......................dddddddd..EE..dddddddd..EE..ddddd
+
+............................f
+
+
+
+.......E
+
+...................E

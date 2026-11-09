@@ -1,4 +1,4 @@
-╭ ◆ open ontology ─────────────────────────────────────────────────● connect──● tables──● build──◉ confirm──○ deliver ─╮
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
 │  graph  │  relations  │  entity                    summary 648cce8b… ┊ decisions ··········· ·  ·   by data evidence │
 │                                                                      ┊                                               │
 │              ╭────────╮    ╭─────────╮    ╭─────────╮                ┊                                               │

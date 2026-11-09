@@ -1,4 +1,4 @@
-╭ ◆ open ontology ────────────────────────────────────────────●─●─◉ build─○─○ ─╮
+╭ ◆ open ontology ────────────────────────────────────────────●━●━◉ build─○─○ ─╮
 │                                                                              │
 │ Model base URL, or @PATH to import a private endpoint file                   │
 │                                                                              │

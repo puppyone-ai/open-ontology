@@ -1,7 +1,7 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
 │  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
 │                                                                              │
-│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮                 │
+│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
 │                │ 司机     │    │ 线路     │    │ 包裹      │                 │
 │                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
 │      ╭─ confirm publication ──────────────────────────────────────────╮      │
@@ -20,5 +20,5 @@
 │               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
 │               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
 │                                                                              │
-│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations ↕                   │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯

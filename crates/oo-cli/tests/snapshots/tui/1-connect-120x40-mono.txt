@@ -1,9 +1,9 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
 │ connect ············································  ····     ·  ·  read-only · nothing is written to your database │
 │                                                                                                                      │
-│ ▸ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
-│   fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
-│   no database? use the demo                                                                                          │
+│ ◉ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
+│ ○ fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
+│ ○ no database? use the demo                                                                                          │
 │                                                                                                                      │
 │                                                                                                                      │
 │ read-only checks ············································   ···        advice only; oo never runs DBA statements │
@@ -34,7 +34,7 @@
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
-│                                                        ·                                 ·                    ·      │
-│                                                                          •          · ·                •   ·   ·     │
-│                ✦                ·                                             ·•    ·         ··    ·  ·  ·  •   ·✦  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
 ╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────────────────────────────────────────────╯

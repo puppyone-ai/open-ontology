@@ -1,0 +1,157 @@
+# 4-confirm-graph: 6 frames at 80x24; the last one is the still frame
+
+── frame 0 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                                                              ↑ 3 more above  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                  ▓▓▓▓▓▓▓▓▓                                   │
+│                                  ▓ ▒                                         │
+│                                  ▓▒ ▒ ▒▒▒▓                                   │
+│                                 ▓▓▓▒▒▒▒▒▓▓▓                                  │
+│                                   ▓  ▓  ▓                                    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 2 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                                                              ↑ 3 more above  │
+│                                ▓ ▓ ▓      ▓                                  │
+│                                ▓ ▒▒ ▒ ▒▒▒ ▒    ▓                             │
+│                         ▓▓▓    ▒▒▒▒▒▒▒▒▒▒▒▒    ▓▓▓▓                          │
+│                                      1                                       │
+│                       ▓▓▓▒▒▒▒▒────╮  ╰╮ ╭────▒▒▒▒▒▓▓▓                        │
+│                                   N   N 1                                    │
+│                                ┏━━┷━━━┷━┷━━┓                                 │
+│                                ┃ 运单      ┃                                 │
+│                                ┃ id · 982k ┃                                 │
+│                                ┗━━┯━━┯━━┯━━┛                                 │
+│                                   N  1  N                                    │
+│                      ▓▓▓▒▒▒▒──────╯  ╰╮ ╰┄┄ ✗ 0▒▒▒ ▓▓▓                       │
+│                                       N                                      │
+│                        ▓▓▓▒    ▒──────┴───╮    ▒▒▓▓▓                         │
+│                           ▓    ▒ ▒ ▒ ▒ ▒  ▒    ▓ ▓                           │
+│                                ▓ ▒▒ ▒ ▒▒▒ ▒    ▓                             │
+│                                ▓▓▓▓▓▓▓▓▓▓▓▓                                  │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 4 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                ▓▓▒▒▒▒▒▒┴──╮    ╭──────┴───╮    ╭────▒▒▒▒▒▒▓▓ ↑ 3 more above  │
+│                ▓ ▒ ▒      │    │ 线路     │    │ 包裹      ▓                 │
+│                ▒ ▒▒ · 540 │    │ id · 420 │    │ id · 2.▒▒ ▒                 │
+│                ▒▒▒───┬────╯    ╰─────┬────╯    ╰─────┬───▒▒▒                 │
+│                      1               1               N                       │
+│                      ╰────────────╮  ╰╮ ╭────────────╯                       │
+│                                   N   N 1                                    │
+│                                ┏━━┷━━━┷━┷━━┓                                 │
+│                                ┃ 运单      ┃                                 │
+│                                ┃ id · 982k ┃                                 │
+│                                ┗━━┯━━┯━━┯━━┛                                 │
+│                                   N  1  N                                    │
+│                     ╭─────────────╯  ╰╮ ╰┄┄ ✗ 0.71 ┄┄╮                       │
+│                     1                 N              1                       │
+│               ▒▒▒───┴─────╮    ╭──────┴───╮    ╭─────┴────▒▒                 │
+│               ▒ ▒ 单      │    │ 运单事件 │    │ 仓库      ▒                 │
+│               ▓ ▒▒ · 1.2M │    │ id · 11M │    │ code · ▒▒ ▒                 │
+│               ▓▓▒▒▒▒▒─┬───╯    ╰─────┬────╯    ╰──────▒▒▒▒▒▓                 │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 6 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
+│                │ 司机     │    │ 线路     │    │ 包裹      │                 │
+│                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
+│                ╰─────┬────╯    ╰─────┬────╯    ╰─────┬─────╯                 │
+│                      1               1               N                       │
+│                      ╰────────────╮  ╰╮ ╭────────────╯                       │
+│                                   N   N 1                                    │
+│                                ┏━━┷━━━┷━┷━━┓                                 │
+│                                ┃ 运单      ┃                                 │
+│                                ┃ id · 982k ┃                                 │
+│                                ┗━━┯━━┯━━┯━━┛                                 │
+│                                   N  1  N                                    │
+│                     ╭─────────────╯  ╰╮ ╰┄┄ ✗ 0.71 ┄┄╮                       │
+│                     1                 N              1                       │
+│               ╭─────┴─────╮    ╭──────┴───╮    ╭─────┴─────╮                 │
+│               │ 订单      │    │ 运单事件 │    │ 仓库      │                 │
+│               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
+│               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 8 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
+│                │ 司机     │    │ 线路     │    │ 包裹      │                 │
+│                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
+│                ╰─────┬────╯    ╰─────┬────╯    ╰─────┬─────╯                 │
+│                      1               1               N                       │
+│                      ╰────────────╮  ╰╮ ╭────────────╯                       │
+│                                   N   N 1                                    │
+│                                ┏━━┷━━━┷━┷━━┓                                 │
+│                                ┃ 运单      ┃                                 │
+│                                ┃ id · 982k ┃                                 │
+│                                ┗━━┯━━┯━━┯━━┛                                 │
+│                                   N  1  N                                    │
+│                     ╭─────────────╯  ╰╮ ╰┄┄ ✗ 0.71 ┄┄╮                       │
+│                     1                 N              1                       │
+│               ╭─────┴─────╮    ╭──────┴───╮    ╭─────┴─────╮                 │
+│               │ 订单      │    │ 运单事件 │    │ 仓库      │                 │
+│               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
+│               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 18446744073709551615 · still ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
+│                │ 司机     │    │ 线路     │    │ 包裹      │                 │
+│                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
+│                ╰─────┬────╯    ╰─────┬────╯    ╰─────┬─────╯                 │
+│                      1               1               N                       │
+│                      ╰────────────╮  ╰╮ ╭────────────╯                       │
+│                                   N   N 1                                    │
+│                                ┏━━┷━━━┷━┷━━┓                                 │
+│                                ┃ 运单      ┃                                 │
+│                                ┃ id · 982k ┃                                 │
+│                                ┗━━┯━━┯━━┯━━┛                                 │
+│                                   N  1  N                                    │
+│                     ╭─────────────╯  ╰╮ ╰┄┄ ✗ 0.71 ┄┄╮                       │
+│                     1                 N              1                       │
+│               ╭─────┴─────╮    ╭──────┴───╮    ╭─────┴─────╮                 │
+│               │ 订单      │    │ 运单事件 │    │ 仓库      │                 │
+│               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
+│               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
+│                                                                              │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯

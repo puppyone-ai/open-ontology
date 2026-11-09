@@ -1,4 +1,4 @@
-╭ ◆ open ontology ──────────────────────────────────────────●─●─●─●─◉ deliver ─╮
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━●━◉ deliver ─╮
 │ deliver ·····················   ·  CLI profile + share prompt · MCP optional │
 │                                                                              │
 │ profile  logistics   ● token saved · switch with oo use logistics            │
@@ -20,10 +20,10 @@
 │                                                                              │
 │                                                                              │
 │                                                                              │
-│ ● ready: hand the prompt to your agent                                       │
+│ ✓ ready · hand the prompt to your agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 ╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯
 --- colour layer ---
-f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffdfdfdfdfA.AAAAAAA.ff
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEEEA.AAAAAAA.ff
 f.iiiiiii.fffffffffffffffffffff...f..ddd.ddddddd.d.ddddd.dddddd.d.ddd.dddddddd.f
 f..............................................................................f
 f.ddddddd..AAAAAAAAA...G.ddddd.ddddd.d.dddddd.dddd.dd.ddd.ddddddddd............f
@@ -45,5 +45,5 @@ f..............................................................................f
 f..............................................................................f
 f..............................................................................f
 f..............................................................................f
-f.G.iiiiii.iiii.iii.iiiiii.ii.iiii.iiiii.......................................f
+f.G.iiiii.i.iiii.iii.iiiiii.ii.iiii.iiiii.EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE.f
 f.A.dddd..A.ddd.dddddd..A.dddddd..A.dddddddd..A.dddd..ffffffffffffffffffffffffff

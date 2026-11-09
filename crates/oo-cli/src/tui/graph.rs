@@ -623,7 +623,13 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
     // Line layer: bits U=1 D=2 L=4 R=8, solid and dashed kept apart.
     let mut solid = vec![vec![0u8; cols]; y];
     let mut dashed = vec![vec![0u8; cols]; y];
-    let mut markers: Vec<(usize, usize, char, bool)> = Vec::new();
+    let mut markers: Vec<(usize, usize, char, bool, bool)> = Vec::new();
+    // Routes touching the selected entity are drawn hot.
+    let sel = view
+        .selected
+        .and_then(|id| nodes.iter().position(|n| n.id == id));
+    let mut hot = vec![vec![false; cols]; y];
+    let mut near = vec![false; n];
     let mut joints: Vec<(usize, usize, bool)> = Vec::new();
     let mut labels: Vec<(Vec<(usize, usize)>, String)> = Vec::new();
     for route in &routes {
@@ -650,16 +656,27 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
             _ => path.push((route.pl, track_y(ru, route.t1))),
         }
         path.push(end);
+        let is_hot = sel.is_some_and(|s| link.a == s || link.b == s);
+        if is_hot {
+            near[link.a] = true;
+            near[link.b] = true;
+        }
         for pair in path.windows(2) {
             line(layer, pair[0], pair[1]);
+            if is_hot {
+                let (a, b) = (pair[0], pair[1]);
+                for row in &mut hot[a.1.min(b.1)..=a.1.max(b.1)] {
+                    row[a.0.min(b.0)..=a.0.max(b.0)].fill(true);
+                }
+            }
         }
         let (side_u, side_l) = if route.u == link.a {
             (link.sides.0, link.sides.1)
         } else {
             (link.sides.1, link.sides.0)
         };
-        markers.push((start.0, start.1, side_u.mark(), link.adopted));
-        markers.push((end.0, end.1, side_l.mark(), link.adopted));
+        markers.push((start.0, start.1, side_u.mark(), link.adopted, is_hot));
+        markers.push((end.0, end.1, side_l.mark(), link.adopted, is_hot));
         joints.push((route.pu, row_y[ru] + BOX_H - 1, true));
         if route.kind == 1 {
             joints.push((route.pl, row_y[rl] + BOX_H - 1, true));
@@ -693,7 +710,12 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
                 continue;
             }
             let c = glyph(s | d, s == 0);
-            canvas.put(cx, cy, c, if s == 0 { Tone::Bad } else { Tone::Info });
+            let tone = match (s == 0, hot[cy][cx]) {
+                (true, _) => Tone::Bad,
+                (false, true) => Tone::Accent,
+                (false, false) => Tone::Info,
+            };
+            canvas.put(cx, cy, c, tone);
         }
     }
     // Evidence labels on clear dashed runs only.
@@ -721,7 +743,7 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
         let focused = focus == Some(node.id.as_str());
         let tone = if heavy {
             Tone::Accent
-        } else if focused {
+        } else if focused || near[i] {
             Tone::Ink
         } else {
             Tone::Faint
@@ -780,10 +802,79 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
         let tone = canvas.cells[jy][jx].1;
         canvas.put(jx, jy, c, tone);
     }
-    for (mx, my, c, adopted) in markers {
-        canvas.put(mx, my, c, if adopted { Tone::Accent } else { Tone::Warn });
+    for (mx, my, c, adopted, is_hot) in markers {
+        let tone = match (adopted, sel.is_none() || is_hot) {
+            (false, _) => Tone::Warn,
+            (true, true) => Tone::Accent,
+            (true, false) => Tone::Dim,
+        };
+        canvas.put(mx, my, c, tone);
     }
     canvas
+}
+
+/// Frames the confirm-screen reveal takes.
+pub const REVEAL_FRAMES: usize = 10;
+
+/// Radar-style reveal (after ascii.rest `radar` and kit `scan`): a front
+/// spreads from `origin` (a cell; columns count half, so it reads round);
+/// cells it has just reached flash as `▓`/`▒`, cells behind it settle to
+/// their own glyph, cells ahead stay blank. Pure in its inputs; the still
+/// frame (`frame >= REVEAL_FRAMES - 1`) is the canvas unchanged.
+pub fn reveal(canvas: &Canvas, origin: (usize, usize), frame: usize) -> Vec<Vec<(char, Tone)>> {
+    if frame >= REVEAL_FRAMES - 1 {
+        return canvas.cells.clone();
+    }
+    let p = (frame + 1) as f32 / (REVEAL_FRAMES - 1) as f32;
+    let dist = |x: usize, y: usize| {
+        let dx = (x as f32 - origin.0 as f32) / 2.0;
+        let dy = y as f32 - origin.1 as f32;
+        (dx * dx + dy * dy).sqrt()
+    };
+    let far = [
+        (0, 0),
+        (canvas.width, 0),
+        (0, canvas.height),
+        (canvas.width, canvas.height),
+    ]
+    .iter()
+    .map(|&(x, y)| dist(x, y))
+    .fold(1.0f32, f32::max);
+    let band = 0.14;
+    let front = p * (1.0 + band);
+    canvas
+        .cells
+        .iter()
+        .enumerate()
+        .map(|(y, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(x, &(c, tone))| {
+                    if c == ' ' {
+                        return (c, tone);
+                    }
+                    let d = dist(x, y) / far;
+                    if d > front {
+                        (' ', Tone::Faint)
+                    } else if front - d < band * 0.4 {
+                        if c == '\0' {
+                            (' ', Tone::Faint)
+                        } else {
+                            ('▓', Tone::Hot)
+                        }
+                    } else if front - d < band {
+                        if c == '\0' {
+                            (' ', Tone::Faint)
+                        } else {
+                            ('▒', Tone::Ember)
+                        }
+                    } else {
+                        (c, tone)
+                    }
+                })
+                .collect()
+        })
+        .collect()
 }
 
 fn line(layer: &mut [Vec<u8>], a: (usize, usize), b: (usize, usize)) {
