@@ -30,3 +30,6 @@ The Builder writes `adjudication.json` beside the reviewed-community input. The 
 Overrides: `overrides.json` = `{"protocol":"oo.adjudication-override/v1","summary_sha256":..., "items": {"<id>": {"decision": "...", "reason": "..."}}}`.
 Confirmation: `{"protocol":"oo.publish-confirm/v1","summary_sha256":...,"overrides_sha256":...,"reason":"...","confirmed_at":...}`.
 The compiler accepts publication only with a confirmation whose summary hash matches the summary recomputed after the overrides are applied.
+
+## summary_sha256 preimage (fixed by the TUI lane, binding for all producers)
+`sha256( compact sorted-key JSON of {"decisions": {<item id>: <decision>}, "graph": <graph block>} )`, with no whitespace, keys sorted recursively, and UTF-8 output (no `\u` escaping of non-ASCII). After overrides are applied, recompute the hash over the overridden decisions; a confirmation is accepted only against that recomputed hash. Reference implementation: `crates/oo-cli/src/tui/adjudication.rs` on branch `v0.3/tui`.
