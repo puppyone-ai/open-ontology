@@ -28,6 +28,17 @@ class D28(unittest.TestCase):
         self.assertEqual(result["classes"]["relation"]["fn"], 1)
         self.assertEqual(result["classes"]["relation"]["missing"], 1)
 
+    def test_gold_baseline_does_not_waive_absolute_or_sensitive_recall(self):
+        document, gold, baseline = self.fixture()
+        baseline.update(protocol="oo.d28-gold-baseline/v1", review_mode="human_authored_gold",
+                        sources=["fixture schema"], adopted_relations=[])
+        self.assertEqual(d28.score(document, gold, baseline)["status"], "passed")
+        document["items"][0]["decision"] = "rejected"
+        self.assertEqual(d28.score(document, gold, baseline)["status"], "incomplete")
+        document["items"][0]["decision"] = "adopted"
+        document["items"][1]["decision"] = "visible"
+        self.assertEqual(d28.score(document, gold, baseline)["status"], "incomplete")
+
     def test_unbound_baseline_is_refused(self):
         document, gold, baseline = self.fixture()
         baseline["gold_sha256"] = "0" * 64

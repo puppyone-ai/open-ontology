@@ -44,10 +44,12 @@ def score(document, gold, baseline=None):
     result = dict(classes=results, unscored_predictions=len(set(predictions) - set(labels)),
                   baseline_status="missing", relation_recall_nonregression=None)
     if baseline is not None:
-        if (baseline.get("protocol") != "oo.d28-human-baseline/v1"
+        gold_baseline = baseline.get("protocol") == "oo.d28-gold-baseline/v1"
+        if (baseline.get("protocol") not in ("oo.d28-human-baseline/v1", "oo.d28-gold-baseline/v1")
                 or baseline.get("gold_sha256") != digest(gold)
                 or not baseline.get("evidence_run_id")
-                or baseline.get("review_mode") != "per_item"):
+                or baseline.get("review_mode") != ("human_authored_gold" if gold_baseline else "per_item")
+                or (gold_baseline and not baseline.get("sources"))):
             raise ValueError("d28_baseline_binding")
         adopted = baseline.get("adopted_relations")
         if (not isinstance(adopted, list) or any(not isinstance(i, str) for i in adopted)
@@ -63,6 +65,9 @@ def score(document, gold, baseline=None):
                       relation_recall_nonregression=recall is not None and
                       results["relation"]["recall"] is not None and results["relation"]["recall"] >= recall)
     result["status"] = ("passed" if result["relation_recall_nonregression"] is True and
+                        (results["relation"]["recall"] or 0) >= .95 and
+                        (results["sensitive"]["recall"] or 0) >= .9 and
+                        (results["sensitive"]["precision"] or 0) >= .9 and
                         not result["unscored_predictions"] and
                         all(c["gold_count"] and not c["missing"] for c in results.values()) else "incomplete")
     return result

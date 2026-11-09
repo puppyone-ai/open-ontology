@@ -190,6 +190,39 @@ def join_count(definitions, child, columns, parent, keys):
     return sum(qualified_joins(sql, pairs) for sql in definitions)
 
 
+def discover_candidates(command, tables):
+    """Expand before binding input bytes; adjudication measures every candidate."""
+    edges = command["draft"]["graph"]["edges"]
+    def identity(edge):
+        return (edge["from"], tuple(edge["columns"]["from"]),
+                edge["to"], tuple(edge["columns"]["to"]))
+    seen = {identity(e) for e in edges}
+    def keylike(table, name):
+        return (name in table.get("primary_key", []) or
+                bool(re.search(r"(^id$|id$|code$|_dm$|_bh$|_ddh$|ydh$)", name, re.I)))
+    for child in sorted(tables, key=lambda t: t["dataset"]):
+        for parent in sorted(tables, key=lambda t: t["dataset"]):
+            if child["dataset"] == parent["dataset"]:
+                continue
+            pairs = [([c["name"]], [k["name"]])
+                     for c in child["columns"] if keylike(child, c["name"])
+                     for k in parent["columns"] if keylike(parent, k["name"])
+                     and type_family(c) == type_family(k)]
+            pk = parent.get("primary_key", [])
+            if len(pk) > 1 and set(pk) <= {c["name"] for c in child["columns"]}:
+                pairs.append((pk, pk))
+            for columns, keys in pairs:
+                edge = dict(**{"from": child["dataset"], "to": parent["dataset"]},
+                            columns={"from": columns, "to": keys},
+                            provenance="containment", confidence=0.5)
+                signature = identity(edge)
+                if signature not in seen:
+                    seen.add(signature)
+                    edge["id"] = "discovered-" + lib.digest(signature)[:24]
+                    edges.append(edge)
+    command["source_draft_sha256"] = lib.digest(command["draft"])
+
+
 def collect(db, command, tables, input_sha256):
     config = thresholds()
     inventory = {t["dataset"]: t for t in tables}

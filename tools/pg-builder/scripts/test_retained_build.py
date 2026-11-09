@@ -187,12 +187,12 @@ class RetainedBuild(unittest.TestCase):
                     {'name': 'amount', 'data_type': data_type}]}]}}}
 
     def run_build(self, generation, origin=None):
-        original = build.adjudication.collect
-        def collect(db, command, tables, sha):
-            # Old model stubs omit the graph; still exercise the real collector.
-            return original(db, dict(command, draft=dict(command["draft"], graph={"edges": []})), tables, sha)
+        original = build.review_input
+        def review_input(tables, draft, project):
+            # Supply the real graph shape omitted by the old replay stubs.
+            return original(tables, dict(draft, graph={"edges": []}), project)
         with patch.object(build.lib, 'ReadOnlyPostgres', return_value=Db(cut(generation))), patch.object(
-                build.adjudication, 'collect', side_effect=collect):
+                build, 'review_input', side_effect=review_input):
             return build.run(self.config(generation, origin), self.root / ('out-%d' % generation))
 
     def test_data_only_cycle_reuses_review_with_zero_model_calls(self):

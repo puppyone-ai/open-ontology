@@ -228,6 +228,7 @@ def run(config_path, output):
         command['excluded_foreign_keys'] = [
             dict(dataset=t['dataset'], **fk)
             for t in facts['tables'] for fk in t.get('excluded_foreign_keys', [])]
+    adjudication.discover_candidates(command, facts['tables'])
     input_hash = save(output / 'review-input.json', command)
     decisions = adjudication.collect(db, command, facts['tables'], input_hash)
     _, current_provenance = facts_for(db, config)

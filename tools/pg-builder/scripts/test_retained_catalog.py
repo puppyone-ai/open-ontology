@@ -60,6 +60,10 @@ def fixture():
 
 class RelatedDb(Db):
     def query(self, sql):
+        if 'from pg_views' in sql:
+            return []
+        if 'from pg_extension' in sql:
+            return None
         if "'entropy'" in sql:
             return dict(rows=2, non_null=2, distinct=2, readable=0, max_length=1,
                         phone=0, id_card=0, email=0, bank_card=0, entropy=1)

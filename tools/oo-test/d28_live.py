@@ -1,8 +1,4 @@
-"""Owned PG replica integration for D28; no source, model, or publisher access.
-
-The candidate pools are fixed synthetic test inputs, not a discovery benchmark.
-An absent historical per-item baseline produces an incomplete D28-T, never a pass.
-"""
+"""Owned PG replica D28 fixed/open pools against human-authored fixture gold."""
 import argparse
 import hashlib
 import importlib.util
@@ -21,6 +17,7 @@ import adjudication
 import library_selfbuild as lib
 import measure_reconciliation
 import retained_build
+import d28
 from library_observation import quote
 
 
@@ -34,6 +31,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--logistics", type=Path, required=True)
     parser.add_argument("--image", default="postgres:17.11-bookworm")
+    parser.add_argument("--open-pool", action="store_true")
     args = parser.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -59,12 +57,12 @@ def main():
 
     try:
         run(["docker", "run", "--detach", "--name", name, "--label", "oo.lane=g",
-             "--label", "oo.task=V3-G-01", "--mount",
+             "--label", "oo.task=V3-G-02", "--mount",
              f"type=bind,src={private},dst=/run/d28,readonly",
              "-e", "POSTGRES_PASSWORD_FILE=/run/d28/postgres-password", args.image])
         created = True
         for _ in range(90):
-            if subprocess.run(["docker", "exec", name, "pg_isready", "-U", "postgres"],
+            if subprocess.run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
                 break
             time.sleep(1)
@@ -115,6 +113,8 @@ def main():
                 raise AssertionError("d28_profile_probe")
             probes[field] = dict(profile=profile, decision=decision)
         save(out / "profile-probes.json", probes)
+        from d28_semantic import semantic_probes
+        save(out / "semantic-probes.json", semantic_probes(admin, db))
         manifest = {"datasets":[]}
         for dataset, schema, names, pool in [
             ("T6", "t6", ["regions","areas","sites","codes","customers","orders","shipments",
@@ -185,11 +185,42 @@ def main():
                     measure=dict(command["adjudication_specs"]["metrics"]["order_count"]["measure"],
                                  metric="class_dependent_count"),
                     code_dependencies=["code_table/customer_class"])
+            # This expanded gold comes from fixture schema and gold SQL, not
+            # from containment results or the discovered decision set.
+            gold_pairs = {(schema+"."+c, (col,), schema+"."+p, (key,))
+                          for c, col, p, key, positive in pool if positive}
+            if schema == "t6":
+                gold_pairs.update((schema+"."+c, (col,), schema+"."+p, (key,))
+                                  for c, col, p, key in [
+                    ("shipments","site_id","sites","id"),
+                    ("events","order_id","orders","id"),
+                    ("log_202601","order_id","orders","id"),
+                    ("log_202602","order_id","orders","id")])
+            else:
+                gold_pairs.update([
+                    ("logistics.dd", ("khid",), "logistics.kh", ("khid",)),
+                    ("logistics.ht", ("khid",), "logistics.kh", ("khid",)),
+                    ("logistics.dd", ("htid","bb"), "logistics.ht", ("htid","bb")),
+                    ("logistics.yd", ("sj_id",), "logistics.sj", ("sjid",))])
+            if args.open_pool:
+                adjudication.discover_candidates(command, tables)
             prefix = dataset.lower().replace("-", "_")
             input_ref = save(out / (prefix+"-input.json"), command)
             document = adjudication.collect(db, command, tables, input_ref["sha256"])
             labels = [{"id":f"relation/candidate-{i}", "class":"relation","positive":positive}
                       for i, (*_, positive) in enumerate(pool)]
+            if args.open_pool:
+                labels = []
+                found = set()
+                for edge in command["draft"]["graph"]["edges"]:
+                    pair = (edge["from"], tuple(edge["columns"]["from"]),
+                            edge["to"], tuple(edge["columns"]["to"]))
+                    found.add(pair)
+                    labels.append(dict(id="relation/"+edge["id"], **{
+                        "class":"relation", "positive":pair in gold_pairs}))
+                for pair in sorted(gold_pairs - found):
+                    labels.append(dict(id="relation/missing-"+lib.digest(pair)[:24],
+                                       **{"class":"relation", "positive":True}))
             # Ground truth is fixed from declared fixture keys and the named
             # semantic PII canaries, never copied from the observed decisions.
             for table in tables:
@@ -206,11 +237,43 @@ def main():
                     {"id":"code_table/customer_status","class":"code_table","positive":True},
                     {"id":"code_table/customer_class","class":"code_table","positive":False},
                     {"id":"metric/class_dependent_count","class":"metric","positive":False}])
+            if args.open_pool:
+                for edge in command["draft"]["graph"]["edges"]:
+                    if edge["id"].startswith("candidate-"):
+                        continue
+                    parent = next(t for t in tables if t["dataset"] == edge["to"])
+                    if parent["primary_key"] == edge["columns"]["to"] and any(
+                            "code" in n for n in edge["columns"]["to"]):
+                        pair = (edge["from"], tuple(edge["columns"]["from"]),
+                                edge["to"], tuple(edge["columns"]["to"]))
+                        labels.append(dict(id="code_table/"+edge["id"], **{
+                            "class":"code_table", "positive":pair in gold_pairs}))
             gold = dict(protocol="oo.d28-gold/v1", dataset=dataset, items=labels,
-                        scope="fixed candidate adjudication; semantic canaries remain positive gold")
+                        scope="open key-like pairs" if args.open_pool else "fixed candidate pool")
+            declared = db.query(
+                "select coalesce(json_agg(json_build_object('child',n.nspname||'.'||c.relname,"
+                "'parent',pn.nspname||'.'||p.relname,'columns',"
+                "(select json_agg(a.attname order by u.i) from unnest(f.conkey) with ordinality u(k,i)"
+                " join pg_attribute a on a.attrelid=c.oid and a.attnum=u.k),'keys',"
+                "(select json_agg(a.attname order by u.i) from unnest(f.confkey) with ordinality u(k,i)"
+                " join pg_attribute a on a.attrelid=p.oid and a.attnum=u.k))),'[]'::json)"
+                " from pg_constraint f join pg_class c on c.oid=f.conrelid"
+                " join pg_namespace n on n.oid=c.relnamespace join pg_class p on p.oid=f.confrelid"
+                " join pg_namespace pn on pn.oid=p.relnamespace where f.contype='f' and n.nspname="
+                + lib.literal(schema))
+            declared_pairs = {(f["child"],tuple(f["columns"]),f["parent"],tuple(f["keys"]))
+                              for f in declared}
+            baseline = dict(protocol="oo.d28-gold-baseline/v1", gold_sha256=d28.digest(gold),
+                evidence_run_id=out.name, review_mode="human_authored_gold",
+                sources=["testing/engines/gold/postgres.sql", "testing/engines/seed-common/generate.py"]
+                        if schema == "t6" else ["bench/datagen/src/catalog.rs", "bench/datagen/src/rows.rs"],
+                l1_review="not usable: l1-final-evidence.json records counts, not per-relation decisions",
+                adopted_relations=["relation/"+e["id"] for e in command["draft"]["graph"]["edges"]
+                    if (e["from"],tuple(e["columns"]["from"]),e["to"],tuple(e["columns"]["to"])) in declared_pairs])
             manifest["datasets"].append(dict(name=dataset,
                 adjudication=save(out / (prefix+"-adjudication.json"),document),
-                gold=save(out / (prefix+"-gold.json"),gold)))
+                gold=save(out / (prefix+"-gold.json"),gold),
+                baseline=save(out / (prefix+"-baseline.json"),baseline)))
             # Compile the actual Python output with the Rust consumer.
             overrides = dict(protocol="oo.adjudication-override/v1",
                              summary_sha256=document["summary_sha256"],items={})

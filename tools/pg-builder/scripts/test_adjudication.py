@@ -11,6 +11,20 @@ from test_retained_build import Db, cut, facts
 
 
 class Adjudication(unittest.TestCase):
+    def test_open_discovery_is_not_limited_to_model_candidates(self):
+        tables = [
+            dict(dataset='app.orders', primary_key=['id'], columns=[
+                dict(name='id', data_type='bigint'), dict(name='customer_id', data_type='bigint')]),
+            dict(dataset='app.customers', primary_key=['id'], columns=[
+                dict(name='id', data_type='bigint')])]
+        command = {'draft': {'graph': {'edges': []}}}
+        a.discover_candidates(command, tables)
+        edges = copy.deepcopy(command['draft']['graph']['edges'])
+        self.assertTrue(any(e['from'] == 'app.orders' and
+                            e['columns']['from'] == ['customer_id'] for e in edges))
+        a.discover_candidates(command, tables)
+        self.assertEqual(edges, command['draft']['graph']['edges'])
+
     def test_shared_tui_hash_vector(self):
         vector = json.loads((Path(__file__).resolve().parents[3] /
                             'crates/oo-builder/tests/adjudication-hash-vector.json').read_text())
