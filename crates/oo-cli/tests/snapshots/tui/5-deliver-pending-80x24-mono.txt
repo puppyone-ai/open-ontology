@@ -5,20 +5,20 @@
 │                                                                              │
 │ share prompt  c copy                                                         │
 │ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
-│ ┆ You can answer business questions from the "logistics" ontology with the ┆ │
-│ ┆ oo CLI. Start wi╭─ MCP configuration for ──────────────╮ `oo --profile   ┆ │
-│ ┆ logistics descri│ ▸ Claude Code                        │`oo --profile    ┆ │
-│ ┆ logistics query`│   Cursor                             │                 ┆ │
-│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│   Codex                              │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
-│                   │                                      │                   │
-│ readiness         │ ⏎ show   esc back                    │                   │
-│ · pack published  ╰──────────────────────────────────────╯ build             │
-│ · gateway reachable  readiness check not available in this build             │
-│ · visible tables     readiness check not available in this build             │
-│ · freshness          readiness check not available in this build             │
+│ ┆ Use the local Open Ontology profile logistics.                           ┆ │
+│ ┆ Run oo use logis╭─ MCP configuration for ──────────────╮skill.           ┆ │
+│ ┆ Inspect oo table│ ▸ Claude Code                        │ery only through ┆ │
+│ ┆ the Gateway.    │   Cursor                             │                 ┆ │
+│ ┆ … 5 more lines (│   Codex                              │                 ┆ │
+│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│                                      │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
+│                   │ ⏎ show   esc back                    │                   │
+│ readiness         ╰──────────────────────────────────────╯                   │
+│ ✗ pack published     PROFILE_NOT_PROVISIONED                                 │
+│ ✗ gateway reachable  PROFILE_NOT_PROVISIONED                                 │
+│ ✗ visible tables     PROFILE_NOT_PROVISIONED                                 │
+│ ✗ freshness          PROFILE_NOT_PROVISIONED                                 │
 │                                                                              │
 │                                                                              │
 │                                                                              │
-│                                                                              │
-│ ○ readiness not confirmed yet                                                │
+│ ● not ready: see the failed check                                            │
 ╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯

@@ -738,17 +738,18 @@ fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
     let Some(selected) = app::select(&mut term, &tables).map_err(Failure::local)? else {
         return Err(Failure::local("TUI_CANCELLED"));
     };
-    let done = json!({"stages":[
-        {"name":"load","status":"done"},{"name":"profile","status":"done"},{"name":"draft","status":"done"},
-        {"name":"adjudicate","status":"done"},{"name":"compile","status":"done"}]});
+    // This path still previews shipped assets. Do not invent successful build stages.
+    let done = json!({"stages":[]});
     let mut first = true;
     app::build(&mut term, &mut || {
         (std::mem::take(&mut first).then(|| done.clone()), true)
     })
     .map_err(Failure::local)?;
     let adj = crate::tui::adjudication::parse(
-        serde_json::from_str(include_str!("../../tests/fixtures/adjudication.json"))
-            .map_err(|_| Failure::local("DEMO_ADJUDICATION"))?,
+        serde_json::from_str(include_str!(
+            "../../../../deploy/lite/demo/adjudication.json"
+        ))
+        .map_err(|_| Failure::local("DEMO_ADJUDICATION"))?,
     )
     .map_err(Failure::local)?;
     let Some((confirm, overrides)) =
@@ -758,7 +759,12 @@ fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
         return Err(Failure::local("TUI_CANCELLED"));
     };
     let profile = opts.profile.clone().unwrap_or_else(|| "demo".into());
-    app::deliver(&mut term, &crate::tui::backend::Pending, &profile).map_err(Failure::local)?;
+    let delivery = crate::tui::backend::Local {
+        root: crate::lifecycle::directory().map_err(|_| Failure::local("PROFILE_DIRECTORY"))?,
+        issued_profile: None,
+        zh: zh(),
+    };
+    app::deliver(&mut term, &delivery, &profile).map_err(Failure::local)?;
     drop(term);
     Ok(Invocation::Help(
         json!({"protocol":"oo.quickstart-preview/v1","selected":selected,

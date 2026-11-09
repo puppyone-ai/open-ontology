@@ -5,10 +5,10 @@
 │                                                                                                                      │
 │ MCP · Codex  ✓ copied  profile name only, no credentials · p prompt                                                  │
 │ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮                 │
-│ ┆ # ~/.codex/config.toml                                                                           ┆                 │
 │ ┆ [mcp_servers.open-ontology]                                                                      ┆                 │
 │ ┆ command = "oo"                                                                                   ┆                 │
-│ ┆ args = ["mcp", "--profile", "logistics"]                                                         ┆                 │
+│ ┆ args = ["mcp", "--stdio", "--profile", "logistics"]                                              ┆                 │
+│ ┆                                                                                                  ┆                 │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯                 │
 │                                                                                                                      │
 │ readiness                                                                                                            │

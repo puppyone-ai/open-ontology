@@ -1,14 +1,14 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────●━●━●━●━◉ 交付 ─╮
 │ 交付 ······················ ···  ·  ·    CLI profile + 分享提示词 · MCP 可选 │
 │                                                                              │
-│ profile  logistics   ● token saved · switch with oo use logistics            │
+│ 配置  logistics   ● token saved · switch with oo use logistics               │
 │                                                                              │
 │ MCP · Codex  ✓ 已复制  只含 profile 名，不含凭据 · p 看提示词                │
 │ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
-│ ┆ # ~/.codex/config.toml                                                   ┆ │
 │ ┆ [mcp_servers.open-ontology]                                              ┆ │
 │ ┆ command = "oo"                                                           ┆ │
-│ ┆ args = ["mcp", "--profile", "logistics"]                                 ┆ │
+│ ┆ args = ["mcp", "--stdio", "--profile", "logistics"]                      ┆ │
+│ ┆                                                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ 就绪检查                                                                     │

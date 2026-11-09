@@ -5,10 +5,10 @@
 │                                                                              │
 │ MCP · Codex  ✓ copied  profile name only, no credentials · p prompt          │
 │ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
-│ ┆ # ~/.codex/config.toml                                                   ┆ │
 │ ┆ [mcp_servers.open-ontology]                                              ┆ │
 │ ┆ command = "oo"                                                           ┆ │
-│ ┆ args = ["mcp", "--profile", "logistics"]                                 ┆ │
+│ ┆ args = ["mcp", "--stdio", "--profile", "logistics"]                      ┆ │
+│ ┆                                                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -30,10 +30,10 @@ f.ddddddd..AAAAAAAAA...G.ddddd.ddddd.d.dddddd.dddd.dd.ddd.ddddddddd............f
 f..............................................................................f
 f.iii.i.iiiii..G.GGGGGG..fffffff.ffff.fffff.ff.fffffffffff.f.f.ffffff..........f
 f.ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.f
-f.f.B.BBBBBBBBBBBBBBBBBBBB...................................................f.f
 f.f.BBBBBBBBBBBBBBBBBBBBBBBBBBB..............................................f.f
 f.f.BBBBBBB.B.BBBB...........................................................f.f
-f.f.BBBB.B.BBBBBBB.BBBBBBBBBBBB.BBBBBBBBBBBB.................................f.f
+f.f.BBBB.B.BBBBBBB.BBBBBBBBBB.BBBBBBBBBBBB.BBBBBBBBBBBB......................f.f
+f.f..........................................................................f.f
 f.ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.f
 f..............................................................................f
 f.iiiiiiiii....................................................................f

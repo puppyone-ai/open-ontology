@@ -33,7 +33,9 @@ pub enum Request {
 
 impl Deliver {
     pub fn ready(&self) -> bool {
-        !self.checks.is_empty() && self.checks.iter().all(|c| c.status == Status::Pass)
+        self.profile_note.is_ok()
+            && !self.checks.is_empty()
+            && self.checks.iter().all(|c| c.status == Status::Pass)
     }
 }
 
@@ -136,7 +138,7 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         y,
         inner.width,
         vec![
-            theme.span(theme.t("profile  ", "profile  "), Tone::Dim),
+            theme.span(theme.t("profile  ", "配置  "), Tone::Dim),
             theme.span(state.profile.clone(), Tone::Accent),
             theme.span(format!("   {mark} "), tone),
             theme.span(
@@ -168,7 +170,7 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
         ),
     };
     let lines = wrap(&body, text_w);
-    let max_lines = usize::from(inner.height.saturating_sub(15)).clamp(3, 10);
+    let max_lines = usize::from(inner.height.saturating_sub(18)).clamp(3, 10);
     let copied = if state.copied {
         theme.t("  ✓ copied", "  ✓ 已复制")
     } else {
@@ -412,13 +414,13 @@ fn banner(buf: &mut Buffer, area: Rect, theme: &Theme, local: usize) {
 mod tests {
     use super::super::snapshot;
     use super::*;
-    use crate::tui::backend::{Delivery, Pending, mcp_config};
+    use crate::tui::backend::{mcp_config, readiness_rows};
 
     pub(crate) fn sample() -> Deliver {
         Deliver {
             profile: "logistics".into(),
             profile_note: Ok("token saved · switch with oo use logistics".into()),
-            share_prompt: Pending.share_prompt("logistics"),
+            share_prompt: crate::share_prompt::render_localized("logistics", false).unwrap(),
             copied: true,
             mcp_menu: false,
             mcp_choice: 0,
@@ -452,6 +454,8 @@ mod tests {
             Request::Mcp(McpClient::Cursor)
         );
         assert!(s.ready());
+        s.profile_note = Err("PROFILE_EXISTS_OR_WRITE_FAILED".into());
+        assert!(!s.ready());
     }
 
     #[test]
@@ -465,7 +469,7 @@ mod tests {
         pending.copied = false;
         pending.mcp = None;
         pending.mcp_menu = true;
-        pending.checks = Pending.check("logistics");
+        pending.checks = readiness_rows(Err("PROFILE_NOT_PROVISIONED"), false);
         snapshot::check(
             "5-deliver-pending",
             80,

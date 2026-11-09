@@ -75,6 +75,22 @@ fn allowed_request(path: &str, post: bool) -> bool {
     }
 }
 
+pub fn render(agent: &str, profile: &str) -> Result<String, &'static str> {
+    if !crate::profile::valid_name(profile) {
+        return Err("PROFILE_NAME");
+    }
+    match agent {
+        "claude" | "cursor" => Ok(serde_json::json!({"mcpServers": {
+            "open-ontology": {"command": "oo", "args": ["mcp", "--stdio", "--profile", profile]}
+        }})
+        .to_string()),
+        "codex" => Ok(format!(
+            "[mcp_servers.open-ontology]\ncommand = \"oo\"\nargs = [\"mcp\", \"--stdio\", \"--profile\", \"{profile}\"]\n"
+        )),
+        _ => Err("MCP_AGENT"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::allowed_request;
@@ -93,21 +109,5 @@ mod tests {
         assert!(allowed_request("/v1/query", true));
         assert!(!allowed_request("/v1/query", false));
         assert!(allowed_request("/v1/knowledge/entities/orders.md", false));
-    }
-}
-
-pub fn render(agent: &str, profile: &str) -> Result<String, &'static str> {
-    if !crate::profile::valid_name(profile) {
-        return Err("PROFILE_NAME");
-    }
-    match agent {
-        "claude" | "cursor" => Ok(serde_json::json!({"mcpServers": {
-            "open-ontology": {"command": "oo", "args": ["mcp", "--stdio", "--profile", profile]}
-        }})
-        .to_string()),
-        "codex" => Ok(format!(
-            "[mcp_servers.open-ontology]\ncommand = \"oo\"\nargs = [\"mcp\", \"--stdio\", \"--profile\", \"{profile}\"]\n"
-        )),
-        _ => Err("MCP_AGENT"),
     }
 }
