@@ -1,5 +1,16 @@
 # Production impact
 
+## Pending mitigation: no new production recommendation
+
+The T10 harness now uses half the settled rate for automatic-rate measurements.
+No new live T1/T2 or impact measurements accompany that change; retain the
+existing operational cautions and do not interpret historical live-4 numbers
+as results of the new method. The [partial mitigation handoff](../../tools/oo-test/T10-MITIGATE.md)
+records the unresolved snapshot/digest proof and the MySQL 100,000-key handoff
+limit, which cannot cover T10's two-million-row bulk table merely by raising
+a harness setting. Snapshot defaults, source settings and safety caps remain
+unchanged. S6-H-02 is still incomplete.
+
 ## Current measurement: T10-live-4
 
 No engine passed every phase. See the [measured phase table](../guide/production-impact.md)

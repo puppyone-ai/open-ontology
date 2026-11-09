@@ -3,6 +3,16 @@
 Production-impact acceptance is separate from functional correctness. A passing
 T1/T2 run, a successful build, or the lite C5 default is not a D24 measurement.
 
+## Pending mitigation: revised foreground rate
+
+T10 automatic-rate runs now offer 50% of the settled sustainable rate after
+the unchanged calibration and settling procedure. Receipts separately record
+capacity, settled rate and used rate. Explicit rates remain overrides, not
+measured utilization. This method change has 51 passing offline harness tests,
+but no new live phase measurements; it is not a product snapshot mitigation.
+S6-H-02 remains incomplete. See the [partial mitigation handoff](../../tools/oo-test/T10-MITIGATE.md)
+for unresolved correctness, handoff-budget and remeasurement work.
+
 ## Current measurement: T10-live-4
 
 **S6-H-02 remains incomplete; no engine has passed every D24 phase.**
