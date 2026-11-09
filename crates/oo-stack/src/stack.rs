@@ -221,6 +221,26 @@ pub fn secret_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
 }
 
+/// References select an explicit source; never search environment variables.
+pub fn secret_reference(reference: &str) -> bool {
+    if let Some(name) = reference.strip_prefix("env:") {
+        return !name.is_empty()
+            && name.len() <= 128
+            && (name.as_bytes()[0].is_ascii_alphabetic() || name.starts_with('_'))
+            && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+    }
+    if let Some(file) = reference.strip_prefix("file:") {
+        let path = std::path::Path::new(file);
+        return text(file)
+            && path.is_absolute()
+            && path.file_name().is_some()
+            && !path
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir));
+    }
+    secret_name(reference)
+}
+
 fn text(value: &str) -> bool {
     !value.is_empty() && value.len() <= 2048 && !value.chars().any(char::is_control)
 }
@@ -359,10 +379,10 @@ pub fn validate(stack: &Stack) -> Result<()> {
             || s.port == 0
             || !text(&s.database)
             || !text(&s.user)
-            || !secret_name(&s.password.secret_ref)
+            || !secret_reference(&s.password.secret_ref)
             || s.tls_ca
                 .as_ref()
-                .is_some_and(|ca| !secret_name(&ca.secret_ref))
+                .is_some_and(|ca| !secret_reference(&ca.secret_ref))
             || s.engine.is_empty()
             || s.engine.len() > 64
             || !s
@@ -396,7 +416,7 @@ pub fn validate(stack: &Stack) -> Result<()> {
                     .key
                     .iter()
                     .chain(ssh.password.iter())
-                    .any(|r| !secret_name(&r.secret_ref))
+                    .any(|r| !secret_reference(&r.secret_ref))
                 || !fingerprint(&ssh.host_key_sha256))
         {
             return Err("STACK_SSH");
@@ -406,10 +426,10 @@ pub fn validate(stack: &Stack) -> Result<()> {
     if !matches!(m.provider.as_str(), "openai-compatible" | "anthropic")
         || !match &m.base_url {
             ModelEndpoint::Url(url) => endpoint(url),
-            ModelEndpoint::Secret(reference) => secret_name(&reference.secret_ref),
+            ModelEndpoint::Secret(reference) => secret_reference(&reference.secret_ref),
         }
         || !text(&m.model)
-        || !secret_name(&m.key.secret_ref)
+        || !secret_reference(&m.key.secret_ref)
     {
         return Err("STACK_MODEL");
     }
@@ -433,7 +453,7 @@ pub fn validate(stack: &Stack) -> Result<()> {
                 .key
                 .iter()
                 .chain(&ssh.password)
-                .any(|r| !secret_name(&r.secret_ref)))
+                .any(|r| !secret_reference(&r.secret_ref)))
     {
         return Err("STACK_DEPLOY_SSH");
     }

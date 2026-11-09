@@ -50,6 +50,20 @@ fn defaults_and_roundtrip() {
 }
 
 #[test]
+fn explicit_secret_sources_roundtrip_without_values() {
+    let mut value = config();
+    value["sources"][0]["password"]["secret_ref"] = json!("env:OO_SOURCE_PASSWORD");
+    value["model"]["key"]["secret_ref"] = json!("file:/run/secrets/model-key");
+    let stack = parse(&value.to_string()).unwrap();
+    let saved = serde_json::to_value(stack).unwrap();
+    assert_eq!(
+        saved["sources"][0]["password"],
+        value["sources"][0]["password"]
+    );
+    assert_eq!(saved["model"]["key"], value["model"]["key"]);
+}
+
+#[test]
 fn source_tls_anchor_is_a_reference_not_inline_material() {
     let mut value = config();
     value["sources"][0]["tls_ca"] = json!({"secret_ref":"fixture-ca"});

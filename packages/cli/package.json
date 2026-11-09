@@ -19,6 +19,8 @@
     "native/*/oo",
     "native/*/oo.exe",
     "native/*/oo-lite-image",
+    "native/*/oo-mysql-doctor",
+    "native/*/oo-mysql-doctor.exe",
     "README.md",
     "LICENSE",
     "NOTICE",

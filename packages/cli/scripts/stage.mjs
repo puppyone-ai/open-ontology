@@ -94,7 +94,12 @@ export async function stage({ output, binaries, notices, root = packageRoot, par
     const bytes = await readFile(path);
     checkBinary(bytes, target);
     const image = checkImage(await readFile(join(dirname(path), 'oo-lite-image'), 'utf8'));
-    verified.push({ target, path, bytes, image });
+    let doctor;
+    try {
+      doctor = await readFile(join(dirname(path), 'oo-mysql-doctor'));
+      checkBinary(doctor, target);
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    verified.push({ target, path, bytes, image, doctor });
   }
   // Construct an allowlisted clean directory; never npm-pack the repository.
   await mkdir(output, { mode: 0o700 });
@@ -107,13 +112,18 @@ export async function stage({ output, binaries, notices, root = packageRoot, par
   await writeFile(join(output, 'dependencies.json'), dependencies);
   await writeFile(join(output, 'SKILL.md'), skill);
   const manifest = { schema_version: 1, skill_sha256: sha256(skill), binaries: {} };
-  for (const { target, bytes, image } of verified) {
+  for (const { target, bytes, image, doctor } of verified) {
     const relative = `native/${target}/oo${target.startsWith('win32-') ? '.exe' : ''}`;
     await mkdir(dirname(join(output, relative)), { recursive: true });
     await writeFile(join(output, relative), bytes);
     await chmod(join(output, relative), 0o755);
     await writeFile(join(dirname(join(output, relative)), 'oo-lite-image'), image);
     manifest.binaries[target] = { path: relative, sha256: sha256(bytes) };
+    if (doctor) {
+      const path = `native/${target}/oo-mysql-doctor${target.startsWith('win32-') ? '.exe' : ''}`;
+      await writeFile(join(output, path), doctor, { mode: 0o755 });
+      manifest.binaries[target].mysql_doctor = { path, sha256: sha256(doctor) };
+    }
   }
   await writeFile(join(output, 'native/manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   return { output, targets: Object.keys(manifest.binaries), skill_sha256: manifest.skill_sha256 };

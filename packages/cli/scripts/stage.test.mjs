@@ -64,6 +64,7 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     await assert.rejects(stage(args), /ENOENT/);
     const image = `registry.example/oo@sha256:${'a'.repeat(64)}\n`;
     await writeFile(join(dir, 'oo-lite-image'), image);
+    await writeFile(join(dir, 'oo-mysql-doctor'), binary('linux-x64'));
     await stage(args);
     const metadata = JSON.parse(await readFile(join(output, 'package.json'), 'utf8'));
     assert.equal(metadata.private, true);
@@ -75,13 +76,14 @@ test('stage is allowlisted, self-contained, hashed, and refuses existing output'
     const manifest = JSON.parse(await readFile(join(output, 'native/manifest.json'), 'utf8'));
     assert.equal(manifest.binaries['linux-x64'].path, 'native/linux-x64/oo');
     assert.match(manifest.binaries['linux-x64'].sha256, /^[a-f0-9]{64}$/);
+    assert.match(manifest.binaries['linux-x64'].mysql_doctor.sha256, /^[a-f0-9]{64}$/);
     assert.match(manifest.skill_sha256, /^[a-f0-9]{64}$/);
     assert.equal(await readFile(join(output, 'native/linux-x64/oo-lite-image'), 'utf8'), image);
     const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts',
       '--pack-destination', dir], { cwd: output, encoding: 'utf8',
       env: { ...process.env, npm_config_cache: join(dir, 'npm-cache') } }))[0];
     const files = new Set(packed.files.map(file => file.path));
-    for (const file of ['native/linux-x64/oo-lite-image', 'NOTICE',
+    for (const file of ['native/linux-x64/oo-lite-image', 'native/linux-x64/oo-mysql-doctor', 'NOTICE',
       'THIRD_PARTY_NOTICES.txt', 'dependencies.json']) assert.ok(files.has(file), file);
     assert.ok(!files.has('secret.token'));
     await assert.rejects(stage(args), /EEXIST/);
