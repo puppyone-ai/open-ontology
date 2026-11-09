@@ -12,6 +12,7 @@ import uuid
 
 import runner
 import t1
+from t2 import c1_summaries
 from verdicts import incremental, write_rows
 from t1 import AgentDB, LaneRun, SourceMeter, configure_mysql, private
 
@@ -137,7 +138,7 @@ def run_cycles(run, binary, worker_image):
                                     "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
                 with SourceMeter(run, (0 if mode == "C1" else 10)+cycle, 3 if mode == "C1" else 1) as meter:
                     _, text = run.command(command + ["--sync" if mode == "C1" else "--c5", str(store / "cycle.json")], timeout=600)
-                receipts = rows(text)
+                receipts = c1_summaries(text) if mode == "C1" else rows(text)
                 comparisons = {}
                 for table, relation in relations.items():
                     _, expected = run.sql(f"SELECT id,payload FROM {schema}.{table} ORDER BY id;")
@@ -173,7 +174,8 @@ def run_cycles(run, binary, worker_image):
                 before = target.sql("SELECT source,lineage,position,generation FROM _oo_load.sync_state ORDER BY source;")
                 bad = dict(sync, source_epoch="different-epoch")
                 runner.write_json(store / "cycle.json", bad)
-                code, _ = run.command(command + ["--sync", str(store / "cycle.json")], required=False)
+                code, _ = run.command(command + ["--sync", str(store / "cycle.json"),
+                    "--run-id", "different-epoch"], required=False)
                 error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
                 if not code or error != "sync_rebaseline_required_lineage":
                     raise RuntimeError("different epoch admitted")

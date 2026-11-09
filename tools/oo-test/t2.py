@@ -15,6 +15,24 @@ from t1 import LaneRun, SourceMeter, configure_pg, private
 
 ROOT = runner.ROOT
 
+def c1_summaries(text):
+    """Count writes from the aggregate, while still checking every table result."""
+    rows = [json.loads(line) for line in text.splitlines() if line.startswith("{")]
+    summaries = []
+    for row in rows:
+        if row.get("protocol") != "oo.sync/v1" or row.get("mode") != "c1" or "error" in row:
+            raise RuntimeError("unrecognized C1 receipt")
+        if "table" in row:
+            if row.get("status") not in ("fresh", "noop") or row.get("stale_reason"):
+                raise RuntimeError("C1 table not fresh")
+        else:
+            if not all(key in row for key in ("durable_position", "target_write_bytes", "new_generations")):
+                raise RuntimeError("incomplete C1 summary")
+            summaries.append(row)
+    if len(summaries) != 1:
+        raise RuntimeError("missing or ambiguous C1 summary")
+    return summaries
+
 
 def lsn(value):
     hi, lo = value.split("/")
@@ -117,15 +135,16 @@ def run_postgres(run, binary):
                 thread.start()
             before_bytes = measure(run)
             with SourceMeter(run, cycle, 2) as meter:
-                _, concurrent = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
+                _, concurrent = run.command(command + ["--sync", str(store / "sync.json"),
+                    "--run-id", f"c1-{cycle}-concurrent"], timeout=300)
                 if thread:
                     thread.join(timeout=60)
                     if thread.is_alive() or errors:
                         raise RuntimeError("writer failed")
                     thread = None
-                _, drained = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
-            rows = [json.loads(line) for text in (concurrent, drained) for line in text.splitlines()
-                    if line.startswith("{")]
+                _, drained = run.command(command + ["--sync", str(store / "sync.json"),
+                    "--run-id", f"c1-{cycle}-drained"], timeout=300)
+            rows = c1_summaries(concurrent) + c1_summaries(drained)
             for row in rows:
                 position = row["durable_position"]["lsn"]
                 if position < previous:
@@ -239,7 +258,7 @@ def run_postgres(run, binary):
         source["id"] = "fixture"
         command[command.index("--source")+1] = "fixture"
         runner.write_json(store / "stack.json", stack)
-        code, _ = run.command(command + ["--sync", str(store / "sync.json")],
+        code, _ = run.command(command + ["--sync", str(store / "sync.json"), "--run-id", "expired-slot"],
                               timeout=300, required=False)
         error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
         if code == 0 or error != "sync_rebaseline_required_retention":
@@ -257,10 +276,15 @@ def run_postgres(run, binary):
         source["id"] = "fixture_c5"
         command[command.index("--source")+1] = "fixture_c5"
         runner.write_json(store / "stack.json", stack)
-        code, _ = run.command(command + ["--c5", str(store / "c5.json")],
+        code, negative = run.command(command + ["--c5", str(store / "c5.json"), "--run-id", "recreated-relation"],
                               timeout=300, required=False)
         error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
-        if code == 0 or error != "c5_rebaseline_required_lineage":
+        isolated = [json.loads(line) for line in negative.splitlines() if line.startswith("{")]
+        rejected = any(r.get("table") == {"schema": "public", "name": "items"}
+                       and r.get("status") == "stale" and r.get("stale_reason") == "rebaseline_required"
+                       for r in isolated)
+        if code == 0 or not (error == "c5_rebaseline_required_lineage"
+                             or (error == "sync_partial" and rejected)):
             raise RuntimeError("changed relation identity did not require rebaseline")
         report["negative_checks"].append({"case": "recreated_relation", "error": error})
         report["T2"] = "passed"
