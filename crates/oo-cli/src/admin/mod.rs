@@ -87,6 +87,31 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     if command == "status" && !admin_status(rest) {
         return None;
     }
+    if command == "status" {
+        let json = rest.iter().any(|arg| arg == "--json");
+        let mut machine_args = rest.to_vec();
+        if !json {
+            machine_args.push("--json".into());
+        }
+        return Some(
+            execute(command, &machine_args).and_then(|report| match report {
+                Invocation::AdminReport(body, code) => {
+                    let mut state: serde_json::Value = serde_json::from_str(&body)
+                        .map_err(|_| Failure::local("ADMIN_STATUS_PROTOCOL"))?;
+                    oo_stack::status::review_status(&mut state);
+                    Ok(Invocation::AdminReport(
+                        if json {
+                            state.to_string()
+                        } else {
+                            progress::display_status(&state)
+                        },
+                        code,
+                    ))
+                }
+                other => Ok(other),
+            }),
+        );
+    }
     Some(execute(command, rest))
 }
 
