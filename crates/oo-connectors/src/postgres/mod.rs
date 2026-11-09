@@ -898,7 +898,7 @@ impl SourceEngine for PostgresEngine {
             .get(table)
             .ok_or_else(|| SourceError::protocol("unknown_plan"))?
             .clone();
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(table).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
         self.transaction(&mut s).await?;
