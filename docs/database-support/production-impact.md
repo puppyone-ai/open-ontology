@@ -1,9 +1,29 @@
 # Production impact
 
-No live D24 budget is verified for Oracle 23, MySQL 8.4, or PostgreSQL 17 by
-`t10-live-preflight-20261108`. The host preflight was blocked; see the
-[measurement status and settings](../guide/production-impact.md). Do not
+No live D24 budget is verified for Oracle 23, MySQL 8.4, or PostgreSQL 17.
+The resumed runs passed the idle-container gate but failed all three
+foreground-only baselines; see the measured
+[latencies, errors and settings](../guide/production-impact.md). Do not
 interpret missing latency, error, retention, or duration values as zero.
+
+## Measured baseline side effects
+
+Runs `t10-live2-{oracle,mysql,postgres}-corrected-20261109` used native arm64
+Oracle 23.5.0.24.07, MySQL 8.4.7 and PostgreSQL 17.11 in that order.
+Each source was limited to 4 CPUs / 8 GiB and observed for 600 seconds.
+
+| Engine | Peak counters | Peak cumulative container block IO, read / write |
+| --- | --- | --- |
+| Oracle | Undo 100,769 blocks; tuned retention 900 s; ORA-01555 0; live LogMiner CPU 0 centiseconds | 23.4 MB / 21.3 GB |
+| MySQL | History list / purge backlog 472 transactions; Threads_running 34 | 31.7 MB / 14.9 GB |
+| PostgreSQL | Reader xmin age 0; hot-table dead tuples 1,310; autovacuum count 11; retained slot WAL 0 bytes | 0 MB / 20.3 GB |
+
+IO values are Docker's rounded cumulative container counters, not per-phase
+IO deltas. Undo and autovacuum counters also include earlier fixture activity.
+The baseline has no product reader or C1 miner, so zero reader/slot/miner
+counters cannot establish their behavior during product phases. All foreground
+errors were `scheduler_queue_full`; none is evidence of a connector-induced
+database error. These failed baselines cannot size production retention.
 
 ## Operator checklist
 
