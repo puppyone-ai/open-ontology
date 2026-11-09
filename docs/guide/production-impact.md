@@ -3,7 +3,74 @@
 Production-impact acceptance is separate from functional correctness. A passing
 T1/T2 run, a successful build, or the lite C5 default is not a D24 measurement.
 
-## Measurement status: T10-live-3
+## Current measurement: T10-live-4
+
+**S6-H-02 remains incomplete; no engine has passed every D24 phase.**
+Runs span November 8-9, 2026 local. Sources were limited to 4 CPUs / 8 GiB,
+with 2,000,000 bulk rows; targets were unconstrained. The open-loop queue holds
+30 seconds of arrivals, with 32 Oracle workers and 64 for the other engines.
+Latency includes queueing; budget failures and missing measurements remain failures.
+
+Oracle A is the original run; Oracle B is the fresh C5/C1 run, each compared
+only with its own baseline. Oracle initial phases were interrupted incomplete
+(1723.865 / 632.134 seconds) after repeated OTHER replanning; neither completed.
+MySQL below is its one authorized extra-30%-reduction run, after 247801 queue
+rejections invalidated the first baseline. Its error-free baseline still had
+11.059-second p95, so a relative pass is not an absolute latency recommendation.
+`prep` means preparation failed without a measured foreground phase.
+
+| Engine | Phase | p50 / p95 / p99 ms | Requests/s | Foreground errors | Seconds | D24 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Oracle A | baseline | 0.455 / 123.970 / 1596.343 | 11104.335 | 0 | 600.000 | pass |
+| Oracle A | initial | 0.512 / 1145.836 / 2397.536 | 11104.335 | 0 | 1723.865 | fail |
+| Oracle A | initial_duty100 | 0.692 / 994.735 / 1256.805 | 11103.746 | 0 | 632.134 | fail |
+| Oracle B | baseline | 0.412 / 105.170 / 582.162 | 11233.818 | 0 | 600.000 | pass |
+| Oracle B | c1 | unmeasured / unmeasured / unmeasured | unmeasured | unmeasured | prep 900.144 | fail |
+| Oracle B | c5_idle | 0.388 / 51.646 / 95.159 | 11233.831 | 0 | 214.468 | pass |
+| Oracle B | c5_changed | unmeasured / unmeasured / unmeasured | unmeasured | unmeasured | prep 900.015 | fail |
+| Oracle B | c5_full_idle | 0.400 / 47.136 / 93.132 | 11233.826 | 0 | 225.108 | pass |
+| Oracle B | c5_full_changed | unmeasured / unmeasured / unmeasured | unmeasured | unmeasured | prep 900.013 | fail |
+| MySQL 8.4.7 | baseline | 2835.038 / 11059.425 / 12725.698 | 4753.821 | 0 | 600.000 | pass |
+| MySQL 8.4.7 | initial | 0.658 / 158.342 / 392.462 | 4787.797 | 0 | 9.780 | pass |
+| MySQL 8.4.7 | initial_duty100 | 0.438 / 8.986 / 51.891 | 4788.002 | 0 | 7.432 | pass |
+| MySQL 8.4.7 | c1 | unmeasured / unmeasured / unmeasured | unmeasured | unmeasured | prep 7.162 | fail |
+| MySQL 8.4.7 | c5_idle | 2277.176 / 7646.172 / 9354.183 | 4775.392 | 0 | 847.165 | pass |
+| MySQL 8.4.7 | c5_changed | 302.169 / 6166.454 / 7355.519 | 4788.292 | 0 | 198.916 | fail |
+| MySQL 8.4.7 | c5_full_idle | 2220.150 / 7611.021 / 9886.084 | 4788.295 | 0 | 729.998 | pass |
+| MySQL 8.4.7 | c5_full_changed | 2547.420 / 7798.524 / 10392.377 | 4788.222 | 0 | 523.882 | fail |
+| PostgreSQL 17.11 | baseline | 0.303 / 210.157 / 1600.430 | 8217.958 | 0 | 600.000 | pass |
+| PostgreSQL 17.11 | initial | 0.341 / 4.500 / 186.494 | 8217.720 | 0 | 31.108 | pass |
+| PostgreSQL 17.11 | initial_duty100 | 171.564 / 198.957 / 214.339 | 2770.392 | 0 | 0.277 | fail |
+| PostgreSQL 17.11 | c1 | 0.309 / 40.557 / 1436.641 | 8217.958 | 0 | 600.000 | fail |
+| PostgreSQL 17.11 | c5_idle | 0.373 / 28.279 / 1481.780 | 8217.912 | 0 | 197.945 | pass |
+| PostgreSQL 17.11 | c5_changed | 1.059 / 29663.543 / 33136.613 | 7484.980 | 32688 | 380.813 | fail |
+| PostgreSQL 17.11 | c5_full_idle | 0.366 / 1.760 / 35.745 | 8217.919 | 0 | 197.381 | pass |
+| PostgreSQL 17.11 | c5_full_changed | 0.570 / 83009.804 / 88405.562 | 4939.877 | 3282002 | 1076.422 | fail |
+
+C5 names without `full` use period 24; `full` uses period 1. Each has an
+independent snapshot. The INSERT table grows across phases, so this sequential
+comparison is not an isolated causal speedup. PostgreSQL changed C5 exceeded
+D24 at both periods: p95 29.664 / 83.010 seconds, throughput 7484.980 / 4939.877
+requests/s, and 32688 / 3282002 backlog rejections (period 24 / 1).
+
+Oracle changed-C5 and C1 preparation each timed out at 900 seconds. MySQL C1
+failed `mysql_repair_staging_budget`; both changed-C5 policies returned
+`sync_partial`. PostgreSQL duty-100 was refused by the connector's 25% cap;
+C1 reported `rebaseline_required_slot_invalidated`. Favorable foreground
+latency cannot turn these product failures into passes.
+
+Adaptive activity gates already exist in all three engines. No new product
+mitigation or snapshot-consistency change was introduced, and full-scale live
+T1/T2 was not run. Adaptive tuning, short-transaction correctness and their
+remeasurement remain unfinished exits. Keep safe defaults and low-write windows;
+use the engine-specific [operator guidance](../database-support/production-impact.md).
+
+See the [full phase report](../../tools/oo-test/T10-LIVE4.md) for every run,
+side-effect peaks, failure receipts, policy comparisons, commands and hashes.
+Raw outputs are under the five `t10-live4-*` run IDs in that report and
+`evidence/t10-live4-validation/`. All owned resources were removed.
+
+## Previous measurement: T10-live-3
 
 S6-H-02 / D24 remains unverified after the sustained-rate attempt on
 2026-11-08 local (2026-11-09 UTC). Oracle 23.5.0.24.07 could not settle;
@@ -98,7 +165,7 @@ samples. Do not attribute them to connector reads, which had not started.
   Do not remove snapshot consistency without the correction and full-scale
   T1/T2 correctness revalidation.
 
-## Re-measurement
+## Historical T10-live-3 re-measurement procedure
 
 Prefer a dedicated quiet host. The accepted T10 preflight samples pre-existing
 containers three times and refuses aggregate peak CPU above 5%; it never

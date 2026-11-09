@@ -1,5 +1,12 @@
 # T10 harness handoff (S6-H-02 / D24)
 
+## T10-live-4 follow-up (November 8-9, 2026 local)
+
+See [the bounded-backlog live report](T10-LIVE4.md) for the current phase tables,
+side effects, failures and unfinished mitigation/correctness gates. Valid baselines
+were obtained for all three engines, but no engine passed every phase. All owned
+resources were removed. The earlier records below remain historical.
+
 ## T10-live-3 follow-up (2026-11-08 local)
 
 See [the sustained-rate report](T10-LIVE3.md) for current measurements,
