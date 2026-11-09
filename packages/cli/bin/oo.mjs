@@ -19,7 +19,7 @@ const fields = {
 };
 const connectedCommands = new Set([
   'query', 'tables', 'describe', 'validate', 'sql', 'freshness',
-  'knowledge', 'cancel', 'status', 'operations',
+  'knowledge', 'cancel', 'status', 'operations', 'try',
 ]);
 class CliError extends Error {}
 function fail(code, message) { throw new CliError(`${code}: ${message}`); }
