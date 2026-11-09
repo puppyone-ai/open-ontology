@@ -302,4 +302,3 @@ Calibration: `{"capacity": 20425.184192031364, "rate": 11233.85130561725, "sampl
 
 Block IO is cumulative and rounded by Docker. Undo/autovacuum counters include fixture history.
 History-list length is a purge backlog, not seconds of lag. LogMiner CPU samples can miss exited sessions.
-
