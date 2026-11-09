@@ -1,12 +1,35 @@
 # Production impact
 
 No live D24 budget is verified for Oracle 23, MySQL 8.4, or PostgreSQL 17.
-The resumed runs passed the idle-container gate but failed all three
-foreground-only baselines; see the measured
-[latencies, errors and settings](../guide/production-impact.md). Do not
-interpret missing latency, error, retention, or duration values as zero.
+The T10-live-3 sustained-rate attempt failed calibration for Oracle and the
+ten-minute baseline for MySQL/PostgreSQL, even after their extra 30% step.
+No initial/C1/C5 phase or mitigation comparison is available. See the
+[current measured results](../guide/production-impact.md) and the
+[engine x phase report](../../tools/oo-test/T10-LIVE3.md).
 
-## Measured baseline side effects
+## T10-live-3 baseline side effects
+
+| Baseline | CPU peak | Cumulative block IO read / write peak | Source counter peaks |
+| --- | --- | --- | --- |
+| mysql, settled | 233.10% | 31.8 MB / 17.300 GB | History list / purge backlog 513; Threads_running 66 |
+| mysql, lower30 | 92.15% | 31.7 MB / 16.200 GB | History list / purge backlog 426; Threads_running 66 |
+| postgres, settled | 72.33% | 0.0 MB / 18.900 GB | Reader xmin age 0; dead tuples 1074; autovacuum count 13; slot WAL 0 B |
+| postgres, lower30 | 62.73% | 0.0 MB / 10.500 GB | Reader xmin age 0; dead tuples 1087; autovacuum count 10; slot WAL 0 B |
+
+These are foreground-only baselines, not connector impact. All foreground
+errors were queue rejections; metrics collection itself had no errors.
+Oracle phase side effects were not measured because settling failed.
+A fixture-only diagnosis found `DPY-6005` / `DPY-6000` / `ORA-12516` connection
+failures. Sampled process high-water was 142 of 200 and session high-water
+227 of 322; these counters do not establish the cause. Investigate listener
+admission before raising limits or rerunning a production-impact benchmark.
+The harness now closes trial connections; rate selection remains unchanged.
+
+No valid default phase exceeded D24 because no valid comparison exists.
+Retain the operator checklist below; no numeric retention sizing or changed
+product default is justified by failed foreground-only baselines.
+
+## Previous T10-live-2 baseline side effects
 
 Runs `t10-live2-{oracle,mysql,postgres}-corrected-20261109` used native arm64
 Oracle 23.5.0.24.07, MySQL 8.4.7 and PostgreSQL 17.11 in that order.

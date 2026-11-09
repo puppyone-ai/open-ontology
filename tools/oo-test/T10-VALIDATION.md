@@ -1,5 +1,14 @@
 # T10 harness handoff (S6-H-02 / D24)
 
+## T10-live-3 follow-up (2026-11-08 local)
+
+See [the sustained-rate report](T10-LIVE3.md) for current measurements,
+per-engine phase coverage, summary hashes and operator guidance. Oracle
+settling failed; MySQL/PostgreSQL ten-minute baselines still failed after
+the additional 30% rate reduction. No product phase or D24 pass is claimed.
+The trial connection-cleanup defect is fixed and covered by tests; all
+owned resources were removed. The earlier records below remain historical.
+
 ## Live-card follow-up (2026-11-08 local)
 
 Run `t10-live-preflight-20261108` found eight unrelated running containers.

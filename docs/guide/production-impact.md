@@ -3,7 +3,41 @@
 Production-impact acceptance is separate from functional correctness. A passing
 T1/T2 run, a successful build, or the lite C5 default is not a D24 measurement.
 
-## Measurement status
+## Measurement status: T10-live-3
+
+S6-H-02 / D24 remains unverified after the sustained-rate attempt on
+2026-11-08 local (2026-11-09 UTC). Oracle 23.5.0.24.07 could not settle;
+MySQL 8.4.7 and PostgreSQL 17.11 failed their ten-minute baselines, including
+the required additional 30% rate reduction. No product phase was measured.
+
+| Engine | Attempt | Offered requests/s | p50 / p95 / p99 ms | Achieved requests/s | Queue errors | Arrival / observation seconds | D24 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| mysql 8.4.7 | Settled rate | 7250.557 | 0.118 / 209.098 / 7609.652 | 3611.677 | 2,181,217 | 600 / 604.811 | Invalid baseline |
+| mysql 8.4.7 | Additional 30% reduction | 5075.390 | 0.313 / 104.032 / 6567.711 | 3820.281 | 750,954 | 600 / 603.723 | Invalid baseline |
+| postgres 17.11 | Settled rate | 6790.665 | 0.295 / 0.663 / 39.207 | 6769.950 | 12,427 | 600 / 604.033 | Invalid baseline |
+| postgres 17.11 | Additional 30% reduction | 4753.466 | 0.320 / 0.521 / 5.453 | 4746.783 | 4,007 | 600 / 603.320 | Invalid baseline |
+
+Oracle's six 60-second trials ranged from 10,959.235 down to 1,841.919
+requests/s. The first had 301 queue rejections; later trials had 1,303, 878,
+558, 386 and 198 `DPY-6005` connection errors. A separate fixture-only
+numeric-code diagnostic identified `DPY-6000` / `ORA-12516`; sampled process
+and session usage remained below their configured limits, so resource-limit
+exhaustion is not established. Undo/retention/LogMiner phase peaks are absent,
+not zero. Closing each trial's connections fixes a harness leak but did not
+resolve these admission failures.
+
+The 64-worker, 60-second, 30%-step method is unchanged. The source limits
+were verified at 4 CPUs / 8 GiB with 2,000,000 bulk rows. Product defaults,
+queue capacity and D24 gold values were not relaxed. The lite C5 period-24
+versus period-1 comparison, adaptive mitigation and live T1/T2 remain unrun:
+no valid baseline exists to attribute an over-budget phase to product reads.
+
+See the [full run report](../../tools/oo-test/T10-LIVE3.md) for every engine
+x phase, side-effect peaks, exact retry reasons, commands, summary hashes,
+validation results and cleanup. Eight unrelated containers were observed
+only via stats; none was modified. All owned resources were removed.
+
+## Previous attempt: T10-live-2
 
 The resumed 2026-11-08 local run passed the updated quiet-host gate, but
 all three ten-minute baselines failed with load-generator queue rejections.
@@ -79,10 +113,12 @@ open-loop workload, and ten-minute baseline/C1 phases. Initial and C5 phases
 run to completion. Compare each phase against the same baseline: p95 increase
 at most 20%, p99 increase at most 50%, throughput decrease at most 5%, and zero
 foreground errors. Missing samples or product failures are not passes.
-Before another full run, establish sustainable open-loop generator capacity
-with the same operation mix and metrics sampling, then obtain an error-free
-ten-minute baseline. An explicit lower-rate diagnostic is not acceptance at
-55% of measured source capacity. Product throttling cannot repair a failed
+After burst calibration at 55%, use 60-second sustained trials with 30%
+rate decrements and 64 open-loop workers, then obtain an error-free ten-minute
+baseline. If that baseline errors, record it and retry at an additional 30%
+reduction as authorized by T10-live-3. This attempt exhausted that extra
+step for MySQL/PostgreSQL without a valid baseline. A settled or explicitly
+reduced rate is not acceptance at 55% of measured source capacity. Product throttling cannot repair a failed
 foreground-only baseline; do not change snapshot consistency on that evidence.
 
 For engine-specific sizing and replica caveats, see
