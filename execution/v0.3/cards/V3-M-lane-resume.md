@@ -1,0 +1,8 @@
+## Resume: V3-M-lane
+
+The previous run of this card stopped mid-task on a model relay 502, not on a defect. Its commits are on this branch; uncommitted changes in the worktree are its unfinished work (rule 5: review, keep what is correct, finish). Continue the card below from where it stopped; do not redo committed parts. Do not delete files with rm -f; use git or targeted edits.
+
+## V3-M lane — quickstart demo data and runtime (V3-M-01, data/runtime parts)
+Card: `V3-M-01-quickstart-demo.md`. Plan: specs/v0.3-quickstart-and-competitive-plan.md. Commit as the owner, no agent trailers, trailer `Plan: V3-M-01`.
+
+Your part: demo compose profile in deploy/lite, seeded PG (OO-Logistics subset), one-off local CA + read-only user (local_fixture), two roles with one row filter + one column deny, the pre-built demo ontology/pack shipped with hashes (produce `adjudication.json` per `execution/v0.3/contracts/adjudication.md` for the demo so the TUI can show the graph without a model), `oo try` backend (3 gold questions + 1 denied), `oo quickstart --down` cleanup of demo-labelled resources only, README first screen and docs moves. A TUI lane owns the screens; call into it only via `oo init --demo`. Images: use the locally built lite image; GHCR stays private, so document the pull step as pending publication. Run QS-01 (local), QS-02 (no model), QS-03, QS-05 and record evidence.
