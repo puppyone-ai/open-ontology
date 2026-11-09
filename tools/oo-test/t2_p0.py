@@ -18,6 +18,10 @@ from t1 import AgentDB, LaneRun, SourceMeter, configure_mysql, private
 
 ROOT = runner.ROOT
 MYSQL = {"5.7": "5.7.44", "8.0": "8.0.44", "8.4": "8.4.7", "9": "9.5.0"}
+TARGET_FORKS = ("SELECT c.relname,pg_relation_size(c.oid,'main'),"
+                "pg_relation_size(c.oid,'fsm'),pg_relation_size(c.oid,'vm') "
+                "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+                "WHERE n.nspname='_oo_load' AND c.relkind='r' ORDER BY c.relname;")
 
 class SyncRun(LaneRun):
     def command(self, command, **kwargs):
@@ -137,6 +141,12 @@ def run_cycles(run, binary, worker_image):
                 runner.write_json(store / "cycle.json", policy)
                 config["run_id"] = f"{mode}-{cycle}"
                 runner.write_json(store / "target.json", config)
+                if cycle == 2 and run.args.scale > 1:
+                    # Settle target visibility/free-space maps before the strict
+                    # zero-growth assertion; do not disable source autovacuum.
+                    target.sql("VACUUM;")
+                    report.setdefault("noop_target_maintenance", []).append(mode)
+                    target.sql(TARGET_FORKS)
                 before = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                     "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
                 with SourceMeter(run, (0 if mode == "C1" else 10)+cycle, 3 if mode == "C1" else 1) as meter:
@@ -155,6 +165,8 @@ def run_cycles(run, binary, worker_image):
                         raise RuntimeError("source target difference")
                 after = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                    "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
+                if cycle == 2 and run.args.scale > 1:
+                    target.sql(TARGET_FORKS)
                 for receipt in receipts:
                     if mode == "C1":
                         p = receipt["durable_position"]
@@ -201,7 +213,8 @@ def run_cycles(run, binary, worker_image):
                 code, _ = run.command(command + ["--handoff", str(store / "oversized-handoff.json"),
                     "--run-id", "oversized-handoff"], required=False, timeout=600)
                 error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"] if code else None
-                if not code or error != "mysql_repair_staging_budget" or target.sql(state_sql) != before:
+                if (not code or error != "source error: budget fact=mysql_repair_staging_budget"
+                        or target.sql(state_sql) != before):
                     raise RuntimeError("oversized handoff did not refuse atomically")
                 report["oversized_handoff"] = {"error": error, "target_unchanged": True}
                 handoff_schema = "fixture_handoff"
