@@ -219,13 +219,15 @@ test('HTTPS enrollment stores a 0600 reference-only profile after identity and r
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stderr, /within 7 days/);
   assert.deepEqual(f.seen, ['/v1/meta', '/v1/auth/enroll', '/v1/auth/whoami', '/v1/tables']);
-  const text = readFileSync(join(f.dir, 'config.json'), 'utf8');
+  const text = readFileSync(join(f.dir, 'profiles/default.json'), 'utf8');
+  assert.equal(JSON.parse(readFileSync(join(f.dir, 'active-profile.json'), 'utf8')).profile, 'default');
+  assert.match(JSON.parse(result.stdout).share_prompt, /oo check --json/);
   assert(!text.includes(f.token));
   const profile = JSON.parse(text);
   assert.equal(profile.token_file, join(f.dir, 'tokens/default.token'));
   assert.equal(profile.business_timezone, 'Asia/Shanghai');
   assert.equal(statSync(profile.token_file).mode & 0o777, 0o600);
-  assert.equal(statSync(join(f.dir, 'config.json')).mode & 0o777, 0o600);
+  assert.equal(statSync(join(f.dir, 'profiles/default.json')).mode & 0o777, 0o600);
   assert(readFileSync(profile.token_file, 'utf8') === f.token);
   const who = await f.cli(['whoami', '--json']);
   assert.equal(who.status, 0, who.stderr);

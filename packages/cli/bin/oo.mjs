@@ -158,10 +158,21 @@ function validateProfile(profile) {
   return profile;
 }
 
+function profilePath(dir) {
+  const pointer = join(dir, 'active-profile.json');
+  if (!existsSync(pointer)) return join(dir, 'config.json');
+  privatePath(pointer);
+  if (statSync(pointer).size > 16384) fail('CONFIG_INVALID', 'Invalid active profile.');
+  const name = JSON.parse(readFileSync(pointer, 'utf8')).profile;
+  if (typeof name !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(name)) fail('CONFIG_INVALID', 'Invalid active profile.');
+  privatePath(join(dir, 'profiles'), true);
+  return join(dir, 'profiles', `${name}.json`);
+}
+
 function readProfile(dir) {
   try {
     privatePath(dir, true);
-    const path = join(dir, 'config.json');
+    const path = profilePath(dir);
     privatePath(path);
     if (statSync(path).size > 16384) throw new Error();
     return validateProfile(JSON.parse(readFileSync(path, 'utf8')));
@@ -248,6 +259,7 @@ async function configure(args) {
     // Immutable token files keep old readers consistent while config.json switches atomically.
     if (managedToken) atomicWrite(managedToken, token);
     atomicWrite(join(dir, 'config.json'), `${JSON.stringify(profile, null, 2)}\n`);
+    if (existsSync(join(dir, 'active-profile.json'))) unlinkSync(join(dir, 'active-profile.json'));
   } catch (error) {
     if (managedToken && existsSync(managedToken)) unlinkSync(managedToken);
     throw error;
@@ -364,7 +376,7 @@ async function main(args) {
       ? `${JSON.stringify({ name, version })}\n` : `${name} ${version}\n`);
     return 0;
   }
-  if (['login', 'whoami', 'share-prompt', 'token'].includes(args[0])) {
+  if (['login', 'whoami', 'share-prompt', 'token', 'profile', 'use', 'mcp-config', 'check'].includes(args[0])) {
     return delegate(nativeBinary(), args);
   }
   if (args[0] === 'configure') {
@@ -424,7 +436,7 @@ async function main(args) {
     const profile = readProfile(dir);
     if (!profile) fail('CONFIG_INVALID', 'Configure a Gateway profile before changing its business timezone.');
     profile.business_timezone = rest[1];
-    atomicWrite(join(dir, 'config.json'), `${JSON.stringify(profile, null, 2)}\n`);
+    atomicWrite(profilePath(dir), `${JSON.stringify(profile, null, 2)}\n`);
     process.stdout.write(args.includes('--json')
       ? `${JSON.stringify({ configured: true, business_timezone: profile.business_timezone, credentials_changed: false })}\n`
       : `Business timezone: ${profile.business_timezone}. Credentials and routing are unchanged.\n`);
