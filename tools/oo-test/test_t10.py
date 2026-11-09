@@ -8,7 +8,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import t10
 
@@ -237,6 +237,31 @@ class CLITests(unittest.TestCase):
 
 
 class SettleTests(unittest.TestCase):
+    def test_closes_connections_between_trials_and_after_success(self):
+        active = []
+        def loop(work, rate, seconds):
+            self.assertEqual(active, [])
+            active.extend(range(64))
+            return [dict(error='scheduler_queue_full' if rate > 70 else None)], seconds
+        result = t10.settle(None, 100, loop=loop, close=active.clear)
+        self.assertEqual(result['rate'], 70)
+        self.assertEqual(active, [])
+
+    def test_failed_settle_preserves_sanitized_trials_and_closes_connections(self):
+        close = Mock()
+        loop = lambda work, rate, seconds: ([dict(error='OperationalError')], seconds)
+        with self.assertRaises(t10.SettleFailure) as raised:
+            t10.settle(None, 100, loop=loop, tries=2, close=close)
+        self.assertEqual(close.call_count, 2)
+        self.assertEqual([t['rate'] for t in raised.exception.trials], [100, 70])
+        self.assertEqual(raised.exception.trials[0]['error_counts'], {'OperationalError': 1})
+
+    def test_closes_connections_when_trial_raises(self):
+        close = Mock()
+        with self.assertRaises(ValueError):
+            t10.settle(None, 100, loop=Mock(side_effect=ValueError), close=close)
+        close.assert_called_once_with()
+
     def test_steps_down_until_a_sustained_trial_is_error_free(self):
         def loop(work, rate, seconds):
             error = 'scheduler_queue_full' if rate > 50 else None

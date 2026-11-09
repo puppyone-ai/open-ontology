@@ -332,19 +332,29 @@ def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lamb
             return {'capacity': capacity, 'rate': capacity * .55, 'samples': samples}
     raise RuntimeError('calibration_capacity_not_found_at_concurrency_cap')
 
-def settle(work, rate, seconds=60, step=.7, tries=6, loop=None):
+class SettleFailure(RuntimeError):
+    def __init__(self, trials):
+        super().__init__('calibration_no_sustainable_rate')
+        self.trials = trials
+
+def settle(work, rate, seconds=60, step=.7, tries=6, loop=None, close=lambda: None):
     """Burst capacity overstates a sustainable open-loop rate (checkpoints,
     purge and tail stalls). Step down until a sustained trial is error-free."""
     loop = loop or open_loop
     trials = []
     for _ in range(tries):
-        requests, _ = loop(work, rate, seconds)
+        try:
+            requests, _ = loop(work, rate, seconds)
+        finally:
+            # Each open-loop trial owns new worker threads and connections.
+            close()
         errors = sum(r['error'] is not None for r in requests)
-        trials.append({'rate': rate, 'seconds': seconds, 'requests': len(requests), 'errors': errors})
+        trials.append({'rate': rate, 'seconds': seconds, 'requests': len(requests), 'errors': errors,
+                       'error_counts': dict(Counter(r['error'] for r in requests if r['error']))})
         if errors == 0:
             return {'rate': rate, 'trials': trials}
         rate *= step
-    raise RuntimeError('calibration_no_sustainable_rate')
+    raise SettleFailure(trials)
 
 
 def valid_baseline(result):
@@ -570,7 +580,13 @@ def main(argv=None):
         try:
             if args.rate == 'auto':
                 report['calibration'] = calibrate(work, close=work.close)
-                report['calibration']['settle'] = settle(work, report['calibration']['rate'])
+                try:
+                    report['calibration']['settle'] = settle(
+                        work, report['calibration']['rate'], close=work.close)
+                except SettleFailure as exc:
+                    report['calibration']['settle'] = {
+                        'rate': None, 'trials': exc.trials, 'error': str(exc)}
+                    raise
                 rate = report['calibration']['settle']['rate']
             else:
                 rate = args.rate
