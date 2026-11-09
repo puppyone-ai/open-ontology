@@ -1,0 +1,47 @@
+{
+  "document": {
+    "protocol": "oo.adjudication/v1",
+    "input_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "thresholds": {
+      "relation_containment_strict": 0.98,
+      "relation_containment_with_signal": 0.9,
+      "code_coverage": 0.99
+    },
+    "items": [
+      {
+        "id": "sensitive/app.people.name",
+        "class": "sensitive",
+        "subject": {
+          "column": "app.people.name"
+        },
+        "decision": "hidden",
+        "evidence": {
+          "rows": 2
+        },
+        "scores": {
+          "confidence": 1
+        },
+        "rule_id": "sensitive.format",
+        "reason": "Profile evidence."
+      }
+    ],
+    "graph": {
+      "edges": [],
+      "entities": [
+        {
+          "id": "entity/app.people",
+          "label": "客户",
+          "table": "app.people",
+          "key": [
+            "id"
+          ],
+          "display": null,
+          "rows": 2
+        }
+      ]
+    },
+    "summary_sha256": "c0917f427b65641eb32b6904359de423514f7d4ff763c8da0a9eacd4403dccde"
+  },
+  "preimage": "{\"decisions\":{\"sensitive/app.people.name\":\"hidden\"},\"graph\":{\"edges\":[],\"entities\":[{\"display\":null,\"id\":\"entity/app.people\",\"key\":[\"id\"],\"label\":\"客户\",\"rows\":2,\"table\":\"app.people\"}]}}",
+  "expected_sha256": "c0917f427b65641eb32b6904359de423514f7d4ff763c8da0a9eacd4403dccde"
+}

@@ -60,6 +60,13 @@ def fixture():
 
 class RelatedDb(Db):
     def query(self, sql):
+        if 'from pg_views' in sql:
+            return []
+        if 'from pg_extension' in sql:
+            return None
+        if "'entropy'" in sql:
+            return dict(rows=2, non_null=2, distinct=2, readable=0, max_length=1,
+                        phone=0, id_card=0, email=0, bank_card=0, entropy=1)
         if "'columns'," in sql and 'pg_current_snapshot' in sql:
             self.queries.append(sql)
             mappings = [m for m in self.metadata['mappings']
@@ -208,7 +215,7 @@ class RetainedCatalog(unittest.TestCase):
         path = self.root / 'config.json'
         path.write_text(json.dumps(config))
         with patch.object(build.lib, 'ReadOnlyPostgres', return_value=RelatedDb(self.metadata)), \
-                patch.object(build, 'draft', return_value=({}, 0)):
+                patch.object(build, 'draft', return_value=({'graph': {'edges': []}}, 0)):
             result = build.run(path, self.root / 'output')
         self.assertEqual(result['stage'], 'review_required')
         command = json.loads((self.root / 'output/review-input.json').read_text())
