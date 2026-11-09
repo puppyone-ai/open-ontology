@@ -297,6 +297,19 @@ class BacklogTests(unittest.TestCase):
 
 
 class SettleTests(unittest.TestCase):
+    def test_phase_rate_is_half_settled_not_half_burst_capacity(self):
+        calibration = {'capacity': 1000, 'rate': 550,
+                       'settle': {'rate': 269.5, 'trials': [{'rate': 269.5, 'errors': 0}]}}
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+        self.assertEqual(calibration['capacity'], 1000)
+        self.assertEqual(calibration['rate'], 550)
+        self.assertEqual(calibration['settled_rate'], 269.5)
+        self.assertEqual(calibration['settle']['trials'], [{'rate': 269.5, 'errors': 0}])
+        self.assertEqual(calibration['load_fraction'], .5)
+        self.assertEqual(calibration['used_rate'], 134.75)
+        # Re-rendering a receipt must not halve the offered rate again.
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+
     def test_closes_connections_between_trials_and_after_success(self):
         active = []
         def loop(work, rate, seconds):

@@ -376,6 +376,14 @@ def settle(work, rate, seconds=60, step=.7, tries=6, loop=None, close=lambda: No
         rate *= step
     raise SettleFailure(trials)
 
+def foreground_rate(calibration):
+    """Keep the settled trial intact; offer half that rate in every phase."""
+    settled = calibration['settle']['rate']
+    calibration['settled_rate'] = settled
+    calibration['load_fraction'] = .5
+    calibration['used_rate'] = settled * calibration['load_fraction']
+    return calibration['used_rate']
+
 
 def valid_baseline(result):
     return (verdict(result, result)['result'] == 'pass'
@@ -625,10 +633,12 @@ def main(argv=None):
                     report['calibration']['settle'] = {
                         'rate': None, 'trials': exc.trials, 'error': str(exc)}
                     raise
-                rate = report['calibration']['settle']['rate']
+                rate = foreground_rate(report['calibration'])
             else:
                 rate = args.rate
-                report['calibration'] = {'skipped': 'explicit rate', 'rate': rate}
+                report['calibration'] = {'skipped': 'explicit rate', 'rate': rate,
+                                         'capacity': None, 'settled_rate': None,
+                                         'load_fraction': None, 'used_rate': rate}
         finally:
             work.close()
         # Read the actual checked-out lite default, rather than duplicating it.
