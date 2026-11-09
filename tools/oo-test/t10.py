@@ -29,6 +29,7 @@ from oracle_t3t4 import OracleHarness
 from verdicts import product_sha
 
 PHASES = ('baseline', 'initial', 'initial_duty100', 'c1', 'c5')
+C5_PHASES = ('c5_idle', 'c5_changed', 'c5_full_idle', 'c5_full_changed')
 SCALE = 2_000_000
 WINDOW = 10
 
@@ -150,6 +151,18 @@ def sql_metrics(engine, text):
 
 
 class ImpactSource(t3t4.Source):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.foreground_key = SCALE + 1
+        self.foreground_lock = threading.Lock()
+
+    def next_foreground_key(self):
+        # Calibration and every phase write the same source table.
+        with self.foreground_lock:
+            key = self.foreground_key
+            self.foreground_key += 1
+            return key
+
     def command(self, command, **kwargs):
         command = list(command)
         if command[:2] == ['docker', 'create'] and self.name in command:
@@ -164,7 +177,6 @@ class Workload:
         self.local = threading.local()
         self.connections = []
         self.lock = threading.Lock()
-        self.key = SCALE + 1
 
     def connect(self):
         run = self.run
@@ -198,9 +210,7 @@ class Workload:
         elif index % 10 < 9:
             sql = f'UPDATE items SET n=n+1 WHERE id={hot}'
         else:
-            with self.lock:
-                key = self.key
-                self.key += 1
+            key = self.run.next_foreground_key()
             sql = f"INSERT INTO other VALUES({key},'foreground',{index % 1000000})"
         with self.local.conn.cursor() as cursor:
             cursor.execute(sql)
@@ -417,6 +427,24 @@ def prepare(h):
               "GRANT SELECT,UPDATE ON fixture.items TO 't10_writer'@'%';"
               "GRANT INSERT ON fixture.other TO 't10_writer'@'%';")
 
+def c5_phases(h, rate, every, sequence):
+    results = {}
+    for variant, period in (('c5', every), ('c5_full', 1)):
+        for suffix, tables in (('idle', ['bulk']), ('changed', ['bulk', 'items', 'other'])):
+            name = f'{variant}_{suffix}'
+            binding = 't10_' + name
+            # Independent baselines prevent the first policy priming the second.
+            h.snapshot(binding, tables)
+            if suffix == 'changed':
+                h.src('UPDATE items SET n=n+1 WHERE id=1;')
+            policy = {'cycle': 1, 'full_read_every': period}
+            result = phase(h, name, Workload(h.run), rate, None,
+                           lambda: loader(h, binding, f'{binding}-cycle', '--c5', policy),
+                           sequence + len(results) * 1_000_000)
+            result['c5_policy'] = policy
+            results[name] = result
+    return results
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -527,16 +555,7 @@ def main(argv=None):
             else:
                 # Separate scope makes the idle cycle genuinely unchanged while
                 # preserving the identical foreground workload in both subphases.
-                h.snapshot(sid + '_idle', ['bulk'])
-                h.snapshot(sid, tables)
-                for offset, (suffix, binding) in enumerate((('idle', sid + '_idle'), ('changed', sid))):
-                    if suffix == 'changed':
-                        h.src('UPDATE items SET n=n+1 WHERE id=1;')
-                    result = phase(h, f'c5_{suffix}', Workload(run), rate, None,
-                                   lambda: loader(h, binding, f'{binding}-cycle', '--c5',
-                                                  {'cycle': 1, 'full_read_every': every}),
-                                   10_000_000 * (number + 1) + offset * 1_000_000)
-                    report['phases'][f'c5_{suffix}'] = result
+                report['phases'].update(c5_phases(h, rate, every, 10_000_000 * (number + 1)))
                 continue
             report['phases'][name] = phase(h, name, Workload(run), rate, seconds, action,
                                            10_000_000 * (number + 1))
@@ -562,7 +581,7 @@ def main(argv=None):
                     or not baseline['metrics']['samples']):
                 result['budget'].update(result='fail', reason='product_or_metrics_incomplete')
             runner.write_json(run.path / f'{name}.json', result)
-        expected = [p for p in args.phases if p != 'c5'] + (['c5_idle', 'c5_changed'] if 'c5' in args.phases else [])
+        expected = [p for p in args.phases if p != 'c5'] + (list(C5_PHASES) if 'c5' in args.phases else [])
         report['result'] = 'pass' if (not report['errors'] and not cleanup
             and all(report['phases'].get(p, {}).get('budget', {}).get('result') == 'pass' for p in expected)) else 'fail'
         runner.write_json(run.path / 'summary.json', report)

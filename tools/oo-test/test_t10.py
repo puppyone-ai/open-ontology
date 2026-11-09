@@ -199,8 +199,55 @@ class CLITests(unittest.TestCase):
                     t10.main(self.argv())
                 source.assert_not_called()
 
+    def test_busy_host_refused_without_creating_resources(self):
+        with patch.object(t10.subprocess, 'run', side_effect=[
+                argparse.Namespace(stdout='--duty-cycle-percent'),
+                argparse.Namespace(stdout='unrelated-container\n')]) as run, \
+                patch.object(t10.importlib, 'import_module'), \
+                patch.object(t10, 'ImpactSource') as source:
+            with self.assertRaisesRegex(SystemExit, 'quiet-host'):
+                t10.main(self.argv())
+            source.assert_not_called()
+            self.assertEqual(run.call_args.args[0], ['docker', 'ps', '-q'])
+
 
 class IntegrationContractTests(unittest.TestCase):
+    def test_insert_keys_survive_calibration_and_phase_boundaries(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            statements = []
+            for _ in range(3):
+                work = t10.Workload(run)
+                work.local.conn = MagicMock()
+                cursor = work.local.conn.cursor.return_value.__enter__.return_value
+                for index in (9, 19):
+                    work(index)
+                    statements.append(cursor.execute.call_args.args[0])
+            self.assertEqual(len(set(statements)), 6)
+            for key, statement in enumerate(statements, t10.SCALE + 1):
+                self.assertIn(f'VALUES({key},', statement)
+
+    def test_c5_compares_both_policies_with_independent_baselines(self):
+        from unittest.mock import Mock
+        h = Mock()
+        policies = []
+        def measure(h, name, work, rate, seconds, action, sequence):
+            action()
+            return {'phase': name}
+        with patch.object(t10, 'phase', side_effect=measure), \
+                patch.object(t10, 'loader', side_effect=lambda *args: policies.append(args[-1])):
+            results = t10.c5_phases(h, 42, 24, 10_000_000)
+        self.assertEqual(tuple(results), t10.C5_PHASES)
+        self.assertEqual(policies, [{'cycle': 1, 'full_read_every': p} for p in (24, 24, 1, 1)])
+        self.assertEqual([r['c5_policy'] for r in results.values()], policies)
+        self.assertEqual([call.args for call in h.snapshot.call_args_list], [
+            ('t10_c5_idle', ['bulk']),
+            ('t10_c5_changed', ['bulk', 'items', 'other']),
+            ('t10_c5_full_idle', ['bulk']),
+            ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
+        self.assertEqual(h.src.call_count, 2)
+
     def test_phase_retains_product_failure_and_closes_writer(self):
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, patch.object(t10, 'Meter') as meter:
