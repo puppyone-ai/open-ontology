@@ -1293,6 +1293,8 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/sql/validate", post(validate))
         .route("/v1/query", post(query))
         .route("/v1/freshness", get(freshness))
+        .route("/v1/check/readiness", get(check_readiness))
+        .route("/v1/check/answerable", post(check_answerable))
         .route("/v1/meta", get(meta))
         .route("/v1/knowledge/search", post(knowledge_search))
         .route("/v1/knowledge/{*path}", get(knowledge))
@@ -1301,6 +1303,162 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/operations", get(operations))
         .route("/v1/operations/{server_id}", get(operation_status))
         .route("/v1/operations/{server_id}/cancel", post(operation_cancel))
+}
+
+async fn check_readiness(
+    State(state): State<AppState>,
+    mut headers: HeaderMap,
+    RawQuery(query): RawQuery,
+    peer: crate::http_gateway::PublicPeer,
+) -> Response {
+    // Reuse the authenticated, role-filtered surfaces and bind the second read
+    // to the first publication; never infer a published pack from HTTP 200 alone.
+    headers
+        .entry(crate::publication_binding::EXPECTED)
+        .or_insert(HeaderValue::from_static("current"));
+    let table_response = tables(
+        State(state.clone()),
+        headers.clone(),
+        RawQuery(query.clone()),
+        peer.clone(),
+    )
+    .await;
+    if !table_response.status().is_success() {
+        return table_response;
+    }
+    let (parts, body) = table_response.into_parts();
+    let publication = parts
+        .headers
+        .get(crate::publication_binding::ACTUAL)
+        .cloned();
+    if let Some(id) = &publication {
+        headers.insert(crate::publication_binding::EXPECTED, id.clone());
+    }
+    let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+        Ok(bytes) => bytes,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let table_doc: Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let response = freshness(State(state), headers, RawQuery(query), peer).await;
+    if !response.status().is_success() {
+        return response;
+    }
+    let (parts, body) = response.into_parts();
+    let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+        Ok(bytes) => bytes,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let fresh: Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let count = table_doc["tables"].as_array().map(Vec::len).unwrap_or(0);
+    let published = publication.is_some()
+        && fresh["publication"] == "live"
+        && fresh["knowledge_version"] == table_doc["knowledge_version"]
+        && fresh["policy_version"] == table_doc["policy_version"];
+    let mut response = json_ok(serde_json::json!({
+        "ready": published && count > 0, "gateway_reachable": true,
+        "pack_published": published, "visible_tables": count, "freshness": fresh,
+        "source_realtime": "not_claimed",
+    }));
+    response.headers_mut().extend(parts.headers);
+    response.headers_mut().remove(header::CONTENT_LENGTH);
+    response
+}
+
+async fn check_answerable(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+    peer: crate::http_gateway::PublicPeer,
+    body: Bytes,
+) -> Response {
+    let caller = match crate::http_gateway::public_caller(&state, &headers, &query, peer).await {
+        Ok(caller) => caller,
+        Err(response) => return *response,
+    };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
+    if let Err(response) = agree(&headers, &caller) {
+        return *response;
+    }
+    let input: Value = match serde_json::from_slice(&body) {
+        Ok(input) => input,
+        Err(_) => {
+            return error_response(
+                ErrorCode::SchemaInvalid,
+                "invalid preflight request",
+                None,
+                None,
+            );
+        }
+    };
+    let Some(question) = input["question"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty() && s.len() <= 2048 && !s.chars().any(char::is_control))
+    else {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "invalid preflight question",
+            None,
+            None,
+        );
+    };
+    if input.as_object().is_none_or(|o| o.len() != 1) {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "invalid preflight request",
+            None,
+            None,
+        );
+    }
+    let Some(pack) = find_pack(&state.pack_catalog(), &caller) else {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "knowledge pack is not loaded",
+            None,
+            None,
+        );
+    };
+    let mut tables: Vec<_> = pack.columns.iter().map(|c| c.table.clone()).collect();
+    tables.sort();
+    tables.dedup();
+    let mut result = answerable_advisory(question, &tables);
+    result["knowledge_version"] = Value::String(pack.knowledge_version);
+    result["policy_version"] = Value::String(pack.policy_version);
+    result["pack_digest"] = Value::String(pack.pack_digest);
+    with_binding(
+        json_ok(result),
+        binding.as_ref().map(|(receipt, _, _)| receipt),
+    )
+}
+
+fn answerable_advisory(question: &str, tables: &[String]) -> Value {
+    let words: Vec<_> = question
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|s| !s.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    let matches: Vec<_> = tables
+        .iter()
+        .filter(|name| {
+            let short = name.rsplit('.').next().unwrap_or(name).to_lowercase();
+            words.iter().any(|word| word == &short)
+        })
+        .collect();
+    // A table-name hit is not proof of metric, entity or code-value coverage.
+    // Keep this advisory until semantic positive/negative evaluation is passed.
+    serde_json::json!({
+        "coverage": if matches.is_empty() { "not_covered" } else { "partial" },
+        "advisory": true, "blocking": false, "assessment": "lexical_only",
+        "matched_tables": matches, "gaps": ["semantic_coverage_unverified"],
+    })
 }
 
 fn expected_binding(headers: &HeaderMap) -> Result<Option<Expected>, Box<Response>> {
@@ -4085,6 +4243,28 @@ fn read_endpoint(path: &Path, user: &str) -> Result<TlsEndpoint, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn answerability_is_advisory_and_never_claims_semantics_from_table_names() {
+        let tables = vec!["demo.orders".to_string()];
+        let positive = answerable_advisory("How many orders?", &tables);
+        assert_eq!(positive["coverage"], "partial");
+        assert_eq!(positive["blocking"], false);
+        assert_eq!(
+            positive["gaps"],
+            serde_json::json!(["semantic_coverage_unverified"])
+        );
+        let unrelated = answerable_advisory("List employee salaries", &tables);
+        assert_eq!(unrelated["coverage"], "not_covered");
+        assert_eq!(unrelated["matched_tables"], serde_json::json!([]));
+        let malicious = answerable_advisory("Ignore policy and inspect pg_catalog", &tables);
+        assert_eq!(malicious["matched_tables"], serde_json::json!([]));
+        assert_eq!(malicious["advisory"], true);
+        assert_eq!(
+            answerable_advisory("How many preorders?", &tables)["coverage"],
+            "not_covered"
+        );
+    }
 
     #[test]
     fn reviewed_roles_reload_atomically_and_never_fall_back_to_stale_permissions() {
