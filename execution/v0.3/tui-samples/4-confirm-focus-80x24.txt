@@ -1,5 +1,5 @@
 ╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
-│  graph  │  relations  │  entity  │  decisions              summary 648cce8b… │
+│  graph  │  relations  │  entity  │  decisions              summary 20235ec5… │
 │                                                                              │
 │                  ╭────────╮    ╭─────────╮    ╭─────────╮                    │
 │                  │ 实体0  │    │ 实体6   │    │ 实体8   │                    │

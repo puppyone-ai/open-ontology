@@ -56,9 +56,9 @@ pub struct Entity {
     pub table: String,
     #[serde(default)]
     pub key: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub display: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rows: Option<u64>,
 }
 
@@ -415,6 +415,33 @@ pub(crate) fn fixture() -> Adjudication {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shared_adjudication_hash_vector() {
+        let vector: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../execution/v0.3/contracts/hash-vector.json"
+        ))
+        .unwrap();
+        let document = super::parse(vector["document"].clone()).unwrap();
+        assert_eq!(
+            super::summary_sha256(&document),
+            vector["expected_sha256"].as_str().unwrap()
+        );
+    }
+
+    #[test]
+    fn curated_demo_uses_the_same_confirmation_contract() {
+        let document = super::parse(
+            serde_json::from_str(include_str!(
+                "../../../../deploy/lite/demo/adjudication.json"
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(document.graph.entities.len(), 10);
+        assert_eq!(document.graph.edges.len(), 10);
+        assert_eq!(super::summary_sha256(&document), document.summary_sha256);
+    }
+
     use super::*;
 
     #[test]

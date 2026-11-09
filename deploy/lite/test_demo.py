@@ -16,6 +16,14 @@ spec.loader.exec_module(curate)
 
 
 class Assets(unittest.TestCase):
+    def test_shared_adjudication_hash_vector(self):
+        vector = json.loads((Path(__file__).resolve().parents[2] /
+                             "execution/v0.3/contracts/hash-vector.json").read_bytes())
+        document = vector["document"]
+        summary = curate.adjudication_summary(document["graph"], document["items"])
+        self.assertEqual(curate.canonical(summary), vector["preimage"])
+        self.assertEqual(curate.digest(summary), vector["expected_sha256"])
+
     def test_assets_bind_input_and_decisions_and_hide_denied_column(self):
         manifest = demo.verify_assets()
         self.assertEqual(manifest["model_calls"], 0)

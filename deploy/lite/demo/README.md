@@ -100,7 +100,7 @@ and all sample values. Compilation is not authentication or publication.
 `adjudication.json` follows `oo.adjudication/v1`. `input_sha256` hashes the
 exact `reviewed-analyst.json` file bytes, including its final newline.
 `summary_sha256` hashes UTF-8 compact sorted-key JSON of
-`{"graph": graph, "items": items}` (`ensure_ascii=False`, no trailing newline).
+`{"graph": graph, "decisions": {item_id: decision}}` (`ensure_ascii=False`, no trailing newline).
 Every synthetic key, declared relation and code coverage is checked by the
 live fixture runner. The sensitive-column decision is explicitly declared,
 not represented as a model prediction or a phone-format measurement.

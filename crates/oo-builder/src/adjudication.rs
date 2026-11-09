@@ -565,6 +565,18 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shared_adjudication_hash_vector() {
+        let vector: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../execution/v0.3/contracts/hash-vector.json"
+        ))
+        .unwrap();
+        assert_eq!(
+            super::adjudication_summary_sha256(&vector["document"]),
+            vector["expected_sha256"].as_str().unwrap()
+        );
+    }
+
     use super::*;
 
     fn fixture() -> Value {

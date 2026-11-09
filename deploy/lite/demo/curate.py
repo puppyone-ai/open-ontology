@@ -21,6 +21,9 @@ def canonical(value):
 def digest(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
+def adjudication_summary(graph, items):
+    return dict(graph=graph, decisions={item["id"]: item["decision"] for item in items})
+
 
 def stable(kind, table, column=None):
     return kind + ":" + digest([table, column])
@@ -174,7 +177,7 @@ def generate(compiler, out):
     save("adjudication.json", dict(protocol="oo.adjudication/v1",
          input_sha256=hashlib.sha256((out / "reviewed-analyst.json").read_bytes()).hexdigest(),
          thresholds=dict(relation_containment_strict=0.98, relation_containment_with_signal=0.9, code_coverage=0.99),
-         items=items, graph=public_graph, summary_sha256=digest(dict(graph=public_graph, items=items))))
+         items=items, graph=public_graph, summary_sha256=digest(adjudication_summary(public_graph, items))))
     save("gold.json", [
         dict(id="Q01", question="How many orders can this role see?",
              sql="SELECT COUNT(*) AS value FROM demo.orders", expected={"analyst": [["60"]], "ops": [["60"]]}),

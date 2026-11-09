@@ -1,5 +1,5 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
-│  graph  │  relations  │  entity                    summary 648cce8b… ┊ decisions ··········· ·  ·   by data evidence │
+│  graph  │  relations  │  entity                    summary 20235ec5… ┊ decisions ··········· ·  ·   by data evidence │
 │                                                                      ┊                                               │
 │              ╭────────╮    ╭─────────╮    ╭─────────╮                ┊                                               │
 │              │ 实体0  │    │ 实体6   │    │ 实体8   │                ┊                                               │

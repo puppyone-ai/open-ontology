@@ -61,7 +61,8 @@ def verify_assets(root=ASSETS):
         if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise ValueError("DEMO_ASSET_DIGEST")
     adjudication = json.loads((root / "adjudication.json").read_bytes())
-    raw = json.dumps({k: adjudication[k] for k in ("graph", "items")},
+    raw = json.dumps({"graph": adjudication["graph"],
+                     "decisions": {item["id"]: item["decision"] for item in adjudication["items"]}},
                      sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
     if (adjudication["input_sha256"] != manifest["files"]["reviewed-analyst.json"]
             or adjudication["summary_sha256"] != hashlib.sha256(raw).hexdigest()):
