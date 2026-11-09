@@ -15,6 +15,47 @@ CLASSES = {
     "metric": {"certified", "demoted"}, "entity_key": {"adopted", "rejected"},
     "code_table": {"complete", "incomplete"},
 }
+FORMAT_FIELDS = ("phone", "id_card", "email", "bank_card", "person_name",
+                 "street_address", "contact_text", "birth_date", "pii_marker")
+
+
+def semantic_predicates(column):
+    # Aggregate on the replica: neither names nor contact samples leave it.
+    surnames = ("赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜"
+                "戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费"
+                "廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于傅皮卞齐康伍余元顾孟平黄穆萧尹"
+                "姚邵汪毛禹狄米贝明臧计伏成戴宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季"
+                "麻强贾路娄危江童颜郭梅盛林钟徐邱骆高夏蔡田樊胡凌霍虞万支柯管卢莫"
+                "房裘缪解应宗丁宣邓郁单杭洪包诸左石崔吉龚程嵇邢裴陆荣翁荀羊甄曲"
+                "封芮储靳段富巫乌焦巴弓牧隗山谷车侯全班仰秋仲伊宫宁仇栾暴甘厉戎"
+                "祖武符刘景詹束龙叶幸司韶黎乔苍双闻莘党翟谭贡劳姬申冉宰雍桑桂牛"
+                "寿通边扈燕冀郏浦尚农温庄晏柴瞿阎连习艾向古易慎廖庾终居衡步都耿"
+                "满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚"
+                "简饶曾沙关蒯相查后荆红游竺权逯盖益桓公")
+    cjk = rf"^([{surnames}][一-龥]{{1,2}}|(欧阳|司马|上官|诸葛|夏侯|东方|皇甫|尉迟|公孙|慕容)[一-龥]{{1,2}})$"
+    given = ("Alice|Bob|Carol|David|Emma|Frank|Grace|Henry|Isabella|James|Jane|John|"
+             "Julia|Liam|Maria|Mary|Michael|Olivia|Robert|Sarah|Sophia|Thomas|William")
+    latin = rf"^({given})[[:space:]]+[A-Z][a-z]+([-'][A-Z]?[a-z]+)?$"
+    address = (r"(^[0-9]{1,6}[[:space:]]+[[:alpha:] .'-]+[[:space:]]"
+               r"(Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr|Boulevard|Blvd)"
+               r"([[:space:],.#]|$)|[一-龥]+(路|街|巷|弄|道)[0-9一二三四五六七八九十百]+号)")
+    email = r"[[:alnum:]_.%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}"
+    contact = (r"(电话|手机|联系|tel|phone|mobile)[[:space:]:：=]*"
+               r"\+?[0-9][0-9 ()-]{6,18}[0-9]")
+    birth_context = bool(re.search(r"birth|birthday|dob|born|csrq|出生|生日",
+                                   column.get("name", column["physical_name"]), re.I))
+    date = r"^(19|20)[0-9]{2}[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12][0-9]|3[01])$"
+    return {
+        "person_name": f"(v ~ {literal(cjk)} OR v ~ {literal(latin)}) "
+                       "AND v !~ '(公司|集团|中心|银行|物流|客户|仓库|街|路|省|市|区|县|店)$'",
+        "street_address": "v ~* " + literal(address),
+        "contact_text": "(v ~* " + literal(email) + " OR v ~* " + literal(contact) + ")",
+        "birth_date": ("v ~ " + literal(date) + " AND pg_input_is_valid(v,'date')"
+                       if birth_context else "false"),
+        # These are intentionally artificial fixture values, not evidence that
+        # formatless names/addresses can be recognized by a canary prefix.
+        "pii_marker": "v ~ '^(SYN-(PHONE|ID)-[0-9]+|CANARY-PII-(PHONE|SFZH)-[0-9]+)$'",
+    }
 
 
 def thresholds():
@@ -28,6 +69,9 @@ def summary_hash(document):
 
 def column_profile(db, table, column):
     name = quote(column["physical_name"])
+    semantic = "".join(
+        f"'{field}',coalesce(sum(n) filter(where {predicate}),0),"
+        for field, predicate in semantic_predicates(column).items())
     # Values never leave the replica; grouped frequencies provide Shannon entropy.
     return db.query(
         "select json_build_object('rows',coalesce(sum(n),0),"
@@ -41,6 +85,7 @@ def column_profile(db, table, column):
         "'id_card',coalesce(sum(n) filter(where v ~ '^[1-9][0-9]{16}[0-9Xx]$'),0),"
         "'email',coalesce(sum(n) filter(where v ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'),0),"
         "'bank_card',coalesce(sum(n) filter(where v ~ '^[0-9]{13,19}$'),0),"
+        + semantic +
         "'entropy',coalesce(-sum((n::numeric/nullif(total,0))*"
         "log(2,n::numeric/nullif(total,0))) filter(where v is not null),0)) "
         "from (select v,n,sum(n) filter(where v is not null) over() total from "
@@ -53,10 +98,10 @@ def sensitive_decision(profile, suspicious, config):
     if (any(type(profile[k]) is not int or profile[k] < 0
             for k in ("rows", "non_null", "distinct", "phone", "id_card", "email", "bank_card"))
             or not 0 <= profile["distinct"] <= count <= rows
-            or any(profile[k] > count for k in ("phone", "id_card", "email", "bank_card"))):
+            or any(type(profile.get(k, 0)) is not int or not 0 <= profile.get(k, 0) <= count
+                   for k in FORMAT_FIELDS)):
         raise ValueError("adjudication_profile_counts")
-    rate = max(profile[k] / count if count else 0
-               for k in ("phone", "id_card", "email", "bank_card"))
+    rate = max(profile.get(k, 0) / count if count else 0 for k in FORMAT_FIELDS)
     # An empty/all-null profile is unknown, not negative evidence.
     hidden = rate >= config["sensitive_format_rate"] or suspicious and not count
     return ("hidden" if hidden else "visible",

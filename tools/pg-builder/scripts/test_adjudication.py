@@ -64,7 +64,7 @@ class Adjudication(unittest.TestCase):
     def test_negative_name_only_profile_is_visible_but_unknown_is_not(self):
         profile = dict(rows=100, non_null=100, distinct=2, phone=0, id_card=0, email=0, bank_card=0)
         self.assertEqual(a.sensitive_decision(profile, True, a.thresholds())[0], 'visible')
-        for field in ('phone', 'id_card', 'email', 'bank_card'):
+        for field in a.FORMAT_FIELDS:
             self.assertEqual(a.sensitive_decision(dict(profile, **{field:50}), False,
                                                  a.thresholds())[0], 'hidden')
         self.assertEqual(a.sensitive_decision(dict(profile, non_null=0, distinct=0), True,
