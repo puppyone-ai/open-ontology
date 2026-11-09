@@ -1,5 +1,66 @@
 # T10 harness handoff (S6-H-02 / D24)
 
+## Live-card follow-up (2026-11-08 local)
+
+Run `t10-live-preflight-20261108` found eight unrelated running containers.
+The quiet-host guard remains intact; none was stopped. Live numbers and D24
+acceptance remain unavailable. The guide records this explicitly:
+[Production impact](../../docs/guide/production-impact.md).
+
+The duty override is now present in the card's base commit; the patch-blocker
+description below is historical. Build the binaries in this worktree:
+
+```sh
+cargo build -p oo-cli --locked
+cargo build --manifest-path tools/oo-load/Cargo.toml --release --locked \
+  --features mysql-binlog --target-dir target
+```
+
+For each live command below, use `--binary target/release/oo-load --cpus 4
+--memory 8g`, and a new evidence directory. The C5 phase now automatically
+measures four subphases: `c5_idle`, `c5_changed` at the checked-out lite default
+(24), followed by `c5_full_idle`, `c5_full_changed` at period 1. Each has its
+own explicit baseline, scope, and recorded `c5_policy`. All four must pass for
+an overall pass. Cycle 1 is deliberately not a periodic full-read cycle at 24;
+it is full-read at period 1.
+
+Foreground insert keys now persist across calibration and all phases.
+Previously each new workload reused keys in the same `other` table, causing
+duplicate-key errors unrelated to production impact. No product defaults or
+budget values changed. The new tests exercise both policy paths, independent
+baselines, key continuity, and refusal before resource creation on a busy host.
+
+Validation for this follow-up (raw output under the run directory):
+
+- `cargo build -p oo-cli --locked`: pass (`build-cli.log`).
+- Release oo-load command above: pass (`build-load.log`); existing unused
+  variable warning remains, no lockfile changes.
+- `cargo check --workspace --locked`: pass (`cargo-check.log` and
+  `cargo-check-docs.log`). No Rust source changes; crate formatting/tests are
+  not applicable.
+- `python3 -m unittest discover -s tools/oo-test -p test_t10.py -v`:
+  36 pass (`unit-final.log`). The initial new test used a non-context-manager
+  mock and failed; `unit.log` preserves it. Corrected the mock, not a gold
+  value or a budget.
+- `python3 -m unittest discover -s tools/oo-test -p test_t3t4.py -v`:
+  13 pass (`harness-regression.log`).
+- `python3 specs/scripts/check_spec.py`, `check_plan.py`, and
+  `check_v02_plan.py`: all pass, document checks only.
+- Oracle 23, MySQL 8.4, PostgreSQL 17 commands, in that order:
+  exit 1, `blocked: quiet-host run requires no pre-existing running
+  containers; nothing stopped` (`live-oracle.json`, `live-mysql.json`,
+  `live-postgres.json`). These are preflight results, not engine test failures
+  or budget measurements. Configured 4 CPUs / 8 GB limits were never applied
+  to a source container.
+- Final label-scoped inventory: zero T10 containers, volumes, or networks.
+  The eight unrelated containers remain running.
+
+Adaptive throttle, short-transaction product changes, live before/after
+measurements, and full-scale T1/T2 reruns were not performed. A quiet test host
+is required to determine which mitigation is warranted next.
+
+## Original offline handoff (historical)
+
 ## Scope and result
 
 Offline harness implementation only. No Docker commands were executed against
