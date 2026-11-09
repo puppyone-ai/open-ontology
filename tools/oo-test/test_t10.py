@@ -165,7 +165,8 @@ class SchedulerTests(unittest.TestCase):
             now[0] += delta
         def slow(_):
             gate.wait(.05)
-        rows, _ = t10.open_loop(slow, 1000, .1, clock=lambda: now[0], sleep=sleep, workers=1)
+        with patch.object(t10, 'BACKLOG_SECONDS', 0.01):  # backlog beyond the bound
+            rows, _ = t10.open_loop(slow, 1000, .1, clock=lambda: now[0], sleep=sleep, workers=1)
         self.assertEqual(len(rows), 100)
         self.assertTrue(any(r['error'] == 'scheduler_queue_full' for r in rows))
 
@@ -248,6 +249,18 @@ class CLITests(unittest.TestCase):
         self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 0.01})
         self.assertNotIn('customer', json.dumps(seen))
         self.assertTrue(all(call.args[0][:2] == ['docker', 'stats'] for call in run.call_args_list))
+
+
+class BacklogTests(unittest.TestCase):
+    def test_short_stall_is_latency_not_overload(self):
+        clock = {'now': 0.0}
+        def work(index):
+            if index == 0:
+                clock['now'] += 2.0  # one two-second stall
+        requests, _ = t10.open_loop(work, 5000, 1, clock=lambda: clock['now'],
+                                    sleep=lambda d: clock.__setitem__('now', clock['now'] + d), workers=1)
+        self.assertFalse([r for r in requests if r['error'] == 'scheduler_queue_full'])
+        self.assertGreaterEqual(max(r['latency_ms'] for r in requests), 1000)
 
 
 class SettleTests(unittest.TestCase):

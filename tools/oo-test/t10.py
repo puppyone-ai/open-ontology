@@ -226,14 +226,24 @@ class Workload:
         self.connections.clear()
 
 
+# Foreground client connections. Oracle Free's listener refuses new sessions
+# (ORA-12516) well below 64 under load, so Oracle runs with 32.
+WORKERS = {'oracle': 32}
+DEFAULT_WORKERS = 64
+# Latency is measured from the intended start, so queueing already shows in
+# p95/p99. Only a backlog beyond this many seconds counts as overload.
+BACKLOG_SECONDS = 30
+
+
 def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
-              sleep=time.sleep, workers=64, on_start=lambda: None):
+              sleep=time.sleep, workers=None, on_start=lambda: None):
     """Bounded queue: overloaded arrivals are errors, never silently dropped.
 
     A completion-driven phase uses finished instead of seconds. The scheduler
     never waits for an earlier request; end-to-end latency starts at intended.
     """
-    jobs = queue.Queue(maxsize=workers * 32)
+    workers = workers or DEFAULT_WORKERS
+    jobs = queue.Queue(maxsize=max(workers * 32, int(rate * BACKLOG_SECONDS)))
     results = []
     lock = threading.Lock()
     start = clock()
@@ -297,7 +307,7 @@ def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
 
 def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lambda: None):
     samples = []
-    for concurrency in levels:
+    for concurrency in [c for c in levels if c <= DEFAULT_WORKERS * 2]:
         stop = time.monotonic() + seconds
         next_index = 0
         index_lock = threading.Lock()
@@ -557,6 +567,8 @@ def main(argv=None):
         raise SystemExit('blocked: oo-load needs the coordinator duty-cycle patch in T10-VALIDATION.md')
     importlib.import_module({'postgres': 'psycopg', 'mysql': 'pymysql', 'oracle': 'oracledb'}[args.engine])
     preexisting = quiet_host()
+    global DEFAULT_WORKERS
+    DEFAULT_WORKERS = WORKERS.get(args.engine, DEFAULT_WORKERS)
     t1.LANE = 't10'
     args.evidence.mkdir(parents=True, mode=0o700, exist_ok=False)
     args.platform, args.health_timeout, args.scale, args.tables, args.worker_image = None, 600, SCALE, 0, None
