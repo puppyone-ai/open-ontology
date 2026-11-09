@@ -11,6 +11,13 @@ from test_retained_build import Db, cut, facts
 
 
 class Adjudication(unittest.TestCase):
+    def test_shared_tui_hash_vector(self):
+        vector = json.loads((Path(__file__).resolve().parents[3] /
+                            'crates/oo-builder/tests/adjudication-hash-vector.json').read_text())
+        self.assertEqual(a.summary_hash(vector['document']), vector['expected_sha256'])
+        self.assertEqual(hashlib.sha256(vector['preimage'].encode()).hexdigest(),
+                         vector['expected_sha256'])
+
     def test_optional_query_history_failure_is_not_empty_measured_history(self):
         class Db:
             calls = 0

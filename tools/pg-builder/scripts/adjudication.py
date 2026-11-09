@@ -22,8 +22,8 @@ def thresholds():
 
 
 def summary_hash(document):
-    # Arrays are sorted by stable id at production; overrides preserve that order.
-    return lib.digest({"graph": document["graph"], "decisions": document["items"]})
+    return lib.digest({"graph": document["graph"],
+                       "decisions": {i["id"]: i["decision"] for i in document["items"]}})
 
 
 def column_profile(db, table, column):

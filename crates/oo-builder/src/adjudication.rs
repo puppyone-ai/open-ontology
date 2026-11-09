@@ -80,7 +80,7 @@ struct Overrides {
 struct Confirmation {
     protocol: String,
     summary_sha256: String,
-    overrides_sha256: String,
+    overrides_sha256: Option<String>,
     reason: String,
     confirmed_at: String,
 }
@@ -96,7 +96,13 @@ fn allowed(class: &str, decision: &str) -> bool {
 }
 
 pub fn adjudication_summary_sha256(document: &Value) -> String {
-    canonical_sha256(&json!({"graph":document["graph"],"decisions":document["items"]}))
+    let decisions: BTreeMap<_, _> = document["items"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|item| Some((item["id"].as_str()?, item["decision"].as_str()?)))
+        .collect();
+    canonical_sha256(&json!({"graph":document["graph"],"decisions":decisions}))
 }
 
 fn document(value: &Value) -> Result<Document, String> {
@@ -299,7 +305,12 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
         .map_err(|_| "adjudication_confirmation_shape")?;
     if confirmation.protocol != "oo.publish-confirm/v1"
         || confirmation.summary_sha256 != doc.summary_sha256
-        || confirmation.overrides_sha256 != canonical_sha256(&envelope["overrides"])
+        || match &confirmation.overrides_sha256 {
+            Some(hash) => *hash != canonical_sha256(&envelope["overrides"]),
+            None => !envelope["overrides"]["items"]
+                .as_object()
+                .is_some_and(|items| items.is_empty()),
+        }
         || confirmation.reason.trim().is_empty()
     {
         return Err("adjudication_confirmation_binding".into());
@@ -607,6 +618,21 @@ mod tests {
         assert_eq!(
             output["effective"]["datasets"][0]["columns"][0]["pii"],
             "none"
+        );
+    }
+
+    #[test]
+    fn tui_null_override_digest_is_only_valid_for_empty_overrides() {
+        let mut input = fixture();
+        input["confirmation"]["overrides_sha256"] = Value::Null;
+        assert!(compile_confirmed_community(&input).is_ok());
+        input["overrides"]["items"]["entity_key/app.items"] =
+            json!({"decision":"rejected","reason":"Plain dataset"});
+        confirm(&mut input);
+        input["confirmation"]["overrides_sha256"] = Value::Null;
+        assert_eq!(
+            compile_confirmed_community(&input).unwrap_err(),
+            "adjudication_confirmation_binding"
         );
     }
 
