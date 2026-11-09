@@ -483,6 +483,27 @@ def parse_args(argv=None):
     return args
 
 
+QUIET_CPU_PERCENT = 5.0
+
+
+def quiet_host(samples=3):
+    """Pre-existing containers are never stopped; they must be measured idle.
+
+    Returns the containers seen (name and peak CPU %) for the evidence report.
+    """
+    peaks = {}
+    for _ in range(samples):
+        text = subprocess.run(['docker', 'stats', '--no-stream', '--format', '{{.Name}}\t{{.CPUPerc}}'],
+                              capture_output=True, text=True, check=True).stdout
+        for line in text.splitlines():
+            name, _, cpu = line.partition('\t')
+            value = float(cpu.strip().rstrip('%') or 0)
+            peaks[name] = max(peaks.get(name, 0.0), value)
+    if sum(peaks.values()) > QUIET_CPU_PERCENT:
+        raise SystemExit('blocked: pre-existing containers are not idle; nothing stopped')
+    return [{'name': name, 'peak_cpu_percent': cpu} for name, cpu in sorted(peaks.items())]
+
+
 def main(argv=None):
     args = parse_args(argv)
     # Preflight before creating resources. The unpatched loader must not silently
@@ -492,9 +513,7 @@ def main(argv=None):
     if 'initial_duty100' in args.phases and '--duty-cycle-percent' not in help_text:
         raise SystemExit('blocked: oo-load needs the coordinator duty-cycle patch in T10-VALIDATION.md')
     importlib.import_module({'postgres': 'psycopg', 'mysql': 'pymysql', 'oracle': 'oracledb'}[args.engine])
-    running = subprocess.run(['docker', 'ps', '-q'], capture_output=True, text=True, check=True).stdout
-    if running.strip():
-        raise SystemExit('blocked: quiet-host run requires no pre-existing running containers; nothing stopped')
+    preexisting = quiet_host()
     t1.LANE = 't10'
     args.evidence.mkdir(parents=True, mode=0o700, exist_ok=False)
     args.platform, args.health_timeout, args.scale, args.tables, args.worker_image = None, 600, SCALE, 0, None
@@ -502,6 +521,7 @@ def main(argv=None):
     run.receipt = {}
     h = (OracleHarness if args.engine == 'oracle' else t3t4.Harness)(run, binary)
     report = {'engine': args.engine, 'version': args.version, 'phases': {}, 'errors': [],
+              'preexisting_containers': preexisting,
               'cpus': args.cpus, 'memory': args.memory, 'scale': SCALE,
               'product_sha': product_sha(), 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
               'measurement_notes': ['client-observed latency includes queueing',

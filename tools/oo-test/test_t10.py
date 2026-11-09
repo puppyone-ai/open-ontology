@@ -200,15 +200,22 @@ class CLITests(unittest.TestCase):
                 source.assert_not_called()
 
     def test_busy_host_refused_without_creating_resources(self):
+        busy = argparse.Namespace(stdout='unrelated-container\t42.0%\n')
         with patch.object(t10.subprocess, 'run', side_effect=[
-                argparse.Namespace(stdout='--duty-cycle-percent'),
-                argparse.Namespace(stdout='unrelated-container\n')]) as run, \
+                argparse.Namespace(stdout='--duty-cycle-percent'), busy, busy, busy]) as run, \
                 patch.object(t10.importlib, 'import_module'), \
                 patch.object(t10, 'ImpactSource') as source:
-            with self.assertRaisesRegex(SystemExit, 'quiet-host'):
+            with self.assertRaisesRegex(SystemExit, 'not idle; nothing stopped'):
                 t10.main(self.argv())
             source.assert_not_called()
-            self.assertEqual(run.call_args.args[0], ['docker', 'ps', '-q'])
+            self.assertEqual(run.call_args.args[0][:3], ['docker', 'stats', '--no-stream'])
+
+    def test_idle_preexisting_containers_are_recorded_not_stopped(self):
+        idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:
+            seen = t10.quiet_host()
+        self.assertEqual([c['name'] for c in seen], ['customer-a', 'customer-b'])
+        self.assertTrue(all(call.args[0][:2] == ['docker', 'stats'] for call in run.call_args_list))
 
 
 class IntegrationContractTests(unittest.TestCase):
