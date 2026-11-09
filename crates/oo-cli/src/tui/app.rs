@@ -226,7 +226,14 @@ pub fn build(term: &mut Term, poll: &mut dyn FnMut() -> (Option<Value>, bool)) -
         }
         if finished {
             let secs = started.elapsed().as_secs();
-            state.note = if term.theme.zh {
+            state.note = if !state.done() {
+                term.theme
+                    .t(
+                        "pipeline not complete · ⏎ continue",
+                        "构建链未完成 · ⏎ 继续",
+                    )
+                    .into()
+            } else if term.theme.zh {
                 format!("用时 {secs} 秒 · ⏎ 继续")
             } else {
                 format!("finished in {secs}s · ⏎ continue")

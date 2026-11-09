@@ -137,25 +137,31 @@ pub fn product_stage(name: &str) -> Option<usize> {
 /// into the five-stage view.
 pub fn from_chain(state: &Value) -> Build {
     let mut build = Build::new();
+    let mut seen = [false; 5];
     for stage in state["stages"].as_array().into_iter().flatten() {
         let Some(index) = stage["name"].as_str().and_then(product_stage) else {
             continue;
         };
         let target = &mut build.stages[index];
         let status = match stage["status"].as_str().unwrap_or("") {
-            "done" | "completed" | "ok" | "passed" | "published" => Status::Pass,
+            "done" | "complete" | "completed" | "ok" | "passed" | "published" => Status::Pass,
             "running" | "in_progress" | "started" => Status::Running,
             "failed" | "blocked" | "error" => Status::Fail,
             _ => Status::Waiting,
         };
         // A product stage made of several chain stages is only as far as its
         // least advanced part.
-        target.status = match (target.status, status) {
-            (Status::Fail, _) | (_, Status::Fail) => Status::Fail,
-            (Status::Waiting, s) => s,
-            (Status::Pass, Status::Pass) => Status::Pass,
-            _ => Status::Running,
+        target.status = if !seen[index] {
+            status
+        } else {
+            match (target.status, status) {
+                (Status::Fail, _) | (_, Status::Fail) => Status::Fail,
+                (Status::Waiting, Status::Waiting) => Status::Waiting,
+                (Status::Pass, Status::Pass) => Status::Pass,
+                _ => Status::Running,
+            }
         };
+        seen[index] = true;
         target.completed += stage["completed"].as_u64().unwrap_or(0);
         target.total += stage["total"].as_u64().unwrap_or(0);
         if let Some(unit) = stage["unit"].as_str() {
@@ -525,6 +531,20 @@ mod tests {
         );
         assert!(failed.failed());
         assert_eq!(product_stage("publication"), Some(4));
+    }
+
+    #[test]
+    fn real_chain_completion_and_pending_substages_are_order_independent() {
+        let complete = from_chain(&json!({"stages":[{"name":"load","status":"complete"}]}));
+        assert_eq!(complete.stages[0].status, Status::Pass);
+        for statuses in [["pending", "complete"], ["complete", "pending"]] {
+            let chain = from_chain(&json!({"stages":[
+                {"name":"compile","status":statuses[0]},
+                {"name":"publish","status":statuses[1]}
+            ]}));
+            assert_eq!(chain.stages[4].status, Status::Running);
+            assert!(!chain.done());
+        }
     }
 
     #[test]
