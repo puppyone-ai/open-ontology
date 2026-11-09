@@ -1,0 +1,49 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ ▸ paste a connection string                                                  │
+│   fill in fields                                                             │
+│   no database? use the demo                                                  │
+│                                                                              │
+│ › postgres://oo_reader:••••••@db.internal:5432/logistics▏                    │
+│   ● postgres  db.internal:5432 / logistics as oo_reader                      │
+│                                                                              │
+│                                                                              │
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ ✓ engine             postgres (from the connection string)                   │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                      │
+│ ✓ TLS                server certificate verified with your CA                │
+│ ⠸ read-only account  checking privileges…                                    │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works        │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by you…  │
+│ · catalog access     after the account check                                 │
+│                                                                              │
+│                                                                              │
+│                         ·                          ·                    •··  │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+--- colour layer ---
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffA.AAAAAAAffffffff.ff
+f.iiiiiii.fffffffffffff..f.....ddddddddd.d.ddddddd.dd.ddddddd.dd.dddd.dddddddd.f
+f..............................................................................f
+f.A.iiiii.i.iiiiiiiiii.iiiiii..................................................f
+f...dddd.dd.dddddd.............................................................f
+f...dd.ddddddddd.ddd.ddd.dddd..................................................f
+f..............................................................................f
+f.A.iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiA....................f
+f...G.iiiiiiii..dddddddddddddddd.d.ddddddddd.dd.ddddddddd......................f
+f..............................................................................f
+f..............................................................................f
+f.iiiiiiiii.iiiiii.fffffffffff.f.....dddddd.ddddd.dd.ddddd.dddd.ddd.dddddddddd.f
+f..............................................................................f
+f.G.iiiiii.............dddddddd.ddddd.ddd.dddddddddd.ddddddd...................f
+f.G.iiiiiiiii..........dddddddddddddddd.dddddddd.dd.dd.dd......................f
+f.G.iii................dddddd.ddddddddddd.dddddddd.dddd.dddd.dd................f
+f.A.iiiiiiiii.iiiiiii..dddddddd.ddddddddddd....................................f
+f.Y.iii.iiiiiiiiii.....dddddddddddddddddd.ddddddddd.ddddddd.ddddd.ddddd........f
+f......................YYY.iiiii.iiiiii.iii.iiiiiiiii.i.iiiiiiii.iiii.ii.iiii..f
+f.f.ddddddd.dddddd.....ddddd.ddd.ddddddd.ddddd.................................f
+f..............................................................................f
+f..............................................................................f
+f.........................f..........................f....................fff..f
+f.AA.dddddd..AAA.dddd.ddddd..A.ddddddd..AAA.dddd..ffffffffffffffffffffffffffffff

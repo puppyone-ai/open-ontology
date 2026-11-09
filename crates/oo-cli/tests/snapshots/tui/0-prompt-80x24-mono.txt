@@ -1,0 +1,24 @@
+╭ ◆ open ontology ────────────────────────────────────────────●─●─◉ build─○─○ ─╮
+│                                                                              │
+│ Model base URL, or @PATH to import a private endpoint file                   │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ › @~/private/endpoint▏                                                       │
+│                                                                              │
+│ credentials already entered stay saved if you cancel                         │
+╰ ⏎ accept  esc cancel  ↑↓ scroll  ────────────────────────────────────────────╯

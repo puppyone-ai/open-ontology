@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
+│ connect ············································  ····     ·  ·  read-only · nothing is written to your database │
+│                                                                                                                      │
+│ ▸ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
+│   fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
+│   no database? use the demo                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ read-only checks ············································   ···        advice only; oo never runs DBA statements │
+│                                                                                                                      │
+│ ✓ engine             postgres (from the connection string)                                                           │
+│ ✓ reachable          db.internal:5432 answered in 12 ms                                                              │
+│ ✓ TLS                server certificate verified with your CA                                                        │
+│ ⠸ read-only account  checking privileges…                                                                            │
+│ ! CDC capability     wal_level=replica; scheduled refresh still works                                                │
+│                      fix ALTER SYSTEM SET wal_level = logical; (run by your DBA)                                     │
+│ · catalog access     after the account check                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                        ·                                 ·                    ·      │
+│                                                                          •          · ·                •   ·   ·     │
+│                ✦                ·                                             ·•    ·         ··    ·  ·  ·  •   ·✦  │
+╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────────────────────────────────────────────╯

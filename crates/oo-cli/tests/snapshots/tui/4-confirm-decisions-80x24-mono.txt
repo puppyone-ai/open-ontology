@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────●─●─●─◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│                                                                              │
+│ decisions ·································· ······  ·      by data evidence │
+│                                                                              │
+│ ▸ ○ sensitive routes.mobile_code                            visible    0.91  │
+│     format hits 0 · name hit                                                 │
+│   ◌ sensitive customers.phone                               hidden     0.98  │
+│     distinct 0.97 · format hits 0.982                                        │
+│   ◌ sensitive drivers.id_number                             hidden     0.99  │
+│     distinct 1 · format hits 1                                               │
+│   ✗ relation  司机 → 员工                                   rejected   0.38  │
+│     containment 0.64 < 0.9                                                   │
+│   ✗ relation  运单 → 仓库                                   rejected   0.41  │
+│     containment 0.71 < 0.98                                                  │
+│   ↓ metric    avg_parcel_weight                             demoted    0.44  │
+│     non empty · recompute match · unit consistent ✗ · window stable          │
+│   ✓ relation  网点 → 员工                                   adopted     0.9  │
+│     many-to-one · containment 0.93 · joins 2 · name 0.6 · parent unique · 1… │
+│   ✓ relation  线路 → 网点                                   adopted    0.93  │
+│     many-to-one · containment 0.97 · joins 2 · name 0.8 · parent unique · 4… │
+│   ✓ relation  订单 → 日历                                   adopted    0.94  │
+│     many-to-one · containment 1 · joins 7 · name 0.3 · parent unique · 1.2M… │
+╰ tab view  ↑↓ select  o override  ⏎ confirm publish  q quit  ─────────────────╯

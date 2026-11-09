@@ -19,6 +19,7 @@ mod load;
 mod outcome;
 mod render;
 mod run;
+pub(crate) mod tui;
 
 pub fn run() -> u8 {
     run::run()

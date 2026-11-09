@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect──● tables──● build──◉ confirm──○ deliver ─╮
+│  graph  │  relations  │  entity                    summary 3edff190… ┊ decisions ··········· ·  ·   by data evidence │
+│                                                                      ┊                                               │
+│          │ id · 2.1k ├1╯     │ id · 310 │    │ id · 1.8k │           ┊ ▸ ○ sensitive routes.mobile… visible    0.91  │
+│          ╰──┬──┬──┬──╯       ╰───┬──┬───╯    ╰──┬─┬─┬─┬──╯           ┊     format hits 0 · name hit                  │
+│             1  N  1              1  N           1 N 1 1              ┊     sensitive.name_only_refuted               │
+│             ╰┄┄┼╮ ╰──────────────┼──┼───────────┼─╯ │ │              ┊   ◌ sensitive customers.pho… hidden     0.98  │
+│                ╰┼────────────────┼──┼───────────╯   │ │              ┊     distinct 0.97 · format hits 0.982         │
+│                 ┆  ╭─────────────╯  ╰───────────────┼─╯              ┊     sensitive.format_phone                    │
+│                 ┆  │              ╭─────────────────╯                ┊   ◌ sensitive drivers.id_nu… hidden     0.99  │
+│                 1  1              N                                  ┊     distinct 1 · format hits 1                │
+│            ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮             ┊     sensitive.format_national_id              │
+│            │ 司机     │    │ 线路     │    │ 包裹      │             ┊   ✗ relation  司机 → 员工    rejected   0.38  │
+│            │ id · 540 │    │ id · 420 │    │ id · 2.4M │             ┊     containment 0.64 < 0.9                    │
+│            ╰─────┬────╯  ╭─ confirm publication ──────────────────────────────────────────╮ment_insufficient         │
+│                  1       │ summary  sha256:3edff1904874…e22b17                            │ 仓库    rejected   0.41  │
+│                  ╰───────│ 13 entities · 14 relations · 2 rejected                        │ < 0.98                   │
+│                          │ 2 hidden columns · 1 demoted metrics · 0 override(s)           │ment_insufficient         │
+│                          │                                                                │rcel_we… demoted    0.44  │
+│                          │ Publishing binds this exact graph and these decisions.         │mpute match · unit consi… │
+│                          │                                                                │atch                      │
+│                          │ reason › first publish of logistics▏                           │ 员工    adopted     0.9  │
+│                          │                                                                │ntainment 0.93 · joins 2… │
+│                 ╭────────│                                                                │ment_with_signal          │
+│                 1        │ ⏎ confirm and write   esc back                                 │ 网点    adopted    0.93  │
+│           ╭─────┴─────╮  ╰────────────────────────────────────────────────────────────────╯ntainment 0.97 · joins 2… │
+│           │ 订单      │    │ 运单事件 │    │ 仓库      │             ┊     relation.containment_with_signal          │
+│           │ id · 1.2M │    │ id · 11M │    │ code · 36 │             ┊   ✓ relation  订单 → 日历    adopted    0.94  │
+│           ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯             ┊     many-to-one · containment 1 · joins 7 · … │
+│               N   N              N                                   ┊     relation.containment_strict               │
+│               ╰──╮│              ╰────────────────╮                  ┊   ✓ relation  车辆 → 网点    adopted    0.95  │
+│                  │╰───────────────╮               │                  ┊     many-to-one · containment 1 · joins 1 · … │
+│                  1                1               1                  ┊     relation.containment_strict               │
+│           ╭──────┴─────╮    ╭─────┴────╮    ╭─────┴─────╮            ┊   ✓ relation  员工 → 员工    adopted    0.95  │
+│           │ 日历       │    │ 客户     │    │ 状态码    │            ┊     many-to-one · containment 0.994 · joins … │
+│           │ day · 3.7k │    │ id · 48k │    │ code · 14 │            ┊     relation.containment_strict               │
+│           ╰────────────╯    ╰──────────╯    ╰───────────╯            ┊   ✓ relation  运单 → 线路    adopted    0.96  │
+│                                                                      ┊     many-to-one · containment 0.991 · joins … │
+│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations ↕           ┊     relation.containment_strict               │
+╰ tab view  ←↑↓→ select  f focus  j/k decisions  o override  ⏎ confirm publish  q quit  ───────────────────────────────╯

@@ -1,0 +1,24 @@
+╭ ◆ open ontology ───────────────────────────────────────────●─◉ tables─○─○─○ ─╮
+│ tables ·································· ······  ·    ·   13 of 23 selected │
+│ ✓ 13 recommend   ? 1 maybe   ✗ 9 skip   ●●●●●●●●●●●●●··········              │
+│                                                                              │
+│ ▸ ◉ ✓ lg.shipments          982k  实体中心：被 3 张表引用                    │
+│   ◉ ✓ lg.shipment_events     11M  关联 2 张表                                │
+│   ○ ✗ lg.shipment_log       8.1M  名称疑似日志/临时/框架表（*_log）          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ search › ship▏                                                               │
+╰ ␣ toggle  a accept recommendations  / search  n none  ⏎ save list  ──────────╯

@@ -1,0 +1,49 @@
+╭ ◆ open ontology ────────────────────────────────────────────●─●─◉ build─○─○ ─╮
+│ build ·································· ······        1/5 · about 0:31 left │
+│                                                                              │
+│ ● load       ████████████████████  12/12 tables      0:42                    │
+│ │            copy selected tables into the private replica                   │
+│ ◉ profile    ███████████▋········  7/12 tables       eta 0:31 ⠹              │
+│ ┆            measure keys, containment, formats, cardinality                 │
+│ ○ draft      ····················                                            │
+│ ┆            draft the ontology (model, bounded calls)                       │
+│ ○ adjudicate ····················                                            │
+│ ┆            decide warn items from data evidence                            │
+│ ○ compile    ····················                                            │
+│              compile and verify the role pack                                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                             •        ·                       │
+│                                               ·    ·                     •   │
+│                                              ·       ·    ·              ·   │
+│                         ·                          ·                    •··  │
+╰ q stop watching (the build continues)  ⏎ continue when done  ────────────────╯
+--- colour layer ---
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffffdfdfA.AAAAAffff.ff
+f.iiiii.ffffffffffffffffffffffffffffffffff.ffffff........ddd.d.ddddd.dddd.dddd.f
+f..............................................................................f
+f.G.iiii.......GGGGGGGGGGGGGGGGGGGG..ddddd.dddddd......dddd....................f
+f.f............ffff.ffffffff.ffffff.ffff.fff.fffffff.fffffff...................f
+f.A.iiiiiii....AAAAAAAAAAAAffffffff..dddd.dddddd.......ddd.dddd.A..............f
+f.f............fffffff.fffff.ffffffffffff.ffffffff.fffffffffff.................f
+f.f.ddddd......ffffffffffffffffffff............................................f
+f.f............fffff.fff.ffffffff.fffffff.fffffff.ffffff.......................f
+f.f.dddddddddd.ffffffffffffffffffff............................................f
+f.f............ffffff.ffff.fffff.ffff.ffff.ffffffff............................f
+f.f.ddddddd....ffffffffffffffffffff............................................f
+f..............fffffff.fff.ffffff.fff.ffff.ffff................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f.............................................f........f.......................f
+f...............................................f....f.....................f...f
+f..............................................f.......f....f..............f...f
+f.........................f..........................f....................fff..f
+f.A.dddd.dddddddd.dddd.ddddd.dddddddddd..A.dddddddd.dddd.dddd..fffffffffffffffff
