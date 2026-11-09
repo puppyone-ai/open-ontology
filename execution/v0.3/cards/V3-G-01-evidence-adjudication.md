@@ -9,3 +9,5 @@ Builder side (crates/oo-builder, tools/pg-builder). For each warn class compute 
 - code table: coverage >=0.99 => complete.
 Every decision records {class, decision, evidence, scores, rule_id}; thresholds in one config. Output feeds V3-A-02.
 Test D28-T: tools/oo-test harness computing precision/recall per class on T6 gold (testing/engines/gold) and OO-Logistics (bench/datagen); relation recall must not drop below current human-review baseline. Fixed evidence.
+
+Write scope: crates/oo-builder, tools/pg-builder, tools/oo-test (D28-T harness), new migration only if needed (report it). Output must follow `execution/v0.3/contracts/adjudication.md` exactly (graph block included); add a JSON-schema test. Do not edit crates/oo-cli UI files (a separate TUI lane owns them); the compiler acceptance of `oo.publish-confirm/v1` lives in the builder/compiler side and is yours.
