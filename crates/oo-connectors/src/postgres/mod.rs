@@ -187,6 +187,7 @@ impl PostgresEngine {
         if let Some(mut session) = self.session.take() {
             session.ensure_open()?;
             session.budget = self.connector.source_config().budget();
+            session.selection = self.connector.source_config().selection().clone();
             return Ok(session);
         }
         let mut s = self.connector.connect().await?;
@@ -211,9 +212,21 @@ impl PostgresEngine {
         }
         session::fetch_control(&mut s, sqlx::query(
             "SELECT set_config('search_path','pg_catalog',false), set_config('TimeZone','UTC',false), set_config('DateStyle','ISO, YMD',false), \
-             set_config('IntervalStyle','postgres',false), set_config('bytea_output','hex',false)"
+             set_config('IntervalStyle','postgres',false), set_config('bytea_output','hex',false), \
+             set_config('max_parallel_workers_per_gather','0',false)"
         )).await?;
         Ok(s)
+    }
+
+    async fn connect_table(&mut self, table: &TableRef) -> Result<PgSession, SourceError> {
+        self.selected(table)?;
+        let mut session = self.connect().await?;
+        // Catalog fingerprints belong to this table, not every selected table.
+        session.selection = crate::TableSelection::new(vec![crate::SelectedTable::new(
+            &table.schema,
+            &table.name,
+        )?])?;
+        Ok(session)
     }
 
     /// Release the cached reader before a separate control connection is used.
@@ -660,7 +673,7 @@ impl SourceEngine for PostgresEngine {
     ) -> Result<TableChunkPlan, SourceError> {
         self.selected(table)?;
         validate_budget(budget)?;
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
@@ -706,7 +719,7 @@ impl SourceEngine for PostgresEngine {
             .plan_revision
             .checked_add(1)
             .ok_or_else(|| SourceError::budget("plan_revision"))?;
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(&chunk.table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
@@ -808,7 +821,7 @@ impl SourceEngine for PostgresEngine {
         if !planned.plan.chunks.contains(chunk) {
             return Err(SourceError::protocol("stale_chunk"));
         }
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(&chunk.table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
