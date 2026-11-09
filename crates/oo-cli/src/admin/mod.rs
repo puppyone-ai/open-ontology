@@ -7,6 +7,7 @@ mod build_token;
 mod doctor;
 mod lite;
 mod ontology;
+mod ontology_graph;
 mod progress;
 mod remote;
 mod review;
@@ -31,6 +32,7 @@ Admin commands (source connections remain read-only):
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -144,15 +146,19 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         return review::run(rest);
     }
     if command == "ontology" {
-        return ontology::run(rest)
-            .map(Invocation::Help)
-            .map_err(|message| {
-                if message == "ADMIN_ARGUMENT" {
-                    Failure::usage(message)
-                } else {
-                    Failure::local(message)
-                }
-            });
+        let graph = rest.first().is_some_and(|s| s == "graph");
+        let result = if graph {
+            ontology_graph::run(&rest[1..])
+        } else {
+            ontology::run(rest)
+        };
+        return result.map(Invocation::Help).map_err(|message| {
+            if message == "ADMIN_ARGUMENT" {
+                Failure::usage(message)
+            } else {
+                Failure::local(message)
+            }
+        });
     }
     if rest.iter().any(|s| s == "--help" || s == "-h") {
         return Ok(Invocation::Help(HELP.into()));
