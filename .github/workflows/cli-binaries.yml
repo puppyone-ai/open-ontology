@@ -54,8 +54,10 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
           cargo build --release --locked -p oo-cli --bin oo --target "$TARGET"
+          cargo build --release --locked --manifest-path tools/mcp-gateway/Cargo.toml --target "$TARGET"
           mkdir -p "$RUNNER_TEMP/native"
           cp "target/$TARGET/release/oo" "$RUNNER_TEMP/native/oo"
+          cp "tools/mcp-gateway/target/$TARGET/release/mcp-gateway" "$RUNNER_TEMP/native/mcp-gateway"
       - name: Attach validated runtime pin
         env:
           LITE_IMAGE: ${{ inputs.lite_image }}
@@ -92,6 +94,7 @@ jobs:
           set -euo pipefail
           gh run download "$GITHUB_RUN_ID" --pattern 'cli-*' --dir "$RUNNER_TEMP/binaries"
           cargo fetch --locked
+          cargo fetch --locked --manifest-path tools/mcp-gateway/Cargo.toml
           python3 packages/cli/scripts/licenses.py --output "$RUNNER_TEMP/notices"
           args=()
           for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
