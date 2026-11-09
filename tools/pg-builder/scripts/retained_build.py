@@ -25,6 +25,7 @@ import time
 import library_selfbuild as lib
 import library_semantics as semantics
 import retained_observation
+import adjudication
 
 PROTOCOL = 'oo.builder.retained-build/v1'
 KEYS = {'protocol', 'psql_command', 'library_id', 'generation', 'source_engine', 'project'}
@@ -64,8 +65,18 @@ def facts_for(db, config, previous=None, stale_tables=()):
 
 def reviewed_shape(reviewed, facts):
     """Early refusal; the publisher re-binds every column/type to the cut itself."""
-    if (reviewed.get('protocol') != 'oo.owner-reviewed-registry/v1' or reviewed.get('status') != 'reviewed'
-            or reviewed.get('review_decision', {}).get('mode') != 'self'):
+    if reviewed.get('protocol') != 'oo.owner-reviewed-registry/v1' or reviewed.get('status') != 'reviewed':
+        raise ValueError('retained_origin_review_required')
+    decision = reviewed.get('review_decision', {})
+    if decision.get('protocol') == 'oo.publish-confirm/v1':
+        command = reviewed.get('command', {})
+        if (decision != command.get('confirmation') or reviewed.get('published') is not False
+                or reviewed.get('authentication') != 'not_claimed'):
+            raise ValueError('retained_origin_review_required')
+        # Replay the compiler gate; a protocol tag alone is not confirmation.
+        if lib.selfbuild_budget.bridge('reviewed', command=command) != reviewed.get('compiled'):
+            raise ValueError('retained_origin_compiled_mismatch')
+    elif decision.get('mode') != 'self':
         raise ValueError('retained_origin_review_required')
     effective = {d['dataset']: {c['name']: c.get('data_type') for c in d['columns']}
                  for d in reviewed['compiled']['effective']['datasets']}
@@ -207,6 +218,7 @@ def run(config_path, output):
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
     command = review_input(inventory(facts), result, config['project'])
+    command['adjudication_replica'] = provenance
     if 'review_pending' in report:
         command['review_pending'] = report['review_pending']
     if 'source_catalog' in config:
@@ -216,8 +228,14 @@ def run(config_path, output):
         command['excluded_foreign_keys'] = [
             dict(dataset=t['dataset'], **fk)
             for t in facts['tables'] for fk in t.get('excluded_foreign_keys', [])]
-    save(output / 'review-input.json', command)
-    return dict(report, stage='review_required', model_calls=calls, review_input='review-input.json')
+    input_hash = save(output / 'review-input.json', command)
+    decisions = adjudication.collect(db, command, facts['tables'], input_hash)
+    _, current_provenance = facts_for(db, config)
+    if current_provenance != provenance:
+        raise ValueError('adjudication_retained_cut_changed')
+    save(output / 'adjudication.json', decisions)
+    return dict(report, stage='review_required', model_calls=calls, review_input='review-input.json',
+                adjudication='adjudication.json', summary_sha256=decisions['summary_sha256'])
 
 
 def main():

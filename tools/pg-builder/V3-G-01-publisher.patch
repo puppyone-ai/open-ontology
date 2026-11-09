@@ -1,0 +1,50 @@
+--- a/tools/release-coordinator/src/retained.rs
++++ b/tools/release-coordinator/src/retained.rs
+@@ -337,7 +337,47 @@
+     pub registry_sha256: String,
+ }
+
++// D28: the Builder replays the exact input, overrides and graph confirmation.
++fn reviewed_confirmation(value: &Value) -> Result<Reviewed, &'static str> {
++    let command = &value["command"];
++    if value["protocol"] != REVIEWED
++        || value["status"] != "reviewed"
++        || value["published"] != false
++        || value["authentication"] != "not_claimed"
++        || value["review_decision"] != command["confirmation"]
++    {
++        return Err("review_confirmation_required");
++    }
++    let compiled = oo_builder::compile_reviewed_community(command)
++        .map_err(|_| "review_compile_refused")?;
++    if compiled != value["compiled"] || compiled["published"] != false {
++        return Err("review_compiled_mismatch");
++    }
++    let input: Value = serde_json::from_str(
++        command["adjudication_input"].as_str().ok_or("review_confirmation_required")?
++    ).map_err(|_| "review_confirmation_required")?;
++    let decided = compiled["summary"]["items"].as_array()
++        .ok_or("review_confirmation_required")?.iter()
++        .filter(|item| item["class"] == "sensitive")
++        .map(|item| item["subject"]["column"].as_str().map(str::to_owned)
++            .ok_or("review_confirmation_required"))
++        .collect::<Result<BTreeSet<_>, _>>()?;
++    Ok(Reviewed {
++        effective: compiled["effective"].clone(),
++        visibility: compiled["visibility"].clone(),
++        ceilings: input["ceilings"].clone(),
++        pack_digest: compiled["producer"]["pack_digest"].as_str()
++            .ok_or("review_compiled_mismatch")?.to_owned(),
++        producer: compiled["producer"].clone(),
++        decided,
++        registry_sha256: gateway_sha(value),
++    })
++}
++
+ pub fn reviewed(value: &Value) -> Result<Reviewed, &'static str> {
++    if value["command"]["confirmation"]["protocol"] == "oo.publish-confirm/v1" {
++        return reviewed_confirmation(value);
++    }
+     let decision = &value["review_decision"];
+     let session = &decision["decisions"];
+     let command = &value["command"];

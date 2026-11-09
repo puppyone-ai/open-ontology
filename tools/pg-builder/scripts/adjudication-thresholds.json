@@ -1,0 +1,10 @@
+{
+  "relation_containment_strict": 0.98,
+  "relation_containment_with_signal": 0.9,
+  "relation_name_similarity": 0.5,
+  "sensitive_format_rate": 0.5,
+  "display_distinct_ratio": 0.9,
+  "code_coverage": 0.99,
+  "code_max_rows": 1000,
+  "metric_min_windows": 2
+}
