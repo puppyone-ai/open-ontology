@@ -15,6 +15,27 @@ from t1 import LaneRun, SourceMeter, configure_pg, private
 
 ROOT = runner.ROOT
 
+def seed_scale(run, schema, tables):
+    """Negative baseline keys leave every existing positive mutation key free."""
+    scale = run.args.scale
+    if not 1 <= scale <= 10_000_000:
+        raise ValueError("invalid T2 scale")
+    if scale == 1:
+        return
+    for table in tables:
+        if run.engine == "postgres":
+            run.sql(f"INSERT INTO {schema}.{table} SELECT -i,'bulk' "
+                    f"FROM generate_series(1,{scale-1}) i;", admin=True)
+        elif run.engine == "mysql":
+            for start in range(1, scale, 1000):
+                values = ",".join(f"({-i},'bulk')" for i in range(start, min(start+1000, scale)))
+                run.sql(f"INSERT INTO {schema}.{table} VALUES {values};", admin=True)
+        else:
+            raise ValueError("full-scale T2 fixture is PG/MySQL only")
+        _, count = run.sql(f"SELECT COUNT(*) FROM {schema}.{table};", admin=True)
+        if int(count.strip()) != scale:
+            raise RuntimeError("T2 baseline row count mismatch")
+
 def c1_summaries(text):
     """Count writes from the aggregate, while still checking every table result."""
     rows = [json.loads(line) for line in text.splitlines() if line.startswith("{")]
@@ -54,6 +75,7 @@ def measure(run):
 def run_postgres(run, binary):
     report = {"C1": "failed", "C5": "not_implemented", "handoff": "not_implemented",
               "T2": "not_passed", "cycles": [], "consistency": "B",
+              "baseline_rows_per_table": run.args.scale,
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
     store = run.path / ".sync-private"
     store.mkdir(mode=0o700)
@@ -73,6 +95,7 @@ def run_postgres(run, binary):
                 "GRANT EXECUTE ON FUNCTION pg_control_checkpoint() TO fixture_reader;"
                 "ALTER SYSTEM SET wal_level='logical';"
                 "ALTER SYSTEM SET max_slot_wal_keep_size='128MB';", admin=True)
+        seed_scale(run, "public", ["items", "other"])
         configure_pg(run, store)
         run.command(["docker", "restart", run.name])
         for _ in range(90):
@@ -307,7 +330,10 @@ def main():
     parser.add_argument("--versions", default="13,14,15,16,17,18")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
+    parser.add_argument("--scale", type=int, default=1)
     args = parser.parse_args()
+    if not 1 <= args.scale <= 10_000_000:
+        parser.error("scale must be 1..10000000")
     if not args.run_id or not all(c.isalnum() or c in "-_" for c in args.run_id):
         parser.error("invalid run ID")
     versions = args.versions.split(",")
@@ -320,7 +346,7 @@ def main():
         path = root / ("postgres-" + version)
         path.mkdir()
         run = LaneRun(path, "postgres", version,
-                      argparse.Namespace(platform=None, health_timeout=300, scale=1, tables=0))
+                      argparse.Namespace(platform=None, health_timeout=300, scale=args.scale, tables=0))
         results[version] = {"T2": "not_passed", "C1": "not_run", "C5": "not_run"}
         try:
             results[version] = run_postgres(run, args.binary.resolve())

@@ -1,5 +1,7 @@
 import subprocess
 import json
+from types import SimpleNamespace
+from unittest.mock import Mock
 import unittest
 from pathlib import Path
 
@@ -7,6 +9,22 @@ import t2
 
 
 class T2Contract(unittest.TestCase):
+    def test_scaled_baseline_preserves_positive_mutation_keys_and_counts(self):
+        run = SimpleNamespace(engine="mysql", args=SimpleNamespace(scale=1002))
+        run.sql = Mock(side_effect=[(0, ""), (0, ""), (0, "1002")])
+        t2.seed_scale(run, "fixture", ["items"])
+        statements = [call.args[0] for call in run.sql.call_args_list]
+        self.assertIn("(-1,'bulk')", statements[0])
+        self.assertIn("(-1000,'bulk')", statements[0])
+        self.assertIn("(-1001,'bulk')", statements[1])
+        self.assertEqual(statements[2], "SELECT COUNT(*) FROM fixture.items;")
+        run.sql = Mock(side_effect=[(0, ""), (0, ""), (0, "1001")])
+        with self.assertRaises(RuntimeError):
+            t2.seed_scale(run, "fixture", ["items"])
+        run.args.scale = 0
+        with self.assertRaises(ValueError):
+            t2.seed_scale(run, "fixture", ["items"])
+
     def test_summary_metrics_do_not_require_metrics_on_table_outcomes(self):
         summary = dict(protocol="oo.sync/v1", mode="c1", durable_position={"lsn": 1},
                        target_write_bytes=0, new_generations=0)
