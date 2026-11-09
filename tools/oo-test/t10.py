@@ -227,7 +227,7 @@ class Workload:
 
 
 def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
-              sleep=time.sleep, workers=32, on_start=lambda: None):
+              sleep=time.sleep, workers=64, on_start=lambda: None):
     """Bounded queue: overloaded arrivals are errors, never silently dropped.
 
     A completion-driven phase uses finished instead of seconds. The scheduler
@@ -331,6 +331,21 @@ def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lamb
             capacity = max(s['rate'] for s in samples)
             return {'capacity': capacity, 'rate': capacity * .55, 'samples': samples}
     raise RuntimeError('calibration_capacity_not_found_at_concurrency_cap')
+
+def settle(work, rate, seconds=60, step=.7, tries=6, loop=None):
+    """Burst capacity overstates a sustainable open-loop rate (checkpoints,
+    purge and tail stalls). Step down until a sustained trial is error-free."""
+    loop = loop or open_loop
+    trials = []
+    for _ in range(tries):
+        requests, _ = loop(work, rate, seconds)
+        errors = sum(r['error'] is not None for r in requests)
+        trials.append({'rate': rate, 'seconds': seconds, 'requests': len(requests), 'errors': errors})
+        if errors == 0:
+            return {'rate': rate, 'trials': trials}
+        rate *= step
+    raise RuntimeError('calibration_no_sustainable_rate')
+
 
 def valid_baseline(result):
     return (verdict(result, result)['result'] == 'pass'
@@ -503,7 +518,7 @@ QUIET_CPU_PERCENT = 5.0
 def quiet_host(samples=3):
     """Pre-existing containers are never stopped; they must be measured idle.
 
-    Returns the containers seen (name and peak CPU %) for the evidence report.
+    Returns their count and peak CPU % for the evidence report, never names.
     """
     peaks = {}
     for _ in range(samples):
@@ -515,7 +530,8 @@ def quiet_host(samples=3):
             peaks[name] = max(peaks.get(name, 0.0), value)
     if sum(peaks.values()) > QUIET_CPU_PERCENT:
         raise SystemExit('blocked: pre-existing containers are not idle; nothing stopped')
-    return [{'name': name, 'peak_cpu_percent': cpu} for name, cpu in sorted(peaks.items())]
+    # Names of unrelated containers can be private; record only count and load.
+    return {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
 
 
 def main(argv=None):
@@ -554,7 +570,8 @@ def main(argv=None):
         try:
             if args.rate == 'auto':
                 report['calibration'] = calibrate(work, close=work.close)
-                rate = report['calibration']['rate']
+                report['calibration']['settle'] = settle(work, report['calibration']['rate'])
+                rate = report['calibration']['settle']['rate']
             else:
                 rate = args.rate
                 report['calibration'] = {'skipped': 'explicit rate', 'rate': rate}

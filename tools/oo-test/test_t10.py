@@ -231,8 +231,24 @@ class CLITests(unittest.TestCase):
         idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
         with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:
             seen = t10.quiet_host()
-        self.assertEqual([c['name'] for c in seen], ['customer-a', 'customer-b'])
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 0.01})
+        self.assertNotIn('customer', json.dumps(seen))
         self.assertTrue(all(call.args[0][:2] == ['docker', 'stats'] for call in run.call_args_list))
+
+
+class SettleTests(unittest.TestCase):
+    def test_steps_down_until_a_sustained_trial_is_error_free(self):
+        def loop(work, rate, seconds):
+            error = 'scheduler_queue_full' if rate > 50 else None
+            return [dict(error=error), dict(error=None)], seconds
+        result = t10.settle(None, 100, loop=loop)
+        self.assertAlmostEqual(result['rate'], 49.0)
+        self.assertEqual([t['errors'] for t in result['trials']], [1, 1, 0])
+
+    def test_refuses_when_no_rate_is_sustainable(self):
+        loop = lambda work, rate, seconds: ([dict(error='x')], seconds)
+        with self.assertRaisesRegex(RuntimeError, 'no_sustainable_rate'):
+            t10.settle(None, 100, loop=loop, tries=2)
 
 
 class IntegrationContractTests(unittest.TestCase):
