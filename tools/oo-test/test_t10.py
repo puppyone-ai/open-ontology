@@ -13,6 +13,42 @@ from unittest.mock import Mock, patch
 import t10
 
 
+class PreparationTests(unittest.TestCase):
+    def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
+        import itertools
+        h = object.__new__(t10.ImpactHarness)
+        h.run = Mock(engine='mysql', version='8.4')
+        h.sync, h.server_ids = {}, itertools.count(42)
+        calls = []
+        h.snapshot = lambda *args: calls.append('snapshot')
+        def sql(query):
+            calls.append(query)
+            return 0, 'uuid' if 'server_uuid' in query else 'bin.000001 1234'
+        h.src = sql
+        h.c1_binding('fixture', ['bulk'])
+        self.assertEqual(calls, ['snapshot', 'SELECT @@GLOBAL.server_uuid;',
+                                 'SHOW BINARY LOG STATUS;'])
+        self.assertTrue(h.sync['fixture']['baseline_aligned'])
+        self.assertEqual(h.sync['fixture']['initial_position'],
+                         {'kind': 'mysql_file_pos', 'file': 'bin.000001', 'position': 1234})
+
+    def test_oracle_timeout_requires_measured_positive_rate(self):
+        self.assertEqual(t10.oracle_timeout(2_000_000, 1000), 6000)
+        self.assertEqual(t10.oracle_timeout(20, 1000), 900)
+        for rate in (0, -1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                t10.oracle_timeout(2_000_000, rate)
+
+    def test_oracle_preparation_uses_calibrated_timeout(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_timeout = 6000
+        with patch.object(t10.OracleHarness, 'call', return_value=(0, [], None)) as call:
+            h.call('s', 'run')
+            self.assertEqual(call.call_args.args[-1], 6000)
+            h.call('s', 'run', timeout=42)
+            self.assertEqual(call.call_args.args[-1], 42)
+
+
 class MathTests(unittest.TestCase):
     def test_percentiles_interpolate(self):
         self.assertEqual(t10.percentile([40, 10, 30, 20], 50), 25)

@@ -179,6 +179,57 @@ class ImpactSource(t3t4.Source):
         return super().command(command, **kwargs)
 
 
+class ImpactHarness(t3t4.Harness):
+    def c1_binding(self, sid, tables):
+        if self.run.engine != 'mysql':
+            return super().c1_binding(sid, tables)
+        # Quiescent fixture: foreground writes start only after preparation.
+        self.snapshot(sid, tables)
+        _, epoch = self.src('SELECT @@GLOBAL.server_uuid;')
+        _, position = self.src('SHOW MASTER STATUS;' if self.run.version in ('5.7', '8.0')
+                               else 'SHOW BINARY LOG STATUS;')
+        fields = position.split()
+        self.sync[sid] = {
+            'initial_position': {'kind': 'mysql_file_pos', 'file': fields[0],
+                                 'position': int(fields[1])},
+            'source_epoch': epoch.strip(), 'baseline_aligned': True,
+            'max_batches': 100, 'server_id': next(self.server_ids),
+            'longest_cycle_seconds': 1, 'recovery_seconds': 1,
+        }
+
+
+def oracle_timeout(rows, rows_per_second):
+    if rows <= 0 or not math.isfinite(rows_per_second) or rows_per_second <= 0:
+        raise ValueError('unmeasured_oracle_load_rate')
+    return max(900, math.ceil(3 * rows / rows_per_second))
+
+
+class ImpactOracleHarness(OracleHarness):
+    load_timeout = 900
+
+    def call(self, sid, run_id, mode=None, policy=None, required=True, timeout=None):
+        return super().call(sid, run_id, mode, policy, required,
+                            self.load_timeout if timeout is None else timeout)
+
+    def measure_load_rate(self):
+        self.src('CREATE TABLE t10_probe AS SELECT * FROM bulk WHERE id<=20000;'
+                 'ALTER TABLE t10_probe ADD PRIMARY KEY(id);'
+                 'GRANT SELECT,FLASHBACK ON t10_probe TO fixture_reader;')
+        _, count = self.src('SELECT COUNT(*) FROM t10_probe;')
+        rows = int(count.strip())
+        started = time.monotonic()
+        self.snapshot('t10_rate_probe', ['t10_probe'])
+        elapsed = time.monotonic() - started
+        rate = rows / elapsed
+        _, total = self.src('SELECT (SELECT COUNT(*) FROM bulk)+'
+                            '(SELECT COUNT(*) FROM items)+(SELECT COUNT(*) FROM other) FROM dual;')
+        total = int(total.strip())
+        self.load_timeout = oracle_timeout(total, rate)
+        return {'probe_rows': rows, 'probe_seconds': elapsed, 'rows_per_second': rate,
+                'rows': total, 'factor': 3, 'minimum_seconds': 900,
+                'timeout_seconds': self.load_timeout}
+
+
 class Workload:
     """Persistent fixture-writer connections; separate from product read-only roles."""
     def __init__(self, run):
@@ -466,7 +517,7 @@ def loader(h, sid, label, mode=None, policy=None, duty100=False):
     argv = h.argv(sid, label, mode, policy)
     if duty100:
         argv += ['--duty-cycle-percent', '100']
-    _, out = h.run.command(argv, timeout=86400)
+    _, out = h.run.command(argv, timeout=getattr(h, 'load_timeout', 86400))
     receipts = t3t4.rows(out)
     if not receipts or any('error' in r for r in receipts):
         raise RuntimeError('missing_or_failed_loader_receipt')
@@ -479,6 +530,7 @@ def prepare(h):
     h.prepare()
     # Same full T1 row scale, with the T3/T4 narrow synthetic schema.
     if h.run.engine == 'postgres':
+        h.src("ALTER SYSTEM SET max_slot_wal_keep_size='-1';SELECT pg_reload_conf();")
         h.src(f"INSERT INTO bulk SELECT i,'bulk-'||i,i FROM generate_series({t3t4.BULK_ROWS+1},{SCALE}) i;")
         h.src(f"CREATE ROLE t10_writer LOGIN PASSWORD '{h.run.secret}';"
               "GRANT USAGE ON SCHEMA public TO t10_writer;"
@@ -605,7 +657,7 @@ def main(argv=None):
     args.platform, args.health_timeout, args.scale, args.tables, args.worker_image = None, 600, SCALE, 0, None
     run = ImpactSource(args.evidence, args.engine, args.version, args)
     run.receipt = {}
-    h = (OracleHarness if args.engine == 'oracle' else t3t4.Harness)(run, binary)
+    h = (ImpactOracleHarness if args.engine == 'oracle' else ImpactHarness)(run, binary)
     report = {'engine': args.engine, 'version': args.version, 'phases': {}, 'errors': [],
               'preexisting_containers': preexisting,
               'cpus': args.cpus, 'memory': args.memory, 'scale': SCALE,
@@ -617,6 +669,13 @@ def main(argv=None):
     cleanup = []
     try:
         prepare(h)
+        if args.engine == 'oracle':
+            report['load_timeout_calibration'] = h.measure_load_rate()
+        elif args.engine == 'postgres':
+            _, setting = h.src('SHOW max_slot_wal_keep_size;')
+            report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
+            if setting.strip() != '-1':
+                raise RuntimeError('slot_retention_setting_not_applied')
         run.record_version()
         report['resource_receipt'] = run.receipt
         _, limits = run.command(['docker', 'inspect', '--format', '{{json .HostConfig}}', run.name])
