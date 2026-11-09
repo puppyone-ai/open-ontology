@@ -382,6 +382,22 @@ class IntegrationContractTests(unittest.TestCase):
             ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
         self.assertEqual(h.src.call_count, 2)
 
+    def test_failed_preparation_preserves_remaining_c5_policies(self):
+        h = Mock()
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            h.run.path = Path(tmp)
+            h.snapshot.side_effect = [RuntimeError('sensitive'), None, None, None]
+            with patch.object(t10, 'phase', return_value={'phase': 'measured'}) as measure:
+                result = t10.c5_phases(h, 42, 24, 100)
+            failed = result['c5_idle']
+            self.assertTrue(failed['preparation_failed'])
+            self.assertEqual(failed['requests'], 0)
+            self.assertEqual(failed['product_errors'], ['RuntimeError'])
+            self.assertEqual(t10.verdict(failed, failed)['result'], 'fail')
+            self.assertNotIn('sensitive', (h.run.path / 'c5_idle.json').read_text())
+            self.assertEqual(measure.call_count, 3)
+            self.assertEqual(len(result), 4)
+
     def test_phase_retains_product_failure_and_closes_writer(self):
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, patch.object(t10, 'Meter') as meter:

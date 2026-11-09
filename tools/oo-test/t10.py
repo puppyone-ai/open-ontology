@@ -486,6 +486,19 @@ def prepare(h):
               "GRANT SELECT,UPDATE ON fixture.items TO 't10_writer'@'%';"
               "GRANT INSERT ON fixture.other TO 't10_writer'@'%';")
 
+def prepare_phase(h, name, rate, action):
+    started = time.monotonic()
+    try:
+        action()
+    except Exception as exc:
+        result = dict(summarize([], 0), phase=name, configured_rate=rate,
+                      observation_seconds=time.monotonic() - started, windows=[],
+                      metrics={'samples': [], 'errors': [], 'peaks': {}, 'changes': {}},
+                      product_errors=[type(exc).__name__], preparation_failed=True)
+        runner.write_json(h.run.path / f'{name}.json', result)
+        return result
+    return None
+
 def c5_phases(h, rate, every, sequence):
     results = {}
     for variant, period in (('c5', every), ('c5_full', 1)):
@@ -493,13 +506,16 @@ def c5_phases(h, rate, every, sequence):
             name = f'{variant}_{suffix}'
             binding = 't10_' + name
             # Independent baselines prevent the first policy priming the second.
-            h.snapshot(binding, tables)
-            if suffix == 'changed':
-                h.src('UPDATE items SET n=n+1 WHERE id=1;')
+            def prepare_binding():
+                h.snapshot(binding, tables)
+                if suffix == 'changed':
+                    h.src('UPDATE items SET n=n+1 WHERE id=1;')
             policy = {'cycle': 1, 'full_read_every': period}
-            result = phase(h, name, Workload(h.run), rate, None,
-                           lambda: loader(h, binding, f'{binding}-cycle', '--c5', policy),
-                           sequence + len(results) * 1_000_000)
+            result = prepare_phase(h, name, rate, prepare_binding)
+            if result is None:
+                result = phase(h, name, Workload(h.run), rate, None,
+                               lambda: loader(h, binding, f'{binding}-cycle', '--c5', policy),
+                               sequence + len(results) * 1_000_000)
             result['c5_policy'] = policy
             results[name] = result
     return results
@@ -635,7 +651,11 @@ def main(argv=None):
                 t1.private(h.store / 'target-password', h.target.password)
                 action = lambda: loader(h, sid, sid, duty100=name == 'initial_duty100')
             elif name == 'c1':
-                h.c1_binding(sid, tables)  # Quiescent aligned baseline, outside measurement.
+                # Preparation failure must not hide independent C5 measurements.
+                failed = prepare_phase(h, name, rate, lambda: h.c1_binding(sid, tables))
+                if failed is not None:
+                    report['phases'][name] = failed
+                    continue
 
                 def action():
                     deadline = time.monotonic() + seconds
