@@ -5,6 +5,7 @@ Native Python drivers are loaded only for live runs. Latencies include arrival
 queueing, not merely database service time. Raw evidence is private/ignored.
 """
 import argparse
+from collections import Counter
 import copy
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -49,6 +50,7 @@ def summarize(requests, duration):
                for p in (50, 95, 99)},
             'duration_seconds': duration, 'requests': len(requests),
             'errors': sum(r['error'] is not None for r in requests),
+            'error_counts': dict(Counter(r['error'] for r in requests if r['error'] is not None)),
             'achieved_rate': sum(r['error'] is None and r['end'] < duration
                                  for r in requests) / duration if duration else 0,
             'max_start_delay_ms': max((r['actual'] - r['intended'] for r in requests
@@ -294,12 +296,19 @@ def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lamb
     samples = []
     for concurrency in levels:
         stop = time.monotonic() + seconds
+        next_index = 0
+        index_lock = threading.Lock()
 
         def loop(worker):
+            nonlocal next_index
             count = errors = 0
             while time.monotonic() < stop:
                 try:
-                    work(count * concurrency + worker)
+                    # Worker-local strides bias the mix toward faster operations.
+                    with index_lock:
+                        index = next_index
+                        next_index += 1
+                    work(index)
                     count += 1
                 except Exception:
                     errors += 1
@@ -322,6 +331,11 @@ def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lamb
             capacity = max(s['rate'] for s in samples)
             return {'capacity': capacity, 'rate': capacity * .55, 'samples': samples}
     raise RuntimeError('calibration_capacity_not_found_at_concurrency_cap')
+
+def valid_baseline(result):
+    return (verdict(result, result)['result'] == 'pass'
+            and not result['product_errors'] and not result['metrics']['errors']
+            and bool(result['metrics']['samples']))
 
 
 class Meter:
@@ -579,6 +593,9 @@ def main(argv=None):
                 continue
             report['phases'][name] = phase(h, name, Workload(run), rate, seconds, action,
                                            10_000_000 * (number + 1))
+            if name == 'baseline' and not valid_baseline(report['phases'][name]):
+                report['errors'].append('invalid_baseline')
+                break
             if name == 'c1':
                 h.retire(sid)
     except Exception as exc:

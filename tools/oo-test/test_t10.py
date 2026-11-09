@@ -28,6 +28,13 @@ class MathTests(unittest.TestCase):
         self.assertEqual(result['p95_ms'], 3000)
         self.assertEqual(result['max_start_delay_ms'], 2000)
 
+    def test_error_classes_remain_distinct(self):
+        rows = [dict(intended=0, actual=0, end=1, error=error)
+                for error in (None, 'scheduler_queue_full', 'DatabaseError', 'scheduler_queue_full')]
+        result = t10.summarize(rows, 2)
+        self.assertEqual(result['errors'], 3)
+        self.assertEqual(result['error_counts'], {'scheduler_queue_full': 2, 'DatabaseError': 1})
+
     def test_late_completion_not_counted_as_on_time_throughput(self):
         result = t10.summarize([dict(intended=0, actual=2, end=3, error=None)], 2)
         self.assertEqual(result['achieved_rate'], 0)
@@ -156,6 +163,16 @@ class SchedulerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'calibration_errors'):
             t10.calibrate(lambda _: 1 / 0, seconds=.01, levels=(1,))
 
+    def test_calibration_uses_one_sequence_despite_unequal_worker_speeds(self):
+        seen = []
+        def work(index):
+            seen.append(index)
+            time.sleep(.001 if index % 2 else .0001)
+        with self.assertRaisesRegex(RuntimeError, 'capacity_not_found'):
+            t10.calibrate(work, seconds=.03, levels=(4,))
+        self.assertGreater(len(seen), 10)
+        self.assertEqual(sorted(seen), list(range(len(seen))))
+
     def test_calibration_plateau_and_55_percent(self):
         with patch.object(t10, 'ThreadPoolExecutor') as executor, \
                 patch.object(t10.time, 'monotonic', side_effect=[0, 0, 1, 2, 2, 3, 4, 4, 5]):
@@ -219,6 +236,15 @@ class CLITests(unittest.TestCase):
 
 
 class IntegrationContractTests(unittest.TestCase):
+    def test_invalid_baseline_cannot_start_product_comparison(self):
+        result = dict(requests=100, errors=0, achieved_rate=100, p95_ms=10, p99_ms=20,
+                      product_errors=[], metrics={'errors': [], 'samples': [{}]})
+        self.assertTrue(t10.valid_baseline(result))
+        for change in ({'errors': 1}, {'requests': 0}, {'product_errors': ['RuntimeError']},
+                       {'metrics': {'errors': ['missing'], 'samples': [{}]}},
+                       {'metrics': {'errors': [], 'samples': []}}):
+            self.assertFalse(t10.valid_baseline(dict(result, **change)))
+
     def test_insert_keys_survive_calibration_and_phase_boundaries(self):
         from unittest.mock import MagicMock
         with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
