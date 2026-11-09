@@ -410,9 +410,18 @@ async fn run_table<E: epoch::Epoch>(
     tokio::time::sleep(cycle_rest(engine.family(), started.elapsed(), duty)).await;
     // Small changed ranges also need a floor between metadata bursts.
     tokio::time::sleep(Duration::from_secs(1)).await;
+    let metadata = if replay {
+        target.publication_read_metadata().await?
+    } else {
+        Some(read_metadata(engine, budget))
+    };
+    let consistency = metadata
+        .as_ref()
+        .and_then(|m| m["consistency"].as_str())
+        .unwrap_or("unmeasured");
     let output = serde_json::json!({
         "protocol":"oo.sync/v1","source":source.id,"mode":"c5","table":table,
-        "read_metadata":read_metadata(engine, budget),
+        "read_metadata":metadata,
         "status":if replay || after == before {"noop"} else {"fresh"},
         "run_id":config.run_id,
         "retained_run":retained_run,
@@ -424,7 +433,7 @@ async fn run_table<E: epoch::Epoch>(
         "generation":after,"new_generations":after-before,
         "write_basis":"committed_logical_stage_tuples_excluding_indexes_wal_metadata",
         "publication":"local_table_view","gateway_published":false,
-        "consistency":engine.consistency(),"source_time":"unmeasured"
+        "consistency":consistency,"source_time":"unmeasured"
     });
     Ok(output)
 }

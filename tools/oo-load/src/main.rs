@@ -270,6 +270,15 @@ async fn run_engine<E: epoch::Epoch>(
             }
         };
         let bytes = sink.write_bytes().await?;
+        let metadata = if replay {
+            sink.publication_read_metadata().await?
+        } else {
+            Some(read_metadata(engine, budget))
+        };
+        let consistency = metadata
+            .as_ref()
+            .and_then(|m| m["consistency"].as_str())
+            .unwrap_or("unmeasured");
         println!(
             "{}",
             serde_json::json!({
@@ -279,7 +288,7 @@ async fn run_engine<E: epoch::Epoch>(
                 "read_budget":budget,
                 "write_basis":"committed_logical_stage_tuples_including_replaced_plans",
                 "publication":"local_table_view", "gateway_published":false,
-                "consistency":engine.consistency(), "source_time":"unmeasured"
+                "consistency":consistency, "read_metadata":metadata, "source_time":"unmeasured"
             })
         );
         drop(sink);

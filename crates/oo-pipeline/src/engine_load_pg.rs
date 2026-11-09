@@ -176,6 +176,22 @@ impl<'a> PgTarget<'a> {
         format!("oo_load_data.{}", self.view)
     }
 
+    pub async fn publication_read_metadata(&mut self) -> Result<Option<serde_json::Value>> {
+        let metadata: Option<Option<String>> = sqlx::query_scalar(
+            "SELECT (plan->'read_metadata')::text FROM _oo_load.publications
+             WHERE identity=$1 AND run=$2",
+        )
+        .bind(&self.identity)
+        .bind(&self.run)
+        .fetch_optional(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        metadata
+            .flatten()
+            .map(|value| serde_json::from_str(&value).map_err(|_| "load_metadata"))
+            .transpose()
+    }
+
     /// A completed run is immutable. Reusing its ID is resume, not refresh.
     pub async fn completed(&mut self) -> Result<Option<Vec<ChunkReceipt>>> {
         let stage: Option<String> = sqlx::query_scalar(
