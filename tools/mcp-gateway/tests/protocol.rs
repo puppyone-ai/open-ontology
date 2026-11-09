@@ -86,7 +86,7 @@ printf '%s\n' '{"status":200,"body":{"ready":false,"pack_published":false}}'
 async fn spawn(
     lifecycle: ClientLifecycleMode,
     version: ProtocolVersion,
-) -> Result<Session, ClientInitializeError> {
+) -> Result<Session, Box<ClientInitializeError>> {
     let seq = TEMP_SEQ.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("oo-a388-proto-{}-{seq}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
@@ -310,7 +310,7 @@ async fn initialize_rejects_unknown_and_non_handshake_versions() {
             Err(error) => error,
             Ok(_) => panic!("{encoded} was accepted"),
         };
-        match error {
+        match *error {
             ClientInitializeError::JsonRpcError(error) => {
                 assert_eq!(
                     error.code,
