@@ -38,7 +38,14 @@ fn ab_help_and_invalid_arms() {
 fn scorer_health_and_p2_t_replay() {
     let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks/ab");
     let status = Command::new("python3")
-        .args(["-m", "unittest", "-v", "test_ab", "test_live"])
+        .args([
+            "-m",
+            "unittest",
+            "-v",
+            "test_ab",
+            "test_live",
+            "test_logistics",
+        ])
         .current_dir(directory)
         .status()
         .expect("run evaluation tests");
