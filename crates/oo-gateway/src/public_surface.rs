@@ -1833,6 +1833,9 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
             "date_trunc_day_timestamp": catalog.functions.iter().any(|f| f.name == "date_trunc"),
             "to_char_timestamp_literal_format": catalog.functions.iter().any(|f| f.name == "to_char"),
             "like_literal_pattern": catalog.operators.iter().any(crate::policy::catalog::pattern_signature_allowed),
+            "temporal_iso_string_comparison": true,
+            "between_visible_column": true,
+            "temporal_literal_in": true,
             "timezone_dependent_day_conversion": false
         },
     })
@@ -4439,6 +4442,13 @@ mod tests {
         assert_eq!(capabilities["operators"][0]["result_type_oid"], 16);
         assert!(!capabilities.to_string().contains("private_"));
         assert_eq!(capabilities["requires_validate"], true);
+        for shape in [
+            "temporal_iso_string_comparison",
+            "between_visible_column",
+            "temporal_literal_in",
+        ] {
+            assert_eq!(capabilities["sql_shapes"][shape], true);
+        }
         assert_eq!(capabilities["truncated"], false);
         assert_eq!(capabilities["functions"][0]["argument_type_oids"][0], 1700);
         catalog.operators.push(ResolvedOperator {

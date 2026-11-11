@@ -158,6 +158,154 @@ fn catalog() -> PolicyCatalog {
 }
 
 #[test]
+fn temporal_comparisons_bind_only_iso_literals_to_verified_operators() {
+    let cat = catalog();
+    for (column, literal, oid) in [
+        ("day", "'2024-02-29'", Type::DATE.oid()),
+        ("stamp", "'2024-02-29'", Type::TIMESTAMP.oid()),
+        (
+            "stamp",
+            "'2024-02-29 23:59:59.123456'",
+            Type::TIMESTAMP.oid(),
+        ),
+        ("zoned", "'2024-02-29T23:59:59Z'", Type::TIMESTAMPTZ.oid()),
+        (
+            "zoned",
+            "'2024-02-29 23:59:59+08:00'",
+            Type::TIMESTAMPTZ.oid(),
+        ),
+    ] {
+        for operator in COMPARISON_OPERATORS {
+            for predicate in [
+                format!("{column} {operator} {literal}"),
+                format!("{literal} {operator} {column}"),
+            ] {
+                let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+                let plan = guard_select(&cat.identity, &cat, &sql)
+                    .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+                assert!(plan.executed_sql.contains(&format!("pc_{column}")));
+                assert_eq!(plan.bindings.operators.len(), 1);
+                let binding = &plan.bindings.operators[0];
+                assert!(cat.operators.iter().any(|op| op.oid == binding.oid
+                    && op.left_type_oid == oid
+                    && op.right_type_oid == oid));
+                let mut missing = cat.clone();
+                missing.operators.retain(|op| op.oid != binding.oid);
+                assert!(guard_select(&missing.identity, &missing, &sql).is_err());
+            }
+        }
+    }
+    for predicate in [
+        "day = 'today'",
+        "day = '2026-02-29'",
+        "day = '02/03/2026'",
+        "stamp = 'infinity'",
+        "stamp = '2026-01-01 25:00:00'",
+        "stamp = '2026-01-01 00:00:00Z'",
+        "zoned = '2026-01-01'",
+        "zoned = '2026-01-01 00:00:00'",
+        "zoned = '2026-01-01 00:00:00 America/New_York'",
+        "day = code",
+        "code = day",
+        "secret = '2026-01-01'",
+        "secret::date = '2026-01-01'",
+        "day = set_config('TimeZone','UTC',false)",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
+}
+
+#[test]
+fn between_and_temporal_in_keep_bounds_nulls_and_catalog_authority() {
+    let cat = catalog();
+    for predicate in [
+        "day BETWEEN '2026-01-01' AND '2026-01-31'",
+        "day NOT BETWEEN DATE '2026-01-01' AND DATE '2026-01-31'",
+        "stamp BETWEEN '2026-01-01' AND TIMESTAMP '2026-02-01'",
+        "zoned BETWEEN '2026-01-01 00:00:00Z' AND '2026-02-01 00:00:00+00'",
+        "id BETWEEN 1 AND 3",
+        "amount NOT BETWEEN 1 AND 3",
+        "code BETWEEN 'a' AND 'z'",
+        "day IN ('2026-01-01', DATE '2026-01-02', NULL)",
+        "day NOT IN (NULL, '2026-01-01'::date)",
+        "stamp IN ('2026-01-01', TIMESTAMP '2026-01-02')",
+        "zoned NOT IN ('2026-01-01 00:00:00Z', NULL)",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        let plan = guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+        assert_eq!(
+            plan.executed_sql.contains("NULL"),
+            predicate.contains("NULL")
+        );
+        assert_eq!(plan.executed_sql.contains("NOT"), predicate.contains("NOT"));
+        assert_eq!(
+            plan.executed_sql.contains("BETWEEN"),
+            predicate.contains("BETWEEN")
+        );
+        for binding in &plan.bindings.operators {
+            let mut missing = cat.clone();
+            missing.operators.retain(|op| op.oid != binding.oid);
+            assert!(
+                guard_select(&missing.identity, &missing, &sql).is_err(),
+                "{sql}"
+            );
+        }
+    }
+    for predicate in [
+        "day IN ('today')",
+        "day IN ('2026-02-30')",
+        "day IN (secret::date)",
+        "day IN (code)",
+        "day IN (set_config('DateStyle','ISO',false))",
+        "day BETWEEN 'today' AND 'tomorrow'",
+        "day BETWEEN secret::date AND '2026-01-01'",
+        "secret BETWEEN 'a' AND 'z'",
+        "'a' BETWEEN 'a' AND 'z'",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
+}
+
+#[test]
+fn analytical_predicates_do_not_open_write_catalog_or_hidden_column_paths() {
+    use oo_core::api::ErrorCode;
+    let mut cat = catalog();
+    for sql in [
+        "DELETE FROM logistics.orders WHERE day='2026-01-01'",
+        "UPDATE logistics.orders SET code='x'",
+        "CREATE TABLE logistics.copy AS SELECT * FROM logistics.orders",
+        "COPY logistics.orders TO STDOUT",
+        "SELECT * FROM pg_catalog.pg_class",
+        "SELECT set_config('role','owner',false) FROM logistics.orders",
+        "SELECT dblink('remote','SELECT 1') FROM logistics.orders",
+        "SELECT lo_get(1) FROM logistics.orders",
+        "SELECT lo_export(1,'output') FROM logistics.orders",
+        "SELECT secret::date FROM logistics.orders WHERE day='2026-01-01'",
+        "SELECT (SELECT secret FROM logistics.orders)",
+        "WITH x AS (SELECT secret FROM logistics.orders) SELECT * FROM x",
+        "SELECT id FROM logistics.orders WHERE EXISTS (SELECT secret FROM logistics.orders)",
+    ] {
+        let error = guard_select(&cat.identity, &cat, sql).expect_err(sql);
+        assert!(!error.to_string().contains("secret"), "{sql}: {error}");
+        assert_ne!(error.code(), ErrorCode::Internal);
+    }
+    let mut other_role = cat.identity.clone();
+    other_role.role = "owner".into();
+    assert!(guard_select(&other_role, &cat, "SELECT id FROM logistics.orders").is_err());
+    cat.relations[0].estimated_rows = cat.large_table_row_threshold + 1;
+    let error = guard_select(
+        &cat.identity,
+        &cat,
+        "SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b",
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::CostTooHigh);
+}
+
+#[test]
 fn timestamp_day_transforms_are_typed_and_keep_visible_names() {
     let cat = catalog();
     for sql in [
@@ -335,6 +483,9 @@ fn temporal_grouping_and_having_survive_the_actual_parser_worker() {
         "SELECT stamp::date,MIN(stamp) FROM logistics.orders GROUP BY 1 HAVING MIN(stamp)>=TIMESTAMP '2026-10-28 00:00:00' ORDER BY 1",
         "SELECT code,SUM(amount) FROM logistics.orders GROUP BY 1 HAVING SUM(amount)>0 ORDER BY 2",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28' AND stamp<TIMESTAMP '2026-10-29'",
+        "SELECT id FROM logistics.orders WHERE day BETWEEN '2026-01-01' AND '2026-01-31'",
+        "SELECT id FROM logistics.orders WHERE day NOT IN (DATE '2026-01-01', NULL)",
+        "SELECT id FROM logistics.orders WHERE stamp>='2026-01-01'",
         "SELECT code,COUNT(*) AS n,SUM(CASE WHEN stamp>=TIMESTAMP '2026-10-29' THEN 1 ELSE 0 END) FROM logistics.orders GROUP BY code",
         "SELECT code,SUM(amount) FROM logistics.orders GROUP BY code HAVING SUM(abs(amount))+SUM(abs(amount))>0",
         "SELECT zoned::date FROM logistics.orders",
@@ -380,6 +531,8 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
         for (left, right) in [
             ("stamp".to_string(), format!("TIMESTAMP '{date}'")),
             (format!("TIMESTAMP '{date}'"), "stamp".to_string()),
+            ("stamp".to_string(), format!("'{date}'")),
+            (format!("'{date}'"), "stamp".to_string()),
         ] {
             let sql = format!("SELECT id FROM logistics.orders WHERE {left}>={right}");
             let plan = guard_select(&cat.identity, &cat, &sql).unwrap();
@@ -398,7 +551,7 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '0000-01-01'",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28Z'",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP 'today'",
-        "SELECT id FROM logistics.orders WHERE stamp>='2026-10-28'",
+        "SELECT id FROM logistics.orders WHERE stamp>='today'",
         "SELECT id FROM logistics.orders WHERE stamp>=code::timestamp",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP(0) '2026-10-28'",
         "SELECT id FROM logistics.orders WHERE zoned>=TIMESTAMPTZ '2026-10-28'",

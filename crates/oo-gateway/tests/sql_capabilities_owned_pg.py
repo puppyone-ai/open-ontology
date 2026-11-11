@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prove SQL catalog capabilities in a new, TLS-only local PostgreSQL fixture."""
 
+import argparse
 import getpass
 import json
 import os
@@ -13,12 +14,19 @@ import tempfile
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence-dir", type=Path)
+    args = parser.parse_args()
     product = Path(__file__).resolve().parents[3]
     pg_bin = Path(shutil.which("pg_ctl") or "").resolve().parent
     for name in ("initdb", "pg_ctl", "psql", "postgres"):
         if not (pg_bin / name).is_file():
             raise SystemExit(f"missing installed PostgreSQL binary: {name}")
-    root = Path(tempfile.mkdtemp(prefix="oo-sql-capabilities-", dir="/tmp")).resolve()
+    if args.evidence_dir:
+        root = args.evidence_dir.resolve()
+        root.mkdir(mode=0o700)
+    else:
+        root = Path(tempfile.mkdtemp(prefix="oo-sql-capabilities-", dir="/tmp")).resolve()
     root.chmod(0o700)
     data, sockets = root / "data", root / "socket"
     sockets.mkdir(mode=0o700)

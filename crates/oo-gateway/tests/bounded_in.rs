@@ -366,7 +366,7 @@ fn unsupported_in_shapes_fail_closed() {
             "LIKE predicate",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN 0 AND 2",
+            "SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN SYMMETRIC 0 AND 2",
             "BETWEEN predicate",
         ),
     ];

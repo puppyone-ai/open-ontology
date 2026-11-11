@@ -406,7 +406,7 @@ impl GuardError {
             Self::Unqualified { suggestion: None } => Some("use schema.name".to_string()),
             Self::CostTooHigh { .. } => Some("add a filter or use export".to_string()),
             Self::FunctionNotAllowed => Some(
-                "no allowed function/operator signature matches; check describe.column_details and argument types. Time filters require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings or implicit casts. This alone does not establish a column permission denial"
+                "no allowed function/operator signature matches; check describe.column_details and argument types. Time filters require matching DATE, TIMESTAMP or TIMESTAMPTZ types or ISO date/time literals; TIMESTAMPTZ literals need an explicit offset. This alone does not establish a column permission denial"
                     .to_string(),
             ),
             Self::SignatureNotAllowed { operator, argument_type_oids, position } => {
@@ -417,7 +417,7 @@ impl GuardError {
                     .collect::<Vec<_>>().join(",");
                 let offset = if *position >= 0 { position.to_string() } else { "unknown".into() };
                 Some(format!(
-                    "phase=signature_binding; expression={expression}; byte_offset={offset}; argument_types=[{types}]; no unique allowed signature matches. Check describe.query_capabilities and column_details, then validate. Time comparisons require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings. This is not evidence of denied column access"
+                    "phase=signature_binding; expression={expression}; byte_offset={offset}; argument_types=[{types}]; no unique allowed signature matches. Check describe.query_capabilities and column_details, then validate. Time comparisons require matching DATE, TIMESTAMP or TIMESTAMPTZ types or ISO date/time literals; TIMESTAMPTZ literals need an explicit offset. This is not evidence of denied column access"
                 ))
             }
             Self::Unsupported { construct } => Some(format!(
@@ -2114,6 +2114,12 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     }
     if matches!(
         pb::AExprKind::try_from(kind).ok(),
+        Some(pb::AExprKind::AexprBetween | pb::AExprKind::AexprNotBetween)
+    ) {
+        return admit_between(node, ctx);
+    }
+    if matches!(
+        pb::AExprKind::try_from(kind).ok(),
         Some(pb::AExprKind::AexprLike | pb::AExprKind::AexprIlike)
     ) || (kind == AEXPR_OP
         && matches!(node.node.as_ref(), Some(pb::node::Node::AExpr(expr))
@@ -2154,11 +2160,23 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let left = expr.lexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let (left_type, left_int) = admit_comparison_operand(left, ctx)?;
+        let (mut left_type, left_int) = admit_comparison_operand(left, ctx)?;
         let right = expr.rexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let (right_type, right_int) = admit_comparison_operand(right, ctx)?;
+        let (mut right_type, right_int) = admit_comparison_operand(right, ctx)?;
+        if crate::policy::catalog::COMPARISON_OPERATORS.contains(&name.as_str())
+            && schema
+                .as_deref()
+                .is_none_or(|schema| schema == "pg_catalog")
+        {
+            if bind_temporal_literal(left, right_type) {
+                left_type = right_type;
+            }
+            if bind_temporal_literal(right, left_type) {
+                right_type = left_type;
+            }
+        }
         (left_type, right_type, left_int, right_int)
     };
     let (left_type, right_type, left_int_literal, right_int_literal) = compared;
@@ -2182,6 +2200,48 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     Ok(ExprKind::Operator {
         result_type_oid: resolved.result_type_oid,
     })
+}
+
+// Unknown string literals may take the other operand's temporal type. Make
+// that choice explicit in the executed AST; never coerce a text column, accept
+// a relative clock expression, or rely on the session's DateStyle/timezone.
+fn bind_temporal_literal(node: &mut pb::Node, other_type: u32) -> bool {
+    let Some(text) = const_string(node) else {
+        return false;
+    };
+    let (name, valid) = if other_type == Type::DATE.oid() {
+        ("date", civil_date(text))
+    } else if other_type == Type::TIMESTAMP.oid() {
+        (
+            "timestamp",
+            civil_date(text) || civil_timestamp(text, false),
+        )
+    } else if other_type == Type::TIMESTAMPTZ.oid() {
+        ("timestamptz", civil_timestamp(text, true))
+    } else {
+        return false;
+    };
+    if !valid {
+        return false;
+    }
+    let mut argument = node.clone();
+    if name == "timestamp"
+        && civil_date(text)
+        && let Some(pb::node::Node::AConst(value)) = argument.node.as_mut()
+        && let Some(pb::a_const::Val::Sval(text)) = value.val.as_mut()
+    {
+        text.sval.push_str(" 00:00:00");
+    }
+    node.node = Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+        arg: Some(Box::new(argument)),
+        type_name: Some(pb::TypeName {
+            names: vec![string_node("pg_catalog"), string_node(name)],
+            typemod: -1,
+            ..Default::default()
+        }),
+        location: -1,
+    })));
+    true
 }
 
 fn admit_pattern(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -2384,9 +2444,65 @@ fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let left = left.ok_or_else(in_predicate)?;
         admit_in_column(left, ctx)?
     };
-    let items = in_list(node)?;
-    for item in &items {
+    let mut items = in_list(node)?;
+    for item in &mut items {
         admit_in_literal(item, left_type, token, ctx)?;
+    }
+    if let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut()
+        && let Some(pb::node::Node::List(list)) = expr
+            .rexpr
+            .as_deref_mut()
+            .and_then(|right| right.node.as_mut())
+    {
+        list.items = items;
+    }
+    Ok(ExprKind::Bool(Fold::Other))
+}
+
+fn admit_between(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut() else {
+        return Err(unsupported("BETWEEN predicate"));
+    };
+    let left = expr
+        .lexpr
+        .as_deref_mut()
+        .ok_or_else(|| unsupported("BETWEEN predicate"))?;
+    let ExprKind::Column { type_oid, .. } = admit_expr(left, ctx)? else {
+        return Err(unsupported("BETWEEN predicate"));
+    };
+    let Some(pb::node::Node::List(bounds)) = expr
+        .rexpr
+        .as_deref_mut()
+        .and_then(|right| right.node.as_mut())
+    else {
+        return Err(unsupported("BETWEEN predicate"));
+    };
+    if bounds.items.len() != 2 {
+        return Err(unsupported("BETWEEN predicate"));
+    }
+    let operators = if expr.kind == pb::AExprKind::AexprNotBetween as i32 {
+        ["<", ">"]
+    } else {
+        [">=", "<="]
+    };
+    for (bound, token) in bounds.items.iter_mut().zip(operators) {
+        bind_temporal_literal(bound, type_oid);
+        let (right_type, integer) = admit_comparison_operand(bound, ctx)?;
+        let resolved = resolve_binary_operator(
+            ctx.catalog,
+            Some("pg_catalog"),
+            token,
+            type_oid,
+            right_type,
+            false,
+            integer,
+        )?;
+        ctx.operators.push(BoundOperator {
+            oid: resolved.oid,
+            procedure_oid: resolved.procedure_oid,
+            schema: resolved.schema.clone(),
+            name: resolved.name.clone(),
+        });
     }
     Ok(ExprKind::Bool(Fold::Other))
 }
@@ -2428,11 +2544,39 @@ fn admit_in_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<u32, GuardE
 }
 
 fn admit_in_literal(
-    node: &pb::Node,
+    node: &mut pb::Node,
     left_type: u32,
     token: &str,
     ctx: &mut Ctx<'_>,
 ) -> Result<(), GuardError> {
+    let temporal = [
+        Type::DATE.oid(),
+        Type::TIMESTAMP.oid(),
+        Type::TIMESTAMPTZ.oid(),
+    ]
+    .contains(&left_type);
+    if temporal {
+        bind_temporal_literal(node, left_type);
+        if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref()
+            && cast.arg.as_deref().and_then(const_string).is_some()
+        {
+            let (right_type, _) = admit_comparison_operand(node, ctx)?;
+            let resolved = resolve_operator(
+                ctx.catalog,
+                Some("pg_catalog"),
+                token,
+                left_type,
+                right_type,
+            )?;
+            ctx.operators.push(BoundOperator {
+                oid: resolved.oid,
+                procedure_oid: resolved.procedure_oid,
+                schema: resolved.schema.clone(),
+                name: resolved.name.clone(),
+            });
+            return Ok(());
+        }
+    }
     refuse_closed_shape(node)?;
     if !matches!(node.node, Some(pb::node::Node::AConst(_))) {
         // A column in the list is not granted, including one the snapshot hides.
