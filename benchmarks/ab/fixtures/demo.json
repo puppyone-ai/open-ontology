@@ -113,7 +113,7 @@
       "sha256": "8bfa3dfd7138c5018fc439ecbc09ecc4fcd05b5e3022b4bfee57c5537ca238c4"
     },
     "pack": {
-      "path": "../../../deploy/lite/demo/pack-analyst.json",
+      "path": "pack-recorded.json",
       "sha256": "28b8f10160ac8eabf1b7362b4b422ff3a334b6a61cc77a033894949bad885f20"
     },
     "responses": {

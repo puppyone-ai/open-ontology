@@ -52,7 +52,8 @@ def private_write(path, data):
 def verify_assets(root=ASSETS):
     manifest = json.loads((root / "manifest.json").read_bytes())
     required = {"seed.sql", "roles.yaml", "reviewed-analyst.json", "reviewed-ops.json", "pack-analyst.json",
-                "pack-ops.json", "adjudication.json", "gold.json"}
+                "pack-ops.json", "adjudication.json", "gold.json",
+                "confirmed-analyst.json", "confirmed-ops.json"}
     if (manifest.get("protocol") != "oo.demo-assets/v1" or manifest.get("local_fixture") is not True
             or set(manifest.get("files", {})) != required):
         raise ValueError("DEMO_MANIFEST")

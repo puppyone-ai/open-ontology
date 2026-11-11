@@ -57,13 +57,13 @@ class Assets(unittest.TestCase):
         if not compiler.is_file():
             self.skipTest("build selfbuild-budget to run real compiler verification")
         for role in ("analyst", "ops"):
-            command = json.loads((demo.ASSETS / f"reviewed-{role}.json").read_bytes())
+            command = json.loads((demo.ASSETS / f"confirmed-{role}.json").read_bytes())
             result = subprocess.run([compiler], input=curate.canonical(
                 dict(operation="reviewed", command=command)).encode(), capture_output=True, check=True)
             compiled = json.loads(result.stdout)
             self.assertEqual(compiled["producer"]["artifact"],
                              json.loads((demo.ASSETS / f"pack-{role}.json").read_bytes()))
-            command["draft"]["unresolved"] = ["unreviewed"]
+            command["confirmation"]["summary_sha256"] = "0" * 64
             result = subprocess.run([compiler], input=curate.canonical(
                 dict(operation="reviewed", command=command)).encode(), capture_output=True)
             self.assertNotEqual(result.returncode, 0)

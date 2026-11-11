@@ -1056,6 +1056,7 @@ impl Plane {
     }
 }
 
+#[derive(Clone)]
 struct WalAudit {
     dir: PathBuf,
     collector: Option<PathBuf>,
@@ -1089,6 +1090,28 @@ impl AuditAdmission for WalAudit {
 }
 
 impl WalAudit {
+    async fn refuse(
+        &self,
+        code: ErrorCode,
+        identity: &PolicyIdentity,
+        sql: &str,
+    ) -> Result<(), ExecError> {
+        let mut fields = Map::new();
+        fields.insert(
+            "code".into(),
+            serde_json::to_value(code).map_err(|_| ExecError::AuditUnavailable)?,
+        );
+        fields.insert("status".into(), Value::from("denied"));
+        fields.insert("project".into(), Value::from(identity.project.clone()));
+        fields.insert("role".into(), Value::from(identity.role.clone()));
+        fields.insert("policy_id".into(), Value::from(identity.policy_id.clone()));
+        fields.insert(
+            "original_sha256".into(),
+            Value::from(oo_core::api::payload_sha256(sql.as_bytes())),
+        );
+        self.persist("refuse", 1, fields).await
+    }
+
     async fn persist(
         &self,
         phase: &str,
@@ -2699,7 +2722,7 @@ async fn query(
                         read_quality: true,
                         quality_vector: quality_vector.as_ref(),
                     },
-                    audit,
+                    audit.clone(),
                     binding,
                 )
                 .await
@@ -2708,6 +2731,13 @@ async fn query(
                 Err(err) => {
                     if matches!(err, ExecError::Timeout { .. }) { status.finish("timed_out"); }
                     let (code, message) = exec_public(&err);
+                    // Guard refusals happen before executor admission. Persist
+                    // them here without SQL text, values or denied column names.
+                    if matches!(err, ExecError::Guard(_))
+                        && audit.refuse(code, &identity, request.sql.as_str()).await.is_err()
+                    {
+                        return error_response(ErrorCode::AuditUnavailable, "refusal audit failed", None, Some(query_id.as_str()));
+                    }
                     return error_response(code, message, exec_hint(&err), Some(query_id.as_str()));
                 }
             };
@@ -4234,6 +4264,46 @@ fn read_endpoint(path: &Path, user: &str) -> Result<TlsEndpoint, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn guard_refusal_is_durable_without_sql_or_denied_names() {
+        let root = std::env::temp_dir().join(format!("oo-refusal-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let audit = WalAudit {
+            dir: root.clone(),
+            collector: None,
+            query_id: "q_refusal_test".into(),
+            principal: "analyst".into(),
+        };
+        let identity = PolicyIdentity {
+            project: "demo".into(),
+            role: "oo_r_analyst".into(),
+            policy_id: "test".into(),
+        };
+        let sql = "SELECT private_canary FROM demo.customers";
+        audit
+            .refuse(ErrorCode::ColumnNotAllowed, &identity, sql)
+            .await
+            .unwrap();
+        let text = fs::read_to_string(root.join("q_refusal_test-refuse.wal")).unwrap();
+        let row: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(row["query_id"], "q_refusal_test");
+        assert_eq!(row["phase"], "refuse");
+        assert_eq!(row["code"], "COLUMN_NOT_ALLOWED");
+        assert_eq!(
+            row["original_sha256"],
+            oo_core::api::payload_sha256(sql.as_bytes())
+        );
+        assert!(!text.contains("private_canary"));
+        assert!(!text.contains(sql));
+        fs::remove_dir_all(&root).unwrap();
+        assert!(
+            audit
+                .refuse(ErrorCode::ColumnNotAllowed, &identity, sql)
+                .await
+                .is_err()
+        );
+    }
 
     #[test]
     fn reviewed_roles_reload_atomically_and_never_fall_back_to_stale_permissions() {

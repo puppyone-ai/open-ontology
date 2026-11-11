@@ -288,24 +288,15 @@ fn confirm_summary_binds_overrides_and_never_overwrites() {
 }
 
 #[test]
-fn init_tables_non_tty_saves_nothing_without_config() {
-    let j: serde_json::Value = serde_json::from_str(&stdout(&oo(&[
-        "init",
-        "--demo",
-        "--tables-recommended",
-        "--json",
-    ])))
-    .unwrap();
-    assert_eq!(j["protocol"], "oo.init-tables/v1");
-    let selected: Vec<&str> = j["selected"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert!(selected.contains(&"lg.shipments") && !selected.contains(&"lg.shipment_log"));
-    assert_eq!(j["saved"], false);
-    let unknown = oo(&["init", "--demo", "--tables", "lg.nope"]);
-    assert!(!unknown.status.success());
+fn curated_demo_rejects_selection_instead_of_returning_a_preview() {
+    for flags in [vec!["--tables-recommended"], vec!["--tables", "lg.nope"]] {
+        let mut args = vec!["init", "--demo", "--json"];
+        args.extend(flags);
+        let result = oo(&args);
+        assert_eq!(result.status.code(), Some(2));
+        let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(report["class"], "usage");
+        assert!(report["protocol"].is_null());
+    }
     assert!(Path::new(FIXTURE).exists());
 }

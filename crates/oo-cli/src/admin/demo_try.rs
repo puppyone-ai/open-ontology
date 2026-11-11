@@ -2,6 +2,7 @@
 use super::{Failure, Invocation, build_retained};
 use crate::args::{Auth, Transport, parse_conn_flags};
 use serde_json::{Value, json};
+use std::path::Path;
 use std::process::Command;
 
 pub(super) const HELP: &str = "\
@@ -92,15 +93,74 @@ pub(super) fn run(args: &[String]) -> Result<Invocation, Failure> {
         }));
     }
     let passed = results.iter().all(|r| r["matched"] == true);
+    let mut audit_collection = "not_verified";
+    // Only the installed local demo has this private state layout. Other
+    // Gateway profiles retain the ordinary receipt-only demonstration.
+    let root = conn
+        .token_file
+        .as_deref()
+        .map(Path::new)
+        .filter(|p| p.file_name().is_some_and(|n| n == "demo-token"))
+        .and_then(Path::parent)
+        .filter(|p| p.file_name().is_some_and(|n| n == "work"))
+        .and_then(Path::parent)
+        .filter(|p| p.join("owner.json").is_file());
+    if passed && let Some(root) = root {
+        let state = root
+            .parent()
+            .and_then(Path::parent)
+            .ok_or_else(|| Failure::local("DEMO_STATE"))?;
+        let mut command = Command::new("python3");
+        command.arg(state.join("demo_deploy.py"));
+        let request = json!({"action":"audit","root":root,"queries":results.iter()
+            .map(|r| json!({"query_id":r["query_id"],"denied":r["expected_deny"]})).collect::<Vec<_>>()});
+        let (exit, out, _) = build_retained::invoke(command, request.to_string().into_bytes(), 60)?;
+        let audit: Value =
+            serde_json::from_slice(&out).map_err(|_| Failure::local("DEMO_AUDIT_RECEIPT"))?;
+        if exit != 0 || audit["status"] != "verified_control_db" {
+            return Err(Failure::local("DEMO_AUDIT_NOT_VERIFIED"));
+        }
+        let mut command = Command::new(&executable);
+        command.arg("freshness").args(&flags);
+        let (exit, out, _) = build_retained::invoke(command, vec![], 45)?;
+        let freshness: Value =
+            serde_json::from_slice(&out).map_err(|_| Failure::local("DEMO_FRESHNESS"))?;
+        if exit != 0
+            || freshness["publication"] != "live"
+            || !freshness["library_publications"]
+                .as_array()
+                .is_some_and(|publications| {
+                    publications.iter().any(|p| {
+                        p["ready"] == true && p["receipt_sha256"] == audit["receipt_sha256"]
+                    })
+                })
+        {
+            return Err(Failure::local("DEMO_PUBLICATION_BINDING"));
+        }
+        for row in &mut results {
+            let event = audit["events"]
+                .as_array()
+                .and_then(|events| {
+                    events
+                        .iter()
+                        .find(|event| event["query_id"] == row["query_id"])
+                })
+                .ok_or_else(|| Failure::local("DEMO_AUDIT_RECEIPT"))?;
+            row["audit_id"] = event["audit_id"].clone();
+            row["published_generation"] = audit["published_generation"].clone();
+            row["freshness"] = freshness.clone();
+        }
+        audit_collection = "verified_control_db";
+    }
     let report = json!({"protocol":"oo.demo-try/v1","role":role,"passed":passed,
         "sql_origin":"fixed demo gold; in real use your Agent writes SQL",
-        "audit_collection":"not_verified","results":results});
+        "audit_collection":audit_collection,"results":results});
     let text = if json_output {
         report.to_string()
     } else {
         format!(
             "Fixed demo SQL; in real use your Agent writes SQL.\n\
-             Audit collection is not verified; absent receipt fields stay null.\n{}",
+             Audit collection: {audit_collection}; absent receipt fields stay null.\n{}",
             serde_json::to_string_pretty(&report).map_err(|_| Failure::local("DEMO_RENDER"))?
         )
     };
