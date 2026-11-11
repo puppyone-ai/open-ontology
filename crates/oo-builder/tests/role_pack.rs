@@ -498,6 +498,39 @@ fn missing_business_calendar_does_not_deny_visible_calendar_attributes() {
 }
 
 #[test]
+fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["enums"] = json!([]);
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("Dictionary lookup and enum certification are different"));
+    assert!(readme.contains("dictionary discriminator and effective-date columns"));
+    assert!(readme.contains("Application role codes"));
+    assert!(readme.contains("not Gateway authorization grants"));
+    assert!(readme.contains("If the table or column meaning is unknown"));
+    let availability: serde_json::Value =
+        serde_json::from_str(pack.file("availability.json").unwrap()).unwrap();
+    assert_eq!(availability["available"]["enums"], json!([]));
+    assert!(
+        !availability["available"]["datasets"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let semantics = availability["semantics"].as_str().unwrap();
+    assert!(semantics.contains("Dictionary rows can be queried without an exported enum"));
+    assert!(semantics.contains("do not invent code meanings or completeness"));
+    let artifact: serde_json::Value = serde_json::from_str(&pack.artifact).unwrap();
+    assert!(
+        !artifact["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| { file["path"].as_str().unwrap().starts_with("enums/") })
+    );
+}
+
+#[test]
 fn enum_pages_do_not_invent_an_executable_dictionary_binding() {
     let (effective, visibility) = analyst_documents();
     let pack = must(&effective, &visibility);

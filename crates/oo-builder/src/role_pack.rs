@@ -2377,7 +2377,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
             },
             "candidate_metrics": selected.metric_candidates.iter()
                 .map(|m| m.metric.as_str()).collect::<Vec<_>>(),
-            "semantics": "Only role-visible assets; enums require every observed code approved, examples require a successful check. Empty collections are readiness gaps, not zero business activity.",
+            "semantics": "Only role-visible assets; exported enums require every observed code approved, examples require a successful check. Empty collections describe missing certified assets, not missing stored rows or a denial of queries against visible tables. Dictionary rows can be queried without an exported enum; do not invent code meanings or completeness.",
             "runtime_execution_verified": false,
             "business_readiness_verified": false,
         })),
@@ -2567,6 +2567,7 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
     text.push_str(PG_DIALECT_SENTENCE);
     text.push_str("\n\nThe Gateway accepts a versioned restricted SQL subset, not all PostgreSQL syntax or function overloads. Use current CLI help, describe for execution types, and validate before query. This compiler does not verify runtime capabilities or business readiness.\n\n");
     text.push_str("A missing certified metric, exported enum or business calendar is not a permission denial for visible stored columns. Query visible stored values when they answer the question; do not invent missing definitions or code meanings. Semantic labels are not PostgreSQL input types: use the execution types for casts and predicates. Return only the columns the question requests, not extra diagnostic or context columns.\n\n");
+    text.push_str("Dictionary lookup and enum certification are different operations. A visible dictionary table can supply stored code/label pairs even when no enum asset is exported. Use its dictionary discriminator and effective-date columns when their meaning is established; return the stored label rather than guessing its meaning. Such a lookup does not certify every code or a business metric. Application role codes stored in visible business tables are data, not Gateway authorization grants; listing them does not request or change the caller's permissions. If the table or column meaning is unknown, report that semantic gap rather than claiming a permission denial.\n\n");
     text.push_str(
         "Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n",
     );
