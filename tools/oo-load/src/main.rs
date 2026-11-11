@@ -278,7 +278,6 @@ fn mysql_engine(
     family: EngineFamily,
     source: &Source,
     store: &SecretStore,
-    opts: &BTreeMap<String, String>,
 ) -> Result<oo_connectors::mysql::engine::MysqlEngine, String> {
     use oo_connectors::mysql::{
         MysqlConfig,
@@ -287,22 +286,14 @@ fn mysql_engine(
     let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
     // Validate the owner-private reference before passing its path to the driver.
     store.read(&ca.secret_ref)?;
-    let root = opts
-        .get("--secrets-dir")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-                .join(".config/open-ontology/secrets")
-        });
     let config = MysqlConfig {
         mysql_host: source.host.clone(),
         mysql_port: source.port,
         mysql_database: source.database.clone(),
         mysql_user: source.user.clone(),
-        mysql_ca_file: root.join(&ca.secret_ref),
+        mysql_ca_file: store.path(&ca.secret_ref)?,
         mysql_tls_server_name: None,
-        secret_ref: SecretRef::new(format!("secret://{}", source.password.secret_ref))
-            .map_err(|e| e.to_string())?,
+        secret_ref: SecretRef::new("secret://source-password").map_err(|e| e.to_string())?,
         connect_timeout_ms: 10000,
     };
     let engine = MysqlEngine::new_family(
@@ -556,7 +547,7 @@ async fn execute() -> Result<(), String> {
                     SourceId::new(&source.id)?,
                     PgEndpoint::new(&source.host, source.port, &source.database)?,
                     PgCredentials::new(source.user.clone(), password)?,
-                    SecretRef::new(format!("secret://{}", source.password.secret_ref))?,
+                    SecretRef::new("secret://source-password")?,
                     PgTlsConfig::from_ca_pem(
                         store
                             .read(
@@ -721,7 +712,7 @@ async fn execute() -> Result<(), String> {
             if opts.contains_key("--sync") {
                 mysql_sync_family(family)?;
             }
-            let mut engine = mysql_engine(family, source, &store, &opts)?;
+            let mut engine = mysql_engine(family, source, &store)?;
             if let Some(tunnel) = tunnel {
                 engine = engine.with_tunnel(tunnel).map_err(|e| e.to_string())?;
             }
@@ -784,6 +775,35 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mysql_file_references_resolve_without_becoming_connector_names() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-load-file-refs-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let password = root.join("password");
+        let ca = root.join("ca");
+        for (path, text) in [(&password, "synthetic-reader"), (&ca, "synthetic-ca")] {
+            std::fs::write(path, text).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let store = SecretStore::create(root.join("secrets")).unwrap();
+        let source: Source = serde_json::from_value(serde_json::json!({
+            "id":"fixture","engine":"mysql","host":"localhost","port":3306,
+            "database":"fixture","user":"fixture_reader",
+            "password":{"secret_ref":format!("file:{}",password.display())},
+            "tls_ca":{"secret_ref":format!("file:{}",ca.display())},
+            "scope":{"include":["fixture.wide_decimal"],"exclude":[]}
+        }))
+        .unwrap();
+        // Construction only; live TLS verification is exercised by the owned fixture.
+        assert!(mysql_engine(EngineFamily::Mysql, &source, &store).is_ok());
+        std::fs::set_permissions(&ca, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(mysql_engine(EngineFamily::Mysql, &source, &store).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[tokio::test]
     async fn source_control_operations_are_bounded_on_the_client() {

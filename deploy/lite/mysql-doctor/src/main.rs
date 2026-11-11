@@ -37,11 +37,9 @@ fn run() -> Result<Value, &'static str> {
         mysql_user: source.user.clone(),
         mysql_ca_file: store.path(&ca.secret_ref)?,
         mysql_tls_server_name: None,
-        secret_ref: oo_connectors::SecretRef::new(format!(
-            "secret://{}",
-            source.password.secret_ref
-        ))
-        .map_err(|_| "SECRET_NAME")?,
+        // The connector receives resolved bytes, not a file:/env: locator.
+        secret_ref: oo_connectors::SecretRef::new("secret://source-password")
+            .map_err(|_| "SECRET_NAME")?,
         connect_timeout_ms: 10_000,
     };
     let options = EngineOptions {

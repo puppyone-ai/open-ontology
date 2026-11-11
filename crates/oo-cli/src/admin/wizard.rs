@@ -1408,6 +1408,13 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     if engine.uses_ca() {
         let ca = match conn.tls_mode {
             connect::TlsMode::Saved => json!({"secret_ref": conn.ca_saved}),
+            connect::TlsMode::File => {
+                let reference = format!("file:{}", conn.ca_file.trim());
+                let pem = store.read(&reference).map_err(Failure::local)?;
+                oo_connectors::PgTlsConfig::from_ca_pem(pem.as_bytes())
+                    .map_err(|_| Failure::usage("TUI_CA_PEM_REQUIRED"))?;
+                json!({"secret_ref": reference})
+            }
             _ => {
                 let pem = conn
                     .ca_pem()

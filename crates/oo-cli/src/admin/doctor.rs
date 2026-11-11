@@ -309,7 +309,7 @@ pub(super) fn postgres(
             SourceId::new(&source.id)?,
             PgEndpoint::new(&source.host, source.port, &source.database)?,
             PgCredentials::new(source.user.clone(), password)?,
-            SecretRef::new(format!("secret://{}", source.password.secret_ref))?,
+            SecretRef::new("secret://source-password")?,
             PgTlsConfig::from_ca_pem(ca)?,
             PgBudget::new(
                 Duration::from_secs(10),
