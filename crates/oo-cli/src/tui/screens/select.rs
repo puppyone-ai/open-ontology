@@ -23,6 +23,8 @@ pub struct Select {
     pub error: Option<String>,
     /// Animation frame: verdicts sweep in two rows a frame, the meter fills.
     pub frame: usize,
+    /// Catalog metadata behind each row, for the detail panel.
+    pub meta: Vec<TableMeta>,
 }
 
 impl Select {
@@ -39,6 +41,7 @@ impl Select {
             searching: false,
             error: None,
             frame: 0,
+            meta: tables.to_vec(),
         }
     }
 
@@ -179,6 +182,13 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
     }
     put(buf, inner.x, inner.y + 1, inner.width, spans);
     let top = inner.y + 3;
+    // Wide terminals get a detail panel for the row under the cursor.
+    let panel = inner.width >= PANEL_MIN;
+    let list_w = if panel {
+        inner.width - PANEL_W - 2
+    } else {
+        inner.width
+    };
     let list_h = usize::from(inner.bottom().saturating_sub(top + 2));
     let visible = state.visible();
     let cursor = state.cursor.min(visible.len().saturating_sub(1));
@@ -195,7 +205,7 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
         .map(|r| width(&r.table))
         .max()
         .unwrap_or(10)
-        .clamp(10, if inner.width >= 100 { 30 } else { 22 });
+        .clamp(10, if list_w >= 100 { 30 } else { 22 });
     let mut y = top;
     for (pos, &i) in visible.iter().enumerate().skip(scroll).take(list_h) {
         let row = &state.rows[i];
@@ -215,7 +225,7 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             Tone::Ink
         };
         let rows = row.rows.map_or("—".to_owned(), magnitude);
-        let reason_w = usize::from(inner.width).saturating_sub(name_w + 20);
+        let reason_w = usize::from(list_w).saturating_sub(name_w + 20);
         let reason = if swept {
             fit(&row.reason.text(theme.zh), reason_w)
         } else {
@@ -240,7 +250,7 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
             spans[3] =
                 ratatui::text::Span::styled(theme::pad(&row.table, name_w), theme.selected());
         }
-        put(buf, inner.x, y, inner.width, spans);
+        put(buf, inner.x, y, list_w, spans);
         y += 1;
     }
     if visible.len() > list_h {
@@ -258,6 +268,26 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 },
                 Tone::Faint,
             )],
+        );
+    }
+    if panel && let Some(&i) = visible.get(cursor) {
+        let px = inner.x + list_w + 1;
+        for py in top..inner.bottom().saturating_sub(1) {
+            buf[(px, py)]
+                .set_symbol("┊")
+                .set_style(theme.style(Tone::Faint));
+        }
+        detail(
+            state,
+            i,
+            Rect::new(
+                px + 2,
+                top,
+                PANEL_W - 1,
+                inner.bottom().saturating_sub(top + 1),
+            ),
+            buf,
+            theme,
         );
     }
     let foot = inner.bottom() - 1;
@@ -300,6 +330,180 @@ pub fn render(state: &Select, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 ),
                 Tone::Faint,
             )],
+        );
+    }
+}
+
+/// Width at which the detail panel appears, and its width.
+const PANEL_MIN: u16 = 110;
+const PANEL_W: u16 = 38;
+
+/// Thousands separators for an exact count.
+fn grouped(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// What we know about one table: size, keys, who points at it and what it
+/// points at, and why it is (not) recommended.
+fn detail(state: &Select, row: usize, area: Rect, buf: &mut Buffer, theme: &Theme) {
+    let scored = &state.rows[row];
+    let Some(meta) = state.meta.iter().find(|m| m.qualified() == scored.table) else {
+        return;
+    };
+    let w = usize::from(area.width);
+    let mut y = area.y;
+    let mut line = |spans: Vec<ratatui::text::Span<'static>>, y: &mut u16| {
+        if *y < area.bottom() {
+            put(buf, area.x, *y, area.width, spans);
+            *y += 1;
+        }
+    };
+    line(
+        vec![theme.span(fit(&scored.table, w), Tone::Accent)],
+        &mut y,
+    );
+    let picked = state.chosen.contains(&scored.table);
+    line(
+        vec![theme.span(
+            if picked {
+                theme.t("◉ selected", "◉ 已选")
+            } else {
+                theme.t("○ not selected", "○ 未选")
+            },
+            if picked { Tone::Accent } else { Tone::Faint },
+        )],
+        &mut y,
+    );
+    y += 1;
+    let label = |t: &'static str| theme.span(theme::pad(t, 10), Tone::Dim);
+    let rows = meta.rows.map_or_else(
+        || theme.t("unknown", "未知").to_owned(),
+        |n| format!("{} ({})", grouped(n), magnitude(n)),
+    );
+    line(
+        vec![label(theme.t("rows", "行数")), theme.span(rows, Tone::Ink)],
+        &mut y,
+    );
+    let keys = match (meta.has_primary_key, meta.has_unique_key) {
+        (true, _) => theme.t("primary key", "有主键"),
+        (false, true) => theme.t("unique key only", "只有唯一键"),
+        (false, false) => theme.t("none declared", "未声明"),
+    };
+    line(
+        vec![
+            label(theme.t("keys", "键")),
+            theme.span(
+                keys,
+                if meta.has_primary_key || meta.has_unique_key {
+                    Tone::Ink
+                } else {
+                    Tone::Warn
+                },
+            ),
+        ],
+        &mut y,
+    );
+    if meta.partition_child {
+        line(
+            vec![
+                label(theme.t("partition", "分区")),
+                theme.span(
+                    theme.t("child of a partitioned table", "分区子表"),
+                    Tone::Warn,
+                ),
+            ],
+            &mut y,
+        );
+    }
+    y += 1;
+    let referenced: Vec<String> = state
+        .meta
+        .iter()
+        .filter(|m| m.references.contains(&scored.table))
+        .map(TableMeta::qualified)
+        .collect();
+    for (title, list) in [
+        (theme.t("used by", "被引用"), &referenced),
+        (theme.t("points to", "引用"), &meta.references),
+    ] {
+        line(
+            vec![
+                theme.span(format!("{title} "), Tone::Dim),
+                theme.span(list.len().to_string(), Tone::Ink),
+            ],
+            &mut y,
+        );
+        for name in list.iter().take(4) {
+            let on = state.chosen.contains(name);
+            line(
+                vec![
+                    theme.span(
+                        if on { "  ◉ " } else { "  ○ " },
+                        if on { Tone::Accent } else { Tone::Faint },
+                    ),
+                    theme.span(fit(name, w.saturating_sub(4)), Tone::Ink),
+                ],
+                &mut y,
+            );
+        }
+        if list.len() > 4 {
+            line(
+                vec![theme.span(
+                    if theme.zh {
+                        format!("    … 还有 {} 张", list.len() - 4)
+                    } else {
+                        format!("    … {} more", list.len() - 4)
+                    },
+                    Tone::Faint,
+                )],
+                &mut y,
+            );
+        }
+    }
+    // A recommended table whose neighbours are left out loses its links.
+    let missing = referenced
+        .iter()
+        .chain(&meta.references)
+        .filter(|n| !state.chosen.contains(*n))
+        .count();
+    y += 1;
+    let (glyph, tone) = match scored.verdict {
+        Verdict::Recommend => ("✓", Tone::Ok),
+        Verdict::Maybe => ("?", Tone::Warn),
+        Verdict::Skip => ("✗", Tone::Faint),
+    };
+    line(
+        vec![
+            theme.span(format!("{glyph} "), tone),
+            theme.span(
+                fit(&scored.reason.text(theme.zh), w.saturating_sub(2)),
+                Tone::Ink,
+            ),
+        ],
+        &mut y,
+    );
+    if picked && missing > 0 {
+        line(
+            vec![theme.span(
+                fit(
+                    &if theme.zh {
+                        format!("! {missing} 张相邻表未选，关系会断开")
+                    } else {
+                        format!("! {missing} linked table(s) not selected; their joins drop")
+                    },
+                    w,
+                ),
+                Tone::Warn,
+            )],
+            &mut y,
         );
     }
 }

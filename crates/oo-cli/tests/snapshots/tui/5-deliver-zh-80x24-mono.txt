@@ -8,7 +8,6 @@
 │ ┆ [mcp_servers.open-ontology]                                              ┆ │
 │ ┆ command = "oo"                                                           ┆ │
 │ ┆ args = ["mcp", "--stdio", "--profile", "logistics"]                      ┆ │
-│ ┆                                                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ 就绪检查                                                                     │
@@ -16,6 +15,7 @@
 │ ✓ gateway reachable  https://127.0.0.1:8443 · 4 ms                           │
 │ ✓ visible tables     11 tables for role analyst                              │
 │ ✓ freshness          published 2 min ago                                     │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

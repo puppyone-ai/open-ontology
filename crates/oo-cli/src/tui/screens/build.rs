@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use super::{Status, put};
 use crate::tui::fx;
-use crate::tui::theme::{self, Hint, Theme, Tone, heading};
+use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading};
 
 /// `(name, zh name, what it does, zh)`.
 pub const STAGES: [(&str, &str, &str, &str); 5] = [
@@ -490,6 +490,81 @@ pub fn render(state: &Build, area: Rect, buf: &mut Buffer, theme: &Theme) {
             ],
         );
     }
+    // A stopped build says where, why, and how to go on.
+    if let Some((index, stage)) = state
+        .stages
+        .iter()
+        .enumerate()
+        .find(|(_, s)| s.status == Status::Fail)
+        && y + 3 < foot
+    {
+        let w = usize::from(inner.width);
+        let name = theme.t(STAGES[index].0, STAGES[index].1);
+        let error = stage.error.clone().unwrap_or_default();
+        let plain = failure_words(&error, theme);
+        let at = y + 1;
+        put(
+            buf,
+            inner.x,
+            at,
+            inner.width,
+            vec![
+                theme.span("✗ ", Tone::Bad),
+                theme.span(
+                    fit(
+                        &if theme.zh {
+                            format!("构建停在「{name}」：{plain}")
+                        } else {
+                            format!("the build stopped at {name}: {plain}")
+                        },
+                        w.saturating_sub(2),
+                    ),
+                    Tone::Ink,
+                ),
+            ],
+        );
+        let kept = state
+            .stages
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.status == Status::Pass)
+            .map(|(i, _)| theme.t(STAGES[i].0, STAGES[i].1))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !kept.is_empty() {
+            put(
+                buf,
+                inner.x + 2,
+                at + 1,
+                inner.width.saturating_sub(2),
+                vec![theme.span(
+                    fit(
+                        &if theme.zh {
+                            format!("已完成的阶段会保留：{kept}")
+                        } else {
+                            format!("finished stages are kept: {kept}")
+                        },
+                        w.saturating_sub(2),
+                    ),
+                    Tone::Dim,
+                )],
+            );
+        }
+        put(
+            buf,
+            inner.x + 2,
+            at + 2,
+            inner.width.saturating_sub(2),
+            vec![
+                theme.span(theme.t("next ", "下一步 "), Tone::Accent),
+                theme.span(
+                    theme.t("fix the cause, then ", "排除原因后运行 "),
+                    Tone::Ink,
+                ),
+                theme.span("oo build --resume", Tone::Accent),
+            ],
+        );
+    }
     if !state.note.is_empty() {
         put(
             buf,
@@ -499,6 +574,23 @@ pub fn render(state: &Build, area: Rect, buf: &mut Buffer, theme: &Theme) {
             vec![theme.span(state.note.clone(), Tone::Dim)],
         );
     }
+}
+
+/// Plain words for a stage error: known codes explained, others kept.
+fn failure_words(error: &str, theme: &Theme) -> String {
+    let code = error.split([':', ' ']).next().unwrap_or("");
+    let words = match code {
+        "MODEL_BUDGET" => theme.t("the model call budget is used up", "模型调用预算用完了"),
+        "MODEL_AUTH" => theme.t("the model key was refused", "模型 key 被拒绝"),
+        "MODEL_UNREACHABLE" => theme.t("the model endpoint did not answer", "模型服务没有响应"),
+        "SOURCE_AUTH" => theme.t("the source refused the sign-in", "源库拒绝登录"),
+        "relationship_check_budget_exhausted" => theme.t(
+            "the relationship check budget ran out",
+            "关系检查预算用完了",
+        ),
+        _ => return error.to_owned(),
+    };
+    words.to_owned()
 }
 
 #[cfg(test)]

@@ -106,7 +106,71 @@ fn wrap(text: &str, cols: usize) -> Vec<String> {
         }
         lines.push(line);
     }
+    while lines.len() > 1 && lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
     lines
+}
+
+/// Plain words for a readiness failure code, and what to do about it.
+fn readiness_note(code: &str, theme: &Theme) -> (String, String) {
+    match code {
+        "PROFILE_NOT_PROVISIONED" => (
+            theme
+                .t(
+                    "nothing published for this profile yet",
+                    "这个 profile 还没有发布任何内容",
+                )
+                .into(),
+            theme
+                .t(
+                    "run oo build to publish a pack and issue its token, then r to re-check",
+                    "先运行 oo build 发布本体包并签发 token，再按 r 重新检查",
+                )
+                .into(),
+        ),
+        "PROFILE_BINDING" => (
+            theme
+                .t(
+                    "the saved profile belongs to another build",
+                    "保存的 profile 属于另一次构建",
+                )
+                .into(),
+            theme
+                .t(
+                    "re-run oo build for this profile",
+                    "为这个 profile 重新运行 oo build",
+                )
+                .into(),
+        ),
+        other => (
+            if theme.zh {
+                format!("无法检查就绪状态（{other}）")
+            } else {
+                format!("readiness could not be checked ({other})")
+            },
+            theme
+                .t(
+                    "check the gateway with oo status, then r",
+                    "用 oo status 检查网关，再按 r",
+                )
+                .into(),
+        ),
+    }
+}
+
+/// Every check failed for the same reason: one row says it once.
+fn shared_failure(checks: &[Check]) -> Option<&str> {
+    let first = checks.first()?;
+    let code = first.detail.as_str();
+    (!code.is_empty()
+        && code
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+        && checks
+            .iter()
+            .all(|c| c.status == Status::Fail && c.detail == code))
+    .then_some(code)
 }
 
 pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
@@ -265,19 +329,63 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
     } else {
         frame + 1
     };
-    checklist(
-        buf,
-        Rect::new(
+    if let Some(code) = shared_failure(&state.checks) {
+        let (text, fix) = readiness_note(code, theme);
+        let names: Vec<&str> = state.checks.iter().map(|c| c.name.as_str()).collect();
+        put(
+            buf,
             inner.x,
             y + 1,
             inner.width,
-            inner.bottom().saturating_sub(y + 3),
-        ),
-        theme,
-        &state.checks,
-        state.frame,
-        shown,
-    );
+            vec![
+                theme.span("○ ", Tone::Warn),
+                theme.span(
+                    fit(&text, usize::from(inner.width).saturating_sub(2)),
+                    Tone::Ink,
+                ),
+            ],
+        );
+        put(
+            buf,
+            inner.x + 2,
+            y + 2,
+            inner.width.saturating_sub(2),
+            vec![theme.span(
+                fit(
+                    &names.join(" · "),
+                    usize::from(inner.width).saturating_sub(2),
+                ),
+                Tone::Faint,
+            )],
+        );
+        put(
+            buf,
+            inner.x + 2,
+            y + 3,
+            inner.width.saturating_sub(2),
+            vec![
+                theme.span(theme.t("next ", "下一步 "), Tone::Accent),
+                theme.span(
+                    fit(&fix, usize::from(inner.width).saturating_sub(10)),
+                    Tone::Ink,
+                ),
+            ],
+        );
+    } else {
+        checklist(
+            buf,
+            Rect::new(
+                inner.x,
+                y + 1,
+                inner.width,
+                inner.bottom().saturating_sub(y + 3),
+            ),
+            theme,
+            &state.checks,
+            state.frame,
+            shown,
+        );
+    }
     // Final light. Ready gets a ceremony: once every check has ticked in, a
     // banner with a glint across it and a one-shot burst over the ✓.
     let foot = inner.bottom() - 1;
@@ -317,6 +425,15 @@ pub fn render(state: &Deliver, area: Rect, buf: &mut Buffer, theme: &Theme) {
     } else {
         let (light, tone, text) = if !settled {
             ("○", Tone::Faint, theme.t("checking…", "检查中…"))
+        } else if shared_failure(&state.checks) == Some("PROFILE_NOT_PROVISIONED") {
+            (
+                "○",
+                Tone::Warn,
+                theme.t(
+                    "not published yet: the prompt works once a pack is published",
+                    "尚未发布：本体包发布后提示词即可使用",
+                ),
+            )
         } else if state.checks.iter().any(|c| c.status == Status::Fail) {
             (
                 "●",

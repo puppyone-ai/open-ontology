@@ -9,16 +9,16 @@
 │ ┆ Run oo use logis╭─ MCP configuration for ──────────────╮skill.           ┆ │
 │ ┆ Inspect oo table│ ▸ Claude Code                        │ery only through ┆ │
 │ ┆ the Gateway.    │   Cursor                             │                 ┆ │
-│ ┆ … 5 more lines (│   Codex                              │                 ┆ │
+│ ┆ … 4 more lines (│   Codex                              │                 ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│                                      │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                   │ ⏎ show   esc back                    │                   │
 │ readiness         ╰──────────────────────────────────────╯                   │
-│ ✗ pack published     PROFILE_NOT_PROVISIONED                                 │
-│ ✗ gateway reachable  PROFILE_NOT_PROVISIONED                                 │
-│ ✗ visible tables     PROFILE_NOT_PROVISIONED                                 │
-│ ✗ freshness          PROFILE_NOT_PROVISIONED                                 │
+│ ○ nothing published for this profile yet                                     │
+│   pack published · gateway reachable · visible tables · freshness            │
+│   next run oo build to publish a pack and issue its token, then r to re-…    │
 │                                                                              │
 │                                                                              │
 │                                                                              │
-│ ● not ready: see the failed check                                            │
+│                                                                              │
+│ ○ not published yet: the prompt works once a pack is published               │
 ╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯

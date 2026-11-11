@@ -12,7 +12,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -38,7 +38,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -64,7 +64,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -90,7 +90,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -116,7 +116,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -142,7 +142,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -168,7 +168,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -194,7 +194,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │
@@ -220,7 +220,7 @@
 │ ┆ Run oo use logistics, then oo check --json and oo agent-skill.           ┆ │
 │ ┆ Inspect oo tables and oo describe before writing SQL. Query only through ┆ │
 │ ┆ the Gateway.                                                             ┆ │
-│ ┆ … 5 more lines (copied in full)                                          ┆ │
+│ ┆ … 4 more lines (copied in full)                                          ┆ │
 │ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
 │                                                                              │
 │ readiness                                                                    │

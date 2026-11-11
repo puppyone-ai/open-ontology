@@ -14,9 +14,9 @@
 │ ○ compile    ▕····················▏                         queued           │
 │              compile and verify the role pack                                │
 │                                                                              │
-│                                                                              │
-│                                                                              │
-│                                                                              │
+│ ✗ the build stopped at draft: the model call budget is used up               │
+│   finished stages are kept: load, profile                                    │
+│   next fix the cause, then oo build --resume                                 │
 │                                                                              │
 │                                                                              │
 │                                                                              │
