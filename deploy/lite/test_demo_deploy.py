@@ -69,6 +69,27 @@ class DeploymentTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     demo.command(["fixture"])
 
+    def test_runtime_selects_the_image_platform_before_parsing_candidate_json(self):
+        root = Path("/demo/state")
+        with patch.object(demo.lite, "read_private", return_value=json.dumps(self.owner(root))):
+            deployment = demo.Deployment(root)
+        for platform in ("linux/amd64", "linux/arm64"):
+            with patch.object(demo, "command", side_effect=[
+                    (platform + "\n").encode(), b'{"state":"pending"}']) as command:
+                self.assertEqual(deployment.runtime(["oo-load", "publish"], candidate=True),
+                                 b'{"state":"pending"}')
+                self.assertEqual(command.call_args_list[0].args[0],
+                                 ["docker", "image", "inspect", "--format",
+                                  "{{.Os}}/{{.Architecture}}", deployment.image])
+                self.assertEqual(command.call_args.args[0][:4],
+                                 ["docker", "run", "--platform", platform])
+                self.assertTrue(command.call_args.kwargs["candidate"])
+        for platform in (b"", b"windows/amd64", b"linux/amd64\nuntrusted"):
+            with patch.object(demo, "command", return_value=platform) as command:
+                with self.assertRaisesRegex(ValueError, "DEMO_IMAGE_PLATFORM"):
+                    deployment.runtime(["oo-load"])
+                self.assertEqual(command.call_count, 1)
+
     def test_absent_refusal_wal_cannot_be_fabricated_from_expected_deny(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

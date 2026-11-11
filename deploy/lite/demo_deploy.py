@@ -60,7 +60,12 @@ class Deployment:
                         "-f", str(root / "compose.yaml"), "-f", str(root / "compose.local.yaml")], self.env)
 
     def runtime(self, argv, data=None, candidate=False):
-        return command(["docker", "run", "--rm", "-i", "--label", "oo.lane=v03",
+        platform = command(["docker", "image", "inspect", "--format",
+                            "{{.Os}}/{{.Architecture}}", self.image]).decode().strip()
+        if platform not in ("linux/arm64", "linux/amd64"):
+            raise ValueError("DEMO_IMAGE_PLATFORM")
+        # Docker's implicit-emulation warning would corrupt the closed JSON refusal.
+        return command(["docker", "run", "--platform", platform, "--rm", "-i", "--label", "oo.lane=v03",
                         "--label", "oo.lite.project=" + self.project,
                         "--network", self.project + "_default",
                         "--user", f"{os.getuid()}:{os.getgid()}",
