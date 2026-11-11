@@ -263,6 +263,24 @@
       "upstream_url": "https://raw.githubusercontent.com/modelcontextprotocol/rust-sdk/0cde3c5cf3e6aff0cc852ce6045f107e95991f48/LICENSE",
       "vcs_commit": "0cde3c5cf3e6aff0cc852ce6045f107e95991f48",
       "version": "3.5.0"
+    },
+    {
+      "file": "keyed-priority-queue-2656a970a1ff-LICENSE.txt",
+      "license": "MIT",
+      "name": "keyed_priority_queue",
+      "path_in_vcs": "keyed_priority_queue",
+      "provenance": {
+        "crate_manifest_sha256": "e6d74da5d17d374b34ec49851ee0fd8151601c8afdd776fb18d0d0f11f98941e",
+        "crate_manifest_url": "https://raw.githubusercontent.com/AngelicosPhosphoros/keyed_priority_queue/2656a970a1ff174010bb8ebfb676f922d2d59599/keyed_priority_queue/Cargo.toml",
+        "registry_vcs_info_sha256": "524e227a889ab414a64ec659ca4b51255256cc4c596225e242faa516205b052f"
+      },
+      "repository": "https://github.com/AngelicosPhosphoros/keyed_priority_queue",
+      "sha256": "824f627ec8266fa82057490c3d0982c9b327dca9de1c3c77ebb0128a13621a13",
+      "source": "crates.io",
+      "upstream_path": "LICENSE.md",
+      "upstream_url": "https://raw.githubusercontent.com/AngelicosPhosphoros/keyed_priority_queue/2656a970a1ff174010bb8ebfb676f922d2d59599/LICENSE.md",
+      "vcs_commit": "2656a970a1ff174010bb8ebfb676f922d2d59599",
+      "version": "0.4.2"
     }
   ],
   "verification": "Original license bytes fetched from exact upstream commits. Crate version, repository, declared license and Cargo VCS commit/path checked against installed registry sources and pinned upstream Cargo manifests. No legal approval."
