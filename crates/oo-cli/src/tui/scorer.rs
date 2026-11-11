@@ -2,6 +2,7 @@
 //! data rows, no model, and table names never leave this machine.
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Catalog-only facts about one table.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +17,7 @@ pub struct TableMeta {
     pub partition_child: bool,
     /// Qualified `schema.table` targets of outgoing foreign keys.
     pub references: Vec<String>,
+    pub columns: BTreeMap<String, String>,
 }
 
 impl TableMeta {
@@ -55,6 +57,9 @@ pub enum Reason {
     Referenced { referenced_by: usize },
     LinksEntities { references: usize },
     BusinessName { word: String },
+    ProbableLinks { referenced_by: usize },
+    LookupName,
+    RankedFallback,
     NoSignal,
 }
 
@@ -93,6 +98,18 @@ impl Reason {
             (Reason::LinksEntities { references }, true) => format!("关联 {references} 张表"),
             (Reason::BusinessName { word }, false) => format!("business-like name ({word})"),
             (Reason::BusinessName { word }, true) => format!("名称像业务对象（{word}）"),
+            (Reason::ProbableLinks { referenced_by }, false) => {
+                format!("no declared keys; ranked by shared key columns ({referenced_by} probable links)")
+            }
+            (Reason::ProbableLinks { referenced_by }, true) => {
+                format!("无声明关联键；按共享键列排序（{referenced_by} 个可能关联）")
+            }
+            (Reason::LookupName, false) => "small code/lookup table by name".into(),
+            (Reason::LookupName, true) => "名称疑似小型码表".into(),
+            (Reason::RankedFallback, false) => {
+                "no declared keys; ranked by shared key columns, lookup names and size tiers (fallback)".into()
+            }
+            (Reason::RankedFallback, true) => "无声明关联键；按共享键列、码表名称和规模排序（兜底推荐）".into(),
             (Reason::NoSignal, false) => "no strong signal either way".into(),
             (Reason::NoSignal, true) => "没有明显信号".into(),
         }
@@ -173,15 +190,87 @@ fn business(name: &str) -> Option<String> {
         .map(|w| (*w).to_owned())
 }
 
+fn eligible(table: &TableMeta) -> bool {
+    technical(&table.name).is_none()
+        && !table.partition_child
+        && table.rows != Some(0)
+        && (table.has_primary_key || table.has_unique_key)
+}
+
+fn lookup(name: &str) -> bool {
+    name.to_lowercase().split('_').any(|part| {
+        matches!(
+            part,
+            "code" | "codes" | "lookup" | "dict" | "dictionary" | "ref" | "cd"
+        )
+    })
+}
+
+fn type_family(native: &str) -> Option<&'static str> {
+    let lower = native.to_ascii_lowercase();
+    let base = lower.split(['(', ' ']).next().unwrap_or("");
+    match base {
+        "tinyint" | "smallint" | "mediumint" | "int" | "integer" | "bigint" | "int2" | "int4"
+        | "int8" => Some("integer"),
+        "char" | "varchar" | "varchar2" | "nvarchar" | "nvarchar2" | "text" | "bpchar"
+        | "nchar" => Some("text"),
+        "decimal" | "numeric" | "number" => Some("decimal"),
+        "uuid" => Some("uuid"),
+        _ => None,
+    }
+}
+
+fn size_tier(rows: Option<u64>) -> u8 {
+    match rows {
+        Some(1..=200) => 1,
+        Some(201..=10_000) => 2,
+        Some(10_001..) => 3,
+        _ => 0,
+    }
+}
+
 /// Score every table. Output order: recommended, maybe, skipped; then by name.
 pub fn score(tables: &[TableMeta]) -> Vec<Scored> {
+    // Generic "id", timestamps and amounts are not evidence of a link.
+    let mut keys: BTreeMap<(String, &str), BTreeSet<usize>> = BTreeMap::new();
+    for (index, table) in tables.iter().enumerate().filter(|(_, t)| eligible(t)) {
+        for (name, native) in &table.columns {
+            let name = name.to_lowercase();
+            if name.len() > 2
+                && ["id", "_cd", "_no"]
+                    .iter()
+                    .any(|suffix| name.ends_with(suffix))
+                && let Some(family) = type_family(native)
+            {
+                keys.entry((name, family)).or_default().insert(index);
+            }
+        }
+    }
     let mut out: Vec<Scored> = tables
         .iter()
-        .map(|table| {
+        .enumerate()
+        .map(|(index, table)| {
             let me = table.qualified();
-            let referenced_by = tables
+            let declared = tables
                 .iter()
                 .filter(|other| other.qualified() != me && other.references.contains(&me))
+                .count();
+            let mut linked = BTreeSet::new();
+            if eligible(table) {
+                for (name, native) in &table.columns {
+                    if let Some(family) = type_family(native)
+                        && let Some(peers) = keys.get(&(name.to_lowercase(), family))
+                    {
+                        linked.extend(peers.iter().copied().filter(|peer| *peer != index));
+                    }
+                }
+            }
+            let referenced_by = tables
+                .iter()
+                .enumerate()
+                .filter(|(i, other)| {
+                    *i != index && (other.references.contains(&me) || linked.contains(i))
+                })
                 .count();
             let outgoing = {
                 let mut targets = table.references.clone();
@@ -198,6 +287,8 @@ pub fn score(tables: &[TableMeta]) -> Vec<Scored> {
                 (Verdict::Skip, Reason::Empty)
             } else if !table.has_primary_key && !table.has_unique_key {
                 (Verdict::Skip, Reason::NoKey)
+            } else if declared == 0 && !linked.is_empty() {
+                (Verdict::Recommend, Reason::ProbableLinks { referenced_by })
             } else if referenced_by > 0 && table.rows.is_some_and(|r| r <= CODE_TABLE_MAX_ROWS) {
                 (Verdict::Recommend, Reason::CodeTable { referenced_by })
             } else if referenced_by >= 2 {
@@ -213,6 +304,8 @@ pub fn score(tables: &[TableMeta]) -> Vec<Scored> {
                 )
             } else if let Some(word) = business(&table.name) {
                 (Verdict::Recommend, Reason::BusinessName { word })
+            } else if lookup(&table.name) && table.rows.is_some_and(|r| r <= CODE_TABLE_MAX_ROWS) {
+                (Verdict::Recommend, Reason::LookupName)
             } else {
                 (Verdict::Maybe, Reason::NoSignal)
             };
@@ -225,6 +318,23 @@ pub fn score(tables: &[TableMeta]) -> Vec<Scored> {
             }
         })
         .collect();
+    if !out.iter().any(|s| s.verdict == Verdict::Recommend) {
+        let mut candidates: Vec<_> = out
+            .iter_mut()
+            .filter(|s| s.verdict == Verdict::Maybe)
+            .collect();
+        candidates.sort_by(|a, b| {
+            b.referenced_by
+                .cmp(&a.referenced_by)
+                .then(lookup(&b.table).cmp(&lookup(&a.table)))
+                .then(size_tier(b.rows).cmp(&size_tier(a.rows)))
+                .then(a.table.cmp(&b.table))
+        });
+        for candidate in candidates.into_iter().take(5) {
+            candidate.verdict = Verdict::Recommend;
+            candidate.reason = Reason::RankedFallback;
+        }
+    }
     out.sort_by(|a, b| {
         let rank = |v: Verdict| match v {
             Verdict::Recommend => 0,
@@ -282,6 +392,20 @@ pub fn from_catalog(value: &Value) -> Result<Vec<TableMeta>, &'static str> {
             has_unique_key: t["unique_keys"].as_array().is_some_and(|k| !k.is_empty()),
             partition_child: t["relispartition"] == true,
             references,
+            columns: t["columns"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|c| {
+                    Some((
+                        c["name"].as_str()?.to_owned(),
+                        c["data_type"]
+                            .as_str()
+                            .or_else(|| c["type"].as_str())?
+                            .to_owned(),
+                    ))
+                })
+                .collect(),
         });
     }
     Ok(out)
@@ -300,6 +424,7 @@ mod tests {
             has_unique_key: false,
             partition_child: false,
             references: refs.iter().map(|r| format!("s.{r}")).collect(),
+            columns: BTreeMap::new(),
         }
     }
 
@@ -309,6 +434,73 @@ mod tests {
             .find(|s| s.table == format!("s.{name}"))
             .unwrap();
         (s.verdict, s.reason.clone())
+    }
+
+    #[test]
+    fn legacy_shared_keys_are_probable_not_declared_links() {
+        let mut tables = vec![
+            t("kh", Some(200), true, &[]),
+            t("dd", Some(2000), true, &[]),
+            t("x_log", Some(2000), true, &[]),
+            t("zz", Some(200), true, &[]),
+        ];
+        for table in &mut tables {
+            table.columns.insert("khid".into(), "bigint".into());
+        }
+        tables[3]
+            .columns
+            .insert("khid".into(), "varchar(20)".into());
+        let scored = score(&tables);
+        assert_eq!(recommended(&scored), ["s.dd", "s.kh"]);
+        assert_eq!(
+            verdict(&scored, "kh").1,
+            Reason::ProbableLinks { referenced_by: 1 }
+        );
+        assert!(
+            verdict(&scored, "kh")
+                .1
+                .text(false)
+                .contains("ranked by shared key columns")
+        );
+        assert!(tables.iter().all(|t| t.references.is_empty()));
+    }
+
+    #[test]
+    fn fallback_is_nonempty_deterministic_bounded_and_never_promotes_skips() {
+        let mut tables: Vec<_> = (0..7)
+            .map(|i| t(&format!("x{i}"), Some(500), true, &[]))
+            .collect();
+        tables.extend([
+            t("x_log", Some(100_000), true, &[]),
+            t("x_tmp", Some(100_000), true, &[]),
+            t("x_empty", Some(0), true, &[]),
+            t("x_keyless", Some(100_000), false, &[]),
+        ]);
+        let first = score(&tables);
+        tables.reverse();
+        assert_eq!(score(&tables), first);
+        assert_eq!(
+            recommended(&first),
+            ["s.x0", "s.x1", "s.x2", "s.x3", "s.x4"]
+        );
+        assert_eq!(verdict(&first, "x0").1, Reason::RankedFallback);
+        assert!(recommended(&score(&[t("x_log", Some(1), true, &[])])).is_empty());
+    }
+
+    #[test]
+    fn generic_columns_do_not_link_and_small_lookup_names_are_recommended() {
+        let mut tables = vec![
+            t("status_cd", Some(10), true, &[]),
+            t("x", Some(500), true, &[]),
+        ];
+        for table in &mut tables {
+            table.columns.insert("id".into(), "int".into());
+            table.columns.insert("amount".into(), "decimal".into());
+        }
+        let scored = score(&tables);
+        assert_eq!(verdict(&scored, "status_cd").1, Reason::LookupName);
+        assert_eq!(verdict(&scored, "x").0, Verdict::Maybe);
+        assert!(scored.iter().all(|s| s.referenced_by == 0));
     }
 
     #[test]

@@ -65,6 +65,17 @@ fn bounded(sql: &str, limit: usize) -> String {
     format!("SELECT * FROM ({sql}) WHERE ROWNUM <= {}", limit + 1)
 }
 
+pub(super) fn columns_sql(maintained_flag: bool, limit: usize) -> String {
+    bounded(
+        &format!(
+            "SELECT c.owner AS o, c.table_name AS t, c.column_name AS n, c.data_type AS d \
+             FROM all_tab_columns c WHERE {} ORDER BY 1, 2, c.column_id",
+            user_schema("c.owner", maintained_flag)
+        ),
+        limit,
+    )
+}
+
 /// Tables: owner, name, num_rows, has PK, has other unique key.
 pub(super) fn tables_sql(maintained_flag: bool, limit: usize) -> String {
     bounded(
@@ -167,6 +178,7 @@ pub(super) fn assemble(
                 has_unique_key: r.get(4).cloned().flatten().as_deref() == Some("Y"),
                 partition_child: false,
                 references,
+                columns: BTreeMap::new(),
                 table,
             })
         })
@@ -192,7 +204,22 @@ impl OracleEngine {
         let references = self
             .query(&references_sql(flag, fk_limit), &[], fk_limit)
             .map_err(|e| row_limit(e, "catalog_reference_limit"))?;
-        assemble(tables, references)
+        let mut found = assemble(tables, references)?;
+        let column_limit = (limit * 128).min(100_000);
+        let columns = self
+            .query(&columns_sql(flag, column_limit), &[], column_limit)
+            .map_err(|e| row_limit(e, "catalog_column_limit"))?;
+        for row in columns {
+            let schema = text(&row, 0)?;
+            let name = text(&row, 1)?;
+            if let Some(table) = found
+                .iter_mut()
+                .find(|t| t.table.schema == schema && t.table.name == name)
+            {
+                table.columns.insert(text(&row, 2)?, text(&row, 3)?);
+            }
+        }
+        Ok(found)
     }
 
     /// The current service plus PDB services visible in `V$SERVICES`
@@ -239,6 +266,7 @@ mod tests {
             tables_sql(false, 100),
             references_sql(true, 400),
             services_sql(true, 256),
+            columns_sql(true, 100),
         ] {
             assert!(sql.starts_with("SELECT * FROM (SELECT "), "{sql}");
             assert!(sql.contains("ROWNUM <= "));
@@ -252,7 +280,15 @@ mod tests {
             {
                 if let Some(view) = word.strip_prefix("ALL_") {
                     assert!(
-                        ["TABLES", "CONSTRAINTS", "INDEXES", "MVIEWS", "USERS"].contains(&view),
+                        [
+                            "TABLES",
+                            "CONSTRAINTS",
+                            "INDEXES",
+                            "MVIEWS",
+                            "USERS",
+                            "TAB_COLUMNS"
+                        ]
+                        .contains(&view),
                         "unexpected view ALL_{view}"
                     );
                 }

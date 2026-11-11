@@ -91,6 +91,9 @@ pub fn key(state: &mut Select, key: KeyEvent) -> Action {
         KeyCode::PageUp => state.cursor = state.cursor.saturating_sub(10),
         KeyCode::Char(' ') => {
             if let Some(&i) = visible.get(state.cursor) {
+                if state.rows[i].verdict == Verdict::Skip {
+                    return Action::None;
+                }
                 let table = state.rows[i].table.clone();
                 if !state.chosen.remove(&table) {
                     state.chosen.insert(table);
@@ -538,7 +541,10 @@ mod tests {
         key(&mut s, KeyEvent::from(KeyCode::Enter));
         assert_eq!(s.visible().len(), 1);
         key(&mut s, KeyEvent::from(KeyCode::Char(' ')));
-        assert!(s.chosen.contains("lg.shipment_log"));
+        assert!(
+            !s.chosen.contains("lg.shipment_log"),
+            "rule-skipped rows cannot be selected"
+        );
         key(&mut s, KeyEvent::from(KeyCode::Char('n')));
         assert_eq!(key(&mut s, KeyEvent::from(KeyCode::Enter)), Action::None);
         assert!(s.error.is_some());

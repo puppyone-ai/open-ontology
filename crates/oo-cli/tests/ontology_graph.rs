@@ -300,3 +300,45 @@ fn curated_demo_rejects_selection_instead_of_returning_a_preview() {
     }
     assert!(Path::new(FIXTURE).exists());
 }
+
+#[test]
+fn legacy_recommendations_and_all_never_select_rule_skipped_tables() {
+    let dir = temp("legacy-catalog");
+    let catalog = dir.join("catalog.json");
+    std::fs::write(
+        &catalog,
+        serde_json::json!({
+            "protocol": "oo.table-catalog/v1", "tables": [
+                {"schema":"s","name":"x","rows":10,"has_primary_key":true},
+                {"schema":"s","name":"y","rows":1000,"has_primary_key":true},
+                {"schema":"s","name":"x_log","rows":1000,"has_primary_key":true},
+                {"schema":"s","name":"x_tmp","rows":10,"has_primary_key":true}
+            ]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    for flags in [vec!["--tables-recommended"], vec!["--tables", "all"]] {
+        let mut args = vec!["init", "--catalog", catalog.to_str().unwrap(), "--json"];
+        args.extend(flags);
+        let value: serde_json::Value = serde_json::from_str(&stdout(&oo(&args))).unwrap();
+        assert_eq!(value["selected"].as_array().unwrap().len(), 2);
+        assert!(
+            value["selected"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|t| t == "s.x" || t == "s.y")
+        );
+    }
+    let result = oo(&[
+        "init",
+        "--catalog",
+        catalog.to_str().unwrap(),
+        "--json",
+        "--tables",
+        "s.x_log",
+    ]);
+    assert!(!result.status.success());
+    std::fs::remove_dir_all(dir).unwrap();
+}

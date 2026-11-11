@@ -526,11 +526,23 @@ fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
     })?;
     let scored = score(&tables);
     let chosen = match &opts.tables {
+        Some(list) if list == &["all"] => scored
+            .iter()
+            .filter(|s| s.verdict != crate::tui::scorer::Verdict::Skip)
+            .map(|s| s.table.clone())
+            .collect(),
         Some(list) => {
             if list.iter().any(|t| !scored.iter().any(|s| &s.table == t)) {
                 return Err(Failure::usage(
                     "TABLES_UNKNOWN: every table must be in the catalog",
                 ));
+            }
+            if list.iter().any(|t| {
+                scored
+                    .iter()
+                    .any(|s| &s.table == t && s.verdict == crate::tui::scorer::Verdict::Skip)
+            }) {
+                return Err(Failure::usage("TABLES_SKIPPED"));
             }
             let mut list = list.clone();
             list.sort();
@@ -963,6 +975,7 @@ fn table_metas(
             has_primary_key: t.has_primary_key,
             has_unique_key: t.has_unique_key,
             partition_child: t.partition_child,
+            columns: t.columns,
             references: t
                 .references
                 .into_iter()

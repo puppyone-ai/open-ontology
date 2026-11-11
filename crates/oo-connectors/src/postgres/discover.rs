@@ -16,7 +16,12 @@ SELECT n.nspname::text, c.relname::text, c.reltuples::float8, c.relispartition, 
  EXISTS(SELECT 1 FROM pg_catalog.pg_index i WHERE i.indrelid=c.oid AND i.indisprimary), \
  EXISTS(SELECT 1 FROM pg_catalog.pg_index i WHERE i.indrelid=c.oid AND i.indisunique \
    AND NOT i.indisprimary AND i.indisvalid AND i.indpred IS NULL AND i.indexprs IS NULL), \
- COALESCE(r.schemas, ARRAY[]::text[]), COALESCE(r.names, ARRAY[]::text[]) \
+ COALESCE(r.schemas, ARRAY[]::text[]), COALESCE(r.names, ARRAY[]::text[]), \
+ ARRAY(SELECT a.attname::text FROM pg_catalog.pg_attribute a \
+   WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped ORDER BY a.attnum), \
+ ARRAY(SELECT t.typname::text FROM pg_catalog.pg_attribute a \
+   JOIN pg_catalog.pg_type t ON t.oid=a.atttypid \
+   WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped ORDER BY a.attnum) \
 FROM pg_catalog.pg_class c \
 JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace \
 LEFT JOIN LATERAL ( \
@@ -74,6 +79,15 @@ fn table(row: &sqlx::postgres::PgRow) -> Result<DiscoveredTable, SourceError> {
     if schemas.len() != names.len() {
         return Err(SourceError::catalog("foreign_key_targets"));
     }
+    let column_names: Vec<String> = row
+        .try_get(8)
+        .map_err(|_| SourceError::catalog("column_names"))?;
+    let column_types: Vec<String> = row
+        .try_get(9)
+        .map_err(|_| SourceError::catalog("column_types"))?;
+    if column_names.len() != column_types.len() {
+        return Err(SourceError::catalog("column_types"));
+    }
     Ok(DiscoveredTable {
         table: TableRef {
             schema: cell_string(row, 0)?,
@@ -83,6 +97,7 @@ fn table(row: &sqlx::postgres::PgRow) -> Result<DiscoveredTable, SourceError> {
         partition_child: cell_bool(row, 3)?,
         has_primary_key: cell_bool(row, 4)?,
         has_unique_key: cell_bool(row, 5)?,
+        columns: column_names.into_iter().zip(column_types).collect(),
         references: schemas
             .into_iter()
             .zip(names)

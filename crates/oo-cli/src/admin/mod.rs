@@ -29,7 +29,7 @@ Admin commands (source connections remain read-only):
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
-  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables a.b,c.d]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
           [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
   oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
           [--host H] [--port P] [--database D | --service S | --sid S] [--user U]

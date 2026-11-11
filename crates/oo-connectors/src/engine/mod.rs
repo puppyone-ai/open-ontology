@@ -379,6 +379,9 @@ pub struct DiscoveredTable {
     pub partition_child: bool,
     /// Distinct targets of outgoing foreign keys, sorted.
     pub references: Vec<TableRef>,
+    /// Column name -> native type, from the catalog only.
+    #[serde(default)]
+    pub columns: BTreeMap<String, String>,
 }
 
 /// Upper bound on the tables one discovery call returns.

@@ -44,6 +44,14 @@ pub(super) fn databases_sql(limit: u64) -> String {
 
 pub(super) const DATABASE_LIMIT: u64 = 1_024;
 
+pub(super) fn columns_sql(limit: u64) -> String {
+    format!(
+        "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS \
+         WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION LIMIT {}",
+        limit + 1
+    )
+}
+
 /// Rows of `(table, [target schema, target table])` grouped per table.
 pub(super) fn assemble(
     schema: &str,
@@ -79,6 +87,7 @@ pub(super) fn assemble(
                 has_unique_key: uk.as_deref() == Some("Y"),
                 partition_child: false,
                 references,
+                columns: BTreeMap::new(),
             })
         })
         .collect()
@@ -132,7 +141,27 @@ impl MysqlEngine {
             .iter()
             .map(|r| [row_text(r, 0), row_text(r, 1), row_text(r, 2)])
             .collect();
-        assemble(&schema, tables, references)
+        let mut found = assemble(&schema, tables, references)?;
+        let column_limit = (limit * 128).min(100_000);
+        let rows = self
+            .exec(
+                &columns_sql(column_limit),
+                vec![Value::from(schema.as_str())],
+            )
+            .await?;
+        if rows.len() as u64 > column_limit {
+            return Err(SourceError::budget("catalog_column_limit"));
+        }
+        for row in rows {
+            let name = row_text(&row, 0).ok_or_else(|| SourceError::catalog("column_table"))?;
+            if let Some(table) = found.iter_mut().find(|t| t.table.name == name) {
+                table.columns.insert(
+                    row_text(&row, 1).ok_or_else(|| SourceError::catalog("column_name"))?,
+                    row_text(&row, 2).ok_or_else(|| SourceError::catalog("column_type"))?,
+                );
+            }
+        }
+        Ok(found)
     }
 
     /// Databases the account can see (`SCHEMATA` lists only those it holds
@@ -163,6 +192,7 @@ mod tests {
             tables_sql(10),
             references_sql(40),
             databases_sql(DATABASE_LIMIT),
+            columns_sql(100),
         ] {
             assert!(keyset::guard(&sql).is_ok(), "{sql}");
             assert!(sql.starts_with("SELECT "));
