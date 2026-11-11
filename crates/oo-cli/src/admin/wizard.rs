@@ -493,7 +493,24 @@ pub(super) fn init(opts: &InitOptions) -> Result<Invocation, Failure> {
 /// Non-TTY screen 2: score the catalog and save an explicit list.
 fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
     use crate::tui::scorer::{recommended, score};
-    let tables = catalog_tables(opts)?.ok_or_else(|| {
+    let mut tables = catalog_tables(opts)?;
+    if tables.is_none() && opts.connect.any() {
+        let mut connection = connect::Connect::new(Vec::new());
+        connection.open(
+            &opts.connect.prefill()?,
+            opts.connect.version.as_deref().unwrap_or(""),
+        );
+        let request = connection
+            .request()
+            .ok_or_else(|| Failure::usage("TABLE_DISCOVERY_CONNECTION_REQUIRED"))?;
+        // Check the installation before opening credentials or connecting.
+        if request.engine == Engine::Mysql {
+            mysql_helper().map_err(Failure::local)?;
+        }
+        let store = SecretStore::from_home().map_err(Failure::local)?;
+        tables = discover(&store, &request).map_err(Failure::local)?;
+    }
+    let tables = tables.ok_or_else(|| {
         Failure::usage("TABLE_CATALOG_REQUIRED: pass --catalog CATALOG.json or --demo")
     })?;
     let scored = score(&tables);
@@ -713,14 +730,20 @@ impl Drop for ScratchStore {
 /// password and CA reach it through a scratch store under the private config
 /// directory, removed when the call returns. `Err("MYSQL_DOCTOR_INSTALL")`:
 /// no helper here; the doctor checks later.
-fn mysql_discover(store: &SecretStore, r: &connect::Request) -> Result<Value, String> {
-    use std::io::Write;
+fn mysql_helper() -> Result<std::path::PathBuf, String> {
+    let missing = || "MYSQL_DOCTOR_INSTALL: install oo-mysql-doctor beside oo".to_owned();
     let helper = std::env::current_exe()
-        .map_err(|_| "MYSQL_DOCTOR_INSTALL".to_owned())?
+        .map_err(|_| missing())?
         .with_file_name("oo-mysql-doctor");
     if !helper.is_file() {
-        return Err("MYSQL_DOCTOR_INSTALL".into());
+        return Err(missing());
     }
+    Ok(helper)
+}
+
+fn mysql_discover(store: &SecretStore, r: &connect::Request) -> Result<Value, String> {
+    use std::io::Write;
+    let helper = mysql_helper()?;
     let password = request_password(store, r)?;
     let ca = match (&r.ca_pem, &r.ca_ref) {
         (Some(pem), _) => pem.clone(),
@@ -876,13 +899,6 @@ fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
                 out.databases =
                     serde_json::from_value(report["databases"].clone()).unwrap_or_default();
             }
-            Err(code) if code == "MYSQL_DOCTOR_INSTALL" => {
-                out.auth = Ok(tr(
-                    "sign-in is checked by oo doctor next (MySQL helper)",
-                    "登录由 oo doctor 下一步检查（MySQL helper）",
-                )
-                .into());
-            }
             Err(code) => out.auth = Err(code),
         },
     }
@@ -907,8 +923,9 @@ fn discover(
                 .and_then(|mut engine| engine.discover_catalog(&wizard_budget()))
                 .map_err(|e| e.to_string())?
         }
-        Engine::Mysql => match mysql_discover(store, r) {
-            Ok(report) => match serde_json::from_value(report["tables"].clone()) {
+        Engine::Mysql => {
+            let report = mysql_discover(store, r)?;
+            match serde_json::from_value(report["tables"].clone()) {
                 Ok(tables) => tables,
                 Err(_) => {
                     return Err(report["tables_error"]
@@ -916,10 +933,8 @@ fn discover(
                         .unwrap_or("MYSQL_DOCTOR_PROTOCOL")
                         .to_owned());
                 }
-            },
-            Err(code) if code == "MYSQL_DOCTOR_INSTALL" => return Ok(None),
-            Err(code) => return Err(code),
-        },
+            }
+        }
         _ => return Ok(None),
     };
     Ok(Some(table_metas(found)))

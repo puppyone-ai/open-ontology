@@ -105,6 +105,7 @@ export async function stage({ output, binaries, notices, root = packageRoot, par
       checkBinary(mcp, target);
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     if (!partial && !mcp) throw new Error('release staging requires an MCP bridge for every target');
+    if (!doctor) throw new Error('staging requires oo-mysql-doctor for every target');
     for (const [present, name] of [[mcp, 'mcp-gateway'], [doctor, 'oo-mysql-doctor']]) {
       if (present && !inventory.dependencies.some(item => item.name === name)) {
         throw new Error(`dependency notices missing for ${name}`);

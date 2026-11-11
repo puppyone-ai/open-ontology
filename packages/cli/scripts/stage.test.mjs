@@ -111,13 +111,14 @@ test('release tarball contains every declared native binary and sidecar', async 
     const notices = join(dir, 'notices');
     await mkdir(notices);
     await writeFile(join(notices, 'THIRD_PARTY_NOTICES.txt'), 'Synthetic fixture.');
-    await writeFile(join(notices, 'dependencies.json'), '{"schema_version":1,"dependencies":[{"name":"mcp-gateway","unresolved":[]}]}');
+    await writeFile(join(notices, 'dependencies.json'), '{"schema_version":1,"dependencies":[{"name":"mcp-gateway","unresolved":[]},{"name":"oo-mysql-doctor","unresolved":[]}]}');
     const binaries = new Map();
     for (const target of metadata.ooPlatforms) {
       const parent = join(dir, target);
       await mkdir(parent);
       await writeFile(join(parent, 'oo'), binary(target));
       await writeFile(join(parent, 'mcp-gateway'), binary(target));
+      await writeFile(join(parent, 'oo-mysql-doctor'), binary(target));
       await writeFile(join(parent, 'oo-lite-image'), `sha256:${'a'.repeat(64)}\n`);
       binaries.set(target, join(parent, 'oo'));
     }
@@ -126,6 +127,9 @@ test('release tarball contains every declared native binary and sidecar', async 
     await rm(join(dir, lastTarget, 'mcp-gateway'));
     await assert.rejects(stage({ output, notices, binaries }), /MCP bridge for every target/);
     await writeFile(join(dir, lastTarget, 'mcp-gateway'), binary(lastTarget));
+    await rm(join(dir, lastTarget, 'oo-mysql-doctor'));
+    await assert.rejects(stage({ output, notices, binaries }), /oo-mysql-doctor for every target/);
+    await writeFile(join(dir, lastTarget, 'oo-mysql-doctor'), binary(lastTarget));
     await stage({ output, notices, binaries });
     const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts',
       '--pack-destination', dir], { cwd: output, encoding: 'utf8',
@@ -134,6 +138,7 @@ test('release tarball contains every declared native binary and sidecar', async 
     for (const target of metadata.ooPlatforms) {
       assert.ok(paths.has(`native/${target}/oo`));
       assert.ok(paths.has(`native/${target}/mcp-gateway`));
+      assert.ok(paths.has(`native/${target}/oo-mysql-doctor`));
       assert.ok(paths.has(`native/${target}/oo-lite-image`));
     }
     assert.ok(!JSON.parse(await readFile(join(output, 'package.json'))).private);

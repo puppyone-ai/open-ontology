@@ -17,13 +17,11 @@ const digest = data => createHash('sha256').update(data).digest('hex');
 const target = `${process.platform}-${process.arch}`;
 const integration = (name, fn) => test(name, { skip: process.platform === 'win32', timeout: 15000 }, fn);
 
-test('post-install check distinguishes packaged helper from untested runtime fallback', t => {
+test('post-install check requires a verified MySQL discovery helper', t => {
   const f = fixture(t);
   assert.throws(() => installationReport(f.pkg), /MYSQL_DOCTOR_INSTALL/);
   writeFileSync(join(dirname(f.binary), 'oo-lite-image'), `registry.example/oo@sha256:${'a'.repeat(64)}\n`);
-  assert.deepEqual(installationReport(f.pkg), {
-    native_verified: true, mysql_doctor: 'requires_pinned_docker_runtime', runtime_tested: false,
-  });
+  assert.throws(() => installationReport(f.pkg), /oo-mysql-doctor is missing/);
   const helper = join(dirname(f.binary), 'oo-mysql-doctor');
   copyFileSync(f.binary, helper);
   assert.throws(() => installationReport(f.pkg), /NATIVE_MANIFEST_INVALID/);
@@ -550,7 +548,8 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   assert.equal(pkg.version, '0.2.0');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
-  assert.deepEqual(Object.keys(pkg.scripts), ['test']);
+  assert.deepEqual(Object.keys(pkg.scripts), ['postinstall', 'test']);
+  assert.equal(pkg.scripts.postinstall, 'node bin/oo.mjs install-check --json');
   for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) assert(!pkg[key]);
   for (const name of ['LICENSE', 'NOTICE', 'SKILL.md', 'THIRD_PARTY_NOTICES.txt', 'dependencies.json']) {
     writeFileSync(join(f.pkg, name), 'fixture release asset');

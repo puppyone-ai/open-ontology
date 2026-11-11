@@ -108,11 +108,7 @@ export function installationReport(root = packageRoot, platform = process.platfo
     nativeBinary(root, platform, arch, 'oo-mysql-doctor');
     return { native_verified: true, mysql_doctor: 'packaged_verified', runtime_tested: false };
   }
-  const pin = join(dirname(binary), 'oo-lite-image');
-  const valid = existsSync(pin) && lstatSync(pin).isFile() && statSync(pin).size < 4096
-    && /^(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}\n?$/.test(readFileSync(pin, 'utf8'));
-  if (!valid) fail('MYSQL_DOCTOR_INSTALL', 'Neither a verified MySQL helper nor a pinned runtime is installed.');
-  return { native_verified: true, mysql_doctor: 'requires_pinned_docker_runtime', runtime_tested: false };
+  fail('MYSQL_DOCTOR_INSTALL', 'oo-mysql-doctor is missing; reinstall the complete CLI package for MySQL discovery.');
 }
 
 function configDirectory() {

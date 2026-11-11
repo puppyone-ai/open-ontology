@@ -322,21 +322,22 @@ def generate(manifest, output, targets):
     members = set(metadata["workspace_members"])
     # The stdio bridge has its own lockfile; include its non-live dependency
     # closure rather than treating the CLI workspace as a complete inventory.
-    bridge_manifest = workspace / "tools/mcp-gateway/Cargo.toml"
-    bridge_lock = None
-    if bridge_manifest.is_file():
-        bridge_args = ["--offline", "--locked", "--manifest-path", str(bridge_manifest)]
-        bridge_metadata = json.loads(command(["cargo", "metadata", "--format-version", "1", *bridge_args]))
-        bridge_trees = {target: command(["cargo", "tree", *bridge_args, "-p", "mcp-gateway",
+    helper_locks = {}
+    for helper, relative in (("mcp-gateway", "tools/mcp-gateway/Cargo.toml"),
+                             ("oo-mysql-doctor", "deploy/lite/mysql-doctor/Cargo.toml")):
+        helper_manifest = workspace / relative
+        helper_args = ["--offline", "--locked", "--manifest-path", str(helper_manifest)]
+        helper_metadata = json.loads(command(["cargo", "metadata", "--format-version", "1", *helper_args]))
+        helper_trees = {target: command(["cargo", "tree", *helper_args, "-p", helper,
             "--target", target, "--edges", "normal,build", "--prefix", "none", "--format", "{p}"])
             for target in sorted(set(targets))}
         combined = {item["package"]["id"]: item for item in selected}
-        for item in select_packages(bridge_metadata, bridge_trees, "mcp-gateway"):
+        for item in select_packages(helper_metadata, helper_trees, helper):
             existing = combined.setdefault(item["package"]["id"], item)
             existing["targets"].update(item["targets"])
         selected = sorted(combined.values(), key=lambda item: (item["package"]["name"], item["package"]["version"]))
-        members.update(bridge_metadata["workspace_members"])
-        bridge_lock = sha256(bridge_manifest.with_name("Cargo.lock").read_bytes())
+        members.update(helper_metadata["workspace_members"])
+        helper_locks[helper] = sha256(helper_manifest.with_name("Cargo.lock").read_bytes())
     supplements = load_supplements()
     dependencies, sections = [], []
     for item in selected:
@@ -363,7 +364,8 @@ def generate(manifest, output, targets):
         "targets_requested": sorted(set(targets)), "targets_resolved": sorted(trees),
         "cargo_version": public_text(command(["cargo", "--version"])),
         "cargo_lock_sha256": sha256((workspace / "Cargo.lock").read_bytes()),
-        "mcp_cargo_lock_sha256": bridge_lock,
+        "mcp_cargo_lock_sha256": helper_locks["mcp-gateway"],
+        "mysql_doctor_cargo_lock_sha256": helper_locks["oo-mysql-doctor"],
         "notice_selection": "Source notice files and declared license_file; absent texts may use offline supplements pinned to exact crate version, repository, VCS commit/path and SHA256.",
         "text_sha256_definition": "SHA256 of each component's UTF-8 rendered notice block; license_files hashes cover original bytes.",
         "dependencies": dependencies, "rust_toolchain": toolchain,
