@@ -1,11 +1,39 @@
 # Local OO-Logistics demo assets and runtime
 
-This is the V3-M-01 data/runtime slice, not a completed quickstart. It ships a
-10-table, 20,522-row public synthetic subset adapted from
-`testing/engines/seed-common/generate.py`, two compiled role Packs and a graph.
-No model endpoint, API key, customer database or existing token is accessed.
+The installed CLI deploys a curated, no-model demo with ten public synthetic
+OO-Logistics tables. It uses the regular lite provisioning and retained
+publication gates, installs the shipped hash-confirmed analyst Pack, enrolls
+profile `demo`, and checks authenticated Gateway readiness.
 
-## Local developer run
+```sh
+oo quickstart --yes --json       # also: oo init --demo --yes --json
+oo try --json
+oo mcp-config --agent claude --profile demo
+oo quickstart --down --json
+```
+
+Use a fresh working directory and HOME/profile namespace. The default state is
+`evidence/oo-demo`; a custom `--state` must also be supplied to teardown.
+Existing state and profile names are never overwritten. Teardown removes only
+the deployment's verified `oo.lane=v03` containers, volumes and network;
+private diagnostic state remains on disk. No image pruning is performed.
+
+The synthetic source is a separate database on the control PostgreSQL server,
+so the deployment uses two database containers, not three. The source reader
+has SELECT-only data privileges. Replica-side region RLS is installed before
+publication; the Gateway cannot query the source or access replica base tables.
+Model egress and scheduled synchronization are not started for this demo.
+
+The host adapter currently requires Python 3 in addition to Docker/Compose
+and Node. This is local warm-image acceptance, not proof of a public npm/GHCR
+release, a cold download, or a clean-machine result on every platform.
+
+## Standalone fixture (not a published Gateway)
+
+The older developer fixture below remains useful for testing seed/role SQL.
+Its `fixture_ready` result is deliberately not quickstart acceptance.
+
+### Local developer run
 
 Use a repository-built lite image **content digest** already present in Docker.
 GHCR is private; the public pull step is pending publication. This lane neither
@@ -52,8 +80,8 @@ the next demo uses a fresh directory. Never use `docker system prune`.
 Both NOLOGIN roles have one row filter on `demo.orders` and a column deny on
 `demo.customers.phone_synthetic`. Analyst sees region 1; ops sees region 2.
 The all-table source reader is a different identity used for capture.
-`roles.yaml` describes the same intended Gateway policy. The live fixture tests
-prove PostgreSQL enforcement only; they do not install that policy in Gateway.
+`roles.yaml` describes the same intended Gateway policy. The standalone fixture tests prove source-fixture enforcement only. Quickstart
+separately applies and exercises the region policy on the serving replica.
 
 | Question | Analyst | Ops |
 | --- | ---: | ---: |
@@ -73,12 +101,16 @@ oo try --role analyst --json --gateway https://localhost:8443 \
   --ca-file PRIVATE_DEMO_CA_FILE --client-pem PRIVATE_DEMO_CLIENT_PEM
 ```
 
-Run this only after the coordinator integrates publication and enrollment.
-The result contains SQL, rows, freshness and query receipts. Current query
-receipts lack `audit_id` and `published_generation`: these stay null rather
-than being invented from `query_id`. A matching column denial is not proof
-of a persisted audit record. Wrong gold values, truncation, authentication
-failure and unrelated SQL errors fail the demonstration.
+On a deployed local demo, `oo try` uses the enrolled profile automatically.
+It runs all three fixed gold queries plus the denied query. Its demo-only
+collector reads the actual Gateway WAL records, persists them in the control
+DB's `oo_demo.audit_event`, and reads them back before reporting an audit ID.
+A missing refusal record fails acceptance; a query ID alone is not proof.
+The published generation comes from the real publication receipt, matched to
+the authenticated Gateway freshness response. Source time remains unmeasured;
+this is not a source-real-time or cross-table consistency claim.
+For other local Gateway profiles without demo state, absent audit/generation
+fields remain null and audit collection is explicitly not verified.
 
 ## Curated graph and Packs
 
@@ -94,7 +126,7 @@ python3 deploy/lite/demo_runtime.py verify-assets
 ```
 
 `manifest.json` hashes the exact bytes of both reviewed inputs, both compiler
-Packs, seed SQL, gold and adjudication. The role Packs omit the denied column
+Packs, seed SQL, gold, adjudication and both confirmation envelopes. The role Packs omit the denied column
 and all sample values. Compilation is not authentication or publication.
 
 `adjudication.json` follows `oo.adjudication/v1`. `input_sha256` hashes the
@@ -106,22 +138,18 @@ is not hashed; the builder re-derives it from the input's draft edges.
 Every synthetic key, declared relation and code coverage is checked by the
 live fixture runner. The sensitive-column decision is explicitly declared,
 not represented as a model prediction or a phone-format measurement.
-The TUI may display this administrative graph without a model. It must bind
-confirmation to the agreed hash; this lane does not supply a publish-confirm
-record or alter the compiler's publication gate.
+The shipped `confirmed-*.json` envelopes bind the fixture confirmation to the
+summary hash. The real compiler replays them and the publisher recomputes the
+Pack before activation. This does not bypass confirmation for user databases.
 
-## Integration gates
+## Remaining gates
 
-- `oo quickstart` delegates to `oo init --demo`; the TUI lane owns screens.
-  On this lane's base, `init --demo` is not implemented, so startup fails closed.
-- Installing the source into Agent DB, activating the reviewed publication,
-  applying both roles, issuing/enrolling local profiles and the final readiness
-  check remain to be integrated. No scheduled sync is armed here.
-- `--rebuild` remains pending the model-backed init path; no model call was made.
-- QS-01 local and QS-02 full no-model startup are not passed. QS-03 requires
-  a real Gateway deny and its durable audit record; PG denial is insufficient.
-- QS-05 has local lifecycle evidence. Cross-platform clean installs, public
-  distribution, install-to-first-answer p50/p95 and QS-04 belong to later gates.
-
-Raw evidence is under `evidence/v3-m-20261109*/`; see `EVIDENCE.md` for the
-committed summary. Failed startup attempts remain preserved.
+- The delivered profile is analyst; the separately curated ops Pack is not
+  enrolled by quickstart.
+- `--rebuild`, live model-backed own-database onboarding and live A/B measurement
+  require separate model configuration and acceptance. No model key is read by
+  quickstart, and the replay A/B fixture is not a live model result.
+- Public distribution, cold-image timing, other platforms and representative
+  p50/p95 measurements remain separate gates.
+- See `tools/oo-test/test_quickstart_live.py` for installed-package QS probes.
+  Raw failures and successes are kept under ignored `evidence/` run directories.
