@@ -47,6 +47,8 @@ type Result<T> = std::result::Result<T, SourceError>;
 
 #[path = "declared.rs"]
 mod declared;
+#[path = "discover.rs"]
+mod discover;
 #[path = "shape.rs"]
 mod shape;
 
@@ -1920,30 +1922,12 @@ impl SourceEngine for MysqlEngine {
     }
 
     async fn discover_tables(&mut self, budget: &ReadBudget) -> Result<Vec<TableRef>> {
-        self.apply_budget(budget).await?;
-        self.ensure_basics().await?;
-        self.gate().await?;
-        let started = Instant::now();
-        let rows = self.exec(
-            "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME LIMIT 10001",
-            vec![Value::from(self.config.mysql_database.as_str())],
-        ).await;
-        self.finish_op(started);
-        let rows = rows?;
-        if rows.len() > 10000 {
-            return Err(SourceError::budget("catalog_table_limit"));
-        }
-        rows.iter()
-            .map(|row| {
-                let name = row_text(row, 0)
-                    .filter(|n| mysql_ident(n))
-                    .ok_or_else(|| SourceError::identifier("table_ident"))?;
-                Ok(TableRef {
-                    schema: self.config.mysql_database.clone(),
-                    name,
-                })
-            })
-            .collect()
+        Ok(self
+            .discover_catalog(budget)
+            .await?
+            .into_iter()
+            .map(|t| t.table)
+            .collect())
     }
 
     async fn probe(&mut self) -> Result<ProbeReport> {

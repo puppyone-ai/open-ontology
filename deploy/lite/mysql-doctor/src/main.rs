@@ -69,6 +69,26 @@ fn run() -> Result<Value, &'static str> {
                 .map_err(|error| error.fact().unwrap_or("SOURCE_CATALOG_FAILED"))?;
             return Ok(json!({"status":"ok","catalog":catalog}));
         }
+        if value["operation"] == "discover" {
+            // `oo init`: sign in, then the databases and tables it can see.
+            // Catalog views and statistics only; table discovery may fail on
+            // its own (reported) without failing the sign-in.
+            let budget = ReadBudget::default();
+            // The database list is the sign-in: it needs a session and no grant.
+            let databases = engine
+                .list_databases(&budget)
+                .await
+                .map_err(|error| error.fact().unwrap_or("SOURCE_SIGN_IN_FAILED"))?;
+            let version = engine.probe().await.ok().map(|p| p.version.raw);
+            let mut report = json!({"status":"ok","version":version,"databases":databases});
+            match engine.discover_catalog(&budget).await {
+                Ok(tables) => report["tables"] = json!(tables),
+                Err(error) => {
+                    report["tables_error"] = json!(error.fact().unwrap_or("SOURCE_CATALOG_FAILED"))
+                }
+            }
+            return Ok(report);
+        }
         let mut report = inspection::inspect(&mut engine, &tables, &source.sync.mode).await;
         if let Some(ssh) = &source.ssh {
             report["tunnel"] = json!({"status":"ok","host_key_sha256":ssh.host_key_sha256,

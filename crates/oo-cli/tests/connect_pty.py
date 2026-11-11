@@ -3,12 +3,14 @@
 
 PostgreSQL: a throwaway postgres:17.11 container on loopback with a
 self-signed TLS certificate and a non-superuser read-only role; real
-sign-in and version detection. MySQL: a stub that speaks the protocol-10
-greeting (version 8.4.7) and upgrades to TLS with the same certificate.
+sign-in and version detection. MySQL: a throwaway mysql:8.4.7 container
+with the same certificate and a SELECT-only account; sign-in, the database
+list and the table list go through `oo-mysql-doctor`, which must sit beside
+the binary (build it as deploy/lite/mysql-doctor/README.md says).
 Oracle: a stub TCP listener (sign-in is deferred to `oo doctor`). The
 PostgreSQL run takes its database list (screen 1) and table list (screen 2)
-from the server; the MySQL and Oracle runs end on screen 2 with a stubbed
-table catalog. Each run then quits.
+from the server, and so does the MySQL run; the Oracle run ends on screen 2
+with a stubbed table catalog. Each run then quits.
 
 Counts the keys pressed after the splash and checks that no password
 reaches the terminal, the secret store holds the password and CA, and the
@@ -26,7 +28,6 @@ import re
 import secrets
 import select
 import socket
-import ssl
 import struct
 import subprocess
 import sys
@@ -131,50 +132,54 @@ class Postgres:
         subprocess.run(["docker", "rm", "-f", self.id], capture_output=True)
 
 
-class MysqlStub:
-    """Protocol-10 greeting with CLIENT_SSL, then a TLS server handshake."""
+class Mysql:
+    """mysql:8.4.7 with TLS from `certs` and a SELECT-only `oo_reader`."""
 
     def __init__(self, certs: Path):
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        self.context.load_cert_chain(certs / "cert.pem", certs / "key.pem")
-        self.sock = socket.socket()
-        self.sock.bind(("127.0.0.1", 0))
-        self.sock.listen(8)
-        self.port = self.sock.getsockname()[1]
-        threading.Thread(target=self.serve, daemon=True).start()
-
-    def serve(self):
-        while True:
-            try:
-                conn, _ = self.sock.accept()
-            except OSError:
-                return
-            threading.Thread(target=self.one, args=(conn,), daemon=True).start()
-
-    def one(self, conn):
+        self.password = secrets.token_hex(12)
+        self.root = secrets.token_hex(12)
+        script = ("cp /certs/ca.pem /certs/cert.pem /certs/key.pem /tmp/ && chown mysql /tmp/*.pem "
+                  "&& chmod 600 /tmp/key.pem && exec docker-entrypoint.sh mysqld --ssl-ca=/tmp/ca.pem "
+                  "--ssl-cert=/tmp/cert.pem --ssl-key=/tmp/key.pem")
+        self.id = subprocess.run(
+            ["docker", "run", "-d", "--rm", "--label", "oo.lane=a-tui-pty",
+             "-e", f"MYSQL_ROOT_PASSWORD={self.root}", "-p", "127.0.0.1::3306",
+             "-v", f"{certs}:/certs:ro", "--entrypoint", "sh", "mysql:8.4.7", "-c", script],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
         try:
-            conn.settimeout(5)
-            caps = 0x0200 | 0x0800 | 0x8000
-            body = (b"\x0a" + b"8.4.7\x00" + struct.pack("<I", 7) + b"abcdefgh" + b"\x00"
-                    + struct.pack("<H", caps & 0xFFFF) + b"\xff" + struct.pack("<H", 2)
-                    + struct.pack("<H", 0x0008) + b"\x15" + b"\x00" * 10 + b"ijklmnopqrst\x00"
-                    + b"caching_sha2_password\x00")
-            conn.sendall(struct.pack("<I", len(body))[:3] + b"\x00" + body)
-            request = b""
-            while len(request) < 36:
-                chunk = conn.recv(36 - len(request))
-                if not chunk:
-                    return
-                request += chunk
-            tls = self.context.wrap_socket(conn, server_side=True)
-            tls.recv(1)
-        except (OSError, ssl.SSLError):
-            pass
-        finally:
-            conn.close()
+            self.setup()
+        except BaseException:
+            self.close()
+            raise
+
+    def sql(self, text):
+        return subprocess.run(["docker", "exec", "-i", "-e", f"MYSQL_PWD={self.root}", self.id,
+                               "mysql", "-uroot", "-h127.0.0.1"], input=text.encode(), capture_output=True)
+
+    def setup(self):
+        deadline = time.monotonic() + 180
+        while self.sql("SELECT 1").returncode != 0:
+            if time.monotonic() > deadline:
+                raise RuntimeError("mysql did not start")
+            time.sleep(2)
+        fixture = (
+            "CREATE DATABASE shop; CREATE DATABASE analytics;"
+            "CREATE TABLE shop.customers (id BIGINT PRIMARY KEY, name TEXT);"
+            "CREATE TABLE shop.orders (id BIGINT PRIMARY KEY, customer_id BIGINT,"
+            " FOREIGN KEY (customer_id) REFERENCES shop.customers (id));"
+            "CREATE TABLE shop.audit_log (at DATETIME, line TEXT);"
+            f"CREATE USER 'oo_reader'@'%' IDENTIFIED BY '{self.password}' REQUIRE SSL;"
+            "GRANT SELECT ON shop.* TO 'oo_reader'@'%'; GRANT SELECT ON analytics.* TO 'oo_reader'@'%';"
+        )
+        if self.sql(fixture).returncode != 0:
+            raise RuntimeError("mysql fixture failed")
+        out = subprocess.run(["docker", "port", self.id, "3306/tcp"], check=True,
+                             capture_output=True, text=True).stdout
+        self.port = int(out.strip().splitlines()[0].rsplit(":", 1)[1])
 
     def close(self):
-        self.sock.close()
+        subprocess.run(["docker", "rm", "-f", self.id], capture_output=True)
 
 
 class Listener:
@@ -340,15 +345,16 @@ def run_postgres(binary, root, certs, report):
 
 
 def run_mysql(binary, root, certs, report):
-    stub = MysqlStub(certs)
+    if not (binary.parent / "oo-mysql-doctor").is_file():
+        raise SystemExit("oo-mysql-doctor must be built beside the oo binary")
+    server = Mysql(certs)
     try:
         home = root / "home-my"
         home.mkdir()
         work = root / "work-my"
         work.mkdir()
-        catalog(root / "my-catalog.json", "shop")
-        password = secrets.token_hex(12)
-        s = Session(binary, home, work, ["--catalog", str(root / "my-catalog.json")])
+        password = server.password
+        s = Session(binary, home, work, [])
         try:
             s.wait("MySQL")
             s.press(" ", count=False)
@@ -356,25 +362,31 @@ def run_mysql(binary, root, certs, report):
             s.press(DOWN, ENTER)                 # MySQL
             s.wait("host")
             s.press(DOWN)
-            s.type(str(stub.port))
+            s.type(str(server.port))
             s.press(DOWN)
             s.type("shop")
             s.press(ENTER)
             s.type(password)
             s.wait("trust this CA")
             s.press(ENTER, "t", ENTER)
-            s.wait("checked by oo doctor next")
+            s.wait("signed in as oo_reader", 60)
             s.wait("8.4.7")
+            s.wait("2 known")                    # shop, analytics from the server
             s.press(ENTER)
             keys = s.keys
-            to_screen_two(s)
+            to_screen_two(s, ["customers", "orders", "audit_log"])
             assert password not in s.text()
+            assert "Table discovery" not in s.text()
         finally:
             s.close()
-        report["mysql"] = {"server": "stub greeting 8.4.7 + TLS upgrade", "keys_first_run": keys,
-                           "password_chars": len(password), "detected": "8.4.7 → 8.4"}
+        scratch = [p.name for p in (home / ".config/open-ontology").iterdir() if p.name.startswith("wizard-")]
+        assert not scratch, f"helper scratch store left behind: {scratch}"
+        report["mysql"] = {"server": "mysql:8.4.7 (TLS, SELECT-only account) via oo-mysql-doctor",
+                           "keys_first_run": keys, "password_chars": len(password), "detected": "8.4.7 → 8.4",
+                           "databases_listed": "analytics, shop",
+                           "tables_discovered": ["shop.audit_log", "shop.customers", "shop.orders"]}
     finally:
-        stub.close()
+        server.close()
 
 
 def run_oracle(binary, root, report):
