@@ -57,6 +57,19 @@ def cut(generation, rows=1, engine='postgres', data_type='bigint', column='amoun
             'attributes': [{'relname': physical, 'attname': mapped, 'data_type': data_type, 'not_null': True}]}
 
 
+class StructuralSeedTests(unittest.TestCase):
+    def test_structural_types_do_not_grant_pii_or_invent_business_units(self):
+        columns=[dict(name=name,data_type=kind,nullable=False,comment=None) for name,kind in
+                 [('id','bigint'),('amount','numeric(40,12)'),('day','date'),
+                  ('stamp','timestamp without time zone'),('active','boolean'),('note','text')]]
+        command=build.review_input([dict(dataset='app.items',primary_key=['id'],columns=columns)],{},'test')
+        output=command['effective']['datasets'][0]['columns']
+        self.assertEqual([c['semantic_type'] for c in output],
+                         ['identifier','quantity','date','event_time','boolean_flag','free_text'])
+        self.assertTrue(all(c['pii']=='restricted' for c in output))
+        self.assertTrue(all('unit' not in c and 'review' not in c for c in output))
+
+
 class Db:
     def __init__(self, metadata, rows=1, distinct=1):
         self.metadata, self.rows, self.distinct, self.queries = metadata, rows, distinct, []

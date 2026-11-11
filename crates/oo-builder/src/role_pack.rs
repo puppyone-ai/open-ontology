@@ -2566,6 +2566,7 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
     text.push_str("This file is a read-only role pack. It does not authenticate the caller and it does not grant privileges. Visibility came from a supplied policy snapshot.\n\n");
     text.push_str(PG_DIALECT_SENTENCE);
     text.push_str("\n\nThe Gateway accepts a versioned restricted SQL subset, not all PostgreSQL syntax or function overloads. Use current CLI help, describe for execution types, and validate before query. This compiler does not verify runtime capabilities or business readiness.\n\n");
+    text.push_str("A missing certified metric, exported enum or business calendar is not a permission denial for visible stored columns. Query visible stored values when they answer the question; do not invent missing definitions or code meanings. Semantic labels are not PostgreSQL input types: use the execution types for casts and predicates. Return only the columns the question requests, not extra diagnostic or context columns.\n\n");
     text.push_str(
         "Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n",
     );

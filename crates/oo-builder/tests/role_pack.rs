@@ -479,6 +479,13 @@ fn execution_type_slot_does_not_publish_private_types_or_arbitrary_text() {
 
 #[test]
 fn missing_business_calendar_does_not_deny_visible_calendar_attributes() {
+    let (effective, visibility) = analyst_documents();
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("not a permission denial for visible stored columns"));
+    assert!(readme.contains("Return only the columns the question requests"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+
     let (mut effective, visibility) = analyst_documents();
     effective.as_object_mut().unwrap().remove("calendar");
     let pack = must(&effective, &visibility);

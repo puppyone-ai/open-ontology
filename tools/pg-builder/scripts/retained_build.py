@@ -107,6 +107,23 @@ def inventory(facts):
             for t in facts['tables']]
 
 
+def storage_semantic(column, primary_key):
+    """Structural seed only; no code meaning, money unit or PII approval."""
+    if column['name'] in primary_key:
+        return 'identifier'
+    kind = column['data_type'].lower()
+    if kind == 'date':
+        return 'date'
+    if kind.startswith(('timestamp', 'datetime')):
+        return 'event_time'
+    if kind in ('bool', 'boolean'):
+        return 'boolean_flag'
+    if lib.numeric_type(kind):
+        return 'quantity'
+    if kind in ('json', 'jsonb'):
+        return 'json'
+    return 'free_text'
+
 def review_input(tables, draft, project):
     """oo review input. Most restrictive classification proposal; the owner decides."""
     versions = dict(project=project, ontology_version='draft-v1', catalog_version='draft-v1',
@@ -120,7 +137,8 @@ def review_input(tables, draft, project):
                          sample_values=dict(default='masked', max_per_column=0))),
         datasets=[dict(schema_version='oos/v1', dataset=t['dataset'], tier='file', label=t['dataset'],
             primary_key=t['primary_key'],
-            columns=[dict(name=c['name'], data_type=c['data_type'], pii='restricted', semantic_type='free_text')
+            columns=[dict(name=c['name'], data_type=c['data_type'], pii='restricted',
+                          semantic_type=storage_semantic(c, t['primary_key']))
                      for c in t['columns']]) for t in tables])
     for key in ('relationships', 'enums', 'glossary', 'entities', 'metrics', 'examples'):
         effective[key] = []
