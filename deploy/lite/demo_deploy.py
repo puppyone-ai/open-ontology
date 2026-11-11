@@ -9,11 +9,25 @@ import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import subprocess
 import sys
 
 import demo_runtime as assets
 import lifecycle as lite
+
+def read_audit(path):
+    # Gateway WAL records are non-secret metadata created with the process
+    # umask (often 0644), inside an owner-only directory. Keep credential
+    # reads on the stricter 0600 path; never follow links or accept writable WAL.
+    lite.private_dir(path.parent)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_mode & 0o022 or info.st_size > 16384):
+            raise ValueError("DEMO_AUDIT_FILE")
+        return stream.read(16385)
 
 
 def command(argv, data=None, timeout=600, candidate=False):
@@ -110,7 +124,7 @@ class Deployment:
             phases = ["refuse"] if query["denied"] else ["admit", "complete"]
             for phase in phases:
                 path = self.root / "work/operator/gateway/collector" / f"{qid}-{phase}.wal"
-                raw = lite.read_private(path)
+                raw = read_audit(path)
                 row = json.loads(raw)
                 if row.get("query_id") != qid or row.get("phase") != phase or row.get("principal") != "analyst":
                     raise ValueError("DEMO_AUDIT_BINDING")

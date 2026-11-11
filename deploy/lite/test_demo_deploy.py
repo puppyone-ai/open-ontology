@@ -82,6 +82,25 @@ class DeploymentTests(unittest.TestCase):
                     deployment.collect_audit([dict(query_id="q_missing", denied=True)] * 4)
                 self.assertEqual(sql.call_count, 1)  # Publication check only; no INSERT.
 
+    def test_audit_metadata_requires_a_private_directory_and_safe_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wal = root / "event.wal"
+            wal.write_bytes(b'{"phase":"refuse"}')
+            wal.chmod(0o644)
+            self.assertEqual(demo.read_audit(wal), wal.read_bytes())
+            wal.chmod(0o666)
+            with self.assertRaises(ValueError):
+                demo.read_audit(wal)
+            wal.chmod(0o644)
+            link = root / "link.wal"
+            link.symlink_to(wal)
+            with self.assertRaises(OSError):
+                demo.read_audit(link)
+            root.chmod(0o755)
+            with self.assertRaises(ValueError):
+                demo.read_audit(wal)
+
 
 if __name__ == "__main__":
     unittest.main()
