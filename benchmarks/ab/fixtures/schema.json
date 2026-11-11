@@ -1,0 +1,55 @@
+{
+  "demo.areas": [
+    "id",
+    "region_id",
+    "name"
+  ],
+  "demo.calendar": [
+    "day_id",
+    "day_date",
+    "month_no"
+  ],
+  "demo.codes": [
+    "code",
+    "label"
+  ],
+  "demo.customers": [
+    "id",
+    "site_id",
+    "name"
+  ],
+  "demo.events": [
+    "id",
+    "order_id",
+    "event_no"
+  ],
+  "demo.order_lines": [
+    "order_id",
+    "line_no",
+    "qty"
+  ],
+  "demo.orders": [
+    "id",
+    "customer_id",
+    "status_code",
+    "region_id",
+    "amount",
+    "qty",
+    "ordered_at"
+  ],
+  "demo.regions": [
+    "id",
+    "name"
+  ],
+  "demo.shipments": [
+    "id",
+    "order_id",
+    "site_id",
+    "shipped_at"
+  ],
+  "demo.sites": [
+    "id",
+    "area_id",
+    "name"
+  ]
+}
