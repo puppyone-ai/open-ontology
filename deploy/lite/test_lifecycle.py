@@ -302,20 +302,20 @@ class Tests(unittest.TestCase):
         lifecycle.write(source,b'synthetic-model-value')
         stack={'model':{'key':{'secret_ref':'file:'+str(source)},
                         'base_url':{'secret_ref':'file:'+str(source)}}}
-        # Synthetic data may live under this worktree for this unit test only.
-        with patch.object(lifecycle,'require_outside_git'), patch.object(
-                lifecycle.Path,'home',return_value=home):
+        with patch.object(lifecycle.Path,'home',return_value=home):
             result,mounts=lifecycle.model_sources(self.root,stack)
             self.assertEqual(stack['model']['key']['secret_ref'],'file:'+str(source))
             self.assertEqual(result['model']['key']['secret_ref'],'oo-lite-model-key')
             self.assertEqual(len(mounts),2)
             for mount in mounts:
                 dest=Path(mount['source'])
+                self.assertEqual(dest,source)
                 self.assertEqual(dest.stat().st_mode & 0o777,0o600)
                 self.assertEqual(dest.parent.stat().st_mode & 0o777,0o700)
                 self.assertTrue(mount['read_only'])
                 self.assertFalse(dest.is_relative_to(self.root))
             self.assertNotIn('synthetic-model-value',json.dumps(result))
+            self.assertFalse((home/'.config/open-ontology/deployments').exists())
             self.assertEqual(lifecycle.model_sources(self.root,stack),(result,mounts))
             source.chmod(0o644)
             with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):

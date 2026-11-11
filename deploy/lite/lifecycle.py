@@ -159,7 +159,7 @@ def require_outside_git(path):
             raise ValueError('LITE_MODEL_STATE_IN_GIT')
 
 def model_sources(root, stack):
-    """Materialize input credentials outside Git; return container-only references."""
+    """Mount file sources in place; materialize named credentials outside Git."""
     stack=json.loads(json.dumps(stack))
     model=stack['model']
     sources=[('model-key',model['key'])]
@@ -172,19 +172,20 @@ def model_sources(root, stack):
     home=Path.home()
     state=home/'.config/open-ontology/deployments'/hashlib.sha256(
         str(root.resolve()).encode()).hexdigest()[:32]
-    # Resolve before creating anything, including a HOME redirected into Git.
-    require_outside_git(state)
-    for path in (home/'.config',home/'.config/open-ontology',
-                 state.parent,state):
-        if path.is_symlink():
-            raise ValueError('LITE_PRIVATE_DIRECTORY')
-        if path in (state.parent,state):
-            private_dir(path)
-        else:
-            path.mkdir(mode=0o700,exist_ok=True)
-            meta=path.stat()
-            if meta.st_uid!=os.getuid() or meta.st_mode & 0o022:
+    if any(not reference['secret_ref'].startswith('file:') for _,reference in sources):
+        # Named sources still require a private snapshot outside the repository.
+        require_outside_git(state)
+        for path in (home/'.config',home/'.config/open-ontology',
+                     state.parent,state):
+            if path.is_symlink():
                 raise ValueError('LITE_PRIVATE_DIRECTORY')
+            if path in (state.parent,state):
+                private_dir(path)
+            else:
+                path.mkdir(mode=0o700,exist_ok=True)
+                meta=path.stat()
+                if meta.st_uid!=os.getuid() or meta.st_mode & 0o022:
+                    raise ValueError('LITE_PRIVATE_DIRECTORY')
     mounts=[]
     for name,reference in sources:
         ref=reference['secret_ref']
@@ -192,15 +193,17 @@ def model_sources(root, stack):
             source=Path(ref[5:])
             if not source.is_absolute() or '..' in source.parts:
                 raise ValueError('LITE_MODEL_SOURCE')
+            read_private(source)
+            dest=source
         elif re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}',ref):
             source=home/'.config/open-ontology/secrets'/ref
+            dest=state/name
+            data=read_private(source)
+            if dest.exists() and read_private(dest)!=data:
+                raise ValueError('LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION')
+            if not dest.exists():write(dest,data)
         else:
             raise ValueError('LITE_MODEL_SOURCE')
-        dest=state/name
-        data=read_private(source)
-        if dest.exists() and read_private(dest)!=data:
-            raise ValueError('LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION')
-        if not dest.exists():write(dest,data)
         reference['secret_ref']='oo-lite-'+name
         mounts.append({'type':'bind','source':str(dest),
                        'target':'/home/oo/.config/open-ontology/secrets/oo-lite-'+name,
