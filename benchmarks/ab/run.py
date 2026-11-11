@@ -200,7 +200,7 @@ def execute_recording(question, response, directory, frozen_tuple):
         return {"pass": False, "no_output": True, "reason": "no_output"}
     if response["kind"] == "denied":
         if question["track"] == "accuracy":
-            raise Invalid("accuracy_denial")
+            return {"pass": False, "no_output": False, "reason": "model_refusal"}
         passed = (question["expected_kind"] == "denied"
                   and response.get("code") == "POLICY_DENIED")
         return {"pass": passed, "no_output": False, "reason": "recorded_denial"}

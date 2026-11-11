@@ -46,10 +46,24 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(scored["freshness"], result["freshness"])
         self.assertEqual(len(result["warnings"][0]["message"]), 500)
 
-    def test_accuracy_denial_is_a_harness_error(self):
+    def test_accuracy_denial_is_a_failed_answer_not_a_missing_trial(self):
         question = {"track": "accuracy", "expected_kind": "rows"}
+        result = live.score(question, {"kind": "gateway_denied",
+                                      "gateway_result": {"code": "COLUMN_NOT_ALLOWED"}})
+        self.assertFalse(result["pass"])
+        self.assertFalse(result["no_output"])
+        self.assertEqual(result["reason"], "gateway_denial")
+        with tempfile.TemporaryDirectory(dir=ab.ROOT / "evidence") as directory:
+            result = ab.execute_recording(
+                question, {"kind": "denied", "code": "POLICY_DENIED"},
+                Path(directory) / "trial", None)
+        self.assertEqual(result, {"pass": False, "no_output": False, "reason": "model_refusal"})
+
+    def test_accuracy_gold_cannot_be_changed_to_a_denial(self):
+        dataset = copy.deepcopy(ab.load(ab.ROOT / "benchmarks/ab/fixtures/demo.json"))
+        dataset["questions"][0]["expected_kind"] = "denied"
         with self.assertRaisesRegex(ab.Invalid, "accuracy_denial"):
-            live.score(question, {"kind": "gateway_denied"})
+            ab.validate_dataset(dataset)
 
     def client(self, values):
         values = iter(values)

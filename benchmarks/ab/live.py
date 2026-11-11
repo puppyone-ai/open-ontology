@@ -83,7 +83,8 @@ def typed_result(result):
 def score(question, response):
     if response.get("kind") == "gateway_denied":
         if question["track"] == "accuracy":
-            raise ab.Invalid("accuracy_denial")
+            return {"pass": False, "no_output": False, "reason": "gateway_denial",
+                    "code": response["gateway_result"]["code"]}
         return {"pass": question["expected_kind"] == "denied", "no_output": False,
                 "reason": "gateway_denial", "code": response["gateway_result"]["code"]}
     if response.get("kind") == "query_failed":
