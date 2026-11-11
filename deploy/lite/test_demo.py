@@ -16,6 +16,16 @@ spec.loader.exec_module(curate)
 
 
 class Assets(unittest.TestCase):
+    def test_compiled_calendar_defines_month_without_date_arithmetic(self):
+        for role in ("analyst", "ops"):
+            pack = json.loads((demo.ASSETS / f"pack-{role}.json").read_bytes())
+            files = {file["path"]: file["text"] for file in pack["files"]}
+            table = files["tables/demo.calendar.md"]
+            self.assertIn("Stored civil month number, 1 through 12", table)
+            self.assertIn("not an additive quantity or a fiscal period", table)
+            self.assertNotIn("has no calendar", files["calendar.md"])
+            self.assertIn("EXTRACT/date_part", files["calendar.md"])
+
     def test_shared_adjudication_hash_vector(self):
         vector = json.loads((Path(__file__).resolve().parents[2] /
                              "execution/v0.3/contracts/hash-vector.json").read_bytes())

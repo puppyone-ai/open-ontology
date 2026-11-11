@@ -478,6 +478,19 @@ fn execution_type_slot_does_not_publish_private_types_or_arbitrary_text() {
 }
 
 #[test]
+fn missing_business_calendar_does_not_deny_visible_calendar_attributes() {
+    let (mut effective, visibility) = analyst_documents();
+    effective.as_object_mut().unwrap().remove("calendar");
+    let pack = must(&effective, &visibility);
+    let calendar = pack.file("calendar.md").unwrap();
+    assert!(!calendar.contains("has no calendar"));
+    assert!(calendar.contains("visible calendar tables"));
+    assert!(calendar.contains("stored period columns"));
+    assert!(calendar.contains("EXTRACT/date_part"));
+    assert!(calendar.contains("current runtime capabilities"));
+}
+
+#[test]
 fn enum_pages_do_not_invent_an_executable_dictionary_binding() {
     let (effective, visibility) = analyst_documents();
     let pack = must(&effective, &visibility);

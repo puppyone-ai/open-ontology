@@ -129,6 +129,16 @@ def generate(compiler, out):
                                      review=dict(state="approved", by=CURATOR))
                                 for c in t["columns"]]) for t in tables],
         entities=[], relationships=[], metrics=[], examples=[], enums=[], glossary=[])
+    for dataset in effective["datasets"]:
+        if dataset["dataset"] == "demo.calendar":
+            for column in dataset["columns"]:
+                if column["name"] == "month_no":
+                    column["semantic_type"] = "status_code"
+                    column["description"] = (
+                        "Stored civil month number, 1 through 12 (January through December). "
+                        "Filter this column directly for calendar-month questions; it is not "
+                        "an additive quantity or a fiscal period."
+                    )
     decisions = {name: dict(decision="approved", reviewer=CURATOR,
                            summary_sha256=report["summary_sha256"])
                  for name in report["summary"]["naming_conflicts"]}

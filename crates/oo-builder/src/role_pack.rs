@@ -3206,7 +3206,7 @@ fn enum_has_unconfirmed(selected: &Selected, name: &str) -> bool {
 fn render_calendar(model: &Model) -> Result<String, RolePackError> {
     let mut text = String::from("# calendar\n\n");
     let Some(calendar) = &model.calendar else {
-        text.push_str("The effective document has no calendar. This compiler does not substitute a civil month.\n");
+        text.push_str("No business-calendar configuration is declared in the effective document. This does not mean that visible calendar tables or their stored period columns are absent. Use their reviewed definitions for period filters; do not replace stored calendar attributes with date arithmetic or assume EXTRACT/date_part is admitted by the Gateway. Validate any function against current runtime capabilities. This compiler does not substitute a civil month for an undeclared business period.\n");
         return finish(text);
     };
     line(
