@@ -449,6 +449,8 @@ async fn owned_sql_capabilities() {
         "SELECT d.id FROM (SELECT id FROM logistics.shipment WHERE flag) d ORDER BY d.id",
         "SELECT EXTRACT(MONTH FROM zoned),date_part('month',day),date_trunc('month',day),date_trunc('month',zoned),to_char(amount,'FM9999990.00') FROM logistics.shipment ORDER BY id",
         "SELECT coalesce(SUM(amount),'0'::numeric),nullif(SUM(amount),'0'::numeric) FROM logistics.shipment",
+        "SELECT COALESCE(SUM(amount),0),NULLIF(SUM(amount),0) FROM logistics.shipment",
+        "SELECT greatest(amount,0),least(amount,0),NULLIF(id,big) FROM logistics.shipment ORDER BY id",
     ] {
         queries.push(oracle(&client, &cast_catalog, sql).await);
     }

@@ -745,6 +745,7 @@ fn scalar_casts_bind_arguments_and_exact_conversion_authority() {
         });
     }
     for sql in [
+        "SELECT COALESCE(SUM(amount),0),NULLIF(SUM(amount),0),GREATEST(amount,0),LEAST(amount,0) FROM logistics.orders GROUP BY amount",
         "SELECT CAST(SUM(amount) AS BIGINT) FROM logistics.orders",
         "SELECT amount::bigint FROM logistics.orders",
         "SELECT '123.45'::numeric,1::numeric,'2026-01-01'::timestamp",
@@ -1060,5 +1061,32 @@ fn analytical_negative_corpus_keeps_closed_refusal_codes() {
             ErrorCode::CostTooHigh,
             "{sql}"
         );
+    }
+}
+
+#[test]
+fn unfiltered_cartesian_aggregates_cannot_bypass_the_row_cost_gate() {
+    let mut cat = catalog();
+    cat.relations[0].estimated_rows = 100_000;
+    cat.large_table_row_threshold = 1_000_000_000;
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.orders a CROSS JOIN logistics.orders b",
+        "SELECT COUNT(*) FROM logistics.orders a,logistics.orders b",
+        "SELECT a.id FROM logistics.orders a CROSS JOIN logistics.orders b WHERE true",
+        "WITH x AS (SELECT COUNT(*) AS n FROM logistics.orders a CROSS JOIN logistics.orders b) SELECT n FROM x",
+    ] {
+        assert!(
+            matches!(
+                guard_select(&cat.identity, &cat, sql),
+                Err(oo_gateway::GuardError::CostTooHigh { .. })
+            ),
+            "{sql}"
+        );
+    }
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.orders a JOIN logistics.orders b ON a.id=b.id",
+        "SELECT * FROM (SELECT COUNT(*) AS n FROM logistics.orders) a CROSS JOIN (SELECT COUNT(*) AS n FROM logistics.orders) b",
+    ] {
+        guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
     }
 }

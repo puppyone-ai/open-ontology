@@ -6,6 +6,21 @@ pub(super) struct Prepared {
     pub nested: Vec<Admitted>,
 }
 
+pub(super) fn cartesian_input(node: &pb::Node) -> bool {
+    match node.node.as_ref() {
+        Some(pb::node::Node::RangeVar(_) | pb::node::Node::RangeSubselect(_)) => true,
+        Some(pb::node::Node::JoinExpr(join)) => {
+            join.jointype == JOIN_INNER
+                && join.quals.is_none()
+                && join.using_clause.is_empty()
+                && !join.is_natural
+                && join.larg.as_deref().is_some_and(cartesian_input)
+                && join.rarg.as_deref().is_some_and(cartesian_input)
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn admit_union(
     query: &mut pb::SelectStmt,
     catalog: &PolicyCatalog,

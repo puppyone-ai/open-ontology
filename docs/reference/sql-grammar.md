@@ -89,8 +89,9 @@ requires a literal format. Stable overloads have individually pinned internal
 implementations; arbitrary stable functions are not admitted.
 
 `coalesce`, `nullif`, `greatest` and `least` admit common scalar types,
-including NULL branches and text/varchar promotion. Other mixed-type branches
-require explicit casts. Every argument is checked even in an unreachable branch.
+including NULL branches and text/varchar promotion. Numeric alternatives use
+verified widening casts, including `COALESCE(SUM(amount), 0)`. Other mixed-type
+branches require explicit casts. Every argument is checked even in an unreachable branch.
 `nullif` and min/max expressions require their verified comparison signature.
 `BETWEEN` also accepts admitted scalar expressions, including `EXTRACT`.
 
@@ -119,8 +120,12 @@ also admits the T6 gold's explicit DATE bounds on timestamp columns.
 The entire AST still passes the write detector, SQL-byte/node/depth budgets,
 visible-relation/column binding, physical-name rewrite, deparse/reparse check,
 and a second admission against the physical catalog. Every nested SELECT
-retains the large-star guard. Planner cost, role execution, read-only
-transactions and execution limits are unchanged. Writes, DDL, COPY,
+retains the large-star guard. Unfiltered Cartesian products also compare the
+saturating product of input row estimates against the row-cost threshold,
+even for COUNT or explicit-column projections. Single-row aggregate inputs
+are estimated as one row. This is an admission estimate, not an EXPLAIN cost
+model. Role execution, read-only transactions and execution deadlines remain
+in force. Writes, DDL, COPY,
 system-relation reads and non-allowlisted functions remain refused with
 closed reason codes.
 

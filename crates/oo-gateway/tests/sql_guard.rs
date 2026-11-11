@@ -1327,7 +1327,8 @@ fn join_star_charges_the_starred_relation() {
 
 #[test]
 fn explicit_joins_of_base_relations_are_admitted() {
-    let cat = joined();
+    // Exercise join grammar below the independent Cartesian row-cost gate.
+    let cat = catalog(vec![customer(2), shipment(2)]);
     for sql in [
         "SELECT c.customer_id, s.order_id FROM logistics.customer AS c \
          INNER JOIN logistics.shipment AS s ON c.region = s.region",

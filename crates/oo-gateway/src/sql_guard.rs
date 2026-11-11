@@ -772,6 +772,17 @@ fn admit_query(
         }
     }
     let where_fold = admit_where(select.where_clause.as_mut(), &mut ctx)?;
+    if matches!(&where_fold, WhereFold::Absent | WhereFold::TrueConst)
+        && ctx.ranges.len() > 1
+        && select.from_clause.iter().all(scopes::cartesian_input)
+        && ctx.ranges.iter().fold(1_u64, |rows, range| {
+            rows.saturating_mul(catalog.relations[range.rel_index].estimated_rows)
+        }) > catalog.large_table_row_threshold
+    {
+        return Err(GuardError::CostTooHigh {
+            relation: "cross join".into(),
+        });
+    }
     ctx.aggregates_allowed = true;
     if let Some(having) = select.having_clause.as_mut() {
         let kind = admit_expr(having, &mut ctx)?;
@@ -784,12 +795,16 @@ fn admit_query(
             construct: "column reference",
         });
     }
-    let estimated_rows = ctx
-        .ranges
-        .iter()
-        .map(|range| catalog.relations[range.rel_index].estimated_rows)
-        .max()
-        .unwrap_or(0);
+    let estimated_rows =
+        if select.group_clause.is_empty() && select.target_list.iter().any(contains_aggregate) {
+            1
+        } else {
+            ctx.ranges
+                .iter()
+                .map(|range| catalog.relations[range.rel_index].estimated_rows)
+                .max()
+                .unwrap_or(1)
+        };
     let relations = ctx
         .ranges
         .iter()
@@ -1624,9 +1639,19 @@ fn admit_alternatives(args: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<u32, G
         return Err(GuardError::Budget);
     }
     let mut result = None;
-    for arg in args {
+    let numeric = [
+        Type::INT2.oid(),
+        Type::INT4.oid(),
+        Type::INT8.oid(),
+        Type::NUMERIC.oid(),
+        Type::FLOAT8.oid(),
+    ];
+    let mut types = Vec::new();
+    for arg in args.iter_mut() {
         let kind = admit_expr(arg, ctx)?;
-        let Some(oid) = infer_type(&kind, ctx.catalog) else {
+        let ty = infer_type(&kind, ctx.catalog);
+        types.push(ty);
+        let Some(oid) = ty else {
             continue;
         };
         if ![
@@ -1651,6 +1676,13 @@ fn admit_alternatives(args: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<u32, G
         result = Some(match result {
             None => oid,
             Some(previous) if previous == oid => oid,
+            Some(previous) if numeric.contains(&previous) && numeric.contains(&oid) => {
+                numeric[numeric
+                    .iter()
+                    .position(|v| *v == previous)
+                    .unwrap()
+                    .max(numeric.iter().position(|v| *v == oid).unwrap())]
+            }
             Some(previous)
                 if [previous, oid]
                     .iter()
@@ -1661,9 +1693,37 @@ fn admit_alternatives(args: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<u32, G
             _ => return Err(unsupported("common scalar type")),
         });
     }
-    result
+    let result = result
         .or(ctx.catalog.literal_types.text)
-        .ok_or(GuardError::FunctionNotAllowed)
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    for (arg, source) in args.iter_mut().zip(types) {
+        let Some(source) = source else { continue };
+        if source == result || !numeric.contains(&source) || !numeric.contains(&result) {
+            continue;
+        }
+        let cast = ctx
+            .catalog
+            .casts
+            .iter()
+            .find(|cast| cast.source_type_oid == source && cast.target_type_oid == result)
+            .ok_or(GuardError::FunctionNotAllowed)?;
+        ctx.functions
+            .extend(cast.functions.iter().map(bound_function));
+        *arg = pb::Node {
+            node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+                arg: Some(Box::new(arg.clone())),
+                type_name: Some(pb::TypeName {
+                    names: vec![
+                        string_node("pg_catalog"),
+                        string_node(Type::from_oid(result).unwrap().name()),
+                    ],
+                    ..Default::default()
+                }),
+                location: -1,
+            }))),
+        };
+    }
+    Ok(result)
 }
 
 fn admit_case(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -2467,11 +2527,38 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
             *expr.lexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
             *expr.rexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
         ];
-        let mut result_type_oid = admit_alternatives(&mut args, ctx)?;
-        if result_type_oid == Type::VARCHAR.oid() {
-            result_type_oid = Type::TEXT.oid();
-        }
-        bind_comparator(ctx, "=", result_type_oid)?;
+        let left = admit_expr(&mut args[0], ctx)?;
+        let right = admit_expr(&mut args[1], ctx)?;
+        let left_type = infer_type(&left, ctx.catalog);
+        let right_type = infer_type(&right, ctx.catalog);
+        let resolved = resolve_binary_operator(
+            ctx.catalog,
+            Some("pg_catalog"),
+            "=",
+            left_type.or(right_type).unwrap_or(Type::TEXT.oid()),
+            right_type.or(left_type).unwrap_or(Type::TEXT.oid()),
+            matches!(
+                left,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
+            matches!(
+                right,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
+        )?;
+        let result_type_oid = resolved.left_type_oid;
+        ctx.operators.push(BoundOperator {
+            oid: resolved.oid,
+            procedure_oid: resolved.procedure_oid,
+            schema: resolved.schema.clone(),
+            name: resolved.name.clone(),
+        });
         let [left, right] = args;
         expr.lexpr = Some(Box::new(left));
         expr.rexpr = Some(Box::new(right));
