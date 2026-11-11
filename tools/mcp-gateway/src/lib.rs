@@ -203,7 +203,7 @@ impl ServerHandler for GatewayServer {
                 } else {
                     "/v1/sql"
                 };
-                self.gateway_tool(path, Some(serde_json::json!({ "sql": sql })))
+                self.gateway_tool(path, Some(query_body(&sql, self.client.is_profile())))
                     .await
                     .map(CallToolResponse::from)
             }
@@ -299,6 +299,14 @@ impl ServerHandler for GatewayServer {
             .with_ttl_ms(0)
             .with_cache_scope(CacheScope::Private))
     }
+}
+
+fn query_body(sql: &str, profile: bool) -> Value {
+    let mut body = serde_json::json!({"sql": sql});
+    if profile {
+        body["format"] = Value::from("json");
+    }
+    body
 }
 
 fn server_config() -> ServerConfig {
@@ -591,6 +599,18 @@ fn log_status(method: &str, status: u16) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn profile_queries_send_the_required_json_format() {
+        assert_eq!(
+            super::query_body("SELECT 1", true),
+            serde_json::json!({"sql":"SELECT 1","format":"json"})
+        );
+        assert_eq!(
+            super::query_body("SELECT 1", false),
+            serde_json::json!({"sql":"SELECT 1"})
+        );
+    }
+
     use super::{knowledge_path, required_sql, tool_list, tool_request};
     use serde_json::json;
 
