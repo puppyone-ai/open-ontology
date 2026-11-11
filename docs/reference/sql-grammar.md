@@ -130,3 +130,7 @@ conversions are not source freshness: they do not replace publication
 receipts or turn `source_time=unmeasured` into a measured source time.
 Clock-dependent query results can change between executions. Replay of
 captured A/B receipts is distinct from re-executing SQL against a new clock.
+
+An unaliased expression's PostgreSQL result name `?column?` is exposed as
+`value` by the public response. This exact anonymous marker does not relax
+identifier validation. Use explicit aliases to distinguish multiple expressions.

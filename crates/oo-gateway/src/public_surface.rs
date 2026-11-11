@@ -3852,7 +3852,14 @@ fn warning_row(warning: &QualityWarning) -> Option<Warning> {
 }
 
 fn public_column(column: &ResultColumn) -> Result<QueryColumn, ()> {
-    let name = TableName::new(column.name.clone()).map_err(|_| ())?;
+    // PostgreSQL labels unaliased scalar expressions "?column?". It is not
+    // a database identifier; expose a safe label without widening TableName.
+    let name = TableName::new(if column.name == "?column?" {
+        "value".into()
+    } else {
+        column.name.clone()
+    })
+    .map_err(|_| ())?;
     let type_name = Label::new(type_label(column.oid)).map_err(|_| ())?;
     let (precision, scale) = if column.oid == 1700 {
         numeric_parts(column.typmod)
@@ -4280,6 +4287,29 @@ fn read_endpoint(path: &Path, user: &str) -> Result<TlsEndpoint, &'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn anonymous_scalar_results_have_a_safe_public_label() {
+        for (source, expected) in [("?column?", "value"), ("net_receipts", "net_receipts")] {
+            let column = public_column(&ResultColumn {
+                name: source.into(),
+                oid: 20,
+                typmod: -1,
+            })
+            .unwrap();
+            assert_eq!(serde_json::to_value(column).unwrap()["name"], expected);
+        }
+        for name in ["", "?column?extra", "private.column", "private column"] {
+            assert!(
+                public_column(&ResultColumn {
+                    name: name.into(),
+                    oid: 20,
+                    typmod: -1,
+                })
+                .is_err()
+            );
+        }
+    }
 
     #[tokio::test]
     async fn guard_refusal_is_durable_without_sql_or_denied_names() {
