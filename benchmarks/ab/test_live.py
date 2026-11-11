@@ -34,15 +34,22 @@ class LiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ab.Invalid, "gateway_type_unsupported"):
             live.typed_result(result)
 
-    def test_long_live_warnings_fail_without_weakening_gold(self):
+    def test_live_warnings_and_aliases_do_not_change_row_correctness(self):
         result = self.result()
         result["warnings"] = [{"code": "STALE_DATA", "message": "x" * 500}]
-        question = {"expected_kind": "rows", "gold": {"warnings": []}}
-        with patch.object(ab, "invoke") as invoke:
-            scored = live.score(question, {"kind": "gateway", "gateway_result": result})
-        self.assertEqual(scored, {"pass": False, "no_output": False, "reason": "warnings_differ"})
-        invoke.assert_not_called()
+        question = ab.load(ab.ROOT / "benchmarks/ab/fixtures/demo.json")["questions"][0]
+        result["columns"][0]["name"] = "count"
+        result["freshness"] = {"source_time": "unmeasured"}
+        scored = live.score(question, {"kind": "gateway", "gateway_result": result})
+        self.assertTrue(scored["pass"])
+        self.assertEqual(scored["warnings"], result["warnings"])
+        self.assertEqual(scored["freshness"], result["freshness"])
         self.assertEqual(len(result["warnings"][0]["message"]), 500)
+
+    def test_accuracy_denial_is_a_harness_error(self):
+        question = {"track": "accuracy", "expected_kind": "rows"}
+        with self.assertRaisesRegex(ab.Invalid, "accuracy_denial"):
+            live.score(question, {"kind": "gateway_denied"})
 
     def client(self, values):
         values = iter(values)
@@ -98,6 +105,13 @@ class LiveTests(unittest.TestCase):
             with self.assertRaisesRegex(ab.Invalid, "publication_drift"):
                 live.gateway(Path("oo"), "default", binding, "SELECT 60")
 
+        for code in ("COLUMN_NOT_ALLOWED", "RELATION_NOT_FOUND", "ENUMERATION_REFUSED"):
+            denied = dict(code=code, query_id="query-fixture", **{"class": "gateway"})
+            with patch.object(live.subprocess, "run", return_value=SimpleNamespace(
+                    returncode=1, stdout=json.dumps(denied))), patch.object(
+                    live.ab, "load", return_value={"profile": "default"}):
+                self.assertTrue(live.gateway(Path("oo"), "default", binding, "SELECT 60")["denied"])
+
     def test_captured_run_replays_byte_identically(self):
         with tempfile.TemporaryDirectory(dir=ab.ROOT / "evidence") as tmp:
             root = Path(tmp)
@@ -123,7 +137,22 @@ class LiveTests(unittest.TestCase):
             response = {"kind": "gateway", "sql": "SELECT 60",
                         "sql_sha256": ab.digest(b"SELECT 60"),
                         "model_response": self.completion('{"sql":"SELECT 60"}'), "attempts": 1}
-            with patch.object(live, "gateway", return_value=result), patch.object(
+            for rejected in (None, {"denied": True}, dict(result, rows=[["59"]])):
+                with patch.object(live, "gateway", side_effect=[result, rejected]), patch.object(
+                        live, "model_response") as model:
+                    with self.assertRaisesRegex(ab.Invalid, "accuracy_(not_answerable|gold_drift)"):
+                        live.capture(args, root / "input.json")
+                    model.assert_not_called()
+                    self.assertFalse(args.output.exists())
+            def gateway(_cli, _profile, _binding, sql):
+                value = copy.deepcopy(result)
+                if "SUM(amount)" in sql:
+                    value["columns"][0]["type"] = "numeric"
+                    value["rows"] = [["3517.5000"]]
+                elif "demo.calendar" in sql:
+                    value["rows"] = [["31"]]
+                return value
+            with patch.object(live, "gateway", side_effect=gateway), patch.object(
                     live, "model_response", side_effect=lambda *_: copy.deepcopy(response)):
                 first = live.capture(args, root / "input.json")
             second = ab.run(root / "capture/dataset.json", root / "replay")

@@ -15,6 +15,30 @@ FIXTURE = ab.ROOT / "benchmarks/ab/fixtures/demo.json"
 
 
 class ScorerTests(unittest.TestCase):
+    def test_accuracy_role_visibility_is_validated_before_trials(self):
+        dataset = ab.load(FIXTURE)
+        pack = ab.load(ab.pinned(FIXTURE.parent, dataset["inputs"]["pack"]))
+        ab.validate_role(dataset, pack)
+        dataset["questions"][0]["required_columns"] = {"demo.customers": ["phone_synthetic"]}
+        with self.assertRaisesRegex(ab.Invalid, "accuracy_not_answerable"):
+            ab.validate_role(dataset, pack)
+        dataset["questions"][0]["role"] = "ops"
+        with self.assertRaisesRegex(ab.Invalid, "accuracy_role_contract"):
+            ab.validate_dataset(dataset)
+
+    def test_row_order_only_matters_when_explicitly_required(self):
+        gold = ab.load(FIXTURE)["questions"][0]["gold"]
+        gold["rows"].append([{"presence": "value", "value": "61"}])
+        actual = copy.deepcopy(gold)
+        actual["rows"].reverse()
+        question = {"gold": gold}
+        self.assertTrue(ab.compare_rows(question, actual)["pass"])
+        question["order_required"] = True
+        self.assertFalse(ab.compare_rows(question, actual)["pass"])
+        actual["rows"] = actual["rows"][:1]
+        question["order_required"] = False
+        self.assertFalse(ab.compare_rows(question, actual)["pass"])
+
     def row(self, qid, left, right, track="accuracy", missing=False):
         return {"id": qid, "track": track,
                 "c0": {"pass": left, "no_output": missing},

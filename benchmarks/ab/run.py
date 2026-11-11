@@ -150,6 +150,46 @@ def validate_dataset(dataset):
             raise Invalid("accuracy_denial")
         if not isinstance(q["question"], str) or not q["question"].strip():
             raise Invalid("question")
+        if q["track"] == "accuracy":
+            if (q.get("role") != dataset.get("role") or not q.get("role")
+                    or not isinstance(q.get("gold_sql"), str) or not q["gold_sql"].strip()
+                    or not q.get("required_columns")):
+                raise Invalid("accuracy_role_contract")
+        if type(q.get("order_required", False)) is not bool:
+            raise Invalid("question_order")
+
+def validate_role(dataset, pack):
+    """Reject accuracy banks outside the role-visible Pack before any trial."""
+    files = {f["path"]: f["text"] for f in pack["files"]}
+    if f'role: `oo_r_{dataset["role"]}`' not in files.get("README.md", ""):
+        raise Invalid("bank_role_mismatch")
+    for q in dataset["questions"]:
+        if q["track"] != "accuracy":
+            continue
+        for table, columns in q["required_columns"].items():
+            text = files.get("tables/" + table + ".md", "")
+            visible = set(re.findall(r"^\| `([^`]+)` \|", text, re.MULTILINE))
+            if not columns or not set(columns) <= visible:
+                raise Invalid("accuracy_not_answerable")
+
+def row_mode(question):
+    return "ordered" if question.get("order_required", False) else "unordered"
+
+def compare_rows(question, actual):
+    """Only complete typed rows decide accuracy; retain metadata separately."""
+    if actual.get("completion") != "complete":
+        return {"pass": False, "no_output": False, "reason": "incomplete_rows"}
+    def normalized(value):
+        return dict(value, warnings=[], columns=[
+            dict(column, name=f"column_{i}")
+            for i, column in enumerate(value["columns"])])
+    _, code = invoke("result-comparator", {
+        "version": "oo.benchmark.result-comparison/v1",
+        "row_comparator": row_mode(question),
+        "expected": normalized(question["gold"]), "actual": normalized(actual),
+    })
+    return {"pass": code == 0, "no_output": False,
+            "reason": "equal" if code == 0 else "different"}
 
 
 def execute_recording(question, response, directory, frozen_tuple):
@@ -159,10 +199,12 @@ def execute_recording(question, response, directory, frozen_tuple):
     if response["kind"] == "no_output":
         return {"pass": False, "no_output": True, "reason": "no_output"}
     if response["kind"] == "denied":
+        if question["track"] == "accuracy":
+            raise Invalid("accuracy_denial")
         passed = (question["expected_kind"] == "denied"
                   and response.get("code") == "POLICY_DENIED")
         return {"pass": passed, "no_output": False, "reason": "recorded_denial"}
-    if response["kind"] in ("gateway", "query_failed"):
+    if response["kind"] in ("gateway", "gateway_denied", "query_failed"):
         from live import score
         if response["sql_sha256"] != digest(response["sql"].encode()):
             raise Invalid("sql_binding")
@@ -208,8 +250,8 @@ def execute_recording(question, response, directory, frozen_tuple):
                            for index, column in enumerate(question["gold"]["columns"])]}
     write(directory / "request.json", request)
     write(directory / "binding.json", binding)
-    write(directory / "gold.json", {"row_comparator": question["row_comparator"],
-                                    "expected": question["gold"]})
+    write(directory / "gold.json", {"row_comparator": row_mode(question),
+                                    "expected": dict(question["gold"], warnings=[])})
     executables = {"query_pg": replay, "adapter": tool("query-result-adapter"),
                    "comparator": tool("result-comparator")}
     suite = {
@@ -228,6 +270,12 @@ def execute_recording(question, response, directory, frozen_tuple):
     report, _ = invoke("sql-runner", args=("--suite", directory / "suite.json",
                                          "--run-dir", directory / "execution"))
     trial = report["trials"][0]
+    comparisons = list((directory / "execution").rglob("comparator.stdin"))
+    if len(comparisons) == 1 and trial["reason"] in ("match", "mismatch"):
+        actual = load(comparisons[0])["actual"]
+        scored = compare_rows(question, actual)
+        scored["warnings"] = actual["warnings"]
+        return scored
     return {"pass": trial["status"] == "pass", "no_output": False,
             "reason": trial["reason"]}
 
@@ -248,6 +296,7 @@ def run(dataset_path, output):
     ):
         raise Invalid("schema_names_only")
     pack = load(refs["pack"])
+    validate_role(dataset, pack)
     recordings = load(refs["responses"])
     live = recordings.get("origin") == "live-model-gateway"
     if (recordings["version"] != "oo.ab.recorded/v1"
@@ -365,8 +414,10 @@ def main(argv=None):
     ab.add_argument("--timeout", type=int, default=90)
     ab.add_argument("--retries", type=int, default=2)
     args = parser.parse_args(argv)
-    if args.dataset in ("demo", "oo-logistics"):
+    if args.dataset == "demo":
         path = ROOT / "benchmarks/ab/fixtures/demo.json"
+    elif args.dataset == "oo-logistics":
+        raise Invalid("logistics_requires_published_manifest_use_logistics_bank")
     elif args.dataset == "bird-mini-dev":
         raise Invalid("bird_assets_not_supplied_use_local_manifest")
     else:

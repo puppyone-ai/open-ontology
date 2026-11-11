@@ -81,23 +81,20 @@ def typed_result(result):
 
 
 def score(question, response):
+    if response.get("kind") == "gateway_denied":
+        if question["track"] == "accuracy":
+            raise ab.Invalid("accuracy_denial")
+        return {"pass": question["expected_kind"] == "denied", "no_output": False,
+                "reason": "gateway_denial", "code": response["gateway_result"]["code"]}
     if response.get("kind") == "query_failed":
         return {"pass": False, "no_output": False, "reason": "query_failed"}
     if question["expected_kind"] == "denied":
         return {"pass": False, "no_output": False, "reason": "expected_denial"}
     actual = typed_result(response["gateway_result"])
-    # Exact comparison already requires equal warnings. A live freshness
-    # warning can exceed the comparator's message budget: retain it in the
-    # recording and fail this comparison, rather than truncate or erase it.
-    if actual["warnings"] != question["gold"]["warnings"]:
-        return {"pass": False, "no_output": False, "reason": "warnings_differ"}
-    _, code = ab.invoke("result-comparator", {
-        "version": "oo.benchmark.result-comparison/v1",
-        "row_comparator": question["row_comparator"],
-        "expected": question["gold"], "actual": actual,
-    })
-    return {"pass": code == 0, "no_output": False,
-            "reason": "equal" if code == 0 else "different"}
+    scored = ab.compare_rows(question, actual)
+    scored["warnings"] = actual["warnings"]
+    scored["freshness"] = response["gateway_result"].get("freshness")
+    return scored
 
 
 def gateway(cli, profile, binding, sql):
@@ -122,8 +119,14 @@ def gateway(cli, profile, binding, sql):
     if len(result.stdout.encode()) > 1_048_576:
         raise ab.Invalid("gateway_response_budget")
     if result.returncode:
-        # Refused SQL is a failed answer, never a transport no-output or an
-        # inferred policy success. Do not retain arbitrary error bodies.
+        try:
+            error = json.loads(result.stdout)
+        except ValueError:
+            return None
+        if (error.get("class") == "gateway" and error.get("code") in (
+                "COLUMN_NOT_ALLOWED", "RELATION_NOT_FOUND", "ENUMERATION_REFUSED")
+                and isinstance(error.get("query_id"), str) and error["query_id"]):
+            return {"denied": True, "code": error["code"], "query_id": error["query_id"]}
         return None
     value = json.loads(result.stdout, object_pairs_hook=ab.object_pairs)
     if (value.get("publication_binding") != {
@@ -193,6 +196,7 @@ def capture(args, dataset_path):
     refs = {key: ab.pinned(dataset_path.parent, ref)
             for key, ref in dataset["inputs"].items() if key != "responses"}
     schema, pack = ab.load(refs["schema"]), ab.load(refs["pack"])
+    ab.validate_role(dataset, pack)
     if not 1 <= args.concurrency <= 4 or not 1 <= args.timeout <= 120 or not 0 <= args.retries <= 2:
         raise ab.Invalid("live_budget")
     model = {"provider": "openai-compatible", "model": args.model,
@@ -206,6 +210,16 @@ def capture(args, dataset_path):
     client.close()
     if gateway(args.oo, args.profile, binding, "SELECT 1 AS value") is None:
         raise ab.Invalid("publication_probe_failed")
+    # Execute every gold using the very same authenticated profile as both
+    # arms. A curated label alone cannot establish runtime answerability.
+    for question in dataset["questions"]:
+        if question["track"] != "accuracy":
+            continue
+        result = gateway(args.oo, args.profile, binding, question["gold_sql"])
+        if result is None or result.get("denied"):
+            raise ab.Invalid("accuracy_not_answerable")
+        if not ab.compare_rows(question, typed_result(result))["pass"]:
+            raise ab.Invalid("accuracy_gold_drift")
     output = args.output.resolve()
     if not output.is_relative_to(ab.ROOT / "evidence"):
         raise ab.Invalid("evidence_scope")
@@ -227,6 +241,8 @@ def capture(args, dataset_path):
                 response["kind"] = "query_failed"
             else:
                 response["gateway_result"] = result
+                if result.get("denied"):
+                    response["kind"] = "gateway_denied"
         return arm + ":" + question["id"], response
 
     pairs = [(arm, q) for q in dataset["questions"] for arm in ab.ARMS]

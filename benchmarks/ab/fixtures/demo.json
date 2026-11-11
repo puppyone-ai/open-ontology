@@ -34,7 +34,15 @@
         ]
       },
       "row_comparator": "ordered",
-      "source_id": "Q01"
+      "source_id": "Q01",
+      "role": "analyst",
+      "gold_sql": "SELECT COUNT(*) AS value FROM demo.orders",
+      "required_columns": {
+        "demo.orders": [
+          "id"
+        ]
+      },
+      "order_required": false
     },
     {
       "id": "q02",
@@ -63,7 +71,15 @@
         ]
       },
       "row_comparator": "ordered",
-      "source_id": "Q02"
+      "source_id": "Q02",
+      "role": "analyst",
+      "gold_sql": "SELECT SUM(amount) AS value FROM demo.orders",
+      "required_columns": {
+        "demo.orders": [
+          "amount"
+        ]
+      },
+      "order_required": false
     },
     {
       "id": "q16",
@@ -90,7 +106,15 @@
         ]
       },
       "row_comparator": "ordered",
-      "source_id": "Q16"
+      "source_id": "Q16",
+      "role": "analyst",
+      "gold_sql": "SELECT COUNT(*) AS value FROM demo.calendar WHERE month_no=1",
+      "required_columns": {
+        "demo.calendar": [
+          "month_no"
+        ]
+      },
+      "order_required": false
     },
     {
       "id": "deny01",
@@ -118,7 +142,7 @@
     },
     "responses": {
       "path": "responses.json",
-      "sha256": "28be7468d883d8c8a8748209a51e759f7685d264c521ddc45566c0e646ec184d"
+      "sha256": "fa05bbefac339278f9defd9d6cd0c08ad9152c87307e7f0554d3a0d8a2beddf9"
     },
     "bank": {
       "path": "bank.json",
@@ -128,5 +152,6 @@
       "path": "../../../deploy/lite/demo/gold.json",
       "sha256": "4046377cce95d76df6dba85318f62a73a95e1d02c27d4a733e08c98a8f728335"
     }
-  }
+  },
+  "role": "analyst"
 }
