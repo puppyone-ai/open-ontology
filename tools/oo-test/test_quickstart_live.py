@@ -5,6 +5,7 @@ Requires an already staged private npm package and warm runtime images.
 All output, credentials and installation files stay in the ignored run directory.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -15,7 +16,8 @@ import tomllib
 
 
 def inventory():
-    return {kind: sorted(subprocess.check_output(
+    # Compare ownership isolation without retaining unrelated resource names.
+    return {kind: sorted(hashlib.sha256(name.encode()).hexdigest() for name in subprocess.check_output(
         ["docker", kind, "ls", "-q", *(["-a"] if kind == "container" else [])],
         text=True).split()) for kind in ("container", "volume", "network")}
 
@@ -110,7 +112,7 @@ def main():
         assert packed.returncode == 0, "NPM_PACK"
         tarball = out / json.loads(packed.stdout)[0]["filename"]
         start = time.monotonic()
-        result = run("install", ["npm", "install", "--offline", "--global", "--ignore-scripts",
+        result = run("install", ["npm", "install", "--offline", "--global",
                                  "--prefix", prefix, tarball])
         assert result.returncode == 0, "NPM_INSTALL"
         installed = True
