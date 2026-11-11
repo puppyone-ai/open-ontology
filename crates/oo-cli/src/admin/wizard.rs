@@ -287,7 +287,44 @@ fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
     if matches!(up, Invocation::AdminReport(_, exit) if exit != 0) {
         return Ok(up);
     }
-    super::execute("build", &args)
+    let mut result = super::execute("build", &args)?;
+    for _ in 0..3 {
+        if !matches!(result, Invocation::AdminReport(_, 1))
+            || !std::io::stdin().is_terminal()
+            || !std::io::stdout().is_terminal()
+        {
+            break;
+        }
+        let state =
+            super::progress::state_dir(Path::new(path))?.join("lite/work/build/.oo/chain.json");
+        let current = super::review::read(&state)?;
+        if !current["stages"].as_array().is_some_and(|stages| {
+            stages
+                .iter()
+                .any(|s| s["name"] == "builder" && s["status"] == "blocked")
+        }) {
+            break;
+        }
+        let mut screen = Screen::open()?;
+        let answer = screen.prompt(
+            3,
+            tr(
+                "Draft paused. Type RESUME to reuse validated receipts and authorize another bounded attempt; anything else exits.",
+                "草稿构建暂停。输入 RESUME 复用已验证回执并授权一次有调用上限的重试；其他输入退出。",
+            ),
+            "",
+            false,
+        )?;
+        drop(screen);
+        if answer != "RESUME" {
+            break;
+        }
+        result = super::execute(
+            "build",
+            &["--config".into(), path.into(), "--resume".into()],
+        )?;
+    }
+    Ok(result)
 }
 
 /// Options for `oo init` / `oo quickstart` beyond `--config`.
@@ -1497,7 +1534,21 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     save_new(&stack, Path::new("stack.yaml"))?;
     if confirm == "BUILD" {
         drop(screen);
-        return build_saved("stack.yaml", exit);
+        let result = build_saved("stack.yaml", exit)?;
+        if matches!(result, Invocation::AdminReport(_, 0)) {
+            let issued = super::build_lite::issued_profile(Path::new("stack.yaml"))?;
+            let delivery = crate::tui::backend::Local {
+                root: crate::lifecycle::directory()?,
+                issued_profile: Some(issued),
+                zh: zh(),
+            };
+            let mut term = Term::open(Theme::from_env(opts.no_anim)).map_err(Failure::local)?;
+            app::deliver(&mut term, &delivery, &profile).map_err(Failure::local)?;
+            return Ok(Invocation::Help(
+                "Published; delivery profile is available.".into(),
+            ));
+        }
+        return Ok(result);
     }
     screen.prompt(
         7,

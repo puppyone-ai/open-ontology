@@ -40,6 +40,10 @@ pub(super) fn hash(value: &Value) -> String {
 }
 
 pub(super) fn read(path: &Path) -> Result<Value> {
+    serde_json::from_str(&read_text(path)?).map_err(|_| Failure::local("REVIEW_JSON"))
+}
+
+fn read_text(path: &Path) -> Result<String> {
     let file = OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
@@ -59,7 +63,7 @@ pub(super) fn read(path: &Path) -> Result<Value> {
     file.take(MAX_BYTES + 1)
         .read_to_string(&mut text)
         .map_err(|_| Failure::local("REVIEW_FILE_IO"))?;
-    serde_json::from_str(&text).map_err(|_| Failure::local("REVIEW_JSON"))
+    Ok(text)
 }
 
 pub(super) fn save_new(path: &Path, value: &Value) -> Result<()> {
@@ -456,6 +460,26 @@ fn summary(command: &Value) -> Result<Value> {
 
 /// Recheck a recovered output before the publisher consumes it; file existence is not a receipt.
 pub(super) fn verify_handoff(input: &Value, reviewed: &Value) -> Result<()> {
+    if reviewed["review_decision"]["protocol"] == "oo.publish-confirm/v1" {
+        let command = &reviewed["command"];
+        let original: Value = serde_json::from_str(
+            command["adjudication_input"]
+                .as_str()
+                .ok_or_else(|| Failure::local("REVIEW_HANDOFF_SHAPE"))?,
+        )
+        .map_err(|_| Failure::local("REVIEW_HANDOFF_SHAPE"))?;
+        if reviewed["protocol"] != "oo.owner-reviewed-registry/v1"
+            || reviewed["status"] != "reviewed"
+            || reviewed["published"] != false
+            || reviewed["authentication"] != "not_claimed"
+            || original != *input
+            || reviewed["review_decision"] != command["confirmation"]
+            || bridge(&json!({"operation":"reviewed","command":command}))? != reviewed["compiled"]
+        {
+            return Err(Failure::local("REVIEW_HANDOFF_BINDING"));
+        }
+        return Ok(());
+    }
     let session: Session = serde_json::from_value(reviewed["review_decision"]["decisions"].clone())
         .map_err(|_| Failure::local("REVIEW_HANDOFF_SHAPE"))?;
     if reviewed["protocol"] != "oo.owner-reviewed-registry/v1"
@@ -503,6 +527,7 @@ pub(super) fn verify_handoff(input: &Value, reviewed: &Value) -> Result<()> {
 /// Where the product's adjudication and the one confirmation come from.
 #[derive(Default)]
 pub(super) struct Adjudicated<'a> {
+    pub raw_input: Option<&'a str>,
     /// `oo.adjudication/v1`; defaults to `adjudication.json` beside `--out`.
     pub adjudication: Option<&'a Path>,
     /// Non-TTY: an `oo.publish-confirm/v1` file instead of the confirm screen.
@@ -515,8 +540,7 @@ pub(super) fn review(input: &Value, decision_file: Option<&Path>, out: &Path) ->
 }
 
 /// D28: with an adjudication, the owner confirms once (graph screen or a
-/// confirm file). Every candidate then records the adjudicated default with
-/// the confirmed summary hash, and the G14 gate takes the confirm reason.
+/// confirm file). The compiler applies the bound evidence decisions.
 fn confirm_once(
     adjudication: &Path,
     source: &Adjudicated,
@@ -569,7 +593,19 @@ pub(super) fn review_with(
     out: &Path,
     source: &Adjudicated,
 ) -> Result<Value> {
-    let candidates = items(input)?;
+    // Build's existing review-file option also accepts the single D28 confirmation.
+    let confirm_source = Adjudicated {
+        raw_input: source.raw_input,
+        adjudication: source.adjudication,
+        confirm: decision_file
+            .filter(|path| read(path).is_ok_and(|v| v["protocol"] == "oo.publish-confirm/v1")),
+        overrides: source.overrides,
+    };
+    let (decision_file, source) = if confirm_source.confirm.is_some() {
+        (None, &confirm_source)
+    } else {
+        (decision_file, source)
+    };
     if out
         .try_exists()
         .map_err(|_| Failure::local("REVIEW_FILE_IO"))?
@@ -606,35 +642,36 @@ pub(super) fn review_with(
         (Some(path), None) => confirm_once(path, source, out, &mut screen)?,
         _ => None,
     };
-    let mut session: Session = if let Some(doc) = &confirmed {
-        let summary = doc["summary_sha256"].as_str().unwrap_or_default();
-        Session {
-            protocol: "oo.owner-review/v1".into(),
-            input_sha256: hash(input),
-            reviewed_at: doc["confirmed_at"]
-                .as_str()
-                .unwrap_or_default()
-                .chars()
-                .take(10)
-                .collect(),
-            items: candidates
-                .iter()
-                .map(|item| {
-                    (
-                        item.id.clone(),
-                        Decision {
-                            action: "accept".into(),
-                            replacement: None,
-                            reason: format!(
-                                "adjudicated default; publish-confirm sha256:{summary}"
-                            ),
-                        },
-                    )
-                })
-                .collect(),
-            g14: None,
+    if let Some(doc) = &confirmed {
+        let document = read(adjudication.as_ref().unwrap())?;
+        let raw = source
+            .raw_input
+            .map(str::to_owned)
+            .unwrap_or_else(|| input.to_string());
+        if document["input_sha256"] != payload_sha256(raw.as_bytes())
+            || serde_json::from_str::<Value>(&raw).ok().as_ref() != Some(input)
+        {
+            return Err(Failure::local("REVIEW_ADJUDICATION_INPUT_BINDING"));
         }
-    } else if let Some(path) = decision_file {
+        let overrides_path = out.with_extension("overrides.json");
+        let overrides = match source.overrides {
+            Some(path) => read(path)?,
+            None if overrides_path.exists() => read(&overrides_path)?,
+            None => json!({"protocol":"oo.adjudication-override/v1",
+                "summary_sha256":document["summary_sha256"],"items":{}}),
+        };
+        let command = json!({"adjudication_input":raw,"adjudication":document,
+            "overrides":overrides,"confirmation":doc});
+        // Apply evidence decisions in the compiler, never convert them to accept-all.
+        let compiled = bridge(&json!({"operation":"reviewed","command":command}))?;
+        let result = json!({"protocol":"oo.owner-reviewed-registry/v1","status":"reviewed",
+            "published":false,"authentication":"not_claimed","review_decision":doc,
+            "summary":compiled["summary"],"command":command,"compiled":compiled});
+        save_new(out, &result)?;
+        return Ok(result);
+    }
+    let candidates = items(input)?;
+    let mut session: Session = if let Some(path) = decision_file {
         serde_json::from_value(read(path)?).map_err(|_| Failure::local("REVIEW_FILE_SHAPE"))?
     } else {
         if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
@@ -700,14 +737,7 @@ pub(super) fn review_with(
     if !rejected {
         let mut command = prepare(input, &candidates, &session)?;
         let report = summary(&command)?;
-        if let Some(doc) = &confirmed {
-            session.g14 = Some(Gate {
-                summary_sha256: hash(&report["summary"]),
-                action: "accept".into(),
-                reason: doc["reason"].as_str().unwrap_or_default().into(),
-            });
-            save_pending(&pending, &session)?;
-        } else if let Some(screen) = screen.as_mut() {
+        if let Some(screen) = screen.as_mut() {
             let reason = screen.prompt(6, &format!(
                 "G14 connectivity review\n{}\nType an approval reason, or REJECT. Empty is not approval.",
                 serde_json::to_string_pretty(&report["summary"]).unwrap()), "", false)?;
@@ -795,10 +825,12 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
         }
         index += 1;
     }
-    let input = read(Path::new(
+    let raw_input = read_text(Path::new(
         opts.get("--input")
             .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT"))?,
     ))?;
+    let input: Value =
+        serde_json::from_str(&raw_input).map_err(|_| Failure::local("REVIEW_JSON"))?;
     if !opts.contains_key("--out") {
         let pending = input
             .get("review_pending")
@@ -828,6 +860,7 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
         ));
     }
     let source = Adjudicated {
+        raw_input: Some(&raw_input),
         adjudication: opts.get("--adjudication").map(Path::new),
         confirm: opts.get("--confirm").map(Path::new),
         overrides: opts.get("--overrides").map(Path::new),
@@ -870,6 +903,7 @@ mod tests {
         let path = dir.join("confirm.json");
         fs::write(&path, good.to_string()).unwrap();
         let source = Adjudicated {
+            raw_input: None,
             adjudication: Some(&fixture),
             confirm: Some(&path),
             overrides: None,

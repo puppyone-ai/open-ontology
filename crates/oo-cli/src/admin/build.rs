@@ -290,6 +290,15 @@ pub(super) fn run(
                             &root.join("review-input.json"),
                             &review::read(&root.join("builder/review-input.json"))?,
                         )?;
+                        let adjudication = root.join("builder/adjudication.json");
+                        if adjudication.exists() {
+                            build_retained::save(
+                                &root.join("adjudication.json"),
+                                &review::read(&adjudication)?,
+                            )?;
+                            state["artifacts"]["adjudication.json"] =
+                                json!(artifact(&root, "adjudication.json")?);
+                        }
                     } else {
                         return Err(Failure::local("BUILD_BUILDER_RECEIPT"));
                     }
@@ -323,8 +332,9 @@ pub(super) fn run(
                     let output = root.join("reviewed-registry.json");
                     let reviewed = if output.exists() {
                         let value = review::read(&output)?;
-                        if value["review_decision"]["decisions"]["input_sha256"]
-                            != review::hash(&input)
+                        if value["review_decision"]["protocol"] != "oo.publish-confirm/v1"
+                            && value["review_decision"]["decisions"]["input_sha256"]
+                                != review::hash(&input)
                         {
                             return Err(Failure::local("BUILD_REVIEW_INPUT_CHANGED"));
                         }

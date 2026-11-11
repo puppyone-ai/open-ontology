@@ -335,6 +335,13 @@ fn owner_review(
     review_file: Option<&Path>,
 ) -> Result<()> {
     let input = review::read(&state.join("review-input.json"))?;
+    let adjudication = state.join("adjudication.json");
+    if adjudication.exists() {
+        build_retained::save(
+            &base.join("review/adjudication.json"),
+            &review::read(&adjudication)?,
+        )?;
+    }
     let compiler = compiler_argv(&deployment.lane, Some(&deployment.user), &deployment.image);
     let reviewed = review_on_host(base, &input, review_file, compiler, vec![])?;
     let handoff = state.join("reviewed-registry.json");
@@ -430,7 +437,33 @@ pub(super) fn run(
                 )));
             }
             deployment.service("gateway")?;
-            return build::completion(&current, &state, json_output);
+            let mut result = build::completion(&current, &state, json_output)?;
+            if json_output && cycle.is_none() {
+                let profile = issued_profile(config)?;
+                let name = &stack.sources[0].id;
+                let directory = crate::lifecycle::directory()?;
+                match crate::profile::load(&directory, name) {
+                    Ok(saved) if saved == profile => {
+                        crate::profile::select(&directory, name).map_err(Failure::local)?;
+                    }
+                    _ => {
+                        crate::profile::save(&directory, name, &profile).map_err(Failure::local)?
+                    }
+                }
+                let readiness = crate::lifecycle::runtime()?
+                    .block_on(crate::check::readiness(&profile))
+                    .map_err(Failure::local)?;
+                if let Invocation::AdminReport(body, _) = &mut result {
+                    let mut report: Value = serde_json::from_str(body)
+                        .map_err(|_| Failure::local("BUILD_COMPLETION_PROTOCOL"))?;
+                    report["profile"] = json!(name);
+                    report["readiness"] = readiness;
+                    report["share_prompt"] =
+                        json!(crate::share_prompt::render(name).map_err(Failure::local)?);
+                    *body = report.to_string();
+                }
+            }
+            return Ok(result);
         }
         if cycle.is_some() || !review_pending(&current, &state) {
             return Ok(build::report(&current, json_output));
@@ -447,6 +480,26 @@ pub(super) fn run(
     Err(Failure::local("BUILD_LITE_NO_PROGRESS"))
 }
 
+/// Host-local references to the credential actually issued by this completed build.
+pub(super) fn issued_profile(config: &Path) -> Result<Value> {
+    let root = progress::state_dir(config)?.join("lite");
+    let state = root.join("work/build/.oo");
+    let chain = review::read(&state.join("chain.json"))?;
+    let publication = review::read(&state.join("publication.json"))?;
+    if chain["status"] != "complete"
+        || chain["publication"] != "published"
+        || publication["published"] != true
+    {
+        return Err(Failure::local("BUILD_PROFILE_NOT_PUBLISHED"));
+    }
+    super::build_tail::verify_token(&state)?;
+    Ok(
+        json!({"schema_version":1,"gateway":publication["gateway_url"],
+        "token_file":state.join("first-user.token"),"ca_file":root.join("consumer/ca.crt"),
+        "client_pem":root.join("consumer/client.pem")}),
+    )
+}
+
 fn review_pending(chain: &Value, state: &Path) -> bool {
     chain["stages"][2]["status"] == "complete"
         && chain["stages"][3]["status"] == "blocked"
@@ -455,6 +508,13 @@ fn review_pending(chain: &Value, state: &Path) -> bool {
 
 /// Without a TTY or decision file, leave the review input on this host.
 fn owner_review_input(base: &Path, state: &Path) -> Result<()> {
+    let adjudication = state.join("adjudication.json");
+    if adjudication.exists() {
+        build_retained::save(
+            &base.join("adjudication.json"),
+            &review::read(&adjudication)?,
+        )?;
+    }
     let input = review::read(&state.join("review-input.json"))?;
     let path = base.join("review-input.json");
     if path.exists() {
@@ -469,6 +529,54 @@ fn owner_review_input(base: &Path, state: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delivery_requires_publication_and_the_issued_token_receipt() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-issued-profile-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let config = root.join("stack.json");
+        fs::write(&config, "{}").unwrap();
+        let state = root.join(".oo/lite/work/build/.oo");
+        build_retained::save(
+            &state.join("chain.json"),
+            &json!({"status":"blocked","publication":"not_published"}),
+        )
+        .ok()
+        .unwrap();
+        build_retained::save(
+            &state.join("publication.json"),
+            &json!({"published":true,"gateway_url":"https://localhost:8443"}),
+        )
+        .ok()
+        .unwrap();
+        assert!(issued_profile(&config).is_err());
+        build_retained::save(
+            &state.join("chain.json"),
+            &json!({"status":"complete","publication":"published"}),
+        )
+        .ok()
+        .unwrap();
+        let token = format!("{}{}", "ooct_", "x".repeat(43));
+        let token_path = state.join("first-user.token");
+        fs::write(&token_path, &token).unwrap();
+        fs::set_permissions(&token_path, fs::Permissions::from_mode(0o600)).unwrap();
+        build_retained::save(
+            &state.join("first_token-receipt.json"),
+            &json!({"result":{"token_sha256":oo_core::api::payload_sha256(token.as_bytes())}}),
+        )
+        .ok()
+        .unwrap();
+        let profile = issued_profile(&config).ok().unwrap();
+        assert_eq!(profile["gateway"], "https://localhost:8443");
+        assert!(!profile.to_string().contains(&token));
+        assert!(Path::new(profile["token_file"].as_str().unwrap()).is_absolute());
+        fs::write(&token_path, format!("{}{}", "ooct_", "y".repeat(43))).unwrap();
+        assert!(issued_profile(&config).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn runtime_stack_redirects_only_loopback_sources() {
