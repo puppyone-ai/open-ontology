@@ -630,7 +630,13 @@ impl Connect {
             return None;
         }
         self.live.verifying = Some(self.generation);
-        Some(Job::Verify(Request {
+        self.request().map(Job::Verify)
+    }
+
+    /// A sign-in request for the form as it stands (the runner also uses it
+    /// after screen 1 to list the source's tables).
+    pub fn request(&self) -> Option<Request> {
+        Some(Request {
             engine: self.engine,
             host: self.host.trim().to_owned(),
             port: self.port_number()?,
@@ -640,7 +646,7 @@ impl Connect {
             ca_pem: self.ca_pem(),
             ca_ref: (self.tls_mode == TlsMode::Saved).then(|| self.ca_saved.clone()),
             generation: self.generation,
-        }))
+        })
     }
 
     /// Fold a finished job into the state.

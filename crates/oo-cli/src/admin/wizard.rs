@@ -627,6 +627,164 @@ impl Live for WizardLive<'_> {
     }
 }
 
+fn request_password(store: &SecretStore, r: &connect::Request) -> Result<String, String> {
+    match &r.secret {
+        connect::Secret::Typed(p) => Ok(p.clone()),
+        connect::Secret::Ref(name) => store.read(name).map_err(str::to_owned),
+    }
+}
+
+fn runtime() -> Result<tokio::runtime::Runtime, String> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|_| "TUI_RUNTIME".to_owned())
+}
+
+/// Catalog reads from the wizard: short statements, room for the
+/// discovery bound (10 000 tables plus its sentinel).
+fn wizard_budget() -> oo_connectors::engine::ReadBudget {
+    oo_connectors::engine::ReadBudget {
+        statement_timeout_ms: 15_000,
+        ..Default::default()
+    }
+}
+
+/// The same read-only PostgreSQL connector the build uses.
+fn pg_engine(
+    store: &SecretStore,
+    r: &connect::Request,
+    password: String,
+) -> Result<oo_connectors::postgres::PostgresEngine, String> {
+    use oo_connectors::{
+        PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SourceId,
+        TableSelection,
+    };
+    let ca = match (&r.ca_pem, &r.ca_ref) {
+        (Some(pem), _) => pem.clone(),
+        (None, Some(name)) => store.read(name).map_err(str::to_owned)?,
+        (None, None) => return Err("SOURCE_TLS_CA_REQUIRED".to_owned()),
+    };
+    let config = PgSourceConfig::try_new(
+        SourceId::new("source").map_err(|e| e.to_string())?,
+        PgEndpoint::new(&r.host, r.port, &r.database).map_err(|e| e.to_string())?,
+        PgCredentials::new(r.user.clone(), password).map_err(|e| e.to_string())?,
+        SecretRef::new("secret://source-password").map_err(|e| e.to_string())?,
+        PgTlsConfig::from_ca_pem(ca).map_err(|e| e.to_string())?,
+        PgBudget::new(
+            std::time::Duration::from_secs(8),
+            std::time::Duration::from_secs(15),
+            std::time::Duration::from_secs(1),
+            10_001,
+            16 * 1024 * 1024,
+        )
+        .map_err(|e| e.to_string())?,
+        TableSelection::new(Vec::new()).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(oo_connectors::postgres::PostgresEngine::new(config))
+}
+
+fn oracle_engine(
+    r: &connect::Request,
+    password: String,
+) -> Result<oo_connectors::oracle::engine::OracleEngine, oo_connectors::SourceError> {
+    use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
+    OracleEngine::connect(OracleConnectConfig::new(
+        &r.host,
+        r.port,
+        &r.database,
+        &r.user,
+        password.into(),
+    ))
+}
+
+/// A private secret store that exists only while the MySQL helper runs.
+struct ScratchStore(std::path::PathBuf);
+
+impl Drop for ScratchStore {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+/// MySQL sign-in, database list and table discovery through `oo-mysql-doctor`
+/// beside this executable (the CLI does not link the MySQL driver). The
+/// password and CA reach it through a scratch store under the private config
+/// directory, removed when the call returns. `Err("MYSQL_DOCTOR_INSTALL")`:
+/// no helper here; the doctor checks later.
+fn mysql_discover(store: &SecretStore, r: &connect::Request) -> Result<Value, String> {
+    use std::io::Write;
+    let helper = std::env::current_exe()
+        .map_err(|_| "MYSQL_DOCTOR_INSTALL".to_owned())?
+        .with_file_name("oo-mysql-doctor");
+    if !helper.is_file() {
+        return Err("MYSQL_DOCTOR_INSTALL".into());
+    }
+    let password = request_password(store, r)?;
+    let ca = match (&r.ca_pem, &r.ca_ref) {
+        (Some(pem), _) => pem.clone(),
+        (None, Some(name)) => store.read(name).map_err(str::to_owned)?,
+        (None, None) => return Err("SOURCE_TLS_CA_REQUIRED".to_owned()),
+    };
+    let home = std::env::var_os("HOME").ok_or("SECRET_HOME")?;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let scratch = ScratchStore(
+        Path::new(&home)
+            .join(".config/open-ontology")
+            .join(format!("wizard-{}-{nanos:08x}", std::process::id())),
+    );
+    let temp = SecretStore::create(&scratch.0).map_err(str::to_owned)?;
+    temp.write_new("source-password", password.as_bytes())
+        .map_err(str::to_owned)?;
+    temp.write_new("source-ca", ca.as_bytes())
+        .map_err(str::to_owned)?;
+    let body = json!({
+        "operation": "discover",
+        "secrets_dir": scratch.0,
+        "tables": [],
+        "source": {
+            "id": "source", "engine": "mysql", "host": r.host, "port": r.port,
+            "database": r.database, "user": r.user,
+            "password": {"secret_ref": "source-password"},
+            "tls_ca": {"secret_ref": "source-ca"},
+        },
+    });
+    let mut child = std::process::Command::new(helper)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|_| "MYSQL_DOCTOR_INSTALL".to_owned())?;
+    let written = child
+        .stdin
+        .take()
+        .map(|mut stdin| stdin.write_all(body.to_string().as_bytes()).is_ok());
+    if written != Some(true) {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("MYSQL_DOCTOR_STDIN".into());
+    }
+    let output = child
+        .wait_with_output()
+        .map_err(|_| "MYSQL_DOCTOR_WAIT".to_owned())?;
+    drop(scratch);
+    let report: Value =
+        serde_json::from_slice(&output.stdout).map_err(|_| "MYSQL_DOCTOR_PROTOCOL".to_owned())?;
+    match report["status"].as_str() {
+        Some("ok") if report.get("databases").is_some() => Ok(report),
+        // An older helper without the discover operation.
+        Some("ok") => Err("MYSQL_DOCTOR_INSTALL".into()),
+        _ => Err(report["error"]
+            .as_str()
+            .unwrap_or("MYSQL_DOCTOR_PROTOCOL")
+            .to_owned()),
+    }
+}
+
 fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
     let mut out = connect::Verified {
         generation: r.generation,
@@ -635,68 +793,40 @@ fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
         version: None,
         databases: Vec::new(),
     };
-    let password = match &r.secret {
-        connect::Secret::Typed(p) => Ok(p.clone()),
-        connect::Secret::Ref(name) => store.read(name).map_err(str::to_owned),
-    };
-    let password = match password {
+    let password = match request_password(store, r) {
         Ok(p) => p,
         Err(code) => {
             out.auth = Err(format!("{}: {code}", tr("password", "密码")));
             return out;
         }
     };
-    let runtime = match tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-    {
+    let runtime = match runtime() {
         Ok(rt) => rt,
-        Err(_) => {
-            out.auth = Err("TUI_RUNTIME".into());
+        Err(code) => {
+            out.auth = Err(code);
             return out;
         }
     };
+    use oo_connectors::engine::SourceEngine;
     match r.engine {
         Engine::Postgres => {
-            let ca = match (&r.ca_pem, &r.ca_ref) {
-                (Some(pem), _) => Ok(pem.clone()),
-                (None, Some(name)) => store.read(name).map_err(str::to_owned),
-                (None, None) => Err("SOURCE_TLS_CA_REQUIRED".to_owned()),
-            };
-            let result = ca.and_then(|ca| {
-                use oo_connectors::engine::SourceEngine;
-                use oo_connectors::{
-                    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef,
-                    SourceId, TableSelection,
-                };
-                let config = PgSourceConfig::try_new(
-                    SourceId::new("source").map_err(|e| e.to_string())?,
-                    PgEndpoint::new(&r.host, r.port, &r.database).map_err(|e| e.to_string())?,
-                    PgCredentials::new(r.user.clone(), password).map_err(|e| e.to_string())?,
-                    SecretRef::new("secret://source-password").map_err(|e| e.to_string())?,
-                    PgTlsConfig::from_ca_pem(ca).map_err(|e| e.to_string())?,
-                    PgBudget::new(
-                        std::time::Duration::from_secs(8),
-                        std::time::Duration::from_secs(15),
-                        std::time::Duration::from_secs(1),
-                        1_000,
-                        1024 * 1024,
-                    )
-                    .map_err(|e| e.to_string())?,
-                    TableSelection::new(Vec::new()).map_err(|e| e.to_string())?,
-                )
-                .map_err(|e| e.to_string())?;
-                let mut engine = oo_connectors::postgres::PostgresEngine::new(config);
-                runtime
+            let result = pg_engine(store, r, password).and_then(|mut engine| {
+                let version = runtime
                     .block_on(engine.probe())
                     .map(|p| p.version.raw)
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| e.to_string())?;
+                // The database list is a convenience: sign-in stands without it.
+                let databases = runtime
+                    .block_on(engine.list_databases(&wizard_budget()))
+                    .unwrap_or_default();
+                Ok((version, databases))
             });
             match result {
-                Ok(version) => {
+                Ok((version, databases)) => {
                     out.auth = Ok(String::new());
                     out.checked = true;
                     out.version = Some(version);
+                    out.databases = databases;
                 }
                 Err(e) => out.auth = Err(e),
             }
@@ -710,17 +840,17 @@ fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
                 .into());
                 return out;
             }
-            use oo_connectors::engine::SourceEngine;
-            use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
-            let config =
-                OracleConnectConfig::new(&r.host, r.port, &r.database, &r.user, password.into());
-            let result = OracleEngine::connect(config)
-                .and_then(|mut engine| runtime.block_on(engine.probe()).map(|p| p.version.raw));
+            let result = oracle_engine(r, password).and_then(|mut engine| {
+                let version = runtime.block_on(engine.probe())?.version.raw;
+                let services = engine.list_services(&wizard_budget()).unwrap_or_default();
+                Ok((version, services))
+            });
             match result {
-                Ok(version) => {
+                Ok((version, services)) => {
                     out.auth = Ok(String::new());
                     out.checked = true;
                     out.version = Some(version);
+                    out.databases = services;
                 }
                 Err(e) => {
                     let text = e.to_string();
@@ -738,15 +868,82 @@ fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
                 }
             }
         }
-        Engine::Mysql => {
-            out.auth = Ok(tr(
-                "sign-in is checked by oo doctor next (MySQL helper)",
-                "登录由 oo doctor 下一步检查（MySQL helper）",
-            )
-            .into());
-        }
+        Engine::Mysql => match mysql_discover(store, r) {
+            Ok(report) => {
+                out.auth = Ok(String::new());
+                out.checked = true;
+                out.version = report["version"].as_str().map(str::to_owned);
+                out.databases =
+                    serde_json::from_value(report["databases"].clone()).unwrap_or_default();
+            }
+            Err(code) if code == "MYSQL_DOCTOR_INSTALL" => {
+                out.auth = Ok(tr(
+                    "sign-in is checked by oo doctor next (MySQL helper)",
+                    "登录由 oo doctor 下一步检查（MySQL helper）",
+                )
+                .into());
+            }
+            Err(code) => out.auth = Err(code),
+        },
     }
     out
+}
+
+/// Screen 2's table list from the source catalog (statistics only, no
+/// rows). `Ok(None)`: this engine has no local discovery path here.
+fn discover(
+    store: &SecretStore,
+    r: &connect::Request,
+) -> Result<Option<Vec<crate::tui::scorer::TableMeta>>, String> {
+    let found = match r.engine {
+        Engine::Postgres => {
+            let rt = runtime()?;
+            let mut engine = pg_engine(store, r, request_password(store, r)?)?;
+            rt.block_on(engine.discover_catalog(&wizard_budget()))
+                .map_err(|e| e.to_string())?
+        }
+        Engine::Oracle if std::env::var_os("OO_ORACLE_WORKER_IMAGE").is_none() => {
+            oracle_engine(r, request_password(store, r)?)
+                .and_then(|mut engine| engine.discover_catalog(&wizard_budget()))
+                .map_err(|e| e.to_string())?
+        }
+        Engine::Mysql => match mysql_discover(store, r) {
+            Ok(report) => match serde_json::from_value(report["tables"].clone()) {
+                Ok(tables) => tables,
+                Err(_) => {
+                    return Err(report["tables_error"]
+                        .as_str()
+                        .unwrap_or("MYSQL_DOCTOR_PROTOCOL")
+                        .to_owned());
+                }
+            },
+            Err(code) if code == "MYSQL_DOCTOR_INSTALL" => return Ok(None),
+            Err(code) => return Err(code),
+        },
+        _ => return Ok(None),
+    };
+    Ok(Some(table_metas(found)))
+}
+
+fn table_metas(
+    found: Vec<oo_connectors::engine::DiscoveredTable>,
+) -> Vec<crate::tui::scorer::TableMeta> {
+    found
+        .into_iter()
+        .map(|t| crate::tui::scorer::TableMeta {
+            schema: t.table.schema,
+            name: t.table.name,
+            rows: t.estimated_rows,
+            has_primary_key: t.has_primary_key,
+            has_unique_key: t.has_unique_key,
+            partition_child: t.partition_child,
+            references: t
+                .references
+                .into_iter()
+                .map(|r| format!("{}.{}", r.schema, r.name))
+                .collect(),
+        })
+        .collect()
 }
 
 /// Non-TTY screen 1: what the flags say, then the same live checks
@@ -1103,6 +1300,19 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
         return demo(opts, theme, false);
     }
     let masked = connect::endpoint(&conn);
+    // Screen 2's list comes from the server unless --catalog supplied one.
+    let mut discovery_note = None;
+    let tables = match tables {
+        Some(tables) => Some(tables),
+        None => match conn.request().map(|r| discover(&store, &r)) {
+            Some(Ok(found)) => found,
+            Some(Err(reason)) => {
+                discovery_note = Some(reason);
+                None
+            }
+            None => None,
+        },
+    };
     let password = match conn.password_ref() {
         Some(reference) => json!({"secret_ref": reference}),
         None => {
@@ -1162,7 +1372,18 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
         Some(tables) => app::select(screen.term(), tables)
             .map_err(Failure::local)?
             .ok_or_else(|| Failure::local("TUI_CANCELLED"))?,
-        None => list(&screen.prompt(2, "Table discovery is not available for this engine yet.\nInclude schema.table entries, comma separated (or rerun with --catalog CATALOG.json to choose from a list)", "", false)?),
+        None => {
+            let why = match &discovery_note {
+                Some(reason) => format!("Could not list tables: {reason}"),
+                None => "Table discovery for this engine runs in oo doctor.".to_owned(),
+            };
+            list(&screen.prompt(
+                2,
+                &format!("{why}\nInclude schema.table entries, comma separated (or rerun with --catalog CATALOG.json to choose from a list)"),
+                "",
+                false,
+            )?)
+        }
     };
     let exclude = if tables.is_some() {
         Vec::new()
