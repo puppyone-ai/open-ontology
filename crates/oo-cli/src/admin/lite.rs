@@ -47,7 +47,7 @@ fn run_mode(
     if action == "up" {
         require_images(&image)?;
         if !demo {
-            let store = oo_stack::secret::SecretStore::from_home().map_err(Failure::local)?;
+            let store = super::wizard::owner_secret_store()?;
             store
                 .read(&stack.model.key.secret_ref)
                 .map_err(Failure::local)?;

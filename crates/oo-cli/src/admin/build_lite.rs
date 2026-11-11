@@ -28,6 +28,8 @@ struct Deployment {
     image: String,
     lane: String,
     user: String,
+    input_secret_mounts: Vec<Value>,
+    input_stack_sha256: Option<String>,
 }
 
 impl Deployment {
@@ -50,6 +52,11 @@ impl Deployment {
             image: text("image")?,
             lane: lite::lane(&root),
             user: lite::user(&root)?,
+            input_secret_mounts: owner["input_secret_mounts"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+            input_stack_sha256: owner["input_stack_sha256"].as_str().map(str::to_owned),
             root,
         })
     }
@@ -96,6 +103,26 @@ impl Deployment {
             .args(["--read-only", "--tmpfs", "/tmp", "--cap-drop", "ALL"])
             .args(["--security-opt", "no-new-privileges:true"])
             .args(["--memory", "2g", "--pids-limit", "512"]);
+        for mount in &self.input_secret_mounts {
+            let source = mount["source"]
+                .as_str()
+                .filter(|s| Path::new(s).is_absolute() && !s.contains([',', '\n', '\r']))
+                .ok_or_else(|| Failure::local("BUILD_LITE_SECRET_MOUNT"))?;
+            let target = mount["target"]
+                .as_str()
+                .filter(|s| {
+                    s.strip_prefix("/home/oo/.config/open-ontology/secrets/")
+                        .is_some_and(oo_stack::stack::secret_name)
+                })
+                .ok_or_else(|| Failure::local("BUILD_LITE_SECRET_MOUNT"))?;
+            if mount["read_only"] != true || mount["type"] != "bind" {
+                return Err(Failure::local("BUILD_LITE_SECRET_MOUNT"));
+            }
+            command.args([
+                "--mount",
+                &format!("type=bind,source={source},target={target},readonly"),
+            ]);
+        }
         Ok(command)
     }
 
@@ -125,7 +152,7 @@ fn wait_previous(name: &str) -> Result<()> {
 }
 
 /// The runtime's copy of the stack: a loopback source is this host.
-fn runtime_stack(stack: &oo_stack::Stack) -> Result<Value> {
+fn runtime_stack(stack: &oo_stack::Stack, private_inputs: bool) -> Result<Value> {
     let mut value = serde_json::to_value(stack).map_err(|_| Failure::local("BUILD_LITE_STACK"))?;
     for source in value["sources"]
         .as_array_mut()
@@ -136,6 +163,23 @@ fn runtime_stack(stack: &oo_stack::Stack) -> Result<Value> {
             .is_some_and(|host| LOOPBACK.contains(&host))
         {
             source["host"] = json!("host.docker.internal");
+        }
+    }
+    if private_inputs {
+        value["model"]["key"]["secret_ref"] = json!("oo-lite-model-key");
+        if value["model"]["base_url"].is_object() {
+            value["model"]["base_url"]["secret_ref"] = json!("oo-lite-model-endpoint");
+        }
+        for (index, source) in value["sources"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+        {
+            source["password"]["secret_ref"] = json!(format!("oo-lite-source-{index}-password"));
+            if source["tls_ca"].is_object() {
+                source["tls_ca"]["secret_ref"] = json!(format!("oo-lite-source-{index}-ca"));
+            }
         }
     }
     Ok(value)
@@ -333,7 +377,17 @@ pub(super) fn run(
 ) -> Result<Invocation> {
     let base = progress::state_dir(config)?;
     let deployment = Deployment::open(config)?;
-    if review::read(&deployment.root.join("work/build/stack.json"))? != runtime_stack(stack)? {
+    let input = serde_json::to_value(stack).map_err(|_| Failure::local("BUILD_LITE_STACK"))?;
+    let changed = deployment
+        .input_stack_sha256
+        .as_ref()
+        .is_some_and(|expected| {
+            expected != &oo_core::api::payload_sha256(input.to_string().as_bytes())
+        });
+    if changed
+        || review::read(&deployment.root.join("work/build/stack.json"))?
+            != runtime_stack(stack, !deployment.input_secret_mounts.is_empty())?
+    {
         return Err(Failure::local(
             "BUILD_LITE_STACK_CHANGED: run oo up --config again before building",
         ));
@@ -422,15 +476,53 @@ mod tests {
             serde_json::from_str(include_str!("../../../oo-stack/example.stack.json")).unwrap();
         value["sources"][0]["host"] = json!("127.0.0.1");
         let stack = oo_stack::parse(&value.to_string()).unwrap();
-        let runtime = runtime_stack(&stack).ok().unwrap();
+        let runtime = runtime_stack(&stack, false).ok().unwrap();
         assert_eq!(runtime["sources"][0]["host"], "host.docker.internal");
         runtime["sources"][0]["port"].as_u64().unwrap();
         value["sources"][0]["host"] = json!("db.internal");
         let stack = oo_stack::parse(&value.to_string()).unwrap();
         assert_eq!(
-            runtime_stack(&stack).ok().unwrap()["sources"][0]["host"],
+            runtime_stack(&stack, false).ok().unwrap()["sources"][0]["host"],
             "db.internal"
         );
+    }
+
+    #[test]
+    fn private_input_refs_and_phase_mounts_match_compose() {
+        let mut value: Value =
+            serde_json::from_str(include_str!("../../../oo-stack/example.stack.json")).unwrap();
+        value["model"]["base_url"] = json!({"secret_ref":"file:/private/endpoint"});
+        value["model"]["key"] = json!({"secret_ref":"file:/private/key"});
+        let stack = oo_stack::parse(&value.to_string()).unwrap();
+        let runtime = runtime_stack(&stack, true).ok().unwrap();
+        assert_eq!(runtime["model"]["key"]["secret_ref"], "oo-lite-model-key");
+        assert_eq!(
+            runtime["model"]["base_url"]["secret_ref"],
+            "oo-lite-model-endpoint"
+        );
+        assert_eq!(
+            runtime["sources"][0]["password"]["secret_ref"],
+            "oo-lite-source-0-password"
+        );
+        assert!(!runtime.to_string().contains("/private/"));
+        let mut deployment = Deployment {
+            root: PathBuf::from("/state"),
+            project: "owned".into(),
+            image: "image".into(),
+            lane: "v03".into(),
+            user: "1000:1000".into(),
+            input_stack_sha256: None,
+            input_secret_mounts: vec![json!({"type":"bind","source":"/private/model-key",
+                "target":"/home/oo/.config/open-ontology/secrets/oo-lite-model-key","read_only":true})],
+        };
+        let command = deployment.container(None, "network").ok().unwrap();
+        let args: Vec<_> = command.get_args().map(|s| s.to_string_lossy()).collect();
+        assert!(
+            args.iter()
+                .any(|s| s.contains("source=/private/model-key") && s.ends_with(",readonly"))
+        );
+        deployment.input_secret_mounts[0]["read_only"] = json!(false);
+        assert!(deployment.container(None, "network").is_err());
     }
 
     #[test]

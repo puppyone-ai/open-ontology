@@ -130,12 +130,16 @@ fn secret_or_import(
 ) -> Result<Value, Failure> {
     let path = screen.prompt(
         step,
-        &format!("{label}: private file to import (blank: type the value next)"),
+        &format!("{label}: file:/PATH reference or private file to import (blank: type next)"),
         "",
         false,
     )?;
     if path.is_empty() {
         return secret(screen, store, step, label, default);
+    }
+    if path.starts_with("file:") {
+        store.read(&path).map_err(Failure::local)?;
+        return Ok(json!({"secret_ref":path}));
     }
     let name = screen.prompt(
         step,
@@ -156,6 +160,13 @@ fn list(value: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+pub(super) fn owner_secret_store() -> Result<SecretStore, Failure> {
+    let home = std::env::var_os("HOME").ok_or_else(|| Failure::local("SECRET_HOME"))?;
+    let parent = Path::new(&home).join(".config/open-ontology");
+    fs::create_dir_all(&parent).map_err(|_| Failure::local("SECRET_DIRECTORY"))?;
+    SecretStore::create(parent.join("secrets")).map_err(Failure::local)
 }
 
 fn import_file(store: &SecretStore, name: &str, path: &Path, ca: bool) -> Result<Value, Failure> {
@@ -507,7 +518,7 @@ fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
         if request.engine == Engine::Mysql {
             mysql_helper().map_err(Failure::local)?;
         }
-        let store = SecretStore::from_home().map_err(Failure::local)?;
+        let store = owner_secret_store()?;
         tables = discover(&store, &request).map_err(Failure::local)?;
     }
     let tables = tables.ok_or_else(|| {
@@ -1414,24 +1425,29 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     )?;
     let url = screen.prompt(
         3,
-        "Model base URL, or @PATH to import a private endpoint file",
+        "Model base URL, file:/PATH reference, or @PATH to import",
         "",
         false,
     )?;
-    let base_url = match url.strip_prefix('@') {
-        Some(path) => {
-            let name = screen.prompt(
-                3,
-                "Endpoint secret name (new file)",
-                "model-endpoint",
-                false,
-            )?;
-            if !oo_stack::stack::secret_name(&name) {
-                return Err(Failure::usage("SECRET_NAME"));
+    let base_url = if url.starts_with("file:") {
+        store.read(&url).map_err(Failure::local)?;
+        json!({"secret_ref":url})
+    } else {
+        match url.strip_prefix('@') {
+            Some(path) => {
+                let name = screen.prompt(
+                    3,
+                    "Endpoint secret name (new file)",
+                    "model-endpoint",
+                    false,
+                )?;
+                if !oo_stack::stack::secret_name(&name) {
+                    return Err(Failure::usage("SECRET_NAME"));
+                }
+                import_file(&store, &name, Path::new(path), false)?
             }
-            import_file(&store, &name, Path::new(path), false)?
+            None => json!(url),
         }
-        None => json!(url),
     };
     let model = json!({
         "provider":provider,

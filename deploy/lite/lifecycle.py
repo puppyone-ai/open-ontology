@@ -153,6 +153,60 @@ def private_dir(path):
     if not stat.S_ISDIR(st.st_mode) or st.st_uid!=os.getuid() or st.st_mode & 0o777 != 0o700:
         raise ValueError('LITE_PRIVATE_DIRECTORY')
 
+def require_outside_git(path):
+    for parent in (path.resolve(),*path.resolve().parents):
+        if (parent/'.git').exists():
+            raise ValueError('LITE_MODEL_STATE_IN_GIT')
+
+def model_sources(root, stack):
+    """Materialize input credentials outside Git; return container-only references."""
+    stack=json.loads(json.dumps(stack))
+    model=stack['model']
+    sources=[('model-key',model['key'])]
+    if isinstance(model['base_url'],dict):
+        sources.append(('model-endpoint',model['base_url']))
+    for index,source in enumerate(stack.get('sources',[])):
+        sources.append((f'source-{index}-password',source['password']))
+        if source.get('tls_ca'):
+            sources.append((f'source-{index}-ca',source['tls_ca']))
+    home=Path.home()
+    state=home/'.config/open-ontology/deployments'/hashlib.sha256(
+        str(root.resolve()).encode()).hexdigest()[:32]
+    # Resolve before creating anything, including a HOME redirected into Git.
+    require_outside_git(state)
+    for path in (home/'.config',home/'.config/open-ontology',
+                 state.parent,state):
+        if path.is_symlink():
+            raise ValueError('LITE_PRIVATE_DIRECTORY')
+        if path in (state.parent,state):
+            private_dir(path)
+        else:
+            path.mkdir(mode=0o700,exist_ok=True)
+            meta=path.stat()
+            if meta.st_uid!=os.getuid() or meta.st_mode & 0o022:
+                raise ValueError('LITE_PRIVATE_DIRECTORY')
+    mounts=[]
+    for name,reference in sources:
+        ref=reference['secret_ref']
+        if ref.startswith('file:'):
+            source=Path(ref[5:])
+            if not source.is_absolute() or '..' in source.parts:
+                raise ValueError('LITE_MODEL_SOURCE')
+        elif re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}',ref):
+            source=home/'.config/open-ontology/secrets'/ref
+        else:
+            raise ValueError('LITE_MODEL_SOURCE')
+        dest=state/name
+        data=read_private(source)
+        if dest.exists() and read_private(dest)!=data:
+            raise ValueError('LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION')
+        if not dest.exists():write(dest,data)
+        reference['secret_ref']='oo-lite-'+name
+        mounts.append({'type':'bind','source':str(dest),
+                       'target':'/home/oo/.config/open-ontology/secrets/oo-lite-'+name,
+                       'read_only':True})
+    return stack,mounts
+
 
 def read_private(path):
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
@@ -653,23 +707,30 @@ def main(request):
         for name in ('work','home'):private_dir(root/name)
         for sub in ('home/.config','home/.config/open-ontology','home/.config/open-ontology/secrets'):
             private_dir(root/sub)
-        refs=[] if request.get('demo') else [request['stack']['model']['key']['secret_ref']]
-        endpoint=request['stack']['model']['base_url']
-        if not request.get('demo') and isinstance(endpoint,dict):refs.append(endpoint['secret_ref'])
-        for source in ([] if request.get('demo') else request['stack']['sources']):
-            refs.append(source['password']['secret_ref'])
-            if source.get('tls_ca'):refs.append(source['tls_ca']['secret_ref'])
-        home=Path.home()/'.config/open-ontology/secrets'
-        for name in set(refs):
-            if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}',name):raise ValueError('SECRET_NAME')
-            data=read_private(home/name)
-            dest=root/'home/.config/open-ontology/secrets'/name
-            if dest.exists():
-                if read_private(dest)!=data:raise ValueError('LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION')
-            else:write(dest,data)
+        input_stack_sha256=hashlib.sha256(json.dumps(request['stack'],sort_keys=True,
+            separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+        mounts=[]
+        if not request.get('demo'):
+            request=dict(request)
+            request['stack'],mounts=model_sources(root,request['stack'])
+            # Nested file mounts under the read-only home need empty targets.
+            # These placeholders contain no credential bytes.
+            for mount in mounts:
+                target=root/'home/.config/open-ontology/secrets'/Path(mount['target']).name
+                if target.exists():
+                    if read_private(target):
+                        raise ValueError('LITE_SECRET_MOUNT_SHADOW')
+                else:
+                    write(target,b'')
         for name in ('compose.yaml','postgres.sh','scheduler.py'):
             dest=root/('work' if name=='scheduler.py' else '')/name
             template=request['templates'][name]
+            if name=='compose.yaml' and mounts:
+                marker='    - ${OO_LITE_STATE:?}/home:/home/oo:ro\n'
+                if template.count(marker)!=1:
+                    raise ValueError('LITE_MODEL_MOUNT')
+                template=template.replace(marker,marker+''.join(
+                    '    - '+json.dumps(mount)+'\n' for mount in mounts))
             # docker save/load retains config IDs, not registry RepoDigests.
             postgres=os.environ.get('OO_LITE_POSTGRES_IMAGE')
             if name=='compose.yaml' and postgres:
@@ -680,7 +741,8 @@ def main(request):
             write(dest,template.encode())
         write(root/'work/stack.json',json.dumps(request['stack']).encode())
         write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network,
-                                'gateway_port':port}).encode())
+                                'gateway_port':port,'input_secret_mounts':mounts,
+                                'input_stack_sha256':input_stack_sha256}).encode())
         offline=['--pull','never','--no-build'] if os.environ.get('OO_LITE_POSTGRES_IMAGE') else []
         services=['agent-db','control-db'] if request.get('demo') else []
         docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120',*services],env)
@@ -730,6 +792,7 @@ def main(request):
         status='retained_ready'
         pending=['oo build' if build!='complete' else 'scheduled retained cycle']
     return {**health_report,'status':status,'services':services,'gateway_health':gateway,**history,
+            'model_source_configured':bool(request['stack'].get('model')) and not request.get('demo',False),
             'pending':pending,'build':build,'gateway_url':f'https://localhost:{port}' if build else None,
             'publication':'live' if services_up and history.get('data_published_at') else 'unmeasured','healthy':healthy}
 

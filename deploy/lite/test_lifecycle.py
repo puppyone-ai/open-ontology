@@ -277,18 +277,63 @@ class Tests(unittest.TestCase):
         for name,data in [('endpoint',b'https://private.example/v1'),('model',b'synthetic-key')]:
             lifecycle.write(store/name,data)
         self.request.update(action='up',image='sha256:'+'a'*64,
-            templates={name:'' for name in ('compose.yaml','postgres.sh','scheduler.py')},
+            templates={name:('    - ${OO_LITE_STATE:?}/home:/home/oo:ro\n' if name=='compose.yaml' else '') for name in ('compose.yaml','postgres.sh','scheduler.py')},
             stack={'sources':[],'gateway':{'public_url':'auto'},
                    'model':{'key':{'secret_ref':'model'},'base_url':{'secret_ref':'endpoint'}}})
-        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''), patch.object(lifecycle,'operator_bootstrap'):
+        with patch.object(lifecycle,'require_outside_git'), patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''), patch.object(lifecycle,'operator_bootstrap'):
             lifecycle.main(self.request)
-        self.assertEqual(lifecycle.read_private(self.root/'home/.config/open-ontology/secrets/endpoint'),
-                         b'https://private.example/v1')
+        state=next((home/'.config/open-ontology/deployments').iterdir())
+        self.assertEqual(lifecycle.read_private(state/'model-endpoint'),b'https://private.example/v1')
+        self.assertFalse((self.root/'home/.config/open-ontology/secrets/endpoint').exists())
+        self.assertEqual(lifecycle.read_private(
+            self.root/'home/.config/open-ontology/secrets/oo-lite-model-endpoint'),b'')
+        self.assertIn(b'oo-lite-model-endpoint',lifecycle.read_private(self.root/'work/stack.json'))
+        self.assertIn(b'read_only',lifecycle.read_private(self.root/'compose.yaml'))
         self.assertNotIn(b'private.example',lifecycle.read_private(self.root/'work/stack.json'))
         lifecycle.write(store/'endpoint',b'https://changed.example/v1')
-        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
+        with patch.object(lifecycle,'require_outside_git'), patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
             with self.assertRaisesRegex(ValueError,'LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION'):
                 lifecycle.main(self.request)
+
+    def test_file_model_sources_are_private_bound_and_not_imported(self):
+        home=self.root.parent/'home'
+        home.mkdir(mode=0o700)
+        source=home/'external'
+        lifecycle.write(source,b'synthetic-model-value')
+        stack={'model':{'key':{'secret_ref':'file:'+str(source)},
+                        'base_url':{'secret_ref':'file:'+str(source)}}}
+        # Synthetic data may live under this worktree for this unit test only.
+        with patch.object(lifecycle,'require_outside_git'), patch.object(
+                lifecycle.Path,'home',return_value=home):
+            result,mounts=lifecycle.model_sources(self.root,stack)
+            self.assertEqual(stack['model']['key']['secret_ref'],'file:'+str(source))
+            self.assertEqual(result['model']['key']['secret_ref'],'oo-lite-model-key')
+            self.assertEqual(len(mounts),2)
+            for mount in mounts:
+                dest=Path(mount['source'])
+                self.assertEqual(dest.stat().st_mode & 0o777,0o600)
+                self.assertEqual(dest.parent.stat().st_mode & 0o777,0o700)
+                self.assertTrue(mount['read_only'])
+                self.assertFalse(dest.is_relative_to(self.root))
+            self.assertNotIn('synthetic-model-value',json.dumps(result))
+            self.assertEqual(lifecycle.model_sources(self.root,stack),(result,mounts))
+            source.chmod(0o644)
+            with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+                lifecycle.model_sources(self.root,stack)
+            source.chmod(0o600)
+            link=home/'link'
+            link.symlink_to(source)
+            stack['model']['key']['secret_ref']='file:'+str(link)
+            with self.assertRaises(OSError):
+                lifecycle.model_sources(self.root,stack)
+
+    def test_model_state_rejects_git_worktrees_and_symlink_aliases(self):
+        with self.assertRaisesRegex(ValueError,'LITE_MODEL_STATE_IN_GIT'):
+            lifecycle.require_outside_git(self.root/'not-created')
+        alias=self.root.parent/'alias'
+        alias.symlink_to(self.root,target_is_directory=True)
+        with self.assertRaisesRegex(ValueError,'LITE_MODEL_STATE_IN_GIT'):
+            lifecycle.require_outside_git(alias/'not-created')
 
     def test_operator_bootstrap_is_reserved_idempotent_and_file_only(self):
         pki=self.root/'pki'
