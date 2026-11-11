@@ -334,6 +334,118 @@
     "summary_sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "budget",
+        "checked",
+        "remaining",
+        "unchecked"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "incomplete"
+          ]
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchecked": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "kind",
+              "from",
+              "to",
+              "from_columns",
+              "to_columns"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^relation/"
+              },
+              "kind": {
+                "enum": [
+                  "declared_fk",
+                  "inferred_id",
+                  "snapshot_name_mapping"
+                ]
+              },
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1
+              },
+              "from_columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "to_columns": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "complete"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "remaining": {
+                "const": 0
+              },
+              "unchecked": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "remaining": {
+                "minimum": 1
+              },
+              "unchecked": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema"

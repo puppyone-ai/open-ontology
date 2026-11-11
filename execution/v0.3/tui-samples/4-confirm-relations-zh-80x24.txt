@@ -1,5 +1,5 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────●━●━●━◉ 确认─○ ─╮
-│  图谱  │  关系  │  实体  │  决策                              摘要 3edff190… │
+│  图谱  │  关系  │  实体  │  决策                              摘要 d73614b6… │
 │                                                                              │
 │   订单     >─1 客户    经 orders.customer_id     ✓ 0.99                      │
 │   运单     >─1 订单    经 shipments.order_id     ✓ 0.98                      │
@@ -7,6 +7,7 @@
 │   运单     >─1 线路    经 shipments.route_id     ✓ 0.96                      │
 │ ▸ 运单     >┄1 仓库    经 shipments.origin_wh    ✗ containment 0.71 < 0.98   │
 │   线路     >─1 网点    经 routes.origin_station… ✓ 0.93                      │
+│   线路     >─1 网点    经 routes.dest_station_id ✓ 0.95                      │
 │   车辆     >─1 网点    经 vehicles.home_station… ✓ 0.95                      │
 │   司机     1─1 车辆    经 drivers.vehicle_id     ✓ 0.97                      │
 │   运单     >─1 司机    经 shipments.driver_id    ✓ 0.96                      │
@@ -16,9 +17,8 @@
 │   员工     >─1 员工    经 employees.manager_id   ✓ 0.95                      │
 │   员工     >─1 网点    经 employees.station_id   ✓ 0.97                      │
 │   网点     >─1 员工    经 stations.manager_id    ✓ 0.9                       │
-│   司机     1┄1 员工    经 drivers.employee_id    ✗ containment 0.64 < 0.9    │
-│                                                                              │
-│                                                                              │
-│                                                                              │
+│   司机     1┄1 员工    经 drivers.employee_id    ✗ distinct 0.52 < 0.9 (row… │
+│   订单     >┄< 线路    经 orders.route_code      ✗ scope valid_from require… │
+│   仓库     >┄1 网点    经 warehouses.station_co… ✗ 2 keys collide after tri… │
 │                                                                              │
 ╰ tab 视图  ↑↓ 选择  o 改判  ⏎ 确认发布  q 退出  ──────────────────────────────╯

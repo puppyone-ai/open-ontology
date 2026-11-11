@@ -51,14 +51,44 @@ struct Graph {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct Unchecked {
+    id: String,
+    kind: String,
+    from: String,
+    to: String,
+    from_columns: Vec<String>,
+    to_columns: Vec<String>,
+}
+
+/// Recall coverage. It is not hashed: the builder re-derives the unchecked set
+/// from the input's draft edges and the hashed graph, so it cannot be forged.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Discovery {
+    status: String,
+    budget: u64,
+    checked: u64,
+    remaining: u64,
+    unchecked: Vec<Unchecked>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Document {
     protocol: String,
     input_sha256: String,
     thresholds: BTreeMap<String, f64>,
     items: Vec<Item>,
+    #[serde(default)]
+    discovery: Option<Discovery>,
     graph: Graph,
     summary_sha256: String,
 }
+
+/// The one override key that is not an item: the owner's explicit acceptance
+/// of an incomplete relationship discovery.
+pub const DISCOVERY_OVERRIDE: &str = "discovery/relationships";
+const ACCEPT_INCOMPLETE: &str = "accept_incomplete";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -196,6 +226,30 @@ fn document(value: &Value) -> Result<Document, String> {
     if relations.len() != doc.items.iter().filter(|i| i.class == "relation").count() {
         return Err("adjudication_graph".into());
     }
+    if let Some(discovery) = &doc.discovery {
+        let mut unchecked = BTreeSet::new();
+        if !matches!(discovery.status.as_str(), "complete" | "incomplete")
+            || (discovery.status == "complete") != discovery.unchecked.is_empty()
+            || discovery.remaining != discovery.unchecked.len() as u64
+            || discovery.checked != relations.len() as u64
+            || discovery.unchecked.iter().any(|u| {
+                !unchecked.insert(&u.id)
+                    || relations.contains(&u.id)
+                    || !u.id.starts_with("relation/")
+                    || !matches!(
+                        u.kind.as_str(),
+                        "declared_fk" | "inferred_id" | "snapshot_name_mapping"
+                    )
+                    || u.from.is_empty()
+                    || u.to.is_empty()
+                    || u.from_columns.is_empty()
+                    || u.from_columns.len() != u.to_columns.len()
+            })
+        {
+            return Err("adjudication_discovery".into());
+        }
+        let _ = discovery.budget;
+    }
     Ok(doc)
 }
 
@@ -212,6 +266,18 @@ pub fn apply_adjudication_overrides(original: &Value, overrides: &Value) -> Resu
     }
     let mut output = original.clone();
     for (id, change) in changes.items {
+        if id == DISCOVERY_OVERRIDE {
+            if doc
+                .discovery
+                .as_ref()
+                .is_none_or(|d| d.status != "incomplete")
+                || change.decision != ACCEPT_INCOMPLETE
+                || change.reason.trim().is_empty()
+            {
+                return Err("adjudication_override_decision".into());
+            }
+            continue;
+        }
         let original_item = doc
             .items
             .iter()
@@ -219,6 +285,16 @@ pub fn apply_adjudication_overrides(original: &Value, overrides: &Value) -> Resu
             .ok_or("adjudication_override_unknown")?;
         if !allowed(&original_item.class, &change.decision) || change.reason.trim().is_empty() {
             return Err("adjudication_override_decision".into());
+        }
+        // Owner review cannot turn a fan-out JOIN into a many-to-one relationship.
+        if original_item.class == "relation"
+            && change.decision == "adopted"
+            && (original_item.evidence["parent_unique"] == json!(false)
+                || original_item.evidence["max_fanout"]
+                    .as_u64()
+                    .is_some_and(|n| n > 1))
+        {
+            return Err("adjudication_override_fanout".into());
         }
         let item = output["items"]
             .as_array_mut()
@@ -288,6 +364,46 @@ pub fn apply_adjudication_overrides(original: &Value, overrides: &Value) -> Resu
     output["summary_sha256"] = json!(adjudication_summary_sha256(&output));
     document(&output)?;
     Ok(output)
+}
+
+/// `<child>_<role>_<parent>` when an edge has a role, a stable hash otherwise.
+/// Both satisfy OOS `SourceName` (`^[a-z][a-z0-9_]{0,62}$`); roles are never merged.
+fn relationship_name(
+    child: &str,
+    role: Option<&str>,
+    parent: &str,
+    relation: &str,
+    taken: &BTreeSet<String>,
+) -> String {
+    let hashed = format!("r_{}", &payload_sha256(relation.as_bytes())[..60]);
+    let Some(role) = role else {
+        return hashed;
+    };
+    let slug = |s: &str| -> String {
+        let table = s.rsplit('.').next().unwrap_or(s).to_ascii_lowercase();
+        let mut out = String::new();
+        for c in table.chars() {
+            if c.is_ascii_alphanumeric() {
+                out.push(c);
+            } else if !out.ends_with('_') {
+                out.push('_');
+            }
+        }
+        out.trim_matches('_').to_owned()
+    };
+    let name = format!("{}_{}_{}", slug(child), slug(role), slug(parent));
+    let readable = name.len() <= 63
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && !name.contains("__")
+        && !taken.contains(&name);
+    if readable {
+        name
+    } else {
+        // Keep the role readable and the name unique within the bound.
+        let suffix = &payload_sha256(relation.as_bytes())[..8];
+        let stem: String = format!("r_{}", slug(role)).chars().take(63 - 9).collect();
+        format!("{}_{suffix}", stem.trim_end_matches('_'))
+    }
 }
 
 /// `adjudication_input` contains the exact reviewed-community file bytes as a
@@ -469,12 +585,45 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
         let _ = entity.rows;
     }
     let mut relationships = Vec::new();
+    let mut evidence_records = Vec::new();
+    let mut withheld = Vec::new();
     let draft_edges = input["draft"]["graph"]["edges"]
         .as_array()
         .ok_or("adjudication_draft")?;
-    if draft_edges.len() != doc.graph.edges.len() {
+    // Every draft edge is either measured (in the hashed graph) or listed as
+    // unchecked; a forged discovery object cannot hide a candidate.
+    let measured: BTreeSet<String> = doc.graph.edges.iter().map(|e| e.relation.clone()).collect();
+    let mut unchecked = BTreeSet::new();
+    for edge in draft_edges {
+        let id = format!(
+            "relation/{}",
+            edge["id"].as_str().ok_or("adjudication_draft")?
+        );
+        if !measured.contains(&id) && !unchecked.insert(id) {
+            return Err("adjudication_edge_coverage".into());
+        }
+    }
+    let listed: BTreeSet<String> = doc
+        .discovery
+        .iter()
+        .flat_map(|d| d.unchecked.iter().map(|u| u.id.clone()))
+        .collect();
+    if draft_edges.len() != measured.len() + unchecked.len() || listed != unchecked {
         return Err("adjudication_edge_coverage".into());
     }
+    if !unchecked.is_empty()
+        && envelope["overrides"]["items"][DISCOVERY_OVERRIDE]["decision"] != ACCEPT_INCOMPLETE
+    {
+        return Err("adjudication_discovery_incomplete".into());
+    }
+    let grain = |table: &str| -> Value {
+        doc.graph
+            .entities
+            .iter()
+            .find(|e| e.table == table)
+            .map_or_else(|| json!([]), |e| json!(e.key))
+    };
+    let mut names = BTreeSet::new();
     for edge in &doc.graph.edges {
         let item = doc
             .items
@@ -504,15 +653,88 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
         {
             return Err("adjudication_edge_binding".into());
         }
-        if edge.adopted {
-            relationships.push(json!({"name":id("r",&edge.relation),
-                "from":{"dataset":from.table,"columns":source["columns"]["from"]},
-                "to":{"dataset":to.table,"columns":source["columns"]["to"]},
-                "cardinality":edge.cardinality,"join_hint":"left",
-                "provenance":if source["provenance"]=="declared_fk" {"declared_fk"} else {"inferred"},
-                "confidence":item.scores["confidence"],"status":"active",
-                "review":{"state":"approved","by":"owner-confirmation","at":date}}));
+        let ev = &item.evidence;
+        let role = ev["role"].as_str().filter(|r| !r.is_empty());
+        let kind = ev["kind"]
+            .as_str()
+            .unwrap_or(if source["provenance"] == "declared_fk" {
+                "declared_fk"
+            } else {
+                "inferred_id"
+            });
+        if !edge.adopted {
+            if matches!(
+                item.rule_id.as_str(),
+                "relation.scope_required"
+                    | "relation.parent_not_unique"
+                    | "relation.normalized_collision"
+            ) {
+                withheld.push(json!({
+                    "from":{"dataset":from.table,"columns":source["columns"]["from"]},
+                    "to":{"dataset":to.table,"columns":source["columns"]["to"]},
+                    "kind":kind,"role":role,"rule":item.rule_id,
+                    "scope_columns":ev.get("scope_columns").cloned().unwrap_or_else(|| json!([])),
+                    "max_fanout":ev["max_fanout"],"parent_duplicate_keys":ev["parent_duplicate_keys"],
+                    "normalized_collisions":ev["normalized_collisions"]}));
+            }
+            continue;
         }
+        // A many-to-many or fan-out edge would multiply rows; never publish one.
+        if !matches!(edge.cardinality.as_str(), "many_to_one" | "one_to_one")
+            || ev["parent_unique"] == json!(false)
+            || ev["max_fanout"].as_u64().is_some_and(|n| n > 1)
+        {
+            return Err("adjudication_relation_fanout".into());
+        }
+        let rows = ev["containment"].as_f64();
+        let distinct = ev["distinct_containment"].as_f64();
+        let complete = rows == Some(1.0) && distinct == Some(1.0);
+        let join_hint = if complete { "inner" } else { "left" };
+        let name = relationship_name(&from.table, role, &to.table, &edge.relation, &names);
+        names.insert(name.clone());
+        let mut oos_evidence = serde_json::Map::new();
+        if let Some(r) = ev.get("containment").filter(|v| v.is_number()) {
+            oos_evidence.insert("containment".into(), r.clone());
+        }
+        if let Some(t) = ev.get("type_compatible").filter(|v| v.is_boolean()) {
+            oos_evidence.insert("type_compatible".into(), t.clone());
+        }
+        if let Some(j) = ev.get("join_cooccurrence").and_then(Value::as_u64) {
+            oos_evidence.insert("seen_in_query_log".into(), json!(j));
+        }
+        if let Some(n) = ev["name_similarity"].as_f64() {
+            let level = if n >= 1.0 {
+                "exact"
+            } else if n > 0.0 {
+                "partial"
+            } else {
+                "none"
+            };
+            oos_evidence.insert("name_match".into(), json!(level));
+        }
+        relationships.push(json!({"name":name,
+            "from":{"dataset":from.table,"columns":source["columns"]["from"]},
+            "to":{"dataset":to.table,"columns":source["columns"]["to"]},
+            "cardinality":edge.cardinality,"join_hint":join_hint,
+            "provenance":if kind == "declared_fk" {"declared_fk"} else {"inferred"},
+            "confidence":item.scores["confidence"],"status":"active",
+            "evidence":oos_evidence,
+            "review":{"state":"approved","by":"owner-confirmation","at":date}}));
+        let count = |k: &str| ev[k].as_u64().unwrap_or(0);
+        evidence_records.push(json!({"name":name,"kind":kind,"role":role,
+            "row_containment":rows.unwrap_or(0.0),
+            "distinct_containment":distinct.or(rows).unwrap_or(0.0),
+            "rows_checked":count("rows_checked"),"matched_rows":count("matched_rows"),
+            "unmatched_rows":count("unmatched_rows"),"empty_rows":count("empty_rows"),
+            "max_fanout":ev["max_fanout"].as_u64().unwrap_or(1),
+            "normalized_collisions":count("normalized_collisions"),
+            "join_hint":join_hint,"from_grain":grain(&from.table),"to_grain":grain(&to.table)}));
+    }
+    if !evidence_records.is_empty() || !withheld.is_empty() {
+        effective["relationship_evidence"] = json!({
+            "protocol":crate::RELATIONSHIP_EVIDENCE_PROTOCOL,
+            "adjudication_summary_sha256":doc.summary_sha256,
+            "relationships":evidence_records,"withheld":withheld});
     }
     effective["entities"] = json!(entities);
     effective["relationships"] = json!(relationships);
@@ -624,6 +846,235 @@ mod tests {
             apply_adjudication_overrides(&input["adjudication"], &input["overrides"]).unwrap();
         input["confirmation"]["summary_sha256"] = applied["summary_sha256"].clone();
         input["confirmation"]["overrides_sha256"] = json!(canonical_sha256(&input["overrides"]));
+    }
+
+    fn relations(variant: &str) -> Value {
+        let all: Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/adjudication_relations.json"
+        ))
+        .unwrap();
+        let mut input = all[variant].clone();
+        let summary = input["adjudication"]["summary_sha256"].clone();
+        let overrides = json!({"protocol":"oo.adjudication-override/v1",
+            "summary_sha256":summary,"items":{}});
+        input["confirmation"] = json!({"protocol":"oo.publish-confirm/v1",
+            "summary_sha256":summary,"overrides_sha256":canonical_sha256(&overrides),
+            "reason":"Confirm graph","confirmed_at":"2026-11-11T12:00:00Z"});
+        input["overrides"] = overrides;
+        input
+    }
+
+    fn pack_file(output: &Value, path: &str) -> Value {
+        let text = output["producer"]["artifact"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == path)
+            .unwrap_or_else(|| panic!("missing {path}"))["text"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        serde_json::from_str(&text).unwrap()
+    }
+
+    #[test]
+    fn relations_carry_evidence_roles_and_never_fan_out() {
+        let output = compile_confirmed_community(&relations("complete")).unwrap();
+        let relationships = output["effective"]["relationships"].as_array().unwrap();
+        let mut names: Vec<_> = relationships
+            .iter()
+            .map(|r| r["name"].as_str().unwrap())
+            .collect();
+        names.sort_unstable();
+        assert_eq!(
+            names,
+            [
+                "shipments_origin_region_regions",
+                "shipments_region_regions"
+            ]
+        );
+        let by = |name: &str| relationships.iter().find(|r| r["name"] == name).unwrap();
+        let records = output["effective"]["relationship_evidence"]["relationships"]
+            .as_array()
+            .unwrap();
+        let record = |name: &str| records.iter().find(|r| r["name"] == name).unwrap();
+        for r in relationships {
+            assert_ne!(r["cardinality"], "many_to_many");
+            assert!(r["evidence"]["containment"].is_number());
+            assert_eq!(r["evidence"]["type_compatible"], true);
+            assert!(r["evidence"]["seen_in_query_log"].is_u64());
+        }
+        // Inner only when row and distinct coverage are both complete.
+        assert_eq!(by("shipments_origin_region_regions")["join_hint"], "inner");
+        assert_eq!(by("shipments_region_regions")["join_hint"], "left");
+        let extension = &output["effective"]["relationship_evidence"];
+        assert_eq!(extension["protocol"], crate::RELATIONSHIP_EVIDENCE_PROTOCOL);
+        assert_eq!(extension["withheld"][0]["rule"], "relation.scope_required");
+        assert_eq!(
+            extension["withheld"][0]["scope_columns"],
+            json!(["valid_from"])
+        );
+        assert_eq!(
+            record("shipments_region_regions")["kind"],
+            "snapshot_name_mapping"
+        );
+        assert_eq!(record("shipments_region_regions")["unmatched_rows"], 5);
+        let paths = pack_file(&output, "relationships/query-paths.json");
+        let evidence_text = output["producer"]["artifact"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == "relationships/evidence.json")
+            .unwrap()["text"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            paths["evidence_sha256"],
+            crate::canonical::sha256_hex(evidence_text.as_bytes())
+        );
+        let first = &paths["paths"][0];
+        assert_eq!(first["start"], "app.shipments");
+        assert_eq!(first["start_grain"], json!(["id"]));
+        assert_eq!(first["role"], "origin_region");
+        assert_eq!(first["join"]["type"], "INNER JOIN");
+        let sql = first["sql"].as_str().unwrap();
+        assert!(
+            sql.contains("GROUP BY join_key_1") && sql.contains("LEFT JOIN \"app\".\"regions\"")
+        );
+        assert!(
+            paths["withheld"][0]["reason"]
+                .as_str()
+                .unwrap()
+                .contains("valid_from")
+        );
+    }
+
+    #[test]
+    fn hidden_columns_trim_relationships_and_evidence() {
+        let mut input = relations("complete");
+        let mut command: Value =
+            serde_json::from_str(input["adjudication_input"].as_str().unwrap()).unwrap();
+        for dataset in command["visibility"]["datasets"].as_array_mut().unwrap() {
+            if dataset["dataset"] == "app.shipments" {
+                dataset["columns"]
+                    .as_array_mut()
+                    .unwrap()
+                    .retain(|c| c != "region_name");
+            }
+            if dataset["dataset"] == "app.regions" {
+                dataset["columns"]
+                    .as_array_mut()
+                    .unwrap()
+                    .retain(|c| c != "valid_from");
+            }
+        }
+        let raw = command.to_string();
+        input["adjudication_input"] = json!(raw);
+        input["adjudication"]["input_sha256"] = json!(payload_sha256(raw.as_bytes()));
+        let output = compile_confirmed_community(&input).unwrap();
+        let files = output["producer"]["artifact"]["files"].as_array().unwrap();
+        for file in files.iter().filter(|f| {
+            f["path"]
+                .as_str()
+                .is_some_and(|p| p.starts_with("relationships/"))
+        }) {
+            let text = file["text"].as_str().unwrap();
+            assert!(
+                !text.contains("region_name") && !text.contains("valid_from"),
+                "{}",
+                file["path"]
+            );
+        }
+        assert_eq!(
+            pack_file(&output, "relationships/query-paths.json")["withheld"],
+            json!([])
+        );
+    }
+
+    #[test]
+    fn incomplete_discovery_needs_the_owner_acceptance_override() {
+        let mut input = relations("incomplete");
+        assert_eq!(
+            compile_confirmed_community(&input).unwrap_err(),
+            "adjudication_discovery_incomplete"
+        );
+        input["overrides"]["items"][DISCOVERY_OVERRIDE] = json!({"decision":"accept_incomplete","reason":"Budget reached; publish checked edges."});
+        confirm(&mut input);
+        assert!(compile_confirmed_community(&input).is_ok());
+        // The unchecked list is re-derived from the bound input; hiding one fails.
+        let mut forged = input.clone();
+        forged["adjudication"]["discovery"]["unchecked"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+        let remaining = forged["adjudication"]["discovery"]["unchecked"]
+            .as_array()
+            .unwrap()
+            .len();
+        forged["adjudication"]["discovery"]["remaining"] = json!(remaining);
+        if remaining == 0 {
+            forged["adjudication"]["discovery"]["status"] = json!("complete");
+        }
+        assert!(compile_confirmed_community(&forged).is_err());
+        // Accepting a complete discovery is not a valid override.
+        let mut complete = relations("complete");
+        complete["overrides"]["items"][DISCOVERY_OVERRIDE] =
+            json!({"decision":"accept_incomplete","reason":"No."});
+        assert_eq!(
+            apply_adjudication_overrides(&complete["adjudication"], &complete["overrides"])
+                .unwrap_err(),
+            "adjudication_override_decision"
+        );
+    }
+
+    #[test]
+    fn owner_cannot_adopt_a_fan_out_join() {
+        let mut input = relations("complete");
+        let scoped = input["adjudication"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["rule_id"] == "relation.scope_required")
+            .unwrap()["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        input["overrides"]["items"][scoped] = json!({"decision":"adopted","reason":"Looks fine."});
+        assert_eq!(
+            apply_adjudication_overrides(&input["adjudication"], &input["overrides"]).unwrap_err(),
+            "adjudication_override_fanout"
+        );
+    }
+
+    #[test]
+    fn relationship_names_are_source_names_and_roles_stay_apart() {
+        let taken = BTreeSet::new();
+        assert_eq!(
+            relationship_name(
+                "app.orders",
+                Some("ship_wh"),
+                "app.warehouses",
+                "relation/a",
+                &taken
+            ),
+            "orders_ship_wh_warehouses"
+        );
+        assert!(
+            relationship_name("app.orders", None, "app.w", "relation/a", &taken).starts_with("r_")
+        );
+        let long = relationship_name(&"x".repeat(60), Some("role"), "app.w", "relation/a", &taken);
+        assert!(long.len() <= 63 && long.starts_with("r_role_"));
+        let mut taken = BTreeSet::new();
+        taken.insert("orders_ship_wh_warehouses".to_owned());
+        let other = relationship_name(
+            "app.orders",
+            Some("ship_wh"),
+            "app.warehouses",
+            "relation/b",
+            &taken,
+        );
+        assert_ne!(other, "orders_ship_wh_warehouses");
     }
 
     #[test]

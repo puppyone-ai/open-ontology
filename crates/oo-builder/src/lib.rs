@@ -68,8 +68,8 @@ pub use reviewed_effective::{
     ReviewedEffectiveError, compile_reviewed_effective, compile_reviewed_sealed_import,
 };
 pub use role_pack::{
-    RolePack, RolePackCeilings, RolePackError, compile_role_pack, compile_role_pack_with_ceilings,
-    normalize_pack_path,
+    RELATIONSHIP_EVIDENCE_PROTOCOL, RolePack, RolePackCeilings, RolePackError, compile_role_pack,
+    compile_role_pack_with_ceilings, normalize_pack_path,
 };
 pub use role_pack_cli::{
     RolePackCommandError, compile_role_pack_command, compile_role_pack_command_with_ceilings,

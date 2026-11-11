@@ -9,7 +9,8 @@ use serde_json::Value;
 
 use super::{Action, blit, input, modal, put};
 use crate::tui::adjudication::{
-    self, Adjudication, Item, Override, Overrides, evidence_line, flip, magnitude, number,
+    self, ACCEPT_INCOMPLETE, Adjudication, DISCOVERY_OVERRIDE, Item, Override, Overrides,
+    evidence_line, flip, magnitude, number,
 };
 use crate::tui::fx;
 #[cfg(test)]
@@ -34,6 +35,11 @@ pub enum Modal {
         error: Option<String>,
     },
     Confirm {
+        reason: String,
+        error: Option<String>,
+    },
+    /// Explicit acceptance of an incomplete relationship discovery.
+    AcceptIncomplete {
         reason: String,
         error: Option<String>,
     },
@@ -127,13 +133,39 @@ impl Confirm {
         if let Some(item) = self.effective.items.iter().find(|i| i.id == id)
             && let Some(to) = flip(&item.class, &item.decision)
         {
+            // A fan-out JOIN cannot be adopted; say why up front.
+            let error = (to == "adopted" && adjudication::fans_out(item)).then(|| fanout_why(item));
             self.modal = Some(Modal::Override {
                 item: id.into(),
                 to: to.into(),
                 reason: String::new(),
-                error: None,
+                error,
             });
         }
+    }
+
+    /// Relations left unchecked by an incomplete discovery, if any.
+    pub fn unchecked(&self) -> Option<usize> {
+        self.base.unchecked_relations()
+    }
+
+    /// Incomplete discovery that the owner has not accepted yet.
+    pub fn needs_acceptance(&self) -> bool {
+        self.unchecked().is_some() && !self.overrides.accepts_incomplete()
+    }
+
+    fn accept_incomplete(&mut self, reason: &str) -> Result<(), &'static str> {
+        let mut next = self.overrides.clone();
+        next.items.insert(
+            DISCOVERY_OVERRIDE.into(),
+            Override {
+                decision: ACCEPT_INCOMPLETE.into(),
+                reason: reason.trim().into(),
+            },
+        );
+        self.effective = adjudication::apply(&self.base, &next)?;
+        self.overrides = next;
+        Ok(())
     }
 
     fn apply_override(&mut self, id: &str, to: &str, reason: &str) -> Result<(), &'static str> {
@@ -158,6 +190,55 @@ impl Confirm {
         self.effective = adjudication::apply(&self.base, &next)?;
         self.overrides = next;
         Ok(())
+    }
+}
+
+/// Why a relation cannot be adopted: a JOIN on it would multiply rows.
+fn fanout_why(item: &Item) -> String {
+    let scope = adjudication::scope_columns(item);
+    let fanout = item
+        .evidence
+        .get("max_fanout")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let mut why = String::from("parent key repeats");
+    if fanout > 1 {
+        why.push_str(&format!(" (fan-out ×{fanout})"));
+    }
+    if scope.is_empty() {
+        why.push_str("; a JOIN would multiply rows");
+    } else {
+        why.push_str(&format!("; filter on {} first", scope.join(", ")));
+    }
+    why
+}
+
+/// Error text for a modal, in the interface language.
+fn error_text(e: &str, theme: &Theme) -> String {
+    if !theme.zh {
+        return e.to_owned();
+    }
+    if let Some(rest) = e.strip_prefix("parent key repeats") {
+        let fanout = rest
+            .split_once("×")
+            .and_then(|(_, t)| t.split(')').next())
+            .map(|n| format!("（扇出 ×{n}）"))
+            .unwrap_or_default();
+        return match rest.split_once("filter on ") {
+            Some((_, cols)) => format!(
+                "父键重复{fanout}；先按 {} 过滤",
+                cols.trim_end_matches(" first")
+            ),
+            None => format!("父键重复{fanout}；JOIN 会让行数翻倍"),
+        };
+    }
+    match e {
+        "showing a column the product hid needs a reason" => "显示被隐藏的列需要理由".into(),
+        "a short reason is required" => "需要一句简短的理由".into(),
+        "relationship discovery is incomplete; accept it first (a)" => {
+            "关系发现未完成，请先接受（a）".into()
+        }
+        other => other.to_owned(),
     }
 }
 
@@ -227,24 +308,42 @@ fn class_word(class: &str, theme: &Theme) -> &'static str {
 
 /// The reason in the interface language: Chinese copy per rule, else the
 /// adjudicator's own sentence.
-fn reason_text<'a>(item: &'a Item, theme: &Theme) -> &'a str {
+fn reason_text(item: &Item, theme: &Theme) -> String {
     if !theme.zh {
-        return &item.reason;
+        return item.reason.clone();
+    }
+    if item.rule_id == "relation.scope_required" {
+        let scope = adjudication::scope_columns(item);
+        return format!(
+            "父键重复，按 {} 过滤后才唯一；请先过滤父表",
+            scope.join("、")
+        );
     }
     match item.rule_id.as_str() {
         "relation.declared_fk" => "声明了外键，数据也吻合",
         "relation.containment_strict" => "包含度达标，父键唯一",
         "relation.containment_with_signal" => "包含度达标，且有命名和 JOIN 证据",
         "relation.containment_insufficient" => "包含度不足，未采纳",
+        "relation.containment_signal" => "包含度达标，且有命名、JOIN 或外键证据",
+        "relation.insufficient" => "证据不足，未采纳",
+        "relation.parent_not_unique" => "父键重复，JOIN 会让子表行数翻倍",
+        "relation.normalized_collision" => "去空格、忽略大小写后父键冲突，匹配有歧义",
+        "relation.no_signal" => "值能对上，但没有命名、声明或查询把这两列联系起来",
         "sensitive.format_phone" => "大部分值符合电话号码格式",
         "sensitive.format_national_id" => "值符合身份证件格式",
         "sensitive.name_only_refuted" => "只是名字像个人信息，值不符合",
         "metric.reconciled" => "对账检查全部通过",
         "metric.unit_mismatch" => "单位混用，降级为示例查询",
         "entity_key.unique_non_null" => "唯一且不为空",
+        "entity_key.declared_pk" => "声明的主键，唯一且不为空",
+        "entity_key.declared_unique" => "声明的唯一键，唯一且不为空",
+        "entity_key.observed_unique" => "实测唯一且不为空",
+        "entity_key.no_candidate" => "没有可用的主键候选",
+        "entity_key.dataset" => "候选键都不唯一，按整表处理",
         "code_table.coverage" => "代码值基本都在代码表里",
         _ => &item.reason,
     }
+    .to_owned()
 }
 
 fn decision_glyph(decision: &str) -> (&'static str, Tone) {
@@ -279,9 +378,26 @@ pub fn key(state: &mut Confirm, key: KeyEvent) -> Action {
         KeyCode::Char('r' | 't' | '2') => state.tab = Tab::Relations,
         KeyCode::Char('e' | '3') => state.tab = Tab::Entity,
         KeyCode::Char('d' | '4') if !state.wide() => state.tab = Tab::Decisions,
+        KeyCode::Enter if state.needs_acceptance() => {
+            state.modal = Some(Modal::AcceptIncomplete {
+                reason: String::new(),
+                error: None,
+            })
+        }
         KeyCode::Enter => {
             state.modal = Some(Modal::Confirm {
                 reason: String::new(),
+                error: None,
+            })
+        }
+        KeyCode::Char('a') if state.unchecked().is_some() => {
+            state.modal = Some(Modal::AcceptIncomplete {
+                reason: state
+                    .overrides
+                    .items
+                    .get(DISCOVERY_OVERRIDE)
+                    .map(|o| o.reason.clone())
+                    .unwrap_or_default(),
                 error: None,
             })
         }
@@ -392,15 +508,23 @@ fn modal_key(state: &mut Confirm, m: Modal, key: KeyEvent) -> Action {
             KeyCode::Enter => match state.apply_override(&item, &to, &reason) {
                 Ok(()) => state.modal = None,
                 Err(e) => {
+                    let error = match e {
+                        "OVERRIDE_REASON_REQUIRED" => {
+                            "showing a column the product hid needs a reason".into()
+                        }
+                        "OVERRIDE_FANOUT" => state
+                            .base
+                            .items
+                            .iter()
+                            .find(|i| i.id == item)
+                            .map_or_else(|| e.into(), fanout_why),
+                        _ => e.into(),
+                    };
                     state.modal = Some(Modal::Override {
                         item,
                         to,
                         reason,
-                        error: Some(if e == "OVERRIDE_REASON_REQUIRED" {
-                            "showing a column the product hid needs a reason".into()
-                        } else {
-                            e.into()
-                        }),
+                        error: Some(error),
                     })
                 }
             },
@@ -433,10 +557,13 @@ fn modal_key(state: &mut Confirm, m: Modal, key: KeyEvent) -> Action {
                     Err(e) => {
                         state.modal = Some(Modal::Confirm {
                             reason,
-                            error: Some(if e == "CONFIRM_REASON_REQUIRED" {
-                                "a short reason is required".into()
-                            } else {
-                                e.into()
+                            error: Some(match e {
+                                "CONFIRM_REASON_REQUIRED" => "a short reason is required".into(),
+                                "CONFIRM_DISCOVERY_INCOMPLETE" => {
+                                    "relationship discovery is incomplete; accept it first (a)"
+                                        .into()
+                                }
+                                _ => e.into(),
                             }),
                         })
                     }
@@ -445,6 +572,29 @@ fn modal_key(state: &mut Confirm, m: Modal, key: KeyEvent) -> Action {
             _ => {
                 typed(&mut reason);
                 state.modal = Some(Modal::Confirm {
+                    reason,
+                    error: None,
+                });
+            }
+        },
+        Modal::AcceptIncomplete { mut reason, .. } => match key.code {
+            KeyCode::Esc => state.modal = None,
+            KeyCode::Enter => match state.accept_incomplete(&reason) {
+                Ok(()) => state.modal = None,
+                Err(e) => {
+                    state.modal = Some(Modal::AcceptIncomplete {
+                        reason,
+                        error: Some(if e == "OVERRIDE_REASON_REQUIRED" {
+                            "a short reason is required".into()
+                        } else {
+                            e.into()
+                        }),
+                    })
+                }
+            },
+            _ => {
+                typed(&mut reason);
+                state.modal = Some(Modal::AcceptIncomplete {
                     reason,
                     error: None,
                 });
@@ -483,6 +633,9 @@ pub fn hints(state: &Confirm) -> Vec<Hint> {
         h.push(("j/k", "decisions", "决策"));
     }
     h.push(("o", "override", "改判"));
+    if state.unchecked().is_some() {
+        h.push(("a", "accept incomplete", "接受未查完"));
+    }
     h.push(("⏎", "confirm publish", "确认发布"));
     h.push(("q", "quit", "退出"));
     h
@@ -521,7 +674,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
             spans.push(theme.span(format!(" {name} "), Tone::Dim));
         }
     }
-    let changes = state.overrides.items.len();
+    let changes = state.overrides.decision_count();
     let short = &state.effective.summary_sha256[..8.min(state.effective.summary_sha256.len())];
     let tail = format!(
         "{} {short}…{}",
@@ -544,6 +697,15 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
         },
     ));
     put(buf, inner.x, inner.y, main_w, spans);
+    if let Some(n) = state.unchecked() {
+        put(
+            buf,
+            inner.x,
+            inner.y + 1,
+            main_w,
+            discovery_banner(n, state.overrides.accepts_incomplete(), theme),
+        );
+    }
     let body = Rect::new(inner.x, inner.y + 2, main_w, inner.height - 2);
     match state.tab {
         Tab::Graph => render_graph(state, body, buf, theme),
@@ -605,7 +767,7 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.y + 3,
                     inner.width,
                     vec![theme.span(
-                        fit(reason_text(it, theme), usize::from(inner.width)),
+                        fit(&reason_text(it, theme), usize::from(inner.width)),
                         Tone::Faint,
                     )],
                 );
@@ -632,7 +794,13 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.x,
                     inner.y + 6,
                     inner.width,
-                    vec![theme.span(format!("✗ {e}"), Tone::Bad)],
+                    vec![theme.span(
+                        fit(
+                            &format!("✗ {}", error_text(e, theme)),
+                            usize::from(inner.width),
+                        ),
+                        Tone::Bad,
+                    )],
                 );
             }
             put(
@@ -707,19 +875,44 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                             "隐藏 {} 列 · 降级 {} 个指标 · 改判 {} 项",
                             c["hidden_columns"],
                             c["demoted_metrics"],
-                            state.overrides.items.len()
+                            state.overrides.decision_count()
                         )
                     } else {
                         format!(
                             "{} hidden columns · {} demoted metrics · {} override(s)",
                             c["hidden_columns"],
                             c["demoted_metrics"],
-                            state.overrides.items.len()
+                            state.overrides.decision_count()
                         )
                     },
                     Tone::Ink,
                 )],
             );
+            if let Some(n) = state.unchecked() {
+                let accepted = state.overrides.accepts_incomplete();
+                put(
+                    buf,
+                    inner.x,
+                    inner.y + 3,
+                    inner.width,
+                    vec![theme.span(
+                        fit(
+                            &match (accepted, theme.zh) {
+                                (true, false) => {
+                                    format!("incomplete: {n} relations not checked · accepted")
+                                }
+                                (true, true) => format!("未查完：{n} 条关系未检查 · 已接受"),
+                                (false, false) => {
+                                    format!("incomplete: {n} relations not checked · press a")
+                                }
+                                (false, true) => format!("未查完：{n} 条关系未检查 · 按 a 接受"),
+                            },
+                            usize::from(inner.width),
+                        ),
+                        if accepted { Tone::Warn } else { Tone::Bad },
+                    )],
+                );
+            }
             put(
                 buf,
                 inner.x,
@@ -758,7 +951,13 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     inner.x,
                     inner.y + 7,
                     inner.width,
-                    vec![theme.span(format!("✗ {e}"), Tone::Bad)],
+                    vec![theme.span(
+                        fit(
+                            &format!("✗ {}", error_text(e, theme)),
+                            usize::from(inner.width),
+                        ),
+                        Tone::Bad,
+                    )],
                 );
             }
             put(
@@ -777,7 +976,136 @@ pub fn render(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                 ],
             );
         }
+        Some(Modal::AcceptIncomplete { reason, error }) => {
+            let n = state.unchecked().unwrap_or(0);
+            let inner = modal(
+                buf,
+                area,
+                theme,
+                theme.t("accept incomplete discovery", "接受未查完的关系发现"),
+                66,
+                12,
+            );
+            let lines = if theme.zh {
+                vec![
+                    format!("还有 {n} 条候选关系没有检查（预算用完）。"),
+                    "未检查的关系不会进入图谱；之后可以续查。".to_owned(),
+                    "接受后才能确认发布，理由会写进改判记录。".to_owned(),
+                ]
+            } else {
+                vec![
+                    format!("{n} candidate relations were not checked (budget spent)."),
+                    "Unchecked relations stay out of the graph; resume later.".to_owned(),
+                    "Publishing needs this acceptance; the reason is recorded.".to_owned(),
+                ]
+            };
+            for (k, line) in lines.iter().enumerate() {
+                put(
+                    buf,
+                    inner.x,
+                    inner.y + k as u16,
+                    inner.width,
+                    vec![theme.span(
+                        fit(line, usize::from(inner.width)),
+                        if k == 0 { Tone::Ink } else { Tone::Faint },
+                    )],
+                );
+            }
+            if let Some(d) = &state.base.discovery
+                && let Some(u) = d.unchecked.first()
+            {
+                let first = format!(
+                    "{}.{} → {}.{}",
+                    u.from,
+                    u.from_columns.join(","),
+                    u.to,
+                    u.to_columns.join(",")
+                );
+                let text = match (d.unchecked.len() - 1, theme.zh) {
+                    (0, _) => first,
+                    (m, false) => format!("{first} · +{m} more"),
+                    (m, true) => format!("{first} · 另 {m} 条"),
+                };
+                put(
+                    buf,
+                    inner.x,
+                    inner.y + 4,
+                    inner.width,
+                    vec![theme.span(fit(&text, usize::from(inner.width)), Tone::Dim)],
+                );
+            }
+            put(
+                buf,
+                inner.x,
+                inner.y + 6,
+                8,
+                vec![theme.span(theme.t("reason", "理由"), Tone::Dim)],
+            );
+            input(
+                buf,
+                inner.x + 7,
+                inner.y + 6,
+                inner.width - 7,
+                theme,
+                reason,
+                true,
+            );
+            if let Some(e) = error {
+                put(
+                    buf,
+                    inner.x,
+                    inner.y + 7,
+                    inner.width,
+                    vec![theme.span(
+                        fit(
+                            &format!("✗ {}", error_text(e, theme)),
+                            usize::from(inner.width),
+                        ),
+                        Tone::Bad,
+                    )],
+                );
+            }
+            put(
+                buf,
+                inner.x,
+                inner.y + 9,
+                inner.width,
+                vec![
+                    theme.span("⏎", Tone::Accent),
+                    theme.span(theme.t(" accept   ", " 接受   "), Tone::Dim),
+                    theme.span("esc", Tone::Accent),
+                    theme.span(theme.t(" back", " 返回"), Tone::Dim),
+                ],
+            );
+        }
         None => (),
+    }
+}
+
+/// The incomplete-discovery line under the tab bar.
+fn discovery_banner(n: usize, accepted: bool, theme: &Theme) -> Vec<Span<'static>> {
+    let head = if theme.zh {
+        format!("未查完：{n} 条关系未检查")
+    } else {
+        format!("incomplete: {n} relations not checked")
+    };
+    if accepted {
+        vec![
+            theme.span("✓ ", Tone::Ok),
+            theme.span(head, Tone::Warn),
+            theme.span(theme.t(" · accepted", " · 已接受"), Tone::Dim),
+        ]
+    } else {
+        vec![
+            theme.span("⚠ ", Tone::Bad),
+            theme.span(head, Tone::Bad),
+            theme.span(" · ", Tone::Faint),
+            theme.span("a", Tone::Accent),
+            theme.span(
+                theme.t(" accept before publishing", " 接受后才能发布"),
+                Tone::Dim,
+            ),
+        ]
     }
 }
 
@@ -1074,7 +1402,7 @@ fn render_entity(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
                     theme.span(theme::pad(&subject(adj, item), 22), Tone::Ink),
                     theme.span(
                         fit(
-                            reason_text(item, theme),
+                            &reason_text(item, theme),
                             usize::from(area.width).saturating_sub(40),
                         ),
                         Tone::Faint,
@@ -1148,12 +1476,18 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         let mut used = 0usize;
         let containment = item.evidence.get("containment").and_then(Value::as_f64);
         if let Some(c) = containment {
-            let need = needed_containment(item, &state.effective);
+            let need = adjudication::needed_coverage(item, &state.effective.thresholds);
+            // Passing needs both row and distinct coverage over the threshold.
+            let low = item
+                .evidence
+                .get("distinct_containment")
+                .and_then(Value::as_f64)
+                .map_or(c, |d| d.min(c));
             let cols = 10;
             ev.push(theme.span(theme.t("contain ", "包含 "), Tone::Faint));
             ev.push(theme.span("▕", Tone::Faint));
             for (ch, filled) in fx::evidence_bar(c, need, cols) {
-                let tone = match (filled, c >= need) {
+                let tone = match (filled, low >= need) {
                     (true, true) => Tone::Ok,
                     (true, false) => Tone::Bad,
                     (false, _) if ch == '┊' => Tone::Ink,
@@ -1162,14 +1496,14 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
                 ev.push(theme.span(ch.to_string(), tone));
             }
             ev.push(theme.span("▏", Tone::Faint));
-            let cmp = if c >= need { "≥" } else { "<" };
+            let cmp = if low >= need { "≥" } else { "<" };
             let txt = format!(
                 " {}{cmp}{}  ",
                 number(&serde_json::json!(c)),
                 number(&serde_json::json!(need))
             );
             used += width(theme.t("contain ", "包含 ")) + cols + 2 + width(&txt);
-            ev.push(theme.span(txt, if c >= need { Tone::Dim } else { Tone::Bad }));
+            ev.push(theme.span(txt, if low >= need { Tone::Dim } else { Tone::Bad }));
         }
         let words = if item.decision == "rejected" && containment.is_none() {
             adjudication::missing_evidence(item, &state.effective.thresholds)
@@ -1180,7 +1514,7 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         };
         ev.push(theme.span(
             fit(
-                &localise_evidence(&words, theme),
+                &localise_evidence(&words, theme, item.class == "relation"),
                 w.saturating_sub(4 + used),
             ),
             Tone::Faint,
@@ -1193,24 +1527,11 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
                 y + 2,
                 area.width.saturating_sub(4),
                 vec![theme.span(
-                    fit(reason_text(item, theme), w.saturating_sub(4)),
+                    fit(&reason_text(item, theme), w.saturating_sub(4)),
                     Tone::Faint,
                 )],
             );
         }
-    }
-}
-
-/// The containment threshold that applied to a relation item.
-fn needed_containment(item: &Item, adj: &Adjudication) -> f64 {
-    let get = |k: &str| item.evidence.get(k).and_then(Value::as_f64);
-    let th = |k: &str, d: f64| adj.thresholds.get(k).and_then(Value::as_f64).unwrap_or(d);
-    let signal = get("name_similarity").is_some_and(|s| s >= 0.5)
-        || get("join_cooccurrence").is_some_and(|j| j > 0.0);
-    if signal {
-        th("relation_containment_with_signal", 0.9)
-    } else {
-        th("relation_containment_strict", 0.98)
     }
 }
 
@@ -1223,11 +1544,14 @@ fn evidence_rest(item: &Item) -> String {
 
 /// Evidence words in the interface language: each `·`-separated part keeps
 /// its figures, its English name is swapped for the Chinese one.
-fn localise_evidence(words: &str, theme: &Theme) -> String {
+fn localise_evidence(words: &str, theme: &Theme, relation: bool) -> String {
     if !theme.zh {
         return words.to_owned();
     }
-    const NAMES: [(&str, &str); 20] = [
+    // Relation coverage reads as coverage, not as a column's distinct ratio.
+    const RELATION: &[(&str, &str)] = &[("distinct", "去重覆盖"), ("rows", "行覆盖")];
+    // Longer names first: a part matches by `name ` prefix or ` name` suffix.
+    const NAMES: &[(&str, &str)] = &[
         ("parent not unique", "父键不唯一"),
         ("parent unique", "父键唯一"),
         ("many-to-one", "多对一"),
@@ -1236,11 +1560,24 @@ fn localise_evidence(words: &str, theme: &Theme) -> String {
         ("many-to-many", "多对多"),
         ("format hits", "格式命中"),
         ("name hit", "名称命中"),
+        ("name mapping", "名称映射"),
         ("recompute match", "重算一致"),
         ("unit consistent", "单位一致"),
         ("window stable", "窗口稳定"),
         ("non empty", "非空"),
         ("non-null", "非空率"),
+        ("declared fk", "声明外键"),
+        ("declared pk", "声明主键"),
+        ("declared unique", "声明唯一"),
+        ("observed unique", "实测唯一"),
+        ("inferred id", "推断 ID"),
+        ("discovered", "开放发现"),
+        ("scoped", "需限定范围"),
+        ("scope", "限定"),
+        ("fan-out", "扇出"),
+        ("unmatched", "未匹配"),
+        ("collisions", "处冲突"),
+        ("as", "角色"),
         ("distinct", "区分度"),
         ("containment", "包含度"),
         ("joins", "JOIN 共现"),
@@ -1249,12 +1586,16 @@ fn localise_evidence(words: &str, theme: &Theme) -> String {
         ("parent", "父键"),
         ("not adopted", "未采纳"),
     ];
+    let first: &[(&str, &str)] = if relation { RELATION } else { &[] };
     words
         .split(" · ")
         .map(|part| {
-            for (en, zh) in NAMES {
-                if let Some(rest) = part.strip_prefix(en) {
-                    return format!("{zh}{rest}");
+            for (en, zh) in first.iter().chain(NAMES) {
+                if part == *en {
+                    return (*zh).to_owned();
+                }
+                if let Some(rest) = part.strip_prefix(&format!("{en} ")) {
+                    return format!("{zh} {rest}");
                 }
                 if let Some(head) = part.strip_suffix(&format!(" {en}")) {
                     return format!("{head} {zh}");
@@ -1420,6 +1761,153 @@ pub(crate) mod tests {
             24,
             Theme::MONO.zh(),
             |area, buf, theme| render(&dec, area, buf, theme),
+        );
+        let mut open = Confirm::new(adjudication::tests::incomplete(), "2026-11-09T00:00:00Z");
+        open.tab = Tab::Decisions;
+        open.width = 80;
+        for theme in [Theme::MONO, Theme::MONO.zh()] {
+            snapshot::check("4-confirm-incomplete", 80, 24, theme, |area, buf, theme| {
+                render(&open, area, buf, theme)
+            });
+        }
+        let mut accept = open.clone();
+        accept.modal = Some(Modal::AcceptIncomplete {
+            reason: "budget spent; resume next week".into(),
+            error: None,
+        });
+        for theme in [Theme::MONO, Theme::MONO.zh()] {
+            snapshot::check(
+                "4-confirm-accept-incomplete",
+                80,
+                24,
+                theme,
+                |area, buf, theme| render(&accept, area, buf, theme),
+            );
+        }
+    }
+
+    #[test]
+    fn incomplete_discovery_must_be_accepted_before_confirming() {
+        let mut s = Confirm::new(adjudication::tests::incomplete(), "2026-11-09T00:00:00Z");
+        s.width = 80;
+        assert!(s.needs_acceptance());
+        assert!(hints(&s).iter().any(|h| h.0 == "a"));
+        let text = |s: &Confirm, theme: &Theme| {
+            let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+            render(s, buf.area, &mut buf, theme);
+            super::super::buffer_text(&buf)
+        };
+        let shown = text(&s, &Theme::MONO);
+        assert!(
+            shown.contains("⚠ incomplete: 2 relations not checked · a accept before publishing"),
+            "{shown}"
+        );
+        assert!(text(&s, &Theme::MONO.zh()).contains("未查完：2 条关系未检查"));
+        // Enter goes to the acceptance step, not the confirmation.
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(matches!(s.modal, Some(Modal::AcceptIncomplete { .. })));
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(matches!(
+            s.modal,
+            Some(Modal::AcceptIncomplete { error: Some(_), .. })
+        ));
+        assert!(s.needs_acceptance(), "empty reason refused");
+        typed(&mut s, "budget spent; resume next week");
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(s.modal.is_none());
+        assert!(!s.needs_acceptance());
+        assert_eq!(
+            s.overrides.items[DISCOVERY_OVERRIDE].decision,
+            ACCEPT_INCOMPLETE
+        );
+        assert_eq!(s.effective.summary_sha256, s.base.summary_sha256);
+        assert!(
+            text(&s, &Theme::MONO).contains("✓ incomplete: 2 relations not checked · accepted")
+        );
+        // No item override was made, so the tab bar shows none.
+        assert!(!text(&s, &Theme::MONO).contains("override(s)"));
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(matches!(s.modal, Some(Modal::Confirm { .. })));
+        typed(&mut s, "first publish");
+        assert_eq!(press(&mut s, &[KeyCode::Enter]), Action::Next);
+        let doc = s.confirmed.unwrap();
+        assert_eq!(
+            doc["summary_sha256"],
+            serde_json::json!(s.base.summary_sha256)
+        );
+        assert_eq!(
+            doc["overrides_sha256"],
+            serde_json::json!(adjudication::overrides_sha256(&s.overrides))
+        );
+        // A complete discovery shows no banner and needs no acceptance.
+        let done = Confirm::new(fixture(), "t");
+        assert!(!done.needs_acceptance());
+        assert!(!text(&done, &Theme::MONO).contains("incomplete:"));
+    }
+
+    #[test]
+    fn fan_out_relation_cannot_be_flipped_and_says_why() {
+        let mut s = Confirm::new(fixture(), "t");
+        s.tab = Tab::Relations;
+        s.relation = s
+            .effective
+            .graph
+            .edges
+            .iter()
+            .position(|e| e.relation == "relation/orders.route_code")
+            .unwrap();
+        press(&mut s, &[KeyCode::Char('o')]);
+        let Some(Modal::Override {
+            error: Some(why), ..
+        }) = &s.modal
+        else {
+            panic!("fan-out flip must show why: {:?}", s.modal);
+        };
+        assert_eq!(
+            why,
+            "parent key repeats (fan-out ×3); filter on valid_from first"
+        );
+        assert_eq!(
+            error_text(why, &Theme::MONO.zh()),
+            "父键重复（扇出 ×3）；先按 valid_from 过滤"
+        );
+        typed(&mut s, "trust me");
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(s.overrides.items.is_empty(), "flip refused");
+        assert!(matches!(
+            s.modal,
+            Some(Modal::Override { error: Some(_), .. })
+        ));
+    }
+
+    #[test]
+    fn decisions_localise_relation_coverage() {
+        let words = "rows 0.71 · distinct 0.75 · 284k unmatched · fan-out ×3 · scope valid_from · as dest_station · 2 collisions";
+        assert_eq!(
+            localise_evidence(words, &Theme::MONO.zh(), true),
+            "行覆盖 0.71 · 去重覆盖 0.75 · 284k 未匹配 · 扇出 ×3 · 限定 valid_from · 角色 dest_station · 2 处冲突"
+        );
+        assert_eq!(
+            localise_evidence("distinct 0.97 · format hits 1", &Theme::MONO.zh(), false),
+            "区分度 0.97 · 格式命中 1"
+        );
+        let item = fixture()
+            .items
+            .into_iter()
+            .find(|i| i.rule_id == "relation.scope_required")
+            .unwrap();
+        assert_eq!(
+            reason_text(&item, &Theme::MONO.zh()),
+            "父键重复，按 valid_from 过滤后才唯一；请先过滤父表"
+        );
+        let mut quiet = item.clone();
+        quiet.rule_id = "relation.no_signal".into();
+        quiet.reason = "Values fit, but no name, declaration or query links these columns.".into();
+        assert_eq!(reason_text(&quiet, &Theme::MONO), quiet.reason);
+        assert!(reason_text(&quiet, &Theme::MONO.zh()).starts_with("值能对上"));
+        assert_eq!(
+            localise_evidence("inferred id · discovered", &Theme::MONO.zh(), true),
+            "推断 ID · 开放发现"
         );
     }
 

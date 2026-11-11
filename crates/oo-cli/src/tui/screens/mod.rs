@@ -168,6 +168,10 @@ pub fn modal(buf: &mut Buffer, area: Rect, theme: &Theme, title: &str, w: u16, h
     let y = area.y + (area.height - h) / 2;
     let edge = theme.style(Tone::Accent);
     for cy in y..y + h {
+        // A wide glyph cut by the left edge would swallow the border.
+        if x > buf.area.x && width(buf[(x - 1, cy)].symbol()) > 1 {
+            buf[(x - 1, cy)].set_symbol(" ");
+        }
         for cx in x..x + w {
             buf[(cx, cy)].reset();
             buf[(cx, cy)].set_symbol(" ");

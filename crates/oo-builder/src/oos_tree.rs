@@ -32,7 +32,14 @@ struct Binding {
     generated_sha256: String,
     curated_sha256: String,
     ontology_sha256: String,
+    /// Present exactly when the tree carries `evidence/relationships.json`.
+    #[serde(default)]
+    relationship_evidence_sha256: Option<String>,
 }
+
+/// The versioned relationship-evidence companion; the role-pack compiler
+/// validates its content against the merged relationships.
+const EVIDENCE_PATH: &str = "evidence/relationships.json";
 
 fn read(path: &Path, max: u64) -> Result<String> {
     let meta = fs::symlink_metadata(path).map_err(|_| format!("io.read: {}", path.display()))?;
@@ -126,7 +133,9 @@ fn identity(category: &str) -> &str {
     }
 }
 
-fn assemble(root: &Path) -> Result<(Value, Value, Value, usize)> {
+type Assembled = (Value, Value, Value, Option<Value>, usize);
+
+fn assemble(root: &Path) -> Result<Assembled> {
     let mut files = BTreeMap::new();
     walk(root, 0, &mut files, &mut 0)?;
     let mut generated = json!({});
@@ -138,6 +147,7 @@ fn assemble(root: &Path) -> Result<(Value, Value, Value, usize)> {
     let mut decisions = false;
     let mut seen = BTreeSet::new();
     let mut yaml_count = 0;
+    let mut evidence = None;
     for (path, text) in files {
         let relative = path.strip_prefix(root).map_err(|_| "tree.path")?;
         let name = relative.to_str().ok_or("tree.utf8")?;
@@ -154,6 +164,14 @@ fn assemble(root: &Path) -> Result<(Value, Value, Value, usize)> {
                 | "AGENTS.md"
                 | ".cli/oo"
         ) {
+            continue;
+        }
+        if name == EVIDENCE_PATH {
+            let value: Value = serde_json::from_str(&text).map_err(|_| "evidence.json")?;
+            if value["protocol"] != crate::RELATIONSHIP_EVIDENCE_PROTOCOL {
+                return Err("evidence.protocol".into());
+            }
+            evidence = Some(value);
             continue;
         }
         yaml_count += 1;
@@ -221,6 +239,7 @@ fn assemble(root: &Path) -> Result<(Value, Value, Value, usize)> {
         ontology.ok_or("ontology.missing")?,
         generated,
         curated,
+        evidence,
         yaml_count,
     ))
 }
@@ -240,7 +259,13 @@ pub fn compile_oos_tree(
     ceilings: &RolePackCeilings,
 ) -> Result<OosTreeCompilation> {
     let binding: Binding = serde_json::from_str(binding_json).map_err(|_| "binding.schema")?;
-    let (ontology, generated, curated, count) = assemble(root)?;
+    let (ontology, generated, curated, evidence, count) = assemble(root)?;
+    let evidence_hash = evidence
+        .as_ref()
+        .map(|v| payload_sha256(v.to_string().as_bytes()));
+    if evidence_hash != binding.relationship_evidence_sha256 {
+        return Err("review.stale_or_unbound_evidence".into());
+    }
     let generated_hash = payload_sha256(generated.to_string().as_bytes());
     let curated_hash = payload_sha256(curated.to_string().as_bytes());
     if generated_hash != binding.generated_sha256
@@ -268,6 +293,9 @@ pub fn compile_oos_tree(
     effective["catalog_version"] = json!(binding.catalog_version);
     effective["policy"] = binding.policy;
     effective["knowledge"] = binding.knowledge;
+    if let Some(evidence) = evidence {
+        effective["relationship_evidence"] = evidence;
+    }
     let pack = compile_role_pack_with_ceilings(&effective.to_string(), visibility, ceilings)
         .map_err(|e| e.code)?;
     Ok(OosTreeCompilation {

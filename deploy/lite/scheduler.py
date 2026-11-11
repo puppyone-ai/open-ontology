@@ -123,6 +123,9 @@ def data_only(config, generation, output, stale_tables=()):
     # Table-scoped changes keep the rest of the library publishing; changes in
     # the library-wide remainder (inferred edges, reports, ...) stop the cycle.
     library = builder.semantics.library_review_pending(old, facts, config['library'])
+    # A data-only reuse also needs every adopted relationship to measure the same.
+    library += builder.relationship_quality_pending(db, json.loads(reviewed), facts,
+                                                    'library:' + config['library'])
     return {'stage': 'review_required' if library else 'data_only', 'model_calls': 0,
             'published': False, 'review_pending': library + pending,
             'table_data_only_digests': builder.semantics.table_data_only_digests(facts),

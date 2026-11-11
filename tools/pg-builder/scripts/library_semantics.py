@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import relation_keys
+
 
 PROTOCOL = 'oo.library.s5-semantics/v1'
 
@@ -185,7 +187,7 @@ def prompt_batch(batch):
 def rules_digest():
     root = Path(__file__).parent
     return digest({name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in (
-        'library_semantics.py', 'library_selfbuild.py', 'library_metrics.py',
+        'library_semantics.py', 'library_selfbuild.py', 'relation_keys.py', 'library_metrics.py',
         'library_control.py', 'library_observation.py', 'model_provider.py',
         'library_assets.py', 'declared_enums.py', 'dictionary_evidence.py')})
 
@@ -327,10 +329,13 @@ def data_only_digest(facts, *, mysql_ddl=False):
     batch = {'tables': projected['tables']}
     bind_batch(batch, projected)
     # Report definitions are not consumed by S5 but can change the same Pack.
+    # Key quality: uniqueness, duplicates and blanks of keys and relationship
+    # ends are part of the proof a reused review relies on.
     return digest({
-        'protocol': 'oo.library.data-only-semantics/v1',
+        'protocol': 'oo.library.data-only-semantics/v2',
         'dependencies': batch['dependency_manifest'],
         'reports': facts.get('report_definitions_observation'),
+        'key_quality': relation_keys.key_quality(facts),
     })
 
 def table_data_only_digests(facts):

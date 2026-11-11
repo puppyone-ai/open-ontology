@@ -33,6 +33,65 @@ The scope is applied inside the replica; only its hash leaves it.
 `measure_reconciliation.py` contract and dependencies name `code_table/<id>`.
 Unsupported SQL is not wrapped and executed as a purported read-only query.
 
+## Relationship discovery and evidence (V3-G-01)
+
+Recall (`discover_candidates`) uses a candidate-key registry per table:
+declared PRIMARY KEY, declared UNIQUE (`constraints_sql`), and observed-unique
+columns whose type is text or integral and whose name is key-like
+(`relation_keys.py`). Amounts, floats, times and booleans are never keys.
+Candidates pair only within a type family and a value-shape bucket (length
+range overlap, digits, leading zeros) taken from the bound facts profile.
+Declared FKs are added; a child text column whose name ends in a parent's
+observed-unique non-key text column and names that parent (`region_name ->
+regions.name`) becomes a `snapshot_name_mapping` candidate. No table or
+column names are hard-coded.
+
+Every candidate is measured by one read-only aggregate (`measure_edge`) on
+the same retained cut. Values compare as text, so no numeric cast drops a
+leading zero. NULL and blank keys are counted and never matched. Evidence
+records row and distinct coverage, unmatched rows and keys, blank rows,
+parent duplicates, the maximum parent rows per matched child key (fan-out),
+collisions after `lower(btrim())`, and, for a repeating parent, the
+date/period/version/valid columns that make it unique (`scope_columns`).
+
+Adoption requires a unique parent, fan-out 1, no normalized collision, and
+row and distinct coverage both at the existing thresholds; open-recall
+candidates also need a name, declaration or query signal. Rules:
+`relation.parent_not_unique`, `relation.scope_required`,
+`relation.normalized_collision`, `relation.no_signal`, plus the earlier ones.
+Several edges from one child to one parent get a `role` from the child
+column; roles are never merged. Entity keys follow the same registry order
+and record NULL and blank counts separately (`entity_key.no_candidate` when
+nothing qualifies).
+
+`max_relationship_checks` is a resumable boundary. Unmeasured candidates are
+listed in the top-level `discovery` object (`status: incomplete`) and
+measurements are cached in `adjudication-measurements.json` (bound to the
+facts digest and the edge), so a rerun resumes. `discovery` is not hashed;
+the compiler re-derives the unchecked set from the input. An incomplete
+document compiles only with the owner override
+`discovery/relationships: {decision: accept_incomplete, reason}`.
+
+The compiler emits OOS relationship `evidence`, never `many_to_many`, and
+`join_hint: inner` only at full row and distinct coverage. The rest goes in
+the effective extension `relationship_evidence`
+(`oo.builder.relationship-evidence/v1`, carried through the OOS tree as
+`evidence/relationships.json`, bound by digest). Role Packs receive
+`relationships/evidence.json` and `relationships/query-paths.json` (start
+table, grain, role, join keys and type, coverage, unmatched handling,
+withheld reasons, and a SQL example that aggregates the child before the
+join), trimmed to the role's visible columns.
+
+Data-only reuse (`oo.library.data-only-semantics/v2`) binds key quality, and
+retained/scheduled reuse re-measures every adopted relationship of a
+confirmed adjudication (`relationship_quality_drift`): a change in
+uniqueness, fan-out, collisions or coverage class forces review; row growth
+alone does not.
+
+Live acceptance: `OO_RELATIONSHIP_LIVE=1 python3 -m unittest
+test_relationship_live` (throwaway labelled `postgres:17.11-bookworm` on
+loopback, removed afterwards).
+
 ## Confirmation integration for V3-A-02
 
 The JSON schema is `crates/oo-builder/tests/adjudication.schema.json`.

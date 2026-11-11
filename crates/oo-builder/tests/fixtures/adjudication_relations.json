@@ -1,0 +1,887 @@
+{
+ "complete": {
+  "adjudication": {
+   "discovery": {
+    "budget": 65536,
+    "checked": 3,
+    "remaining": 0,
+    "status": "complete",
+    "unchecked": []
+   },
+   "graph": {
+    "edges": [
+     {
+      "adopted": false,
+      "cardinality": "one_to_many",
+      "from": "entity/app.shipments",
+      "relation": "relation/discovered-62fd4d53bb72fb849070ef63",
+      "to": "entity/app.regions"
+     },
+     {
+      "adopted": true,
+      "cardinality": "many_to_one",
+      "from": "entity/app.shipments",
+      "relation": "relation/discovered-81a3ed13d1eba06182450bfd",
+      "to": "entity/app.regions"
+     },
+     {
+      "adopted": true,
+      "cardinality": "one_to_one",
+      "from": "entity/app.shipments",
+      "relation": "relation/discovered-cf4d0c41ee5cf776d739149e",
+      "to": "entity/app.regions"
+     }
+    ],
+    "entities": [
+     {
+      "display": null,
+      "id": "entity/app.regions",
+      "key": [
+       "id"
+      ],
+      "label": "app.regions",
+      "rows": 10,
+      "table": "app.regions"
+     },
+     {
+      "display": null,
+      "id": "entity/app.shipments",
+      "key": [
+       "id"
+      ],
+      "label": "app.shipments",
+      "rows": 10,
+      "table": "app.shipments"
+     }
+    ]
+   },
+   "input_sha256": "c007dcbc5e82f6735aa04889bbc926ddb19fbb219f047e8d8761da39f20a5d45",
+   "items": [
+    {
+     "class": "entity_key",
+     "decision": "adopted",
+     "evidence": {
+      "considered": [
+       {
+        "columns": [
+         "id"
+        ],
+        "source": "declared_pk",
+        "valid": true
+       }
+      ],
+      "display": null,
+      "distinct": 10,
+      "distinct_ratio": 1.0,
+      "empty_rows": 0,
+      "full_scan": true,
+      "key": [
+       "id"
+      ],
+      "key_source": "declared_pk",
+      "non_null": 10,
+      "non_null_ratio": 1.0,
+      "null_rows": 0,
+      "rows": 10
+     },
+     "id": "entity_key/app.regions",
+     "reason": "entity key: declared pk",
+     "rule_id": "entity_key.declared_pk",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "table": "app.regions"
+     }
+    },
+    {
+     "class": "entity_key",
+     "decision": "adopted",
+     "evidence": {
+      "considered": [
+       {
+        "columns": [
+         "id"
+        ],
+        "source": "declared_pk",
+        "valid": true
+       }
+      ],
+      "display": null,
+      "distinct": 10,
+      "distinct_ratio": 1.0,
+      "empty_rows": 0,
+      "full_scan": true,
+      "key": [
+       "id"
+      ],
+      "key_source": "declared_pk",
+      "non_null": 10,
+      "non_null_ratio": 1.0,
+      "null_rows": 0,
+      "rows": 10
+     },
+     "id": "entity_key/app.shipments",
+     "reason": "entity key: declared pk",
+     "rule_id": "entity_key.declared_pk",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "table": "app.shipments"
+     }
+    },
+    {
+     "class": "relation",
+     "decision": "rejected",
+     "evidence": {
+      "cardinality": "one_to_many",
+      "child_distinct": 10,
+      "containment": 1.0,
+      "distinct_containment": 1.0,
+      "empty_rows": 0,
+      "from_columns": [
+       "dest_region_id"
+      ],
+      "join_cooccurrence": 0,
+      "kind": "scoped",
+      "length_compatible": true,
+      "matched_distinct": 10,
+      "matched_rows": 10,
+      "max_fanout": 2,
+      "method": "full_scan",
+      "name_similarity": 1.0,
+      "normalized_collisions": 0,
+      "parent_distinct": 10,
+      "parent_duplicate_keys": 2,
+      "parent_empty_rows": 0,
+      "parent_rows": 12,
+      "parent_unique": false,
+      "query_log": "unavailable",
+      "role": "dest_region",
+      "rows_checked": 10,
+      "scope_columns": [
+       "valid_from"
+      ],
+      "source": "discovery",
+      "to_columns": [
+       "id"
+      ],
+      "type_compatible": true,
+      "unmatched_distinct": 0,
+      "unmatched_rows": 0
+     },
+     "id": "relation/discovered-62fd4d53bb72fb849070ef63",
+     "reason": "Parent key repeats; unique only together with valid_from. Filter the parent on that column first.",
+     "rule_id": "relation.scope_required",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "from": "app.shipments.dest_region_id",
+      "to": "app.regions.id"
+     }
+    },
+    {
+     "class": "relation",
+     "decision": "adopted",
+     "evidence": {
+      "cardinality": "many_to_one",
+      "child_distinct": 20,
+      "containment": 0.95,
+      "distinct_containment": 0.95,
+      "empty_rows": 0,
+      "from_columns": [
+       "region_name"
+      ],
+      "join_cooccurrence": 0,
+      "kind": "snapshot_name_mapping",
+      "length_compatible": true,
+      "matched_distinct": 19,
+      "matched_rows": 95,
+      "max_fanout": 1,
+      "method": "full_scan",
+      "name_similarity": 1.0,
+      "normalized_collisions": 0,
+      "parent_distinct": 10,
+      "parent_duplicate_keys": 0,
+      "parent_empty_rows": 0,
+      "parent_rows": 10,
+      "parent_unique": true,
+      "query_log": "unavailable",
+      "role": "region",
+      "rows_checked": 100,
+      "scope_columns": [],
+      "source": "discovery",
+      "to_columns": [
+       "name"
+      ],
+      "type_compatible": true,
+      "unmatched_distinct": 1,
+      "unmatched_rows": 5
+     },
+     "id": "relation/discovered-81a3ed13d1eba06182450bfd",
+     "reason": "relation: containment signal",
+     "rule_id": "relation.containment_signal",
+     "scores": {
+      "confidence": 0.95
+     },
+     "subject": {
+      "from": "app.shipments.region_name",
+      "to": "app.regions.name"
+     }
+    },
+    {
+     "class": "relation",
+     "decision": "adopted",
+     "evidence": {
+      "cardinality": "one_to_one",
+      "child_distinct": 10,
+      "containment": 1.0,
+      "distinct_containment": 1.0,
+      "empty_rows": 0,
+      "from_columns": [
+       "origin_region_id"
+      ],
+      "join_cooccurrence": 0,
+      "kind": "inferred_id",
+      "length_compatible": true,
+      "matched_distinct": 10,
+      "matched_rows": 10,
+      "max_fanout": 1,
+      "method": "full_scan",
+      "name_similarity": 1.0,
+      "normalized_collisions": 0,
+      "parent_distinct": 10,
+      "parent_duplicate_keys": 0,
+      "parent_empty_rows": 0,
+      "parent_rows": 10,
+      "parent_unique": true,
+      "query_log": "unavailable",
+      "role": "origin_region",
+      "rows_checked": 10,
+      "scope_columns": [],
+      "source": "discovery",
+      "to_columns": [
+       "id"
+      ],
+      "type_compatible": true,
+      "unmatched_distinct": 0,
+      "unmatched_rows": 0
+     },
+     "id": "relation/discovered-cf4d0c41ee5cf776d739149e",
+     "reason": "relation: containment strict",
+     "rule_id": "relation.containment_strict",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "from": "app.shipments.origin_region_id",
+      "to": "app.regions.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.name",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.name"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.valid_from",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.valid_from"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.dest_region_id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.dest_region_id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.origin_region_id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.origin_region_id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.region_name",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.region_name"
+     }
+    }
+   ],
+   "protocol": "oo.adjudication/v1",
+   "summary_sha256": "4888eea4bf43d64e62268993803cf2e303e036c1cf5c0d76102e69936b57c32c",
+   "thresholds": {
+    "code_coverage": 0.99,
+    "code_max_rows": 1000,
+    "display_distinct_ratio": 0.9,
+    "metric_min_windows": 2,
+    "relation_containment_strict": 0.98,
+    "relation_containment_with_signal": 0.9,
+    "relation_name_similarity": 0.5,
+    "sensitive_format_rate": 0.5
+   }
+  },
+  "adjudication_input": "{\"ceilings\":{},\"draft\":{\"graph\":{\"edges\":[{\"columns\":{\"from\":[\"dest_region_id\"],\"to\":[\"id\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-62fd4d53bb72fb849070ef63\",\"provenance\":\"containment\",\"to\":\"app.regions\"},{\"columns\":{\"from\":[\"origin_region_id\"],\"to\":[\"id\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-cf4d0c41ee5cf776d739149e\",\"provenance\":\"containment\",\"to\":\"app.regions\"},{\"columns\":{\"from\":[\"region_name\"],\"to\":[\"name\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-81a3ed13d1eba06182450bfd\",\"provenance\":\"name_mapping\",\"to\":\"app.regions\"}]}},\"effective\":{\"catalog_version\":\"draft-v1\",\"datasets\":[{\"columns\":[{\"data_type\":\"bigint\",\"name\":\"id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"text\",\"name\":\"name\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"date\",\"name\":\"valid_from\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"}],\"dataset\":\"app.regions\",\"label\":\"app.regions\",\"primary_key\":[\"id\"],\"schema_version\":\"oos/v1\",\"tier\":\"file\"},{\"columns\":[{\"data_type\":\"bigint\",\"name\":\"id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"bigint\",\"name\":\"origin_region_id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"bigint\",\"name\":\"dest_region_id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"text\",\"name\":\"region_name\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"}],\"dataset\":\"app.shipments\",\"label\":\"app.shipments\",\"primary_key\":[\"id\"],\"schema_version\":\"oos/v1\",\"tier\":\"file\"}],\"entities\":[],\"enums\":[],\"examples\":[],\"glossary\":[],\"knowledge\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"metrics\":[],\"ontology\":{\"classification\":{\"auto_accept\":\"none\"},\"compile\":{\"budgets\":{\"readme_tokens\":2000,\"table_file_tokens\":3000},\"per_role\":true,\"sample_values\":{\"default\":\"masked\",\"max_per_column\":0}},\"default_tier_preference\":[\"file\"],\"include_schemas\":[\"app\"],\"lifecycle\":{\"deprecation_min_releases\":2},\"locale\":\"en-US\",\"name\":\"fixture\",\"publish\":{\"include_unreviewed\":[]},\"spec_version\":\"oos/v1\"},\"ontology_version\":\"draft-v1\",\"policy\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"project\":\"fixture\",\"protocol\":\"oo.builder.effective-oos/v1\",\"relationships\":[]},\"orphan_threshold\":0.2,\"protocol\":\"oo.builder.reviewed-community/v1\",\"source_draft_sha256\":\"f8f568b223fe990b3ba664be660ce7030f7d0dd651e744bd46e6d5f065ff65ae\",\"visibility\":{\"catalog_version\":\"draft-v1\",\"datasets\":[{\"columns\":[\"id\",\"name\",\"valid_from\"],\"dataset\":\"app.regions\",\"global_stats\":\"denied\",\"row_security\":\"none\"},{\"columns\":[\"id\",\"origin_region_id\",\"dest_region_id\",\"region_name\"],\"dataset\":\"app.shipments\",\"global_stats\":\"denied\",\"row_security\":\"none\"}],\"issued_for_compiler\":\"oo-builder/role-pack/v1\",\"knowledge\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"limits\":{\"max_entries\":128,\"max_file_bytes\":262144,\"max_total_bytes\":1048576},\"ontology_version\":\"draft-v1\",\"policy\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"principal\":\"owner\",\"project\":\"fixture\",\"protocol\":\"oo.builder.role-visibility/v1\",\"role\":\"oo_r_owner\"}}"
+ },
+ "incomplete": {
+  "adjudication": {
+   "discovery": {
+    "budget": 1,
+    "checked": 1,
+    "remaining": 2,
+    "status": "incomplete",
+    "unchecked": [
+     {
+      "from": "app.shipments",
+      "from_columns": [
+       "region_name"
+      ],
+      "id": "relation/discovered-81a3ed13d1eba06182450bfd",
+      "kind": "snapshot_name_mapping",
+      "to": "app.regions",
+      "to_columns": [
+       "name"
+      ]
+     },
+     {
+      "from": "app.shipments",
+      "from_columns": [
+       "origin_region_id"
+      ],
+      "id": "relation/discovered-cf4d0c41ee5cf776d739149e",
+      "kind": "inferred_id",
+      "to": "app.regions",
+      "to_columns": [
+       "id"
+      ]
+     }
+    ]
+   },
+   "graph": {
+    "edges": [
+     {
+      "adopted": false,
+      "cardinality": "one_to_many",
+      "from": "entity/app.shipments",
+      "relation": "relation/discovered-62fd4d53bb72fb849070ef63",
+      "to": "entity/app.regions"
+     }
+    ],
+    "entities": [
+     {
+      "display": null,
+      "id": "entity/app.regions",
+      "key": [
+       "id"
+      ],
+      "label": "app.regions",
+      "rows": 10,
+      "table": "app.regions"
+     },
+     {
+      "display": null,
+      "id": "entity/app.shipments",
+      "key": [
+       "id"
+      ],
+      "label": "app.shipments",
+      "rows": 10,
+      "table": "app.shipments"
+     }
+    ]
+   },
+   "input_sha256": "c007dcbc5e82f6735aa04889bbc926ddb19fbb219f047e8d8761da39f20a5d45",
+   "items": [
+    {
+     "class": "entity_key",
+     "decision": "adopted",
+     "evidence": {
+      "considered": [
+       {
+        "columns": [
+         "id"
+        ],
+        "source": "declared_pk",
+        "valid": true
+       }
+      ],
+      "display": null,
+      "distinct": 10,
+      "distinct_ratio": 1.0,
+      "empty_rows": 0,
+      "full_scan": true,
+      "key": [
+       "id"
+      ],
+      "key_source": "declared_pk",
+      "non_null": 10,
+      "non_null_ratio": 1.0,
+      "null_rows": 0,
+      "rows": 10
+     },
+     "id": "entity_key/app.regions",
+     "reason": "entity key: declared pk",
+     "rule_id": "entity_key.declared_pk",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "table": "app.regions"
+     }
+    },
+    {
+     "class": "entity_key",
+     "decision": "adopted",
+     "evidence": {
+      "considered": [
+       {
+        "columns": [
+         "id"
+        ],
+        "source": "declared_pk",
+        "valid": true
+       }
+      ],
+      "display": null,
+      "distinct": 10,
+      "distinct_ratio": 1.0,
+      "empty_rows": 0,
+      "full_scan": true,
+      "key": [
+       "id"
+      ],
+      "key_source": "declared_pk",
+      "non_null": 10,
+      "non_null_ratio": 1.0,
+      "null_rows": 0,
+      "rows": 10
+     },
+     "id": "entity_key/app.shipments",
+     "reason": "entity key: declared pk",
+     "rule_id": "entity_key.declared_pk",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "table": "app.shipments"
+     }
+    },
+    {
+     "class": "relation",
+     "decision": "rejected",
+     "evidence": {
+      "cardinality": "one_to_many",
+      "child_distinct": 10,
+      "containment": 1.0,
+      "distinct_containment": 1.0,
+      "empty_rows": 0,
+      "from_columns": [
+       "dest_region_id"
+      ],
+      "join_cooccurrence": 0,
+      "kind": "scoped",
+      "length_compatible": true,
+      "matched_distinct": 10,
+      "matched_rows": 10,
+      "max_fanout": 2,
+      "method": "full_scan",
+      "name_similarity": 1.0,
+      "normalized_collisions": 0,
+      "parent_distinct": 10,
+      "parent_duplicate_keys": 2,
+      "parent_empty_rows": 0,
+      "parent_rows": 12,
+      "parent_unique": false,
+      "query_log": "unavailable",
+      "role": null,
+      "rows_checked": 10,
+      "scope_columns": [
+       "valid_from"
+      ],
+      "source": "discovery",
+      "to_columns": [
+       "id"
+      ],
+      "type_compatible": true,
+      "unmatched_distinct": 0,
+      "unmatched_rows": 0
+     },
+     "id": "relation/discovered-62fd4d53bb72fb849070ef63",
+     "reason": "Parent key repeats; unique only together with valid_from. Filter the parent on that column first.",
+     "rule_id": "relation.scope_required",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "from": "app.shipments.dest_region_id",
+      "to": "app.regions.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.name",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.name"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.regions.valid_from",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.regions.valid_from"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.dest_region_id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.dest_region_id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.origin_region_id",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.origin_region_id"
+     }
+    },
+    {
+     "class": "sensitive",
+     "decision": "visible",
+     "evidence": {
+      "bank_card": 0,
+      "distinct": 10,
+      "email": 0,
+      "entropy": 0,
+      "format_hit_rate": 0.0,
+      "id_card": 0,
+      "max_length": 4,
+      "name_suspicion": false,
+      "non_null": 10,
+      "phone": 0,
+      "readable": 0,
+      "rows": 10
+     },
+     "id": "sensitive/app.shipments.region_name",
+     "reason": "sensitive: negative profile",
+     "rule_id": "sensitive.negative_profile",
+     "scores": {
+      "confidence": 1.0
+     },
+     "subject": {
+      "column": "app.shipments.region_name"
+     }
+    }
+   ],
+   "protocol": "oo.adjudication/v1",
+   "summary_sha256": "91d6ba1b1e955a78a19805deeb173cf84ec569d2a49ea17d2e129af7370bb16d",
+   "thresholds": {
+    "code_coverage": 0.99,
+    "code_max_rows": 1000,
+    "display_distinct_ratio": 0.9,
+    "metric_min_windows": 2,
+    "relation_containment_strict": 0.98,
+    "relation_containment_with_signal": 0.9,
+    "relation_name_similarity": 0.5,
+    "sensitive_format_rate": 0.5
+   }
+  },
+  "adjudication_input": "{\"ceilings\":{},\"draft\":{\"graph\":{\"edges\":[{\"columns\":{\"from\":[\"dest_region_id\"],\"to\":[\"id\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-62fd4d53bb72fb849070ef63\",\"provenance\":\"containment\",\"to\":\"app.regions\"},{\"columns\":{\"from\":[\"origin_region_id\"],\"to\":[\"id\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-cf4d0c41ee5cf776d739149e\",\"provenance\":\"containment\",\"to\":\"app.regions\"},{\"columns\":{\"from\":[\"region_name\"],\"to\":[\"name\"]},\"confidence\":0.5,\"from\":\"app.shipments\",\"id\":\"discovered-81a3ed13d1eba06182450bfd\",\"provenance\":\"name_mapping\",\"to\":\"app.regions\"}]}},\"effective\":{\"catalog_version\":\"draft-v1\",\"datasets\":[{\"columns\":[{\"data_type\":\"bigint\",\"name\":\"id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"text\",\"name\":\"name\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"date\",\"name\":\"valid_from\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"}],\"dataset\":\"app.regions\",\"label\":\"app.regions\",\"primary_key\":[\"id\"],\"schema_version\":\"oos/v1\",\"tier\":\"file\"},{\"columns\":[{\"data_type\":\"bigint\",\"name\":\"id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"bigint\",\"name\":\"origin_region_id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"bigint\",\"name\":\"dest_region_id\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"},{\"data_type\":\"text\",\"name\":\"region_name\",\"pii\":\"restricted\",\"semantic_type\":\"free_text\"}],\"dataset\":\"app.shipments\",\"label\":\"app.shipments\",\"primary_key\":[\"id\"],\"schema_version\":\"oos/v1\",\"tier\":\"file\"}],\"entities\":[],\"enums\":[],\"examples\":[],\"glossary\":[],\"knowledge\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"metrics\":[],\"ontology\":{\"classification\":{\"auto_accept\":\"none\"},\"compile\":{\"budgets\":{\"readme_tokens\":2000,\"table_file_tokens\":3000},\"per_role\":true,\"sample_values\":{\"default\":\"masked\",\"max_per_column\":0}},\"default_tier_preference\":[\"file\"],\"include_schemas\":[\"app\"],\"lifecycle\":{\"deprecation_min_releases\":2},\"locale\":\"en-US\",\"name\":\"fixture\",\"publish\":{\"include_unreviewed\":[]},\"spec_version\":\"oos/v1\"},\"ontology_version\":\"draft-v1\",\"policy\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"project\":\"fixture\",\"protocol\":\"oo.builder.effective-oos/v1\",\"relationships\":[]},\"orphan_threshold\":0.2,\"protocol\":\"oo.builder.reviewed-community/v1\",\"source_draft_sha256\":\"f8f568b223fe990b3ba664be660ce7030f7d0dd651e744bd46e6d5f065ff65ae\",\"visibility\":{\"catalog_version\":\"draft-v1\",\"datasets\":[{\"columns\":[\"id\",\"name\",\"valid_from\"],\"dataset\":\"app.regions\",\"global_stats\":\"denied\",\"row_security\":\"none\"},{\"columns\":[\"id\",\"origin_region_id\",\"dest_region_id\",\"region_name\"],\"dataset\":\"app.shipments\",\"global_stats\":\"denied\",\"row_security\":\"none\"}],\"issued_for_compiler\":\"oo-builder/role-pack/v1\",\"knowledge\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"limits\":{\"max_entries\":128,\"max_file_bytes\":262144,\"max_total_bytes\":1048576},\"ontology_version\":\"draft-v1\",\"policy\":{\"id\":\"owner\",\"version\":\"draft-v1\"},\"principal\":\"owner\",\"project\":\"fixture\",\"protocol\":\"oo.builder.role-visibility/v1\",\"role\":\"oo_r_owner\"}}"
+ }
+}

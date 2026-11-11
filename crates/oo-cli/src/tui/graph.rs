@@ -11,7 +11,7 @@
 //! Rejected relations are dashed and carry their missing evidence.
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use super::adjudication::{Adjudication, magnitude, missing_evidence};
+use super::adjudication::{Adjudication, Item, magnitude, missing_evidence, role, scope_columns};
 use super::theme::{Tone, char_width, fit, width};
 
 /// Above this many entities the graph opens in focus mode.
@@ -155,7 +155,40 @@ struct Link {
     b: usize,
     sides: (Side, Side),
     adopted: bool,
-    note: String,
+    /// Short tag on a rejected edge: the coverage figure or the structural flaw.
+    short: String,
+    /// Role when one child has several edges to the same parent.
+    role: Option<String>,
+}
+
+/// Short reason drawn on a rejected edge: `scope valid_from`, `fan-out ×3`,
+/// `collision`, else the first figure of the missing evidence.
+fn short_missing(item: &Item, note: &str) -> String {
+    let scope = scope_columns(item);
+    let fanout = item
+        .evidence
+        .get("max_fanout")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    if !scope.is_empty() {
+        format!("scope {}", scope.join(","))
+    } else if fanout > 1 {
+        format!("fan-out ×{fanout}")
+    } else if item.evidence.get("parent_unique") == Some(&serde_json::Value::Bool(false)) {
+        "not unique".into()
+    } else if item
+        .evidence
+        .get("normalized_collisions")
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|n| n > 0)
+    {
+        "collision".into()
+    } else {
+        note.split_whitespace()
+            .find(|w| w.parse::<f64>().is_ok())
+            .unwrap_or("?")
+            .to_owned()
+    }
 }
 
 /// Pick the focus entity: explicit, else the hub.
@@ -267,12 +300,10 @@ pub fn render(adj: &Adjudication, view: &View) -> Canvas {
         {
             continue;
         }
-        let note = adj
-            .items
-            .iter()
-            .find(|i| i.id == e.relation)
-            .map(|i| missing_evidence(i, &adj.thresholds))
-            .unwrap_or_default();
+        let item = adj.items.iter().find(|i| i.id == e.relation);
+        let short = item
+            .map(|i| short_missing(i, &missing_evidence(i, &adj.thresholds)))
+            .unwrap_or_else(|| "?".into());
         if a == b {
             nodes[a].self_loop = true;
         }
@@ -281,7 +312,8 @@ pub fn render(adj: &Adjudication, view: &View) -> Canvas {
             b,
             sides: sides(&e.cardinality),
             adopted: e.adopted,
-            note,
+            short,
+            role: item.and_then(role).map(str::to_owned),
         });
     }
     let mut canvas = draw(&nodes, &links, view, focus.as_deref());
@@ -631,7 +663,9 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
     let mut hot = vec![vec![false; cols]; y];
     let mut near = vec![false; n];
     let mut joints: Vec<(usize, usize, bool)> = Vec::new();
-    let mut labels: Vec<(Vec<(usize, usize)>, String)> = Vec::new();
+    // (cells of the run, text, drawn on an adopted edge)
+    type Label = (Vec<(usize, usize)>, String, bool);
+    let mut labels: Vec<Label> = Vec::new();
     for route in &routes {
         let link = &links[route.link];
         let layer = if link.adopted {
@@ -683,24 +717,23 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
         } else {
             joints.push((route.pl, row_y[rl], false));
         }
-        if !link.adopted {
-            // Longest horizontal run carries the evidence label.
-            let best = path
-                .windows(2)
-                .filter(|p| p[0].1 == p[1].1)
-                .max_by_key(|p| p[0].0.abs_diff(p[1].0));
-            if let Some(p) = best {
-                let (a, b) = (p[0].0.min(p[1].0), p[0].0.max(p[1].0));
-                let cells: Vec<(usize, usize)> = (a + 2..b.saturating_sub(1))
-                    .map(|cx| (cx, p[0].1))
-                    .collect();
-                let short = link
-                    .note
-                    .split_whitespace()
-                    .find(|w| w.parse::<f64>().is_ok())
-                    .unwrap_or("?");
-                labels.push((cells, format!(" ✗ {short} ")));
-            }
+        // Longest horizontal run carries the evidence label (rejected) or
+        // the role (one of several edges between the same two entities).
+        let text = match (&link.role, link.adopted) {
+            (_, false) => Some(format!(" ✗ {} ", link.short)),
+            (Some(role), true) => Some(format!(" {role} ")),
+            (None, true) => None,
+        };
+        let best = path
+            .windows(2)
+            .filter(|p| p[0].1 == p[1].1)
+            .max_by_key(|p| p[0].0.abs_diff(p[1].0));
+        if let (Some(text), Some(p)) = (text, best) {
+            let (a, b) = (p[0].0.min(p[1].0), p[0].0.max(p[1].0));
+            let cells: Vec<(usize, usize)> = (a + 2..b.saturating_sub(1))
+                .map(|cx| (cx, p[0].1))
+                .collect();
+            labels.push((cells, text, link.adopted));
         }
     }
     for cy in 0..y {
@@ -718,22 +751,32 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
             canvas.put(cx, cy, c, tone);
         }
     }
-    // Evidence labels on clear dashed runs only.
-    for (cells, text) in labels {
+    // Labels on clear runs only: nothing crosses or joins them, and the run
+    // is not shared with an edge of the other kind.
+    for (cells, text, adopted) in labels {
         let text = fit(&text, cells.len());
         let tw = width(&text);
         if tw < 6 {
             continue;
         }
-        let clear: Vec<&(usize, usize)> = cells
+        let (own, other) = if adopted {
+            (&solid, &dashed)
+        } else {
+            (&dashed, &solid)
+        };
+        let clear = cells
             .iter()
-            .filter(|&&(cx, cy)| solid[cy][cx] == 0 && dashed[cy][cx] & 3 == 0)
-            .collect();
-        if clear.len() != cells.len() {
+            .all(|&(cx, cy)| other[cy][cx] == 0 && own[cy][cx] & 3 == 0);
+        if !clear {
             continue;
         }
         let start = cells[0].0 + (cells.len() - tw) / 2;
-        canvas.text(start, cells[0].1, &text, Tone::Warn);
+        canvas.text(
+            start,
+            cells[0].1,
+            &text,
+            if adopted { Tone::Info } else { Tone::Warn },
+        );
     }
     // Boxes over lines.
     for (i, node) in nodes.iter().enumerate() {
@@ -959,6 +1002,21 @@ fn legend(
             format!("┄┄ {} → {}  ✗ {note}", label(&e.from), label(&e.to)),
             Tone::Bad,
         ));
+    }
+    // Several edges between the same two entities: name each by its role.
+    for e in adj.graph.edges.iter().filter(|e| e.adopted) {
+        if !index.contains_key(e.from.as_str()) || !index.contains_key(e.to.as_str()) {
+            continue;
+        }
+        if focus.is_some_and(|f| e.from != f && e.to != f) {
+            continue;
+        }
+        if let Some(r) = adj.items.iter().find(|i| i.id == e.relation).and_then(role) {
+            lines.push((
+                format!("── {} → {}  as {r}", label(&e.from), label(&e.to)),
+                Tone::Info,
+            ));
+        }
     }
     let extra = lines.len() + 1;
     let wide = lines.iter().map(|l| width(&l.0)).max().unwrap_or(0);
@@ -1202,6 +1260,7 @@ pub(crate) mod tests {
             input_sha256: String::new(),
             thresholds: Default::default(),
             items: Vec::new(),
+            discovery: None,
             graph: Graph { entities, edges },
             summary_sha256: String::new(),
         };
@@ -1340,5 +1399,22 @@ pub(crate) mod tests {
         );
         assert!(wrapped.width <= 80, "{}", wrapped.width);
         boxes_disjoint(&wrapped);
+    }
+
+    #[test]
+    fn role_edges_carry_their_role() {
+        let adj = fixture();
+        let out = ascii(&adj, 120, None);
+        assert_eq!(out, ascii(&adj, 120, None), "deterministic");
+        assert!(out.contains("── 线路 → 网点  as origin_station"), "{out}");
+        assert!(out.contains("── 线路 → 网点  as dest_station"), "{out}");
+        // Only role edges are named; ordinary edges stay unlabeled.
+        assert_eq!(out.matches("  as ").count(), 2, "{out}");
+        // On the canvas the role rides on the edge's own horizontal run.
+        let canvas = render(&adj, &View::default());
+        let lines = canvas.lines().join("\n");
+        assert!(lines.contains("─ dest_sta"), "{lines}");
+        // The rejected scope edge names its flaw, not a bare number.
+        assert!(lines.contains("✗ scope"), "{lines}");
     }
 }

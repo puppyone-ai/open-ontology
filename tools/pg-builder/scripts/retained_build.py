@@ -30,7 +30,7 @@ import adjudication
 PROTOCOL = 'oo.builder.retained-build/v1'
 KEYS = {'protocol', 'psql_command', 'library_id', 'generation', 'source_engine', 'project'}
 OPTIONAL = {'origin', 'model', 'statement_timeout_ms', 'max_relationship_checks', 'min_enum_containment',
-            'source_catalog'}
+            'source_catalog', 'relationship_cache'}
 
 
 def save(path, value):
@@ -85,6 +85,16 @@ def reviewed_shape(reviewed, facts):
                                                                      for column, kind in columns.items())
            for name, columns in effective.items()):
         raise ValueError('retained_origin_shape_drift')
+
+
+def relationship_quality_pending(db, reviewed, facts, scope='library'):
+    """Adopted relationships of a confirmed review must still measure the same."""
+    document = reviewed.get('command', {}).get('adjudication')
+    if not isinstance(document, dict):
+        return []
+    drift = adjudication.relationship_quality_drift(db, document, facts['tables'])
+    return [{'table': scope, 'scope': 'library',
+             'changes': ['relationship_quality:' + r for r in drift]}] if drift else []
 
 
 def inventory(facts):
@@ -202,7 +212,9 @@ def run(config_path, output):
             raise ValueError('retained_origin_pin')
         old = json.loads(pinned(origin['facts']))
         raw = pinned(origin['reviewed_registry'])
-        if semantics.data_only_digest(old) == current:
+        quality = (relationship_quality_pending(db, json.loads(raw), facts, 'library:' + config['library_id'])
+                   if semantics.data_only_digest(old) == current else [])
+        if semantics.data_only_digest(old) == current and not quality:
             reviewed_shape(json.loads(raw), facts)
             reuse = dict(protocol='oo.builder.retained-data-only/v1', origin_facts_sha256=old['facts_sha256'],
                          current_facts_sha256=facts['facts_sha256'], data_only_digest=current,
@@ -214,7 +226,7 @@ def run(config_path, output):
             return dict(report, stage='data_only', model_calls=0,
                         reviewed_registry=origin['reviewed_registry'])
         report['semantic_change'] = True
-        report['review_pending'] = semantics.table_review_pending(old, facts)
+        report['review_pending'] = quality + semantics.table_review_pending(old, facts)
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
     command = review_input(inventory(facts), result, config['project'])
@@ -230,7 +242,12 @@ def run(config_path, output):
             for t in facts['tables'] for fk in t.get('excluded_foreign_keys', [])]
     adjudication.discover_candidates(command, facts['tables'])
     input_hash = save(output / 'review-input.json', command)
-    decisions = adjudication.collect(db, command, facts['tables'], input_hash)
+    cache = config.get('relationship_cache')
+    if cache is not None and (not isinstance(cache, str) or not cache):
+        raise ValueError('retained_relationship_cache')
+    decisions = adjudication.collect(db, command, facts['tables'], input_hash,
+                                     budget=config.get('max_relationship_checks', 65536),
+                                     cache_path=Path(cache) if cache else output / 'adjudication-measurements.json')
     _, current_provenance = facts_for(db, config)
     if current_provenance != provenance:
         raise ValueError('adjudication_retained_cut_changed')
