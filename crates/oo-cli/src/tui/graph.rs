@@ -77,6 +77,10 @@ pub struct Canvas {
     /// Entities in the drawn subgraph, focus first.
     pub shown: Vec<String>,
     pub focus: Option<String>,
+    /// `(tag, role, relation id)` for every role edge drawn: when a role
+    /// name does not fit its edge, the edge carries the short tag instead
+    /// and this list (legend, footer) names it.
+    pub roles: Vec<(String, String, String)>,
 }
 
 impl Canvas {
@@ -88,6 +92,7 @@ impl Canvas {
             boxes: Vec::new(),
             shown: Vec::new(),
             focus: None,
+            roles: Vec::new(),
         }
     }
 
@@ -159,6 +164,25 @@ struct Link {
     short: String,
     /// Role when one child has several edges to the same parent.
     role: Option<String>,
+    /// `#n` stand-in for the role on runs too short for its name.
+    tag: Option<String>,
+}
+
+/// `text` in `cols` columns, dropping trailing words (never cutting one);
+/// falls back to a plain cut when even the first word does not fit.
+fn fit_words(text: &str, cols: usize) -> String {
+    if width(text) <= cols {
+        return text.to_owned();
+    }
+    let words: Vec<&str> = text.split(' ').collect();
+    for n in (1..words.len()).rev() {
+        let mut t = words[..n].join(" ");
+        t.push(' ');
+        if width(&t) <= cols && !t.trim().is_empty() {
+            return t;
+        }
+    }
+    fit(text, cols)
 }
 
 /// Short reason drawn on a rejected edge: `scope valid_from`, `fan-out ×3`,
@@ -289,6 +313,7 @@ pub fn render(adj: &Adjudication, view: &View) -> Canvas {
         })
         .collect();
     let mut links = Vec::new();
+    let mut roles: Vec<(String, String, String)> = Vec::new();
     for e in &adj.graph.edges {
         let (Some(&a), Some(&b)) = (index.get(e.from.as_str()), index.get(e.to.as_str())) else {
             continue;
@@ -307,16 +332,27 @@ pub fn render(adj: &Adjudication, view: &View) -> Canvas {
         if a == b {
             nodes[a].self_loop = true;
         }
+        let role = item.and_then(role).map(str::to_owned);
+        let tag = match (&role, e.adopted) {
+            (Some(r), true) => {
+                let tag = format!("#{}", roles.len() + 1);
+                roles.push((tag.clone(), r.clone(), e.relation.clone()));
+                Some(tag)
+            }
+            _ => None,
+        };
         links.push(Link {
             a,
             b,
             sides: sides(&e.cardinality),
             adopted: e.adopted,
             short,
-            role: item.and_then(role).map(str::to_owned),
+            role,
+            tag,
         });
     }
     let mut canvas = draw(&nodes, &links, view, focus.as_deref());
+    canvas.roles = roles;
     if view.legend {
         legend(&mut canvas, adj, &index, focus.as_deref());
     }
@@ -663,8 +699,8 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
     let mut hot = vec![vec![false; cols]; y];
     let mut near = vec![false; n];
     let mut joints: Vec<(usize, usize, bool)> = Vec::new();
-    // (cells of the run, text, drawn on an adopted edge)
-    type Label = (Vec<(usize, usize)>, String, bool);
+    // (cells of the run, text, drawn on an adopted edge, short fallback)
+    type Label = (Vec<(usize, usize)>, String, bool, Option<String>);
     let mut labels: Vec<Label> = Vec::new();
     for route in &routes {
         let link = &links[route.link];
@@ -733,7 +769,7 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
             let cells: Vec<(usize, usize)> = (a + 2..b.saturating_sub(1))
                 .map(|cx| (cx, p[0].1))
                 .collect();
-            labels.push((cells, text, link.adopted));
+            labels.push((cells, text, link.adopted, link.tag.clone()));
         }
     }
     for cy in 0..y {
@@ -753,10 +789,16 @@ fn draw(nodes: &[Node], links: &[Link], view: &View, focus: Option<&str>) -> Can
     }
     // Labels on clear runs only: nothing crosses or joins them, and the run
     // is not shared with an edge of the other kind.
-    for (cells, text, adopted) in labels {
-        let text = fit(&text, cells.len());
+    for (cells, text, adopted, tag) in labels {
+        // A role never shows clipped: its tag stands in when the name
+        // does not fit; the legend and the confirm footer name the tag.
+        let text = match tag {
+            Some(tag) if width(&text) > cells.len() => format!(" {tag} "),
+            // Drop whole words rather than cut one: `✗ scope` over `✗ scope …`.
+            _ => fit_words(&text, cells.len()),
+        };
         let tw = width(&text);
-        if tw < 6 {
+        if tw < 4 || tw > cells.len() || (tw < 6 && !text.trim_start().starts_with('#')) {
             continue;
         }
         let (own, other) = if adopted {
@@ -1012,8 +1054,13 @@ fn legend(
             continue;
         }
         if let Some(r) = adj.items.iter().find(|i| i.id == e.relation).and_then(role) {
+            let tag = canvas
+                .roles
+                .iter()
+                .find(|t| t.2 == e.relation)
+                .map_or(String::new(), |t| format!("{} ", t.0));
             lines.push((
-                format!("── {} → {}  as {r}", label(&e.from), label(&e.to)),
+                format!("── {} → {}  {tag}as {r}", label(&e.from), label(&e.to)),
                 Tone::Info,
             ));
         }
@@ -1406,14 +1453,33 @@ pub(crate) mod tests {
         let adj = fixture();
         let out = ascii(&adj, 120, None);
         assert_eq!(out, ascii(&adj, 120, None), "deterministic");
-        assert!(out.contains("── 线路 → 网点  as origin_station"), "{out}");
-        assert!(out.contains("── 线路 → 网点  as dest_station"), "{out}");
+        assert!(
+            out.contains("── 线路 → 网点  #1 as dest_station")
+                || out.contains("── 线路 → 网点  #2 as dest_station"),
+            "{out}"
+        );
+        assert!(out.contains("as origin_station"), "{out}");
         // Only role edges are named; ordinary edges stay unlabeled.
-        assert_eq!(out.matches("  as ").count(), 2, "{out}");
+        assert_eq!(
+            out.lines()
+                .filter(|l| l.starts_with("── ") && l.contains(" as "))
+                .count(),
+            2,
+            "{out}"
+        );
         // On the canvas the role rides on the edge's own horizontal run.
         let canvas = render(&adj, &View::default());
         let lines = canvas.lines().join("\n");
-        assert!(lines.contains("─ dest_sta"), "{lines}");
+        // Never clipped: the full role or its tag, never a cut name.
+        assert!(
+            !lines.contains("dest_sta…") && !lines.contains("origin_s…"),
+            "{lines}"
+        );
+        assert!(
+            lines.contains(" dest_station ") || lines.contains(" #"),
+            "{lines}"
+        );
+        assert_eq!(canvas.roles.len(), 2);
         // The rejected scope edge names its flaw, not a bare number.
         assert!(lines.contains("✗ scope"), "{lines}");
     }

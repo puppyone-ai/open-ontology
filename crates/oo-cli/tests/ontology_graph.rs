@@ -97,7 +97,7 @@ fn ascii_is_deterministic_bounded_and_draws_rejections() {
         "self reference: {a}"
     );
     assert!(a.contains("│ 运单事件 │"), "{a}");
-    assert!(a.contains("── 线路 → 网点  as dest_station"), "{a}");
+    assert!(a.contains("── 线路 → 网点  #2 as dest_station"), "{a}");
     // Hidden sensitive columns never show values; the graph has none at all.
     assert!(!a.contains("phone"));
     let focus = stdout(&oo(&[

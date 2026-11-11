@@ -266,12 +266,16 @@ pub fn apply(adj: &Adjudication, overrides: &Overrides) -> Result<Adjudication, 
         if change.decision != a && change.decision != b {
             return Err("OVERRIDE_DECISION");
         }
-        // Exposing a column the product hid is the irreversible direction.
-        if item.class == "sensitive"
-            && change.decision == "visible"
-            && change.reason.trim().is_empty()
-        {
-            return Err("OVERRIDE_REASON_REQUIRED");
+        // Every change of a product decision carries the owner's reason; the
+        // builder refuses an override without one, so refuse it here first.
+        if change.reason.trim().is_empty() {
+            return Err(
+                if item.class == "sensitive" && change.decision == "visible" {
+                    "OVERRIDE_REASON_REQUIRED"
+                } else {
+                    "OVERRIDE_REASON_EMPTY"
+                },
+            );
         }
         // Owner review cannot turn a fan-out JOIN into a relationship.
         if change.decision == "adopted" && fans_out(item) {

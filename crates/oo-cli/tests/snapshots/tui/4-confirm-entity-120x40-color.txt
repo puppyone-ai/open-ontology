@@ -1,40 +1,40 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
 │  graph  │  relations  │  entity                    summary d73614b6… ┊ decisions ··········· ·  ·   by data evidence │
 │                                                                      ┊                                               │
-│ 客户 ·································· ······  ·       lg.customers ┊ ▸ ○ sensitive routes.… visible    ▰▰▰▰▰ 0.91  │
+│ 客户 ·································· ······  ·       lg.customers ┊ ▸ ○ pii  routes.mobile_… visible  ▰▰▰▰▰ 0.91  │
 │                                                                      ┊     format hits 0 · name hit                  │
 │ key       id                                                         ┊     Name looks personal but no value matches… │
-│ display   name                                                       ┊   ◌ sensitive custome… hidden     ▰▰▰▰▰ 0.98  │
+│ display   name                                                       ┊   ◌ pii  customers.phone hidden   ▰▰▰▰▰ 0.98  │
 │ rows      48k (48210)                                                ┊     distinct 0.97 · format hits 0.982         │
 │                                                                      ┊     98% of values match a phone number forma… │
-│ relations                                                            ┊   ◌ sensitive drivers… hidden     ▰▰▰▰▰ 0.99  │
+│ relations                                                            ┊   ◌ pii  drivers.id_num… hidden   ▰▰▰▰▰ 0.99  │
 │   订单 >─1 客户  via orders.customer_id  ✓                           ┊     distinct 1 · format hits 1                │
 │                                                                      ┊     Every value matches an identity document… │
-│ decisions on this table                                              ┊   ✗ relation  司机 → … rejected   ▰▰▱▱▱ 0.38  │
+│ decisions on this table                                              ┊   ✗ rel  司机 → 员工     rejected ▰▰▱▱▱ 0.38  │
 │   ◌ sensitive  customers.phone       98% of values match a phone…    ┊     contain ▕██████···┊▏ 0.64<0.9  distinct … │
 │                                                                      ┊     Only 64% of drivers match an employee; c… │
-│                                                                      ┊   ✗ relation  运单 → … rejected   ▰▰▱▱▱ 0.41  │
+│                                                                      ┊   ✗ rel  运单 → 仓库     rejected ▰▰▱▱▱ 0.41  │
 │                                                                      ┊     contain ▕███████··┊▏ 0.71<0.98  distinct… │
 │                                                                      ┊     29% of origin_wh values have no warehous… │
-│                                                                      ┊   ✗ relation  订单 → … rejected   ▰▰▰▰▰ 0.99  │
+│                                                                      ┊   ✗ rel  订单 → 线路     rejected ▰▰▰▰▰ 0.99  │
 │                                                                      ┊     contain ▕██████████▏ 0.99≥0.9  distinct … │
 │                                                                      ┊     Parent key repeats; unique only together… │
-│                                                                      ┊   ✗ relation  仓库 → … rejected   ▰▰▰▰▰    1  │
+│                                                                      ┊   ✗ rel  仓库 → 网点     rejected ▰▰▰▰▰    1  │
 │                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
 │                                                                      ┊     Parent keys collide after trim/lower-cas… │
-│                                                                      ┊   ↓ metric    avg_par… demoted    ▰▰▱▱▱ 0.44  │
+│                                                                      ┊   ↓ met  avg_parcel_wei… demoted  ▰▰▱▱▱ 0.44  │
 │                                                                      ┊     non empty · recompute match · unit consi… │
 │                                                                      ┊     Mixes grams and kilograms; kept as an ex… │
-│                                                                      ┊   ✓ relation  网点 → … adopted    ▰▰▰▰▰  0.9  │
+│                                                                      ┊   ✓ rel  网点 → 员工     adopted  ▰▰▰▰▰  0.9  │
 │                                                                      ┊     contain ▕█████████┊▏ 0.93≥0.9  distinct … │
 │                                                                      ┊     Containment 0.93 plus naming and JOIN ev… │
-│                                                                      ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.93  │
+│                                                                      ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.93  │
 │                                                                      ┊     contain ▕██████████▏ 0.97≥0.9  distinct … │
 │                                                                      ┊     Containment 0.97 plus naming and JOIN ev… │
-│                                                                      ┊   ✓ relation  订单 → … adopted    ▰▰▰▰▰ 0.94  │
+│                                                                      ┊   ✓ rel  订单 → 日历     adopted  ▰▰▰▰▰ 0.94  │
 │                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
 │                                                                      ┊     Every order date is a calendar day.       │
-│                                                                      ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.95  │
+│                                                                      ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.95  │
 │                                                                      ┊     contain ▕██████████▏ 0.988≥0.9  distinct… │
 │                                                                      ┊     Containment 0.988 with a unique parent.   │
 ╰ tab view  ←→ entity  j/k decisions  o override  ⏎ confirm publish  q quit  ──────────────────────────────────────────╯
@@ -42,40 +42,40 @@
 f.A.iiii.iiiiiiii.fffffffffffffffffffffffffffffffffffffffffffffffffE.dddddddEEE.ddddddEEE.dddddEEA.AAAAAAAfff.fffffff.ff
 f..ddddd..f..ddddddddd..f..AAAAAA....................fffffff.fffffffff.f.iiiiiiiii.fffffffffff.f..f...dd.dddd.dddddddd.f
 f......................................................................f...............................................f
-f.i.i..ffffffffffffffffffffffffffffffffff.ffffff..f.......dddddddddddd.f.A.d.ddddddddd.AAAAAAAA.ddddddd....EEEEE.dddd..f
+f.i.i..ffffffffffffffffffffffffffffffffff.ffffff..f.......dddddddddddd.f.A.d.ddd..AAAAAAAAAAAAAAA.ddddddd..EEEEE.dddd..f
 f......................................................................f.....ffffff.ffff.f.f.ffff.fff..................f
 f.ddd.......ii.........................................................f.....ffff.fffff.ffffffff.fff.ff.fffff.ffffffff.f
-f.ddddddd...iiii.......................................................f...A.ddddddddd.iiiiiiii.AAAAAA.....EEEEE.dddd..f
+f.ddddddd...iiii.......................................................f...A.ddd..iiiiiiiiiiiiiii.AAAAAA...EEEEE.dddd..f
 f.dddd......iii.iiiiiii................................................f.....ffffffff.ffff.f.ffffff.ffff.fffff.........f
 f......................................................................f.....fff.ff.ffffff.fffff.f.fffff.ffffff.ffffff.f
-f.ddddddddd............................................................f...A.ddddddddd.iiiiiiii.AAAAAA.....EEEEE.dddd..f
+f.ddddddddd............................................................f...A.ddd..iiiiiiiiiiiiiii.AAAAAA...EEEEE.dddd..f
 f...i.i..BBB.i.i...ddd.dddddddddddddddddd..G...........................f.....ffffffff.f.f.ffffff.ffff.f................f
 f......................................................................f.....fffff.fffff.fffffff.ff.ffffffff.fffffffff.f
-f.ddddddddd.dd.dddd.ddddd..............................................f...R.dddddddd..i.i..i.i.RRRRRRRR...YYfff.dddd..f
+f.ddddddddd.dd.dddd.ddddd..............................................f...R.ddd..i.i..i.i.i......RRRRRRRR.YYfff.dddd..f
 f...A.ddddddddd..iiiiiiiiiiiiiii.......fff.ff.ffffff.fffff.f.ffffff....f.....fffffff.fRRRRRRfffif.RRRRRRRR..ffffffff.f.f
 f......................................................................f.....ffff.fff.ff.fffffff.fffff.ff.fffffffff.ff.f
-f......................................................................f...R.dddddddd..i.i..i.i.RRRRRRRR...YYfff.dddd..f
+f......................................................................f...R.ddd..i.i..i.i.i......RRRRRRRR.YYfff.dddd..f
 f......................................................................f.....fffffff.fRRRRRRRffif.RRRRRRRRR..fffffffff.f
 f......................................................................f.....fff.ff.fffffffff.ffffff.ffff.ff.fffffffff.f
-f......................................................................f...R.dddddddd..i.i..i.i.RRRRRRRR...EEEEE.dddd..f
+f......................................................................f...R.ddd..i.i..i.i.i......RRRRRRRR.EEEEE.dddd..f
 f......................................................................f.....fffffff.fGGGGGGGGGGf.dddddddd..ffffffff.f.f
 f......................................................................f.....ffffff.fff.ffffffff.ffffff.ffff.fffffffff.f
-f......................................................................f...R.dddddddd..i.i..i.i.RRRRRRRR...EEEEE....d..f
+f......................................................................f...R.ddd..i.i..i.i.i......RRRRRRRR.EEEEE....d..f
 f......................................................................f.....fffffff.fGGGGGGGGGGf.ddddd..ffffffff.f.ff.f
 f......................................................................f.....ffffff.ffff.fffffff.fffff.fffffffffffffff.f
-f......................................................................f...Y.dddddd....iiiiiiii.YYYYYYY....YYfff.dddd..f
+f......................................................................f...Y.ddd..iiiiiiiiiiiiiii.YYYYYYY..YYfff.dddd..f
 f......................................................................f.....fff.fffff.f.fffffffff.fffff.f.ffff.ffffff.f
 f......................................................................f.....fffff.fffff.fff.ffffffffff.ffff.ff.ff.fff.f
-f......................................................................f...G.dddddddd..i.i..i.i.GGGGGGG....EEEEE..ddd..f
+f......................................................................f...G.ddd..i.i..i.i.i......GGGGGGG..EEEEE..ddd..f
 f......................................................................f.....fffffff.fGGGGGGGGGif.dddddddd..ffffffff.f.f
 f......................................................................f.....fffffffffff.ffff.ffff.ffffff.fff.ffff.fff.f
-f......................................................................f...G.dddddddd..i.i..i.i.GGGGGGG....EEEEE.dddd..f
+f......................................................................f...G.ddd..i.i..i.i.i......GGGGGGG..EEEEE.dddd..f
 f......................................................................f.....fffffff.fGGGGGGGGGGf.dddddddd..ffffffff.f.f
 f......................................................................f.....fffffffffff.ffff.ffff.ffffff.fff.ffff.fff.f
-f......................................................................f...G.dddddddd..i.i..i.i.GGGGGGG....EEEEE.dddd..f
+f......................................................................f...G.ddd..i.i..i.i.i......GGGGGGG..EEEEE.dddd..f
 f......................................................................f.....fffffff.fGGGGGGGGGGf.ddddd..ffffffff.f.ff.f
 f......................................................................f.....fffff.fffff.ffff.ff.f.ffffffff.ffff.......f
-f......................................................................f...G.dddddddd..i.i..i.i.GGGGGGG....EEEEE.dddd..f
+f......................................................................f...G.ddd..i.i..i.i.i......GGGGGGG..EEEEE.dddd..f
 f......................................................................f.....fffffff.fGGGGGGGGGGf.ddddddddd..fffffffff.f
 f......................................................................f.....fffffffffff.fffff.ffff.f.ffffff.fffffff...f
 f.AAA.dddd..AA.dddddd..AAA.ddddddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..fffffffffffffffffffffffffffffffffffffffffff

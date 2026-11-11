@@ -1,5 +1,5 @@
 flowchart LR
-  %% oo.adjudication/v1 summary sha256:3edff19048749eb3fde98138c6cf75634d3873e310f4c2a08b13fcea32e22b17
+  %% oo.adjudication/v1 summary sha256:d73614b66850600723830f6316a5796103b47c7db9d4892289536d7fbc143176
   customers["客户<br/>id · 48k"]
   orders["订单<br/>id · 1.2M"]
   shipments["运单<br/>id · 982k"]
@@ -19,6 +19,7 @@ flowchart LR
   shipments -->|"N:1 route_id"| routes
   shipments -.->|"rejected: containment 0.71 < 0.98"| warehouses
   routes -->|"N:1 origin_station_id"| stations
+  routes -->|"N:1 dest_station_id"| stations
   vehicles -->|"N:1 home_station_id"| stations
   drivers -->|"1:1 vehicle_id"| vehicles
   shipments -->|"N:1 driver_id"| drivers
@@ -28,4 +29,6 @@ flowchart LR
   employees -->|"N:1 manager_id"| employees
   employees -->|"N:1 station_id"| stations
   stations -->|"N:1 manager_id"| employees
-  drivers -.->|"rejected: containment 0.64 < 0.9"| employees
+  drivers -.->|"rejected: distinct 0.52 < 0.9 (rows 0.64)"| employees
+  orders -.->|"rejected: scope valid_from required, fan-out ×3"| routes
+  warehouses -.->|"rejected: 2 keys collide after trim/lower"| stations

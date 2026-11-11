@@ -1,4 +1,4 @@
-# oo.adjudication/v1 summary sha256:3edff19048749eb3fde98138c6cf75634d3873e310f4c2a08b13fcea32e22b17
+# oo.adjudication/v1 summary sha256:d73614b66850600723830f6316a5796103b47c7db9d4892289536d7fbc143176
 # focus 运单: 7 of 13 entities (one hop)
  ╭──────────╮    ╭───────────╮    ╭──────────╮
  │ 司机     │    │ 包裹      │    │ 运单事件 │

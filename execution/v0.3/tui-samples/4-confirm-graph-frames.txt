@@ -22,7 +22,7 @@
 │                                                                              │
 │                                                                              │
 │                                                                              │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 
@@ -36,7 +36,7 @@
 │                      ▓▓▓    ▒▒▒▒▒▒▒▒▒▒▒▒    ▓▓▓▓                             │
 │                                 ▒  1                                         │
 │                   ▓▓▓▓▒▒▒▒▒▒───╮┆ ╭╯ ╭┄┄ ▒ ▒▒▒▒ ▓▓▓                          │
-│                    ▓▒ ▒ ▒cope …┼╯ │  ┆                                       │
+│                    ▓▒ ▒ ▒cope ┄┼╯ │  ┆                                       │
 │                                N  N  N                                       │
 │                             ┏━━┷━━┷━━┷━━┓                                    │
 │                             ┃ 运单      ┃                                    │
@@ -48,7 +48,7 @@
 │                   ▓▓▓▓▒▒    ╭──────┴───╮    ▒▒▒▓▓▓▓                          │
 │                        ▒    ▒ ▒ ▒ 事▒  ▒    ▒ ▓ ▓                            │
 │                      ▓ ▓    ▒ ▒▒ ▒ ▒▒▒ ▒    ▓ ▓▓                             │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 
@@ -62,7 +62,7 @@
 │            ▒▒▒─┬───┬───╯    ╰───┬──┬───╯    ╰─────┬────▒▒    ▓               │
 │                1   N            N  1              1          ▓ ▓             │
 │                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          ▒ ▓             │
-│                    ╰┄ ✗ scope …┼╯ │  ┆                       ▒ ▓             │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       ▒ ▓             │
 │                                N  N  N                       ▒ ▓ ▓           │
 │                             ┏━━┷━━┷━━┷━━┓                    ▒ ▓ ▓           │
 │                             ┃ 运单      ┃                    ▒ ▓ ▓           │
@@ -74,7 +74,7 @@
 │             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    ▒ ▓             │
 │             ▒ 司机     │    │ 运单事件 │    │ 包裹      ▒    ▓ ▓             │
 │             ▒ id · 540 │    │ id · 11M │    │ id · 2.4M ▒    ▓               │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 
@@ -88,7 +88,7 @@
 │            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
 │                1   N            N  1              1          │ │ │           │
 │                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
-│                    ╰┄ ✗ scope …┼╯ │  ┆                       │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
 │                                N  N  N                       │ │ │           │
 │                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
 │                             ┃ 运单      ┃                    │ │ │           │
@@ -100,7 +100,7 @@
 │             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
 │             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
 │             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 
@@ -114,7 +114,7 @@
 │            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
 │                1   N            N  1              1          │ │ │           │
 │                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
-│                    ╰┄ ✗ scope …┼╯ │  ┆                       │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
 │                                N  N  N                       │ │ │           │
 │                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
 │                             ┃ 运单      ┃                    │ │ │           │
@@ -126,7 +126,7 @@
 │             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
 │             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
 │             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 
@@ -140,7 +140,7 @@
 │            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
 │                1   N            N  1              1          │ │ │           │
 │                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
-│                    ╰┄ ✗ scope …┼╯ │  ┆                       │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
 │                                N  N  N                       │ │ │           │
 │                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
 │                             ┃ 运单      ┃                    │ │ │           │
@@ -152,6 +152,6 @@
 │             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
 │             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
 │             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯

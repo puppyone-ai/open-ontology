@@ -19,7 +19,7 @@
 │             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
 │             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
 │             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
-│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
 │ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
 --- colour layer ---
@@ -44,6 +44,6 @@ f......AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA......f
 f.............iiiiiiiiiiii....iiiiiiiiiiii....iiiiiiiiiiiii....B.B.B...........f
 f.............i.i.i......i....i.i.i.i.i..i....i.i.i.......i....B.B.B...........f
 f.............i.dd.d.ddd.i....i.dd.d.ddd.i....i.dd.d.dddd.i....B.B.B...........f
-f..............................................................................f
+f.ddddd..BB.iiiiiiiiiiiiii..BB.iiiiiiiiiiii....................................f
 f.AAA.ddddddddddd..R.dddddddd...ff.ffffffff.f.ff.fffffffff.f.f.f.ffff.fffff....f
 f.AAA.dddd..AAAA.dddddd..A.ddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..fffffff

@@ -235,6 +235,7 @@ fn error_text(e: &str, theme: &Theme) -> String {
     match e {
         "showing a column the product hid needs a reason" => "显示被隐藏的列需要理由".into(),
         "a short reason is required" => "需要一句简短的理由".into(),
+        "every change needs a short reason" => "每次改判都需要一句简短的理由".into(),
         "relationship discovery is incomplete; accept it first (a)" => {
             "关系发现未完成，请先接受（a）".into()
         }
@@ -295,6 +296,18 @@ fn decision_word<'a>(decision: &'a str, theme: &Theme) -> &'a str {
 }
 
 /// Display word for an item class.
+/// Four-column class tag for the narrow side panel.
+fn class_short(class: &str, theme: &Theme) -> &'static str {
+    match class {
+        "sensitive" => theme.t("pii", "敏感"),
+        "relation" => theme.t("rel", "关系"),
+        "metric" => theme.t("met", "指标"),
+        "entity_key" => theme.t("key", "主键"),
+        "code_table" => theme.t("code", "码表"),
+        _ => theme.t("oth", "其他"),
+    }
+}
+
 fn class_word(class: &str, theme: &Theme) -> &'static str {
     match class {
         "sensitive" => theme.t("sensitive", "敏感"),
@@ -512,6 +525,7 @@ fn modal_key(state: &mut Confirm, m: Modal, key: KeyEvent) -> Action {
                         "OVERRIDE_REASON_REQUIRED" => {
                             "showing a column the product hid needs a reason".into()
                         }
+                        "OVERRIDE_REASON_EMPTY" => "every change needs a short reason".into(),
                         "OVERRIDE_FANOUT" => state
                             .base
                             .items
@@ -1211,6 +1225,25 @@ fn render_graph(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme) {
     }
     spans.push(theme.span(format!(" {status}{more}"), Tone::Faint));
     put(buf, area.x, area.bottom() - 1, area.width, spans);
+    // Role edges: name every tag, so a short edge never hides its role.
+    if !canvas.roles.is_empty() && area.height > 4 {
+        let mut spans = vec![theme.span(theme.t("roles  ", "角色  "), Tone::Dim)];
+        for (k, (tag, role, relation)) in canvas.roles.iter().enumerate() {
+            if k > 0 {
+                spans.push(theme.span("  ", Tone::Faint));
+            }
+            let hot = state
+                .effective
+                .graph
+                .edges
+                .iter()
+                .find(|e| &e.relation == relation)
+                .is_some_and(|e| e.from == state.selected || e.to == state.selected);
+            spans.push(theme.span(tag.clone(), if hot { Tone::Accent } else { Tone::Info }));
+            spans.push(theme.span(format!(" {role}"), Tone::Ink));
+        }
+        put(buf, area.x, area.bottom() - 2, area.width, spans);
+    }
 }
 
 /// Move a vertical scroll offset up so no box is cut through its top edge.
@@ -1437,7 +1470,11 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         let changed = state.overrides.items.contains_key(&item.id);
         let conf = item.scores.get("confidence").and_then(Value::as_f64);
         let w = usize::from(area.width);
-        let subj_w = w.saturating_sub(2 + 2 + 10 + 11 + 11);
+        // The side panel is narrow: short class and decision columns leave
+        // the subject (`司机 → 员工`) readable.
+        let compact = w < 60;
+        let (class_w, decision_w) = if compact { (5, 9) } else { (10, 11) };
+        let subj_w = w.saturating_sub(2 + 2 + class_w + decision_w + 11);
         let subject_text = format!(
             "{} ",
             theme::pad(&subject(&state.effective, item), subj_w.saturating_sub(1))
@@ -1445,7 +1482,17 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
         let mut spans = vec![
             theme.span(if on { "▸ " } else { "  " }, Tone::Accent),
             theme.span(format!("{g} "), t),
-            theme.span(theme::pad(class_word(&item.class, theme), 10), Tone::Dim),
+            theme.span(
+                theme::pad(
+                    if compact {
+                        class_short(&item.class, theme)
+                    } else {
+                        class_word(&item.class, theme)
+                    },
+                    class_w,
+                ),
+                Tone::Dim,
+            ),
             theme.span(subject_text.clone(), Tone::Ink),
             theme.span(
                 theme::pad(
@@ -1454,7 +1501,7 @@ fn render_decisions(state: &Confirm, area: Rect, buf: &mut Buffer, theme: &Theme
                         if changed { "✎" } else { "" },
                         decision_word(&item.decision, theme)
                     ),
-                    11,
+                    decision_w,
                 ),
                 if changed { Tone::Accent } else { t },
             ),
@@ -1688,6 +1735,30 @@ pub(crate) mod tests {
         press(&mut s, &[KeyCode::Char('o'), KeyCode::Enter]);
         assert!(s.overrides.items.is_empty());
         assert_eq!(s.effective.summary_sha256, s.base.summary_sha256);
+    }
+
+    #[test]
+    fn every_override_needs_a_reason_like_the_builder() {
+        let mut s = Confirm::new(fixture(), "t");
+        s.width = 80;
+        s.tab = Tab::Decisions;
+        s.decision = s
+            .ordered()
+            .iter()
+            .position(|i| i.class == "relation" && i.decision == "adopted")
+            .unwrap();
+        press(&mut s, &[KeyCode::Char('o'), KeyCode::Enter]);
+        assert!(matches!(
+            &s.modal,
+            Some(Modal::Override { error: Some(e), .. }) if e == "every change needs a short reason"
+        ));
+        assert!(s.overrides.items.is_empty());
+        typed(&mut s, "   ");
+        press(&mut s, &[KeyCode::Enter]);
+        assert!(s.overrides.items.is_empty(), "blank reason refused");
+        typed(&mut s, "joins on a legacy code");
+        press(&mut s, &[KeyCode::Enter]);
+        assert_eq!(s.overrides.items.len(), 1);
     }
 
     #[test]
