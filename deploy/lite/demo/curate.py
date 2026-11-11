@@ -36,7 +36,7 @@ TABLES = {
     "sites": (8, ["id"], "id:bigint area_id:bigint name:text"),
     "codes": (3, ["code"], "code:bigint label:text"),
     "customers": (24, ["id"], "id:bigint site_id:bigint name:text phone_synthetic:text"),
-    "orders": (120, ["id"], "id:bigint customer_id:bigint status_code:bigint region_id:bigint amount:numeric qty:bigint ordered_at:timestamp"),
+    "orders": (120, ["id"], "id:bigint customer_id:bigint status_code:bigint region_id:bigint amount:numeric(18,4) qty:bigint ordered_at:timestamp"),
     "shipments": (90, ["id"], "id:bigint order_id:bigint site_id:bigint shipped_at:timestamp"),
     "calendar": (31, ["day_id"], "day_id:bigint day_date:date month_no:bigint"),
     "order_lines": (240, ["order_id", "line_no"], "order_id:bigint line_no:bigint qty:bigint"),
@@ -59,7 +59,8 @@ RELATIONS = [
 def inventory():
     return [
         dict(dataset="demo." + name, primary_key=key, comment=None, foreign_keys=[],
-             columns=[dict(name=c.split(":")[0], data_type=c.split(":")[1],
+             columns=[dict(name=c.split(":")[0],
+                           data_type={"timestamp": "timestamp without time zone"}.get(c.split(":")[1], c.split(":")[1]),
                            nullable=False, comment=None) for c in columns.split()])
         for name, (_, key, columns) in TABLES.items()
     ]
@@ -115,6 +116,14 @@ def generate(compiler, out):
         datasets=[dict(schema_version="oos/v1", dataset=t["dataset"], tier="file",
                        label=t["dataset"], primary_key=t["primary_key"],
                        columns=[dict(name=c["name"], data_type=c["data_type"],
+                                     semantic_type=("identifier" if c["name"] in t["primary_key"] else
+                                                    "foreign_key" if c["name"].endswith("_id") else
+                                                    "event_time" if c["name"].endswith("_at") else
+                                                    "quantity" if c["name"] in ("amount", "qty", "month_no", "event_no") else
+                                                    "date" if c["name"] == "day_date" else
+                                                    "status_code" if c["name"] == "status_code" else
+                                                    "entity_name" if c["name"] in ("name", "label") else
+                                                    "phone" if c["name"] == "phone_synthetic" else "free_text"),
                                      pii="personal" if c["name"] == "phone_synthetic" else "none",
                                      classification=dict(state="confirmed", by=CURATOR),
                                      review=dict(state="approved", by=CURATOR))
