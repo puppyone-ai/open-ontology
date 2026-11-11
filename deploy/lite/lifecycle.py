@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import ssl
 import stat
 import subprocess
@@ -172,8 +173,17 @@ def write(path,data):
     os.replace(tmp,path)
 
 
+def docker_command(argv,env):
+    # Docker Desktop also installs Compose on PATH. An empty HOME may not
+    # contain Docker's per-user plugin link; never borrow another HOME/config.
+    if argv and argv[0]=='compose':
+        standalone=shutil.which('docker-compose',path=env.get('PATH'))
+        if standalone:
+            return [standalone,*argv[1:]]
+    return ['docker',*argv]
+
 def docker(argv,env):
-    p=subprocess.run(['docker',*argv],capture_output=True,env=env,timeout=180)
+    p=subprocess.run(docker_command(argv,env),capture_output=True,env=env,timeout=180)
     if p.returncode:
         raise ValueError('LITE_DOCKER_FAILED')
     return p.stdout
@@ -215,7 +225,7 @@ print(json.dumps({'status':r.status,'deadlines':[(b.get(k) or {}).get('expires_a
 def runtime_health(root,argv,env,config,port):
     material={'port':port,**{name:read_private(root/'pki'/config[name]).decode().strip()+('\n' if name!='token' else '')
                              for name in ('token','ca','cert','key')}}
-    p=subprocess.run(['docker',*argv,'exec','-T','gateway','python3','-c',RUNTIME_HEALTH],
+    p=subprocess.run([*docker_command(argv,env),'exec','-T','gateway','python3','-c',RUNTIME_HEALTH],
                      input=json.dumps(material).encode(),capture_output=True,env=env,timeout=30)
     if p.returncode:raise ValueError('LITE_HEALTH_RUNTIME')
     reply=json.loads(p.stdout)
@@ -287,7 +297,7 @@ def provision_retained_login(root,argv,env):
     if login is None:
         return
     sql=retained_login_grant(login)
-    result=subprocess.run(['docker',*argv,'exec','-T','agent-db','psql',
+    result=subprocess.run([*docker_command(argv,env),'exec','-T','agent-db','psql',
         '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
         input=sql.encode(),capture_output=True,env=env,timeout=30)
     if result.returncode:
@@ -341,7 +351,7 @@ def operator_bootstrap(root,argv,env,stack,port=8443):
                   f"'{role}', '{password}') WHERE NOT EXISTS "
                   f"(SELECT 1 FROM pg_roles WHERE rolname='{role}') \\gexec\n")
         sql+='GRANT CREATE ON DATABASE postgres TO oo_token_admin;\n'
-        result=subprocess.run(['docker',*argv,'exec','-T','control-db','psql',
+        result=subprocess.run([*docker_command(argv,env),'exec','-T','control-db','psql',
                                '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'],
                               input=sql.encode(),capture_output=True,env=env,timeout=30)
         if result.returncode:
@@ -375,7 +385,7 @@ def save_json(path,value):
     write(path,data)
 
 def compose_input(argv,env,args,data,code,timeout=300):
-    result=subprocess.run(['docker',*argv,*args],input=data,capture_output=True,env=env,timeout=timeout)
+    result=subprocess.run([*docker_command(argv,env),*args],input=data,capture_output=True,env=env,timeout=timeout)
     if result.returncode:raise ValueError(code)
     return result.stdout
 
@@ -588,7 +598,7 @@ def provision_schedule(root,argv,env,request):
     return True
 
 def retained_function_exists(argv,env):
-    result=subprocess.run(['docker',*argv,'exec','-T','agent-db','psql','-X','-qAt','-U','postgres','-c',
+    result=subprocess.run([*docker_command(argv,env),'exec','-T','agent-db','psql','-X','-qAt','-U','postgres','-c',
         "SELECT to_regprocedure('_oo.native_library_retained_table(text)') IS NOT NULL"],
         capture_output=True,env=env,timeout=30)
     return result.returncode==0 and result.stdout.strip()==b't'
@@ -607,7 +617,7 @@ def main(request):
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
     saved=json.loads(read_private(owner)) if owner.exists() else {}
-    lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
+    lane=saved.get('lane','v03' if request.get('demo') else os.environ.get('OO_LITE_LANE','a'))
     if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
@@ -643,10 +653,10 @@ def main(request):
         for name in ('work','home'):private_dir(root/name)
         for sub in ('home/.config','home/.config/open-ontology','home/.config/open-ontology/secrets'):
             private_dir(root/sub)
-        refs=[request['stack']['model']['key']['secret_ref']]
+        refs=[] if request.get('demo') else [request['stack']['model']['key']['secret_ref']]
         endpoint=request['stack']['model']['base_url']
-        if isinstance(endpoint,dict):refs.append(endpoint['secret_ref'])
-        for source in request['stack']['sources']:
+        if not request.get('demo') and isinstance(endpoint,dict):refs.append(endpoint['secret_ref'])
+        for source in ([] if request.get('demo') else request['stack']['sources']):
             refs.append(source['password']['secret_ref'])
             if source.get('tls_ca'):refs.append(source['tls_ca']['secret_ref'])
         home=Path.home()/'.config/open-ontology/secrets'
@@ -672,7 +682,8 @@ def main(request):
         write(owner,json.dumps({'project':project,'image':image,'lane':lane,'subnet':network,
                                 'gateway_port':port}).encode())
         offline=['--pull','never','--no-build'] if os.environ.get('OO_LITE_POSTGRES_IMAGE') else []
-        docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120'],env)
+        services=['agent-db','control-db'] if request.get('demo') else []
+        docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120',*services],env)
         operator_bootstrap(root,argv,env,request['stack'],port)
         if request.get('retained'):
             provision_retained(root,argv,env,request,port)
@@ -728,6 +739,9 @@ if __name__=='__main__':
         report=main(json.loads(sys.stdin.buffer.read(2097153)))
         print(json.dumps(report))
         raise SystemExit(1 if report.get('status') in ('foundations_only','unhealthy') else 0)
-    except Exception:
-        print(json.dumps({'status':'failed','error':'LITE_LIFECYCLE_FAILED','healthy':False}))
+    except Exception as error:
+        code=str(error)
+        if not isinstance(error,ValueError) or not re.fullmatch(r'LITE_[A-Z_]+',code):
+            code='LITE_LIFECYCLE_FAILED'
+        print(json.dumps({'status':'failed','error':code,'healthy':False}))
         raise SystemExit(1)

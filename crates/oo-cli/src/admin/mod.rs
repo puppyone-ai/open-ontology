@@ -4,7 +4,7 @@ mod build_lite;
 mod build_retained;
 mod build_tail;
 mod build_token;
-mod demo_down;
+mod demo;
 mod demo_try;
 mod doctor;
 mod lite;
@@ -97,9 +97,9 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
             return Some(Ok(Invocation::Help(HELP.into())));
         }
         if rest.iter().any(|a| a == "--down") {
-            return Some(demo_down::run(rest));
+            return Some(demo::run(rest));
         }
-        // The TUI lane owns the only onboarding entry point and its screens.
+        // Demo deployment does not require the own-database selection screens.
         let demo_args: Vec<_> = ["init".to_owned(), "--demo".to_owned()]
             .into_iter()
             .chain(rest.iter().cloned())
@@ -209,6 +209,9 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     if command == "quickstart" || (command == "init" && v03_init) {
         if rest.iter().any(|s| s == "--help" || s == "-h") {
             return Ok(Invocation::Help(HELP.into()));
+        }
+        if rest.iter().any(|s| s == "--demo") {
+            return demo::run(rest);
         }
         return wizard::init(&wizard::parse_init(rest, command == "quickstart")?);
     }
