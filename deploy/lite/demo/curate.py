@@ -80,6 +80,8 @@ def generate(compiler, out):
                           "to": dict(dataset="demo." + parent, columns=[key])})
                   for child, col, parent, key in RELATIONS]
     graph = bridge("graph", tables=tables, candidates=candidates)
+    # This curated fixture uses declared constraints, not duplicate name guesses.
+    graph["edges"] = [edge for edge in graph["edges"] if edge["provenance"] == "declared_fk"]
     entities = [dict(id=stable("entity", t["dataset"]), canonical_name=t["dataset"],
                      aliases=[], main_table=t["dataset"], related_tables=[t["dataset"]],
                      primary_key=t["primary_key"]) for t in tables]
@@ -147,32 +149,45 @@ def generate(compiler, out):
         save("pack-" + role + ".json", compiled["producer"]["artifact"])
     items, edges = [], []
     for child, col, parent, key in RELATIONS:
-        id_ = "relation/" + child + "." + col
+        source = next(e for e in graph["edges"] if e["from"] == "demo." + child
+                      and e["to"] == "demo." + parent and e["columns"]["from"] == [col])
+        id_ = "relation/" + source["id"]
         items.append(dict(id=id_, **{"class": "relation"},
                           subject={"from": "demo." + child + "." + col, "to": "demo." + parent + "." + key},
                           decision="adopted", evidence=dict(containment=1, distinct_containment=1,
                           parent_unique=True, max_fanout=1, normalized_collisions=0, unmatched_rows=0,
                           empty_rows=0, kind="declared_fk", role=None, from_columns=[col], to_columns=[key],
-                          cardinality="many_to_one", rows_checked=TABLES[child][0], basis="seed.sql declared foreign key"),
+                          cardinality="many_to_one", rows_checked=TABLES[child][0],
+                          matched_rows=TABLES[child][0], basis="seed.sql declared foreign key"),
                           scores=dict(confidence=1), rule_id="relation.containment_strict",
                           reason="Every synthetic child key has a declared, seeded parent."))
         edges.append(dict(relation=id_, **{"from": "entity/" + child, "to": "entity/" + parent},
                           cardinality="many_to_one", adopted=True))
     for name, (rows, key, _) in TABLES.items():
         items.append(dict(id="entity_key/" + name, **{"class": "entity_key"},
-                          subject=dict(table="demo." + name, columns=key), decision="adopted",
+                          subject=dict(table="demo." + name), decision="adopted",
                           evidence=dict(unique_ratio=1, non_null_ratio=1, rows_checked=rows,
                                         basis="seed.sql primary key"), scores=dict(confidence=1),
                           rule_id="entity_key.unique_non_null", reason="Declared synthetic primary key."))
     items.append(dict(id="sensitive/customers.phone_synthetic", **{"class": "sensitive"},
                       subject=dict(column="demo.customers.phone_synthetic"), decision="hidden",
-                      evidence=dict(basis="explicit fixture deny declaration", rows_checked=24),
+                      evidence=dict(rows=24, pii_marker=True),
                       scores=dict(confidence=1), rule_id="sensitive.fixture_declared",
                       reason="Synthetic stand-in for a private contact field; denied for both demo roles."))
+    for table in tables:
+        for column in table["columns"]:
+            if column["name"] == "phone_synthetic":
+                continue
+            path = table["dataset"] + "." + column["name"]
+            items.append(dict(id="sensitive/" + path, **{"class": "sensitive"},
+                              subject=dict(column=path), decision="visible",
+                              evidence=dict(rows=TABLES[table["dataset"].split(".")[1]][0], pii_marker=False),
+                              scores=dict(confidence=1), rule_id="sensitive.fixture_public",
+                              reason="Public synthetic fixture column."))
     items.append(dict(id="code_table/codes", **{"class": "code_table"},
                       subject=dict(table="demo.codes"), decision="complete",
                       evidence=dict(coverage=1, rows_checked=120), scores=dict(confidence=1),
-                      rule_id="code.coverage", reason="All three seeded order statuses have labels."))
+                      rule_id="code_table.coverage", reason="All three seeded order statuses have labels."))
     public_graph = dict(entities=[dict(id="entity/" + name, label=name, table="demo." + name,
                                       key=key, display=key[0], rows=rows)
                                  for name, (rows, key, _) in TABLES.items()], edges=edges)
@@ -182,6 +197,21 @@ def generate(compiler, out):
          items=items, discovery=dict(status="complete", budget=len(edges), checked=len(edges), remaining=0,
                                      unchecked=[]),
          graph=public_graph, summary_sha256=digest(adjudication_summary(public_graph, items))))
+    for role in ("analyst", "ops"):
+        raw = (out / ("reviewed-" + role + ".json")).read_text()
+        document = json.loads((out / "adjudication.json").read_text())
+        document["input_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+        envelope = dict(adjudication_input=raw, adjudication=document,
+                        overrides=dict(protocol="oo.adjudication-override/v1",
+                                       summary_sha256=document["summary_sha256"], items={}),
+                        confirmation=dict(protocol="oo.publish-confirm/v1",
+                                          summary_sha256=document["summary_sha256"],
+                                          overrides_sha256=None,
+                                          reason="Publish the pre-reviewed public synthetic demo",
+                                          confirmed_at="2026-11-11T00:00:00Z"))
+        compiled = bridge("reviewed", command=envelope)
+        save("confirmed-" + role + ".json", envelope)
+        save("pack-" + role + ".json", compiled["producer"]["artifact"])
     save("gold.json", [
         dict(id="Q01", question="How many orders can this role see?",
              sql="SELECT COUNT(*) AS value FROM demo.orders", expected={"analyst": [["60"]], "ops": [["60"]]}),
@@ -195,7 +225,8 @@ def generate(compiler, out):
              sql="SELECT phone_synthetic FROM demo.customers", denied=True),
     ])
     files = ["seed.sql", "roles.yaml", "reviewed-analyst.json", "reviewed-ops.json", "pack-analyst.json",
-             "pack-ops.json", "adjudication.json", "gold.json"]
+             "pack-ops.json", "adjudication.json", "gold.json",
+             "confirmed-analyst.json", "confirmed-ops.json"]
     save("manifest.json", dict(protocol="oo.demo-assets/v1", local_fixture=True, model_calls=0,
          review_basis="public synthetic fixture curation; not business approval",
          files={name: hashlib.sha256((out / name).read_bytes()).hexdigest() for name in files}))
