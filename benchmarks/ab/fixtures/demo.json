@@ -7,7 +7,7 @@
   "snapshot": "demo-v1-frozen",
   "as_of": "2026-11-09T00:00:00Z",
   "publication": "curated_fixture_not_runtime_verified",
-  "coverage": "3 public demo accuracy questions; not the full OO-Logistics bank",
+  "coverage": "2 public demo accuracy questions; q02 is an analyst permission case; not the full OO-Logistics bank",
   "questions": [
     {
       "id": "q01",
@@ -47,8 +47,8 @@
     {
       "id": "q02",
       "question": "What is the exact total amount of those orders?",
-      "track": "accuracy",
-      "expected_kind": "rows",
+      "track": "permission",
+      "expected_kind": "denied",
       "gold": {
         "columns": [
           {
@@ -142,11 +142,11 @@
     },
     "responses": {
       "path": "responses.json",
-      "sha256": "fa05bbefac339278f9defd9d6cd0c08ad9152c87307e7f0554d3a0d8a2beddf9"
+      "sha256": "5902164b00fe76a2fcb0cf54696e373b5b8135465284c6999f9e60f6138f2908"
     },
     "bank": {
       "path": "bank.json",
-      "sha256": "c901853ad6194e3fbcf4c6a10fffb78f0dcc72bfee2394626eb8da741ccaa93b"
+      "sha256": "b8bb5edbcf0586b723dca2155a6edbee27fed0ed55c5f9375060c6ed227f96c0"
     },
     "demo_gold": {
       "path": "../../../deploy/lite/demo/gold.json",

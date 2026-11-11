@@ -3,7 +3,7 @@
   "provenance": "hand-authored protocol fixtures; not captured model outputs or live PG results",
   "model": "gpt-6.1-sol",
   "seed": 42,
-  "dataset_sha256": "680836f8131e0c63fa0cf72210ec3598239a2a66e3e31e83d5d9648b9ac48dc4",
+  "dataset_sha256": "2a03da8d4b502c1dfd2e1aa7df6b7dbb4fa670b7479a8a72735a5535016940d2",
   "responses": {
     "c0:q01": {
       "kind": "sql",

@@ -15,6 +15,15 @@ FIXTURE = ab.ROOT / "benchmarks/ab/fixtures/demo.json"
 
 
 class ScorerTests(unittest.TestCase):
+    def test_demo_amount_is_permission_not_accuracy(self):
+        dataset = ab.load(FIXTURE)
+        question = next(q for q in dataset["questions"] if q["id"] == "q02")
+        self.assertEqual(question["track"], "permission")
+        self.assertEqual(question["expected_kind"], "denied")
+        self.assertEqual(question["gold"]["rows"][0][0]["coefficient"], "35175000")
+        pack = ab.load(ab.pinned(FIXTURE.parent, dataset["inputs"]["pack"]))
+        ab.validate_role(dataset, pack)
+
     def test_accuracy_role_visibility_is_validated_before_trials(self):
         dataset = ab.load(FIXTURE)
         pack = ab.load(ab.pinned(FIXTURE.parent, dataset["inputs"]["pack"]))
@@ -143,7 +152,8 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual((self.base / "first/report.json").read_bytes(),
                          (self.base / "second/report.json").read_bytes())
-        self.assertEqual(first["tracks"]["accuracy"]["fixed"], ["q02"])
+        self.assertEqual(first["tracks"]["accuracy"]["fixed"], [])
+        self.assertEqual(first["tracks"]["permission"]["question_count"], 2)
         self.assertEqual(first["tracks"]["accuracy"]["broken"], ["q16"])
         self.assertFalse(first["model_measured"])
         self.assertTrue(all(t["relative_change"] is None for t in first["tracks"].values()))
@@ -202,7 +212,7 @@ class PipelineTests(unittest.TestCase):
         path = self.modified_recordings(lambda r: r["responses"].pop("c0:q01"))
         report = ab.run(path, self.base / "missing")
         track = report["tracks"]["accuracy"]
-        self.assertEqual(track["question_count"], 3)
+        self.assertEqual(track["question_count"], 2)
         self.assertEqual(track["health"]["c0"]["no_output"], 1)
         self.assertFalse(track["health"]["c0"]["passed"])
         self.assertIsNone(track["relative_change"])

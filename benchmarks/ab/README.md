@@ -59,7 +59,7 @@ and `test_p2_t_reproducible_replay`. Build the five benchmark binaries first;
 missing binaries are failures, not skipped tests. The CLI currently requires
 this source checkout and Python; it is not a standalone installed product.
 
-`--dataset demo` retains the three-question demo subset. Bare
+`--dataset demo` retains two accuracy questions and the q02 permission case. Bare
 `--dataset oo-logistics` refuses instead of silently substituting demo.
 Use a publication-bound manifest for the ERP bank below.
 A new output directory under this worktree's ignored `evidence/` is
@@ -100,8 +100,8 @@ Exit 2 is configuration/execution failure with a closed error code.
 
 **Every replay headline remains null**, regardless of health. The bundled
 responses are hand-authored protocol fixtures, not captured outputs from the
-named model or live PG. They deliberately fix q02 and break q16 to test both
-directions; they do not estimate an ontology improvement. The permission and
+named model or live PG. They retain the original q02 SQL recordings as permission failures and
+break q16; they do not estimate an ontology improvement. The permission and
 injection fixtures test reporting only, not a real Gateway's enforcement.
 Internal bootstrap diagnostics (including raw counts) stay in ignored
 evidence; the public report contains no headline absolute accuracy.
@@ -111,7 +111,8 @@ evidence; the public report contains no headline absolute accuracy.
 `fixtures/logistics-bank.json` contains 40 accuracy questions (eight each for
 effective-dated code decoding, legacy names, undeclared joins, calendar rules,
 and metric definitions), plus separate permission and injection questions.
-The three existing demo questions remain in `fixtures/demo.json`: they use a
+The existing demo questions remain in `fixtures/demo.json` (q02 is now
+a permission case, with its original gold retained): they use a
 different publication and are not pooled into ERP denominators.
 
 The bank targets the default Self-build `owner` role on ten MySQL ERP tables,
