@@ -211,13 +211,15 @@ def model_sources(root, stack):
     return stack,mounts
 
 
-def read_private(path):
+def read_private(path, max_bytes=1048576):
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
     with os.fdopen(fd,'rb') as stream:
         st=os.fstat(stream.fileno())
-        if not stat.S_ISREG(st.st_mode) or st.st_uid!=os.getuid() or st.st_nlink!=1 or st.st_mode & 0o777!=0o600 or st.st_size>1048576:
+        if not stat.S_ISREG(st.st_mode) or st.st_uid!=os.getuid() or st.st_nlink!=1 or st.st_mode & 0o777!=0o600 or st.st_size>max_bytes:
             raise ValueError('LITE_PRIVATE_FILE')
-        return stream.read(1048577)
+        raw=stream.read(max_bytes+1)
+        if len(raw)>max_bytes:raise ValueError('LITE_PRIVATE_FILE')
+        return raw
 
 
 def write(path,data):
@@ -618,7 +620,9 @@ def provision_schedule(root,argv,env,request):
     stack=request['stack']
     source=stack['sources'][0]
     origin={name:{'path':'/work/build/.oo/'+file,
-                  'sha256':hashlib.sha256(read_private(state/file)).hexdigest()}
+                  # Reviewed artifacts share the CLI review's 64 MiB bound,
+                  # not the 1 MiB bound retained for credentials/configuration.
+                  'sha256':hashlib.sha256(read_private(state/file,64*1024*1024)).hexdigest()}
             for name,file in [('facts','facts.json'),('reviewed_registry','reviewed-registry.json')]}
     copy_private(root/'consumer/ca.crt',operator/'probe-ca.crt')
     copy_private(root/'pki/lite-consumer-cert',operator/'probe.crt')

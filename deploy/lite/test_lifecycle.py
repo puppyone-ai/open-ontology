@@ -12,6 +12,17 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_large_review_artifact_does_not_relax_private_config_or_mode_checks(self):
+        path=self.root/'large-review.json'
+        data=b'x'*(1048576+1)
+        lifecycle.write(path,data)
+        with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+            lifecycle.read_private(path)
+        self.assertEqual(lifecycle.read_private(path,64*1024*1024),data)
+        path.chmod(0o644)
+        with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+            lifecycle.read_private(path,64*1024*1024)
+
     def test_schedule_catalog_migration_is_additive_and_idempotent(self):
         state=self.root/'work/build/.oo'
         state.mkdir(parents=True,mode=0o700)
