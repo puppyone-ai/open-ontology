@@ -60,6 +60,9 @@ use crate::nfc::nfc;
 mod community_summaries;
 #[path = "role_pack_pages.rs"]
 mod pages;
+#[path = "relationship_paths.rs"]
+mod relationship_paths;
+pub use relationship_paths::RELATIONSHIP_EVIDENCE_PROTOCOL;
 
 pub const ROLE_PACK_PROTOCOL: &str = "oo.builder.role-pack/v1";
 pub const ROLE_PACK_COMPILER: &str = "oo-builder/role-pack/v1";
@@ -393,6 +396,9 @@ struct EffectiveDoc {
     entities: Vec<EntityFile>,
     #[serde(default)]
     calendar: Option<CalendarFile>,
+    /// Versioned extension; absent on legacy documents (same Pack bytes).
+    #[serde(default)]
+    relationship_evidence: Option<relationship_paths::RelationshipEvidence>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -471,6 +477,7 @@ struct Model {
     enums: Vec<EnumFile>,
     entities: Vec<EntityFile>,
     calendar: Option<CalendarFile>,
+    relationship_evidence: Option<relationship_paths::RelationshipEvidence>,
     grants: BTreeMap<String, Grant>,
     limits: LimitsIn,
     unreviewed: BTreeSet<String>,
@@ -750,6 +757,9 @@ fn bind(
             "/relationships",
         )?;
     }
+    if let Some(evidence) = &effective.relationship_evidence {
+        relationship_paths::validate(evidence, &effective.relationships, &datasets)?;
+    }
     if effective.metrics.len() > ceilings.max_metrics {
         return Err(object_budget("/metrics"));
     }
@@ -944,6 +954,7 @@ fn bind(
         enums: effective.enums,
         entities: effective.entities,
         calendar: effective.calendar,
+        relationship_evidence: effective.relationship_evidence,
         grants,
         limits: visibility.limits,
         unreviewed,
@@ -2449,6 +2460,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
             })),
         )?;
     }
+    relationship_paths::render(&mut files, model, selected)?;
     let relationships = render_relationships(model, selected)?;
     let page_bytes = model
         .ontology

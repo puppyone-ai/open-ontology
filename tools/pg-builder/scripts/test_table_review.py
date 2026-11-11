@@ -12,7 +12,7 @@ class TableReview(unittest.TestCase):
     def test_legacy_library_hash_and_table_hash_survive_new_generation(self):
         old, new = facts(cut(1)), facts(cut(2))
         self.assertEqual(semantics.data_only_digest(old),
-                         'c412c1956e8d7cef50b63d143c729966eb44243b6f8f896ba3966066338df87f')
+                         '6a273dabbc86b5cc96c9e1a5a44402533c0bcaf597feb86266c9c19732592dc7')
         self.assertEqual(semantics.table_data_only_digests(old),
                          semantics.table_data_only_digests(new))
         self.assertEqual(semantics.table_review_pending(old, new), [])

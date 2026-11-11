@@ -150,7 +150,9 @@ def generate(compiler, out):
         id_ = "relation/" + child + "." + col
         items.append(dict(id=id_, **{"class": "relation"},
                           subject={"from": "demo." + child + "." + col, "to": "demo." + parent + "." + key},
-                          decision="adopted", evidence=dict(containment=1, parent_unique=True,
+                          decision="adopted", evidence=dict(containment=1, distinct_containment=1,
+                          parent_unique=True, max_fanout=1, normalized_collisions=0, unmatched_rows=0,
+                          empty_rows=0, kind="declared_fk", role=None, from_columns=[col], to_columns=[key],
                           cardinality="many_to_one", rows_checked=TABLES[child][0], basis="seed.sql declared foreign key"),
                           scores=dict(confidence=1), rule_id="relation.containment_strict",
                           reason="Every synthetic child key has a declared, seeded parent."))
@@ -177,7 +179,9 @@ def generate(compiler, out):
     save("adjudication.json", dict(protocol="oo.adjudication/v1",
          input_sha256=hashlib.sha256((out / "reviewed-analyst.json").read_bytes()).hexdigest(),
          thresholds=dict(relation_containment_strict=0.98, relation_containment_with_signal=0.9, code_coverage=0.99),
-         items=items, graph=public_graph, summary_sha256=digest(adjudication_summary(public_graph, items))))
+         items=items, discovery=dict(status="complete", budget=len(edges), checked=len(edges), remaining=0,
+                                     unchecked=[]),
+         graph=public_graph, summary_sha256=digest(adjudication_summary(public_graph, items))))
     save("gold.json", [
         dict(id="Q01", question="How many orders can this role see?",
              sql="SELECT COUNT(*) AS value FROM demo.orders", expected={"analyst": [["60"]], "ops": [["60"]]}),

@@ -101,6 +101,8 @@ and all sample values. Compilation is not authentication or publication.
 exact `reviewed-analyst.json` file bytes, including its final newline.
 `summary_sha256` hashes UTF-8 compact sorted-key JSON of
 `{"graph": graph, "decisions": {item_id: decision}}` (`ensure_ascii=False`, no trailing newline).
+The top-level `discovery` object (here `complete`, every declared edge checked)
+is not hashed; the builder re-derives it from the input's draft edges.
 Every synthetic key, declared relation and code coverage is checked by the
 live fixture runner. The sensitive-column decision is explicitly declared,
 not represented as a model prediction or a phone-format measurement.
