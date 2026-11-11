@@ -1,12 +1,12 @@
 ╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
-│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
 │                                                                              │
-│                ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮ ↑ 3 more above  │
-│                │ 司机     │    │ 线路     │    │ 包裹      │                 │
-│                │ id · 540 │    │ id · 420 │    │ id · 2.4M │                 │
+│            ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    ↑ 3 more above  │
+│            │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │           │
+│            │ id · 1.2M │    │ id · 420 │    │ code · 36 │    │ │ │           │
 │      ╭─ confirm publication ──────────────────────────────────────────╮      │
-│      │ summary  sha256:3edff1904874…e22b17                            │      │
-│      │ 13 entities · 14 relations · 2 rejected                        │      │
+│      │ summary  sha256:d73614b66850…143176                            │      │
+│      │ 13 entities · 15 relations · 4 rejected                        │      │
 │      │ 2 hidden columns · 1 demoted metrics · 0 override(s)           │      │
 │      │                                                                │      │
 │      │ Publishing binds this exact graph and these decisions.         │      │
@@ -16,9 +16,9 @@
 │      │                                                                │      │
 │      │ ⏎ confirm and write   esc back                                 │      │
 │      ╰────────────────────────────────────────────────────────────────╯      │
-│               │ 订单      │    │ 运单事件 │    │ 仓库      │                 │
-│               │ id · 1.2M │    │ id · 11M │    │ code · 36 │                 │
-│               ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯                 │
+│             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
+│             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
+│             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
 │                                                                              │
-│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more below    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
 ╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯

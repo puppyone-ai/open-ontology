@@ -1,5 +1,5 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
-│  graph  │  relations  │  entity                    summary 3edff190… ┊ decisions ··········· ·  ·   by data evidence │
+│  graph  │  relations  │  entity                    summary d73614b6… ┊ decisions ··········· ·  ·   by data evidence │
 │                                                                      ┊                                               │
 │ 客户 ·································· ······  ·       lg.customers ┊ ▸ ○ sensitive routes.… visible    ▰▰▰▰▰ 0.91  │
 │                                                                      ┊     format hits 0 · name hit                  │
@@ -11,30 +11,30 @@
 │   订单 >─1 客户  via orders.customer_id  ✓                           ┊     distinct 1 · format hits 1                │
 │                                                                      ┊     Every value matches an identity document… │
 │ decisions on this table                                              ┊   ✗ relation  司机 → … rejected   ▰▰▱▱▱ 0.38  │
-│   ◌ sensitive  customers.phone       98% of values match a phone…    ┊     contain ▕██████···┊▏ 0.64<0.9  one-to-on… │
+│   ◌ sensitive  customers.phone       98% of values match a phone…    ┊     contain ▕██████···┊▏ 0.64<0.9  distinct … │
 │                                                                      ┊     Only 64% of drivers match an employee; c… │
 │                                                                      ┊   ✗ relation  运单 → … rejected   ▰▰▱▱▱ 0.41  │
-│                                                                      ┊     contain ▕███████··┊▏ 0.71<0.98  many-to-… │
+│                                                                      ┊     contain ▕███████··┊▏ 0.71<0.98  distinct… │
 │                                                                      ┊     29% of origin_wh values have no warehous… │
+│                                                                      ┊   ✗ relation  订单 → … rejected   ▰▰▰▰▰ 0.99  │
+│                                                                      ┊     contain ▕██████████▏ 0.99≥0.9  distinct … │
+│                                                                      ┊     Parent key repeats; unique only together… │
+│                                                                      ┊   ✗ relation  仓库 → … rejected   ▰▰▰▰▰    1  │
+│                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│                                                                      ┊     Parent keys collide after trim/lower-cas… │
 │                                                                      ┊   ↓ metric    avg_par… demoted    ▰▰▱▱▱ 0.44  │
 │                                                                      ┊     non empty · recompute match · unit consi… │
 │                                                                      ┊     Mixes grams and kilograms; kept as an ex… │
 │                                                                      ┊   ✓ relation  网点 → … adopted    ▰▰▰▰▰  0.9  │
-│                                                                      ┊     contain ▕█████████┊▏ 0.93≥0.9  many-to-o… │
+│                                                                      ┊     contain ▕█████████┊▏ 0.93≥0.9  distinct … │
 │                                                                      ┊     Containment 0.93 plus naming and JOIN ev… │
 │                                                                      ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.93  │
-│                                                                      ┊     contain ▕██████████▏ 0.97≥0.9  many-to-o… │
+│                                                                      ┊     contain ▕██████████▏ 0.97≥0.9  distinct … │
 │                                                                      ┊     Containment 0.97 plus naming and JOIN ev… │
 │                                                                      ┊   ✓ relation  订单 → … adopted    ▰▰▰▰▰ 0.94  │
-│                                                                      ┊     contain ▕██████████▏ 1≥0.9  many-to-one … │
+│                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
 │                                                                      ┊     Every order date is a calendar day.       │
-│                                                                      ┊   ✓ relation  车辆 → … adopted    ▰▰▰▰▰ 0.95  │
-│                                                                      ┊     contain ▕██████████▏ 1≥0.9  many-to-one … │
-│                                                                      ┊     Containment 1.0 with a unique parent.     │
-│                                                                      ┊   ✓ relation  员工 → … adopted    ▰▰▰▰▰ 0.95  │
-│                                                                      ┊     contain ▕██████████▏ 0.994≥0.9  many-to-… │
-│                                                                      ┊     Self reference: manager is an employee.   │
-│                                                                      ┊   ✓ relation  运单 → … adopted    ▰▰▰▰▰ 0.96  │
-│                                                                      ┊     contain ▕██████████▏ 0.991≥0.9  many-to-… │
-│                                                                      ┊     Containment 0.991 with a unique parent.   │
+│                                                                      ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.95  │
+│                                                                      ┊     contain ▕██████████▏ 0.988≥0.9  distinct… │
+│                                                                      ┊     Containment 0.988 with a unique parent.   │
 ╰ tab view  ←→ entity  j/k decisions  o override  ⏎ confirm publish  q quit  ──────────────────────────────────────────╯

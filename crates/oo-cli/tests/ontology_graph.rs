@@ -53,7 +53,18 @@ fn text_lists_relations_with_cardinality_and_missing_evidence() {
         ),
         "{text}"
     );
-    assert_eq!(text.lines().count(), 17, "header + 16 relations");
+    // Distinct coverage below the threshold is named, with row coverage.
+    assert!(text.contains("✗ distinct 0.52 < 0.9 (rows 0.64)"), "{text}");
+    // Structural flaws: a scoped parent key and a normalized collision.
+    assert!(
+        text.contains("✗ scope valid_from required, fan-out ×3"),
+        "{text}"
+    );
+    assert!(text.contains("✗ 2 keys collide after trim/lower"), "{text}");
+    // Two edges from one child to the same parent are both listed.
+    assert!(text.contains("via routes.origin_station_id"), "{text}");
+    assert!(text.contains("via routes.dest_station_id"), "{text}");
+    assert_eq!(text.lines().count(), 20, "header + 19 relations");
 }
 
 #[test]
@@ -86,6 +97,7 @@ fn ascii_is_deterministic_bounded_and_draws_rejections() {
         "self reference: {a}"
     );
     assert!(a.contains("│ 运单事件 │"), "{a}");
+    assert!(a.contains("── 线路 → 网点  as dest_station"), "{a}");
     // Hidden sensitive columns never show values; the graph has none at all.
     assert!(!a.contains("phone"));
     let focus = stdout(&oo(&[
@@ -132,7 +144,7 @@ fn mermaid_and_json() {
     assert_eq!(j["protocol"], "oo.ontology-graph/v1");
     assert_eq!(j["counts"]["hidden_columns"], 2);
     assert_eq!(j["counts"]["demoted_metrics"], 1);
-    assert_eq!(j["counts"]["rejected_relations"], 2);
+    assert_eq!(j["counts"]["rejected_relations"], 4);
 }
 
 #[test]

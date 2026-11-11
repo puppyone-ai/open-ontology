@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│ ⚠ incomplete: 2 relations not checked · a accept before publishing           │
+│ decisions ·································· ······  ·      by data evidence │
+│                                                                              │
+│ ▸ ○ sensitive routes.mobile_code                      visible    ▰▰▰▰▰ 0.91  │
+│     f╭─ accept incomplete discovery ──────────────────────────────────╮      │
+│   ◌ s│ 2 candidate relations were not checked (budget spent).         │0.98  │
+│     d│ Unchecked relations stay out of the graph; resume later.       │      │
+│   ◌ s│ Publishing needs this acceptance; the reason is recorded.      │0.99  │
+│     d│                                                                │      │
+│   ✗ r│ lg.parcels.order_id → lg.orders.id · +1 more                   │0.38  │
+│     c│                                                                │matc… │
+│   ✗ r│ reason › budget spent; resume next week▏                       │0.41  │
+│     c│                                                                │unma… │
+│   ✗ r│                                                                │0.99  │
+│     c│ ⏎ accept   esc back                                            │vali… │
+│   ✗ r╰────────────────────────────────────────────────────────────────╯   1  │
+│     contain ▕██████████▏ 1≥0.9  distinct 1 · 2 collisions · inferred id · d… │
+│   ↓ metric    avg_parcel_weight                       demoted    ▰▰▱▱▱ 0.44  │
+│     non empty · recompute match · unit consistent ✗ · window stable          │
+│   ✓ relation  网点 → 员工                             adopted    ▰▰▰▰▰  0.9  │
+│     contain ▕█████████┊▏ 0.93≥0.9  distinct 0.93 · inferred id · 127 unmatc… │
+╰ tab view  ↑↓ select  o override  a accept incomplete  ⏎ confirm publish  ────╯

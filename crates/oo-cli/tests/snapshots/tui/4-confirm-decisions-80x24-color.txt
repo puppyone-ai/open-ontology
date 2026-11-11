@@ -1,5 +1,5 @@
 ╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
-│  graph  │  relations  │  entity  │  decisions              summary 3edff190… │
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
 │                                                                              │
 │ decisions ·································· ······  ·      by data evidence │
 │                                                                              │
@@ -10,17 +10,17 @@
 │   ◌ sensitive drivers.id_number                       hidden     ▰▰▰▰▰ 0.99  │
 │     distinct 1 · format hits 1                                               │
 │   ✗ relation  司机 → 员工                             rejected   ▰▰▱▱▱ 0.38  │
-│     contain ▕██████···┊▏ 0.64<0.9  one-to-one · joins 0 · name 0.9 · parent… │
+│     contain ▕██████···┊▏ 0.64<0.9  distinct 0.52 · inferred id · 194 unmatc… │
 │   ✗ relation  运单 → 仓库                             rejected   ▰▰▱▱▱ 0.41  │
-│     contain ▕███████··┊▏ 0.71<0.98  many-to-one · joins 0 · name 0.42 · par… │
+│     contain ▕███████··┊▏ 0.71<0.98  distinct 0.75 · inferred id · 284k unma… │
+│   ✗ relation  订单 → 线路                             rejected   ▰▰▰▰▰ 0.99  │
+│     contain ▕██████████▏ 0.99≥0.9  distinct 0.993 · fan-out ×3 · scope vali… │
+│   ✗ relation  仓库 → 网点                             rejected   ▰▰▰▰▰    1  │
+│     contain ▕██████████▏ 1≥0.9  distinct 1 · 2 collisions · inferred id · d… │
 │   ↓ metric    avg_parcel_weight                       demoted    ▰▰▱▱▱ 0.44  │
 │     non empty · recompute match · unit consistent ✗ · window stable          │
 │   ✓ relation  网点 → 员工                             adopted    ▰▰▰▰▰  0.9  │
-│     contain ▕█████████┊▏ 0.93≥0.9  many-to-one · joins 2 · name 0.6 · paren… │
-│   ✓ relation  线路 → 网点                             adopted    ▰▰▰▰▰ 0.93  │
-│     contain ▕██████████▏ 0.97≥0.9  many-to-one · joins 2 · name 0.8 · paren… │
-│   ✓ relation  订单 → 日历                             adopted    ▰▰▰▰▰ 0.94  │
-│     contain ▕██████████▏ 1≥0.9  many-to-one · joins 7 · name 0.3 · parent u… │
+│     contain ▕█████████┊▏ 0.93≥0.9  distinct 0.93 · inferred id · 127 unmatc… │
 ╰ tab view  ↑↓ select  o override  ⏎ confirm publish  q quit  ─────────────────╯
 --- colour layer ---
 f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEA.AAAAAAAff.ff
@@ -35,15 +35,15 @@ f.....ffffffff.ffff.f.ffffff.ffff.fffff........................................f
 f...A.ddddddddd.iiiiiiiiiiiiiiiii.......................AAAAAA.....EEEEE.dddd..f
 f.....ffffffff.f.f.ffffff.ffff.f...............................................f
 f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...YYfff.dddd..f
-f.....fffffff.fRRRRRRfffif.RRRRRRRR..ffffffffff.f.fffff.f.f.ffff.fff.f.fffffff.f
+f.....fffffff.fRRRRRRfffif.RRRRRRRR..ffffffff.ffff.f.ffffffff.ff.f.fff.fffffff.f
 f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...YYfff.dddd..f
-f.....fffffff.fRRRRRRRffif.RRRRRRRRR..fffffffffff.f.fffff.f.f.ffff.ffff.f.ffff.f
+f.....fffffff.fRRRRRRRffif.RRRRRRRRR..ffffffff.ffff.f.ffffffff.ff.f.ffff.fffff.f
+f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...EEEEE.dddd..f
+f.....fffffff.fGGGGGGGGGGf.dddddddd..ffffffff.fffff.f.fffffff.ff.f.fffff.fffff.f
+f...R.dddddddd..i.i..i.i.i..............................RRRRRRRR...EEEEE....d..f
+f.....fffffff.fGGGGGGGGGGf.ddddd..ffffffff.f.f.f.ffffffffff.f.ffffffff.ff.f.ff.f
 f...Y.dddddd....iiiiiiiiiiiiiiiii.......................YYYYYYY....YYfff.dddd..f
 f.....fff.fffff.f.fffffffff.fffff.f.ffff.ffffffffff.f.f.ffffff.ffffff..........f
 f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE..ddd..f
-f.....fffffff.fGGGGGGGGGif.dddddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.f
-f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE.dddd..f
-f.....fffffff.fGGGGGGGGGGf.dddddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.f
-f...G.dddddddd..i.i..i.i.i..............................GGGGGGG....EEEEE.dddd..f
-f.....fffffff.fGGGGGGGGGGf.ddddd..fffffffffff.f.fffff.f.f.ffff.fff.f.ffffff.ff.f
+f.....fffffff.fGGGGGGGGGif.dddddddd..ffffffff.ffff.f.ffffffff.ff.f.fff.fffffff.f
 f.AAA.dddd..AA.dddddd..A.dddddddd..A.ddddddd.ddddddd..A.dddd..ffffffffffffffffff

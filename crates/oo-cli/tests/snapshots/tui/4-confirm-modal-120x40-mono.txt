@@ -1,40 +1,40 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
-│  graph  │  relations  │  entity                    summary 3edff190… ┊ decisions ··········· ·  ·   by data evidence │
+│  graph  │  relations  │  entity                    summary d73614b6… ┊ decisions ··········· ·  ·   by data evidence │
 │                                                                      ┊                                               │
-│          ╭───────────╮       ╭──────────╮    ╭───────────╮           ┊ ▸ ○ sensitive routes.… visible    ▰▰▰▰▰ 0.91  │
-│          │ 员工      ├N╮     │ 车辆     │    │ 网点      │           ┊     format hits 0 · name hit                  │
-│          │ id · 2.1k ├1╯     │ id · 310 │    │ id · 1.8k │           ┊     Name looks personal but no value matches… │
-│          ╰──┬──┬──┬──╯       ╰───┬──┬───╯    ╰──┬─┬─┬─┬──╯           ┊   ◌ sensitive custome… hidden     ▰▰▰▰▰ 0.98  │
-│             1  N  1              1  N           1 N 1 1              ┊     distinct 0.97 · format hits 0.982         │
-│             ╰┄┄┼╮ ╰──────────────┼──┼───────────┼─╯ │ │              ┊     98% of values match a phone number forma… │
-│                ╰┼────────────────┼──┼───────────╯   │ │              ┊   ◌ sensitive drivers… hidden     ▰▰▰▰▰ 0.99  │
-│                 ┆  ╭─────────────╯  ╰───────────────┼─╯              ┊     distinct 1 · format hits 1                │
-│                 ┆  │              ╭─────────────────╯                ┊     Every value matches an identity document… │
-│                 1  1              N                                  ┊   ✗ relation  司机 → … rejected   ▰▰▱▱▱ 0.38  │
-│            ╭────┴──┴──╮    ╭──────┴───╮    ╭───────────╮             ┊     contain ▕██████···┊▏ 0.64<0.9  one-to-on… │
-│            │ 司机     │  ╭─ confirm publication ──────────────────────────────────────────╮ers match an employee; c… │
-│            │ id · 540 │  │ summary  sha256:3edff1904874…e22b17                            │ … rejected   ▰▰▱▱▱ 0.41  │
-│            ╰─────┬────╯  │ 13 entities · 14 relations · 2 rejected                        │··┊▏ 0.71<0.98  many-to-… │
-│                  1       │ 2 hidden columns · 1 demoted metrics · 0 override(s)           │ values have no warehous… │
-│                  ╰───────│                                                                │r… demoted    ▰▰▱▱▱ 0.44  │
-│                          │ Publishing binds this exact graph and these decisions.         │mpute match · unit consi… │
-│                          │                                                                │kilograms; kept as an ex… │
-│                          │ reason › first publish of logistics▏                           │ … adopted    ▰▰▰▰▰  0.9  │
-│                          │                                                                │██┊▏ 0.93≥0.9  many-to-o… │
-│                          │                                                                │ plus naming and JOIN ev… │
-│                          │ ⏎ confirm and write   esc back                                 │ … adopted    ▰▰▰▰▰ 0.93  │
-│                 ╭────────╰────────────────────────────────────────────────────────────────╯███▏ 0.97≥0.9  many-to-o… │
-│                 1                 N              1                   ┊     Containment 0.97 plus naming and JOIN ev… │
-│           ╭─────┴─────╮    ╭──────┴───╮    ╭─────┴─────╮             ┊   ✓ relation  订单 → … adopted    ▰▰▰▰▰ 0.94  │
-│           │ 订单      │    │ 运单事件 │    │ 仓库      │             ┊     contain ▕██████████▏ 1≥0.9  many-to-one … │
-│           │ id · 1.2M │    │ id · 11M │    │ code · 36 │             ┊     Every order date is a calendar day.       │
-│           ╰───┬───┬───╯    ╰─────┬────╯    ╰───────────╯             ┊   ✓ relation  车辆 → … adopted    ▰▰▰▰▰ 0.95  │
-│               N   N              N                                   ┊     contain ▕██████████▏ 1≥0.9  many-to-one … │
-│               ╰──╮│              ╰────────────────╮                  ┊     Containment 1.0 with a unique parent.     │
-│                  │╰───────────────╮               │                  ┊   ✓ relation  员工 → … adopted    ▰▰▰▰▰ 0.95  │
-│                  1                1               1                  ┊     contain ▕██████████▏ 0.994≥0.9  many-to-… │
-│           ╭──────┴─────╮    ╭─────┴────╮    ╭─────┴─────╮            ┊     Self reference: manager is an employee.   │
-│           │ 日历       │    │ 客户     │    │ 状态码    │            ┊   ✓ relation  运单 → … adopted    ▰▰▰▰▰ 0.96  │
-│                                                                      ┊     contain ▕██████████▏ 0.991≥0.9  many-to-… │
-│ N─1 many-to-one  ┄ rejected   13 entities · 16 relations · ↓ 3 more  ┊     Containment 0.991 with a unique parent.   │
+│        ╭────────────╮    ╭──────────╮    ╭───────────╮               ┊ ▸ ○ sensitive routes.… visible    ▰▰▰▰▰ 0.91  │
+│        │ 日历       │    │ 客户     │    │ 网点      │               ┊     format hits 0 · name hit                  │
+│        │ day · 3.7k │    │ id · 48k │    │ id · 1.8k │               ┊     Name looks personal but no value matches… │
+│        ╰──────┬─────╯    ╰─────┬────╯    ╰─┬─┬┬─┬┬─┬─╯               ┊   ◌ sensitive custome… hidden     ▰▰▰▰▰ 0.98  │
+│               1                1           1 11 11 N                 ┊     distinct 0.97 · format hits 0.982         │
+│            ╭──╯             ╭──┼───────────╯ │╰╮│╰─┼───────╮         ┊     98% of values match a phone number forma… │
+│            │   ╭────────────┼──╯             │ ┆╰──┼─────╮ │         ┊   ◌ sensitive drivers… hidden     ▰▰▰▰▰ 0.99  │
+│            │   │            │   ╭─ dest_sta…─╯ ┆   ╰─────┼─┼─╮       ┊     distinct 1 · format hits 1                │
+│            N   N            N   N              N         │ │ │       ┊     Every value matches an identity document… │
+│        ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    │ │ │       ┊   ✗ relation  司机 → … rejected   ▰▰▱▱▱ 0.38  │
+│        │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │       ┊     contain ▕██████···┊▏ 0.64<0.9  distinct … │
+│        │ id · 1.2M │    │╭─ confirm publication ──────────────────────────────────────────╮ers match an employee; c… │
+│        ╰───┬───┬───╯    ╰│ summary  sha256:d73614b66850…143176                            │ … rejected   ▰▰▱▱▱ 0.41  │
+│            1   N         │ 13 entities · 15 relations · 4 rejected                        │··┊▏ 0.71<0.98  distinct… │
+│            ╰───┼─────────│ 2 hidden columns · 1 demoted metrics · 0 override(s)           │ values have no warehous… │
+│                ╰┄ ✗ scope│                                                                │ … rejected   ▰▰▰▰▰ 0.99  │
+│                          │ Publishing binds this exact graph and these decisions.         │███▏ 0.99≥0.9  distinct … │
+│                         ┏│                                                                │ts; unique only together… │
+│                         ┃│ reason › first publish of logistics▏                           │ … rejected   ▰▰▰▰▰    1  │
+│                         ┃│                                                                │███▏ 1≥0.9  distinct 1 ·… │
+│                         ┗│                                                                │ide after trim/lower-cas… │
+│                          │ ⏎ confirm and write   esc back                                 │r… demoted    ▰▰▱▱▱ 0.44  │
+│               ╭──────────╰────────────────────────────────────────────────────────────────╯mpute match · unit consi… │
+│               1                N              N          │ │ │       ┊     Mixes grams and kilograms; kept as an ex… │
+│         ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │       ┊   ✓ relation  网点 → … adopted    ▰▰▰▰▰  0.9  │
+│         │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │       ┊     contain ▕█████████┊▏ 0.93≥0.9  distinct … │
+│         │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │       ┊     Containment 0.93 plus naming and JOIN ev… │
+│         ╰───┬──┬───╯    ╰─────┬────╯    ╰───────────╯    │ │ │       ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.93  │
+│             1  1              N                          │ │ │       ┊     contain ▕██████████▏ 0.97≥0.9  distinct … │
+│          ╭┄┄╯  ╰──────────────┼╮ ╭───────────────────────╯ │ │       ┊     Containment 0.97 plus naming and JOIN ev… │
+│          ┆   ╭────────────────┼┼─┼─────────────────────────╯ │       ┊   ✓ relation  订单 → … adopted    ▰▰▰▰▰ 0.94  │
+│          ┆   │  ╭─────────────┼┼─┼───────────────────────────╯       ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│          ┆   │  │             ╰┼─┼──────────────╮                    ┊     Every order date is a calendar day.       │
+│          1   N  1              1 N              1                    ┊   ✓ relation  线路 → … adopted    ▰▰▰▰▰ 0.95  │
+│                                                                      ┊     contain ▕██████████▏ 0.988≥0.9  distinct… │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 3 more  ┊     Containment 0.988 with a unique parent.   │
 ╰ tab view  ←↑↓→ select  f focus  j/k decisions  o override  ⏎ confirm publish  q quit  ───────────────────────────────╯

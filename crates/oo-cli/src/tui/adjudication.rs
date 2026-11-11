@@ -22,8 +22,55 @@ pub struct Adjudication {
     #[serde(default)]
     pub thresholds: Map<String, Value>,
     pub items: Vec<Item>,
+    /// Relationship recall coverage; not part of the summary hash. Absent in
+    /// legacy documents.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery: Option<Discovery>,
     pub graph: Graph,
     pub summary_sha256: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Discovery {
+    pub status: String,
+    #[serde(default)]
+    pub budget: u64,
+    #[serde(default)]
+    pub checked: u64,
+    #[serde(default)]
+    pub remaining: u64,
+    #[serde(default)]
+    pub unchecked: Vec<Unchecked>,
+}
+
+/// A candidate relation the discovery budget did not reach.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Unchecked {
+    pub id: String,
+    #[serde(default)]
+    pub kind: String,
+    pub from: String,
+    pub to: String,
+    #[serde(default)]
+    pub from_columns: Vec<String>,
+    #[serde(default)]
+    pub to_columns: Vec<String>,
+}
+
+/// The one override key that is not an item: the owner's explicit acceptance
+/// of an incomplete relationship discovery.
+pub const DISCOVERY_OVERRIDE: &str = "discovery/relationships";
+pub const ACCEPT_INCOMPLETE: &str = "accept_incomplete";
+
+impl Adjudication {
+    /// Relations the discovery budget left unchecked, when discovery is
+    /// incomplete; `None` for complete or legacy documents.
+    pub fn unchecked_relations(&self) -> Option<usize> {
+        self.discovery
+            .as_ref()
+            .filter(|d| d.status == "incomplete")
+            .map(|d| d.unchecked.len().max(d.remaining as usize))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -93,6 +140,33 @@ impl Overrides {
             items: BTreeMap::new(),
         }
     }
+
+    /// Whether the owner accepted an incomplete relationship discovery.
+    pub fn accepts_incomplete(&self) -> bool {
+        self.items
+            .get(DISCOVERY_OVERRIDE)
+            .is_some_and(|o| o.decision == ACCEPT_INCOMPLETE && !o.reason.trim().is_empty())
+    }
+
+    /// Overrides that change an item decision (the discovery acceptance is
+    /// not one).
+    pub fn decision_count(&self) -> usize {
+        self.items
+            .keys()
+            .filter(|k| k.as_str() != DISCOVERY_OVERRIDE)
+            .count()
+    }
+}
+
+/// Relation evidence says a JOIN on it can multiply child rows.
+pub fn fans_out(item: &Item) -> bool {
+    item.class == "relation"
+        && (item.evidence.get("parent_unique") == Some(&Value::Bool(false))
+            || item
+                .evidence
+                .get("max_fanout")
+                .and_then(Value::as_u64)
+                .is_some_and(|n| n > 1))
 }
 
 /// The two decisions a class may take; the first is the "keep" side.
@@ -170,6 +244,19 @@ pub fn apply(adj: &Adjudication, overrides: &Overrides) -> Result<Adjudication, 
     }
     let mut out = adj.clone();
     for (id, change) in &overrides.items {
+        if id == DISCOVERY_OVERRIDE {
+            // Not an item: acknowledges unchecked relations, changes nothing.
+            if adj.unchecked_relations().is_none() {
+                return Err("OVERRIDE_UNKNOWN_ITEM");
+            }
+            if change.decision != ACCEPT_INCOMPLETE {
+                return Err("OVERRIDE_DECISION");
+            }
+            if change.reason.trim().is_empty() {
+                return Err("OVERRIDE_REASON_REQUIRED");
+            }
+            continue;
+        }
         let item = out
             .items
             .iter_mut()
@@ -185,6 +272,10 @@ pub fn apply(adj: &Adjudication, overrides: &Overrides) -> Result<Adjudication, 
             && change.reason.trim().is_empty()
         {
             return Err("OVERRIDE_REASON_REQUIRED");
+        }
+        // Owner review cannot turn a fan-out JOIN into a relationship.
+        if change.decision == "adopted" && fans_out(item) {
+            return Err("OVERRIDE_FANOUT");
         }
         item.decision.clone_from(&change.decision);
         if item.class == "relation" {
@@ -216,6 +307,10 @@ pub fn confirm(
     let summary = summary_sha256(&effective);
     if strip(given) != summary {
         return Err("CONFIRM_SUMMARY_MISMATCH");
+    }
+    if adj.unchecked_relations().is_some() && !overrides.is_some_and(Overrides::accepts_incomplete)
+    {
+        return Err("CONFIRM_DISCOVERY_INCOMPLETE");
     }
     let reason = reason.trim();
     if reason.is_empty() || reason.chars().count() > 500 || reason.chars().any(char::is_control) {
@@ -276,8 +371,11 @@ pub fn magnitude(n: u64) -> String {
     }
 }
 
-/// One-line evidence summary, e.g. `containment 0.997 · parent unique · 120k rows`.
+/// One-line evidence summary, e.g. `distinct 0.998 · declared fk · many-to-one`.
 pub fn evidence_line(item: &Item) -> String {
+    if item.class == "relation" {
+        return relation_line(item);
+    }
     let mut parts = Vec::new();
     for (key, value) in &item.evidence {
         let name = match key.as_str() {
@@ -286,10 +384,16 @@ pub fn evidence_line(item: &Item) -> String {
             "format_hit_rate" => "format hits",
             "distinct_ratio" => "distinct",
             "non_null_ratio" => "non-null",
+            "null_rows" => "null rows",
+            "empty_rows" => "empty rows",
+            // Lists, provenance and bookkeeping stay out of the one-liner.
+            "considered" | "key" | "method" | "query_log" | "full_scan" | "display" => continue,
             other => other,
         }
         .replace('_', " ");
         let text = match (key.as_str(), value) {
+            (_, Value::Null | Value::Array(_) | Value::Object(_)) => continue,
+            ("key_source", Value::String(s)) => s.replace('_', " "),
             ("parent_unique", Value::Bool(true)) => "parent unique".to_owned(),
             ("parent_unique", Value::Bool(false)) => "parent not unique".to_owned(),
             ("rows_checked", v) => format!("{} rows", number(v)),
@@ -303,32 +407,137 @@ pub fn evidence_line(item: &Item) -> String {
     parts.join(" · ")
 }
 
-/// What a rejected relation lacked, e.g. `containment 0.71 < 0.9`.
-pub fn missing_evidence(item: &Item, thresholds: &Map<String, Value>) -> String {
-    let get = |k: &str| item.evidence.get(k).and_then(Value::as_f64);
-    let strict = thresholds
-        .get("relation_containment_strict")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.98);
-    let signal = thresholds
-        .get("relation_containment_with_signal")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.9);
-    let mut missing = Vec::new();
-    if let Some(c) = get("containment") {
-        let has_signal = get("name_similarity").is_some_and(|s| s >= 0.5)
-            || get("join_cooccurrence").is_some_and(|j| j > 0.0);
-        let need = if has_signal { signal } else { strict };
-        if c < need {
-            missing.push(format!(
-                "containment {} < {}",
-                number(&json!(c)),
-                number(&json!(need))
-            ));
-        }
+fn ev_f64(item: &Item, key: &str) -> Option<f64> {
+    item.evidence.get(key).and_then(Value::as_f64)
+}
+
+fn ev_u64(item: &Item, key: &str) -> u64 {
+    item.evidence.get(key).and_then(Value::as_u64).unwrap_or(0)
+}
+
+/// Scope columns that make a repeating parent key unique.
+pub fn scope_columns(item: &Item) -> Vec<&str> {
+    item.evidence
+        .get("scope_columns")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default()
+}
+
+/// Role of a relation when one child has several edges to the same parent.
+pub fn role(item: &Item) -> Option<&str> {
+    item.evidence
+        .get("role")
+        .and_then(Value::as_str)
+        .filter(|r| !r.is_empty())
+}
+
+/// Relation evidence, most decisive first: coverage, structural flaws
+/// (fan-out, scope, collisions), kind, role, unmatched rows, cardinality,
+/// size, signals.
+fn relation_line(item: &Item) -> String {
+    let mut parts = Vec::new();
+    if let Some(c) = item.evidence.get("containment") {
+        parts.push(format!("rows {}", number(c)));
+    }
+    if let Some(d) = item.evidence.get("distinct_containment") {
+        parts.push(format!("distinct {}", number(d)));
+    }
+    let fanout = ev_u64(item, "max_fanout");
+    if fanout > 1 {
+        parts.push(format!("fan-out ×{fanout}"));
+    }
+    let scope = scope_columns(item);
+    if !scope.is_empty() {
+        parts.push(format!("scope {}", scope.join(",")));
+    }
+    let collisions = ev_u64(item, "normalized_collisions");
+    if collisions > 0 {
+        parts.push(format!("{collisions} collisions"));
     }
     if item.evidence.get("parent_unique") == Some(&Value::Bool(false)) {
+        parts.push("parent not unique".into());
+    }
+    if let Some(kind) = item.evidence.get("kind").and_then(Value::as_str) {
+        parts.push(
+            match kind {
+                "snapshot_name_mapping" => "name mapping",
+                other => other,
+            }
+            .replace('_', " "),
+        );
+    }
+    // Only open recall is worth naming; declared and model edges say so in kind.
+    if item.evidence.get("source").and_then(Value::as_str) == Some("discovery") {
+        parts.push("discovered".into());
+    }
+    if let Some(r) = role(item) {
+        parts.push(format!("as {r}"));
+    }
+    let unmatched = ev_u64(item, "unmatched_rows");
+    if unmatched > 0 {
+        parts.push(format!("{} unmatched", magnitude(unmatched)));
+    }
+    if let Some(Value::String(s)) = item.evidence.get("cardinality") {
+        parts.push(s.replace('_', "-"));
+    }
+    if let Some(v) = item.evidence.get("rows_checked") {
+        parts.push(format!("{} rows", number(v)));
+    }
+    if let Some(v) = item.evidence.get("join_cooccurrence") {
+        parts.push(format!("joins {}", number(v)));
+    }
+    if let Some(v) = item.evidence.get("name_similarity") {
+        parts.push(format!("name {}", number(v)));
+    }
+    if item.evidence.get("parent_unique") == Some(&Value::Bool(true)) {
+        parts.push("parent unique".into());
+    }
+    parts.join(" · ")
+}
+
+/// The coverage threshold that applies to a relation: the lower one when a
+/// naming, JOIN or declared-key signal backs it.
+pub fn needed_coverage(item: &Item, thresholds: &Map<String, Value>) -> f64 {
+    let th = |k: &str, d: f64| thresholds.get(k).and_then(Value::as_f64).unwrap_or(d);
+    let signal = ev_f64(item, "name_similarity").is_some_and(|s| s >= 0.5)
+        || ev_f64(item, "join_cooccurrence").is_some_and(|j| j > 0.0)
+        || item.evidence.get("kind").and_then(Value::as_str) == Some("declared_fk");
+    if signal {
+        th("relation_containment_with_signal", 0.9)
+    } else {
+        th("relation_containment_strict", 0.98)
+    }
+}
+
+/// What a rejected relation lacked, e.g. `containment 0.71 < 0.9` or
+/// `scope valid_from required, fan-out ×3`. The threshold applies to the
+/// lower of row and distinct coverage.
+pub fn missing_evidence(item: &Item, thresholds: &Map<String, Value>) -> String {
+    let mut missing = Vec::new();
+    let scope = scope_columns(item);
+    let fanout = ev_u64(item, "max_fanout");
+    if !scope.is_empty() {
+        missing.push(format!("scope {} required", scope.join(",")));
+    }
+    if fanout > 1 {
+        missing.push(format!("fan-out ×{fanout}"));
+    } else if scope.is_empty() && item.evidence.get("parent_unique") == Some(&Value::Bool(false)) {
         missing.push("parent not unique".into());
+    }
+    let collisions = ev_u64(item, "normalized_collisions");
+    if collisions > 0 {
+        missing.push(format!("{collisions} keys collide after trim/lower"));
+    }
+    if let Some(c) = ev_f64(item, "containment") {
+        let need = needed_coverage(item, thresholds);
+        let d = ev_f64(item, "distinct_containment").unwrap_or(c);
+        let n = |x: f64| number(&json!(x));
+        if d < c && d < need {
+            missing.push(format!("distinct {} < {} (rows {})", n(d), n(need), n(c)));
+        } else if c < need {
+            missing.push(format!("containment {} < {}", n(c), n(need)));
+        }
     }
     if missing.is_empty() {
         item.reason.clone()
@@ -414,7 +623,7 @@ pub(crate) fn fixture() -> Adjudication {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     #[test]
     fn shared_adjudication_hash_vector() {
         let vector: serde_json::Value = serde_json::from_str(include_str!(
@@ -543,5 +752,191 @@ mod tests {
         assert_eq!(number(&json!(0.71)), "0.71");
         assert_eq!(rfc3339(0), "1970-01-01T00:00:00Z");
         assert_eq!(rfc3339(1_793_836_800), "2026-11-05T00:00:00Z");
+    }
+
+    /// The fixture with two relations left unchecked by the discovery budget.
+    pub(crate) fn incomplete() -> Adjudication {
+        let mut adj = fixture();
+        let unchecked = |id: &str, from: &str, col: &str, to: &str| Unchecked {
+            id: id.into(),
+            kind: "inferred_id".into(),
+            from: from.into(),
+            to: to.into(),
+            from_columns: vec![col.into()],
+            to_columns: vec!["id".into()],
+        };
+        adj.discovery = Some(Discovery {
+            status: "incomplete".into(),
+            budget: 19,
+            checked: 19,
+            remaining: 2,
+            unchecked: vec![
+                unchecked(
+                    "relation/parcels.order_id",
+                    "lg.parcels",
+                    "order_id",
+                    "lg.orders",
+                ),
+                unchecked(
+                    "relation/vehicles.driver_id",
+                    "lg.vehicles",
+                    "driver_id",
+                    "lg.drivers",
+                ),
+            ],
+        });
+        adj
+    }
+
+    fn accept(reason: &str) -> Override {
+        Override {
+            decision: ACCEPT_INCOMPLETE.into(),
+            reason: reason.into(),
+        }
+    }
+
+    #[test]
+    fn discovery_is_optional_and_outside_the_summary() {
+        let adj = fixture();
+        assert_eq!(adj.discovery.as_ref().unwrap().status, "complete");
+        assert_eq!(adj.unchecked_relations(), None);
+        let mut legacy = json!(adj);
+        legacy.as_object_mut().unwrap().remove("discovery");
+        let legacy = parse(legacy).unwrap();
+        assert_eq!(legacy.discovery, None);
+        assert!(
+            json!(legacy).get("discovery").is_none(),
+            "legacy bytes unchanged"
+        );
+        let open = incomplete();
+        assert_eq!(open.unchecked_relations(), Some(2));
+        assert_eq!(summary_sha256(&open), adj.summary_sha256);
+        assert_eq!(parse(json!(open)).unwrap(), open);
+    }
+
+    #[test]
+    fn incomplete_discovery_needs_an_explicit_reasoned_acceptance() {
+        let at = "2026-11-09T00:00:00Z";
+        let adj = incomplete();
+        assert_eq!(
+            confirm(&adj, None, &adj.summary_sha256, "ok", at).unwrap_err(),
+            "CONFIRM_DISCOVERY_INCOMPLETE"
+        );
+        let mut o = Overrides::new(&adj);
+        o.items.insert(DISCOVERY_OVERRIDE.into(), accept("  "));
+        assert_eq!(apply(&adj, &o).unwrap_err(), "OVERRIDE_REASON_REQUIRED");
+        o.items.get_mut(DISCOVERY_OVERRIDE).unwrap().decision = "adopted".into();
+        assert_eq!(apply(&adj, &o).unwrap_err(), "OVERRIDE_DECISION");
+        o.items.insert(
+            DISCOVERY_OVERRIDE.into(),
+            accept("budget spent; resume next week"),
+        );
+        // Acceptance changes no item, edge or summary.
+        let effective = apply(&adj, &o).unwrap();
+        assert_eq!(effective, adj);
+        assert_eq!(o.decision_count(), 0);
+        assert!(o.accepts_incomplete());
+        let doc = confirm(&adj, Some(&o), &adj.summary_sha256, "ok", at).unwrap();
+        assert_eq!(doc["summary_sha256"], json!(adj.summary_sha256));
+        assert_eq!(doc["overrides_sha256"], json!(overrides_sha256(&o)));
+
+        // A complete (or legacy) discovery has nothing to accept.
+        let complete = fixture();
+        let mut o = Overrides::new(&complete);
+        o.items.insert(DISCOVERY_OVERRIDE.into(), accept("why not"));
+        assert_eq!(apply(&complete, &o).unwrap_err(), "OVERRIDE_UNKNOWN_ITEM");
+        let mut o = Overrides::new(&adj);
+        o.items.insert("discovery/other".into(), accept("x"));
+        assert_eq!(apply(&adj, &o).unwrap_err(), "OVERRIDE_UNKNOWN_ITEM");
+    }
+
+    #[test]
+    fn fan_out_relations_cannot_be_adopted_by_override() {
+        let adj = fixture();
+        let mut o = Overrides::new(&adj);
+        o.items.insert(
+            "relation/orders.route_code".into(),
+            Override {
+                decision: "adopted".into(),
+                reason: "looks fine".into(),
+            },
+        );
+        assert_eq!(apply(&adj, &o).unwrap_err(), "OVERRIDE_FANOUT");
+        // parent_unique false alone is enough.
+        let mut alone = adj.clone();
+        let item = alone
+            .items
+            .iter_mut()
+            .find(|i| i.id == "relation/orders.route_code")
+            .unwrap();
+        item.evidence.insert("max_fanout".into(), json!(1));
+        assert!(fans_out(item));
+        assert_eq!(apply(&alone, &o).unwrap_err(), "OVERRIDE_FANOUT");
+        // A collision is ambiguous but not a fan-out: the owner may adopt it.
+        let mut ok = Overrides::new(&adj);
+        ok.items.insert(
+            "relation/warehouses.station_code".into(),
+            Override {
+                decision: "adopted".into(),
+                reason: "codes cleaned upstream".into(),
+            },
+        );
+        assert!(apply(&adj, &ok).is_ok());
+    }
+
+    #[test]
+    fn relation_evidence_shows_row_and_distinct_coverage() {
+        let adj = fixture();
+        let item = |id: &str| adj.items.iter().find(|i| i.id == id).unwrap();
+        let th = &adj.thresholds;
+        let line = evidence_line(item("relation/shipments.origin_wh"));
+        assert!(
+            line.starts_with("rows 0.71 · distinct 0.75 · inferred id · 284k unmatched"),
+            "{line}"
+        );
+        assert_eq!(
+            missing_evidence(item("relation/shipments.origin_wh"), th),
+            "containment 0.71 < 0.98"
+        );
+        assert_eq!(
+            missing_evidence(item("relation/drivers.employee_id"), th),
+            "distinct 0.52 < 0.9 (rows 0.64)"
+        );
+        let scoped = item("relation/orders.route_code");
+        assert!(
+            evidence_line(scoped)
+                .contains("fan-out ×3 · scope valid_from · parent not unique · scoped"),
+            "{}",
+            evidence_line(scoped)
+        );
+        assert_eq!(
+            missing_evidence(scoped, th),
+            "scope valid_from required, fan-out ×3"
+        );
+        assert_eq!(
+            missing_evidence(item("relation/warehouses.station_code"), th),
+            "2 keys collide after trim/lower"
+        );
+        let role = evidence_line(item("relation/routes.dest_station_id"));
+        assert!(role.contains("as dest_station"), "{role}");
+        assert!(
+            evidence_line(item("relation/orders.customer_id")).contains("declared fk"),
+            "kind shown"
+        );
+        // Legacy evidence (no distinct coverage) keeps the old wording.
+        let mut legacy = item("relation/drivers.employee_id").clone();
+        legacy.evidence.remove("distinct_containment");
+        assert_eq!(missing_evidence(&legacy, th), "containment 0.64 < 0.9");
+        let mut open = item("relation/warehouses.station_code").clone();
+        open.evidence.insert("source".into(), json!("discovery"));
+        assert!(
+            evidence_line(&open).contains("inferred id · discovered"),
+            "{}",
+            evidence_line(&open)
+        );
+        open.evidence.insert("source".into(), json!("model"));
+        assert!(!evidence_line(&open).contains("model"));
+        let key = evidence_line(item("entity_key/calendar"));
+        assert!(key.contains("declared pk") && !key.contains('['), "{key}");
     }
 }

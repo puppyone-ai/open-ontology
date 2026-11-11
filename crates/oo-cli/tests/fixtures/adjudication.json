@@ -21,7 +21,30 @@
         "name_similarity": 0.92,
         "join_cooccurrence": 14,
         "cardinality": "many_to_one",
-        "rows_checked": 1203345
+        "rows_checked": 1203345,
+        "distinct_containment": 0.9995,
+        "child_distinct": 48210,
+        "matched_distinct": 48186,
+        "matched_rows": 1202743,
+        "unmatched_rows": 602,
+        "unmatched_distinct": 24,
+        "empty_rows": 0,
+        "parent_rows": 48210,
+        "parent_distinct": 48210,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "customer_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.99
@@ -43,7 +66,30 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 9,
         "cardinality": "many_to_one",
-        "rows_checked": 982114
+        "rows_checked": 982114,
+        "distinct_containment": 0.998,
+        "child_distinct": 982114,
+        "matched_distinct": 980150,
+        "matched_rows": 980150,
+        "unmatched_rows": 1964,
+        "unmatched_distinct": 1964,
+        "empty_rows": 0,
+        "parent_rows": 1203345,
+        "parent_distinct": 1203345,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "order_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.98
@@ -65,7 +111,30 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 6,
         "cardinality": "many_to_one",
-        "rows_checked": 2410877
+        "rows_checked": 2410877,
+        "distinct_containment": 1.0,
+        "child_distinct": 982114,
+        "matched_distinct": 982114,
+        "matched_rows": 2410877,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 982114,
+        "parent_distinct": 982114,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "shipment_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.99
@@ -87,7 +156,30 @@
         "name_similarity": 0.85,
         "join_cooccurrence": 4,
         "cardinality": "many_to_one",
-        "rows_checked": 982114
+        "rows_checked": 982114,
+        "distinct_containment": 0.9905,
+        "child_distinct": 420,
+        "matched_distinct": 416,
+        "matched_rows": 973275,
+        "unmatched_rows": 8839,
+        "unmatched_distinct": 4,
+        "empty_rows": 0,
+        "parent_rows": 420,
+        "parent_distinct": 420,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "route_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.96
@@ -109,7 +201,30 @@
         "name_similarity": 0.42,
         "join_cooccurrence": 0,
         "cardinality": "many_to_one",
-        "rows_checked": 982114
+        "rows_checked": 982114,
+        "distinct_containment": 0.75,
+        "child_distinct": 36,
+        "matched_distinct": 27,
+        "matched_rows": 697301,
+        "unmatched_rows": 284813,
+        "unmatched_distinct": 9,
+        "empty_rows": 0,
+        "parent_rows": 36,
+        "parent_distinct": 36,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "origin_wh"
+        ],
+        "to_columns": [
+          "code"
+        ]
       },
       "scores": {
         "confidence": 0.41
@@ -131,13 +246,81 @@
         "name_similarity": 0.8,
         "join_cooccurrence": 2,
         "cardinality": "many_to_one",
-        "rows_checked": 420
+        "rows_checked": 420,
+        "distinct_containment": 0.969,
+        "child_distinct": 420,
+        "matched_distinct": 407,
+        "matched_rows": 407,
+        "unmatched_rows": 13,
+        "unmatched_distinct": 13,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": "origin_station",
+        "source": "model",
+        "from_columns": [
+          "origin_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.93
       },
       "rule_id": "relation.containment_with_signal",
       "reason": "Containment 0.97 plus naming and JOIN evidence."
+    },
+    {
+      "id": "relation/routes.dest_station_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.routes.dest_station_id",
+        "to": "lg.stations.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.988,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 2,
+        "cardinality": "many_to_one",
+        "rows_checked": 420,
+        "distinct_containment": 0.9881,
+        "child_distinct": 420,
+        "matched_distinct": 415,
+        "matched_rows": 415,
+        "unmatched_rows": 5,
+        "unmatched_distinct": 5,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": "dest_station",
+        "source": "model",
+        "from_columns": [
+          "dest_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.95
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.988 with a unique parent."
     },
     {
       "id": "relation/vehicles.home_station_id",
@@ -153,7 +336,30 @@
         "name_similarity": 0.7,
         "join_cooccurrence": 1,
         "cardinality": "many_to_one",
-        "rows_checked": 310
+        "rows_checked": 310,
+        "distinct_containment": 1.0,
+        "child_distinct": 310,
+        "matched_distinct": 310,
+        "matched_rows": 310,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "home_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.95
@@ -175,7 +381,30 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 3,
         "cardinality": "one_to_one",
-        "rows_checked": 540
+        "rows_checked": 540,
+        "distinct_containment": 0.9963,
+        "child_distinct": 538,
+        "matched_distinct": 536,
+        "matched_rows": 538,
+        "unmatched_rows": 2,
+        "unmatched_distinct": 2,
+        "empty_rows": 0,
+        "parent_rows": 310,
+        "parent_distinct": 310,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "vehicle_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.97
@@ -197,7 +426,30 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 5,
         "cardinality": "many_to_one",
-        "rows_checked": 982114
+        "rows_checked": 982114,
+        "distinct_containment": 0.9889,
+        "child_distinct": 540,
+        "matched_distinct": 534,
+        "matched_rows": 971311,
+        "unmatched_rows": 10803,
+        "unmatched_distinct": 6,
+        "empty_rows": 0,
+        "parent_rows": 540,
+        "parent_distinct": 540,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "driver_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.96
@@ -219,7 +471,30 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 11,
         "cardinality": "many_to_one",
-        "rows_checked": 11032556
+        "rows_checked": 11032556,
+        "distinct_containment": 1.0,
+        "child_distinct": 982114,
+        "matched_distinct": 982114,
+        "matched_rows": 11032556,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 982114,
+        "parent_distinct": 982114,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "shipment_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.99
@@ -241,7 +516,30 @@
         "name_similarity": 0.95,
         "join_cooccurrence": 8,
         "cardinality": "many_to_one",
-        "rows_checked": 11032556
+        "rows_checked": 11032556,
+        "distinct_containment": 1.0,
+        "child_distinct": 14,
+        "matched_distinct": 14,
+        "matched_rows": 11024833,
+        "unmatched_rows": 7723,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 14,
+        "parent_distinct": 14,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "status_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
       },
       "scores": {
         "confidence": 0.99
@@ -263,7 +561,30 @@
         "name_similarity": 0.3,
         "join_cooccurrence": 7,
         "cardinality": "many_to_one",
-        "rows_checked": 1203345
+        "rows_checked": 1203345,
+        "distinct_containment": 1.0,
+        "child_distinct": 3653,
+        "matched_distinct": 3653,
+        "matched_rows": 1203345,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 3653,
+        "parent_distinct": 3653,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "order_date"
+        ],
+        "to_columns": [
+          "day"
+        ]
       },
       "scores": {
         "confidence": 0.94
@@ -285,7 +606,30 @@
         "name_similarity": 0.6,
         "join_cooccurrence": 2,
         "cardinality": "many_to_one",
-        "rows_checked": 2130
+        "rows_checked": 2130,
+        "distinct_containment": 0.9939,
+        "child_distinct": 2130,
+        "matched_distinct": 2117,
+        "matched_rows": 2117,
+        "unmatched_rows": 13,
+        "unmatched_distinct": 13,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "manager_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.95
@@ -307,7 +651,30 @@
         "name_similarity": 0.8,
         "join_cooccurrence": 3,
         "cardinality": "many_to_one",
-        "rows_checked": 2130
+        "rows_checked": 2130,
+        "distinct_containment": 0.9989,
+        "child_distinct": 1820,
+        "matched_distinct": 1818,
+        "matched_rows": 2128,
+        "unmatched_rows": 2,
+        "unmatched_distinct": 2,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.97
@@ -329,7 +696,30 @@
         "name_similarity": 0.6,
         "join_cooccurrence": 2,
         "cardinality": "many_to_one",
-        "rows_checked": 1820
+        "rows_checked": 1820,
+        "distinct_containment": 0.9302,
+        "child_distinct": 1820,
+        "matched_distinct": 1693,
+        "matched_rows": 1693,
+        "unmatched_rows": 127,
+        "unmatched_distinct": 127,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "manager_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.9
@@ -351,13 +741,128 @@
         "name_similarity": 0.9,
         "join_cooccurrence": 0,
         "cardinality": "one_to_one",
-        "rows_checked": 540
+        "rows_checked": 540,
+        "distinct_containment": 0.5204,
+        "child_distinct": 540,
+        "matched_distinct": 281,
+        "matched_rows": 346,
+        "unmatched_rows": 194,
+        "unmatched_distinct": 259,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "employee_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
       },
       "scores": {
         "confidence": 0.38
       },
       "rule_id": "relation.containment_insufficient",
       "reason": "Only 64% of drivers match an employee; contractors likely."
+    },
+    {
+      "id": "relation/orders.route_code",
+      "class": "relation",
+      "subject": {
+        "from": "lg.orders.route_code",
+        "to": "lg.routes.code"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 0.99,
+        "parent_unique": false,
+        "name_similarity": 0.85,
+        "join_cooccurrence": 3,
+        "cardinality": "many_to_many",
+        "rows_checked": 1203345,
+        "distinct_containment": 0.9929,
+        "child_distinct": 140,
+        "matched_distinct": 139,
+        "matched_rows": 1191312,
+        "unmatched_rows": 12033,
+        "unmatched_distinct": 1,
+        "empty_rows": 0,
+        "parent_rows": 420,
+        "parent_distinct": 140,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 140,
+        "max_fanout": 3,
+        "normalized_collisions": 0,
+        "scope_columns": [
+          "valid_from"
+        ],
+        "kind": "scoped",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "route_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.scope_required",
+      "reason": "Parent key repeats; unique only together with valid_from. Filter the parent on that column first."
+    },
+    {
+      "id": "relation/warehouses.station_code",
+      "class": "relation",
+      "subject": {
+        "from": "lg.warehouses.station_code",
+        "to": "lg.stations.code"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 0,
+        "cardinality": "many_to_one",
+        "rows_checked": 36,
+        "distinct_containment": 1.0,
+        "child_distinct": 34,
+        "matched_distinct": 34,
+        "matched_rows": 36,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 2,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "discovery",
+        "from_columns": [
+          "station_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 1.0
+      },
+      "rule_id": "relation.normalized_collision",
+      "reason": "Parent keys collide after trim/lower-case; the match is ambiguous."
     },
     {
       "id": "sensitive/customers.phone",
@@ -463,13 +968,21 @@
       "evidence": {
         "distinct_ratio": 1.0,
         "non_null_ratio": 1.0,
-        "referenced": true
+        "referenced": true,
+        "key_source": "declared_pk",
+        "null_rows": 0,
+        "empty_rows": 0,
+        "considered": [
+          [
+            "day"
+          ]
+        ]
       },
       "scores": {
         "confidence": 1.0
       },
-      "rule_id": "entity_key.unique_non_null",
-      "reason": "day is unique and never null."
+      "rule_id": "entity_key.declared_pk",
+      "reason": "Declared primary key day; unique and never empty."
     },
     {
       "id": "code_table/status_codes",
@@ -489,6 +1002,13 @@
       "reason": "99.93% of status codes in events are listed."
     }
   ],
+  "discovery": {
+    "status": "complete",
+    "budget": 64,
+    "checked": 19,
+    "remaining": 0,
+    "unchecked": []
+  },
   "graph": {
     "entities": [
       {
@@ -666,6 +1186,13 @@
         "adopted": true
       },
       {
+        "relation": "relation/routes.dest_station_id",
+        "from": "entity/routes",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
         "relation": "relation/vehicles.home_station_id",
         "from": "entity/vehicles",
         "to": "entity/stations",
@@ -734,8 +1261,22 @@
         "to": "entity/employees",
         "cardinality": "one_to_one",
         "adopted": false
+      },
+      {
+        "relation": "relation/orders.route_code",
+        "from": "entity/orders",
+        "to": "entity/routes",
+        "cardinality": "many_to_many",
+        "adopted": false
+      },
+      {
+        "relation": "relation/warehouses.station_code",
+        "from": "entity/warehouses",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": false
       }
     ]
   },
-  "summary_sha256": "3edff19048749eb3fde98138c6cf75634d3873e310f4c2a08b13fcea32e22b17"
+  "summary_sha256": "d73614b66850600723830f6316a5796103b47c7db9d4892289536d7fbc143176"
 }
