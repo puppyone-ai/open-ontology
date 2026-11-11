@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline paired evaluation; replay is never a measured model-quality result."""
+"""Paired evaluation: frozen fixtures or captured live model/Gateway responses."""
 
 import argparse
 import hashlib
@@ -47,7 +47,9 @@ def load(path):
 
 
 def write(path, value):
-    with path.open("x", encoding="utf-8") as stream:
+    import os
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.write(canonical(value) + "\n")
 
 
@@ -160,6 +162,11 @@ def execute_recording(question, response, directory, frozen_tuple):
         passed = (question["expected_kind"] == "denied"
                   and response.get("code") == "POLICY_DENIED")
         return {"pass": passed, "no_output": False, "reason": "recorded_denial"}
+    if response["kind"] in ("gateway", "query_failed"):
+        from live import score
+        if response["sql_sha256"] != digest(response["sql"].encode()):
+            raise Invalid("sql_binding")
+        return score(question, response)
     if response["kind"] != "sql":
         raise Invalid("response_kind")
     if not isinstance(response.get("sql"), str) or not response["sql"].strip():
@@ -242,6 +249,7 @@ def run(dataset_path, output):
         raise Invalid("schema_names_only")
     pack = load(refs["pack"])
     recordings = load(refs["responses"])
+    live = recordings.get("origin") == "live-model-gateway"
     if (recordings["version"] != "oo.ab.recorded/v1"
             or recordings["model"] != dataset["model"]
             or recordings["seed"] != dataset["seed"]
@@ -260,6 +268,15 @@ def run(dataset_path, output):
             expected = digest(canonical(prompt(q, arm, schema, pack)).encode())
             if response["prompt_sha256"] != expected:
                 raise Invalid("prompt_binding")
+            if response["kind"] == "gateway":
+                binding = dataset["publication"]
+                result = response["gateway_result"]
+                if (not live or not isinstance(binding, dict)
+                        or result.get("publication_binding") != {
+                            k: binding[k] for k in ("publication_id", "data_vector_sha256")}
+                        or any(result.get(k) != binding[k]
+                               for k in ("knowledge_version", "policy_version"))):
+                    raise Invalid("publication_binding")
     output = output.resolve()
     if not output.is_relative_to(ROOT / "evidence"):
         raise Invalid("evidence_scope")
@@ -310,12 +327,13 @@ def run(dataset_path, output):
         write(output / (track + "-statistics.json"), stats)
         statistics_hashes[track] = digest(canonical(stats).encode())
     report = {
-        "version": VERSION, "adapter": "recorded-responses",
+        "version": VERSION, "adapter": "captured-live-model" if live else "recorded-responses",
         "replay_provenance": recordings["provenance"],
-        "execution": "recorded-pg-transcript-not-live-database",
+        "execution": "captured-publication-pinned-gateway-results" if live else "recorded-pg-transcript-not-live-database",
         "publication_declared": dataset["publication"],
-        "publication_verification": "not_measured", "tuple": frozen_tuple,
-        "seed": dataset["seed"], "model_measured": False,
+        "publication_verification": "captured-query-receipts; pack-input-hash-declared" if live else "not_measured",
+        "tuple": frozen_tuple,
+        "seed": dataset["seed"], "model_measured": live,
         "coverage": dataset["coverage"],
         "dataset_sha256": digest(dataset_path.read_bytes()),
         "input_sha256": {key: ref["sha256"] for key, ref in dataset["inputs"].items()},
@@ -323,8 +341,10 @@ def run(dataset_path, output):
             "question-bank", "sql-runner", "query-result-adapter",
             "result-comparator", "trial-statistics")},
         "harness_sha256": digest(Path(__file__).read_bytes()),
-        "statistics_sha256": statistics_hashes, "tracks": paired(rows), "questions": rows,
+        "statistics_sha256": statistics_hashes, "tracks": paired(rows, recorded=not live), "questions": rows,
     }
+    if live:
+        report["live_adapter_sha256"] = digest(Path(__file__).with_name("live.py").read_bytes())
     write(output / "report.json", report)
     return report
 
@@ -332,10 +352,18 @@ def run(dataset_path, output):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    ab = sub.add_parser("ab", help="replay frozen paired responses; never a headline score")
+    ab = sub.add_parser("ab", help="replay paired responses or capture a live model run")
     ab.add_argument("--arms", required=True, choices=["c0,c3"])
     ab.add_argument("--dataset", required=True, help="demo, oo-logistics, or local manifest")
     ab.add_argument("--output", required=True, type=Path, help="new directory under evidence/")
+    ab.add_argument("--model-endpoint-file", type=Path)
+    ab.add_argument("--model-key-file", type=Path)
+    ab.add_argument("--model")
+    ab.add_argument("--profile", default="default")
+    ab.add_argument("--oo", type=Path, default=Path("oo"))
+    ab.add_argument("--concurrency", type=int, default=2)
+    ab.add_argument("--timeout", type=int, default=90)
+    ab.add_argument("--retries", type=int, default=2)
     args = parser.parse_args(argv)
     if args.dataset in ("demo", "oo-logistics"):
         path = ROOT / "benchmarks/ab/fixtures/demo.json"
@@ -343,11 +371,19 @@ def main(argv=None):
         raise Invalid("bird_assets_not_supplied_use_local_manifest")
     else:
         path = Path(args.dataset)
-    report = run(path, args.output)
+    live_options = (args.model_endpoint_file, args.model_key_file, args.model)
+    if any(live_options):
+        if not all(live_options):
+            raise Invalid("model_files_and_identity_required")
+        from live import capture
+        report = capture(args, path)
+    else:
+        report = run(path, args.output)
     print(canonical(report))
 
 
 if __name__ == "__main__":
+    sys.modules["run"] = sys.modules[__name__]
     try:
         main()
     except (Invalid, OSError, ValueError, KeyError, TypeError, RecursionError,

@@ -1,4 +1,4 @@
-//! Development A/B evaluation entry point. No model or database credentials are read.
+//! Development A/B entry point; optional model file sources stay in the harness.
 
 #![forbid(unsafe_code)]
 

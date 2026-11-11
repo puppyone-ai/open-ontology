@@ -6,6 +6,43 @@ workspace dependencies or lockfiles change.
 
 ## Run
 
+### Live capture
+
+Supply a hash-pinned manifest whose `publication` is an object containing
+`publication_id`, `data_vector_sha256`, `knowledge_version`, and `policy_version`
+from an authenticated query receipt. Its `pack` input must be the published
+role Pack, not the historical `pack-recorded.json` fixture. Select the matching
+installed CLI profile with `oo use` before running:
+
+```sh
+oo-eval ab --arms c0,c3 --dataset evidence/run/input.json \
+  --output evidence/run/capture --profile demo --oo /path/to/installed/oo \
+  --model-endpoint-file /private/model-endpoint \
+  --model-key-file /private/model-key --model gpt-6.1-sol
+oo-eval ab --arms c0,c3 --dataset evidence/run/capture/dataset.json \
+  --output evidence/run/replay
+```
+
+The model files are read in place through the shared egress private-file
+checks. They are never imported. Defaults: two concurrent calls (maximum
+four), 90-second transport timeout (maximum 120), and at most two transient
+retries. Authentication errors are not retried. SQL travels through a temporary
+0600 file into the installed CLI; all execution remains subject to the Gateway's
+read-only policy and pinned publication/data vector. The requested profile must
+already be active; the runner does not change the user's selection.
+
+Capture writes private model responses, Gateway receipts, a replay manifest,
+and `scored/report.json`. Replay of that manifest reproduces the report bytes,
+including captured live provenance; it is not a second live measurement.
+The same per-arm 5% no-output health gate applies. Explicit model refusals are
+not evidence that the Gateway enforced a denial. Unsupported result types fail
+closed; the comparator supports exact integers, decimals, booleans and text.
+Publication receipts bind execution, while the Pack file hash is declared by
+the operator: verify it against the deployed Pack before claiming published-Pack
+acceptance. These instructions alone do not establish a completed live run.
+
+### Frozen fixtures
+
 From the repository root:
 
 ```sh
@@ -100,12 +137,12 @@ on this branch. Bare `--dataset bird-mini-dev` fails explicitly rather than
 substituting invented BIRD questions. The manifest path supports a later
 operator-supplied frozen dataset; **actual BIRD integration is not tested**.
 
-## Remaining acceptance
+## Original fixture acceptance boundary
 
 The demo assets explicitly describe compilation/curation, not authenticated
 publication. Reports therefore mark publication verification unmeasured.
-No authorized in-worktree model `secret_ref` was supplied; this executor does
-not inspect token files or try an alternate environment-key transport. Live
-model capture via the existing secret import, live read-only PG execution,
-runtime publication binding, full OO-Logistics and BIRD runs remain follow-ups.
-The fallback is useful pipeline evidence, not a completed real-data A/B study.
+The frozen fixtures do not establish live model or database measurements.
+The optional capture mode above reads model files in place and executes through
+an installed Gateway profile. Full OO-Logistics and BIRD acceptance still require
+their own published Packs and hash-pinned gold; the demo alias never supplies
+that coverage.

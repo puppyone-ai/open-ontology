@@ -1,0 +1,146 @@
+import argparse
+import copy
+import json
+import os
+from pathlib import Path
+import tempfile
+from types import SimpleNamespace
+import unittest
+from unittest.mock import patch
+from urllib.parse import urlsplit
+
+import run as ab
+import live
+
+
+class LiveTests(unittest.TestCase):
+    def result(self):
+        return {"columns": [{"name": "value", "type": "int64"}],
+                "rows": [["60"]], "returned_rows": 1, "truncated": False, "warnings": []}
+
+    def test_typed_conversion_preserves_precision_nulls_and_duplicates(self):
+        result = self.result()
+        result.update(columns=[{"name": "value", "type": "numeric"}],
+                      rows=[["12345678901234567890.0010"], [None],
+                            ["12345678901234567890.0010"]], returned_rows=3)
+        typed = live.typed_result(result)
+        self.assertEqual(typed["rows"][0], typed["rows"][2])
+        self.assertEqual(typed["rows"][0][0]["coefficient"], "123456789012345678900010")
+        self.assertEqual(typed["rows"][0][0]["scale"], 4)
+        self.assertEqual(typed["rows"][1], [{"presence": "null"}])
+        result["truncated"] = True
+        self.assertEqual(live.typed_result(result)["completion"], "partial")
+        result["columns"][0]["type"] = "float64"
+        with self.assertRaisesRegex(ab.Invalid, "gateway_type_unsupported"):
+            live.typed_result(result)
+
+    def test_long_live_warnings_fail_without_weakening_gold(self):
+        result = self.result()
+        result["warnings"] = [{"code": "STALE_DATA", "message": "x" * 500}]
+        question = {"expected_kind": "rows", "gold": {"warnings": []}}
+        with patch.object(ab, "invoke") as invoke:
+            scored = live.score(question, {"kind": "gateway", "gateway_result": result})
+        self.assertEqual(scored, {"pass": False, "no_output": False, "reason": "warnings_differ"})
+        invoke.assert_not_called()
+        self.assertEqual(len(result["warnings"][0]["message"]), 500)
+
+    def client(self, values):
+        values = iter(values)
+        def call(_):
+            value = next(values)
+            if isinstance(value, Exception):
+                raise value
+            return iter([value])
+        return SimpleNamespace(model={"model": ab.MODEL}, call=call,
+                               url=urlsplit("https://synthetic.invalid/v1"))
+
+    def completion(self, content):
+        return {"choices": [{"message": {"content": content}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
+
+    def test_retry_is_bounded_and_auth_is_not_retried(self):
+        response = self.completion('{"sql":"SELECT 1"}')
+        client = self.client([live.egress.Refusal("UPSTREAM_TIMEOUT"), response])
+        with patch.object(live.time, "sleep"):
+            got = live.model_response(client, {}, 42, 2)
+        self.assertEqual(got["attempts"], 2)
+        self.assertEqual(got["model_response"], response)
+        client = self.client([live.egress.Refusal("UPSTREAM_AUTH")])
+        self.assertEqual(live.model_response(client, {}, 42, 2)["attempts"], 1)
+
+    def test_invalid_or_empty_model_output_counts_as_no_output(self):
+        for content in ("", "```sql\nSELECT 1\n```", '{"sql":""}', '{"sql":1}', "null"):
+            result = live.model_response(self.client([self.completion(content)]), {}, 42, 0)
+            self.assertEqual(result["kind"], "no_output")
+        denied = live.model_response(self.client([self.completion('{"refusal":true}')]), {}, 42, 0)
+        self.assertEqual(denied["kind"], "denied")
+
+    def test_gateway_uses_private_sql_file_and_rejects_publication_drift(self):
+        binding = {"publication_id": "pub1_" + "a" * 64,
+                   "data_vector_sha256": "b" * 64, "knowledge_version": "v1",
+                   "policy_version": "p1"}
+        result = dict(self.result(), knowledge_version="v1", policy_version="p1",
+                      publication_binding={k: binding[k] for k in
+                                           ("publication_id", "data_vector_sha256")})
+        def execute(args, **kwargs):
+            path = Path(args[-1])
+            self.assertEqual(path.read_text(), "SELECT 60")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn("SELECT 60", args)
+            return SimpleNamespace(returncode=0, stdout=json.dumps(result))
+        with patch.object(live.subprocess, "run", side_effect=execute), patch.object(
+                live.ab, "load", return_value={"profile": "default"}):
+            self.assertEqual(live.gateway(Path("oo"), "default", binding, "SELECT 60"), result)
+        result["knowledge_version"] = "changed"
+        with patch.object(live.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=json.dumps(result))), patch.object(
+                live.ab, "load", return_value={"profile": "default"}):
+            with self.assertRaisesRegex(ab.Invalid, "publication_drift"):
+                live.gateway(Path("oo"), "default", binding, "SELECT 60")
+
+    def test_captured_run_replays_byte_identically(self):
+        with tempfile.TemporaryDirectory(dir=ab.ROOT / "evidence") as tmp:
+            root = Path(tmp)
+            fixture = ab.ROOT / "benchmarks/ab/fixtures/demo.json"
+            dataset = ab.load(fixture)
+            dataset["publication"] = {
+                "publication_id": "pub1_" + "a" * 64, "data_vector_sha256": "b" * 64,
+                "knowledge_version": "v1", "policy_version": "p1"}
+            for ref in dataset["inputs"].values():
+                ref["path"] = os.path.relpath((fixture.parent / ref["path"]).resolve(), root)
+            ab.write(root / "input.json", dataset)
+            for name, value in (("endpoint", "http://127.0.0.1:9/v1"), ("key", "synthetic-key")):
+                path = root / name
+                path.touch(mode=0o600)
+                path.write_text(value)
+            args = argparse.Namespace(
+                model=ab.MODEL, model_endpoint_file=root / "endpoint",
+                model_key_file=root / "key", oo=Path("oo"), profile="test",
+                concurrency=2, timeout=1, retries=0, output=root / "capture")
+            result = dict(self.result(), knowledge_version="v1", policy_version="p1",
+                          publication_binding={k: dataset["publication"][k] for k in
+                                               ("publication_id", "data_vector_sha256")})
+            response = {"kind": "gateway", "sql": "SELECT 60",
+                        "sql_sha256": ab.digest(b"SELECT 60"),
+                        "model_response": self.completion('{"sql":"SELECT 60"}'), "attempts": 1}
+            with patch.object(live, "gateway", return_value=result), patch.object(
+                    live, "model_response", side_effect=lambda *_: copy.deepcopy(response)):
+                first = live.capture(args, root / "input.json")
+            second = ab.run(root / "capture/dataset.json", root / "replay")
+            self.assertEqual(first, second)
+            self.assertEqual((root / "capture/scored/report.json").read_bytes(),
+                             (root / "replay/report.json").read_bytes())
+            recording = ab.load(root / "capture/responses.json")
+            self.assertEqual(len(recording["responses"]), 10)
+            self.assertNotIn("synthetic-key", (root / "capture/responses.json").read_text())
+            self.assertEqual((root / "capture/responses.json").stat().st_mode & 0o777, 0o600)
+            # Captured receipts must still be checked on replay.
+            response = recording["responses"]["c0:q01"]
+            response["gateway_result"]["publication_binding"]["publication_id"] = "pub1_" + "c" * 64
+            path = root / "capture/responses.json"
+            path.write_text(ab.canonical(recording))
+            manifest = ab.load(root / "capture/dataset.json")
+            manifest["inputs"]["responses"]["sha256"] = ab.digest(path.read_bytes())
+            (root / "capture/dataset.json").write_text(ab.canonical(manifest))
+            with self.assertRaisesRegex(ab.Invalid, "publication_binding"):
+                ab.run(root / "capture/dataset.json", root / "bad-replay")
