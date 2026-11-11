@@ -15,6 +15,8 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import stat
 from pathlib import Path
 import socket
 import subprocess
@@ -191,6 +193,42 @@ def draft(facts, config, output):
             egress.wait()
 
 
+def restore_receipts(output):
+    """Resume only model receipts; the Runner rechecks input hashes and semantics."""
+    candidates = []
+    for path in output.parent.glob(output.name + '-failed-*'):
+        suffix = path.name.removeprefix(output.name + '-failed-')
+        if suffix.isdigit() and 1 <= int(suffix) < 1000:
+            candidates.append((int(suffix), path))
+    if not candidates:
+        return
+    previous = max(candidates)[1]
+    source = previous / 'community' / 'receipts'
+    if any(p.is_symlink() for p in (previous, previous / 'community', source)):
+        raise ValueError('retained_cache_symlink')
+    if not source.exists():
+        return
+    files = sorted(source.iterdir())
+    if len(files) > 4096:
+        raise ValueError('retained_cache_budget')
+    target = output / 'community' / 'receipts'
+    target.mkdir(parents=True, mode=0o700)
+    total = 0
+    for path in files:
+        if not re.fullmatch(r'[0-9a-f]{64}\.json', path.name):
+            raise ValueError('retained_cache_name')
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8 * 1024 * 1024:
+                raise ValueError('retained_cache_file')
+            raw = stream.read(8 * 1024 * 1024 + 1)
+        total += len(raw)
+        if len(raw) > 8 * 1024 * 1024 or total > 64 * 1024 * 1024:
+            raise ValueError('retained_cache_budget')
+        with os.fdopen(os.open(target / path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
+            stream.write(raw)
+
+
 def run(config_path, output):
     config = json.loads(Path(config_path).read_text())
     if (config.get('protocol') != PROTOCOL or not KEYS <= set(config) or set(config) - KEYS - OPTIONAL
@@ -198,6 +236,7 @@ def run(config_path, output):
         raise ValueError('retained_build_config')
     output = Path(output)
     output.mkdir(mode=0o700)
+    restore_receipts(output)
     db = lib.ReadOnlyPostgres(config['psql_command'], config.get('statement_timeout_ms', 30000))
     facts, provenance = facts_for(db, config)
     current = semantics.data_only_digest(facts)

@@ -145,6 +145,41 @@ class RetainedRoute(unittest.TestCase):
 
 
 class RetainedBuild(unittest.TestCase):
+    def test_resume_copies_only_receipts_without_changing_failure_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = root / 'builder-failed-1/community/receipts'
+            old.mkdir(parents=True)
+            raw = b'{"accepted_hash":"must still be checked by Runner"}'
+            name = 'a' * 64 + '.json'
+            (old / name).write_bytes(raw)
+            (old.parent.parent / 'facts.json').write_text('not reusable')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertEqual((output / 'community/receipts' / name).read_bytes(), raw)
+            self.assertEqual((old / name).read_bytes(), raw)
+            self.assertFalse((output / 'facts.json').exists())
+            self.assertEqual((output / 'community/receipts' / name).stat().st_mode & 0o777, 0o600)
+
+    def test_resume_refuses_symlinks_and_unexpected_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'builder-failed-1/community/receipts'
+            source.mkdir(parents=True)
+            (source / 'unexpected.json').write_text('{}')
+            output = root / 'builder'
+            output.mkdir()
+            with self.assertRaisesRegex(ValueError, 'retained_cache_name'):
+                build.restore_receipts(output)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'builder-failed-1').symlink_to(root, target_is_directory=True)
+            output = root / 'builder'
+            output.mkdir()
+            with self.assertRaisesRegex(ValueError, 'retained_cache_symlink'):
+                build.restore_receipts(output)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
