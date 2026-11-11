@@ -414,7 +414,7 @@ fn having_uses_only_exact_aggregate_results_and_grouped_columns() {
         "SELECT COUNT(*) FROM logistics.orders a JOIN logistics.orders b ON COUNT(*)>0",
         "SELECT COUNT(*) FROM logistics.orders HAVING SUM(secret)>0",
         "SELECT COUNT(*) FROM logistics.orders HAVING pg_sleep(1)=0",
-        "SELECT COUNT(*) FROM logistics.orders HAVING (SELECT 1)>0",
+        "SELECT COUNT(*) FROM logistics.orders HAVING (SELECT secret FROM logistics.orders)>0",
         "SELECT MIN(stamp) FROM logistics.orders HAVING MIN(stamp)>DATE '2026-10-28'",
         "SELECT code,COUNT(*) FROM logistics.orders GROUP BY 1 ORDER BY amount",
         "SELECT stamp::date,COUNT(*) FROM logistics.orders GROUP BY 1 HAVING stamp>=TIMESTAMP '2026-10-28 00:00:00'",
@@ -429,7 +429,7 @@ fn day_operations_and_having_fail_closed_without_catalog_authority() {
     for sql in [
         "SELECT date_trunc('invalid',stamp) FROM logistics.orders",
         "SELECT date_trunc(code,stamp) FROM logistics.orders",
-        "SELECT date_trunc('day',zoned) FROM logistics.orders",
+        "SELECT date_trunc('invalid',zoned) FROM logistics.orders",
         "SELECT date_trunc('day',zoned,'UTC') FROM logistics.orders",
         "SELECT zoned::date FROM logistics.orders",
         "SELECT code::date FROM logistics.orders",
@@ -599,7 +599,7 @@ fn searched_numeric_case_and_abs_use_exact_function_results() {
         "SELECT CASE WHEN flag THEN stamp ELSE stamp END FROM logistics.orders",
         "SELECT CASE WHEN false THEN secret ELSE 1 END FROM logistics.orders",
         "SELECT CASE WHEN false THEN pg_sleep(1) ELSE 1 END FROM logistics.orders",
-        "SELECT CASE WHEN flag THEN (SELECT 1) ELSE 0 END FROM logistics.orders",
+        "SELECT CASE WHEN flag THEN (SELECT secret FROM logistics.orders) ELSE 0 END FROM logistics.orders",
         "SELECT SUM(CASE WHEN flag THEN SUM(amount) ELSE amount END) FROM logistics.orders",
         "SELECT id FROM logistics.orders WHERE CASE WHEN flag THEN 1 ELSE 0 END",
         "SELECT code,CASE WHEN flag THEN 1 ELSE 0 END,COUNT(*) FROM logistics.orders GROUP BY code",
@@ -772,4 +772,293 @@ fn scalar_casts_bind_arguments_and_exact_conversion_authority() {
     }
     cat.casts.push(cat.casts[0].clone());
     assert!(guard_select(&cat.identity, &cat, "SELECT 1").is_err());
+}
+
+#[test]
+fn analytical_scopes_bind_every_base_relation_and_hidden_argument() {
+    let cat = catalog();
+    for sql in [
+        "SELECT (SELECT COUNT(*) FROM logistics.orders)",
+        "SELECT (SELECT SUM(amount) FROM logistics.orders) - (SELECT SUM(amount) FROM logistics.orders)",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders i WHERE i.id=o.id)",
+        "SELECT id FROM logistics.orders WHERE id IN (SELECT id FROM logistics.orders WHERE flag)",
+        "SELECT id FROM logistics.orders WHERE id NOT IN (SELECT id FROM logistics.orders WHERE flag)",
+        "WITH a AS (SELECT id FROM logistics.orders WHERE flag) SELECT * FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders),b AS (SELECT id FROM a) SELECT id FROM b",
+        "WITH a(n) AS (SELECT COUNT(*) FROM logistics.orders) SELECT n FROM a",
+        "SELECT d.id FROM (SELECT id FROM logistics.orders WHERE flag) d",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT (WITH a AS (SELECT id FROM logistics.orders WHERE flag) SELECT COUNT(*) FROM a) FROM a",
+    ] {
+        let plan =
+            guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
+        assert!(!plan.bindings.relations.is_empty(), "{sql}");
+        assert!(
+            plan.bindings
+                .relations
+                .iter()
+                .all(|r| r.schema == "logistics" && r.physical_schema == "_oo")
+        );
+        assert!(plan.executed_sql.contains("pt_orders"));
+    }
+    for sql in [
+        "SELECT (SELECT secret FROM logistics.orders)",
+        "WITH a AS (SELECT secret FROM logistics.orders) SELECT COUNT(*) FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT secret FROM a",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders i WHERE i.secret=o.id)",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders o WHERE o.secret=1)",
+        "WITH a AS (DELETE FROM logistics.orders RETURNING id) SELECT * FROM a",
+        "WITH RECURSIVE a AS (SELECT id FROM logistics.orders) SELECT * FROM a",
+        "WITH a AS (SELECT id FROM pg_catalog.pg_class) SELECT * FROM a",
+        "SELECT (SELECT set_config('TimeZone','UTC',false))",
+        "SELECT id FROM logistics.orders WHERE id IN (SELECT id,amount FROM logistics.orders)",
+        "SELECT (SELECT 1 FROM hidden.orders)",
+    ] {
+        assert!(guard_select(&cat.identity, &cat, sql).is_err(), "{sql}");
+    }
+    let mut large = cat.clone();
+    large.relations[0].estimated_rows = u64::MAX;
+    for sql in [
+        "SELECT (SELECT COUNT(*) FROM (SELECT * FROM logistics.orders) d)",
+        "WITH a AS (SELECT * FROM logistics.orders) SELECT COUNT(*) FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT * FROM a",
+    ] {
+        assert!(
+            matches!(
+                guard_select(&large.identity, &large, sql),
+                Err(oo_gateway::GuardError::CostTooHigh { .. })
+            ),
+            "{sql}"
+        );
+    }
+}
+
+fn corpus_catalog(schema: &str, role: &str, tables: &serde_json::Value) -> PolicyCatalog {
+    let mut cat = catalog();
+    cat.identity.role = role.into();
+    cat.relations = tables
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(table, columns)| VisibleRelation {
+            schema: schema.into(),
+            name: table.clone(),
+            physical_schema: "_oo".into(),
+            physical_name: format!("pt_{table}"),
+            columns: columns
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(name, ty)| VisibleColumn {
+                    name: name.clone(),
+                    physical_name: format!("pc_{name}"),
+                    type_oid: oid(ty.as_str().unwrap()),
+                })
+                .collect(),
+            pending_unclassified: 1,
+            estimated_rows: 4,
+        })
+        .collect();
+    for (source, target, name) in [
+        (oid("numeric"), oid("int8"), "int8"),
+        (oid("date"), oid("timestamp"), "timestamp"),
+    ] {
+        cat.casts.push(oo_gateway::ResolvedCast {
+            source_type_oid: source,
+            target_type_oid: target,
+            functions: vec![ResolvedFunction {
+                oid: 9500 + cat.casts.len() as u32,
+                schema: "pg_catalog".into(),
+                name: name.into(),
+                argument_type_oids: vec![source],
+                aggregate_star: false,
+            }],
+        });
+    }
+    cat
+}
+
+#[test]
+fn frozen_erp_t6_and_demo_gold_admission_corpus() {
+    use sha2::{Digest, Sha256};
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/admission-catalogs.json")).unwrap();
+    for (path, expected) in schema["sources"].as_object().unwrap() {
+        assert_eq!(
+            format!(
+                "{:x}",
+                Sha256::digest(std::fs::read(root.join(path)).unwrap())
+            ),
+            expected.as_str().unwrap(),
+            "refresh source-derived admission metadata: {path}"
+        );
+    }
+    let bank: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../benchmarks/ab/fixtures/logistics-bank.json"
+    ))
+    .unwrap();
+    let cat = corpus_catalog("fixture", bank["role"].as_str().unwrap(), &schema["erp"]);
+    assert_eq!(bank["questions"].as_array().unwrap().len(), 40);
+    for q in bank["questions"].as_array().unwrap() {
+        let sql = q["gold_sql"].as_str().unwrap();
+        guard_select(&cat.identity, &cat, sql)
+            .unwrap_or_else(|e| panic!("ERP {}: {sql}: {e:?}", q["id"]));
+    }
+    let cat = corpus_catalog("app", "oo_r_f22", &schema["t6"]);
+    let t6 = include_str!("../../../testing/engines/gold/postgres.sql");
+    let queries = t6
+        .lines()
+        .filter(|line| !line.starts_with("--"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut count = 0;
+    for source_sql in queries.split(';').filter(|sql| !sql.trim().is_empty()) {
+        // Source gold uses search_path; bind only the deployed T6 namespace.
+        let mut sql = source_sql.to_owned();
+        for table in schema["t6"].as_object().unwrap().keys() {
+            for keyword in ["FROM", "JOIN"] {
+                sql = sql.replace(
+                    &format!("{keyword} {table}"),
+                    &format!("{keyword} app.{table}"),
+                );
+            }
+        }
+        count += 1;
+        guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|e| panic!("T6 Q{count:02}: {sql}: {e:?}"));
+    }
+    assert_eq!(count, 20);
+    let demo: serde_json::Value =
+        serde_json::from_str(include_str!("../../../deploy/lite/demo/gold.json")).unwrap();
+    for role in ["analyst", "ops"] {
+        let reviewed: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(root.join(format!("deploy/lite/demo/reviewed-{role}.json"))).unwrap(),
+        )
+        .unwrap();
+        let mut tables = serde_json::Map::new();
+        for visible in reviewed["visibility"]["datasets"].as_array().unwrap() {
+            let name = visible["dataset"].as_str().unwrap();
+            let dataset = reviewed["effective"]["datasets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|d| d["dataset"] == name)
+                .unwrap();
+            let mut columns = serde_json::Map::new();
+            for column in dataset["columns"].as_array().unwrap() {
+                if !visible["columns"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&column["name"])
+                {
+                    continue;
+                }
+                let kind = column["data_type"].as_str().unwrap();
+                let ty = if kind == "bigint" {
+                    "int8"
+                } else if kind == "timestamp without time zone" {
+                    "timestamp"
+                } else if kind.starts_with("numeric") {
+                    "numeric"
+                } else {
+                    kind
+                };
+                columns.insert(column["name"].as_str().unwrap().into(), ty.into());
+            }
+            tables.insert(name.strip_prefix("demo.").unwrap().into(), columns.into());
+        }
+        let cat = corpus_catalog("demo", role, &tables.into());
+        for q in demo.as_array().unwrap() {
+            let result = guard_select(&cat.identity, &cat, q["sql"].as_str().unwrap());
+            if q["denied"] == true {
+                assert!(result.is_err(), "{role}: {}", q["id"]);
+            } else {
+                result.unwrap_or_else(|e| panic!("demo {role} {}: {e:?}", q["id"]));
+            }
+        }
+    }
+}
+
+#[test]
+fn analytical_negative_corpus_keeps_closed_refusal_codes() {
+    use oo_core::api::ErrorCode;
+    let cat = catalog();
+    for (sql, expected) in [
+        (
+            "DELETE FROM logistics.orders",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "UPDATE logistics.orders SET id=1",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "CREATE TABLE stolen(id integer)",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "COPY logistics.orders TO STDOUT",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "SELECT * FROM pg_catalog.pg_class",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "SELECT set_config('TimeZone','UTC',false)",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT dblink('connection','SELECT 1')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT lo_import('/not-a-file')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT lo_export(1,'/not-a-file')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT (SELECT secret FROM logistics.orders)",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (SELECT secret FROM logistics.orders) SELECT COUNT(*) FROM x",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "SELECT secret::date FROM logistics.orders",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (SELECT id FROM logistics.orders) SELECT secret FROM x",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (DELETE FROM logistics.orders RETURNING id) SELECT * FROM x",
+            ErrorCode::StatementNotAllowed,
+        ),
+    ] {
+        assert_eq!(
+            guard_select(&cat.identity, &cat, sql).unwrap_err().code(),
+            expected,
+            "{sql}"
+        );
+    }
+    let mut large = cat.clone();
+    large.relations[0].estimated_rows = u64::MAX;
+    for sql in [
+        "SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b",
+        "WITH x AS (SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b) SELECT COUNT(*) FROM x",
+    ] {
+        assert_eq!(
+            guard_select(&large.identity, &large, sql)
+                .unwrap_err()
+                .code(),
+            ErrorCode::CostTooHigh,
+            "{sql}"
+        );
+    }
 }

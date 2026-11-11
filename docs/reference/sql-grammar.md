@@ -80,10 +80,13 @@ Text functions also accept binary-compatible varchar inputs. Regex substring
 is not included. Every overload requires a unique verified builtin catalog
 entry; allowing a name does not allow arbitrary overloads or user functions.
 
-`date_trunc(text,timestamp)` accepts literal units from microseconds through
-millennium, including week, month and quarter. Timestamptz overloads and
-dynamic units are not part of this slice. `to_char(timestamp,text)` retains
-its existing checked builtin overload and literal-format requirement.
+`date_trunc(text,timestamp|timestamptz)` accepts literal units from
+microseconds through millennium, including week, month and quarter.
+`extract` and `date_part` also accept timestamptz. `date_part` on a date uses
+a verified date-to-timestamp conversion; `date_trunc` on a date uses the
+builtin date-to-timestamptz conversion. `to_char(timestamp|numeric,text)`
+requires a literal format. Stable overloads have individually pinned internal
+implementations; arbitrary stable functions are not admitted.
 
 `coalesce`, `nullif`, `greatest` and `least` admit common scalar types,
 including NULL branches and text/varchar promotion. Other mixed-type branches
@@ -91,20 +94,39 @@ require explicit casts. Every argument is checked even in an unreachable branch.
 `nullif` and min/max expressions require their verified comparison signature.
 `BETWEEN` also accepts admitted scalar expressions, including `EXTRACT`.
 
-## Security, freshness and remaining limits
+## SELECT scopes
+
+Scalar and IN/NOT IN/EXISTS subqueries recursively bind every expression and
+base relation against the same role catalog. Correlations must be explicitly
+qualified; a local alias shadows outer aliases, including denied columns.
+Nonrecursive CTEs and named FROM subqueries expose only their admitted
+projections. Unused CTEs are checked too. Role-filtered physical relations are
+preserved inside all scopes and are included in the plan's dependencies.
+Derived expressions with unnamed or duplicate outputs require column aliases.
+Recursive CTEs, LATERAL and modifying CTEs remain refused.
+
+`UNION ALL` supports equally sized, identically typed admitted projections,
+including the T6 shard-count query. Branches retain their own permission and
+cost checks. Union-level ordering supports output ordinals; other set
+operations and implicit union type coercions remain refused.
+
+DATE/TIMESTAMP comparisons can promote the date through a verified builtin
+cast to timestamp before applying the verified same-type comparator. This
+also admits the T6 gold's explicit DATE bounds on timestamp columns.
+
+## Security and freshness
 
 The entire AST still passes the write detector, SQL-byte/node/depth budgets,
 visible-relation/column binding, physical-name rewrite, deparse/reparse check,
-and a second admission against the physical catalog. Planner cost, role
-execution, read-only transactions and execution limits are unchanged. Writes,
-DDL, COPY, system-relation reads and non-allowlisted functions remain refused
-with closed reason codes.
+and a second admission against the physical catalog. Every nested SELECT
+retains the large-star guard. Planner cost, role execution, read-only
+transactions and execution limits are unchanged. Writes, DDL, COPY,
+system-relation reads and non-allowlisted functions remain refused with
+closed reason codes.
 
-Literal dates describe a query window, not source freshness. They do not
-replace publication/freshness receipts or turn `source_time=unmeasured` into
-a measured timestamp. `now()` and `current_date` remain unadmitted in this
-implementation; no runtime-clock freshness guarantee is made.
-
-V3-I-08 is not complete: subqueries/CTEs, the remaining
-pure-function allowlist and full ERP/T6 admission are still outstanding.
-Clock expressions and the remaining admission corpus are not yet complete.
+`now()` is the transaction-start clock; `current_date` is that clock's date
+in the execution session timezone. The clock and timezone-dependent
+conversions are not source freshness: they do not replace publication
+receipts or turn `source_time=unmeasured` into a measured source time.
+Clock-dependent query results can change between executions. Replay of
+captured A/B receipts is distinct from re-executing SQL against a new clock.

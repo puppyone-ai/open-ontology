@@ -150,6 +150,9 @@ GRANT SELECT(id,small,big,amount,fraction,txt,code,fixed,day,clock,stamp,zoned,s
 GRANT SELECT(id,label,code) ON capability_fixture.patterns,logistics.pattern_lookup TO {reader};
 GRANT SELECT(order_status,upd_time) ON logistics.daily_orders TO {reader};
 GRANT SELECT ON capability_fixture.balances,logistics.balances TO {reader};
+CREATE VIEW capability_fixture.role_shipments AS SELECT id,flag FROM capability_fixture.shipments WHERE flag IS TRUE;
+CREATE VIEW logistics.filtered AS SELECT id,flag FROM capability_fixture.role_shipments;
+GRANT SELECT ON capability_fixture.role_shipments,logistics.filtered TO {reader};
 """)
         config = {
             "port": port, "database": database, "user": reader, "nonce": nonce,

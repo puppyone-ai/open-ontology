@@ -1027,21 +1027,14 @@ fn writes_are_rejected_including_inside_a_cte() {
 }
 
 #[test]
-fn read_cte_and_subquery_are_unsupported() {
+fn read_cte_and_named_derived_projection_are_admitted() {
     let cat = small();
-    assert_eq!(
-        refuse(
-            &cat,
-            "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t"
-        ),
-        GuardError::Unsupported { construct: "CTE" }
-    );
-    assert_eq!(
-        refuse(&cat, "SELECT * FROM (SELECT 1) AS s"),
-        GuardError::Unsupported {
-            construct: "subquery"
-        }
-    );
+    for sql in [
+        "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t",
+        "SELECT * FROM (SELECT 1 AS order_id) AS s",
+    ] {
+        admit(&cat, sql);
+    }
 }
 
 #[test]

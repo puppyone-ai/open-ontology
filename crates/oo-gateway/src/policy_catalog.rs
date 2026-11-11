@@ -249,6 +249,11 @@ pub const ADDITIONAL_SCALAR_SIGNATURES: &[(&str, &[&str], &str)] = &[
     ("abs", &["int4"], "int4"),
     ("abs", &["int8"], "int8"),
     ("abs", &["float8"], "float8"),
+    ("date_trunc", &["text", "timestamptz"], "timestamptz"),
+    ("extract", &["text", "timestamptz"], "numeric"),
+    ("date_part", &["text", "timestamptz"], "float8"),
+    ("to_char", &["numeric", "text"], "text"),
+    ("now", &[], "timestamptz"),
 ];
 
 /// Result inference is closed over the same signatures the live loader verifies.
@@ -301,6 +306,7 @@ pub(crate) fn builtin_function_result_type(function: &ResolvedFunction) -> Optio
                 Type::TEXT,
                 Type::DATE,
                 Type::TIMESTAMP,
+                Type::TIMESTAMPTZ,
             ]
             .into_iter()
             .find(|ty| ty.name() == *result)
@@ -1622,14 +1628,23 @@ async fn load_scalar_function(
         .map(|kind| oid(*kind))
         .collect::<Result<Vec<_>, _>>()?;
     let result_oid = oid(result)?;
+    let stable_source = match (name, arguments) {
+        ("to_char", ["timestamp", "text"]) => "timestamp_to_char",
+        ("to_char", ["numeric", "text"]) => "numeric_to_char",
+        ("date_trunc", ["text", "timestamptz"]) => "timestamptz_trunc",
+        ("date_part", ["text", "timestamptz"]) => "timestamptz_part",
+        ("extract", ["text", "timestamptz"]) => "extract_timestamptz",
+        ("now", []) => "now",
+        _ => "",
+    };
+    let volatility = if stable_source.is_empty() { "i" } else { "s" };
     let rows = tx
         .query(
             "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
          JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace \
          JOIN pg_catalog.pg_language l ON l.oid=p.prolang \
          WHERE n.nspname='pg_catalog' AND p.proname=$1 AND p.prokind='f' \
-           AND ((p.proname='to_char' AND p.provolatile='s' AND p.prosrc='timestamp_to_char') \
-             OR (p.proname<>'to_char' AND p.provolatile='i')) \
+           AND p.provolatile::text=$4 AND ($5='' OR p.prosrc=$5) \
            AND NOT p.proretset AND NOT p.prosecdef \
            AND p.provariadic=0 AND p.proconfig IS NULL \
            AND p.pronargs=cardinality($2::int4[]) \
@@ -1642,7 +1657,13 @@ async fn load_scalar_function(
                  AND c.castmethod='f' AND c.castcontext='a' AND c.castfunc=p.oid \
                  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d WHERE d.objid=c.oid \
                      AND d.classid='pg_catalog.pg_cast'::regclass AND d.deptype='e')))",
-            &[&name, &argument_oids, &result_oid],
+            &[
+                &name,
+                &argument_oids,
+                &result_oid,
+                &volatility,
+                &stable_source,
+            ],
         )
         .await
         .map_err(db_error)?;
@@ -2363,7 +2384,7 @@ mod tests {
 
     #[test]
     fn aggregate_catalog_has_exact_bounded_signatures() {
-        assert_eq!(FUNCTION_CATALOG_LIMIT, 49);
+        assert_eq!(FUNCTION_CATALOG_LIMIT, 54);
         assert_eq!(UNARY_AGGREGATE_SIGNATURES.len(), 26);
         let unique = UNARY_AGGREGATE_SIGNATURES.iter().collect::<BTreeSet<_>>();
         assert_eq!(unique.len(), UNARY_AGGREGATE_SIGNATURES.len());

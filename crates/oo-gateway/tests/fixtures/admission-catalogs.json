@@ -1,0 +1,128 @@
+{
+  "sources": {
+    "bench/datagen/src/catalog.rs": "fbac114f5146fdde5b33e578effe599ddda1594261c13079e148ae33acc4bc9b",
+    "testing/engines/seed-common/generate.py": "4449c897e0d6de46000fee855953a89787758eeca7972a14690132a534c0dfbc"
+  },
+  "erp": {
+    "kh": {
+      "khid": "text",
+      "szdq": "text",
+      "scbz": "int2",
+      "csbz": "int2"
+    },
+    "kh_bm": {
+      "khid": "text",
+      "bmxh": "int4"
+    },
+    "ht": {
+      "htid": "text",
+      "bb": "int4"
+    },
+    "dd": {
+      "ddid": "text",
+      "khid": "text",
+      "htid": "text",
+      "bb": "int4",
+      "ddrq": "date",
+      "je_fen": "int8",
+      "hb": "text"
+    },
+    "ys": {
+      "ysid": "text",
+      "ddid": "text",
+      "ysje_fen": "int8",
+      "kjq": "text"
+    },
+    "sk": {
+      "skid": "text",
+      "ysid": "text",
+      "skje_fen": "int8",
+      "skrq": "date",
+      "jzbz": "int2",
+      "hb": "text"
+    },
+    "tk": {
+      "skid": "text",
+      "tkje_fen": "int8",
+      "hb": "text"
+    },
+    "fp": {
+      "ddid": "text",
+      "fpje_fen": "int8",
+      "kprq": "date",
+      "hb": "text"
+    },
+    "zd": {
+      "zdlx": "text",
+      "zddm": "text",
+      "yxqq": "date",
+      "yxqz": "date",
+      "zdz": "text"
+    }
+  },
+  "t6": {
+    "regions": {
+      "id": "int8",
+      "name": "varchar"
+    },
+    "areas": {
+      "id": "int8",
+      "region_id": "int8",
+      "name": "varchar"
+    },
+    "sites": {
+      "id": "int8",
+      "area_id": "int8",
+      "name": "varchar"
+    },
+    "codes": {
+      "code": "int8",
+      "label": "varchar"
+    },
+    "customers": {
+      "id": "int8",
+      "site_id": "int8",
+      "name": "varchar",
+      "phone_synthetic": "varchar",
+      "national_id_synthetic": "varchar",
+      "note": "varchar"
+    },
+    "orders": {
+      "id": "int8",
+      "customer_id": "int8",
+      "status_code": "int8",
+      "amount": "numeric",
+      "qty": "int8",
+      "ordered_at": "timestamp"
+    },
+    "shipments": {
+      "id": "int8",
+      "order_id": "int8",
+      "site_id": "int8",
+      "shipped_at": "timestamp"
+    },
+    "calendar": {
+      "day_id": "int8",
+      "day_date": "date",
+      "month_no": "int8"
+    },
+    "order_lines": {
+      "order_id": "int8",
+      "line_no": "int8",
+      "qty": "int8"
+    },
+    "events": {
+      "id": "int8",
+      "order_id": "int8",
+      "event_no": "int8"
+    },
+    "log_202601": {
+      "id": "int8",
+      "order_id": "int8"
+    },
+    "log_202602": {
+      "id": "int8",
+      "order_id": "int8"
+    }
+  }
+}

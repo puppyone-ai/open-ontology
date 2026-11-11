@@ -331,11 +331,11 @@ fn unsupported_in_shapes_fail_closed() {
             "IN predicate",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id IN (SELECT entry_id FROM shop.entry)",
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (SELECT entry_id,qty FROM shop.entry)",
             "subquery",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (SELECT entry_id FROM shop.entry)",
+            "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (SELECT entry_id,qty FROM shop.entry)",
             "subquery",
         ),
         (

@@ -63,6 +63,9 @@ const NULL_NOT: i32 = pb::NullTestType::IsNotNull as i32;
 const SORT_USING: i32 = pb::SortByDir::SortbyUsing as i32;
 const LIMIT_TIES: i32 = pb::LimitOption::WithTies as i32;
 
+#[path = "sql_scopes.rs"]
+mod scopes;
+
 /// Exact project, role, and policy identity. Compared byte for byte.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolicyIdentity {
@@ -534,9 +537,6 @@ fn guard_with(
         return Err(GuardError::Write);
     }
     let mut admitted = admit_select(&mut parsed.protobuf, catalog, surface)?;
-    if let Some(relation) = large_relation(&admitted, catalog) {
-        return Err(GuardError::CostTooHigh { relation });
-    }
     let executed = pg_query::deparse(&parsed.protobuf)
         .map_err(|_| GuardError::Serialize { reason: "deparse" })?;
     if executed.is_empty() {
@@ -610,6 +610,8 @@ enum WhereFold {
 }
 
 struct Admitted {
+    output_columns: Vec<VisibleColumn>,
+    estimated_rows: u64,
     expansions: Vec<StarExpansion>,
     relations: Vec<OrderedRelation>,
     outputs: Vec<OutputItem>,
@@ -625,6 +627,7 @@ struct OrderedRelation {
     bound: BoundRelation,
 }
 
+#[derive(Clone)]
 struct RangeBind {
     rel_index: usize,
     alias: Option<String>,
@@ -633,6 +636,9 @@ struct RangeBind {
 }
 
 struct Ctx<'a> {
+    outer_ranges: Vec<Vec<RangeBind>>,
+    nested: Vec<Admitted>,
+    output_columns: Vec<VisibleColumn>,
     catalog: &'a PolicyCatalog,
     surface: Surface,
     ranges: Vec<RangeBind>,
@@ -714,8 +720,25 @@ fn admit_select(
         Some(_) => return Err(GuardError::Statement),
         None => return Err(GuardError::Statement),
     };
+    admit_query(select, catalog, surface, &[])
+}
+
+fn admit_query(
+    select: &mut pb::SelectStmt,
+    catalog: &PolicyCatalog,
+    surface: Surface,
+    outer_ranges: &[Vec<RangeBind>],
+) -> Result<Admitted, GuardError> {
+    if select.op == pb::SetOperation::SetopUnion as i32 && select.all {
+        return scopes::admit_union(select, catalog, surface, outer_ranges);
+    }
     reject_select_shape(select)?;
+    let prepared = scopes::prepare(select, catalog, surface, outer_ranges)?;
+    let catalog = &prepared.catalog;
     let mut ctx = Ctx {
+        outer_ranges: outer_ranges.to_vec(),
+        nested: prepared.nested,
+        output_columns: Vec::new(),
         catalog,
         surface,
         ranges: Vec::new(),
@@ -761,12 +784,26 @@ fn admit_select(
             construct: "column reference",
         });
     }
+    let estimated_rows = ctx
+        .ranges
+        .iter()
+        .map(|range| catalog.relations[range.rel_index].estimated_rows)
+        .max()
+        .unwrap_or(0);
     let relations = ctx
         .ranges
         .iter()
+        .filter(|range| {
+            !matches!(
+                catalog.relations[range.rel_index].schema.as_str(),
+                "" | "@derived"
+            )
+        })
         .map(|range| ordered_relation(range, catalog))
         .collect();
-    Ok(Admitted {
+    let mut admitted = Admitted {
+        output_columns: ctx.output_columns,
+        estimated_rows,
         expansions: ctx.expansions,
         relations,
         outputs: ctx.outputs,
@@ -775,7 +812,18 @@ fn admit_select(
         null_tests: ctx.null_tests,
         where_fold,
         starred: ctx.starred,
-    })
+    };
+    if let Some(relation) = large_relation(&admitted, catalog) {
+        return Err(GuardError::CostTooHigh { relation });
+    }
+    for nested in ctx.nested {
+        admitted.relations.extend(nested.relations);
+        admitted.functions.extend(nested.functions);
+        admitted.operators.extend(nested.operators);
+        admitted.expansions.extend(nested.expansions);
+        admitted.null_tests = admitted.null_tests.saturating_add(nested.null_tests);
+    }
+    Ok(admitted)
 }
 
 fn uses_column(ctx: &Ctx<'_>) -> bool {
@@ -786,9 +834,6 @@ fn uses_column(ctx: &Ctx<'_>) -> bool {
 }
 
 fn reject_select_shape(select: &pb::SelectStmt) -> Result<(), GuardError> {
-    if select.with_clause.is_some() {
-        return Err(GuardError::Unsupported { construct: "CTE" });
-    }
     if !select.distinct_clause.is_empty() {
         return Err(GuardError::Unsupported {
             construct: "DISTINCT",
@@ -859,9 +904,7 @@ fn bind_from_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardErr
     match node.node.as_mut() {
         Some(pb::node::Node::RangeVar(var)) => bind_range(var, ctx),
         Some(pb::node::Node::JoinExpr(join)) => bind_join(join, ctx),
-        Some(pb::node::Node::RangeSubselect(_)) => Err(GuardError::Unsupported {
-            construct: "subquery",
-        }),
+        Some(pb::node::Node::RangeSubselect(sub)) => scopes::bind_derived(sub, ctx),
         Some(pb::node::Node::RangeFunction(_)) => Err(GuardError::Unsupported {
             construct: "range function",
         }),
@@ -933,6 +976,9 @@ fn bind_range(var: &mut pb::RangeVar, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
         });
     }
     let alias = range_alias(var)?;
+    if var.schemaname.is_empty() && scopes::bind_cte(var, ctx)? {
+        return Ok(());
+    }
     if var.schemaname.is_empty() {
         return Err(GuardError::Unqualified {
             suggestion: unique_suggestion(ctx.catalog, &var.relname),
@@ -1056,6 +1102,22 @@ fn rewrite_one_target(
         Some(pb::node::Node::ResTarget(res)) => res.name.clone(),
         _ => String::new(),
     };
+    ctx.output_columns.push(scopes::output_column(
+        &target,
+        infer_type(&kind, ctx.catalog).unwrap_or(
+            if matches!(
+                kind,
+                ExprKind::Literal {
+                    kind: LiteralKind::Null,
+                    ..
+                }
+            ) {
+                Type::TEXT.oid()
+            } else {
+                0
+            },
+        ),
+    )?);
     ctx.outputs
         .push(output_item(&kind, &output_name, ctx.catalog));
     Ok(vec![target])
@@ -1181,6 +1243,11 @@ fn expand_slot(
     });
     let mut nodes = Vec::with_capacity(columns.len());
     for (logical, physical, type_oid) in columns {
+        ctx.output_columns.push(VisibleColumn {
+            name: logical.clone(),
+            physical_name: logical.clone(),
+            type_oid,
+        });
         ctx.outputs.push(OutputItem::Column(BoundOutputColumn {
             relation_schema: schema.clone(),
             relation_name: relation.clone(),
@@ -1443,6 +1510,7 @@ fn admit_sort_item(
                             | pb::node::Node::CaseExpr(_)
                             | pb::node::Node::CoalesceExpr(_)
                             | pb::node::Node::MinMaxExpr(_)
+                            | pb::node::Node::SubLink(_)
                     )
                 ) {
                     return Err(GuardError::Unsupported {
@@ -1484,14 +1552,30 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         Some(pb::node::Node::BoolExpr(_)) => admit_bool(node, ctx),
         Some(pb::node::Node::NullTest(_)) => admit_null(node, ctx),
         Some(pb::node::Node::TypeCast(_)) => admit_cast(node, ctx),
+        Some(pb::node::Node::SqlvalueFunction(value))
+            if value.op == pb::SqlValueFunctionOp::SvfopCurrentDate as i32 =>
+        {
+            let now = resolve_function(ctx.catalog, Some("pg_catalog"), "now", &[], false)?;
+            let cast = ctx
+                .catalog
+                .casts
+                .iter()
+                .find(|cast| {
+                    cast.source_type_oid == Type::TIMESTAMPTZ.oid()
+                        && cast.target_type_oid == Type::DATE.oid()
+                })
+                .ok_or(GuardError::FunctionNotAllowed)?;
+            ctx.functions.push(bound_function(now));
+            ctx.functions
+                .extend(cast.functions.iter().map(bound_function));
+            Ok(ExprKind::Case {
+                result_type_oid: Type::DATE.oid(),
+            })
+        }
         Some(pb::node::Node::ParamRef(_)) => Err(GuardError::Unsupported {
             construct: "parameter",
         }),
-        Some(pb::node::Node::SubLink(_)) | Some(pb::node::Node::RangeSubselect(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "subquery",
-            })
-        }
+        Some(pb::node::Node::SubLink(link)) => scopes::admit_link(link, ctx),
         Some(pb::node::Node::CaseExpr(_)) => admit_case(node, ctx),
         Some(pb::node::Node::CoalesceExpr(expr)) => {
             let result_type_oid = admit_alternatives(&mut expr.args, ctx)?;
@@ -1659,10 +1743,10 @@ fn admit_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, Guar
             });
         }
     };
-    let (slot, column_index) = resolve_column(&names, ctx)?;
-    let rel_index = ctx.ranges[slot].rel_index;
+    let (range, column_index) = scopes::resolve_column_scope(&names, ctx)?;
+    let rel_index = range.rel_index;
     let type_oid = ctx.catalog.relations[rel_index].columns[column_index].type_oid;
-    let qualifier = ctx.ranges[slot].exposed.clone();
+    let qualifier = range.exposed.clone();
     let physical = ctx.catalog.relations[rel_index].columns[column_index]
         .physical_name
         .clone();
@@ -2208,6 +2292,40 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if aggregate {
         ctx.aggregate_depth -= 1;
     }
+    if matches!(name.as_str(), "date_part" | "date_trunc")
+        && schema
+            .as_deref()
+            .is_none_or(|schema| schema == "pg_catalog")
+        && types == [Type::TEXT.oid(), Type::DATE.oid()]
+        && let Some(pb::node::Node::FuncCall(call)) = node.node.as_mut()
+    {
+        let target = if name == "date_part" {
+            Type::TIMESTAMP
+        } else {
+            Type::TIMESTAMPTZ
+        };
+        let cast = ctx
+            .catalog
+            .casts
+            .iter()
+            .find(|cast| {
+                cast.source_type_oid == Type::DATE.oid() && cast.target_type_oid == target.oid()
+            })
+            .ok_or(GuardError::FunctionNotAllowed)?;
+        ctx.functions
+            .extend(cast.functions.iter().map(bound_function));
+        call.args[1] = pb::Node {
+            node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+                arg: Some(Box::new(call.args[1].clone())),
+                type_name: Some(pb::TypeName {
+                    names: vec![string_node("pg_catalog"), string_node(target.name())],
+                    ..Default::default()
+                }),
+                location: -1,
+            }))),
+        };
+        types[1] = target.oid();
+    }
     // The one-argument numeric overload is a SQL wrapper. Bind directly to
     // the verified internal implementation instead of admitting SQL functions.
     if name == "round"
@@ -2423,6 +2541,13 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
             if bind_temporal_literal(right, left_type) {
                 right_type = left_type;
             }
+            if left_type == Type::DATE.oid() && right_type == Type::TIMESTAMP.oid() {
+                promote_date_timestamp(left, ctx)?;
+                left_type = Type::TIMESTAMP.oid();
+            } else if right_type == Type::DATE.oid() && left_type == Type::TIMESTAMP.oid() {
+                promote_date_timestamp(right, ctx)?;
+                right_type = Type::TIMESTAMP.oid();
+            }
         }
         (left_type, right_type, left_int, right_int)
     };
@@ -2447,6 +2572,31 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     Ok(ExprKind::Operator {
         result_type_oid: resolved.result_type_oid,
     })
+}
+
+fn promote_date_timestamp(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardError> {
+    let cast = ctx
+        .catalog
+        .casts
+        .iter()
+        .find(|cast| {
+            cast.source_type_oid == Type::DATE.oid()
+                && cast.target_type_oid == Type::TIMESTAMP.oid()
+        })
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    ctx.functions
+        .extend(cast.functions.iter().map(bound_function));
+    *node = pb::Node {
+        node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+            arg: Some(Box::new(node.clone())),
+            type_name: Some(pb::TypeName {
+                names: vec![string_node("pg_catalog"), string_node("timestamp")],
+                ..Default::default()
+            }),
+            location: -1,
+        }))),
+    };
+    Ok(())
 }
 
 // Unknown string literals may take the other operand's temporal type. Make

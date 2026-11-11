@@ -1841,6 +1841,11 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
             "between_visible_column": true,
             "temporal_literal_in": true,
             "coalesce_nullif_minmax": true,
+            "scalar_in_exists_subqueries": true,
+            "nonrecursive_cte": true,
+            "same_type_union_all": true,
+            "clock_is_source_freshness": false,
+            "transaction_clock": catalog.functions.iter().any(|f| f.name == "now"),
             "between_scalar_expression": true,
             "timezone_dependent_day_conversion": catalog.casts.iter().any(|cast|
                 cast.source_type_oid == postgres_types::Type::TIMESTAMPTZ.oid()
