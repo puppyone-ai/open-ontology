@@ -1818,6 +1818,10 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
         "truncated": false,
         "functions": functions,
         "operators": operators,
+        "scalar_casts": catalog.casts.iter().map(|cast| serde_json::json!({
+            "source": if cast.source_type_oid == 0 { "literal".to_owned() } else { type_name(cast.source_type_oid) },
+            "target": type_name(cast.target_type_oid),
+        })).collect::<Vec<_>>(),
         "literal_types": {
             "integer": catalog.literal_types.integer.map(type_name),
             "text": catalog.literal_types.text.map(type_name),
@@ -1836,7 +1840,11 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
             "temporal_iso_string_comparison": true,
             "between_visible_column": true,
             "temporal_literal_in": true,
-            "timezone_dependent_day_conversion": false
+            "coalesce_nullif_minmax": true,
+            "between_scalar_expression": true,
+            "timezone_dependent_day_conversion": catalog.casts.iter().any(|cast|
+                cast.source_type_oid == postgres_types::Type::TIMESTAMPTZ.oid()
+                    && cast.target_type_oid == postgres_types::Type::DATE.oid())
         },
     })
 }
@@ -4428,6 +4436,7 @@ mod tests {
                 text: Some(25),
                 boolean: Some(16),
             },
+            casts: Vec::new(),
             null_test_allowed: true,
             large_table_row_threshold: 100,
         };

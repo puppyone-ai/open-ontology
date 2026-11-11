@@ -169,6 +169,7 @@ fn guarded_business_aggregates_match_postgres_without_expanding_permissions() {
             text: Some(25),
             boolean: Some(16),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };

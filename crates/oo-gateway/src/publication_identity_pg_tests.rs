@@ -48,6 +48,7 @@ fn view_binding(role: &str, view: &str) -> (BindingCheck, PolicyCatalog) {
         functions: vec![],
         operators: vec![],
         literal_types: LiteralTypes::default(),
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };
@@ -154,6 +155,7 @@ async fn logical_view_binding_refuses_redefinition_and_dependency_swap() {
         functions: vec![],
         operators: vec![],
         literal_types: LiteralTypes::default(),
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };

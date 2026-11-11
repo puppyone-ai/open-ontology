@@ -152,6 +152,7 @@ fn catalog() -> PolicyCatalog {
             text: Some(oid("text")),
             boolean: Some(oid("bool")),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }
@@ -714,4 +715,61 @@ fn analytical_scalar_functions_require_exact_catalog_authority() {
         let sql = format!("SELECT {expression} FROM logistics.orders");
         assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
     }
+}
+
+#[test]
+fn scalar_casts_bind_arguments_and_exact_conversion_authority() {
+    use oo_gateway::sql_guard::ResolvedCast;
+    let mut cat = catalog();
+    for (source, target) in [
+        (oid("numeric"), oid("int8")),
+        (0, oid("numeric")),
+        (0, oid("timestamp")),
+        (oid("int4"), oid("numeric")),
+    ] {
+        cat.casts.push(ResolvedCast {
+            source_type_oid: source,
+            target_type_oid: target,
+            functions: vec![ResolvedFunction {
+                oid: 9000 + cat.casts.len() as u32,
+                schema: "pg_catalog".into(),
+                name: if target == oid("int8") {
+                    "int8"
+                } else {
+                    "numeric"
+                }
+                .into(),
+                argument_type_oids: vec![source],
+                aggregate_star: false,
+            }],
+        });
+    }
+    for sql in [
+        "SELECT CAST(SUM(amount) AS BIGINT) FROM logistics.orders",
+        "SELECT amount::bigint FROM logistics.orders",
+        "SELECT '123.45'::numeric,1::numeric,'2026-01-01'::timestamp",
+    ] {
+        let plan =
+            guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
+        assert!(!plan.bindings.functions.is_empty());
+        let mut missing = cat.clone();
+        missing.casts.clear();
+        assert!(
+            guard_select(&missing.identity, &missing, sql).is_err(),
+            "{sql}"
+        );
+    }
+    for sql in [
+        "SELECT secret::bigint FROM logistics.orders",
+        "SELECT pg_sleep(1)::bigint",
+        "SELECT 'pg_class'::regclass",
+        "SELECT '1'::public.numeric",
+        "SELECT 'now'::timestamp",
+        "SELECT '1'::numeric(10,2)",
+        "SELECT ARRAY[1]::integer[]",
+    ] {
+        assert!(guard_select(&cat.identity, &cat, sql).is_err(), "{sql}");
+    }
+    cat.casts.push(cat.casts[0].clone());
+    assert!(guard_select(&cat.identity, &cat, "SELECT 1").is_err());
 }

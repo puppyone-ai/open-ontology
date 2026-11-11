@@ -366,6 +366,7 @@ async fn probe_snapshot(
             functions: Vec::new(),
             operators: Vec::new(),
             literal_types: LiteralTypes::default(),
+            casts: Vec::new(),
             null_test_allowed: true,
             large_table_row_threshold: authority.limits.large_table_row_threshold,
         },

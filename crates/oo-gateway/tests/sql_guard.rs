@@ -120,6 +120,7 @@ fn catalog(relations: Vec<VisibleRelation>) -> PolicyCatalog {
             text: Some(TEXT_OID),
             boolean: Some(BOOL_OID),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }
@@ -1809,6 +1810,7 @@ async fn live_catalog(client: &Client, shadow: &Shadow) -> PolicyCatalog {
             text: Some(text_oid),
             boolean: Some(bool_oid),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 1_000_000,
     }

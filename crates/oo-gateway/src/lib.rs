@@ -42,6 +42,6 @@ pub use reviewed_policy::{
 pub use sql_guard::{
     BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, DEPTH_BUDGET, GuardError,
     GuardedPlan, LiteralKind, LiteralTypes, NODE_BUDGET, OutputItem, PINNED_PARSER_VERSION,
-    PolicyCatalog, PolicyIdentity, RecognizedBindings, ResolvedFunction, ResolvedOperator,
-    SQL_BYTE_BUDGET, StarExpansion, VisibleColumn, VisibleRelation, guard_select,
+    PolicyCatalog, PolicyIdentity, RecognizedBindings, ResolvedCast, ResolvedFunction,
+    ResolvedOperator, SQL_BYTE_BUDGET, StarExpansion, VisibleColumn, VisibleRelation, guard_select,
 };

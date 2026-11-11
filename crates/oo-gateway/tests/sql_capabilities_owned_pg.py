@@ -188,6 +188,25 @@ GRANT SELECT ON capability_fixture.balances,logistics.balances TO {reader};
                 report["mutated_builtin_refusals"].append(label)
             finally:
                 run(psql + ["-d", database], restore)
+        env["OO_SQL_CAST_MUTATION"] = "1"
+        for label, mutate, restore in [
+            ("cast_security_definer",
+             "ALTER FUNCTION pg_catalog.int8(numeric) SECURITY DEFINER;",
+             "ALTER FUNCTION pg_catalog.int8(numeric) SECURITY INVOKER;"),
+            ("cast_input_volatile",
+             "ALTER FUNCTION pg_catalog.numeric_in(cstring,oid,integer) VOLATILE;",
+             "ALTER FUNCTION pg_catalog.numeric_in(cstring,oid,integer) IMMUTABLE;"),
+            ("cast_io_override",
+             "CREATE FUNCTION capability_fixture.bad_cast(text) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT 1'; CREATE CAST (text AS integer) WITH FUNCTION capability_fixture.bad_cast(text);",
+             "DROP CAST (text AS integer); DROP FUNCTION capability_fixture.bad_cast(text);"),
+        ]:
+            run(psql + ["-d", database], mutate)
+            try:
+                run(negative_command)
+                report["mutated_builtin_refusals"].append(label)
+            finally:
+                run(psql + ["-d", database], restore)
+        del env["OO_SQL_CAST_MUTATION"]
         (root / "actual-db-report.json").write_text(json.dumps(report, indent=2))
         lifecycle["test_passed"] = True
         print(json.dumps({"actualDB": report["actualDB"],

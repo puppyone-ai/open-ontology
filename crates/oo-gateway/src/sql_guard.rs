@@ -85,6 +85,8 @@ pub struct PolicyCatalog {
     pub functions: Vec<ResolvedFunction>,
     /// Binary operators the adapter has already resolved.
     pub operators: Vec<ResolvedOperator>,
+    /// Scalar conversions verified in the same snapshot. Empty grants no new casts.
+    pub casts: Vec<ResolvedCast>,
     /// Type OIDs for integer, text, and boolean literals. Absent means unresolved.
     pub literal_types: LiteralTypes,
     /// `IS NULL` / `IS NOT NULL` on a column. No OID is invented when this is false.
@@ -137,6 +139,30 @@ pub struct ResolvedFunction {
     /// `count(*)`-style call with no argument types.
     pub aggregate_star: bool,
 }
+
+/// One exact builtin conversion; source zero denotes a literal input.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolvedCast {
+    pub source_type_oid: u32,
+    pub target_type_oid: u32,
+    pub functions: Vec<ResolvedFunction>,
+}
+
+/// Closed scalar cast targets. Domains, arrays, regclass and pseudo-types are absent.
+pub const SCALAR_CAST_TYPES: &[Type] = &[
+    Type::BOOL,
+    Type::INT2,
+    Type::INT4,
+    Type::INT8,
+    Type::NUMERIC,
+    Type::FLOAT8,
+    Type::TEXT,
+    Type::VARCHAR,
+    Type::DATE,
+    Type::TIMESTAMP,
+    Type::TIMESTAMPTZ,
+    Type::INTERVAL,
+];
 
 /// One binary operator the adapter resolved.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -997,17 +1023,14 @@ fn rewrite_one_target(
     if let Some(names) = star_names {
         return expand_star(&names, &alias, ctx);
     }
-    let cast_column_alias = match target_val(&mut target)?.node.as_ref() {
-        Some(pb::node::Node::TypeCast(cast))
-            if cast.type_name.as_ref().is_some_and(plain_date_type) =>
-        {
-            match cast.arg.as_deref().and_then(|arg| arg.node.as_ref()) {
-                Some(pb::node::Node::ColumnRef(column)) => plain_names(column)?.last().cloned(),
-                _ => None,
-            }
+    let mut original = target_val(&mut target)? as &pb::Node;
+    let mut cast_column_alias = None;
+    while let Some(pb::node::Node::TypeCast(cast)) = original.node.as_ref() {
+        original = cast.arg.as_deref().ok_or_else(|| unsupported("cast"))?;
+        if let Some(pb::node::Node::ColumnRef(column)) = original.node.as_ref() {
+            cast_column_alias = plain_names(column)?.last().cloned();
         }
-        _ => None,
-    };
+    }
     let kind = {
         let val = target_val(&mut target)?;
         admit_expr(val, ctx)?
@@ -1860,6 +1883,9 @@ fn admit_cast(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if let Ok(literal) = admit_literal_cast(node) {
         return Ok(literal);
     }
+    if let Some(kind) = admit_scalar_cast(node, ctx)? {
+        return Ok(kind);
+    }
     let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut() else {
         return Err(unsupported("cast"));
     };
@@ -1894,6 +1920,78 @@ fn admit_cast(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         bound,
         result_type_oid: Some(Type::DATE.oid()),
     })
+}
+
+fn admit_scalar_cast(
+    node: &mut pb::Node,
+    ctx: &mut Ctx<'_>,
+) -> Result<Option<ExprKind>, GuardError> {
+    let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut() else {
+        return Err(unsupported("cast"));
+    };
+    let name = cast.type_name.as_ref().ok_or_else(|| unsupported("cast"))?;
+    let Some(target) = SCALAR_CAST_TYPES
+        .iter()
+        .find(|ty| plain_literal_type(name, ty.name()))
+    else {
+        return Err(unsupported("cast"));
+    };
+    if !ctx
+        .catalog
+        .casts
+        .iter()
+        .any(|cast| cast.target_type_oid == target.oid())
+    {
+        return Ok(None);
+    }
+    let arg = cast.arg.as_deref_mut().ok_or_else(|| unsupported("cast"))?;
+    if let Some(text) = const_string(arg) {
+        let valid = match *target {
+            Type::DATE => civil_date(text),
+            Type::TIMESTAMP => civil_date(text) || civil_timestamp(text, false),
+            Type::TIMESTAMPTZ => civil_timestamp(text, true),
+            _ => true,
+        };
+        if !valid {
+            return Err(unsupported("cast"));
+        }
+    }
+    let source = match arg.node.as_ref() {
+        Some(pb::node::Node::AConst(value))
+            if value.isnull || matches!(value.val, Some(pb::a_const::Val::Sval(_))) =>
+        {
+            0
+        }
+        Some(pb::node::Node::AConst(value))
+            if matches!(value.val, Some(pb::a_const::Val::Fval(_))) =>
+        {
+            let Some(pb::a_const::Val::Fval(value)) = &value.val else {
+                unreachable!()
+            };
+            if value.fval.parse::<i64>().is_ok() {
+                Type::INT8.oid()
+            } else {
+                Type::NUMERIC.oid()
+            }
+        }
+        _ => {
+            let kind = admit_expr(arg, ctx)?;
+            infer_type(&kind, ctx.catalog).ok_or_else(|| unsupported("cast"))?
+        }
+    };
+    let found = ctx
+        .catalog
+        .casts
+        .iter()
+        .find(|cast| cast.source_type_oid == source && cast.target_type_oid == target.oid())
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    ctx.functions
+        .extend(found.functions.iter().map(bound_function));
+    cast.type_name.as_mut().unwrap().names =
+        vec![string_node("pg_catalog"), string_node(target.name())];
+    Ok(Some(ExprKind::Case {
+        result_type_oid: target.oid(),
+    }))
 }
 
 fn plain_date_type(type_name: &pb::TypeName) -> bool {
@@ -3201,6 +3299,7 @@ fn physical_catalog(catalog: &PolicyCatalog) -> PolicyCatalog {
         functions: catalog.functions.clone(),
         operators: catalog.operators.clone(),
         literal_types: catalog.literal_types,
+        casts: catalog.casts.clone(),
         null_test_allowed: catalog.null_test_allowed,
         large_table_row_threshold: catalog.large_table_row_threshold,
     }
@@ -3219,6 +3318,30 @@ fn validate(
     validate_relations(catalog, surface)?;
     validate_functions(catalog)?;
     validate_operators(catalog)?;
+    let mut casts = BTreeSet::new();
+    if catalog.casts.len() > SCALAR_CAST_TYPES.len() * (SCALAR_CAST_TYPES.len() + 1) {
+        return Err(GuardError::CatalogInvalid {
+            reason: "cast budget",
+        });
+    }
+    for cast in &catalog.casts {
+        let scalar = |oid| SCALAR_CAST_TYPES.iter().any(|ty| ty.oid() == oid);
+        if !(cast.source_type_oid == 0 || scalar(cast.source_type_oid))
+            || !scalar(cast.target_type_oid)
+            || !casts.insert((cast.source_type_oid, cast.target_type_oid))
+            || cast.functions.len() > 2
+            || cast.functions.iter().any(|function| {
+                function.oid == 0
+                    || function.schema != "pg_catalog"
+                    || function.aggregate_star
+                    || !closed_ident(&function.name)
+            })
+        {
+            return Err(GuardError::CatalogInvalid {
+                reason: "cast signature",
+            });
+        }
+    }
     for oid in [
         catalog.literal_types.integer,
         catalog.literal_types.text,

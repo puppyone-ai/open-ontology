@@ -3263,6 +3263,7 @@ mod source_engine_projection_tests {
             }],
             operators: vec![],
             literal_types: crate::LiteralTypes::default(),
+            casts: Vec::new(),
             null_test_allowed: false,
             large_table_row_threshold: 100,
         }

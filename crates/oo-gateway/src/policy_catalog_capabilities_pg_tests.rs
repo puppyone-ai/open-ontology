@@ -337,6 +337,7 @@ async fn owned_sql_capabilities() {
         VisibleColumn { name: name.clone(), physical_name: name, type_oid: row.get::<_, i32>(1) as u32 }
     }).collect::<Vec<_>>();
     assert_eq!(columns.len(), 18);
+    let scalar_casts = casts::load(&tx).await.unwrap();
     tx.commit().await.unwrap();
     client.batch_execute("SET search_path=''").await.unwrap();
     let identity = PolicyIdentity {
@@ -362,6 +363,7 @@ async fn owned_sql_capabilities() {
             text: Some(types["text"]),
             boolean: Some(types["bool"]),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };
@@ -375,7 +377,59 @@ async fn owned_sql_capabilities() {
         crate::parser_worker::decode_request(&encoded).unwrap(),
         request
     );
+    let mut cast_catalog = catalog.clone();
+    cast_catalog.casts = scalar_casts;
+    let cast_request = crate::parser_worker::AdmitRequest {
+        catalog: cast_catalog.clone(),
+        ..request.clone()
+    };
+    assert_eq!(
+        crate::parser_worker::decode_request(
+            &crate::parser_worker::encode_request(&cast_request).unwrap()
+        )
+        .unwrap(),
+        cast_request
+    );
     let mut queries = Vec::new();
+    for sql in [
+        "SELECT CAST(SUM(amount) AS bigint),SUM(id)::numeric FROM logistics.shipment",
+        "SELECT id::text,code::text,amount::bigint,amount::integer,flag::text FROM logistics.shipment ORDER BY id",
+        "SELECT day::timestamp,stamp::timestamp::date,zoned::date,stamp::timestamptz FROM logistics.shipment ORDER BY id",
+        "SELECT '123.45'::numeric,1::numeric,1.5::numeric,2147483648::bigint,NULL::text,'true'::boolean",
+        "SELECT '2026-01-01'::date,'2026-01-01'::timestamp,'2026-01-01 00:00:00Z'::timestamptz,'1 day'::interval",
+        "SELECT '1'::int2,'1'::integer,'1'::bigint,'1.5'::float8,'hello'::text",
+    ] {
+        queries.push(oracle(&client, &cast_catalog, sql).await);
+    }
+    for sql in [
+        "SELECT secret::text FROM logistics.shipment",
+        "SELECT pg_sleep(1)::text",
+        "SELECT 'pg_class'::regclass",
+        "SELECT '1'::public.numeric",
+        "SELECT 'today'::date",
+        "SELECT 'now'::timestamp",
+        "SELECT '2026-01-01'::timestamptz",
+        "SELECT '1'::numeric(10,2)",
+        "SELECT ARRAY[1]::integer[]",
+    ] {
+        assert!(
+            guard_select(&identity, &cast_catalog, sql).is_err(),
+            "{sql}"
+        );
+    }
+    let mut missing_cast = cast_catalog.clone();
+    missing_cast
+        .casts
+        .retain(|c| !(c.source_type_oid == types["numeric"] && c.target_type_oid == types["int8"]));
+    assert!(
+        guard_select(
+            &identity,
+            &missing_cast,
+            "SELECT amount::bigint FROM logistics.shipment"
+        )
+        .is_err()
+    );
+
     for (column, result_type) in [
         ("id", "int4"),
         ("small", "int2"),
@@ -1011,6 +1065,7 @@ async fn owned_sql_capabilities() {
             "read_only":true,"elevated_role_flags":false,"fixture_write_grants":false},
         "scope":"live load_types/load_functions/load_operators + guard_select + rewritten SQL execution; not publication/HTTP/deployment acceptance",
         "function_count":catalog.functions.len(),"operator_count":catalog.operators.len(),
+        "cast_count":cast_catalog.casts.len(),
         "parser_catalog_wire_roundtrip":true,
         "signatures":signatures,"function_budgets":budgets,"queries":queries,"refusals":refusals,
         "business_instances_touched":false,
@@ -1071,10 +1126,14 @@ async fn owned_day_catalog_refuses_modified_builtin() {
         large_table_row_threshold: 100,
         unknown_rows: UnknownRows::Refuse,
     };
-    assert_eq!(
-        load_functions(&tx, &types, &limits).await,
-        Err(CatalogError::MissingObject)
-    );
+    if std::env::var_os("OO_SQL_CAST_MUTATION").is_some() {
+        assert_eq!(casts::load(&tx).await, Err(CatalogError::MissingObject));
+    } else {
+        assert_eq!(
+            load_functions(&tx, &types, &limits).await,
+            Err(CatalogError::MissingObject)
+        );
+    }
     tx.rollback().await.unwrap();
     drop(client);
     driver.await.unwrap().unwrap();

@@ -30,6 +30,9 @@ use super::CompiledPolicy;
 #[path = "policy_catalog_snapshot.rs"]
 mod snapshot;
 
+#[path = "policy_casts.rs"]
+mod casts;
+
 #[cfg(test)]
 #[path = "policy_catalog_numeric_pg_tests.rs"]
 mod numeric_pg_tests;
@@ -1066,6 +1069,7 @@ async fn load_in_snapshot(
     let types = load_types(tx).await?;
     let operators = load_operators(tx, &types, limits).await?;
     let functions = load_functions(tx, &types, limits).await?;
+    let casts = casts::load(tx).await?;
     let physical = snapshot::Relations::load(tx, bound, &index, limits).await?;
     let entries = vector.map(index_vector).transpose()?;
     let library = if let (Some(entries), Some(catalog)) = (entries.as_ref(), catalog)
@@ -1108,6 +1112,7 @@ async fn load_in_snapshot(
         relations,
         functions,
         operators,
+        casts,
         literal_types: LiteralTypes {
             integer: Some(integer),
             text: Some(text),

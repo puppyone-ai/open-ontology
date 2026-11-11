@@ -30,15 +30,15 @@ use std::time::{Duration, Instant};
 use crate::sql_guard::{
     BoundFunction, BoundOperator, BoundOutputColumn, BoundRelation, GuardError, GuardedPlan,
     LiteralKind, LiteralTypes, NODE_BUDGET, OutputItem, PolicyCatalog, PolicyIdentity,
-    RecognizedBindings, ResolvedFunction, ResolvedOperator, SQL_BYTE_BUDGET, StarExpansion,
-    VisibleColumn, VisibleRelation, guard_select,
+    RecognizedBindings, ResolvedCast, ResolvedFunction, ResolvedOperator, SQL_BYTE_BUDGET,
+    StarExpansion, VisibleColumn, VisibleRelation, guard_select,
 };
 
 /// ASCII `OOSW`.
 pub const MAGIC: [u8; 4] = *b"OOSW";
 
 /// Wire version. A different version is rejected before the body is decoded.
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 
 /// Parent to child: identity, catalog, and the original SQL.
 pub const KIND_REQUEST: u16 = 1;
@@ -108,6 +108,9 @@ pub const MAX_FUNCTIONS: usize = 512;
 /// Resolved operators in one catalog.
 pub const MAX_OPERATORS: usize = 512;
 
+/// Closed scalar type pairs plus literal inputs.
+pub const MAX_CASTS: usize = 156;
+
 /// Argument OIDs on one function.
 pub const MAX_ARGUMENT_OIDS: usize = 100;
 
@@ -163,6 +166,8 @@ pub const TAG_LITERAL_DATE: u8 = 5;
 
 /// `GuardError::CatalogInvalid` labels this guard can emit.
 pub const CATALOG_REASONS: &[&str] = &[
+    "cast budget",
+    "cast signature",
     "duplicate column",
     "duplicate function",
     "duplicate operator",
@@ -205,6 +210,7 @@ pub const CONSTRUCTS: &[&str] = &[
     "LIKE predicate",
     "LIMIT WITH TIES",
     "NATURAL JOIN",
+    "NULLIF",
     "ONLY",
     "VALUES",
     "WINDOW",
@@ -216,6 +222,7 @@ pub const CONSTRUCTS: &[&str] = &[
     "catalog qualifier",
     "column alias list",
     "column reference",
+    "common scalar type",
     "duplicate range name",
     "empty target list",
     "expression",
@@ -229,6 +236,7 @@ pub const CONSTRUCTS: &[&str] = &[
     "join type",
     "limit",
     "literal",
+    "minmax",
     "null test",
     "operator expression",
     "order key",
@@ -1425,6 +1433,7 @@ fn write_catalog(writer: &mut Writer, catalog: &PolicyCatalog) -> Result<(), Cod
     writer.opt_u32(catalog.literal_types.integer)?;
     writer.opt_u32(catalog.literal_types.text)?;
     writer.opt_u32(catalog.literal_types.boolean)?;
+    write_list(writer, &catalog.casts, MAX_CASTS, write_cast)?;
     writer.flag(catalog.null_test_allowed)?;
     writer.u64(catalog.large_table_row_threshold)
 }
@@ -1440,6 +1449,7 @@ fn read_catalog(reader: &mut Reader<'_>) -> Result<PolicyCatalog, CodecError> {
             text: reader.opt_u32()?,
             boolean: reader.opt_u32()?,
         },
+        casts: read_items(reader, MAX_CASTS, read_cast)?,
         null_test_allowed: reader.flag()?,
         large_table_row_threshold: reader.u64()?,
     })
@@ -1489,6 +1499,19 @@ fn write_function(writer: &mut Writer, function: &ResolvedFunction) -> Result<()
     writer.flag(function.aggregate_star)
 }
 
+fn write_cast(writer: &mut Writer, cast: &ResolvedCast) -> Result<(), CodecError> {
+    writer.u32(cast.source_type_oid)?;
+    writer.u32(cast.target_type_oid)?;
+    write_list(writer, &cast.functions, 2, write_function)
+}
+
+fn read_cast(reader: &mut Reader<'_>) -> Result<ResolvedCast, CodecError> {
+    Ok(ResolvedCast {
+        source_type_oid: reader.u32()?,
+        target_type_oid: reader.u32()?,
+        functions: read_items(reader, 2, read_function)?,
+    })
+}
 fn read_function(reader: &mut Reader<'_>) -> Result<ResolvedFunction, CodecError> {
     Ok(ResolvedFunction {
         oid: reader.u32()?,

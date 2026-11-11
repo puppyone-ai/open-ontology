@@ -89,6 +89,7 @@ fn catalog() -> PolicyCatalog {
             text: Some(25),
             boolean: Some(16),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }

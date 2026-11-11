@@ -1677,6 +1677,7 @@ fn catalog(
             text: Some(env.oids.text),
             boolean: Some(env.oids.bool),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 1_000_000,
     }

@@ -96,6 +96,7 @@ fn catalog(rows: u64, operators: Vec<ResolvedOperator>, integer: Option<u32>) ->
             text: Some(TEXT_OID),
             boolean: Some(BOOL_OID),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }

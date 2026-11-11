@@ -1250,6 +1250,7 @@ fn empty_catalog() -> PolicyCatalog {
         functions: Vec::new(),
         operators: Vec::new(),
         literal_types: oo_gateway::LiteralTypes::default(),
+        casts: Vec::new(),
         null_test_allowed: false,
         large_table_row_threshold: 0,
     }

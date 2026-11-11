@@ -51,6 +51,25 @@ SELECT order_id FROM app.orders
 WHERE ordered_on IN ('2026-01-01', DATE '2026-01-02', NULL);
 ```
 
+## Scalar casts
+
+`CAST` and `::` accept bool/boolean, int2/smallint, int4/integer, int8/bigint,
+numeric, float8/double precision, text, varchar, date, timestamp, timestamptz
+and interval. Arrays, domains, pseudo-types, schema-qualified user types and
+type modifiers remain refused. Arguments are recursively checked, including
+hidden columns and nested functions. String and NULL literals are supported.
+
+Each new conversion needs its exact source/target grant from the live catalog.
+The loader verifies builtin type input/output functions and pg_cast entries,
+including volatility, language, return/argument types, extension ownership,
+security-definer and custom-setting exclusions. String I/O fallback is granted
+only when no declared cast overrides it. An absent cast grant is a refusal.
+The parser subprocess transports these grants with bounded wire version 3.
+
+Temporal string constants retain the ISO rules above, even with an explicit
+cast. Timestamp/timestamptz conversions of columns may depend on the execution
+session timezone; they do not assert source freshness or an atomic source cut.
+
 ## Verified scalar functions
 
 The catalog additionally admits `extract(text,date|timestamp|interval)`,
@@ -86,7 +105,6 @@ replace publication/freshness receipts or turn `source_time=unmeasured` into
 a measured timestamp. `now()` and `current_date` remain unadmitted in this
 implementation; no runtime-clock freshness guarantee is made.
 
-V3-I-08 is not complete: general scalar casts, subqueries/CTEs, the expanded
+V3-I-08 is not complete: subqueries/CTEs, the remaining
 pure-function allowlist and full ERP/T6 admission are still outstanding.
-Existing restricted timestamp-to-date/day functions are not general cast
-support. This reference documents the implemented comparison slice only.
+Clock expressions and the remaining admission corpus are not yet complete.

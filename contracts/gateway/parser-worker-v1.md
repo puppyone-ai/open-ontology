@@ -57,7 +57,7 @@ Little-endian. No padding. Lengths are byte lengths.
 | Offset | Field |
 |---|---|
 | 0 | 4 bytes ASCII `OOSW` |
-| 4 | `u16` version, must be 2 |
+| 4 | `u16` version, must be 3 |
 | 6 | `u16` kind |
 | 8 | `u32` body length |
 | 12 | body |
@@ -103,6 +103,7 @@ Catalog:
 | functions | 512 |
 | operators | 512 |
 | literal integer, text, boolean | optional `u32` each |
+| casts | 156; source/target OIDs plus at most two resolved functions |
 | null_test_allowed | flag |
 | large_table_row_threshold | `u64` |
 
@@ -179,11 +180,11 @@ from the same build. Unknown tags remain rejected, not downgraded to a plan.
 
 A static label is a string of at most 64 bytes that is exactly one entry in the list for that variant. The decoder returns the `'static` string from that list.
 
-Catalog reasons: `duplicate column`, `duplicate function`, `duplicate operator`, `duplicate relation`, `empty column list`, `function oid`, `function schema`, `identifier`, `identity`, `operator name`, `operator oid`, `operator signature`, `physical schema`, `relation schema`, `type oid`.
+Catalog reasons: `cast budget`, `cast signature`, `duplicate column`, `duplicate function`, `duplicate operator`, `duplicate relation`, `empty column list`, `function oid`, `function schema`, `identifier`, `identity`, `operator name`, `operator oid`, `operator signature`, `physical schema`, `relation schema`, `type oid`.
 
 Serialize reasons: `deparse`, `fingerprint`, `idempotent`, `reparse`, `recheck`, `second deparse`, `version`.
 
-Constructs: `ANY predicate`, `BETWEEN predicate`, `CASE`, `CTE`, `DISTINCT`, `GROUP BY`, `HAVING`, `IN predicate`, `JOIN USING`, `LIKE predicate`, `LIMIT WITH TIES`, `NATURAL JOIN`, `ONLY`, `VALUES`, `WINDOW`, `aggregate star`, `ast node`, `bit string`, `boolean`, `cast`, `catalog qualifier`, `column alias list`, `column reference`, `duplicate range name`, `empty target list`, `expression`, `float literal`, `from item`, `function`, `function clause`, `identifier`, `join`, `join alias`, `join type`, `limit`, `literal`, `null test`, `operator expression`, `order key`, `order nulls`, `order operator`, `output alias`, `parameter`, `parser version`, `predicate`, `range function`, `relation persistence`, `set operation`, `star`, `star alias`, `subquery`, `table function`, `tablesample`, `target`, `target indirection`, `unary operator`.
+Constructs: `NULLIF`, `common scalar type`, `minmax`, `ANY predicate`, `BETWEEN predicate`, `CASE`, `CTE`, `DISTINCT`, `GROUP BY`, `HAVING`, `IN predicate`, `JOIN USING`, `LIKE predicate`, `LIMIT WITH TIES`, `NATURAL JOIN`, `ONLY`, `VALUES`, `WINDOW`, `aggregate star`, `ast node`, `bit string`, `boolean`, `cast`, `catalog qualifier`, `column alias list`, `column reference`, `duplicate range name`, `empty target list`, `expression`, `float literal`, `from item`, `function`, `function clause`, `identifier`, `join`, `join alias`, `join type`, `limit`, `literal`, `null test`, `operator expression`, `order key`, `order nulls`, `order operator`, `output alias`, `parameter`, `parser version`, `predicate`, `range function`, `relation persistence`, `set operation`, `star`, `star alias`, `subquery`, `table function`, `tablesample`, `target`, `target indirection`, `unary operator`.
 
 ## Display
 
