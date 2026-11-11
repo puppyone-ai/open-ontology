@@ -63,6 +63,9 @@ impl OracleEngine {
                 DataType::Decimal128(precision, scale) => {
                     ArrowPhysical::Decimal128 { precision, scale }
                 }
+                DataType::Decimal256(precision, scale) => {
+                    ArrowPhysical::Decimal256 { precision, scale }
+                }
                 DataType::Timestamp(_, None) => ArrowPhysical::TimestampMicrosNaive,
                 DataType::Timestamp(_, Some(_)) => ArrowPhysical::TimestampMicrosUtc,
                 _ => return Err(SourceError::catalog("unsupported_target_type")),

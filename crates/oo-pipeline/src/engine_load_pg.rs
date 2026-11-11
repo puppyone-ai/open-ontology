@@ -47,14 +47,19 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
         "list(utf8)" => (114, "json"),
         "binary" => (17, "bytea"),
         "float64" => (701, "double precision"),
-        "decimal128" => {
+        "decimal128" | "decimal256" => {
+            let limit = if field.arrow_type == "decimal256" {
+                76
+            } else {
+                38
+            };
             let precision = field
                 .precision
-                .filter(|p| (1..=38).contains(p))
+                .filter(|p| (1..=limit).contains(p))
                 .ok_or("load_unsupported_type")?;
             let scale = field
                 .scale
-                .filter(|s| *s <= precision)
+                .filter(|s| *s >= -128 && *s <= precision)
                 .ok_or("load_unsupported_type")?;
             if scale < 0 {
                 // NUMBER(p,-s) holds integers of up to p+s digits; stay bounded so the
@@ -549,6 +554,85 @@ fn target_fields(fields: &[DecodedField], document: Option<&str>) -> Result<Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wide_decimals_copy_exactly_and_participate_in_c5_digests() {
+        for precision in [40u8, 65, 76] {
+            for scale in [0i8, 12, precision as i8, -2] {
+                let field = DecodedField {
+                    name: "amount".into(),
+                    nullable: true,
+                    arrow_type: "decimal256".into(),
+                    precision: Some(i32::from(precision)),
+                    scale: Some(i32::from(scale)),
+                    timezone: None,
+                };
+                let (_, target) = column(&field).unwrap();
+                assert_eq!(
+                    target,
+                    if scale < 0 {
+                        format!("numeric({},0)", i32::from(precision) - i32::from(scale))
+                    } else {
+                        format!("numeric({precision},{scale})")
+                    }
+                );
+                for digits in [
+                    "0".to_owned(),
+                    "1".to_owned(),
+                    "9".repeat(precision as usize),
+                ] {
+                    for negative in [false, true] {
+                        // Independent base-10 construction of the Arrow little-endian coefficient.
+                        let mut coefficient = [0u8; 32];
+                        for digit in digits.bytes() {
+                            let mut carry = u16::from(digit - b'0');
+                            for byte in &mut coefficient {
+                                carry += u16::from(*byte) * 10;
+                                *byte = carry as u8;
+                                carry >>= 8;
+                            }
+                            assert_eq!(carry, 0);
+                        }
+                        if negative {
+                            let mut carry = 1u16;
+                            for byte in &mut coefficient {
+                                carry += u16::from(!*byte);
+                                *byte = carry as u8;
+                                carry >>= 8;
+                            }
+                        }
+                        let cell = NativeCell::Decimal256 {
+                            precision,
+                            scale,
+                            coefficient,
+                        };
+                        let mut expected =
+                            oo_core::ExactDecimal::new(negative, digits.clone(), i32::from(scale))
+                                .unwrap()
+                                .to_string();
+                        // PostgreSQL numeric(p,0) renders zero without exponent padding.
+                        if digits == "0" && scale < 0 {
+                            expected = "0".into();
+                        }
+                        let mut out = Vec::new();
+                        cell_text(&mut out, 1700, -1, &cell).unwrap();
+                        assert_eq!(String::from_utf8(out).unwrap(), expected);
+                        let stream = DecodedStream {
+                            rows: 1,
+                            fields: vec![field.clone()],
+                            columns: vec![vec![cell]],
+                        };
+                        let mut digest = TableContentDigest::default();
+                        digest.add(&stream).unwrap();
+                        let mut twice = TableContentDigest::default();
+                        twice.add(&stream).unwrap();
+                        twice.add(&stream).unwrap();
+                        assert_ne!(digest.finish(), twice.finish());
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn document_mapping_is_explicit_and_does_not_change_other_text() {

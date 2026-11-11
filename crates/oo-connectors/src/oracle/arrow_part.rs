@@ -1,7 +1,7 @@
 //! Bounded, native-typed Arrow handoff. Unsupported target mappings fail closed.
 use super::chunk::{Result, decimal, digest, text};
 use arrow_array::{
-    ArrayRef, BinaryArray, Decimal128Array, Int64Array, RecordBatch, StringArray,
+    ArrayRef, BinaryArray, Decimal128Array, Decimal256Array, Int64Array, RecordBatch, StringArray,
     TimestampMicrosecondArray,
 };
 use arrow_ipc::{reader::StreamReader, writer::StreamWriter};
@@ -14,6 +14,12 @@ use std::{
 };
 
 pub(super) fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128> {
+    coefficient_text(value, precision, scale)?
+        .parse()
+        .map_err(|_| "decimal_overflow".into())
+}
+
+pub(super) fn coefficient_text(value: &str, precision: u8, scale: i8) -> Result<String> {
     let value = decimal(value)?;
     let negative = value.starts_with('-');
     let bare = value.trim_start_matches('-');
@@ -30,7 +36,7 @@ pub(super) fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128>
         } else {
             &whole[..whole.len() - zeros]
         };
-        return coefficient(
+        return coefficient_text(
             &format!("{}{reduced}", if negative { "-" } else { "" }),
             precision,
             0,
@@ -43,8 +49,7 @@ pub(super) fn coefficient(value: &str, precision: u8, scale: i8) -> Result<i128>
     if digits.trim_start_matches('0').len() > precision as usize {
         return Err("decimal_precision_loss".into());
     }
-    let n = digits.parse::<i128>().map_err(|_| "decimal_overflow")?;
-    Ok(if negative { -n } else { n })
+    Ok(format!("{}{digits}", if negative { "-" } else { "" }))
 }
 
 pub(super) fn unhex(value: &str) -> Result<Vec<u8>> {
@@ -96,7 +101,7 @@ fn batch(part: &Value) -> Result<(RecordBatch, Value)> {
                 "NUMBER" => {
                     let p = column["precision"]
                         .as_u64()
-                        .filter(|n| (1..=38).contains(n))
+                        .filter(|n| (1..=76).contains(n))
                         .ok_or("unconstrained_number_target_codec_required")?
                         as u8;
                     let s = column["scale"]
@@ -121,6 +126,28 @@ fn batch(part: &Value) -> Result<(RecordBatch, Value)> {
                             "int64",
                             Some(64),
                             None,
+                        )
+                    } else if p > 38 {
+                        let data = values
+                            .iter()
+                            .map(|v| {
+                                v.map(|v| {
+                                    coefficient_text(v, p, s)?
+                                        .parse::<arrow_buffer::i256>()
+                                        .map_err(|_| "decimal_overflow".into())
+                                })
+                                .transpose()
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+                        let array = Decimal256Array::from(data)
+                            .with_precision_and_scale(p, s)
+                            .map_err(|_| "decimal_schema")?;
+                        (
+                            DataType::Decimal256(p, s),
+                            Arc::new(array),
+                            "decimal256",
+                            Some(p as i32),
+                            Some(s as i32),
                         )
                     } else {
                         let data = values
@@ -239,7 +266,9 @@ fn batch(part: &Value) -> Result<(RecordBatch, Value)> {
         .map(|f| {
             let (oid, typmod) = match f.data_type() {
                 DataType::Int64 => (20, -1),
-                DataType::Decimal128(p, s) => (1700, 4 + ((*p as i32) << 16) + *s as i32),
+                DataType::Decimal128(p, s) | DataType::Decimal256(p, s) => {
+                    (1700, 4 + ((*p as i32) << 16) + *s as i32)
+                }
                 DataType::Utf8 => (25, -1),
                 DataType::Binary => (17, -1),
                 DataType::Timestamp(TimeUnit::Microsecond, None) => (1114, -1),

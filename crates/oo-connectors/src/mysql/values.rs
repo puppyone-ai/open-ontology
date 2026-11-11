@@ -507,7 +507,7 @@ fn mul_add_le(bytes: &mut [u8; 32], factor: u32, add: u32) -> Result<(), ()> {
     for byte in bytes.iter_mut() {
         let wide = u32::from(*byte) * factor + carry;
         *byte = (wide & 0xff) as u8;
-        carry >>= 8;
+        carry = wide >> 8;
     }
     if carry == 0 { Ok(()) } else { Err(()) }
 }
@@ -517,7 +517,7 @@ fn neg_le(bytes: &mut [u8; 32]) -> Result<(), ()> {
     for byte in bytes.iter_mut() {
         let wide = u16::from(!*byte) + carry;
         *byte = (wide & 0xff) as u8;
-        carry >>= 8;
+        carry = wide >> 8;
     }
     if bytes.last().is_some_and(|byte| byte & 0x80 != 0) {
         Ok(())
@@ -564,6 +564,28 @@ fn naive_unix(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn wide_decimal_carries_cross_every_byte_in_both_signs() {
+        for precision in [40, 65, 76] {
+            for digits in [
+                "0".to_owned(),
+                "256".to_owned(),
+                "65536".to_owned(),
+                "9".repeat(precision),
+                format!("1{}", "0".repeat(precision - 1)),
+            ] {
+                for negative in [false, true] {
+                    let exact = oo_core::ExactDecimal::new(negative, &digits, 0).unwrap();
+                    let bytes = super::unscaled_i256(&exact).unwrap();
+                    let expected = format!("{}{digits}", if negative { "-" } else { "" })
+                        .parse::<arrow_buffer::i256>()
+                        .unwrap();
+                    assert_eq!(arrow_buffer::i256::from_le_bytes(bytes), expected);
+                }
+            }
+        }
+    }
+
     use super::*;
 
     #[test]

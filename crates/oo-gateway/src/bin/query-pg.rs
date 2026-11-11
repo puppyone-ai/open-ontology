@@ -1121,6 +1121,28 @@ mod tests {
     }
 
     #[test]
+    fn wide_decimal_json_keeps_all_coefficient_digits() {
+        for precision in [40, 65, 76] {
+            for scale in [0, 12, precision] {
+                for digits in [
+                    "0".to_owned(),
+                    "1".to_owned(),
+                    "9".repeat(precision as usize),
+                ] {
+                    for negative in [false, true] {
+                        let value =
+                            Cell::Decimal(ExactDecimal::new(negative, &digits, scale).unwrap());
+                        let rendered = serde_json::to_value(out_cell(&value)).unwrap();
+                        assert_eq!(rendered["coefficient"], digits);
+                        assert_eq!(rendered["negative"], negative && digits != "0");
+                        assert_eq!(rendered["scale"], scale);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn decimal_json_is_exact_and_existing_kinds_stay() {
         let positive = Cell::Decimal(ExactDecimal::new(false, "123456789012345678", 4).unwrap());
         assert_eq!(
