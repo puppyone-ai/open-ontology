@@ -31,6 +31,11 @@ Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables a.b,c.d]
           [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          oo checks them (resolve, port, TLS certificate, sign-in) and writes nothing.
   oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
@@ -187,6 +192,18 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                 | "--tables-recommended"
                 | "--no-anim"
                 | "--profile"
+                | "--dsn"
+                | "--engine"
+                | "--version"
+                | "--host"
+                | "--port"
+                | "--database"
+                | "--service"
+                | "--sid"
+                | "--user"
+                | "--password-env"
+                | "--password-file"
+                | "--ca-file"
         )
     });
     if command == "quickstart" || (command == "init" && v03_init) {

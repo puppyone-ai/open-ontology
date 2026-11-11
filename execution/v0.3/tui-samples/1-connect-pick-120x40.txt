@@ -1,23 +1,20 @@
 ╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
 │ connect ············································  ····     ·  ·  read-only · nothing is written to your database │
 │                                                                                                                      │
-│ ◉ paste a connection string       › postgres://oo_reader:••••••@db.internal:5432/logistics▏                          │
-│ ○ fill in fields                    ● postgres  db.internal:5432 / logistics as oo_reader                            │
-│ ○ no database? use the demo                                                                                          │
+│ › paste or type a URL, JDBC URL, DATABASE_URL=… or host:port                                                         │
 │                                                                                                                      │
 │                                                                                                                      │
-│ read-only checks ············································   ···        advice only; oo never runs DBA statements │
+│ found on this machine                                                                                                │
+│ ▸ ▐PG▌ recent logistics   oo_reader@db.internal:5432/logistics · 17                                                  │
+│   ▐PG▌ ~/.pgpass          ro@10.0.4.12:5432/dw · ••••••                                                              │
+│   ▐Or▌ tns SALES          ora.internal:1521/SALES                                                                    │
 │                                                                                                                      │
-│ ✓ engine             postgres (from the connection string)                                                           │
-│ ✓ reachable          db.internal:5432 answered in 12 ms                                                              │
-│ ✓ TLS                server certificate verified with your CA                                                        │
-│ ⠸ read-only account  checking privileges…                                                                            │
-│ ! CDC capability     wal_level=replica; scheduled refresh still works                                                │
-│                      fix ALTER SYSTEM SET wal_level = logical; (run by your DBA)                                     │
-│ · catalog access     after the account check                                                                         │
+│ engines                                                                                                              │
+│   ▐PG▌ PostgreSQL   13–18     ● verified   :5432                                                                     │
+│   ▐My▌ MySQL        5.7–9.5   ● verified   :3306                                                                     │
+│   ▐Or▌ Oracle       11g–23ai  ● verified   :1521                                                                     │
 │                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
+│   ◇ no database? try the demo                                                                                        │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
@@ -37,4 +34,7 @@
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
-╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────────────────────────────────────────────╯
+│                                                                                                                      │
+│                                                                                                                      │
+│ passwords from these files are moved to the secret store, never shown                                                │
+╰ ↑↓ choose  ⏎ next  › type or paste anything  esc quit  ──────────────────────────────────────────────────────────────╯

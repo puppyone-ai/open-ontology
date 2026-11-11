@@ -7,6 +7,8 @@ pub mod app;
 pub mod backend;
 pub mod fx;
 pub mod graph;
+pub mod netprobe;
 pub mod scorer;
 pub mod screens;
+pub mod source;
 pub mod theme;

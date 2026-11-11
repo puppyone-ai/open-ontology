@@ -1,17 +1,15 @@
 ╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
 │ connect ·············  ·     read-only · nothing is written to your database │
 │                                                                              │
-│ ○ paste a connection string                                                  │
-│ ◉ fill in fields                                                             │
-│ ○ no database? use the demo                                                  │
+│ › bc:postgresql://db.internal:5432/logistics?user=oo_reader&password=••••••▏ │
+│   ✓ JDBC URL  PostgreSQL · db.internal:5432/logistics · user oo_r…  ⏎ use    │
 │                                                                              │
-│ engine    postgres                                                           │
-│ host      db.internal                                                        │
-│ port      5432 (default)                                                     │
-│ database  logistics                                                          │
-│ user      oo_reader                                                          │
-│ password  ••••••▏                                                            │
-│ CA file                                                                      │
+│ engines                                                                      │
+│   ▐PG▌ PostgreSQL   13–18     ● verified                                     │
+│   ▐My▌ MySQL        5.7–9.5   ● verified                                     │
+│   ▐Or▌ Oracle       11g–23ai  ● verified                                     │
+│                                                                              │
+│   ◇ no database? try the demo                                                │
 │                                                                              │
 │                                                                              │
 │                                                                              │
@@ -21,4 +19,6 @@
 │                                                                              │
 │                                                                              │
 │                                                                              │
-╰ ↑↓ choose  tab next field  ⏎ connect  esc quit  ─────────────────────────────╯
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  ⏎ next  › type or paste anything  esc quit  ──────────────────────╯

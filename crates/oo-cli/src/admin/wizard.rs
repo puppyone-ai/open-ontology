@@ -7,8 +7,9 @@ use std::io::{IsTerminal, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
-use crate::tui::app::{self, ConnectRequest, Term};
+use crate::tui::app::{self, Live, Term};
 use crate::tui::screens::{Check, Status, connect};
+use crate::tui::source::{self as src, Engine, Prefill};
 use crate::tui::theme::Theme;
 use oo_stack::secret::SecretStore;
 use serde_json::{Value, json};
@@ -289,6 +290,72 @@ pub(super) struct InitOptions {
     pub profile: Option<String>,
     pub no_anim: bool,
     pub json: bool,
+    /// Screen 1 fields from flags (`--engine`, `--host`, …).
+    pub connect: ConnectFlags,
+}
+
+/// Every screen 1 field as a flag. Passwords only by reference.
+#[derive(Default)]
+pub(super) struct ConnectFlags {
+    pub dsn: Option<String>,
+    pub engine: Option<Engine>,
+    pub version: Option<String>,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub database: Option<String>,
+    pub sid: bool,
+    pub user: Option<String>,
+    pub password_ref: Option<String>,
+    pub ca_file: Option<String>,
+}
+
+impl ConnectFlags {
+    pub fn any(&self) -> bool {
+        self.dsn.is_some()
+            || self.engine.is_some()
+            || self.host.is_some()
+            || self.port.is_some()
+            || self.database.is_some()
+            || self.user.is_some()
+            || self.password_ref.is_some()
+            || self.ca_file.is_some()
+            || self.version.is_some()
+    }
+
+    /// The flags as a prefill: `--dsn` first, flags override it.
+    pub fn prefill(&self) -> Result<Prefill, Failure> {
+        let mut p = match &self.dsn {
+            Some(text) => src::parse_any(text).map_err(Failure::usage)?,
+            None => Prefill::default(),
+        };
+        if let Some(e) = self.engine {
+            p.engine = Some(e);
+        }
+        if p.engine.is_none() {
+            p.engine = self.port.or(p.port).and_then(Engine::from_port);
+        }
+        if let Some(h) = &self.host {
+            p.host = h.clone();
+        }
+        if let Some(n) = self.port {
+            p.port = Some(n);
+        }
+        if let Some(d) = &self.database {
+            p.database = d.clone();
+            p.sid = self.sid;
+        }
+        if let Some(u) = &self.user {
+            p.user = u.clone();
+        }
+        if let Some(r) = &self.password_ref {
+            p.password = None;
+            p.password_ref = Some(r.clone());
+        }
+        if let Some(c) = &self.ca_file {
+            p.ca_file = c.clone();
+        }
+        Ok(p)
+    }
 }
 
 pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Failure> {
@@ -335,6 +402,35 @@ pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Fai
             "--tables" => {
                 opts.tables = Some(list(&value()?));
             }
+            "--dsn" => opts.connect.dsn = Some(value()?),
+            "--engine" => {
+                opts.connect.engine = Some(Engine::from_id(&value()?).ok_or_else(|| {
+                    Failure::usage("ADMIN_ARGUMENT: --engine postgres|mysql|oracle")
+                })?)
+            }
+            "--version" => opts.connect.version = Some(value()?),
+            "--host" => opts.connect.host = Some(value()?),
+            "--port" => {
+                opts.connect.port = Some(
+                    value()?
+                        .parse()
+                        .ok()
+                        .filter(|p: &u16| *p > 0)
+                        .ok_or_else(bad)?,
+                )
+            }
+            "--database" | "--service" => opts.connect.database = Some(value()?),
+            "--sid" => {
+                opts.connect.database = Some(value()?);
+                opts.connect.sid = true;
+            }
+            "--user" => opts.connect.user = Some(value()?),
+            "--password-env" => opts.connect.password_ref = Some(format!("env:{}", value()?)),
+            "--password-file" => {
+                let path = std::path::absolute(value()?).map_err(|_| bad())?;
+                opts.connect.password_ref = Some(format!("file:{}", path.display()));
+            }
+            "--ca-file" => opts.connect.ca_file = Some(value()?),
             _ => return Err(bad()),
         }
         index += 1;
@@ -343,6 +439,14 @@ pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Fai
         return Err(Failure::usage(
             "ADMIN_ARGUMENT: --tables and --tables-recommended are exclusive",
         ));
+    }
+    if opts
+        .connect
+        .password_ref
+        .as_deref()
+        .is_some_and(|r| !oo_stack::stack::secret_reference(r))
+    {
+        return Err(Failure::usage("ADMIN_ARGUMENT: invalid password reference"));
     }
     Ok(opts)
 }
@@ -374,6 +478,9 @@ pub(super) fn init(opts: &InitOptions) -> Result<Invocation, Failure> {
     let tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !opts.json;
     if opts.tables.is_some() || opts.tables_recommended || (!tty && opts.demo) {
         return select_tables(opts);
+    }
+    if !tty && opts.connect.any() {
+        return connect_check(opts);
     }
     if !tty {
         return Err(Failure::usage(
@@ -506,139 +613,319 @@ fn store_new(store: &SecretStore, base: &str, value: &[u8]) -> Result<Value, Fai
     Err(Failure::local("SECRET_NAME_EXHAUSTED"))
 }
 
-/// Screen 1 probe for a real database: engine, TCP reachability and TLS
-/// material. Account, CDC and catalog checks need the table list and run in
-/// `oo doctor` after screen 2. Nothing here authenticates or writes.
-fn probe(request: &ConnectRequest) -> Vec<Check> {
-    if request.demo {
-        return demo_checks();
-    }
-    let Some(dsn) = &request.dsn else {
-        return vec![
-            Check::new(
-                tr("connection string", "连接串"),
-                Status::Fail,
-                tr("incomplete", "不完整"),
-            )
-            .fix("scheme://user@host:port/database"),
-        ];
-    };
-    let mut checks = vec![Check::new(
-        tr("engine", "引擎"),
-        Status::Pass,
-        &format!(
-            "{} {}",
-            dsn.engine,
-            tr("(from your input)", "（来自你的输入）")
-        ),
-    )];
-    let started = std::time::Instant::now();
-    let reached = std::net::ToSocketAddrs::to_socket_addrs(&(dsn.host.as_str(), dsn.port))
-        .ok()
-        .and_then(|mut addrs| addrs.next())
-        .and_then(|addr| {
-            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).ok()
-        });
-    let reachable = tr("reachable", "可达");
-    checks.push(match reached {
-        Some(_) => Check::new(
-            reachable,
-            Status::Pass,
-            &if zh() {
-                format!(
-                    "{}:{} 在 {} ms 内响应",
-                    dsn.host,
-                    dsn.port,
-                    started.elapsed().as_millis()
-                )
-            } else {
-                format!(
-                    "{}:{} answered in {} ms",
-                    dsn.host,
-                    dsn.port,
-                    started.elapsed().as_millis()
-                )
-            },
-        ),
-        None => Check::new(
-            reachable,
-            Status::Warn,
-            &format!(
-                "{}:{} {}",
-                dsn.host,
-                dsn.port,
-                tr("did not answer", "没有响应")
-            ),
-        )
-        .fix(tr(
-            "check host, port and firewall; an SSH jump host can be added next",
-            "检查主机、端口和防火墙；下一步可以加 SSH 跳板机",
-        )),
-    });
-    let needs_ca = matches!(dsn.engine.as_str(), "postgres" | "mysql" | "kingbase");
-    checks.push(match (&request.ca, needs_ca) {
-        (Some(_), _) => Check::new(
-            "TLS",
-            Status::Pass,
-            tr(
-                "CA file given; verified by oo doctor",
-                "已给 CA 文件；由 oo doctor 校验",
-            ),
-        ),
-        (None, true) => Check::new(
-            "TLS",
-            Status::Warn,
-            tr(
-                "a CA file is required for this engine",
-                "这种引擎需要 CA 文件",
-            ),
-        )
-        .fix(tr(
-            "you will be asked for the CA PEM path next",
-            "下一步会问你 CA PEM 文件路径",
-        )),
-        (None, false) => Check::new(
-            "TLS",
-            Status::Pass,
-            tr("engine-native TLS settings", "使用引擎自带的 TLS 设置"),
-        ),
-    });
-    for name in [
-        tr("read-only account", "只读账号"),
-        tr("CDC capability", "CDC 能力"),
-        tr("catalog access", "目录访问"),
-    ] {
-        checks.push(Check::new(
-            name,
-            Status::Waiting,
-            tr(
-                "checked by oo doctor after you choose tables",
-                "选表后由 oo doctor 检查",
-            ),
-        ));
-    }
-    checks
+/// Screen 1 sign-in. PostgreSQL and Oracle sign in through the same
+/// connectors the build uses (read-only, bounded) and report the server
+/// version; MySQL's version comes from its greeting and its sign-in runs in
+/// `oo doctor` through the pinned helper. Nothing is written anywhere.
+struct WizardLive<'a> {
+    store: &'a SecretStore,
 }
 
-fn demo_checks() -> Vec<Check> {
-    vec![
-        Check::new(
-            tr("demo catalog", "示例目录"),
-            Status::Pass,
-            tr(
-                "OO-Logistics subset bundled with oo",
-                "oo 自带的 OO-Logistics 子集",
-            ),
-        ),
-        Check::new(
-            tr("demo runtime", "示例运行时"),
-            Status::Waiting,
-            tr(
-                "started by oo quickstart (V3-M-01); not by this preview",
-                "由 oo quickstart 启动（V3-M-01），预览不启动",
-            ),
-        ),
-    ]
+impl Live for WizardLive<'_> {
+    fn verify(&self, request: &connect::Request) -> connect::Verified {
+        verify(self.store, request)
+    }
+}
+
+fn verify(store: &SecretStore, r: &connect::Request) -> connect::Verified {
+    let mut out = connect::Verified {
+        generation: r.generation,
+        auth: Err(String::new()),
+        checked: false,
+        version: None,
+        databases: Vec::new(),
+    };
+    let password = match &r.secret {
+        connect::Secret::Typed(p) => Ok(p.clone()),
+        connect::Secret::Ref(name) => store.read(name).map_err(str::to_owned),
+    };
+    let password = match password {
+        Ok(p) => p,
+        Err(code) => {
+            out.auth = Err(format!("{}: {code}", tr("password", "密码")));
+            return out;
+        }
+    };
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(_) => {
+            out.auth = Err("TUI_RUNTIME".into());
+            return out;
+        }
+    };
+    match r.engine {
+        Engine::Postgres => {
+            let ca = match (&r.ca_pem, &r.ca_ref) {
+                (Some(pem), _) => Ok(pem.clone()),
+                (None, Some(name)) => store.read(name).map_err(str::to_owned),
+                (None, None) => Err("SOURCE_TLS_CA_REQUIRED".to_owned()),
+            };
+            let result = ca.and_then(|ca| {
+                use oo_connectors::engine::SourceEngine;
+                use oo_connectors::{
+                    PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef,
+                    SourceId, TableSelection,
+                };
+                let config = PgSourceConfig::try_new(
+                    SourceId::new("source").map_err(|e| e.to_string())?,
+                    PgEndpoint::new(&r.host, r.port, &r.database).map_err(|e| e.to_string())?,
+                    PgCredentials::new(r.user.clone(), password).map_err(|e| e.to_string())?,
+                    SecretRef::new("secret://source-password").map_err(|e| e.to_string())?,
+                    PgTlsConfig::from_ca_pem(ca).map_err(|e| e.to_string())?,
+                    PgBudget::new(
+                        std::time::Duration::from_secs(8),
+                        std::time::Duration::from_secs(15),
+                        std::time::Duration::from_secs(1),
+                        1_000,
+                        1024 * 1024,
+                    )
+                    .map_err(|e| e.to_string())?,
+                    TableSelection::new(Vec::new()).map_err(|e| e.to_string())?,
+                )
+                .map_err(|e| e.to_string())?;
+                let mut engine = oo_connectors::postgres::PostgresEngine::new(config);
+                runtime
+                    .block_on(engine.probe())
+                    .map(|p| p.version.raw)
+                    .map_err(|e| e.to_string())
+            });
+            match result {
+                Ok(version) => {
+                    out.auth = Ok(String::new());
+                    out.checked = true;
+                    out.version = Some(version);
+                }
+                Err(e) => out.auth = Err(e),
+            }
+        }
+        Engine::Oracle => {
+            if std::env::var_os("OO_ORACLE_WORKER_IMAGE").is_some() {
+                out.auth = Ok(tr(
+                    "sign-in is checked by oo doctor through the Oracle worker",
+                    "登录由 oo doctor 通过 Oracle worker 检查",
+                )
+                .into());
+                return out;
+            }
+            use oo_connectors::engine::SourceEngine;
+            use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
+            let config =
+                OracleConnectConfig::new(&r.host, r.port, &r.database, &r.user, password.into());
+            let result = OracleEngine::connect(config)
+                .and_then(|mut engine| runtime.block_on(engine.probe()).map(|p| p.version.raw));
+            match result {
+                Ok(version) => {
+                    out.auth = Ok(String::new());
+                    out.checked = true;
+                    out.version = Some(version);
+                }
+                Err(e) => {
+                    let text = e.to_string();
+                    // No Oracle client libraries on this machine: not a
+                    // sign-in failure; the doctor checks through its worker.
+                    if text.contains("DPI-1047") || text.contains("Cannot locate") {
+                        out.auth = Ok(tr(
+                            "Oracle client not installed here; oo doctor checks sign-in next",
+                            "本机没有 Oracle 客户端；登录由 oo doctor 下一步检查",
+                        )
+                        .into());
+                    } else {
+                        out.auth = Err(text);
+                    }
+                }
+            }
+        }
+        Engine::Mysql => {
+            out.auth = Ok(tr(
+                "sign-in is checked by oo doctor next (MySQL helper)",
+                "登录由 oo doctor 下一步检查（MySQL helper）",
+            )
+            .into());
+        }
+    }
+    out
+}
+
+/// Non-TTY screen 1: what the flags say, then the same live checks
+/// (resolve, port, TLS certificate, sign-in when the password is a
+/// reference). Writes nothing. `oo.init-connect/v1` with `--json`.
+fn connect_check(opts: &InitOptions) -> Result<Invocation, Failure> {
+    use crate::tui::netprobe;
+    let p = opts.connect.prefill()?;
+    let engine = p
+        .engine
+        .ok_or_else(|| Failure::usage("ENGINE_REQUIRED: pass --engine postgres|mysql|oracle"))?;
+    if p.host.is_empty() {
+        return Err(Failure::usage("HOST_REQUIRED: pass --host or --dsn"));
+    }
+    if p.password.is_some() {
+        return Err(Failure::usage(
+            "INLINE_PASSWORD: use --password-env VAR or --password-file PATH",
+        ));
+    }
+    let port = p.port_or_default().unwrap_or(engine.port());
+    let mut checks: Vec<Value> = Vec::new();
+    let mut check = |name: &str, ok: bool, detail: String| {
+        checks.push(json!({"name":name,"status":if ok {"ok"} else {"blocked"},"detail":detail}));
+        ok
+    };
+    let mut version = opts.connect.version.clone();
+    let mut verified = None;
+    let resolved = netprobe::resolve(&p.host, port);
+    let reached = check(
+        "resolve",
+        resolved.is_ok(),
+        match &resolved {
+            Ok(ips) => ips
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" "),
+            Err(e) => (*e).into(),
+        },
+    ) && {
+        let open = netprobe::port_open(&p.host, port);
+        check(
+            "port",
+            open.is_ok(),
+            match open {
+                Ok(d) => format!("{} ms", d.as_millis()),
+                Err(e) => e.into(),
+            },
+        )
+    };
+    let mut ca_pem = None;
+    if reached && engine.uses_ca() {
+        match netprobe::tls_chain(engine, &p.host, port) {
+            Ok(report) => {
+                if let Some(v) = &report.server_version {
+                    version.get_or_insert(v.clone());
+                }
+                let leaf = report.chain.first();
+                check(
+                    "tls",
+                    leaf.is_some(),
+                    leaf.map_or(String::new(), |c| {
+                        format!(
+                            "{} · issuer {} · until {} · sha256 {}",
+                            c.subject, c.issuer, c.not_after, c.sha256
+                        )
+                    }),
+                );
+            }
+            Err(e) => {
+                check("tls", false, e.into());
+            }
+        }
+        if !p.ca_file.is_empty() {
+            ca_pem = std::fs::read_to_string(&p.ca_file)
+                .ok()
+                .filter(|t| t.contains("BEGIN CERTIFICATE"));
+            check(
+                "ca_file",
+                ca_pem.is_some(),
+                if ca_pem.is_some() {
+                    p.ca_file.clone()
+                } else {
+                    "TUI_CA_PEM_REQUIRED".into()
+                },
+            );
+        }
+    }
+    if reached
+        && let Some(reference) = &p.password_ref
+        && (ca_pem.is_some() || !engine.uses_ca())
+    {
+        let store = SecretStore::from_home()
+            .or_else(|_| SecretStore::open(std::env::temp_dir().join("oo-no-store")));
+        if let Ok(store) = store {
+            let v = verify(
+                &store,
+                &connect::Request {
+                    engine,
+                    host: p.host.clone(),
+                    port,
+                    database: if p.database.is_empty() {
+                        engine.default_database().into()
+                    } else {
+                        p.database.clone()
+                    },
+                    user: if p.user.is_empty() {
+                        engine.suggested_user().into()
+                    } else {
+                        p.user.clone()
+                    },
+                    secret: connect::Secret::Ref(reference.clone()),
+                    ca_pem: ca_pem.clone(),
+                    ca_ref: None,
+                    generation: 0,
+                },
+            );
+            check(
+                "sign_in",
+                v.auth.is_ok(),
+                match &v.auth {
+                    Ok(note) if v.checked => "ok".into(),
+                    Ok(note) => note.clone(),
+                    Err(e) => e.clone(),
+                },
+            );
+            if let Some(raw) = &v.version {
+                version = Some(raw.clone());
+            }
+            verified = Some(v.checked);
+        }
+    }
+    let label = version
+        .as_deref()
+        .and_then(|raw| {
+            src::match_version(engine, raw)
+                .or_else(|| src::versions_of(engine).iter().position(|v| v.label == raw))
+        })
+        .map(|i| src::versions_of(engine)[i].clone());
+    let blocked = checks.iter().any(|c| c["status"] != "ok");
+    let doc = json!({
+        "protocol":"oo.init-connect/v1",
+        "understood":{"engine":engine.id(),"host":p.host,"port":port,
+            "database":if p.database.is_empty() {engine.default_database().to_owned()} else {p.database.clone()},
+            "sid":p.sid,"user":if p.user.is_empty() {engine.suggested_user().to_owned()} else {p.user.clone()},
+            "password_ref":p.password_ref,"ca_file":p.ca_file},
+        "version":{"reported":version,"label":label.as_ref().map(|v| &v.label),
+            "full":label.as_ref().map(|v| &v.full),"cdc":label.as_ref().map(|v| &v.cdc)},
+        "signed_in":verified,
+        "checks":checks,
+        "written":false,
+    });
+    let exit = u8::from(blocked);
+    if opts.json {
+        return Ok(Invocation::AdminReport(doc.to_string(), exit));
+    }
+    let mut text = format!(
+        "{} {}:{} / {} as {}\n",
+        engine.name(),
+        doc["understood"]["host"].as_str().unwrap_or(""),
+        port,
+        doc["understood"]["database"].as_str().unwrap_or(""),
+        doc["understood"]["user"].as_str().unwrap_or("")
+    );
+    for c in doc["checks"].as_array().into_iter().flatten() {
+        text.push_str(&format!(
+            "{} {:<8} {}\n",
+            if c["status"] == "ok" { "✓" } else { "✗" },
+            c["name"].as_str().unwrap_or(""),
+            c["detail"].as_str().unwrap_or("")
+        ));
+    }
+    if let Some(v) = &label {
+        text.push_str(&format!(
+            "version {} · {} · CDC {}\n",
+            v.label, v.full, v.cdc
+        ));
+    }
+    Ok(Invocation::AdminReport(text.trim_end().to_owned(), exit))
 }
 
 /// Doctor report (`oo.doctor/v1`) as checklist rows.
@@ -689,15 +976,8 @@ pub(super) fn doctor_checks(report: &Value) -> Vec<Check> {
     checks
 }
 
-fn show_checks(screen: &mut Screen, dsn_masked: &str, checks: Vec<Check>) -> Result<(), Failure> {
-    let mut state = connect::Connect::new();
-    state.dsn = dsn_masked.to_owned();
-    state.checks = checks;
-    state.checks.push(Check::new(
-        tr("next", "下一步"),
-        Status::Waiting,
-        tr("press ⏎ to continue", "按 ⏎ 继续"),
-    ));
+fn show_checks(screen: &mut Screen, endpoint: &str, checks: Vec<Check>) -> Result<(), Failure> {
+    let mut state = connect::report(endpoint, checks);
     loop {
         screen
             .term()
@@ -708,10 +988,10 @@ fn show_checks(screen: &mut Screen, dsn_masked: &str, checks: Vec<Check>) -> Res
             .key(std::time::Duration::from_millis(100))
             .map_err(Failure::local)?
         {
-            match key.code {
-                crossterm::event::KeyCode::Enter => return Ok(()),
-                crossterm::event::KeyCode::Esc => return Err(Failure::local("TUI_CANCELLED")),
-                _ => (),
+            match connect::key(&mut state, key) {
+                crate::tui::screens::Action::Next => return Ok(()),
+                crate::tui::screens::Action::Quit => return Err(Failure::local("TUI_CANCELLED")),
+                crate::tui::screens::Action::None => (),
             }
         }
         state.frame += 1;
@@ -721,14 +1001,12 @@ fn show_checks(screen: &mut Screen, dsn_masked: &str, checks: Vec<Check>) -> Res
 /// `oo quickstart` / `oo init --demo` on a TTY: every screen on the bundled
 /// demo catalog and adjudication. The demo runtime and pack are V3-M-01; this
 /// preview starts nothing and writes nothing.
-fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
+fn demo(opts: &InitOptions, theme: Theme, splash: bool) -> Result<Invocation, Failure> {
     let mut term = Term::open(theme).map_err(Failure::local)?;
-    app::splash(&mut term).map_err(Failure::local)?;
-    let mut start = connect::Connect::new();
-    start.mode = 2;
-    let Some(_) = app::connect(&mut term, start, &probe).map_err(Failure::local)? else {
-        return Err(Failure::local("TUI_CANCELLED"));
-    };
+    if splash {
+        app::splash(&mut term).map_err(Failure::local)?;
+    }
+    // The demo needs no connection details: screen 1 is skipped.
     let tables = catalog_tables(&InitOptions {
         demo: true,
         catalog: opts.catalog.clone(),
@@ -777,7 +1055,7 @@ fn demo(opts: &InitOptions, theme: Theme) -> Result<Invocation, Failure> {
 pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     let theme = Theme::from_env(opts.no_anim);
     if opts.demo {
-        return demo(opts, theme);
+        return demo(opts, theme, true);
     }
     if Path::new("stack.yaml").symlink_metadata().is_ok() {
         return Err(Failure::local("TUI_CONFIG_EXISTS_OR_IO"));
@@ -789,57 +1067,94 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     let store = SecretStore::create(parent.join("secrets")).map_err(Failure::local)?;
     let mut screen = Screen::with(theme)?;
     app::splash(screen.term()).map_err(Failure::local)?;
-    let Some(conn) =
-        app::connect(screen.term(), connect::Connect::new(), &probe).map_err(Failure::local)?
-    else {
+    let profile = opts.profile.clone().unwrap_or_else(|| "default".into());
+    let vars: std::collections::BTreeMap<String, String> = std::env::vars()
+        .filter(|(k, _)| {
+            k.starts_with("PG")
+                || k.starts_with("MYSQL_")
+                || k.starts_with("ORACLE_")
+                || k == "TNS_ADMIN"
+        })
+        .collect();
+    let home_path = Path::new(&home).to_path_buf();
+    let mut start = connect::Connect::new(src::discover(&src::Machine {
+        home: Some(&home_path),
+        vars: &vars,
+        profile: &profile,
+    }));
+    start.home = Some(home_path.clone());
+    if opts.connect.any() {
+        let prefill = opts.connect.prefill()?;
+        let version = opts.connect.version.clone().unwrap_or_default();
+        start.open(
+            &Prefill {
+                engine: prefill.engine.or(Some(Engine::Postgres)),
+                ..prefill
+            },
+            &version,
+        );
+    }
+    let live = WizardLive { store: &store };
+    let Some(mut conn) = app::connect(screen.term(), start, &live).map_err(Failure::local)? else {
         return Err(Failure::local("TUI_CANCELLED"));
     };
-    if conn.mode == 2 {
+    if conn.demo {
         drop(screen);
-        return demo(opts, theme);
+        return demo(opts, theme, false);
     }
-    let dsn = conn.dsn().map_err(Failure::usage)?;
-    let masked = if conn.mode == 0 {
-        connect::mask(&conn.dsn)
-    } else {
-        format!(
-            "{}://{}@{}:{}/{}",
-            dsn.engine, dsn.user, dsn.host, dsn.port, dsn.database
-        )
+    let masked = connect::endpoint(&conn);
+    let password = match conn.password_ref() {
+        Some(reference) => json!({"secret_ref": reference}),
+        None => {
+            let typed = conn
+                .take_password()
+                .ok_or_else(|| Failure::usage("TUI_PASSWORD_REQUIRED"))?;
+            store_new(&store, "source-password", typed.as_bytes())?
+        }
     };
-    let user = if dsn.user.is_empty() {
-        screen.prompt(1, "Read-only user", "", false)?
-    } else {
-        dsn.user.clone()
-    };
-    let database = if dsn.database.is_empty() {
-        screen.prompt(1, "Database or Oracle service", "", false)?
-    } else {
-        dsn.database.clone()
-    };
-    let password = match &dsn.password {
-        Some(value) => store_new(&store, "source-password", value.as_bytes())?,
-        None => secret(&mut screen, &store, 1, "Source password", "source-password")?,
-    };
+    let engine = conn.engine;
     let mut source = json!({
-        "id": "source", "engine": dsn.engine, "host": dsn.host, "port": dsn.port,
-        "database": database, "user": user, "password": password,
+        "id": "source", "engine": engine.id(), "host": conn.host.trim(),
+        "port": conn.port_number().ok_or_else(|| Failure::usage("DSN_PORT"))?,
+        "database": conn.database.trim(), "user": conn.user.trim(), "password": password,
     });
-    let ca = match conn.ca_path() {
-        Some(path) => path.to_owned(),
-        None => screen.prompt(
-            1,
-            "TLS CA PEM file path (imported into secret store; required for PostgreSQL/MySQL)",
-            "",
-            false,
-        )?,
-    };
-    if !ca.is_empty() {
-        let name = screen.prompt(1, "TLS CA secret name (new file)", "source-ca", false)?;
-        source["tls_ca"] = import_file(&store, &name, Path::new(&ca), true)?;
-    } else if matches!(dsn.engine.as_str(), "postgres" | "mysql") {
-        return Err(Failure::usage("TUI_CA_FILE_REQUIRED"));
+    let mut ca_ref = String::new();
+    if engine.uses_ca() {
+        let ca = match conn.tls_mode {
+            connect::TlsMode::Saved => json!({"secret_ref": conn.ca_saved}),
+            _ => {
+                let pem = conn
+                    .ca_pem()
+                    .ok_or_else(|| Failure::usage("TUI_CA_FILE_REQUIRED"))?;
+                oo_connectors::PgTlsConfig::from_ca_pem(pem.as_bytes())
+                    .map_err(|_| Failure::usage("TUI_CA_PEM_REQUIRED"))?;
+                store_new(&store, "source-ca", pem.as_bytes())?
+            }
+        };
+        ca_ref = ca["secret_ref"].as_str().unwrap_or("").to_owned();
+        source["tls_ca"] = ca;
     }
+    // Remember the connection (no secret values) for the next run.
+    let _ = src::remember(
+        &home_path,
+        &src::Recent {
+            profile: profile.clone(),
+            engine,
+            host: conn.host.trim().to_owned(),
+            port: conn.port_number().unwrap_or(engine.port()),
+            database: conn.database.trim().to_owned(),
+            sid: conn.sid,
+            user: conn.user.trim().to_owned(),
+            version: connect::version_label(&conn),
+            password_ref: source["password"]["secret_ref"].as_str().map(str::to_owned),
+            ca_file: if conn.tls_mode == connect::TlsMode::File {
+                conn.ca_file.trim().to_owned()
+            } else {
+                String::new()
+            },
+            ca_ref,
+        },
+    );
     if let Some(ssh) = source_ssh(&mut screen, &store)? {
         source["ssh"] = ssh;
     }

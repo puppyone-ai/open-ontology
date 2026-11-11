@@ -157,3 +157,46 @@ async fn try_runs_four_real_client_calls_against_a_scripted_tls_oracle() {
         assert!(row["published_generation"].is_null());
     }
 }
+
+#[test]
+fn init_connect_flags_check_without_a_terminal_and_never_take_inline_passwords() {
+    // Port 1 on loopback: resolves, refuses; the report says so and exits 1.
+    let out = run(&[
+        "init",
+        "--dsn",
+        "jdbc:postgresql://127.0.0.1:1/sales",
+        "--user",
+        "ro",
+        "--password-env",
+        "OO_TEST_UNSET_PASSWORD",
+        "--json",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let doc: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(doc["protocol"], "oo.init-connect/v1");
+    assert_eq!(doc["understood"]["engine"], "postgres");
+    assert_eq!(doc["understood"]["database"], "sales");
+    assert_eq!(
+        doc["understood"]["password_ref"],
+        "env:OO_TEST_UNSET_PASSWORD"
+    );
+    assert_eq!(doc["checks"][0]["status"], "ok");
+    assert_eq!(doc["checks"][1]["name"], "port");
+    assert_eq!(doc["checks"][1]["status"], "blocked");
+    assert_eq!(doc["written"], false);
+    let inline = run(&[
+        "init",
+        "--dsn",
+        "postgres://ro:hunter2@127.0.0.1:1/db",
+        "--json",
+    ]);
+    assert!(!inline.status.success());
+    let all = [inline.stdout, inline.stderr].concat();
+    assert!(!String::from_utf8_lossy(&all).contains("hunter2"));
+    assert!(String::from_utf8_lossy(&all).contains("INLINE_PASSWORD"));
+}

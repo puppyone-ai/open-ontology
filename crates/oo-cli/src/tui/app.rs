@@ -4,7 +4,9 @@
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
+use crossterm::event::{
+    self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEvent, KeyEventKind,
+};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -20,13 +22,19 @@ use super::backend::{Delivery, osc52};
 use super::fx::{SPLASH_FRAME_MS, SPLASH_FRAMES};
 use super::graph::REVEAL_FRAMES;
 use super::scorer::TableMeta;
-use super::screens::{self, Action, Check, Status};
+use super::screens::{self, Action};
 use super::theme::Theme;
 
 pub type Result<T> = std::result::Result<T, &'static str>;
 const TICK: Duration = Duration::from_millis(100);
 /// Tick while a one-shot animation plays.
 const FAST: Duration = Duration::from_millis(70);
+
+/// A key press or a bracketed paste.
+pub enum Input {
+    Key(KeyEvent),
+    Paste(String),
+}
 
 pub struct Term {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
@@ -36,7 +44,7 @@ pub struct Term {
 impl Term {
     pub fn open(theme: Theme) -> Result<Self> {
         enable_raw_mode().map_err(|_| "TUI_TERMINAL")?;
-        if execute!(io::stdout(), EnterAlternateScreen).is_err() {
+        if execute!(io::stdout(), EnterAlternateScreen, EnableBracketedPaste).is_err() {
             let _ = disable_raw_mode();
             return Err("TUI_TERMINAL");
         }
@@ -76,6 +84,18 @@ impl Term {
         }
     }
 
+    /// Next key press or bracketed paste within `wait`.
+    pub fn input(&mut self, wait: Duration) -> Result<Option<Input>> {
+        if !event::poll(wait).map_err(|_| "TUI_INPUT")? {
+            return Ok(None);
+        }
+        match event::read().map_err(|_| "TUI_INPUT")? {
+            Event::Key(key) if key.kind == KeyEventKind::Press => Ok(Some(Input::Key(key))),
+            Event::Paste(text) => Ok(Some(Input::Paste(text))),
+            _ => Ok(None),
+        }
+    }
+
     /// Copy through the terminal clipboard escape (OSC 52).
     pub fn copy(&mut self, text: &str) -> bool {
         let mut out = io::stdout();
@@ -87,7 +107,11 @@ impl Term {
 
 impl Drop for Term {
     fn drop(&mut self) {
-        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+        let _ = execute!(
+            self.terminal.backend_mut(),
+            DisableBracketedPaste,
+            LeaveAlternateScreen
+        );
         let _ = disable_raw_mode();
     }
 }
@@ -110,76 +134,92 @@ pub fn splash(term: &mut Term) -> Result<()> {
     Ok(())
 }
 
-/// What screen 1 hands to the probe: a snapshot, never the live input buffer.
-pub struct ConnectRequest {
-    pub demo: bool,
-    pub dsn: Option<screens::connect::Dsn>,
-    pub ca: Option<String>,
+/// The I/O screen 1 needs. `Network` covers everything that needs no
+/// credentials; the wizard supplies sign-in.
+pub trait Live: Sync {
+    fn resolve(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> std::result::Result<Vec<std::net::IpAddr>, &'static str> {
+        super::netprobe::resolve(host, port)
+    }
+    fn port(&self, host: &str, port: u16) -> std::result::Result<Duration, &'static str> {
+        super::netprobe::port_open(host, port)
+    }
+    fn tls(
+        &self,
+        engine: super::source::Engine,
+        host: &str,
+        port: u16,
+    ) -> std::result::Result<super::netprobe::TlsReport, &'static str> {
+        super::netprobe::tls_chain(engine, host, port)
+    }
+    fn verify(&self, request: &screens::connect::Request) -> screens::connect::Verified;
 }
 
-/// Screen 1. `probe` runs the read-only checks off the UI thread while the
-/// checklist spins. Returns the final state once checks pass and the user
-/// continues, or `None` on quit.
+fn run_job(live: &dyn Live, job: screens::connect::Job) -> screens::connect::Outcome {
+    use screens::connect::{Job, Outcome};
+    match job {
+        Job::Resolve(h) => Outcome::Resolved(h.clone(), live.resolve(&h, 0)),
+        Job::Port(h, p) => Outcome::Port(h.clone(), p, live.port(&h, p)),
+        Job::Tls(e, h, p) => Outcome::Tls(h.clone(), p, live.tls(e, &h, p)),
+        Job::Verify(r) => Outcome::Verified(live.verify(&r)),
+    }
+}
+
+/// Screen 1. Live checks run on background threads; ⏎ signs in through
+/// `live.verify`. Returns the final state (demo chosen, or a source that
+/// signed in), or `None` on quit.
 pub fn connect(
     term: &mut Term,
     mut state: screens::connect::Connect,
-    probe: &(dyn Fn(&ConnectRequest) -> Vec<Check> + Sync),
+    live: &dyn Live,
 ) -> Result<Option<screens::connect::Connect>> {
-    let mut checked_for: Option<(usize, String, [String; 7])> = None;
-    loop {
-        term.draw(|area, buf, theme| screens::connect::render(&state, area, buf, theme))?;
-        let Some(key) = term.key(TICK)? else {
-            state.frame += 1;
-            continue;
-        };
-        match screens::connect::key(&mut state, key) {
-            Action::Quit => return Ok(None),
-            Action::Next => {
-                let snapshot = (state.mode, state.dsn.clone(), state.fields.clone());
-                let passed = !state.checks.is_empty()
-                    && state.checks.iter().all(|c| c.status != Status::Fail);
-                if checked_for.as_ref() == Some(&snapshot) && passed {
-                    return Ok(Some(state));
-                }
-                let request = ConnectRequest {
-                    demo: state.mode == 2,
-                    dsn: state.dsn().ok(),
-                    ca: state.ca_path().map(str::to_owned),
-                };
-                let zh = term.theme.zh;
-                let t = |en: &'static str, cn: &'static str| if zh { cn } else { en };
-                state.checks = vec![Check::new(
-                    t("read-only checks", "只读检查"),
-                    Status::Running,
-                    t("connecting…", "连接中…"),
-                )];
-                state.checks_at = state.frame;
-                let checks = std::thread::scope(|scope| -> Result<Vec<Check>> {
-                    let job = scope.spawn(|| probe(&request));
-                    while !job.is_finished() {
-                        state.frame += 1;
-                        term.draw(|area, buf, theme| {
-                            screens::connect::render(&state, area, buf, theme)
-                        })?;
-                        let _ = term.key(TICK)?;
-                    }
-                    job.join().map_err(|_| "TUI_PROBE")
-                })?;
-                state.checks = checks;
-                state.checks_at = state.frame;
-                checked_for = Some(snapshot);
-                if state.checks.iter().all(|c| c.status != Status::Fail) {
-                    state.error = None;
-                    state.checks.push(Check::new(
-                        t("ready", "就绪"),
-                        Status::Pass,
-                        t("press ⏎ again to choose tables", "再按 ⏎ 去选表"),
-                    ));
-                }
+    use std::collections::HashSet;
+    let (tx, rx) = std::sync::mpsc::channel::<screens::connect::Outcome>();
+    std::thread::scope(|scope| {
+        let mut started: HashSet<String> = HashSet::new();
+        loop {
+            while let Ok(outcome) = rx.try_recv() {
+                started.remove(&outcome.key());
+                state.apply(outcome);
             }
-            Action::None => (),
+            if state.pass_mode == screens::connect::PassMode::Env {
+                state.env_set =
+                    std::env::var_os(state.pass_env.trim()).is_some_and(|v| !v.is_empty());
+            }
+            let mut jobs = state.wants();
+            jobs.extend(state.take_verify());
+            for job in jobs {
+                if !started.insert(job.key()) {
+                    continue;
+                }
+                let tx = tx.clone();
+                scope.spawn(move || {
+                    let _ = tx.send(run_job(live, job));
+                });
+            }
+            term.draw(|area, buf, theme| screens::connect::render(&state, area, buf, theme))?;
+            let Some(event) = term.input(TICK)? else {
+                state.frame += 1;
+                continue;
+            };
+            state.frame += 1;
+            let action = match event {
+                Input::Paste(text) => {
+                    screens::connect::paste(&mut state, &text);
+                    Action::None
+                }
+                Input::Key(key) => screens::connect::key(&mut state, key),
+            };
+            match action {
+                Action::Quit => return Ok(None),
+                Action::Next => return Ok(Some(state)),
+                Action::None => (),
+            }
         }
-    }
+    })
 }
 
 /// Screen 2. Returns the explicit table list, or `None` on quit.

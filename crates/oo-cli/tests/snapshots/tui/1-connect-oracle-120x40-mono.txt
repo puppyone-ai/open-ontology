@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
+│ ▐Or▌ Oracle  ·  read-only                                                                                            │
+│                                                                                                                      │
+│ ▸ version    ‹ 19c ›                                  ● verified · CDC verified                                      │
+│   host       ora.internal                             … resolving…                                                   │
+│   port       1521                                                                                                    │
+│   service    ORCLPDB1                                 ‹› ←→ 5 known                                                  │
+│   connect by ‹service name› SID                       · PDB service, e.g. ORCLPDB1                                   │
+│   user       OO_READER                                · suggested read-only account                                  │
+│   password                                            · kept in the secret store                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────────────────────────────────────────────╯
