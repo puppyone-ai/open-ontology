@@ -230,6 +230,22 @@ pub const ADDITIONAL_AGGREGATE_SIGNATURES: &[(&str, &str, &str)] = &[("sum", "in
 pub const ADDITIONAL_SCALAR_SIGNATURES: &[(&str, &[&str], &str)] = &[
     ("abs", &["numeric"], "numeric"),
     ("to_char", &["timestamp", "text"], "text"),
+    ("extract", &["text", "date"], "numeric"),
+    ("extract", &["text", "timestamp"], "numeric"),
+    ("extract", &["text", "interval"], "numeric"),
+    ("date_part", &["text", "timestamp"], "float8"),
+    ("date_part", &["text", "interval"], "float8"),
+    ("lower", &["text"], "text"),
+    ("upper", &["text"], "text"),
+    ("length", &["text"], "int4"),
+    ("substring", &["text", "int4"], "text"),
+    ("substring", &["text", "int4", "int4"], "text"),
+    ("round", &["numeric", "int4"], "numeric"),
+    ("round", &["float8"], "float8"),
+    ("abs", &["int2"], "int2"),
+    ("abs", &["int4"], "int4"),
+    ("abs", &["int8"], "int8"),
+    ("abs", &["float8"], "float8"),
 ];
 
 /// Result inference is closed over the same signatures the live loader verifies.
@@ -261,15 +277,32 @@ pub(crate) fn builtin_function_result_type(function: &ResolvedFunction) -> Optio
             _ => *argument,
         });
     }
-    match function.name.as_str() {
-        "date_trunc" if args == &[Type::TEXT.oid(), Type::TIMESTAMP.oid()] => {
-            Some(Type::TIMESTAMP.oid())
-        }
-        "date" if args == &[Type::TIMESTAMP.oid()] => Some(Type::DATE.oid()),
-        "abs" if args == &[Type::NUMERIC.oid()] => Some(Type::NUMERIC.oid()),
-        "to_char" if args == &[Type::TIMESTAMP.oid(), Type::TEXT.oid()] => Some(Type::TEXT.oid()),
-        _ => None,
-    }
+    DAY_FUNCTION_SIGNATURES
+        .iter()
+        .chain(ADDITIONAL_SCALAR_SIGNATURES)
+        .find(|(name, inputs, _)| {
+            *name == function.name
+                && inputs.len() == args.len()
+                && inputs
+                    .iter()
+                    .zip(args)
+                    .all(|(name, oid)| Type::from_oid(*oid).is_some_and(|ty| ty.name() == *name))
+        })
+        .and_then(|(_, _, result)| {
+            [
+                Type::INT2,
+                Type::INT4,
+                Type::INT8,
+                Type::NUMERIC,
+                Type::FLOAT8,
+                Type::TEXT,
+                Type::DATE,
+                Type::TIMESTAMP,
+            ]
+            .into_iter()
+            .find(|ty| ty.name() == *result)
+            .map(|ty| ty.oid())
+        })
 }
 
 /// Type OID used for integer literals. Not a hard-coded PostgreSQL OID.
@@ -2325,7 +2358,7 @@ mod tests {
 
     #[test]
     fn aggregate_catalog_has_exact_bounded_signatures() {
-        assert_eq!(FUNCTION_CATALOG_LIMIT, 33);
+        assert_eq!(FUNCTION_CATALOG_LIMIT, 49);
         assert_eq!(UNARY_AGGREGATE_SIGNATURES.len(), 26);
         let unique = UNARY_AGGREGATE_SIGNATURES.iter().collect::<BTreeSet<_>>();
         assert_eq!(unique.len(), UNARY_AGGREGATE_SIGNATURES.len());

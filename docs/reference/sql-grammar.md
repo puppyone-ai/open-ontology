@@ -51,6 +51,27 @@ SELECT order_id FROM app.orders
 WHERE ordered_on IN ('2026-01-01', DATE '2026-01-02', NULL);
 ```
 
+## Verified scalar functions
+
+The catalog additionally admits `extract(text,date|timestamp|interval)`,
+`date_part(text,timestamp|interval)`, `lower(text)`, `upper(text)`,
+`length(text)`, positional `substring(text,int4[,int4])`, `round(numeric,int4)`,
+`round(numeric)` (rewritten to scale zero), `round(float8)` and `abs(numeric|int2|int4|int8|float8)`.
+Text functions also accept binary-compatible varchar inputs. Regex substring
+is not included. Every overload requires a unique verified builtin catalog
+entry; allowing a name does not allow arbitrary overloads or user functions.
+
+`date_trunc(text,timestamp)` accepts literal units from microseconds through
+millennium, including week, month and quarter. Timestamptz overloads and
+dynamic units are not part of this slice. `to_char(timestamp,text)` retains
+its existing checked builtin overload and literal-format requirement.
+
+`coalesce`, `nullif`, `greatest` and `least` admit common scalar types,
+including NULL branches and text/varchar promotion. Other mixed-type branches
+require explicit casts. Every argument is checked even in an unreachable branch.
+`nullif` and min/max expressions require their verified comparison signature.
+`BETWEEN` also accepts admitted scalar expressions, including `EXTRACT`.
+
 ## Security, freshness and remaining limits
 
 The entire AST still passes the write detector, SQL-byte/node/depth budgets,

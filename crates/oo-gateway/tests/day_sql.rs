@@ -426,7 +426,7 @@ fn having_uses_only_exact_aggregate_results_and_grouped_columns() {
 fn day_operations_and_having_fail_closed_without_catalog_authority() {
     let cat = catalog();
     for sql in [
-        "SELECT date_trunc('hour',stamp) FROM logistics.orders",
+        "SELECT date_trunc('invalid',stamp) FROM logistics.orders",
         "SELECT date_trunc(code,stamp) FROM logistics.orders",
         "SELECT date_trunc('day',zoned) FROM logistics.orders",
         "SELECT date_trunc('day',zoned,'UTC') FROM logistics.orders",
@@ -603,7 +603,7 @@ fn searched_numeric_case_and_abs_use_exact_function_results() {
         "SELECT id FROM logistics.orders WHERE CASE WHEN flag THEN 1 ELSE 0 END",
         "SELECT code,CASE WHEN flag THEN 1 ELSE 0 END,COUNT(*) FROM logistics.orders GROUP BY code",
         "SELECT public.abs(amount) FROM logistics.orders",
-        "SELECT abs(id) FROM logistics.orders",
+        "SELECT abs(flag) FROM logistics.orders",
         "SELECT abs(code) FROM logistics.orders",
         "SELECT abs(amount) OVER () FROM logistics.orders",
         "SELECT abs(amount) FILTER (WHERE true) FROM logistics.orders",
@@ -660,4 +660,58 @@ fn timestamp_to_char_requires_exact_builtin_and_literal_format() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn analytical_scalar_functions_require_exact_catalog_authority() {
+    let cat = catalog();
+    for expression in [
+        "extract(isodow FROM day) BETWEEN 1 AND 5",
+        "extract(month FROM day)",
+        "extract(year FROM stamp)",
+        "date_part('month',stamp)",
+        "date_trunc('month',stamp)",
+        "lower(code)",
+        "upper(code)",
+        "length(code)",
+        "substring(code FROM 1 FOR 2)",
+        "substring(code FROM 2)",
+        "coalesce(id,0)",
+        "nullif(id,0)",
+        "greatest(id,1)",
+        "least(id,2)",
+        "coalesce(code,'')",
+        "nullif(code,'')",
+        "greatest(code,'a')",
+        "round(amount)",
+        "round(amount,2)",
+        "abs(id)",
+    ] {
+        let sql = format!("SELECT {expression} FROM logistics.orders");
+        let plan = guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+        for function in plan.bindings.functions {
+            let mut missing = cat.clone();
+            missing.functions.retain(|f| f.oid != function.oid);
+            assert!(
+                guard_select(&missing.identity, &missing, &sql).is_err(),
+                "{sql}"
+            );
+        }
+    }
+    for expression in [
+        "lower(secret)",
+        "extract(month FROM secret)",
+        "public.lower(code)",
+        "set_config('TimeZone','UTC',false)",
+        "substring(code FROM '(.*)')",
+        "round(flag)",
+        "coalesce(id,secret)",
+        "greatest(id,secret)",
+        "nullif(id,secret)",
+        "coalesce(id,pg_sleep(1))",
+    ] {
+        let sql = format!("SELECT {expression} FROM logistics.orders");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
 }

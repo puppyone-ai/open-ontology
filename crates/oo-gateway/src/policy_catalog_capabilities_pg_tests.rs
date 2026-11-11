@@ -159,6 +159,11 @@ async fn owned_sql_capabilities() {
         .unwrap();
     let types = load_types(&tx).await.unwrap();
     let operators = load_operators(&tx, &types, &limits).await.unwrap();
+    for &(name, arguments, result) in ADDITIONAL_SCALAR_SIGNATURES {
+        load_scalar_function(&tx, &types, name, arguments, result)
+            .await
+            .unwrap_or_else(|error| panic!("scalar {name} {arguments:?}: {error:?}"));
+    }
     let functions = load_functions(&tx, &types, &limits).await.unwrap();
     assert_eq!(functions.len(), FUNCTION_CATALOG_LIMIT as usize);
     assert_eq!(operators.len(), required_operator_count());
@@ -193,7 +198,7 @@ async fn owned_sql_capabilities() {
         ("date_trunc", &["text", "timestamptz"][..], "timestamptz"),
         ("date", &["timestamptz"][..], "date"),
         ("date_trunc", &["text", "timestamp"][..], "date"),
-        ("lower", &["text"][..], "text"),
+        ("lower", &["bool"][..], "text"),
     ] {
         assert_eq!(
             load_scalar_function(&tx, &types, name, arguments, result).await,
@@ -239,7 +244,17 @@ async fn owned_sql_capabilities() {
         assert_eq!(row.get::<_, String>(1), function.name);
         let scalar = matches!(
             function.name.as_str(),
-            "date" | "date_trunc" | "abs" | "to_char"
+            "date"
+                | "date_trunc"
+                | "abs"
+                | "to_char"
+                | "extract"
+                | "date_part"
+                | "lower"
+                | "upper"
+                | "length"
+                | "substring"
+                | "round"
         );
         assert_eq!(row.get::<_, String>(2), if scalar { "f" } else { "a" });
         assert_eq!(
@@ -271,15 +286,16 @@ async fn owned_sql_capabilities() {
         let result_oid = if function.name == "count" {
             types["int8"]
         } else if scalar {
-            types[if function.name == "to_char" {
-                "text"
-            } else if function.name == "abs" {
-                "numeric"
-            } else if function.name == "date" {
-                "date"
-            } else {
-                "timestamp"
-            }]
+            let (_, _, result) = DAY_FUNCTION_SIGNATURES
+                .iter()
+                .chain(ADDITIONAL_SCALAR_SIGNATURES)
+                .find(|(name, args, _)| {
+                    *name == function.name
+                        && args.iter().map(|arg| types[*arg]).collect::<Vec<_>>()
+                            == function.argument_type_oids
+                })
+                .unwrap();
+            types[*result]
         } else {
             let (_, _, result) = UNARY_AGGREGATE_SIGNATURES
                 .iter()
@@ -470,6 +486,11 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.shipment WHERE day NOT IN (NULL, '2026-10-28'::date) ORDER BY id",
         "SELECT id FROM logistics.shipment WHERE stamp IN ('2026-10-28', TIMESTAMP '2026-10-29') ORDER BY id",
         "SELECT date_trunc('day',stamp) FROM logistics.shipment ORDER BY id",
+        "SELECT extract(month FROM day),extract(year FROM stamp),date_part('month',stamp) FROM logistics.shipment ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE EXTRACT(ISODOW FROM day) BETWEEN 1 AND 5 ORDER BY id",
+        "SELECT coalesce(code,''),nullif(code,'a'),greatest(code,'a'),least(code,'z') FROM logistics.shipment ORDER BY id",
+        "SELECT lower(code),upper(code),length(code),substring(code FROM 1 FOR 2),substring(code FROM 2) FROM logistics.shipment ORDER BY id",
+        "SELECT date_trunc('month',stamp),date_trunc('hour',stamp) FROM logistics.shipment ORDER BY id",
         "SELECT pg_catalog.date_trunc('day',stamp) AS bucket,COUNT(*) FROM logistics.shipment GROUP BY 1 ORDER BY 1",
         "SELECT stamp::date,COUNT(*) FROM logistics.shipment GROUP BY 1 ORDER BY 1 NULLS LAST",
         "SELECT CAST(stamp AS pg_catalog.date) AS bucket,COUNT(*) AS n FROM logistics.shipment GROUP BY 1 ORDER BY 2 DESC,1",
@@ -694,7 +715,7 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.shipment WHERE CASE WHEN flag THEN 1 ELSE 0 END",
         "SELECT code,CASE WHEN flag THEN 1 ELSE 0 END,COUNT(*) FROM logistics.shipment GROUP BY code",
         "SELECT logistics.abs(amount) FROM logistics.shipment",
-        "SELECT abs(id) FROM logistics.shipment",
+        "SELECT abs(flag) FROM logistics.shipment",
         "SELECT abs(code) FROM logistics.shipment",
         "SELECT abs(amount) OVER () FROM logistics.shipment",
         "SELECT abs(amount) FILTER (WHERE true) FROM logistics.shipment",
@@ -852,7 +873,7 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.shipment WHERE code <> fixed",
         "SELECT id FROM logistics.shipment WHERE code::text <> ''",
         "SELECT id FROM logistics.shipment WHERE code OPERATOR(logistics.<>) ''",
-        "SELECT id FROM logistics.shipment WHERE lower(code) <> ''",
+        "SELECT id FROM logistics.shipment WHERE lower(secret) <> ''",
         "SELECT id FROM logistics.shipment WHERE code LIKE txt",
         "SELECT MIN(stamp) FROM private.shipment",
         "SELECT MIN(stamp) FROM capability_fixture.shipments",
@@ -870,7 +891,7 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP(0) '2026-10-28'",
         "SELECT id FROM logistics.shipment WHERE zoned>=TIMESTAMPTZ '2026-10-28'",
         "SELECT date_trunc('day',zoned,'Asia/Shanghai') FROM logistics.shipment",
-        "SELECT date_trunc('hour',stamp) FROM logistics.shipment",
+        "SELECT date_trunc('invalid',stamp) FROM logistics.shipment",
         "SELECT date_trunc(code,stamp) FROM logistics.shipment",
         "SELECT date_trunc('day',secret) FROM logistics.shipment",
         "SELECT logistics.date_trunc('day',stamp) FROM logistics.shipment",

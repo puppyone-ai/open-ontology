@@ -1234,6 +1234,8 @@ fn is_aggregate(node: &pb::Node) -> bool {
 fn expression_children(node: &pb::Node) -> Vec<&pb::Node> {
     match node.node.as_ref() {
         Some(pb::node::Node::FuncCall(call)) => call.args.iter().collect(),
+        Some(pb::node::Node::CoalesceExpr(expr)) => expr.args.iter().collect(),
+        Some(pb::node::Node::MinMaxExpr(expr)) => expr.args.iter().collect(),
         Some(pb::node::Node::AExpr(expr)) => expr
             .lexpr
             .iter()
@@ -1416,6 +1418,8 @@ fn admit_sort_item(
                             | pb::node::Node::TypeCast(_)
                             | pb::node::Node::AExpr(_)
                             | pb::node::Node::CaseExpr(_)
+                            | pb::node::Node::CoalesceExpr(_)
+                            | pb::node::Node::MinMaxExpr(_)
                     )
                 ) {
                     return Err(GuardError::Unsupported {
@@ -1466,6 +1470,20 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             })
         }
         Some(pb::node::Node::CaseExpr(_)) => admit_case(node, ctx),
+        Some(pb::node::Node::CoalesceExpr(expr)) => {
+            let result_type_oid = admit_alternatives(&mut expr.args, ctx)?;
+            Ok(ExprKind::Case { result_type_oid })
+        }
+        Some(pb::node::Node::MinMaxExpr(expr)) => {
+            let result_type_oid = admit_alternatives(&mut expr.args, ctx)?;
+            let token = match pb::MinMaxOp::try_from(expr.op) {
+                Ok(pb::MinMaxOp::IsGreatest) => ">",
+                Ok(pb::MinMaxOp::IsLeast) => "<",
+                _ => return Err(unsupported("minmax")),
+            };
+            bind_comparator(ctx, token, result_type_oid)?;
+            Ok(ExprKind::Case { result_type_oid })
+        }
         Some(_) => Err(GuardError::Unsupported {
             construct: "expression",
         }),
@@ -1473,6 +1491,72 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             construct: "expression",
         }),
     }
+}
+
+fn bind_comparator(ctx: &mut Ctx<'_>, token: &str, oid: u32) -> Result<(), GuardError> {
+    let op = resolve_binary_operator(
+        ctx.catalog,
+        Some("pg_catalog"),
+        token,
+        oid,
+        oid,
+        false,
+        false,
+    )?;
+    ctx.operators.push(BoundOperator {
+        oid: op.oid,
+        procedure_oid: op.procedure_oid,
+        schema: op.schema.clone(),
+        name: op.name.clone(),
+    });
+    Ok(())
+}
+
+fn admit_alternatives(args: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<u32, GuardError> {
+    if args.is_empty() || args.len() > IN_LIST_LIMIT {
+        return Err(GuardError::Budget);
+    }
+    let mut result = None;
+    for arg in args {
+        let kind = admit_expr(arg, ctx)?;
+        let Some(oid) = infer_type(&kind, ctx.catalog) else {
+            continue;
+        };
+        if ![
+            Type::BOOL,
+            Type::INT2,
+            Type::INT4,
+            Type::INT8,
+            Type::NUMERIC,
+            Type::FLOAT8,
+            Type::TEXT,
+            Type::VARCHAR,
+            Type::DATE,
+            Type::TIMESTAMP,
+            Type::TIMESTAMPTZ,
+            Type::INTERVAL,
+        ]
+        .iter()
+        .any(|ty| ty.oid() == oid)
+        {
+            return Err(unsupported("common scalar type"));
+        }
+        result = Some(match result {
+            None => oid,
+            Some(previous) if previous == oid => oid,
+            Some(previous)
+                if [previous, oid]
+                    .iter()
+                    .all(|oid| [Type::TEXT.oid(), Type::VARCHAR.oid()].contains(oid)) =>
+            {
+                Type::TEXT.oid()
+            }
+            _ => return Err(unsupported("common scalar type")),
+        });
+    }
+    result
+        .or(ctx.catalog.literal_types.text)
+        .ok_or(GuardError::FunctionNotAllowed)
 }
 
 fn admit_case(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -1973,7 +2057,28 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             || aggregate_star
             || (name == "date_trunc"
                 && (call.args.len() != 2
-                    || call.args.first().and_then(const_string) != Some("day")))
+                    || !call
+                        .args
+                        .first()
+                        .and_then(const_string)
+                        .is_some_and(|unit| {
+                            matches!(
+                                unit,
+                                "microseconds"
+                                    | "milliseconds"
+                                    | "second"
+                                    | "minute"
+                                    | "hour"
+                                    | "day"
+                                    | "week"
+                                    | "month"
+                                    | "quarter"
+                                    | "year"
+                                    | "decade"
+                                    | "century"
+                                    | "millennium"
+                            )
+                        })))
             || (name == "date" && call.args.len() != 1)
             || (name == "to_char"
                 && (call.args.len() != 2 || call.args.get(1).and_then(const_string).is_none()))
@@ -1984,7 +2089,7 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if aggregate {
         ctx.aggregate_depth += 1;
     }
-    let types = if aggregate_star {
+    let mut types = if aggregate_star {
         Vec::new()
     } else {
         let args = match node.node.as_mut() {
@@ -2004,6 +2109,23 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     };
     if aggregate {
         ctx.aggregate_depth -= 1;
+    }
+    // The one-argument numeric overload is a SQL wrapper. Bind directly to
+    // the verified internal implementation instead of admitting SQL functions.
+    if name == "round"
+        && schema
+            .as_deref()
+            .is_none_or(|schema| schema == "pg_catalog")
+        && types == [Type::NUMERIC.oid()]
+        && let Some(pb::node::Node::FuncCall(call)) = node.node.as_mut()
+    {
+        call.args.push(pb::Node {
+            node: Some(pb::node::Node::AConst(pb::AConst {
+                val: Some(pb::a_const::Val::Ival(pb::Integer { ival: 0 })),
+                ..Default::default()
+            })),
+        });
+        types.push(Type::INT4.oid());
     }
     let resolved = resolve_function(
         ctx.catalog,
@@ -2071,12 +2193,21 @@ fn resolve_function<'a>(
             && !function.aggregate_star
             && function.argument_type_oids.len() == 1
             && args.len() == 1;
-        let varchar_minmax = function.schema == "pg_catalog"
-            && matches!(name, "min" | "max")
+        let varchar_text = function.schema == "pg_catalog"
+            && matches!(
+                name,
+                "min" | "max" | "lower" | "upper" | "length" | "substring"
+            )
             && !aggregate_star
-            && args == [Type::VARCHAR.oid()]
-            && function.argument_type_oids == [Type::TEXT.oid()];
-        if function.argument_type_oids != args && !count_any && !varchar_minmax {
+            && args.len() == function.argument_type_oids.len()
+            && args
+                .iter()
+                .zip(&function.argument_type_oids)
+                .all(|(actual, expected)| {
+                    actual == expected
+                        || (*actual == Type::VARCHAR.oid() && *expected == Type::TEXT.oid())
+                });
+        if function.argument_type_oids != args && !count_any && !varchar_text {
             continue;
         }
         if found.is_some() {
@@ -2111,6 +2242,24 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     };
     if kind == AEXPR_IN {
         return admit_in(node, ctx);
+    }
+    if kind == pb::AExprKind::AexprNullif as i32 {
+        let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut() else {
+            return Err(unsupported("NULLIF"));
+        };
+        let mut args = [
+            *expr.lexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
+            *expr.rexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
+        ];
+        let mut result_type_oid = admit_alternatives(&mut args, ctx)?;
+        if result_type_oid == Type::VARCHAR.oid() {
+            result_type_oid = Type::TEXT.oid();
+        }
+        bind_comparator(ctx, "=", result_type_oid)?;
+        let [left, right] = args;
+        expr.lexpr = Some(Box::new(left));
+        expr.rexpr = Some(Box::new(right));
+        return Ok(ExprKind::Case { result_type_oid });
     }
     if matches!(
         pb::AExprKind::try_from(kind).ok(),
@@ -2467,9 +2616,17 @@ fn admit_between(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, Gua
         .lexpr
         .as_deref_mut()
         .ok_or_else(|| unsupported("BETWEEN predicate"))?;
-    let ExprKind::Column { type_oid, .. } = admit_expr(left, ctx)? else {
+    let kind = admit_expr(left, ctx)?;
+    if !matches!(
+        kind,
+        ExprKind::Column { .. }
+            | ExprKind::Function { .. }
+            | ExprKind::Operator { .. }
+            | ExprKind::Case { .. }
+    ) {
         return Err(unsupported("BETWEEN predicate"));
-    };
+    }
+    let type_oid = infer_type(&kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?;
     let Some(pb::node::Node::List(bounds)) = expr
         .rexpr
         .as_deref_mut()
@@ -2840,6 +2997,7 @@ fn admit_null(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if !matches!(
         kind,
         ExprKind::Column { .. }
+            | ExprKind::Case { .. }
             | ExprKind::Function {
                 result_type_oid: Some(_),
                 ..
@@ -2861,7 +3019,7 @@ fn predicate_fold(kind: &ExprKind, catalog: &PolicyCatalog) -> Result<Fold, Guar
         } => Ok(*fold),
         ExprKind::Bool(fold) => Ok(*fold),
         ExprKind::NullTest => Ok(Fold::Other),
-        ExprKind::Operator { result_type_oid }
+        ExprKind::Operator { result_type_oid } | ExprKind::Case { result_type_oid }
             if catalog.literal_types.boolean == Some(*result_type_oid) =>
         {
             Ok(Fold::Other)
