@@ -365,6 +365,25 @@ pub struct SourceColumnShape {
     pub unique_key_ordinals: BTreeMap<String, u32>,
 }
 
+/// One table found by bounded catalog discovery. Every field comes from
+/// catalog metadata and optimizer statistics; no table row is read.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveredTable {
+    pub table: TableRef,
+    /// Statistics estimate; `None` when the table was never analyzed.
+    pub estimated_rows: Option<u64>,
+    pub has_primary_key: bool,
+    /// A valid, non-partial unique index or constraint besides the primary key.
+    pub has_unique_key: bool,
+    /// A partition of a partitioned table (read through its parent).
+    pub partition_child: bool,
+    /// Distinct targets of outgoing foreign keys, sorted.
+    pub references: Vec<TableRef>,
+}
+
+/// Upper bound on the tables one discovery call returns.
+pub const DISCOVERY_TABLE_LIMIT: u64 = 10_000;
+
 /// Read-only source engine. Implementations open no write transaction,
 /// create no object and take no lock.
 pub trait SourceEngine: Send {

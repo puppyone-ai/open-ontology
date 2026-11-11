@@ -5,8 +5,10 @@ PostgreSQL: a throwaway postgres:17.11 container on loopback with a
 self-signed TLS certificate and a non-superuser read-only role; real
 sign-in and version detection. MySQL: a stub that speaks the protocol-10
 greeting (version 8.4.7) and upgrades to TLS with the same certificate.
-Oracle: a stub TCP listener (sign-in is deferred to `oo doctor`). Each run
-ends on screen 2 with a stubbed table catalog, then quits.
+Oracle: a stub TCP listener (sign-in is deferred to `oo doctor`). The
+PostgreSQL run takes its database list (screen 1) and table list (screen 2)
+from the server; the MySQL and Oracle runs end on screen 2 with a stubbed
+table catalog. Each run then quits.
 
 Counts the keys pressed after the splash and checks that no password
 reaches the terminal, the secret store holds the password and CA, and the
@@ -81,6 +83,13 @@ class Postgres:
              "postgres:17.11-bookworm", "-c", script],
             check=True, capture_output=True, text=True,
         ).stdout.strip()
+        try:
+            self.setup()
+        except BaseException:
+            self.close()
+            raise
+
+    def setup(self):
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
             ok = subprocess.run(
@@ -96,6 +105,22 @@ class Postgres:
         )
         subprocess.run(
             ["docker", "exec", self.id, "psql", "-U", "admin", "-d", "logistics", "-v", "ON_ERROR_STOP=1", "-c", sql],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["docker", "exec", self.id, "psql", "-U", "admin", "-d", "logistics", "-c", "CREATE DATABASE warehouse"],
+            check=True, capture_output=True,
+        )
+        tables = (
+            "CREATE TABLE public.customers (id bigint PRIMARY KEY, name text);"
+            "CREATE TABLE public.orders (id bigint PRIMARY KEY, customer_id bigint REFERENCES public.customers);"
+            "CREATE TABLE public.audit_log (at timestamptz, line text);"
+            "INSERT INTO public.customers SELECT i, 'c' || i FROM generate_series(1, 4800) i;"
+            "INSERT INTO public.orders SELECT i, 1 + i % 4800 FROM generate_series(1, 12000) i;"
+            "ANALYZE;"
+        )
+        subprocess.run(
+            ["docker", "exec", self.id, "psql", "-U", "admin", "-d", "logistics", "-v", "ON_ERROR_STOP=1", "-c", tables],
             check=True, capture_output=True,
         )
         out = subprocess.run(["docker", "port", self.id, "5432/tcp"], check=True,
@@ -239,10 +264,12 @@ def catalog(path: Path, schema: str):
     ]}))
 
 
-def to_screen_two(s: Session):
+def to_screen_two(s: Session, expect=()):
     s.wait("SSH jump host")
     s.press(ENTER)  # direct connection
     s.wait("recommend")
+    for name in expect:
+        s.wait(name)
     s.press("q", count=False)
     s.process.wait(timeout=10)
 
@@ -254,8 +281,7 @@ def run_postgres(binary, root, certs, report):
         home.mkdir()
         work = root / "work-pg"
         work.mkdir()
-        catalog(root / "pg-catalog.json", "public")
-        args = ["--catalog", str(root / "pg-catalog.json")]
+        args = []  # no --catalog: screen 2 lists the server's tables
         s = Session(binary, home, work, args)
         try:
             s.wait("PostgreSQL")
@@ -275,9 +301,11 @@ def run_postgres(binary, root, certs, report):
             s.press(ENTER)                       # sign in
             s.wait("signed in as oo_reader", 30)
             s.wait("detected 17.11")
+            s.wait("3 known")                    # logistics, postgres, warehouse from the server
             s.press(ENTER)                       # continue
             first = s.keys
-            to_screen_two(s)
+            to_screen_two(s, ["customers", "orders", "audit_log"])
+            assert "Table discovery" not in s.text()
             assert pg.password not in s.text(), "password echoed"
         finally:
             s.close()
@@ -298,12 +326,14 @@ def run_postgres(binary, root, certs, report):
             s.wait("signed in as oo_reader", 30)
             s.press(ENTER)
             again = s.keys
-            to_screen_two(s)
+            to_screen_two(s, ["customers"])
         finally:
             s.close()
         report["postgres"] = {"server": "postgres:17.11 (TLS, scram, read-only role)",
                               "keys_first_run": first, "keys_recent_rerun": again,
                               "password_chars": len(pg.password), "detected": "17.11 → 17",
+                              "databases_listed": "logistics, postgres, warehouse",
+                              "tables_discovered": ["public.audit_log", "public.customers", "public.orders"],
                               "stored_secrets": stored}
     finally:
         pg.close()

@@ -49,6 +49,8 @@ type IntegerBoundaries = (Vec<Vec<KeyValue>>, u64);
 
 #[path = "declared.rs"]
 mod declared;
+#[path = "discover.rs"]
+mod discover;
 #[path = "shape.rs"]
 mod shape;
 
@@ -2505,6 +2507,14 @@ impl SourceEngine for OracleEngine {
 
     fn family(&self) -> EngineFamily {
         EngineFamily::Oracle
+    }
+
+    async fn discover_tables(&mut self, budget: &ReadBudget) -> Result<Vec<TableRef>, SourceError> {
+        Ok(self
+            .discover_catalog(budget)?
+            .into_iter()
+            .map(|t| t.table)
+            .collect())
     }
 
     async fn probe(&mut self) -> Result<ProbeReport, SourceError> {

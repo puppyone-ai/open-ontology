@@ -7,6 +7,7 @@
 
 pub mod changes;
 mod declared;
+mod discover;
 mod kingbase;
 pub mod lsn;
 pub mod opengauss;
@@ -575,6 +576,16 @@ impl SourceEngine for PostgresEngine {
     fn family(&self) -> EngineFamily {
         self.family
     }
+
+    async fn discover_tables(&mut self, budget: &ReadBudget) -> Result<Vec<TableRef>, SourceError> {
+        Ok(self
+            .discover_catalog(budget)
+            .await?
+            .into_iter()
+            .map(|t| t.table)
+            .collect())
+    }
+
     async fn probe(&mut self) -> Result<ProbeReport, SourceError> {
         let mut s = self.connect().await?;
         let result = probe::observe(&mut s).await.map(|mut report| {
