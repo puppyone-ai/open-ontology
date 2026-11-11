@@ -35,8 +35,10 @@ Exit 2 is configuration/execution failure with a closed error code.
 2. Validate the public synthetic bank with `question-bank`; match its questions
    and gold to the manifest. The bank's review label is fixture metadata, not
    fabricated independent human sign-off.
-3. Construct C0 from table/column names alone and C3 from the exact shipped
-   analyst Pack. Both use identical question and instruction text. Gold,
+3. Construct C0 from table/column names alone and C3 from the frozen
+   `fixtures/pack-recorded.json` analyst Pack used by these recordings.
+   The live demo can evolve without silently rebinding historical responses
+   to a different prompt. Both use identical question and instruction text. Gold,
    expected refusal and track labels never enter prompts. Each response is
    bound to its prompt hash, the same model id, seed and dataset hash.
 4. Replay each SQL-bound PG protocol transcript through `sql-runner`,
