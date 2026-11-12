@@ -114,6 +114,27 @@ def capacity(engine):
     return {"observed_bytes": used, "reserved_bytes": budget}
 
 
+def wait_for_oracle(seconds, receipt):
+    """Wait without reserving resources or interfering with the occupied lane."""
+    deadline = time.monotonic() + seconds
+    observations = []
+    while True:
+        try:
+            capacity("oracle")
+            observations.append({"time": time.time(), "status": "available"})
+            runner.write_json(receipt, observations)
+            return True
+        except RuntimeError as error:
+            if str(error) != "oracle_slot_occupied":
+                raise
+            observations.append({"time": time.time(), "status": "oracle_slot_occupied"})
+            runner.write_json(receipt, observations)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(120, remaining))
+
+
 class SnapshotRun(t1.LaneRun):
     """The ordinary fixture bootstrap, with a private COW-backed data mount."""
     def __init__(self, path, engine, version, args, cache, key, manifest):
@@ -206,6 +227,19 @@ class SnapshotRun(t1.LaneRun):
             if staging.exists():
                 shutil.rmtree(staging)
         self.command(["docker", "start", self.name])
+        self.wait_ready()
+
+    @runner.timed("container_start")
+    def wait_ready(self):
+        # docker start acknowledges the process, not an open database.
+        deadline = time.monotonic() + (self.args.health_timeout or 1200)
+        query = "SELECT 1 FROM dual;" if self.engine == "oracle" else "SELECT 1;"
+        while time.monotonic() < deadline:
+            code, _ = self.sql(query, admin=True, required=False, timeout=30)
+            if code == 0:
+                return
+            time.sleep(1)
+        raise RuntimeError("snapshot_restart_health_timeout")
 
     def cleanup(self):
         failures = super().cleanup()
@@ -221,11 +255,14 @@ def main(argv=None):
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--scale", type=int, default=2000)
     parser.add_argument("--tables", type=int, default=3)
+    parser.add_argument("--wait-for-oracle", type=int, default=0,
+                        help="seconds to wait for the Oracle slot, polling every 120 seconds")
     args = parser.parse_args(argv)
     import re
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,100}", args.run_id):
         parser.error("invalid run id")
-    if not 1 <= args.scale <= 10_000_000 or not 0 <= args.tables <= 5000:
+    if (not 1 <= args.scale <= 10_000_000 or not 0 <= args.tables <= 5000
+            or args.wait_for_oracle < 0):
         parser.error("invalid fixture dimensions")
     t1.LANE = "ta"
     args.health_timeout = None
@@ -233,6 +270,13 @@ def main(argv=None):
     native = "linux/arm64" if architecture.strip() in ("arm64", "aarch64") else "linux/amd64"
     root = runner.ROOT / "evidence" / args.run_id
     root.mkdir(parents=True, mode=0o700, exist_ok=False)
+    if args.engine == "oracle" and args.wait_for_oracle:
+        if not wait_for_oracle(args.wait_for_oracle, root / "slot-polls.json"):
+            runner.write_json(root / "results.json", [
+                {"engine": "oracle", "version": v, "status": "pending",
+                 "error": "oracle_slot_occupied"}
+                for v in args.versions.split(",")])
+            return 1
     results = []
     for version in args.versions.split(","):
         item = runner.resolve(args.engine, version)

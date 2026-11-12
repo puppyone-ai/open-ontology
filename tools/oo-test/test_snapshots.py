@@ -1,13 +1,49 @@
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+from types import SimpleNamespace
 
 import runner
 import snapshots
 
 
 class SnapshotTests(unittest.TestCase):
+    def test_cold_restart_waits_for_sql_readiness(self):
+        run = object.__new__(snapshots.SnapshotRun)
+        run.engine = "postgres"
+        run.args = SimpleNamespace(health_timeout=10)
+        run.sql = Mock(side_effect=[(2, ""), (0, "1")])
+        with patch.object(snapshots.time, "sleep") as sleep:
+            run.wait_ready()
+        self.assertEqual(run.sql.call_count, 2)
+        sleep.assert_called_once_with(1)
+        run.engine = "oracle"
+        run.sql = Mock(return_value=(1, ""))
+        with patch.object(snapshots.time, "monotonic", side_effect=[0, 20]):
+            with self.assertRaisesRegex(RuntimeError, "restart_health_timeout"):
+                run.wait_ready()
+
+    def test_oracle_wait_polls_at_two_minutes_and_keeps_pending_evidence(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            receipt = Path(directory) / "polls.json"
+            with patch.object(snapshots, "capacity",
+                              side_effect=[RuntimeError("oracle_slot_occupied"), {}]), \
+                 patch.object(snapshots.time, "monotonic", side_effect=[0, 1]), \
+                 patch.object(snapshots.time, "sleep") as sleep:
+                self.assertTrue(snapshots.wait_for_oracle(300, receipt))
+                sleep.assert_called_once_with(120)
+            with patch.object(snapshots, "capacity",
+                              side_effect=RuntimeError("oracle_slot_occupied")), \
+                 patch.object(snapshots.time, "monotonic", side_effect=[0, 1]), \
+                 patch.object(snapshots.time, "sleep") as sleep:
+                self.assertFalse(snapshots.wait_for_oracle(1, receipt))
+                sleep.assert_not_called()
+            with patch.object(snapshots, "capacity",
+                              side_effect=RuntimeError("docker_memory_budget_exhausted")):
+                with self.assertRaisesRegex(RuntimeError, "memory"):
+                    snapshots.wait_for_oracle(300, receipt)
+
     def test_key_covers_scale_tables_platform_and_generator(self):
         args = ("postgres", "17", 2000, 3, "linux/arm64")
         key, manifest = snapshots.identity(*args)
