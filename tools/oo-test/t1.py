@@ -673,6 +673,32 @@ def chunk_rows():
     return value
 
 
+def keyless_padding(run):
+    """Boundary shape: a keyless table past the 64 KiB COPY flush in one chunk.
+
+    The 2M-row run reaches it only because the concurrent writer grows no_key
+    for many minutes; small fixtures set OO_TEST_KEYLESS_ROWS instead.
+    """
+    count = os.environ.get("OO_TEST_KEYLESS_ROWS", "0")
+    if not count.isdigit() or int(count) > 1_000_000:
+        raise ValueError("invalid OO_TEST_KEYLESS_ROWS")
+    count = int(count)
+    if not count:
+        return 0
+    if run.engine == "postgres":
+        run.sql("INSERT INTO no_key SELECT 40000000+g,'boundary-pad-'||g "
+                f"FROM generate_series(1,{count}) g;", admin=True)
+    elif run.engine == "mysql":
+        for start in range(1, count + 1, 1000):
+            values = ",".join(f"({40_000_000 + i},'boundary-pad-{i}')"
+                              for i in range(start, min(count, start + 999) + 1))
+            run.sql(f"INSERT INTO no_key VALUES {values};", admin=True)
+    else:
+        run.sql("INSERT INTO no_key SELECT 40000000+LEVEL,'boundary-pad-'||LEVEL "
+                f"FROM dual CONNECT BY LEVEL<={count};\nCOMMIT;", admin=True)
+    return count
+
+
 def run_t1(run, binary, worker_image=None):
     target = AgentDB(run)
     store = run.path / ".load-private"
@@ -752,6 +778,7 @@ def run_t1(run, binary, worker_image=None):
         target.start()
         target_config = {"host": "127.0.0.1", "port": target.port, "database": "postgres",
                          "user": "postgres", "password": {"secret_ref": "target-password"}, "local_fixture": True}
+        report["keyless_padding_rows"] = keyless_padding(run)
         thread = threading.Thread(target=writer, args=(run, stop, report["writer"]))
         thread.start()
         def load(run_id, *, correction=False, only=None, cycle=1):

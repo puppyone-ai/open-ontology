@@ -99,7 +99,7 @@ def diff(binary, small, large, root):
     return report
 
 
-def run_side(root, label, engine, version, scale, tables, binary, chunk_rows):
+def run_side(root, label, engine, version, scale, tables, binary, chunk_rows, keyless_rows=0):
     path = root / label
     path.mkdir(mode=0o700)
     profiles = root / (label + "-profiles")
@@ -109,11 +109,13 @@ def run_side(root, label, engine, version, scale, tables, binary, chunk_rows):
     item = runner.resolve(engine, version)
     platform = native if native in item["platforms"] else "linux/amd64"
     options = argparse.Namespace(scale=scale, tables=tables, platform=platform, health_timeout=None)
-    env = {"LLVM_PROFILE_FILE": str(profiles / "%p-%m.profraw"), "OO_TEST_CHUNK_ROWS": str(chunk_rows)}
+    env = {"LLVM_PROFILE_FILE": str(profiles / "%p-%m.profraw"), "OO_TEST_CHUNK_ROWS": str(chunk_rows),
+           "OO_TEST_KEYLESS_ROWS": str(keyless_rows)}
     saved = {k: os.environ.get(k) for k in env}
     os.environ.update(env)
     started = time.monotonic()
-    result = {"label": label, "scale": scale, "tables": tables, "chunk_rows": chunk_rows}
+    result = {"label": label, "scale": scale, "tables": tables, "chunk_rows": chunk_rows,
+              "keyless_rows": keyless_rows}
     run = None
     try:
         snapshots.capacity(engine)
@@ -144,9 +146,11 @@ def main(argv=None):
     parser.add_argument("--version", default="17")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--small-scale", type=int, default=2000)
+    parser.add_argument("--small-scale", type=int, default=23000)
+    parser.add_argument("--keyless-rows", type=int, default=4000,
+                        help="small side only: pre-grown keyless rows (boundary shape)")
     parser.add_argument("--small-tables", type=int, default=3)
-    parser.add_argument("--chunk-rows", type=int, default=64)
+    parser.add_argument("--chunk-rows", type=int, default=10000)
     parser.add_argument("--large-scale", type=int, default=2_000_000)
     parser.add_argument("--large-tables", type=int, default=200)
     parser.add_argument("--profiles", nargs=2, type=Path, metavar=("SMALL", "LARGE"),
@@ -162,11 +166,11 @@ def main(argv=None):
     else:
         sides, profiles = {}, {}
         for label in args.sides.split(","):
-            scale, tables, chunk = ((args.small_scale, args.small_tables, args.chunk_rows)
-                                    if label == "small" else
-                                    (args.large_scale, args.large_tables, 10000))
+            scale, tables, chunk, keyless = (
+                (args.small_scale, args.small_tables, args.chunk_rows, args.keyless_rows)
+                if label == "small" else (args.large_scale, args.large_tables, 10000, 0))
             sides[label], profiles[label] = run_side(
-                root, label, args.engine, args.version, scale, tables, binary, chunk)
+                root, label, args.engine, args.version, scale, tables, binary, chunk, keyless)
             runner.write_json(root / "sides.json", sides)
         if set(profiles) != {"small", "large"}:
             print(json.dumps(sides))
