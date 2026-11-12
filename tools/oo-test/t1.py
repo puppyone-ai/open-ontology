@@ -665,6 +665,14 @@ def compare_oracle(run, target, receipt, table):
 
 compare_oracle = partial(compare_oracle_lobs, scalar_compare=compare_oracle)
 
+def chunk_rows():
+    """Small boundary fixtures shrink chunks to reach the 2M-row chunk shapes."""
+    value = os.environ.get("OO_TEST_CHUNK_ROWS", "10000")
+    if not value.isdigit() or not 1 <= int(value) <= 1_000_000:
+        raise ValueError("invalid OO_TEST_CHUNK_ROWS")
+    return value
+
+
 def run_t1(run, binary, worker_image=None):
     target = AgentDB(run)
     store = run.path / ".load-private"
@@ -757,7 +765,7 @@ def run_t1(run, binary, worker_image=None):
             with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
                 code, out = run.command([str(binary), *mode, "--stack", str(store / "stack.json"),
                                         "--source", "fixture", "--target", str(store / "target.json"),
-                                        "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
+                                        "--secrets-dir", str(store), "--chunk-rows", chunk_rows(), *worker_args],
                                        timeout=7200, required=False)
             measurement = meter.result()
             measurements.append(measurement)

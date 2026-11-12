@@ -4,6 +4,9 @@ sys.dont_write_bytecode = True
 if sys.argv[1:2] == ["gate"]:
     del sys.argv[1]
     from defects import main
+elif sys.argv[1:2] == ["coverage"]:
+    del sys.argv[1]
+    from coverage import main
 elif sys.argv[1:2] == ["snapshot"]:
     del sys.argv[1]
     from snapshots import main
