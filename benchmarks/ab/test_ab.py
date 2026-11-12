@@ -98,6 +98,27 @@ class ScorerTests(unittest.TestCase):
         self.assertNotIn("pack-canary", ab.canonical(left))
         self.assertIn("pack-canary", ab.canonical(right))
 
+    def test_knowledge_pages_are_exact_question_independent_public_text(self):
+        pack = {"files": [
+            {"path": path, "text": path + " unmodified", "sha256": "archive-canary"}
+            for path in ("manifest.json", "README.md", "tables/t.md", "metrics/page-1.md",
+                         "enums/status.md", "examples/verified.sql", "availability.json",
+                         "metrics/availability.json", "relationships/page-1.md",
+                         "relationships/query-paths.json", "summaries/tables.json")]}
+        question = {"question": "Count rows", "gold": "gold-canary"}
+        pages = ab.prompt(question, "c3", {}, pack, "knowledge-pages-v1")["context"]["files"]
+        self.assertEqual(len(pages), 8)
+        self.assertTrue(all(f["text"] == f["path"] + " unmodified" for f in pages))
+        self.assertNotIn("archive-canary", ab.canonical(pages))
+        other = dict(question, question="An unrelated question")
+        self.assertEqual(pages, ab.prompt(other, "c3", {}, pack,
+                                          "knowledge-pages-v1")["context"]["files"])
+        self.assertEqual(ab.prompt(question, "c0", {"t": ["id"]}, pack),
+                         ab.prompt(question, "c0", {"t": ["id"]}, pack, "knowledge-pages-v1"))
+        self.assertEqual(ab.prompt(question, "c3", {}, pack)["context"], pack)
+        with self.assertRaisesRegex(ab.Invalid, "prompt_context_format"):
+            ab.prompt(question, "c3", {}, pack, "unknown")
+
     def test_duplicate_questions_and_noninteger_seed_rejected(self):
         dataset = ab.load(FIXTURE)
         dataset["questions"].append(dataset["questions"][0])

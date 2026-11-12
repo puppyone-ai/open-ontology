@@ -120,13 +120,29 @@ def paired(rows, recorded=True):
     return result
 
 
-def prompt(question, arm, schema, pack):
+def knowledge_pages(pack):
+    """The compiler's readable pages, not its archive and navigation indexes.
+
+    This fixed, question-independent read set covers README's reading guidance.
+    Availability documents retain certification gaps; no text is summarized.
+    """
+    paths = ("availability.json", "metrics/availability.json")
+    return [{"path": file["path"], "text": file["text"]}
+            for file in sorted(pack["files"], key=lambda f: f["path"])
+            if file["path"].endswith((".md", ".sql")) or file["path"] in paths]
+
+def prompt(question, arm, schema, pack, context_format="artifact-v1"):
     # Gold and policy expectations never enter the model-facing envelope.
-    return {"question": question["question"], "context": schema if arm == "c0" else pack,
+    if context_format not in ("artifact-v1", "knowledge-pages-v1"):
+        raise Invalid("prompt_context_format")
+    context = pack if context_format == "artifact-v1" else {"files": knowledge_pages(pack)}
+    return {"question": question["question"], "context": schema if arm == "c0" else context,
             "instruction": "Return one read-only PostgreSQL query or an explicit refusal."}
 
 
 def validate_dataset(dataset):
+    if dataset.get("context_format", "artifact-v1") not in ("artifact-v1", "knowledge-pages-v1"):
+        raise Invalid("prompt_context_format")
     if dataset["version"] != VERSION or dataset["engine"] != "postgresql":
         raise Invalid("dataset_schema")
     if dataset["model"] != MODEL or type(dataset["seed"]) is not int:
@@ -314,7 +330,8 @@ def run(dataset_path, output):
             response = recordings["responses"].get(arm + ":" + q["id"])
             if response is None:
                 continue
-            expected = digest(canonical(prompt(q, arm, schema, pack)).encode())
+            expected = digest(canonical(prompt(
+                q, arm, schema, pack, dataset.get("context_format", "artifact-v1"))).encode())
             if response["prompt_sha256"] != expected:
                 raise Invalid("prompt_binding")
             if response["kind"] == "gateway":

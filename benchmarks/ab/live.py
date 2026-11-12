@@ -249,7 +249,8 @@ def capture(args, dataset_path):
 
     def trial(pair):
         arm, question = pair
-        envelope = ab.prompt(question, arm, schema, pack)
+        envelope = ab.prompt(question, arm, schema, pack,
+                             dataset.get("context_format", "artifact-v1"))
         client = egress.Egress(model, None, timeout=args.timeout)
         try:
             response = model_response(client, envelope, dataset["seed"], args.retries)

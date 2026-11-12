@@ -41,6 +41,19 @@ Publication receipts bind execution, while the Pack file hash is declared by
 the operator: verify it against the deployed Pack before claiming published-Pack
 acceptance. These instructions alone do not establish a completed live run.
 
+For new reader-context experiments, set `"context_format": "knowledge-pages-v1"`
+in the input manifest. C3 then receives the exact path/text of every Markdown
+and SQL page plus `availability.json` and `metrics/availability.json`, as
+available through `oo knowledge cat` / MCP `read_knowledge`. This is a fixed
+read set, independent of the question; it preserves certification warnings
+and does not summarize or add facts. Archive hashes, the compilation manifest,
+and machine navigation/graph indexes are not eagerly injected as prose.
+Verify the selected text against the authenticated knowledge endpoint.
+This tests a bounded reader context, not interactive tool use or retrieval.
+C0 is unchanged. Omitting the field retains the original full-artifact prompt,
+so historical recordings remain replayable. The manifest and prompt hashes
+bind the chosen format; never compare formats without reporting the change.
+
 ### Frozen fixtures
 
 From the repository root:

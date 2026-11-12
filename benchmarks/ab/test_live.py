@@ -131,6 +131,7 @@ class LiveTests(unittest.TestCase):
             root = Path(tmp)
             fixture = ab.ROOT / "benchmarks/ab/fixtures/demo.json"
             dataset = ab.load(fixture)
+            dataset["context_format"] = "knowledge-pages-v1"
             dataset["publication"] = {
                 "publication_id": "pub1_" + "a" * 64, "data_vector_sha256": "b" * 64,
                 "knowledge_version": "v1", "policy_version": "p1"}
