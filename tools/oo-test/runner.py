@@ -558,7 +558,9 @@ def execute_suites(run, requested, hooks):
         if audit:
             audit.marker("end")
             report = audit.collect()
-            report["dependencies"] = {s: results.get(s, "not_run") for s in ("T1", "T2")}
+            # The full matrix always adds T1 and T2 to T7; fast L1 audits only what it ran.
+            report["dependencies"] = {s: results.get(s, "not_run") for s in ("T1", "T2")
+                                      if s in requested}
             report["passed"] &= all(v == "passed" for v in report["dependencies"].values())
             write_json(run.path / "audit-report.json", report)
             results["T7"] = "passed" if report["passed"] else "failed"
