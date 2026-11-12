@@ -99,6 +99,7 @@ def run_shared_cell(cell, path, args):
     t1.LANE = "ta"
     os.environ["OO_TEST_LANE"] = "ta"
     os.environ["OO_TEST_CHUNK_ROWS"] = str(args.chunk_rows)
+    os.environ["OO_TEST_KEYLESS_ROWS"] = str(args.keyless_rows)
     platform = platform_for(cell["engine"], cell["version"])
     options = argparse.Namespace(scale=args.scale, tables=args.tables, platform=platform,
                                  health_timeout=None, variant=None, suites=["T0", "T1", "T7"])
@@ -113,6 +114,13 @@ def run_shared_cell(cell, path, args):
             run.__init__(path, cell["engine"], cell["version"], options, cache, key, manifest)
             run.setup()
             run.seed()
+            if cell["engine"] == "oracle":
+                # No in-instance pristine copy for Oracle (LOBs, constraints):
+                # suites run in sequence on this clone, as in the full matrix.
+                run.args.suites = ["T0", "T1", "T7", "T8"]
+                suites = ["T0", "T1", "T7", "T8"] if "T1" in cell["full"] else ["T0", "T7"]
+                verdicts.update(runner.execute_suites(run, suites, hooks))
+                return verdicts
             source = shared.SharedSource(run)
             source.prepare()
             # T0 is the capability probe for every version.
@@ -230,9 +238,13 @@ def main(argv=None):
     parser.add_argument("--base", help="select L1/L2 engines by impact of BASE...HEAD")
     parser.add_argument("--coverage-export", action="append", default=[], metavar="ENGINE=PATH")
     parser.add_argument("--day", help="rotation day, YYYY-MM-DD (default today)")
-    parser.add_argument("--scale", type=int, default=2000)
+    # The boundary fixture whose product coverage equals the 2M-row run's
+    # (evidence ta-01-cov-diff4): 23000 rows keep a partial last chunk and a
+    # >64 KiB COPY buffer at the default 10000-row chunks.
+    parser.add_argument("--scale", type=int, default=23000)
     parser.add_argument("--tables", type=int, default=3)
-    parser.add_argument("--chunk-rows", type=int, default=512)
+    parser.add_argument("--chunk-rows", type=int, default=10000)
+    parser.add_argument("--keyless-rows", type=int, default=4000)
     parser.add_argument("--skip-cdc", action="store_true", help="omit T2/T4 commands")
     parser.add_argument("--plan-only", action="store_true")
     args = parser.parse_args(argv)

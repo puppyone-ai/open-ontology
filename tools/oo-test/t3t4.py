@@ -53,6 +53,7 @@ def rows(text):
 # paired with the real-fault case of the same name in the L3 run.
 FAST = False
 FAST_OUTAGE = 3
+FAST_C1_ROUNDS = 8
 FAILPOINT = {"snapshot": "load_chunk_commit=abort@3", "c5": "c5_commit=abort@1",
              "c1": "c1_apply_commit=abort@1"}
 FAST_PAIRS = {"sigkill_mid_cycle": "failpoint", "network_drop_mid_c1": "toxiproxy",
@@ -769,7 +770,9 @@ def c1_fault(h, sid, fault):
     h.c1_binding(sid, ["items", "other"])
     h.c1(sid)
     base = h.key()
-    for i in range(60):
+    # Each round becomes one C1 batch paced at 25% duty; fast mode keeps enough
+    # batches for a mid-run fault without the 60-batch pacing tail.
+    for i in range(FAST_C1_ROUNDS if FAST else 60):
         h.dml(["items", "other"], base + i * 10, count=3)
     before = h.position(sid)
     arm(h, fault, "c1")
