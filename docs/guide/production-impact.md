@@ -3,17 +3,31 @@
 Production-impact acceptance is separate from functional correctness. A passing
 T1/T2 run, a successful build, or the lite C5 default is not a D24 measurement.
 
-## Pending mitigation: revised foreground rate
+## Chunk-consistent mitigation: validation in progress
 
-T10 automatic-rate runs now offer 50% of the settled sustainable rate after
-the unchanged calibration and settling procedure. Receipts separately record
-capacity, settled rate and used rate. Explicit rates remain overrides, not
-measured utilization. This method change has 51 passing offline harness tests,
-but no new live phase measurements; it is not a product snapshot mitigation.
-S6-H-02 remains incomplete. See the [partial mitigation handoff](../../tools/oo-test/T10-MITIGATE.md)
-for unresolved correctness, handoff-budget and remeasurement work.
+Keyed PostgreSQL and MySQL loads now default to `snapshot: chunk_consistent`.
+Each transferred range and its canonical digest share one bounded read-only
+transaction. Receipts, retained publication plans and C5 state carry the read
+consistency and configured row/byte/time limits. Ranges can represent different
+instants; the next C5 cycle reconciles changes. This is not a globally consistent
+snapshot or proof of source-real-time freshness.
 
-## Current measurement: T10-live-4
+`snapshot: single` explicitly retains the long-snapshot option. PostgreSQL physical
+no-key tables keep a per-table exporter; unprovable key shapes conservatively use
+snapshot mode. These residuals can still retain xmin. C1 still requires keys.
+
+Full-scale PG 17 and MySQL 8.4 T1/T8 and real update/delete/key-move proof tests
+pass. T2 also passes with two million baseline rows per table. The [mitigation evidence report](../../tools/oo-test/T10-MITIGATE2.md)
+separates those checks from production-impact acceptance, which remains pending.
+No public Gateway or business acceptance is claimed.
+
+T10 automatic measurements use 50% of the settled rate after the unchanged
+calibration/settling procedure. Capacity, settled rate and used rate remain
+separate fields. Keep default duty and periodic full verification; idle C5 still
+scans source digests even when it transfers no payload. Historical live-4 numbers
+below are not measurements of this new policy and cannot isolate its causal effect.
+
+## Historical measurement: T10-live-4
 
 **S6-H-02 remains incomplete; no engine has passed every D24 phase.**
 Runs span November 8-9, 2026 local. Sources were limited to 4 CPUs / 8 GiB,
