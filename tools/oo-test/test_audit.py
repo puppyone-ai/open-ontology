@@ -61,6 +61,8 @@ class AuditTests(unittest.TestCase):
             ("mysql", "c5", "SELECT COUNT(*),BIT_XOR(CRC32(CONCAT_WS('#',`id`,`payload`))) FROM `fixture`.`items`",
              "c5_digest"),
             ("oracle", "c5", "SELECT TO_CHAR(current_scn) FROM v$database", "catalog_read"),
+            ("postgres", "c5", "SELECT set_config('search_path','pg_catalog',false), "
+             "set_config('max_parallel_workers_per_gather','0',false)", "d12_session_state"),
         ]
         for engine, variant, sql, category in cases:
             self.assertEqual(audit.classify_sql(sql, engine, variant)[0], category, sql)
