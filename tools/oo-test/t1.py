@@ -168,6 +168,7 @@ class AgentDB:
         self.directory.mkdir(mode=0o700)
         private(self.directory / "password", self.password)
 
+    @runner.timed("container_start")
     def start(self):
         item = runner.resolve("postgres", "17")
         _, arch = self.run.command(["docker", "info", "--format", "{{.Architecture}}"])
@@ -203,6 +204,7 @@ class AgentDB:
         return self.run.command(["docker", "exec", "-i", self.name, "psql", "-X", "-U", "postgres",
                                  "-v", "ON_ERROR_STOP=1", "-A", "-t"], data=sql)[1]
 
+    @runner.timed("cleanup")
     def close(self):
         if self.created:
             _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", self.name])
@@ -508,6 +510,7 @@ def mysql_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_mysql(run, target, receipt, table):
     _, metadata = run.sql("SELECT column_name,data_type FROM information_schema.columns "
                           f"WHERE table_schema='fixture' AND table_name='{table}' ORDER BY ordinal_position;")
@@ -541,6 +544,7 @@ def compare_mysql(run, target, receipt, table):
     return compare(source_rows(), target_rows(), key_columns=[names.index(k) for k in keys], consistency="B")
 
 
+@runner.timed("compare")
 def compare_pg(run, target, receipt, table):
     _, columns_text = run.sql(
         "SELECT column_name||'|'||data_type FROM information_schema.columns "
@@ -588,6 +592,7 @@ def pg_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_oracle(run, target, receipt, table):
     _, raw = run.sql("SELECT column_name||'|'||data_type FROM all_tab_columns "
                      f"WHERE owner='FIXTURE' AND table_name='{table}' ORDER BY column_id;")
@@ -870,6 +875,7 @@ def main():
         run.reader_secret = Path(context["reader_password_file"]).read_text().strip()
         receipt = Path(context["evidence"]) / "resource-receipt.json"
         run.receipt = json.loads(receipt.read_text())
+        run.timing = runner.Timing(run)
         result = run_t1(run, ROOT / "target/debug/oo-load", os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         runner.checksums(run.path)
         raise SystemExit(0 if result["T1"] == "passed" and result["T8"] == "passed" else 1)

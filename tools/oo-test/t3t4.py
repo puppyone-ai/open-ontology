@@ -102,6 +102,7 @@ class Source(LaneRun):
 
 class DurableAgentDB(AgentDB):
     """Agent DB on a labelled volume and fixed port so a restart keeps its data."""
+    @runner.timed("container_start")
     def start(self):
         item = runner.resolve("postgres", "17")
         _, arch = self.run.command(["docker", "info", "--format", "{{.Architecture}}"])
@@ -130,6 +131,7 @@ class DurableAgentDB(AgentDB):
                                  "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-P", "null=NULL"],
                                 data=sql, required=required)
 
+    @runner.timed("cleanup")
     def close(self):
         try:
             super().close()
@@ -400,6 +402,7 @@ class Harness:
                            f"AND attname NOT LIKE '\\_\\_oo%' ORDER BY attnum;")
         return [(n, type_class(k)) for n, k in (line.split("\t") for line in text.splitlines() if line)]
 
+    @runner.timed("compare")
     def compare(self, sid):
         """Columns (name, class) and every row, ordered by the integer id."""
         result = {}

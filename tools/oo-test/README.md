@@ -3,6 +3,40 @@
 Python 3 standard library + Docker CLI. No root Cargo dependency/lock changes.
 Run from this checkout; the tool resolves paths relative to its own file.
 
+## Stage timing (TA-01, initial instrumentation)
+
+```sh
+tools/oo-test/oo-test timing evidence/<run-id>
+tools/oo-test/oo-test timing evidence/<run-id> --json
+```
+
+`Run` source setup, seed, gold/shape comparisons and cleanup now record
+monotonic timings, including subclass overrides and exceptional exits.
+The T1 target lifecycle and row comparisons, T2 bulk seed, and T3/T4 target
+lifecycle and comparison methods use the same recorder. Synchronous native
+product commands through `Run.command` and matrix hook orchestration record
+`product_run`. T7 inherits the source/workload instrumentation.
+
+Each completed stage writes `timing.json` and embeds the same measurement
+in an existing `resource-receipt.json`. Stages missing instrumentation or not
+executed have `seconds: null`, not zero. `raised` counts exceptions, not failed
+suite verdicts: expected refusal commands can return nonzero without raising.
+Nested timings are exclusive within one call stack; parallel threads,
+subprocess hook receipts and different fixture receipts must not be summed
+as overall wall time. `wall_seconds` covers the timer's lifetime through its
+last completed stage, not necessarily the whole suite invocation.
+
+The summary reads existing evidence only, rejects paths outside this
+worktree's evidence tree, and exits nonzero for empty or legacy uninstrumented
+receipts. It is a timing inventory, not an acceptance gate.
+
+Instrumentation is not yet complete: asynchronous T3/T4 product lifetimes,
+inline T2 comparisons/setup, independent T5/T6 and installation runners, and
+T9/T10-specific setup/comparison work still need explicit stage boundaries.
+Inherited measurements do not establish complete suite-stage accounting.
+No fixture scale, verdict, fault, version selection or full command changes.
+No fast/full timing or coverage equivalence is claimed by this first slice.
+
 ```sh
 tools/oo-test/oo-test matrix --engine mysql --versions 5.7,8.0,8.4,9.x --suites T0
 tools/oo-test/oo-test matrix --engine postgres --versions 13,14,15,16,17,18 --suites T0

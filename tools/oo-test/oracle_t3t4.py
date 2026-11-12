@@ -164,6 +164,7 @@ class OracleHarness(t3t4.Harness):
         super().remember(sid, receipts)
         self.relations = {(s, t.lower()): r for (s, t), r in self.relations.items()}
 
+    @runner.timed("compare")
     def compare(self, sid):
         result = {}
         for table in self.tables(sid):
