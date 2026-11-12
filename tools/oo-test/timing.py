@@ -20,6 +20,19 @@ class Timing:
         self.stack = ContextVar("timing_stack", default=())
         self.lock = threading.RLock()
 
+    def background(self, name, started, *, raised=False):
+        """Record a subprocess lifetime without borrowing the caller's stack."""
+        if name not in STAGES:
+            raise ValueError("unknown timing stage")
+        elapsed = self.clock() - started
+        with self.lock:
+            self.events.append({
+                "stage": name, "offset_seconds": started - self.started,
+                "elapsed_seconds": elapsed, "exclusive_seconds": elapsed,
+                "raised": raised, "background": True,
+            })
+            self.persist()
+
     @contextmanager
     def stage(self, name):
         if name not in STAGES:
@@ -64,6 +77,7 @@ class Timing:
             },
             "events": list(self.events),
             "note": "Exclusive within a call stack; concurrent work is not wall time. "
+                    "Background lifetimes may overlap foreground stages. "
                     "raised records exceptions, not suite verdicts.",
         }
 

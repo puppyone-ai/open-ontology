@@ -30,8 +30,12 @@ The summary reads existing evidence only, rejects paths outside this
 worktree's evidence tree, and exits nonzero for empty or legacy uninstrumented
 receipts. It is a timing inventory, not an acceptance gate.
 
-Instrumentation is not yet complete: asynchronous T3/T4 product lifetimes,
-inline T2 comparisons/setup, independent T5/T6 and installation runners, and
+T3/T4 background product lifetimes are recorded from spawn through finish,
+including diagnostic exceptions, with `background: true`. These overlap
+foreground stages; adding their durations does not measure wall time.
+
+Instrumentation is not yet complete: inline T2 comparisons/setup,
+independent T5/T6 and installation runners, and
 T9/T10-specific setup/comparison work still need explicit stage boundaries.
 Inherited measurements do not establish complete suite-stage accounting.
 No fixture scale, verdict, fault, version selection or full command changes.

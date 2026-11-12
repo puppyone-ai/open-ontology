@@ -17,6 +17,7 @@ import signal
 import socket
 import ssl
 import subprocess
+import sys
 import time
 import uuid
 
@@ -321,11 +322,28 @@ class Harness:
         runner.write_json(prefix.with_suffix(".json"), {
             "argv": [x.replace(str(ROOT), "<worktree>") for x in command], "background": True})
         out, err = prefix.with_suffix(".stdout").open("w"), prefix.with_suffix(".stderr").open("w")
-        proc = subprocess.Popen(command, stdout=out, stderr=err, text=True, cwd=ROOT)
-        proc.files, proc.seq, proc.started = (out, err), self.run.seq, time.monotonic()
+        started = time.monotonic()
+        try:
+            proc = subprocess.Popen(command, stdout=out, stderr=err, text=True, cwd=ROOT)
+        except BaseException:
+            out.close()
+            err.close()
+            self.run.timing.background("product_run", started, raised=True)
+            raise
+        proc.files, proc.seq, proc.started = (out, err), self.run.seq, started
         return proc
 
     def finish(self, proc, timeout=600):
+        try:
+            return self._finish(proc, timeout)
+        finally:
+            # Keep timing on diagnostic failures too; do not count a repeated wait.
+            if not getattr(proc, "timing_recorded", False):
+                self.run.timing.background("product_run", proc.started,
+                                           raised=sys.exc_info()[0] is not None)
+                proc.timing_recorded = True
+
+    def _finish(self, proc, timeout):
         try:
             code = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:

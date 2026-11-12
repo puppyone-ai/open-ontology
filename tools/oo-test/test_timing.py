@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import runner
 import timing
+import t3t4
 
 
 class TimingTests(unittest.TestCase):
@@ -117,6 +118,30 @@ class TimingTests(unittest.TestCase):
         runner.checksums(run.path)
         self.assertIn("timing.json", (run.path / "SHA256SUMS").read_text())
         self.assertEqual(run.timing.snapshot()["stages"]["cleanup"]["raised"], 1)
+
+    def test_background_lifetime_is_explicitly_overlapping(self):
+        self.now = 3
+        with self.run.timing.stage("compare"):
+            self.now = 5
+        self.now = 9
+        self.run.timing.background("product_run", 1)
+        value = self.run.timing.snapshot()
+        self.assertEqual(value["stages"]["product_run"]["seconds"], 8)
+        self.assertTrue(value["events"][-1]["background"])
+        self.assertEqual(value["stages"]["compare"]["seconds"], 2)
+
+    def test_background_finish_records_exception_once(self):
+        harness = object.__new__(t3t4.Harness)
+        harness.run = self.run
+        proc = SimpleNamespace(started=0)
+        self.now = 4
+        with patch.object(harness, "_finish", side_effect=RuntimeError("diagnostic")):
+            for _ in range(2):
+                with self.assertRaises(RuntimeError):
+                    harness.finish(proc)
+        stage = self.run.timing.snapshot()["stages"]["product_run"]
+        self.assertEqual(stage["calls"], 1)
+        self.assertEqual(stage["raised"], 1)
 
 
 if __name__ == "__main__":
