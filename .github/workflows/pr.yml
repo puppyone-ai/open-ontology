@@ -816,6 +816,86 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  # Test acceleration (specs/test-acceleration-plan.md). These jobs are not in
+  # the aggregate's gate list; they report the layered suite, not sign-off.
+  oo-test-fast-l0:
+    name: oo-test-fast-l0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: L0 contracts
+        shell: bash
+        run: |
+          mkdir -p evidence
+          tools/oo-test/oo-test fast --layer L0 --run-id "pr-l0-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+      - name: preserve L0 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: oo-test-fast-l0-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/pr-l0-*
+          retention-days: 14
+          if-no-files-found: ignore
+
+  oo-test-fast-l1-l2:
+    name: oo-test-fast-l1-l2
+    needs: oo-test-fast-l0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: build product binaries (plain and failpoints)
+        shell: bash
+        run: |
+          export CARGO_BUILD_JOBS=4 CARGO_INCREMENTAL=0
+          cargo build --locked -p oo-cli --bin oo
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog
+          CARGO_TARGET_DIR="$PWD/target/ta-fp" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog,failpoints
+      - name: L1 and L2 on impacted engines
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p evidence
+          base="${BASE_SHA:-HEAD~1}"
+          # Oracle images need registry credentials; Oracle L1/L2 run in the nightly rotation.
+          tools/oo-test/oo-test fast --layer L1 --layer L2 --engines postgres,mysql \
+            --base "${base}" --run-id "pr-l1l2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+      - name: preserve L1/L2 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: oo-test-fast-l1-l2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence/pr-l1l2-*
+            evidence/pr-l1l2-*-t2-*
+          retention-days: 14
+          if-no-files-found: ignore
+
   aggregate:
     name: aggregate
     needs:
