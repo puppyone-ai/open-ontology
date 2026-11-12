@@ -249,7 +249,8 @@ def stage_harness(dest, path, out, run_id):
         'testing/engines/oracle/recursive_sql.py',
     ]
     files += ['tools/oo-test/' + name + '.py' for name in
-              ('t1', 'runner', 'comparison', 'oracle_t1', 'audit', 'matrix', 'verdicts')]
+              ('t1', 'runner', 'timing', 'comparison', 'oracle_t1', 'audit', 'matrix',
+               'verdicts')]
     for name in files:
         target = dest / name
         target.parent.mkdir(parents=True, exist_ok=True)

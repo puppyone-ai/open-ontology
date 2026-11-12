@@ -49,19 +49,25 @@ L0_COMMANDS = [
 ]
 
 
-def env():
-    return dict(os.environ, PYTHONDONTWRITEBYTECODE="1", CARGO_BUILD_JOBS="4",
-                CARGO_INCREMENTAL="0", OO_TEST_LANE="ta")
+def env(lane=True):
+    # L0 unit suites assert their own default lanes; only live layers own lane ta.
+    value = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", CARGO_BUILD_JOBS="4",
+                 CARGO_INCREMENTAL="0")
+    if lane:
+        value["OO_TEST_LANE"] = "ta"
+    else:
+        value.pop("OO_TEST_LANE", None)
+    return value
 
 
-def timed_command(name, command, root, timeout):
+def timed_command(name, command, root, timeout, lane=True):
     log = root / (name + ".log")
     started = time.monotonic()
     if command[0] == "cargo":
         command = ["nice", "-n", "10", *command]
     with log.open("wb") as out:
         try:
-            code = subprocess.run(command, cwd=ROOT, env=env(), stdout=out,
+            code = subprocess.run(command, cwd=ROOT, env=env(lane), stdout=out,
                                   stderr=subprocess.STDOUT, timeout=timeout).returncode
         except subprocess.TimeoutExpired:
             code = 124
@@ -72,7 +78,7 @@ def timed_command(name, command, root, timeout):
 def run_l0(root, args):
     results = []
     for name, command in L0_COMMANDS:
-        results.append(timed_command(name, command, root, 1800))
+        results.append(timed_command(name, command, root, 1800, lane=False))
         print(json.dumps(results[-1]), flush=True)
     return results
 
