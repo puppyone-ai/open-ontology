@@ -46,6 +46,17 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(scored["freshness"], result["freshness"])
         self.assertEqual(len(result["warnings"][0]["message"]), 500)
 
+    def test_unsupported_answer_type_fails_without_numeric_coercion(self):
+        result = self.result()
+        result["columns"][0]["type"] = "float64"
+        question = ab.load(ab.ROOT / "benchmarks/ab/fixtures/demo.json")["questions"][0]
+        score = live.score(question, {"kind": "gateway", "gateway_result": result})
+        self.assertEqual(score, {"pass": False, "no_output": False,
+                                 "reason": "unsupported_result_type"})
+        self.assertEqual(result["rows"], [["60"]])
+        with self.assertRaisesRegex(ab.Invalid, "gateway_type_unsupported"):
+            live.typed_result(result)  # Gold preflight still rejects this type.
+
     def test_accuracy_denial_is_a_failed_answer_not_a_missing_trial(self):
         question = {"track": "accuracy", "expected_kind": "rows"}
         result = live.score(question, {"kind": "gateway_denied",
@@ -125,6 +136,12 @@ class LiveTests(unittest.TestCase):
                     returncode=1, stdout=json.dumps(denied))), patch.object(
                     live.ab, "load", return_value={"profile": "default"}):
                 self.assertTrue(live.gateway(Path("oo"), "default", binding, "SELECT 60")["denied"])
+        result["knowledge_version"] = binding["knowledge_version"]
+        result["columns"][0]["type"] = "float64"
+        with patch.object(live.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout=json.dumps(result))), patch.object(
+                live.ab, "load", return_value={"profile": "default"}):
+            self.assertEqual(live.gateway(Path("oo"), "default", binding, "SELECT 60"), result)
 
     def test_captured_run_replays_byte_identically(self):
         with tempfile.TemporaryDirectory(dir=ab.ROOT / "evidence") as tmp:
@@ -194,6 +211,18 @@ class LiveTests(unittest.TestCase):
             scored = ab.load(root / "failure-first/report.json")["questions"][0]["c3"]
             self.assertEqual(scored["code"], "COST_TOO_HIGH")
             self.assertFalse(scored["pass"])
+            failed["kind"] = "gateway"
+            failed["gateway_result"] = dict(result, columns=[{"name": "value", "type": "float64"}])
+            path.write_text(ab.canonical(recording))
+            manifest["inputs"]["responses"]["sha256"] = ab.digest(path.read_bytes())
+            (root / "capture/dataset.json").write_text(ab.canonical(manifest))
+            ab.run(root / "capture/dataset.json", root / "unsupported-first")
+            ab.run(root / "capture/dataset.json", root / "unsupported-replay")
+            self.assertEqual((root / "unsupported-first/report.json").read_bytes(),
+                             (root / "unsupported-replay/report.json").read_bytes())
+            score = ab.load(root / "unsupported-first/report.json")["questions"][0]["c3"]
+            self.assertEqual(score["reason"], "unsupported_result_type")
+            self.assertFalse(score["pass"])
             # Captured receipts must still be checked on replay.
             response = recording["responses"]["c0:q01"]
             response["gateway_result"]["publication_binding"]["publication_id"] = "pub1_" + "c" * 64

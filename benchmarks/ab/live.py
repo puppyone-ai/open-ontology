@@ -103,7 +103,12 @@ def score(question, response):
         return scored
     if question["expected_kind"] == "denied":
         return {"pass": False, "no_output": False, "reason": "expected_denial"}
-    actual = typed_result(response["gateway_result"])
+    try:
+        actual = typed_result(response["gateway_result"])
+    except ab.Invalid as error:
+        if str(error) != "gateway_type_unsupported":
+            raise
+        return {"pass": False, "no_output": False, "reason": "unsupported_result_type"}
     scored = ab.compare_rows(question, actual)
     scored["warnings"] = actual["warnings"]
     scored["freshness"] = response["gateway_result"].get("freshness")
@@ -154,7 +159,13 @@ def gateway(cli, profile, binding, sql):
             k: binding[k] for k in ("publication_id", "data_vector_sha256")}
             or any(value.get(k) != binding[k] for k in ("knowledge_version", "policy_version"))):
         raise ab.Invalid("publication_drift")
-    typed_result(value)
+    try:
+        typed_result(value)
+    except ab.Invalid as error:
+        if str(error) != "gateway_type_unsupported":
+            raise
+        # Preserve the real receipt. An unsupported answer type is a failed
+        # answer, not permission to coerce values or discard the whole run.
     return value
 
 

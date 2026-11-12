@@ -35,8 +35,10 @@ Capture writes private model responses, Gateway receipts, a replay manifest,
 and `scored/report.json`. Replay of that manifest reproduces the report bytes,
 including captured live provenance; it is not a second live measurement.
 The same per-arm 5% no-output health gate applies. Explicit model refusals are
-not evidence that the Gateway enforced a denial. Unsupported result types fail
-closed; the comparator supports exact integers, decimals, booleans and text.
+not evidence that the Gateway enforced a denial. Unsupported answer types count
+as failed answers without coercion or aborting other trials; unsupported gold
+types still stop preflight. The comparator supports exact integers, decimals,
+booleans and text.
 Publication receipts bind execution, while the Pack file hash is declared by
 the operator: verify it against the deployed Pack before claiming published-Pack
 acceptance. These instructions alone do not establish a completed live run.
