@@ -1,17 +1,36 @@
 # Production impact
 
-## Pending mitigation: no new production recommendation
+## Chunk-consistent mitigation: operational contract
 
-The T10 harness now uses half the settled rate for automatic-rate measurements.
-No new live T1/T2 or impact measurements accompany that change; retain the
-existing operational cautions and do not interpret historical live-4 numbers
-as results of the new method. The [partial mitigation handoff](../../tools/oo-test/T10-MITIGATE.md)
-records the unresolved snapshot/digest proof and the MySQL 100,000-key handoff
-limit, which cannot cover T10's two-million-row bulk table merely by raising
-a harness setting. Snapshot defaults, source settings and safety caps remain
-unchanged. S6-H-02 is still incomplete.
+The [mitigation evidence report](../../tools/oo-test/T10-MITIGATE2.md) records the
+implemented read proof, full-scale correctness reruns and preserved failures.
+New D24 measurements are still pending; no new production capacity is certified.
 
-## Current measurement: T10-live-4
+Keyed PostgreSQL/MySQL default to `snapshot: chunk_consistent`; range payload and
+digest share a transaction, with configured row/byte/time bounds and one-second
+cleanup. Retained publication metadata records that class. Cross-range skew is
+bounded by the cycle, not a single source instant. Explicit `snapshot: single`
+and PostgreSQL physical/unprovable-key tables retain long-snapshot risks.
+
+Source-activity gates remain enabled (PG 16 active sessions / 30-second pause;
+MySQL 16 running threads / 120 seconds; Oracle 16 active sessions / 60 seconds).
+PostgreSQL reader sessions disable parallel gather workers. PG/MySQL keep their
+per-operation duty pacing without charging completed target work and previous
+sleeps again; Oracle's existing pacing is unchanged.
+
+T10 alone sets and verifies PG `max_slot_wal_keep_size=-1` to prevent the fixture
+cap invalidating its slot. This is **not** a production recommendation: size and
+alert on WAL retention with DBA-approved disk headroom. MySQL aligned-baseline
+preparation requires a quiescent fixture; it does not authorize assuming alignment
+on a live production source, or raising the 100,000-key / 32 MiB repair cap.
+
+Oracle preparation/initial deadlines use a measured 20,000-row probe and each
+binding's current row count: `max(900, ceil(3 * rows / rows_per_second))`. Sizing
+queries run before foreground measurement; all inputs/deadlines are recorded.
+This does not certify undo capacity. Replica/standby reads still need identity,
+lag, position alignment, permissions and (for Oracle) licensing review.
+
+## Historical measurement: T10-live-4
 
 No engine passed every phase. See the [measured phase table](../guide/production-impact.md)
 and [complete evidence report](../../tools/oo-test/T10-LIVE4.md). These are measured
