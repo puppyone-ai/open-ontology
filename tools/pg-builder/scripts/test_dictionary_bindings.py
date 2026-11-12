@@ -158,3 +158,15 @@ class DictionaryBindingTests(unittest.TestCase):
         old_hash = result["summary_sha256"]
         result["graph"]["dictionary_bindings_sha256"] = "b" * 64
         self.assertNotEqual(adjudication.summary_hash(result), old_hash)
+
+    def test_measurement_uses_the_production_read_only_select_adapter(self):
+        from unittest.mock import Mock, patch
+        import library_selfbuild
+        observed = dict.fromkeys(bindings.COUNTS, 0)
+        result = Mock(returncode=0, stdout=json.dumps(observed))
+        db = library_selfbuild.ReadOnlyPostgres(["unused"])
+        with patch.object(library_selfbuild.subprocess, "run", return_value=result) as run:
+            self.assertEqual(bindings.measure(db, self.inventory, self.spec)[0], "incomplete")
+        statement = run.call_args.kwargs["input"]
+        self.assertIn("REPEATABLE READ READ ONLY", statement)
+        self.assertIn("select (\nwith d as", statement)

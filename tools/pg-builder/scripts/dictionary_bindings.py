@@ -74,7 +74,8 @@ select json_build_object(
      and (a.hi is null or b.lo{end_op}a.hi) and (b.hi is null or a.lo{end_op}b.hi)),
  'gap_pairs',(select count(*) from intervals where {gap}))
 """
-    observed = db.query(sql)
+    # Keep the existing replica adapter's SELECT-only admission unchanged.
+    observed = db.query("select (" + sql + ")")
     if (set(observed) != set(COUNTS)
             or any(type(observed[k]) is not int or observed[k] < 0 for k in COUNTS)
             or observed["matched_rows"] + observed["ambiguous_rows"] > observed["rows_checked"]):
