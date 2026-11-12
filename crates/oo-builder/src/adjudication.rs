@@ -47,6 +47,8 @@ struct Edge {
 struct Graph {
     entities: Vec<Entity>,
     edges: Vec<Edge>,
+    #[serde(default)]
+    dictionary_bindings_sha256: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -422,6 +424,14 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
     }
     let applied = apply_adjudication_overrides(&envelope["adjudication"], &envelope["overrides"])?;
     let doc = document(&applied)?;
+    let dictionary_specs = &input["adjudication_specs"]["dictionary_bindings"];
+    let binding_hash = dictionary_specs
+        .as_array()
+        .filter(|s| !s.is_empty())
+        .map(|_| canonical_sha256(dictionary_specs));
+    if doc.graph.dictionary_bindings_sha256 != binding_hash {
+        return Err("adjudication_dictionary_confirmation".into());
+    }
     let confirmation: Confirmation = serde_json::from_value(envelope["confirmation"].clone())
         .map_err(|_| "adjudication_confirmation_shape")?;
     if confirmation.protocol != "oo.publish-confirm/v1"
@@ -766,6 +776,53 @@ pub fn compile_confirmed_community(envelope: &Value) -> Result<Value, String> {
         }
     }
     effective["metrics"] = json!(metrics);
+    // Meanings come from the pinned reviewed input, never from coverage alone.
+    // Evidence can reject an ambiguous lookup, but cannot invent its semantics.
+    let mut bindings = Vec::new();
+    for spec in input["adjudication_specs"]["dictionary_bindings"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        let id = spec["id"].as_str().ok_or("adjudication_dictionary_id")?;
+        let item = doc
+            .items
+            .iter()
+            .find(|i| i.id == format!("code_table/dictionary-{id}"))
+            .ok_or("adjudication_dictionary_coverage")?;
+        if item.evidence["binding_sha256"] != canonical_sha256(spec)
+            || item.rule_id != "code_table.reviewed_dictionary"
+        {
+            return Err("adjudication_dictionary_binding".into());
+        }
+        let mut evidence = serde_json::Map::new();
+        for key in [
+            "rows_checked",
+            "matched_rows",
+            "ambiguous_rows",
+            "invalid_intervals",
+            "overlap_pairs",
+            "gap_pairs",
+        ] {
+            let count = item.evidence[key]
+                .as_u64()
+                .ok_or("adjudication_dictionary_evidence")?;
+            evidence.insert(key.to_owned(), json!(count));
+        }
+        if ["ambiguous_rows", "invalid_intervals", "overlap_pairs"]
+            .iter()
+            .any(|k| evidence[*k] != 0)
+        {
+            continue;
+        }
+        let mut binding = spec.clone();
+        binding["evidence"] = Value::Object(evidence);
+        bindings.push(binding);
+    }
+    if !bindings.is_empty() || effective.get("dictionary_bindings").is_some() {
+        // No unadjudicated extension from the model/effective input can survive.
+        effective["dictionary_bindings"] = json!(bindings);
+    }
     let ceilings: RolePackCeilings =
         serde_json::from_value(input["ceilings"].clone()).map_err(|_| "adjudication_ceilings")?;
     let pack =
@@ -846,6 +903,71 @@ mod tests {
             apply_adjudication_overrides(&input["adjudication"], &input["overrides"]).unwrap();
         input["confirmation"]["summary_sha256"] = applied["summary_sha256"].clone();
         input["confirmation"]["overrides_sha256"] = json!(canonical_sha256(&input["overrides"]));
+    }
+
+    #[test]
+    fn dictionary_semantics_are_pinned_and_ambiguous_lookups_are_withheld() {
+        let mut envelope = fixture();
+        let mut command: Value =
+            serde_json::from_str(envelope["adjudication_input"].as_str().unwrap()).unwrap();
+        let spec = json!({
+            "id":"fixture", "concept":"Reviewed fixture",
+            "from":{"dataset":"app.items","code":"amount","at":"amount"},
+            "dictionary":{"dataset":"app.items","code":"amount","label":"amount",
+                "discriminator":"amount","value":"fixture","valid_from":"amount","valid_to":"amount"},
+            "interval":"closed_open_null_end_unbounded",
+            "provenance":{"origin":"operator_reviewed","source_sha256":"a".repeat(64),
+                "reviewer":"fixture-owner","reviewed_at":"2026-11-12"}
+        });
+        command["adjudication_specs"]["dictionary_bindings"] = json!([spec]);
+        let raw = command.to_string();
+        envelope["adjudication_input"] = json!(raw);
+        envelope["adjudication"]["input_sha256"] = json!(payload_sha256(raw.as_bytes()));
+        envelope["adjudication"]["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "id":"code_table/dictionary-fixture","class":"code_table",
+                "subject":{"from":"app.items.amount","to":"app.items.amount"},
+                "decision":"incomplete","rule_id":"code_table.reviewed_dictionary",
+                "reason":"Reviewed meaning; measured replica coverage.",
+                "scores":{"confidence":0.0},
+                "evidence":{"binding_sha256":canonical_sha256(&spec),"rows_checked":2,
+                    "matched_rows":1,"ambiguous_rows":0,"invalid_intervals":0,
+                    "overlap_pairs":0,"gap_pairs":1}
+            }));
+        envelope["adjudication"]["graph"]["dictionary_bindings_sha256"] = json!(canonical_sha256(
+            &command["adjudication_specs"]["dictionary_bindings"]
+        ));
+        envelope["adjudication"]["summary_sha256"] =
+            json!(adjudication_summary_sha256(&envelope["adjudication"]));
+        envelope["overrides"]["summary_sha256"] =
+            envelope["adjudication"]["summary_sha256"].clone();
+        confirm(&mut envelope);
+        let output = compile_confirmed_community(&envelope).unwrap();
+        assert_eq!(
+            output["effective"]["dictionary_bindings"][0]["dictionary"]["value"],
+            "fixture"
+        );
+        let mut drift = envelope.clone();
+        drift["adjudication"]["items"][2]["evidence"]["binding_sha256"] = json!("b".repeat(64));
+        assert_eq!(
+            compile_confirmed_community(&drift).unwrap_err(),
+            "adjudication_dictionary_binding"
+        );
+        let mut changed = envelope.clone();
+        command["adjudication_specs"]["dictionary_bindings"][0]["dictionary"]["value"] =
+            json!("changed-meaning");
+        let raw = command.to_string();
+        changed["adjudication_input"] = json!(raw);
+        changed["adjudication"]["input_sha256"] = json!(payload_sha256(raw.as_bytes()));
+        assert_eq!(
+            compile_confirmed_community(&changed).unwrap_err(),
+            "adjudication_dictionary_confirmation"
+        );
+        envelope["adjudication"]["items"][2]["evidence"]["overlap_pairs"] = json!(1);
+        let output = compile_confirmed_community(&envelope).unwrap();
+        assert!(output["effective"].get("dictionary_bindings").is_none());
     }
 
     fn relations(variant: &str) -> Value {

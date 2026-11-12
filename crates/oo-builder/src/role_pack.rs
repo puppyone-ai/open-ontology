@@ -58,6 +58,8 @@ use crate::nfc::nfc;
 
 #[path = "community_summaries.rs"]
 mod community_summaries;
+#[path = "dictionary_bindings.rs"]
+mod dictionary_bindings;
 #[path = "role_pack_pages.rs"]
 mod pages;
 #[path = "relationship_paths.rs"]
@@ -399,6 +401,8 @@ struct EffectiveDoc {
     /// Versioned extension; absent on legacy documents (same Pack bytes).
     #[serde(default)]
     relationship_evidence: Option<relationship_paths::RelationshipEvidence>,
+    #[serde(default)]
+    dictionary_bindings: Vec<dictionary_bindings::Binding>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -478,6 +482,7 @@ struct Model {
     entities: Vec<EntityFile>,
     calendar: Option<CalendarFile>,
     relationship_evidence: Option<relationship_paths::RelationshipEvidence>,
+    dictionary_bindings: Vec<dictionary_bindings::Binding>,
     grants: BTreeMap<String, Grant>,
     limits: LimitsIn,
     unreviewed: BTreeSet<String>,
@@ -757,6 +762,7 @@ fn bind(
             "/relationships",
         )?;
     }
+    dictionary_bindings::validate(&effective.dictionary_bindings, &datasets)?;
     if let Some(evidence) = &effective.relationship_evidence {
         relationship_paths::validate(evidence, &effective.relationships, &datasets)?;
     }
@@ -955,6 +961,7 @@ fn bind(
         entities: effective.entities,
         calendar: effective.calendar,
         relationship_evidence: effective.relationship_evidence,
+        dictionary_bindings: effective.dictionary_bindings,
         grants,
         limits: visibility.limits,
         unreviewed,
@@ -2461,6 +2468,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
         )?;
     }
     relationship_paths::render(&mut files, model, selected)?;
+    dictionary_bindings::render(&mut files, model)?;
     let relationships = render_relationships(model, selected)?;
     let page_bytes = model
         .ontology
@@ -2567,8 +2575,12 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
     text.push_str(PG_DIALECT_SENTENCE);
     text.push_str("\n\nThe Gateway accepts a versioned restricted SQL subset, not all PostgreSQL syntax or function overloads. Use current CLI help, describe for execution types, and validate before query. This compiler does not verify runtime capabilities or business readiness.\n\n");
     text.push_str("A missing certified metric, exported enum or business calendar is not a permission denial for visible stored columns. Query visible stored values when they answer the question; do not invent missing definitions or code meanings. Semantic labels are not PostgreSQL input types: use the execution types for casts and predicates. Return only the columns the question requests, not extra diagnostic or context columns.\n\n");
+    text.push_str("Separate access from assurance. Visible data is usable with caveats: uncertified or demoted definitions, stale data and readiness gaps do not by themselves require refusal. Use the question's explicit filters, arithmetic and time bounds on visible columns, validate the query, and disclose the applicable assurance or freshness limits. Ask for a missing business definition only when the answer actually depends on it. Never guess a dictionary discriminator or interval convention. Hidden or denied data remains inaccessible; do not reconstruct it or bypass a Gateway denial.\n\n");
     text.push_str(
         "Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n",
+    );
+    text.push_str(
+        "If present, read dictionaries.md for role-visible reviewed lookup bindings.\n\n",
     );
     text.push_str("## Domain map\n\nSearch INDEX.md for table paths; read each table page for related tables and JOIN paths.\n\n");
     let mut domains: BTreeMap<String, Vec<&str>> = BTreeMap::new();
@@ -3111,6 +3123,7 @@ fn render_metrics_filtered(
         text.push_str("\n\n");
         if candidate {
             text.push_str("> UNREVIEWED / NOT CERTIFIED. This is a proposed definition, not an approved business metric or verified SQL. Do not use it as the complete business answer. Resolve the stated gaps, validate with the current Gateway, and obtain explicit review and independent reconciliation.\n\n");
+            text.push_str("The visible inputs remain usable for an explicitly scoped calculation with a caveat. Lack of certification is not an access denial. Do not label the candidate as certified or silently assume its unresolved business definitions.\n\n");
         }
         line(
             &mut text,

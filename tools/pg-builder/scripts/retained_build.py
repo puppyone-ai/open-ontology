@@ -32,7 +32,7 @@ import adjudication
 PROTOCOL = 'oo.builder.retained-build/v1'
 KEYS = {'protocol', 'psql_command', 'library_id', 'generation', 'source_engine', 'project'}
 OPTIONAL = {'origin', 'model', 'statement_timeout_ms', 'max_relationship_checks', 'min_enum_containment',
-            'source_catalog', 'relationship_cache'}
+            'source_catalog', 'relationship_cache', 'dictionary_bindings_input'}
 
 
 def save(path, value):
@@ -52,6 +52,20 @@ def pinned(reference, limit=64_000_000):
     if hashlib.sha256(raw).hexdigest() != reference['sha256']:
         raise ValueError('retained_origin_digest')
     return raw
+
+def reviewed_dictionary_bindings(config):
+    if 'dictionary_bindings_input' not in config:
+        return []
+    document = json.loads(pinned(config['dictionary_bindings_input'], limit=262144))
+    if (set(document) != {'protocol', 'bindings'}
+            or document['protocol'] != 'oo.reviewed-dictionary-bindings/v1'
+            or not isinstance(document['bindings'], list)
+            or len(document['bindings']) > 128):
+        raise ValueError('retained_dictionary_bindings')
+    ids = [b.get('id') for b in document['bindings']]
+    if any(not isinstance(i, str) for i in ids) or len(ids) != len(set(ids)):
+        raise ValueError('retained_dictionary_bindings')
+    return document['bindings']
 
 
 def facts_for(db, config, previous=None, stale_tables=()):
@@ -252,6 +266,7 @@ def run(config_path, output):
     if (config.get('protocol') != PROTOCOL or not KEYS <= set(config) or set(config) - KEYS - OPTIONAL
             or config['source_engine'] not in retained_observation.ENGINES):
         raise ValueError('retained_build_config')
+    dictionary_specs = reviewed_dictionary_bindings(config)
     output = Path(output)
     output.mkdir(mode=0o700)
     restore_receipts(output)
@@ -269,9 +284,14 @@ def run(config_path, output):
             raise ValueError('retained_origin_pin')
         old = json.loads(pinned(origin['facts']))
         raw = pinned(origin['reviewed_registry'])
+        previous_command = json.loads(
+            json.loads(raw).get('command', {}).get('adjudication_input', '{}'))
+        previous_bindings = previous_command.get('adjudication_specs', {}).get('dictionary_bindings', [])
         quality = (relationship_quality_pending(db, json.loads(raw), facts, 'library:' + config['library_id'])
                    if semantics.data_only_digest(old) == current else [])
-        if semantics.data_only_digest(old) == current and not quality:
+        if (semantics.data_only_digest(old) == current and not quality
+                and 'dictionary_bindings_input' not in config
+                and not previous_bindings):
             reviewed_shape(json.loads(raw), facts)
             reuse = dict(protocol='oo.builder.retained-data-only/v1', origin_facts_sha256=old['facts_sha256'],
                          current_facts_sha256=facts['facts_sha256'], data_only_digest=current,
@@ -287,6 +307,8 @@ def run(config_path, output):
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
     command = review_input(inventory(facts), result, config['project'])
+    if dictionary_specs:
+        command['adjudication_specs'] = {'dictionary_bindings': dictionary_specs}
     command['adjudication_replica'] = provenance
     if 'review_pending' in report:
         command['review_pending'] = report['review_pending']

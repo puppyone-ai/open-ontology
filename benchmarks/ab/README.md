@@ -153,6 +153,17 @@ questions explicitly mean Monday-Friday without holiday exclusions. The
 independent SQLite freezer reads synthetic CSVs and records their hashes.
 Live gold execution is mandatory: SQLite alone is not Gateway acceptance.
 
+`fixtures/logistics-dictionary-bindings.json` is a separate synthetic
+source-definition input for the retained builder's `dictionary_bindings_input`
+pin. It maps all four dictionaries declared in `bench/datagen/src/catalog.rs`,
+without copying answer labels, question IDs or gold SQL into the Pack. Its
+inclusive-date convention retains the fixture's adjacent historical eras.
+`synthetic-fixture-curation` is fixture metadata, not independent human or
+customer approval. Bindings require replica interval checks and a fresh
+confirmation; lookup-only definitions explicitly do not claim fact-reference
+coverage. Adding this input changes C3's reviewed knowledge and must be
+reported as such, not attributed solely to wording.
+
 ```sh
 python3 benchmarks/ab/logistics.py --dataset evidence/run/logistics \
   --output evidence/run/regenerated-bank.json

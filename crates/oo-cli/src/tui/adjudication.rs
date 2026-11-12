@@ -94,6 +94,8 @@ pub struct Item {
 pub struct Graph {
     pub entities: Vec<Entity>,
     pub edges: Vec<Edge>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dictionary_bindings_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -656,6 +658,19 @@ pub(crate) mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn dictionary_definition_digest_survives_parse_and_binds_confirmation() {
+        let mut adj = fixture();
+        let original = adj.summary_sha256.clone();
+        adj.graph.dictionary_bindings_sha256 = Some("a".repeat(64));
+        adj.summary_sha256 = summary_sha256(&adj);
+        assert_ne!(adj.summary_sha256, original);
+        assert_eq!(parse(json!(adj)).unwrap(), adj);
+        let mut changed = json!(adj);
+        changed["graph"]["dictionary_bindings_sha256"] = json!("b".repeat(64));
+        assert_eq!(parse(changed).unwrap_err(), "ADJUDICATION_SUMMARY_MISMATCH");
+    }
 
     #[test]
     fn fixture_summary_hash_is_canonical_and_tamper_evident() {

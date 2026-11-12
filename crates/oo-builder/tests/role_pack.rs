@@ -33,6 +33,74 @@ fn none_col(name: &str) -> Value {
 }
 
 #[test]
+fn assurance_gaps_do_not_deny_visible_data_or_grant_hidden_data() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["metrics"][0]["certified"] = json!(false);
+    effective["metrics"][0]["status"] = json!("draft");
+    effective["ontology"]["publish"]["include_unreviewed"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("metrics"));
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("Visible data is usable with caveats"));
+    assert!(readme.contains("Hidden or denied data remains inaccessible"));
+    assert!(readme.contains("Never guess a dictionary discriminator"));
+    let metrics = pack.file("metrics.md").unwrap();
+    assert!(metrics.contains("NOT CERTIFIED"));
+    assert!(metrics.contains("visible inputs remain usable"));
+    let availability: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    assert_eq!(availability["certified_metrics"], json!([]));
+    assert_eq!(availability["business_readiness_verified"], false);
+}
+
+#[test]
+fn reviewed_dictionary_binding_requires_visibility_and_unambiguous_evidence() {
+    let (mut effective, mut visibility) = analyst_documents();
+    let cols = ["kind", "code", "label", "valid_from", "valid_to"];
+    effective["datasets"].as_array_mut().unwrap().push(json!({
+        "schema_version":"oos/v1", "dataset":"sales.dictionary", "label":"Dictionary",
+        "tier":"file", "columns":cols.iter().map(|c| none_col(c)).collect::<Vec<_>>()
+    }));
+    visibility["datasets"].as_array_mut().unwrap().push(json!({
+        "dataset":"sales.dictionary", "row_security":"none",
+        "global_stats":"permitted", "columns":cols
+    }));
+    effective["dictionary_bindings"] = json!([{
+        "id":"order-state", "concept":"Order state",
+        "from":{"dataset":"sales.order","code":"status","at":"received_at"},
+        "dictionary":{"dataset":"sales.dictionary","discriminator":"kind",
+            "value":"ORDER_STATE","code":"code","label":"label",
+            "valid_from":"valid_from","valid_to":"valid_to"},
+        "interval":"closed_open_null_end_unbounded",
+        "provenance":{"origin":"operator_reviewed","source_sha256":"a".repeat(64),
+            "reviewer":"fixture-owner","reviewed_at":"2026-11-12"},
+        "evidence":{"rows_checked":10,"matched_rows":9,"ambiguous_rows":0,
+            "invalid_intervals":0,"overlap_pairs":0,"gap_pairs":1}
+    }]);
+    let pack = must(&effective, &visibility);
+    let page = pack.file("dictionaries.md").unwrap();
+    assert!(page.contains("ORDER_STATE") && page.contains("closed_open_null_end_unbounded"));
+    assert!(!page.contains("rows_checked")); // Fact table has RLS.
+    for col in cols {
+        let mut hidden = visibility.clone();
+        hidden["datasets"][4]["columns"] =
+            json!(cols.iter().filter(|c| **c != col).collect::<Vec<_>>());
+        let pack = must(&effective, &hidden);
+        assert!(pack.file("dictionaries.md").is_err());
+        assert!(!pack.artifact.contains("ORDER_STATE"));
+    }
+    for key in ["ambiguous_rows", "invalid_intervals", "overlap_pairs"] {
+        let mut invalid = effective.clone();
+        invalid["dictionary_bindings"][0]["evidence"][key] = json!(1);
+        assert!(compile(&invalid, &visibility).is_err());
+    }
+    effective["dictionary_bindings"][0]["provenance"]["origin"] = json!("model");
+    assert!(compile(&effective, &visibility).is_err());
+}
+
+#[test]
 fn metric_business_metadata_survives_role_projection() {
     let (mut effective, visibility) = analyst_documents();
     effective["metrics"][0]["synonyms"] = json!(["received total"]);

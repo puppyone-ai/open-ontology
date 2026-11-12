@@ -243,6 +243,25 @@ class RetainedBuild(unittest.TestCase):
                 build, 'review_input', side_effect=review_input):
             return build.run(self.config(generation, origin), self.root / ('out-%d' % generation))
 
+    def test_removing_dictionary_definitions_requires_new_review(self):
+        draft = ({'protocol': 'oo.selfbuild.community-draft/v1'}, 2)
+        with patch.object(build, 'draft', return_value=draft):
+            self.run_build(1)
+        reviewed = self.reviewed()
+        reviewed['command'] = {'adjudication_input': json.dumps({
+            'adjudication_specs': {'dictionary_bindings': [{'id': 'previous'}]}})}
+        origin = {
+            'facts': self.pin('old-facts.json', json.loads(
+                (self.root / 'out-1/facts.json').read_text())),
+            'reviewed_registry': self.pin('old-reviewed.json', reviewed),
+        }
+        with patch.object(build, 'draft', return_value=draft) as model:
+            second = self.run_build(2, origin)
+        model.assert_called_once()
+        self.assertEqual(second['stage'], 'review_required')
+        command = json.loads((self.root / 'out-2/review-input.json').read_text())
+        self.assertNotIn('dictionary_bindings', command.get('adjudication_specs', {}))
+
     def test_data_only_cycle_reuses_review_with_zero_model_calls(self):
         with patch.object(build, 'draft', return_value=({'protocol': 'oo.selfbuild.community-draft/v1'}, 2)) as model:
             first = self.run_build(1)

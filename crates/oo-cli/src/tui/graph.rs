@@ -1308,7 +1308,11 @@ pub(crate) mod tests {
             thresholds: Default::default(),
             items: Vec::new(),
             discovery: None,
-            graph: Graph { entities, edges },
+            graph: Graph {
+                entities,
+                edges,
+                dictionary_bindings_sha256: None,
+            },
             summary_sha256: String::new(),
         };
         adj.summary_sha256 = summary_sha256(&adj);

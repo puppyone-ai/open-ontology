@@ -33,3 +33,58 @@ The compiler accepts publication only with a confirmation whose summary hash mat
 
 ## summary_sha256 preimage (fixed by the TUI lane, binding for all producers)
 `sha256( compact sorted-key JSON of {"decisions": {<item id>: <decision>}, "graph": <graph block>} )`, with no whitespace, keys sorted recursively, and UTF-8 output (no `\u` escaping of non-ASCII). After overrides are applied, recompute the hash over the overridden decisions; a confirmation is accepted only against that recomputed hash. Reference implementation: `crates/oo-cli/src/tui/adjudication.rs` on branch `v0.3/tui`.
+
+## Reviewed dictionary bindings
+
+The pinned reviewed-community input may supply
+`adjudication_specs.dictionary_bindings`. These are operator-reviewed business
+definitions, never model guesses or statistical containment:
+
+The retained builder accepts optional `dictionary_bindings_input` with
+`path` and `sha256` pointing to
+`{"protocol":"oo.reviewed-dictionary-bindings/v1","bindings":[...]}`.
+It reads the pin before querying the replica. Adding, changing or removing
+these definitions requires fresh adjudication and confirmation; the
+data-only reuse shortcut is disabled for such inputs and origins.
+When bindings are present, `graph.dictionary_bindings_sha256` contains the
+canonical digest of the full definition list. This participates in the
+existing graph summary hash: changing a discriminator, convention or
+provenance invalidates an old confirmation even if graph edges and decisions
+stay the same. The field is absent on legacy documents, preserving their hash.
+
+```json
+{
+  "id": "event-state",
+  "concept": "Event state",
+  "from": {"dataset": "app.events", "code": "state", "at": "happened_at"},
+  "dictionary": {
+    "dataset": "app.dictionary", "discriminator": "kind", "value": "event_state",
+    "code": "code", "label": "label", "valid_from": "valid_from", "valid_to": "valid_to"
+  },
+  "interval": "closed_open_null_end_unbounded",
+  "provenance": {
+    "origin": "operator_reviewed", "source_sha256": "<reviewed source digest>",
+    "reviewer": "<operator>", "reviewed_at": "2026-11-12"
+  }
+}
+```
+
+`from: null` is a dictionary-only lookup: no fact-reference coverage is
+claimed. Supported interval conventions are start-inclusive/end-exclusive,
+and `closed_closed_date_null_end_unbounded` (inclusive dates, adjacency is
+one day). NULL ends are unbounded in both. The convention must come from
+the reviewed definition, not inferred from physical types.
+
+Replica adjudication records `code_table/dictionary-<id>` with the canonical
+binding digest, rows checked, singly matched and ambiguous references,
+invalid intervals, overlap pairs and historical gap pairs. Measurements are
+read-only, discriminator-scoped and bound to the existing retained-cut input.
+An incomplete reference match or historical gap is disclosed, not silently
+filled. Ambiguous or invalid intervals withhold the binding even after a
+decision override. Coverage never supplies a missing business meaning.
+
+The compiler exports `dictionaries.md` only when every referenced column is
+visible. Aggregate evidence is omitted under RLS or denied global statistics.
+Application role codes never become grants. The effective extension carries
+review provenance and evidence; publication authentication remains the
+publisher's responsibility. No source-current or atomic-snapshot claim is made.

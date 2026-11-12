@@ -9,6 +9,7 @@ import re
 import library_selfbuild as lib
 from library_observation import quote, literal
 import measure_reconciliation
+import dictionary_bindings
 from relation_keys import coverage_class, declared_uniques, key_family, keylike, observed_unique
 
 CONFIG = Path(__file__).with_name("adjudication-thresholds.json")
@@ -640,6 +641,13 @@ def collect(db, command, tables, input_sha256, budget=65536, cache_path=None):
             decision,
             dict(observed, coverage=coverage, scope_sha256=lib.digest(scope)), coverage, "code_table.coverage")
 
+    for spec in command.get("adjudication_specs", {}).get("dictionary_bindings", []):
+        decision, observed = dictionary_bindings.measure(db, inventory, spec)
+        add("code_table", "dictionary-" + spec["id"],
+            {"dictionary": spec["dictionary"]["dataset"]},
+            decision, observed, 1.0 if decision == "complete" else 0.0,
+            "code_table.reviewed_dictionary")
+
     specs = command.get("adjudication_specs", {}).get("metrics", {})
     for metric in command["effective"].get("metrics", []):
         evidence = dict(non_empty=False, unit_matches=False, unique_keys=False,
@@ -686,6 +694,9 @@ def collect(db, command, tables, input_sha256, budget=65536, cache_path=None):
     document = dict(protocol="oo.adjudication/v1", input_sha256=input_sha256, thresholds=config,
                     items=sorted(items, key=lambda i: i["id"]), discovery=discovery,
                     graph=dict(entities=entities, edges=sorted(edges, key=lambda e: e["relation"])))
+    bindings = command.get("adjudication_specs", {}).get("dictionary_bindings", [])
+    if bindings:
+        document["graph"]["dictionary_bindings_sha256"] = lib.digest(bindings)
     if len({i["id"] for i in items}) != len(items):
         raise ValueError("adjudication_duplicate_id")
     document["summary_sha256"] = summary_hash(document)
