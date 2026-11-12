@@ -201,6 +201,11 @@
         },
         "sync": {
           "$ref": "#/$defs/sync"
+        },
+        "snapshot": {
+          "type": "string",
+          "enum": ["chunk_consistent", "single"],
+          "default": "chunk_consistent"
         }
       },
       "required": [

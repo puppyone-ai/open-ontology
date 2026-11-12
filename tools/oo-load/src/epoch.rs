@@ -1,6 +1,20 @@
 use super::*;
 
 pub(super) trait Epoch: SourceEngine {
+    async fn prepare_table(
+        &mut self,
+        _table: &TableRef,
+        _budget: &ReadBudget,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+    fn consistency(&self) -> &'static str {
+        "B"
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        None
+    }
+
     async fn close_source(&mut self) {}
 
     async fn epoch(
@@ -42,6 +56,18 @@ pub(super) fn epoch_part(lineage: &str) -> &str {
 }
 
 impl Epoch for PostgresEngine {
+    async fn prepare_table(&mut self, table: &TableRef, budget: &ReadBudget) -> Result<(), String> {
+        self.prepare_table_snapshot(table, budget)
+            .await
+            .map_err(|e| e.to_string())
+    }
+    fn consistency(&self) -> &'static str {
+        self.read_consistency()
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
+    }
+
     async fn legacy_lineage(
         &mut self,
         source: &Source,
@@ -91,6 +117,22 @@ impl Epoch for PostgresEngine {
 }
 
 impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
+    async fn prepare_table(
+        &mut self,
+        _table: &TableRef,
+        _budget: &ReadBudget,
+    ) -> Result<(), String> {
+        self.prepare_table_snapshot()
+            .await
+            .map_err(|e| e.to_string())
+    }
+    fn consistency(&self) -> &'static str {
+        self.read_consistency()
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
+    }
+
     async fn close_source(&mut self) {
         self.close().await;
     }

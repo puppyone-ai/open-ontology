@@ -50,6 +50,22 @@ fn defaults_and_roundtrip() {
 }
 
 #[test]
+fn snapshot_mode_is_explicit_and_closed() {
+    let mut c = config();
+    assert!(matches!(
+        parse(&c.to_string()).unwrap().sources[0].snapshot,
+        oo_stack::stack::Snapshot::ChunkConsistent
+    ));
+    c["sources"][0]["snapshot"] = json!("single");
+    assert!(matches!(
+        parse(&c.to_string()).unwrap().sources[0].snapshot,
+        oo_stack::stack::Snapshot::Single
+    ));
+    c["sources"][0]["snapshot"] = json!("eventually");
+    assert!(parse(&c.to_string()).is_err());
+}
+
+#[test]
 fn source_tls_anchor_is_a_reference_not_inline_material() {
     let mut value = config();
     value["sources"][0]["tls_ca"] = json!({"secret_ref":"fixture-ca"});

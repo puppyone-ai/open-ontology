@@ -192,8 +192,10 @@ async fn run_table<E: epoch::Epoch>(
     conn: &mut PgConnection,
 ) -> Result<serde_json::Value, String> {
     let started = std::time::Instant::now();
+    engine.prepare_table(table, budget).await?;
     let mut target = PgTarget::new(conn, &binding(source)?, &config.run_id, table).await?;
     target = documents::target(target, source)?;
+    target.read_metadata(read_metadata(engine, budget));
     let mut sealed = target.sealed_columns().await?;
     let live_columns = engine
         .column_shape(table, budget)
@@ -267,6 +269,7 @@ async fn run_table<E: epoch::Epoch>(
             "run_id":config.run_id, "status":"fresh", "schema_class":"rebuild",
             "retained_run":config.run_id, "new_generations":after-before,
             "generation":after, "gateway_published":false,
+            "read_metadata":read_metadata(engine, budget),
             "target_write_bytes":target.write_bytes().await?
         }));
     }
@@ -346,17 +349,23 @@ async fn run_table<E: epoch::Epoch>(
             let ipc = sink.finish()?;
             source_read_bytes += ipc.len() as u64;
             let decoded = oo_pipeline::engine_chunk::decode_chunk(&chunk, &receipt, &ipc, budget)?;
-            let after = engine
-                .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
-                .await
-                .map_err(|e| e.to_string())?;
+            let proof = engine.take_chunk_proof();
+            if matches!(engine.consistency(), "chunk_consistent" | "single") && proof.is_none() {
+                return Err("c5_chunk_proof_missing".into());
+            }
+            let proven = proof.is_some();
+            let after = match proof {
+                Some(proof) => proof,
+                None => engine
+                    .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
+                    .await
+                    .map_err(|e| e.to_string())?,
+            };
             let before_digest = digests
-                .iter()
+                .iter_mut()
                 .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
                 .ok_or("c5_digest_missing")?;
-            if &after != before_digest || after.rows != receipt.rows {
-                return Err("c5_range_changed_retry".into());
-            }
+            accept_proof(&chunk, receipt.rows, before_digest, after, proven)?;
             let old = previous
                 .parts
                 .iter()
@@ -398,11 +407,21 @@ async fn run_table<E: epoch::Epoch>(
     if !(1..=100).contains(&duty) {
         return Err("c5_budget".into());
     }
-    tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
+    tokio::time::sleep(cycle_rest(engine.family(), started.elapsed(), duty)).await;
     // Small changed ranges also need a floor between metadata bursts.
     tokio::time::sleep(Duration::from_secs(1)).await;
+    let metadata = if replay {
+        target.publication_read_metadata().await?
+    } else {
+        Some(read_metadata(engine, budget))
+    };
+    let consistency = metadata
+        .as_ref()
+        .and_then(|m| m["consistency"].as_str())
+        .unwrap_or("unmeasured");
     let output = serde_json::json!({
         "protocol":"oo.sync/v1","source":source.id,"mode":"c5","table":table,
+        "read_metadata":metadata,
         "status":if replay || after == before {"noop"} else {"fresh"},
         "run_id":config.run_id,
         "retained_run":retained_run,
@@ -413,15 +432,71 @@ async fn run_table<E: epoch::Epoch>(
         "target_write_bytes":if replay {0} else {target.write_bytes().await?},
         "generation":after,"new_generations":after-before,
         "write_basis":"committed_logical_stage_tuples_excluding_indexes_wal_metadata",
-        "publication":"local_table_view","gateway_published":false,"consistency":"B","source_time":"unmeasured"
+        "publication":"local_table_view","gateway_published":false,
+        "consistency":consistency,"source_time":"unmeasured"
     });
     Ok(output)
+}
+
+fn cycle_rest(family: EngineFamily, elapsed: Duration, duty: u32) -> Duration {
+    // These adapters already pace each operation. Counting target work and
+    // their sleeps as source work again can add hours of idle source time.
+    if matches!(
+        family,
+        EngineFamily::Postgres | EngineFamily::Mysql | EngineFamily::Kingbase
+    ) {
+        Duration::ZERO
+    } else {
+        elapsed * (100 - duty) / duty
+    }
+}
+
+fn accept_proof(
+    chunk: &engine::ChunkSpec,
+    rows: u64,
+    discovery: &mut RangeDigest,
+    proof: RangeDigest,
+    same_transaction: bool,
+) -> Result<(), String> {
+    if proof.table != chunk.table
+        || proof.lo != chunk.lo
+        || proof.hi != chunk.hi
+        || proof.rows != rows
+        || (!same_transaction && &proof != discovery)
+    {
+        return Err("c5_range_changed_retry".into());
+    }
+    // Discovery selects transfers; the payload's snapshot proves publication.
+    *discovery = proof;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use oo_connectors::engine::{ChunkSpec, KeyShape, KeyValue};
+
+    #[test]
+    fn paced_adapters_do_not_repay_duty_sleep_as_source_work() {
+        for family in [
+            EngineFamily::Postgres,
+            EngineFamily::Mysql,
+            EngineFamily::Kingbase,
+        ] {
+            assert_eq!(
+                cycle_rest(family, Duration::from_secs(600), 25),
+                Duration::ZERO
+            );
+        }
+        assert_eq!(
+            cycle_rest(EngineFamily::Oracle, Duration::from_secs(600), 25),
+            Duration::from_secs(1800)
+        );
+        assert_eq!(
+            cycle_rest(EngineFamily::Oracle, Duration::from_secs(600), 100),
+            Duration::ZERO
+        );
+    }
 
     fn plan(bounds: &[i64], key: &str) -> TableChunkPlan {
         let table = TableRef {
@@ -494,5 +569,50 @@ mod tests {
         new.digest = "changed_same_count".into();
         assert!(needs_read(Some(&old), &new, false, false));
         assert!(needs_read(None, &new, false, false));
+    }
+
+    #[test]
+    fn payload_proof_wins_over_discovery_and_next_cycle_corrects() {
+        let plan = plan(&[5], "id");
+        let chunk = &plan.chunks[0];
+        let digest = |rows, value: &str| RangeDigest {
+            table: chunk.table.clone(),
+            lo: chunk.lo.clone(),
+            hi: chunk.hi.clone(),
+            rows,
+            digest: value.into(),
+        };
+        for (rows, value) in [(2, "updated"), (1, "deleted"), (1, "key_moved")] {
+            let a = digest(2, "original");
+            let b = digest(rows, value);
+            let mut published = a.clone();
+            // Discovery A, payload B, source back to A: publish B's proof, not A.
+            accept_proof(chunk, rows, &mut published, b.clone(), true).unwrap();
+            assert_eq!(published, b);
+            assert!(needs_read(Some(&published), &a, false, false));
+            accept_proof(chunk, 2, &mut published, a.clone(), true).unwrap();
+            assert_eq!(published, a);
+            assert!(!needs_read(Some(&published), &a, false, false));
+        }
+    }
+
+    #[test]
+    fn mismatched_or_unbound_proof_cannot_replace_discovery() {
+        let plan = plan(&[5], "id");
+        let chunk = &plan.chunks[0];
+        let before = RangeDigest {
+            table: chunk.table.clone(),
+            lo: chunk.lo.clone(),
+            hi: chunk.hi.clone(),
+            rows: 2,
+            digest: "a".into(),
+        };
+        let mut changed = before.clone();
+        changed.digest = "b".into();
+        assert!(accept_proof(chunk, 2, &mut before.clone(), changed, false).is_err());
+        assert!(accept_proof(chunk, 1, &mut before.clone(), before.clone(), true).is_err());
+        let mut wrong_range = before.clone();
+        wrong_range.hi = None;
+        assert!(accept_proof(chunk, 2, &mut before.clone(), wrong_range, true).is_err());
     }
 }

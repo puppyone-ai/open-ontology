@@ -140,6 +140,8 @@ pub struct MysqlEngine {
     password: Zeroizing<String>,
     options: EngineOptions,
     conn: Option<Conn>,
+    single_snapshot: bool,
+    snapshot_started: bool,
     basics: Option<Basics>,
     tables: HashMap<TableRef, TableMeta>,
     duty: DutyCycle,
@@ -148,6 +150,8 @@ pub struct MysqlEngine {
     last_op: Option<Instant>,
     idle_since: Option<Instant>,
     next_split_id: u32,
+    /// Proof over the same transaction as the most recent successful payload.
+    pub last_chunk_digest: Option<RangeDigest>,
 }
 
 fn mysql_err(e: MysqlError) -> SourceError {
@@ -399,6 +403,8 @@ impl MysqlEngine {
             password,
             options,
             conn: None,
+            single_snapshot: false,
+            snapshot_started: false,
             basics: None,
             tables: HashMap::new(),
             duty,
@@ -407,6 +413,7 @@ impl MysqlEngine {
             last_op: None,
             idle_since: None,
             next_split_id: 0,
+            last_chunk_digest: None,
         }
     }
 
@@ -431,6 +438,32 @@ impl MysqlEngine {
         self.config.mysql_port = tunnel.address().port();
         self.tunnel = Some(tunnel);
         Ok(self)
+    }
+
+    pub fn with_single_snapshot(mut self) -> Self {
+        self.single_snapshot = true;
+        self
+    }
+
+    pub fn read_consistency(&self) -> &'static str {
+        if self.single_snapshot {
+            "single"
+        } else {
+            "chunk_consistent"
+        }
+    }
+
+    pub async fn prepare_table_snapshot(&mut self) -> Result<()> {
+        if self.single_snapshot && !self.snapshot_started {
+            self.ensure_basics().await?;
+            self.exec(
+                "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+                vec![],
+            )
+            .await?;
+            self.snapshot_started = true;
+        }
+        Ok(())
     }
 
     /// Resource receipt (T8). `peak_connections` counts this engine's own
@@ -478,6 +511,9 @@ impl MysqlEngine {
     async fn ensure_conn(&mut self) -> Result<()> {
         if self.conn.is_some() {
             return Ok(());
+        }
+        if self.snapshot_started {
+            return Err(SourceError::protocol("single_snapshot_lost"));
         }
         if !mysql_ident(&self.config.mysql_database) {
             return Err(SourceError::config("database_ident"));
@@ -1321,6 +1357,7 @@ impl MysqlEngine {
         chunk: &ChunkSpec,
         budget: &ReadBudget,
     ) -> Result<(ChunkReceipt, Vec<RecordBatch>, Vec<RowFingerprint>)> {
+        self.last_chunk_digest = None;
         self.apply_budget(budget).await?;
         self.ensure_basics().await?;
         self.meta(&chunk.table).await?;
@@ -1408,30 +1445,96 @@ impl MysqlEngine {
         budget: &ReadBudget,
     ) -> Result<(Option<Watermark>, Option<Watermark>, Vec<Row>, u64)> {
         let low = self.read_watermark().await?;
-        self.exec(
-            if self.family == EngineFamily::Tidb {
-                "START TRANSACTION WITH CONSISTENT SNAPSHOT"
-            } else {
-                "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"
-            },
-            vec![],
-        )
-        .await?;
         let body = async {
+            if !self.single_snapshot {
+                self.exec(
+                    if self.family == EngineFamily::Tidb {
+                        "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                    } else {
+                        "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY"
+                    },
+                    vec![],
+                )
+                .await?;
+            } else if !self.snapshot_started {
+                return Err(SourceError::protocol("single_snapshot_not_started"));
+            }
             let (rows, bytes) = self.read_pages(chunk, budget).await?;
-            Ok::<_, SourceError>((rows, bytes))
+            let proof = self.chunk_digest(chunk).await?;
+            if proof.rows != rows.len() as u64 {
+                return Err(SourceError::protocol("chunk_proof_count"));
+            }
+            Ok::<_, SourceError>((rows, bytes, proof))
         };
-        let result = body.await;
+        // One wall-clock bound across BEGIN, all pages and the proof query.
+        let result =
+            match tokio::time::timeout(Duration::from_millis(budget.statement_timeout_ms), body)
+                .await
+            {
+                Ok(result) => result,
+                Err(_) => {
+                    // Never reuse a connection with a cancelled in-flight query.
+                    self.conn.take();
+                    return Err(SourceError::budget("chunk_transaction_timeout"));
+                }
+            };
         let end = if result.is_ok() { "COMMIT" } else { "ROLLBACK" };
-        if self.conn.is_some() {
-            let closed = self.exec(end, vec![]).await;
-            if result.is_ok() {
-                closed?;
+        if self.conn.is_some() && !self.single_snapshot {
+            let closed = tokio::time::timeout(Duration::from_secs(1), self.exec(end, vec![])).await;
+            match closed {
+                Ok(Ok(_)) => {}
+                _ => {
+                    self.conn.take();
+                    return Err(SourceError::protocol("cleanup_unconfirmed"));
+                }
             }
         }
-        let (rows, bytes) = result?;
+        let (rows, bytes, proof) = result?;
         let high = self.read_watermark().await?;
+        self.last_chunk_digest = Some(proof);
         Ok((low, high, rows, bytes))
+    }
+
+    async fn chunk_digest(&mut self, chunk: &ChunkSpec) -> Result<RangeDigest> {
+        let meta = self.meta_ref(&chunk.table)?;
+        let keys = &meta.key.columns;
+        let lo = Self::bound(chunk.lo.as_deref(), keys)?;
+        let hi = Self::bound(chunk.hi.as_deref(), keys)?;
+        let (predicate, values) = if keys.is_empty() {
+            (String::new(), vec![])
+        } else {
+            keyset::range_predicate(
+                keys,
+                lo.as_deref().map(|v| (v, Lower::Inclusive)),
+                hi.as_deref(),
+            )?
+        };
+        let sql = keyset::digest_sql(
+            &chunk.table.schema,
+            &chunk.table.name,
+            if keys.is_empty() {
+                None
+            } else {
+                Some(&meta.key.index)
+            },
+            &meta.names,
+            &predicate,
+            self.hint_ms(),
+        )?;
+        let rows = self.exec(&sql, values).await?;
+        let row = rows
+            .first()
+            .ok_or_else(|| SourceError::protocol("digest"))?;
+        let count = row_u64(row, 0).ok_or_else(|| SourceError::protocol("digest_count"))?;
+        let x1 = row_u64(row, 1).ok_or_else(|| SourceError::protocol("digest_sum"))?;
+        let x2 = row_u64(row, 2).ok_or_else(|| SourceError::protocol("digest_sum"))?;
+        Ok(RangeDigest {
+            table: chunk.table.clone(),
+            lo: chunk.lo.clone(),
+            hi: chunk.hi.clone(),
+            rows: count,
+            digest: format!("md5sum2:{x1:016x}{x2:016x}"),
+        })
     }
 
     async fn read_pages(
@@ -2074,6 +2177,31 @@ mod tests {
         ] {
             assert_ne!(digest, shape_digest(columns, keys).unwrap());
         }
+    }
+
+    #[tokio::test]
+    async fn lost_single_snapshot_never_reconnects_as_a_new_snapshot() {
+        let config = MysqlConfig {
+            mysql_host: "localhost".into(),
+            mysql_port: 3306,
+            mysql_database: "fixture".into(),
+            mysql_user: "reader".into(),
+            mysql_ca_file: Default::default(),
+            mysql_tls_server_name: None,
+            secret_ref: crate::SecretRef::new("secret://fixture").unwrap(),
+            connect_timeout_ms: 1000,
+        };
+        let mut engine =
+            MysqlEngine::new(config, Zeroizing::new(String::new()), Default::default());
+        assert_eq!(engine.read_consistency(), "chunk_consistent");
+        engine = engine.with_single_snapshot();
+        assert_eq!(engine.read_consistency(), "single");
+        engine.snapshot_started = true;
+        assert_eq!(
+            engine.ensure_conn().await.unwrap_err().fact(),
+            Some("single_snapshot_lost")
+        );
+        assert_eq!(engine.stats.connects, 0);
     }
 
     #[test]

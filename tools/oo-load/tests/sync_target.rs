@@ -319,12 +319,28 @@ async fn c5_target_reuses_parent_and_no_change_writes_nothing() {
     let mut sink = PgTarget::new(&mut conn, "c5-test", "base", &t)
         .await
         .unwrap();
+    let read_metadata = serde_json::json!({
+        "consistency":"chunk_consistent",
+        "chunk_bounds":{"rows":100000,"bytes":33554432,"transaction_ms":30000,"cleanup_ms":1000}
+    });
+    sink.read_metadata(read_metadata.clone());
     sink.begin(&plan).await.unwrap();
     for chunk in 0..2 {
         let (ipc, decoded) = decode(image(i64::from(chunk) + 1, "base"));
         sink.stage(&receipt(chunk, &ipc), &decoded).await.unwrap();
     }
     sink.publish(&plan).await.unwrap();
+    assert_eq!(
+        sink.publication_read_metadata().await.unwrap(),
+        Some(read_metadata.clone())
+    );
+    // A caller changing options on resume cannot relabel the retained rows.
+    sink.read_metadata(serde_json::json!({"consistency":"single"}));
+    assert!(sink.completed().await.unwrap().is_some());
+    assert_eq!(
+        sink.publication_read_metadata().await.unwrap(),
+        Some(read_metadata)
+    );
     let relation = sink.relation();
     let base_relation = sink.generation_relation("base").await.unwrap().unwrap();
     let (ipc, decoded) = decode(image(1, "must-not-rewrite-sealed-storage"));

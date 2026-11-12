@@ -2549,6 +2549,30 @@ impl SourceEngine for OracleEngine {
         result
     }
 
+    async fn split_chunk(
+        &mut self,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<ChunkSpec>>, SourceError> {
+        validate_budget(budget)?;
+        let state = self
+            .tables
+            .get(&chunk.table)
+            .ok_or(SourceError::catalog("table_not_planned"))?;
+        if !matches!(state.strategy, ChunkStrategy::Keyset { .. }) {
+            return Ok(None);
+        }
+        self.set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
+        self.protect().await?;
+        let started = Instant::now();
+        let result = OracleEngine::split_chunk(self, chunk, budget)
+            .map(Some)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
+        self.schedule_next(started.elapsed(), budget);
+        self.pace().await;
+        result
+    }
+
     async fn watermark(&mut self) -> Result<Option<Watermark>, SourceError> {
         Ok(Some(Watermark::OracleScn {
             scn: self.current_scn()?,

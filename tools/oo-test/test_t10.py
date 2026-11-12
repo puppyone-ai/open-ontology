@@ -8,9 +8,67 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import t10
+
+
+class PreparationTests(unittest.TestCase):
+    def test_pg_slot_retention_is_set_at_startup_not_shadowed_by_command_line(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g')
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        run.slot_wal_keep_size = '-1'
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(['docker', 'create', '--name', run.name, 'image'])
+        args = command.call_args.args[1]
+        self.assertIn('max_slot_wal_keep_size=-1', args)
+        self.assertNotIn('max_slot_wal_keep_size=256MB', args)
+
+    def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
+        import itertools
+        h = object.__new__(t10.ImpactHarness)
+        h.run = Mock(engine='mysql', version='8.4')
+        h.sync, h.server_ids = {}, itertools.count(42)
+        calls = []
+        h.snapshot = lambda *args: calls.append('snapshot')
+        def sql(query):
+            calls.append(query)
+            return 0, 'uuid' if 'server_uuid' in query else 'bin.000001 1234'
+        h.src = sql
+        h.c1_binding('fixture', ['bulk'])
+        self.assertEqual(calls, ['snapshot', 'SELECT @@GLOBAL.server_uuid;',
+                                 'SHOW BINARY LOG STATUS;'])
+        self.assertTrue(h.sync['fixture']['baseline_aligned'])
+        self.assertEqual(h.sync['fixture']['initial_position'],
+                         {'kind': 'mysql_file_pos', 'file': 'bin.000001', 'position': 1234})
+
+    def test_oracle_timeout_requires_measured_positive_rate(self):
+        self.assertEqual(t10.oracle_timeout(2_000_000, 1000), 6000)
+        self.assertEqual(t10.oracle_timeout(20, 1000), 900)
+        for rate in (0, -1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                t10.oracle_timeout(2_000_000, rate)
+
+    def test_oracle_preparation_uses_calibrated_timeout(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_timeout = 6000
+        h.load_rate = None
+        with patch.object(t10.OracleHarness, 'call', return_value=(0, [], None)) as call:
+            h.call('s', 'run')
+            self.assertEqual(call.call_args.args[-1], 6000)
+            h.call('s', 'run', timeout=42)
+            self.assertEqual(call.call_args.args[-1], 42)
+
+    def test_oracle_timeout_tracks_current_binding_rows_not_seed_rows(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_rate, h.timeout_records = 1000, []
+        h.tables = Mock(return_value=['bulk', 'other'])
+        h.src = Mock(return_value=(0, '3000000'))
+        h.size_timeout('later_binding')
+        self.assertEqual(h.load_timeout, 9000)
+        self.assertEqual(h.timeout_records[0]['rows'], 3000000)
+        self.assertEqual(h.timeout_records[0]['tables'], ['bulk', 'other'])
 
 
 class MathTests(unittest.TestCase):
@@ -27,6 +85,13 @@ class MathTests(unittest.TestCase):
         result = t10.summarize([dict(intended=0, actual=2, end=3, error=None)], 4)
         self.assertEqual(result['p95_ms'], 3000)
         self.assertEqual(result['max_start_delay_ms'], 2000)
+
+    def test_error_classes_remain_distinct(self):
+        rows = [dict(intended=0, actual=0, end=1, error=error)
+                for error in (None, 'scheduler_queue_full', 'DatabaseError', 'scheduler_queue_full')]
+        result = t10.summarize(rows, 2)
+        self.assertEqual(result['errors'], 3)
+        self.assertEqual(result['error_counts'], {'scheduler_queue_full': 2, 'DatabaseError': 1})
 
     def test_late_completion_not_counted_as_on_time_throughput(self):
         result = t10.summarize([dict(intended=0, actual=2, end=3, error=None)], 2)
@@ -47,6 +112,39 @@ class MathTests(unittest.TestCase):
         self.assertEqual(t10.windows([], 0), [])
         self.assertIsNone(t10.summarize([], 0)['p99_ms'])
 
+
+class WindowScalingTests(unittest.TestCase):
+    def test_boundary_and_late_rows_match_reference(self):
+        rows = [dict(intended=start, actual=None if error else start + .2,
+                     end=end, error=error, extra='retained')
+                for start, end, error in (
+                    (10, 20, None), (9.9, 10, None), (0, 25, None),
+                    (20, 20.1, 'DatabaseError'), (20.2, 21, None),
+                    (21, 22, None), (19, 20.9, None), (-1, .1, None))]
+        expected = []
+        for start in (0, 10, 20):
+            end = min(start + 10, 21)
+            cohort = [dict(r, intended=r['intended'] - start,
+                           actual=None if r['actual'] is None else r['actual'] - start,
+                           end=r['end'] - start)
+                      for r in rows if start <= r['intended'] < end]
+            summary = t10.summarize(cohort, end - start)
+            summary['achieved_rate'] = sum(
+                r['error'] is None and start <= r['end'] < end for r in rows) / (end - start)
+            expected.append(dict(summary, start_seconds=start))
+        self.assertEqual(t10.windows(rows, 21), expected)
+
+    def test_long_phase_visits_input_once(self):
+        class Counted(list):
+            visits = 0
+            def __iter__(self):
+                for row in super().__iter__():
+                    self.visits += 1
+                    yield row
+        rows = Counted(dict(intended=i, actual=i, end=i + .1, error=None)
+                       for i in range(1000))
+        self.assertEqual(len(t10.windows(rows, 1000)), 100)
+        self.assertEqual(rows.visits, len(rows))
 
 class VerdictTests(unittest.TestCase):
     def setUp(self):
@@ -131,6 +229,20 @@ class SchedulerTests(unittest.TestCase):
         self.assertTrue(all(r['error'] == 'ValueError' for r in rows))
         self.assertNotIn('sensitive', json.dumps(rows))
 
+    def test_only_allowlisted_oracle_codes_survive_error_sanitizing(self):
+        class DriverError:
+            full_code = 'ORA-00020'
+            def __str__(self):
+                return 'sensitive driver details'
+        def bad(_):
+            raise RuntimeError(DriverError())
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError:ORA-00020' for r in rows))
+        self.assertNotIn('sensitive', json.dumps(rows))
+        DriverError.full_code = 'ORA-00020 sensitive details'
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError' for r in rows))
+
     def test_completion_driven_phase(self):
         done = threading.Event()
         rows, _ = t10.open_loop(lambda _: done.set(), 100, None, finished=done, workers=1)
@@ -144,7 +256,8 @@ class SchedulerTests(unittest.TestCase):
             now[0] += delta
         def slow(_):
             gate.wait(.05)
-        rows, _ = t10.open_loop(slow, 1000, .1, clock=lambda: now[0], sleep=sleep, workers=1)
+        with patch.object(t10, 'BACKLOG_SECONDS', 0.01):  # backlog beyond the bound
+            rows, _ = t10.open_loop(slow, 1000, .1, clock=lambda: now[0], sleep=sleep, workers=1)
         self.assertEqual(len(rows), 100)
         self.assertTrue(any(r['error'] == 'scheduler_queue_full' for r in rows))
 
@@ -155,6 +268,16 @@ class SchedulerTests(unittest.TestCase):
     def test_calibration_errors_fail(self):
         with self.assertRaisesRegex(RuntimeError, 'calibration_errors'):
             t10.calibrate(lambda _: 1 / 0, seconds=.01, levels=(1,))
+
+    def test_calibration_uses_one_sequence_despite_unequal_worker_speeds(self):
+        seen = []
+        def work(index):
+            seen.append(index)
+            time.sleep(.001 if index % 2 else .0001)
+        with self.assertRaisesRegex(RuntimeError, 'capacity_not_found'):
+            t10.calibrate(work, seconds=.03, levels=(4,))
+        self.assertGreater(len(seen), 10)
+        self.assertEqual(sorted(seen), list(range(len(seen))))
 
     def test_calibration_plateau_and_55_percent(self):
         with patch.object(t10, 'ThreadPoolExecutor') as executor, \
@@ -199,8 +322,153 @@ class CLITests(unittest.TestCase):
                     t10.main(self.argv())
                 source.assert_not_called()
 
+    def test_busy_host_refused_without_creating_resources(self):
+        busy = argparse.Namespace(stdout='unrelated-container\t42.0%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[
+                argparse.Namespace(stdout='--duty-cycle-percent'), busy, busy, busy]) as run, \
+                patch.object(t10.importlib, 'import_module'), \
+                patch.object(t10, 'ImpactSource') as source:
+            with self.assertRaisesRegex(SystemExit, 'not idle; nothing stopped'):
+                t10.main(self.argv())
+            source.assert_not_called()
+            self.assertEqual(run.call_args.args[0][:3], ['docker', 'stats', '--no-stream'])
+
+    def test_idle_preexisting_containers_are_recorded_not_stopped(self):
+        idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:
+            seen = t10.quiet_host()
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 0.01})
+        self.assertNotIn('customer', json.dumps(seen))
+        self.assertTrue(all(call.args[0][:2] == ['docker', 'stats'] for call in run.call_args_list))
+
+
+class BacklogTests(unittest.TestCase):
+    def test_short_stall_is_latency_not_overload(self):
+        clock = {'now': 0.0}
+        def work(index):
+            if index == 0:
+                clock['now'] += 2.0  # one two-second stall
+        requests, _ = t10.open_loop(work, 5000, 1, clock=lambda: clock['now'],
+                                    sleep=lambda d: clock.__setitem__('now', clock['now'] + d), workers=1)
+        self.assertFalse([r for r in requests if r['error'] == 'scheduler_queue_full'])
+        self.assertGreaterEqual(max(r['latency_ms'] for r in requests), 1000)
+
+
+class SettleTests(unittest.TestCase):
+    def test_phase_rate_is_half_settled_not_half_burst_capacity(self):
+        calibration = {'capacity': 1000, 'rate': 550,
+                       'settle': {'rate': 269.5, 'trials': [{'rate': 269.5, 'errors': 0}]}}
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+        self.assertEqual(calibration['capacity'], 1000)
+        self.assertEqual(calibration['rate'], 550)
+        self.assertEqual(calibration['settled_rate'], 269.5)
+        self.assertEqual(calibration['settle']['trials'], [{'rate': 269.5, 'errors': 0}])
+        self.assertEqual(calibration['load_fraction'], .5)
+        self.assertEqual(calibration['used_rate'], 134.75)
+        # Re-rendering a receipt must not halve the offered rate again.
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+
+    def test_closes_connections_between_trials_and_after_success(self):
+        active = []
+        def loop(work, rate, seconds):
+            self.assertEqual(active, [])
+            active.extend(range(64))
+            return [dict(error='scheduler_queue_full' if rate > 70 else None)], seconds
+        result = t10.settle(None, 100, loop=loop, close=active.clear)
+        self.assertEqual(result['rate'], 70)
+        self.assertEqual(active, [])
+
+    def test_failed_settle_preserves_sanitized_trials_and_closes_connections(self):
+        close = Mock()
+        loop = lambda work, rate, seconds: ([dict(error='OperationalError')], seconds)
+        with self.assertRaises(t10.SettleFailure) as raised:
+            t10.settle(None, 100, loop=loop, tries=2, close=close)
+        self.assertEqual(close.call_count, 2)
+        self.assertEqual([t['rate'] for t in raised.exception.trials], [100, 70])
+        self.assertEqual(raised.exception.trials[0]['error_counts'], {'OperationalError': 1})
+
+    def test_closes_connections_when_trial_raises(self):
+        close = Mock()
+        with self.assertRaises(ValueError):
+            t10.settle(None, 100, loop=Mock(side_effect=ValueError), close=close)
+        close.assert_called_once_with()
+
+    def test_steps_down_until_a_sustained_trial_is_error_free(self):
+        def loop(work, rate, seconds):
+            error = 'scheduler_queue_full' if rate > 50 else None
+            return [dict(error=error), dict(error=None)], seconds
+        result = t10.settle(None, 100, loop=loop)
+        self.assertAlmostEqual(result['rate'], 49.0)
+        self.assertEqual([t['errors'] for t in result['trials']], [1, 1, 0])
+
+    def test_refuses_when_no_rate_is_sustainable(self):
+        loop = lambda work, rate, seconds: ([dict(error='x')], seconds)
+        with self.assertRaisesRegex(RuntimeError, 'no_sustainable_rate'):
+            t10.settle(None, 100, loop=loop, tries=2)
+
 
 class IntegrationContractTests(unittest.TestCase):
+    def test_invalid_baseline_cannot_start_product_comparison(self):
+        result = dict(requests=100, errors=0, achieved_rate=100, p95_ms=10, p99_ms=20,
+                      product_errors=[], metrics={'errors': [], 'samples': [{}]})
+        self.assertTrue(t10.valid_baseline(result))
+        for change in ({'errors': 1}, {'requests': 0}, {'product_errors': ['RuntimeError']},
+                       {'metrics': {'errors': ['missing'], 'samples': [{}]}},
+                       {'metrics': {'errors': [], 'samples': []}}):
+            self.assertFalse(t10.valid_baseline(dict(result, **change)))
+
+    def test_insert_keys_survive_calibration_and_phase_boundaries(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            statements = []
+            for _ in range(3):
+                work = t10.Workload(run)
+                work.local.conn = MagicMock()
+                cursor = work.local.conn.cursor.return_value.__enter__.return_value
+                for index in (9, 19):
+                    work(index)
+                    statements.append(cursor.execute.call_args.args[0])
+            self.assertEqual(len(set(statements)), 6)
+            for key, statement in enumerate(statements, t10.SCALE + 1):
+                self.assertIn(f'VALUES({key},', statement)
+
+    def test_c5_compares_both_policies_with_independent_baselines(self):
+        from unittest.mock import Mock
+        h = Mock()
+        policies = []
+        def measure(h, name, work, rate, seconds, action, sequence):
+            action()
+            return {'phase': name}
+        with patch.object(t10, 'phase', side_effect=measure), \
+                patch.object(t10, 'loader', side_effect=lambda *args: policies.append(args[-1])):
+            results = t10.c5_phases(h, 42, 24, 10_000_000)
+        self.assertEqual(tuple(results), t10.C5_PHASES)
+        self.assertEqual(policies, [{'cycle': 1, 'full_read_every': p} for p in (24, 24, 1, 1)])
+        self.assertEqual([r['c5_policy'] for r in results.values()], policies)
+        self.assertEqual([call.args for call in h.snapshot.call_args_list], [
+            ('t10_c5_idle', ['bulk']),
+            ('t10_c5_changed', ['bulk', 'items', 'other']),
+            ('t10_c5_full_idle', ['bulk']),
+            ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
+        self.assertEqual(h.src.call_count, 2)
+
+    def test_failed_preparation_preserves_remaining_c5_policies(self):
+        h = Mock()
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            h.run.path = Path(tmp)
+            h.snapshot.side_effect = [RuntimeError('sensitive'), None, None, None]
+            with patch.object(t10, 'phase', return_value={'phase': 'measured'}) as measure:
+                result = t10.c5_phases(h, 42, 24, 100)
+            failed = result['c5_idle']
+            self.assertTrue(failed['preparation_failed'])
+            self.assertEqual(failed['requests'], 0)
+            self.assertEqual(failed['product_errors'], ['RuntimeError'])
+            self.assertEqual(t10.verdict(failed, failed)['result'], 'fail')
+            self.assertNotIn('sensitive', (h.run.path / 'c5_idle.json').read_text())
+            self.assertEqual(measure.call_count, 3)
+            self.assertEqual(len(result), 4)
+
     def test_phase_retains_product_failure_and_closes_writer(self):
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, patch.object(t10, 'Meter') as meter:

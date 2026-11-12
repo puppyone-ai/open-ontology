@@ -12,7 +12,7 @@ impl PostgresEngine {
         }
         validate_budget(budget)?;
         self.selected(table)?;
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         self.transaction(&mut s).await?;
