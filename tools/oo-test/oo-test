@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import sys
 sys.dont_write_bytecode = True
-if sys.argv[1:2] == ["snapshot"]:
+if sys.argv[1:2] == ["gate"]:
+    del sys.argv[1]
+    from defects import main
+elif sys.argv[1:2] == ["snapshot"]:
     del sys.argv[1]
     from snapshots import main
 elif sys.argv[1:2] == ["timing"]:
