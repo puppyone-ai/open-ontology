@@ -141,6 +141,8 @@ def prompt(question, arm, schema, pack, context_format="artifact-v1"):
 
 
 def validate_dataset(dataset):
+    if dataset.get("numeric_comparison", "typed-v1") not in ("typed-v1", "exact-decimal-v1"):
+        raise Invalid("numeric_comparison")
     if dataset.get("context_format", "artifact-v1") not in ("artifact-v1", "knowledge-pages-v1"):
         raise Invalid("prompt_context_format")
     if dataset["version"] != VERSION or dataset["engine"] != "postgresql":
@@ -191,14 +193,51 @@ def validate_role(dataset, pack):
 def row_mode(question):
     return "ordered" if question.get("order_required", False) else "unordered"
 
-def compare_rows(question, actual):
+def compare_rows(question, actual, numeric_comparison="typed-v1"):
     """Only complete typed rows decide accuracy; retain metadata separately."""
     if actual.get("completion") != "complete":
         return {"pass": False, "no_output": False, "reason": "incomplete_rows"}
     def normalized(value):
-        return dict(value, warnings=[], columns=[
+        result = dict(value, warnings=[], columns=[
             dict(column, name=f"column_{i}")
             for i, column in enumerate(value["columns"])])
+        if numeric_comparison == "exact-decimal-v1":
+            # Validate before conversion: canonicalisation must not admit an
+            # out-of-range int64 or a malformed decimal that v1 rejects.
+            invoke("result-comparator", {
+                "version": "oo.benchmark.result-comparison/v1",
+                "row_comparator": row_mode(question),
+                "expected": result, "actual": result,
+            })
+            result["rows"] = [[
+                {"presence": "value", "negative": cell["value"].startswith("-"),
+                 "coefficient": cell["value"].lstrip("-"), "scale": 0}
+                if column["type"] == "int64" and cell["presence"] == "value"
+                else dict(cell)
+                for column, cell in zip(result["columns"], row)]
+                for row in result["rows"]]
+            result["columns"] = [
+                dict(column, type="decimal") if column["type"] == "int64" else column
+                for column in result["columns"]]
+            # The primitive's unordered multiset uses serialized cells. Give
+            # equal decimals one spelling, including zero and negative scales.
+            for row in result["rows"]:
+                for cell in row:
+                    if "coefficient" not in cell:
+                        continue
+                    coefficient = cell["coefficient"]
+                    if coefficient == "0":
+                        cell["scale"] = 0
+                    else:
+                        trimmed = coefficient.rstrip("0")
+                        # Stay within the primitive's scale budget.
+                        remove = min(len(coefficient) - len(trimmed), cell["scale"] + 8192)
+                        if remove:
+                            cell["coefficient"] = coefficient[:-remove]
+                            cell["scale"] -= remove
+        elif numeric_comparison != "typed-v1":
+            raise Invalid("numeric_comparison")
+        return result
     _, code = invoke("result-comparator", {
         "version": "oo.benchmark.result-comparison/v1",
         "row_comparator": row_mode(question),
@@ -208,7 +247,7 @@ def compare_rows(question, actual):
             "reason": "equal" if code == 0 else "different"}
 
 
-def execute_recording(question, response, directory, frozen_tuple):
+def execute_recording(question, response, directory, frozen_tuple, numeric_comparison="typed-v1"):
     """Replay a SQL-bound PG wire transcript through the real SQL runner."""
     directory.mkdir()
     write(directory / "response.json", response)
@@ -224,7 +263,7 @@ def execute_recording(question, response, directory, frozen_tuple):
         from live import score
         if response["sql_sha256"] != digest(response["sql"].encode()):
             raise Invalid("sql_binding")
-        return score(question, response)
+        return score(question, response, numeric_comparison)
     if response["kind"] != "sql":
         raise Invalid("response_kind")
     if not isinstance(response.get("sql"), str) or not response["sql"].strip():
@@ -289,7 +328,7 @@ def execute_recording(question, response, directory, frozen_tuple):
     comparisons = list((directory / "execution").rglob("comparator.stdin"))
     if len(comparisons) == 1 and trial["reason"] in ("match", "mismatch"):
         actual = load(comparisons[0])["actual"]
-        scored = compare_rows(question, actual)
+        scored = compare_rows(question, actual, numeric_comparison)
         scored["warnings"] = actual["warnings"]
         return scored
     return {"pass": trial["status"] == "pass", "no_output": False,
@@ -373,7 +412,8 @@ def run(dataset_path, output):
             response = recordings["responses"].get(
                 arm + ":" + question["id"], {"kind": "no_output"})
             row[arm] = execute_recording(
-                question, response, output / (arm + "-" + question["id"]), frozen_tuple)
+                question, response, output / (arm + "-" + question["id"]), frozen_tuple,
+                dataset.get("numeric_comparison", "typed-v1"))
         rows.append(row)
     statistics_hashes = {}
     for track in TRACKS:
@@ -411,6 +451,8 @@ def run(dataset_path, output):
     }
     if live:
         report["live_adapter_sha256"] = digest(Path(__file__).with_name("live.py").read_bytes())
+    if "numeric_comparison" in dataset:
+        report["numeric_comparison"] = dataset["numeric_comparison"]
     write(output / "report.json", report)
     return report
 

@@ -39,6 +39,21 @@ not evidence that the Gateway enforced a denial. Unsupported answer types count
 as failed answers without coercion or aborting other trials; unsupported gold
 types still stop preflight. The comparator supports exact integers, decimals,
 booleans and text.
+
+New value-equality experiments may explicitly set
+`"numeric_comparison": "exact-decimal-v1"` in the manifest. This applies to
+both arms, is bound into the recording hash, and appears in the report.
+The default `typed-v1` preserves historical scoring. The frozen comparator
+contract requires identical column types; its decimal equality is exact
+rescaling, not a tolerance. The opt-in adapter first validates each typed
+result with that comparator, then represents every int64 as an exact
+scale-zero decimal on **both** sides. It calls the unchanged comparator
+afterwards. Decimal scale, integer/numeric representation and aliases can
+differ; values cannot. Text and bool are never converted, money never uses
+floats, duplicate multiplicity, requested order, NULL/missing/unavailable
+and completeness remain strict. Raw receipts and frozen gold are unchanged.
+Gold preflight remains typed. Report the policy change and rescore both
+baselines separately; do not relabel historical reports as new measurements.
 Publication receipts bind execution, while the Pack file hash is declared by
 the operator: verify it against the deployed Pack before claiming published-Pack
 acceptance. These instructions alone do not establish a completed live run.

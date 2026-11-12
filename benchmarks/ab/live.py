@@ -89,7 +89,7 @@ def typed_result(result):
             "warnings": result["warnings"]}
 
 
-def score(question, response):
+def score(question, response, numeric_comparison="typed-v1"):
     if response.get("kind") == "gateway_denied":
         if question["track"] == "accuracy":
             return {"pass": False, "no_output": False, "reason": "gateway_denial",
@@ -109,7 +109,7 @@ def score(question, response):
         if str(error) != "gateway_type_unsupported":
             raise
         return {"pass": False, "no_output": False, "reason": "unsupported_result_type"}
-    scored = ab.compare_rows(question, actual)
+    scored = ab.compare_rows(question, actual, numeric_comparison)
     scored["warnings"] = actual["warnings"]
     scored["freshness"] = response["gateway_result"].get("freshness")
     return scored
