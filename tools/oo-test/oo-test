@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import sys
 sys.dont_write_bytecode = True
-if sys.argv[1:2] == ["timing"]:
+if sys.argv[1:2] == ["snapshot"]:
+    del sys.argv[1]
+    from snapshots import main
+elif sys.argv[1:2] == ["timing"]:
     del sys.argv[1]
     from timing import main
 elif sys.argv[1:2] == ["matrix"] and "--engine" in sys.argv and sys.argv[sys.argv.index("--engine") + 1:][:1] in (
