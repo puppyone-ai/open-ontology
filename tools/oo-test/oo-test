@@ -4,6 +4,9 @@ sys.dont_write_bytecode = True
 if sys.argv[1:2] == ["gate"]:
     del sys.argv[1]
     from defects import main
+elif sys.argv[1:2] == ["l3"]:
+    del sys.argv[1]
+    from l3 import main
 elif sys.argv[1:2] == ["fast"]:
     del sys.argv[1]
     from fast import main

@@ -10,6 +10,10 @@ version.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Test-only fault injection (src/failpoint.rs). Never enabled in release builds.
+failpoints = []
+
 [dependencies]
 oo-core = { path = "../oo-core" }
 oo-jobs = { path = "../oo-jobs" }

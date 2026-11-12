@@ -47,6 +47,69 @@ def rows(text):
     return [json.loads(line) for line in text.splitlines() if line.startswith("{")]
 
 
+# Fast-fault mode (L2, plan section 2.5): SIGKILL comes from a product
+# failpoint at a commit boundary and network drops from toxiproxy, instead
+# of polling for progress and waiting out a disconnected bridge. Each is
+# paired with the real-fault case of the same name in the L3 run.
+FAST = False
+FAST_OUTAGE = 3
+FAILPOINT = {"snapshot": "load_chunk_commit=abort@3", "c5": "c5_commit=abort@1",
+             "c1": "c1_apply_commit=abort@1"}
+FAST_PAIRS = {"sigkill_mid_cycle": "failpoint", "network_drop_mid_c1": "toxiproxy",
+              "network_drop_mid_c5": "toxiproxy"}
+
+
+class Toxiproxy:
+    """An owned toxiproxy in front of the source; the product connects through it."""
+    def __init__(self, run):
+        lock = json.loads((ROOT / "testing/infra/images.lock.json").read_text())
+        item = next(i for i in lock["images"] if i["id"].startswith("toxiproxy-"))
+        self.image = item["ref"].split(":")[0] + "@" + item["index_digest"]
+        self.run = run
+        self.name = "oo-ta-toxi-" + run.id
+        self.api, self.port = free_port(), free_port()
+        self.created = False
+
+    def call(self, method, path, body=None):
+        import urllib.request
+        request = urllib.request.Request(f"http://127.0.0.1:{self.api}{path}", method=method,
+                                         data=json.dumps(body).encode() if body else None,
+                                         headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status
+
+    def start(self):
+        self.created = True
+        self.run.command(["docker", "run", "-d", "--name", self.name,
+                          "--label", "oo.lane=" + t1.LANE, "--label", "oo.run_id=" + self.run.id,
+                          "-p", f"127.0.0.1:{self.api}:8474", "-p", f"127.0.0.1:{self.port}:20000",
+                          self.image], timeout=120)
+        if not wait_until(lambda: self._ready(), 30, 0.5):
+            raise RuntimeError("toxiproxy_not_ready")
+        self.call("POST", "/proxies", {"name": "source", "listen": "0.0.0.0:20000",
+                                       "upstream": f"host.docker.internal:{self.run.host_port}",
+                                       "enabled": True})
+
+    def _ready(self):
+        try:
+            return self.call("GET", "/version") == 200
+        except OSError:
+            return False
+
+    def set(self, enabled):
+        self.call("POST", "/proxies/source", {"enabled": enabled})
+
+    def close(self):
+        if not self.created:
+            return
+        _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}",
+                                   self.name], required=False)
+        labels = json.loads(raw) if raw.strip().startswith("{") else {}
+        if labels.get("oo.lane") != t1.LANE or labels.get("oo.run_id") != self.run.id:
+            raise RuntimeError("toxiproxy_cleanup_ownership")
+        self.run.command(["docker", "rm", "-f", self.name])
+
+
 def free_port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -164,6 +227,8 @@ class Harness:
         self.disconnected = False
         self.recoveries = []
         self.paths = ("c5", "c1")
+        self.failpoint = None
+        self.proxy = None
 
     # Source/target access -------------------------------------------------
     def src(self, sql, required=True):
@@ -185,6 +250,8 @@ class Harness:
 
     def heal(self):
         reconnected = self.disconnected or self.__dict__.pop("pending_flush", False)
+        if self.proxy:
+            self.proxy.set(True)
         if self.disconnected:
             self.run.command(["docker", "network", "connect", "bridge", self.run.name])
             self.disconnected = False
@@ -250,7 +317,8 @@ class Harness:
     # oo-load invocation ---------------------------------------------------
     def add_source(self, sid, tables, chunk_rows=None):
         self.stack["sources"] = [s for s in self.stack["sources"] if s["id"] != sid]
-        source = {"id": sid, "engine": self.run.engine, "host": "127.0.0.1", "port": self.run.host_port,
+        port = self.proxy.port if self.proxy else self.run.host_port
+        source = {"id": sid, "engine": self.run.engine, "host": "127.0.0.1", "port": port,
                   "database": "fixture", "user": "fixture_reader",
                   "password": {"secret_ref": "source-password"}, "tls_ca": {"secret_ref": "source-ca"},
                   "scope": {"include": [f"{self.schema}.{t}" for t in tables], "exclude": []},
@@ -324,7 +392,8 @@ class Harness:
         out, err = prefix.with_suffix(".stdout").open("w"), prefix.with_suffix(".stderr").open("w")
         started = time.monotonic()
         try:
-            proc = subprocess.Popen(command, stdout=out, stderr=err, text=True, cwd=ROOT)
+            env = dict(os.environ, OO_FAILPOINTS=self.failpoint) if self.failpoint else None
+            proc = subprocess.Popen(command, stdout=out, stderr=err, text=True, cwd=ROOT, env=env)
         except BaseException:
             out.close()
             err.close()
@@ -585,6 +654,8 @@ def inject(h, fault, proc):
         run.command(["docker", "restart", run.name], timeout=600)
     elif fault == "target_restart":
         run.command(["docker", "restart", h.target.name], timeout=600)
+    elif fault == "network_drop" and h.proxy:
+        h.proxy.set(False)
     elif fault == "network_drop":
         run.command(["docker", "network", "disconnect", "bridge", run.name])
         h.disconnected = True
@@ -597,12 +668,28 @@ def inject(h, fault, proc):
 
 def interrupted(h, fault, proc, progressed, outage=20):
     """Inject `fault` once the background process has visibly progressed."""
+    if FAST and fault == "sigkill" and h.failpoint:
+        # The product aborts itself at the armed commit boundary.
+        proc.killed = True
+        wait_until(lambda: proc.poll() is not None, 900)
+        step = {"fault": fault, "mechanism": "failpoint", "failpoint": h.failpoint,
+                "injected_mid_run": proc.poll() == -signal.SIGABRT,
+                "injected_after_seconds": round(time.monotonic() - proc.started, 3)}
+        h.failpoint = None
+        code, receipts, error = h.finish(proc, timeout=900)
+        step.update(first_exit=code, first_error=error, hung_past_timeout=code == 124)
+        h.heal()
+        return step
     injected = wait_until(lambda: progressed() or proc.poll() is not None, 900) and proc.poll() is None
     step = {"fault": fault, "injected_mid_run": injected}
     if injected:
         inject(h, fault, proc)
         step["injected_after_seconds"] = round(time.monotonic() - proc.started, 3)
-        if fault == "network_drop":
+        if fault == "network_drop" and h.proxy:
+            time.sleep(FAST_OUTAGE)
+            h.proxy.set(True)
+            step.update(outage_seconds=FAST_OUTAGE, mechanism="toxiproxy")
+        elif fault == "network_drop":
             # A bounded outage; reconnect while the loader may still be running.
             time.sleep(outage)
             h.run.command(["docker", "network", "connect", "bridge", h.run.name])
@@ -616,6 +703,10 @@ def interrupted(h, fault, proc, progressed, outage=20):
     step.update(first_exit=code, first_error=error, hung_past_timeout=code == 124)
     h.heal()
     return step
+
+
+def arm(h, fault, path):
+    h.failpoint = FAILPOINT[path] if FAST and fault == "sigkill" else None
 
 
 def first_ok(step, fault):
@@ -633,6 +724,7 @@ def monotonic(positions):
 def snapshot_fault(h, sid, fault):
     h.add_source(sid, ["bulk"], CHUNK_ROWS)
     before = h.chunks()
+    arm(h, fault, "snapshot")
     proc = h.spawn(sid, sid + "-base")
     step = interrupted(h, fault, proc, lambda: h.chunks() >= before + 3)
     code, receipts, error = h.call(sid, sid + "-base", required=False)
@@ -662,6 +754,7 @@ def c5_fault(h, sid, fault):
     grow(h)
     before = h.chunks()
     cycle = h.sync[sid]["cycle"]
+    arm(h, fault, "c5")
     proc = h.spawn(sid, f"{sid}-c5-{cycle}", "--c5", {"cycle": cycle, "full_read_every": 1000})
     step = interrupted(h, fault, proc, lambda: h.chunks() >= before + 2)
     code, receipts, error = h.c5(sid, required=False)
@@ -679,6 +772,7 @@ def c1_fault(h, sid, fault):
     for i in range(60):
         h.dml(["items", "other"], base + i * 10, count=3)
     before = h.position(sid)
+    arm(h, fault, "c1")
     proc = h.spawn(sid, sid + "-sync", "--sync", h.sync[sid])
     step = interrupted(h, fault, proc, lambda: h.position(sid) not in (before, None))
     step["position_before"], step["position_at_fault"] = before, h.position(sid)
@@ -1063,6 +1157,11 @@ def run_version(run, binary, cases):
               "consistency": "B"}
     try:
         h.prepare()
+        if FAST and run.engine != "oracle":
+            h.proxy = Toxiproxy(run)
+            h.proxy.start()
+            report["fast_faults"] = {"pairs": FAST_PAIRS, "failpoints": FAILPOINT,
+                                     "outage_seconds": FAST_OUTAGE, "proxy_image": h.proxy.image}
         version_sql = "SELECT VERSION();"
         if run.engine == "oracle":
             column = "version" if run.version == "11" else "version_full"
@@ -1098,6 +1197,11 @@ def run_version(run, binary, cases):
             h.target.close()
         except Exception as error:
             report["target_cleanup_error"] = type(error).__name__
+        if h.proxy:
+            try:
+                h.proxy.close()
+            except Exception as error:
+                report["proxy_cleanup_error"] = type(error).__name__
         shutil.rmtree(h.store, ignore_errors=True)
         runner.write_json(run.path / "t3t4.json", report)
     return report
@@ -1120,10 +1224,16 @@ def accepted(result, cases):
             and set(result.get("cases", {})) == set(cases)
             and all(r["status"] in ("passed", "not_applicable") for r in result["cases"].values()))
 
-def suite_verdicts(result, engine, version):
+def suite_verdicts(result, engine, version, requested=None):
+    """Verdict rows only for a suite whose full case list ran without fast faults."""
     verdicts = []
     for suite, required in (("T3", T3), ("T4", T4)):
-        cases = {c: result.get("cases", {}).get(c, {}) for c in required}
+        selected = [c for c in required if requested is None or c in requested]
+        if not selected:
+            continue
+        if len(selected) != len(required) or FAST:
+            continue  # t3t4.json and the exit code carry it; support rows need full L3
+        cases = {c: result.get("cases", {}).get(c, {}) for c in selected}
         passed = (not any(result.get(k) for k in
                           ("error", "cleanup_failures", "target_cleanup_error", "worker_cleanup_error"))
                   and all(r.get("status") in ("passed", "not_applicable") for r in cases.values())
@@ -1148,7 +1258,11 @@ def main(argv=None):
     parser.add_argument("--min-free-gb", type=float, default=20.0)
     parser.add_argument("--disk-wait-minutes", type=float, default=90.0)
     parser.add_argument("--worker-image", help="digest-pinned 11g thick client image")
+    parser.add_argument("--fast-faults", action="store_true",
+                        help="L2: failpoint SIGKILL and toxiproxy drops (needs a failpoints build)")
     args = parser.parse_args(argv)
+    global FAST
+    FAST = args.fast_faults
     t1.LANE = os.environ.get("OO_TEST_LANE", "e" if args.engine == "oracle" else "n")
     versions = args.versions.split(",")
     allowed = {"mysql": MYSQL, "postgres": POSTGRES, "oracle": ORACLE}[args.engine]
@@ -1185,7 +1299,7 @@ def main(argv=None):
             runner.write_json(path / "t3t4.json", results[version])
             from types import SimpleNamespace
             write_rows(SimpleNamespace(engine=args.engine, version=version, id=args.run_id),
-                       path / "t3t4.json", suite_verdicts(results[version], args.engine, version))
+                       path / "t3t4.json", suite_verdicts(results[version], args.engine, version, cases))
             runner.write_json(root / "matrix.json", results)
             continue
         run = Source(path, args.engine, version,
@@ -1200,7 +1314,8 @@ def main(argv=None):
                 results.setdefault(version, {})["version_error"] = "version_unmeasured"
             results.setdefault(version, {})["cleanup_failures"] = run.cleanup()
             runner.write_json(path / "t3t4.json", results[version])
-            write_rows(run, path / "t3t4.json", suite_verdicts(results[version], args.engine, version),
+            write_rows(run, path / "t3t4.json", suite_verdicts(results[version], args.engine, version,
+                                                                cases),
                        cleanup_failed=bool(results[version]["cleanup_failures"]))
             runner.checksums(path)
             runner.write_json(root / "matrix.json", results)

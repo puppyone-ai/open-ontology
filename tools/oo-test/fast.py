@@ -30,8 +30,9 @@ HERE = Path(__file__).resolve().parent
 T4_CASES = ("add_column", "drop_column", "rename_column", "widen_type", "widen_string",
             "add_table", "drop_table", "pk_change")
 # L2 fault cases with a deterministic fast variant (failpoint / toxiproxy).
-L2_CASES = ("source_restart_mid_chunk", "network_drop_mid_c5", "sigkill_mid_cycle",
-            "retention_expiry", "slot_invalidation")
+L2_CASES = ("source_restart_mid_chunk", "network_drop_mid_c1", "network_drop_mid_c5",
+            "sigkill_mid_cycle", "retention_expiry", "slot_invalidation")
+FAILPOINT_BINARY = ROOT / "target/ta-fp/debug/oo-load"
 
 L0_COMMANDS = [
     ("rust-core-pipeline", ["cargo", "test", "--locked", "-p", "oo-core", "-p", "oo-pipeline",
@@ -41,6 +42,8 @@ L0_COMMANDS = [
     ("rust-cli", ["cargo", "test", "--locked", "-p", "oo-cli", "--lib"]),
     ("rust-oo-load", ["cargo", "test", "--locked", "--manifest-path", "tools/oo-load/Cargo.toml",
                       "--bins"]),
+    ("rust-failpoints", ["cargo", "test", "--locked", "-p", "oo-pipeline", "--features",
+                         "failpoints", "--lib", "failpoint"]),
     ("py-oo-test", ["python3", "-m", "unittest", "discover", "-s", "tools/oo-test"]),
     ("py-lite", ["python3", "-m", "unittest", "discover", "-s", "deploy/lite"]),
 ]
@@ -204,7 +207,8 @@ def run_l2(root, args):
         rid = f"{args.run_id}-l2-{engine}-{version.replace('.', '')}"
         command = ["tools/oo-test/oo-test", "t3t4", "--engine", engine, "--versions", version,
                    "--run-id", rid, "--cases", ",".join(args.l2_cases),
-                   "--fast-faults", "--disk-wait-minutes", "5"]
+                   "--fast-faults", "--binary", str(FAILPOINT_BINARY),
+                   "--disk-wait-minutes", "5"]
         result = timed_command(rid, command, root, 3600)
         results.append(dict(cell, **result, evidence="evidence/" + rid))
         runner.write_json(root / "l2-results.json", results)

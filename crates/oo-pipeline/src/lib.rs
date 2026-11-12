@@ -46,6 +46,8 @@ pub mod engine_load_pg;
 pub mod engine_publication;
 pub mod engine_sync;
 pub mod engine_sync_pg;
+#[cfg(feature = "failpoints")]
+pub mod failpoint;
 pub mod full_import;
 pub mod jsonb_document;
 pub mod native_catalog;
