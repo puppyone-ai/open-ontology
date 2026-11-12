@@ -156,9 +156,15 @@ def run_suite_command(suite, cell, root, args):
         command = ["tools/oo-test/oo-test", "t3t4", "--engine", cell["engine"],
                    "--versions", cell["version"], "--run-id", rid,
                    "--cases", ",".join(args.t4_cases), "--disk-wait-minutes", "5"]
-    result = timed_command(rid, command, root, 3600)
+    result = timed_command(rid, command + worker_args(cell["engine"]), root, 3600)
     result["evidence"] = "evidence/" + rid
     return result
+
+
+def worker_args(engine):
+    """Oracle 11g needs the digest-pinned thick worker image (OO_TEST_ORACLE_WORKER_IMAGE)."""
+    image = os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE")
+    return ["--worker-image", image] if engine == "oracle" and image else []
 
 
 def oracle_free():
@@ -222,7 +228,7 @@ def run_l2(root, args):
         command = ["tools/oo-test/oo-test", "t3t4", "--engine", engine, "--versions", version,
                    "--run-id", rid, "--cases", ",".join(args.l2_cases),
                    "--fast-faults", "--binary", str(FAILPOINT_BINARY),
-                   "--disk-wait-minutes", "5"]
+                   "--disk-wait-minutes", "5", *worker_args(engine)]
         result = timed_command(rid, command, root, 3600)
         results.append(dict(cell, **result, evidence="evidence/" + rid))
         runner.write_json(root / "l2-results.json", results)
