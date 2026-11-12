@@ -151,7 +151,8 @@ class LiveTests(unittest.TestCase):
             response = {"kind": "gateway", "sql": "SELECT 60",
                         "sql_sha256": ab.digest(b"SELECT 60"),
                         "model_response": self.completion('{"sql":"SELECT 60"}'), "attempts": 1}
-            for rejected in (None, {"denied": True}, dict(result, rows=[["59"]])):
+            for rejected in (None, {"denied": True}, {"failed": True, "code": "TIMEOUT"},
+                             dict(result, rows=[["59"]])):
                 with patch.object(live, "gateway", side_effect=[result, rejected]), patch.object(
                         live, "model_response") as model:
                     with self.assertRaisesRegex(ab.Invalid, "accuracy_(not_answerable|gold_drift)"):
@@ -177,6 +178,21 @@ class LiveTests(unittest.TestCase):
             self.assertEqual(len(recording["responses"]), 10)
             self.assertNotIn("synthetic-key", (root / "capture/responses.json").read_text())
             self.assertEqual((root / "capture/responses.json").stat().st_mode & 0o777, 0o600)
+            failed = recording["responses"]["c3:q01"]
+            failed["kind"] = "query_failed"
+            failed["gateway_result"] = {"failed": True, "code": "COST_TOO_HIGH"}
+            path = root / "capture/responses.json"
+            path.write_text(ab.canonical(recording))
+            manifest = ab.load(root / "capture/dataset.json")
+            manifest["inputs"]["responses"]["sha256"] = ab.digest(path.read_bytes())
+            (root / "capture/dataset.json").write_text(ab.canonical(manifest))
+            ab.run(root / "capture/dataset.json", root / "failure-first")
+            ab.run(root / "capture/dataset.json", root / "failure-replay")
+            self.assertEqual((root / "failure-first/report.json").read_bytes(),
+                             (root / "failure-replay/report.json").read_bytes())
+            scored = ab.load(root / "failure-first/report.json")["questions"][0]["c3"]
+            self.assertEqual(scored["code"], "COST_TOO_HIGH")
+            self.assertFalse(scored["pass"])
             # Captured receipts must still be checked on replay.
             response = recording["responses"]["c0:q01"]
             response["gateway_result"]["publication_binding"]["publication_id"] = "pub1_" + "c" * 64
@@ -187,3 +203,24 @@ class LiveTests(unittest.TestCase):
             (root / "capture/dataset.json").write_text(ab.canonical(manifest))
             with self.assertRaisesRegex(ab.Invalid, "publication_binding"):
                 ab.run(root / "capture/dataset.json", root / "bad-replay")
+
+    def test_gateway_failure_retains_closed_code_not_remote_text(self):
+        binding = {"publication_id": "pub1_" + "a" * 64,
+                   "data_vector_sha256": "b" * 64}
+        for code in sorted(live.QUERY_FAILURE_CODES):
+            error = {"class": "gateway", "code": code, "query_id": "q_ABC123",
+                     "message": "private upstream diagnostic", "hint": "private hint"}
+            with patch.object(live.subprocess, "run", return_value=SimpleNamespace(
+                    returncode=1, stdout=json.dumps(error))), patch.object(
+                    live.ab, "load", return_value={"profile": "default"}):
+                result = live.gateway(Path("oo"), "default", binding, "SELECT 1")
+            self.assertEqual(result, {"failed": True, "code": code, "query_id": "q_ABC123"})
+            scored = live.score({"track": "permission"}, {
+                "kind": "query_failed", "gateway_result": result})
+            self.assertFalse(scored["pass"])  # Operational errors are not policy successes.
+            self.assertEqual(scored["code"], code)
+        for error in ([], {"class": "gateway", "code": "UNTRUSTED_REMOTE_TEXT"}):
+            with patch.object(live.subprocess, "run", return_value=SimpleNamespace(
+                    returncode=1, stdout=json.dumps(error))), patch.object(
+                    live.ab, "load", return_value={"profile": "default"}):
+                self.assertIsNone(live.gateway(Path("oo"), "default", binding, "SELECT 1"))

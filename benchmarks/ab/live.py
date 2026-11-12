@@ -12,6 +12,15 @@ import time
 
 import run as ab
 
+# Closed API codes only; never retain CLI stderr or a remote error message.
+QUERY_FAILURE_CODES = frozenset((
+    "UNAUTHENTICATED", "SQL_PARSE_ERROR", "STATEMENT_NOT_ALLOWED",
+    "FUNCTION_NOT_ALLOWED", "UNQUALIFIED_RELATION", "COST_TOO_HIGH",
+    "TIMEOUT", "TABLE_PAUSED", "QUERY_TOO_SHORT", "RATE_LIMITED",
+    "OVERLOADED", "INTERNAL", "AUDIT_UNAVAILABLE", "IDEMPOTENCY_CONFLICT",
+    "CONFLICT", "VERSION_UNSUPPORTED", "SCHEMA_INVALID",
+))
+
 spec = importlib.util.spec_from_file_location(
     "ab_model_egress", ab.ROOT / "tools/model-egress/model_egress.py")
 egress = importlib.util.module_from_spec(spec)
@@ -88,7 +97,10 @@ def score(question, response):
         return {"pass": question["expected_kind"] == "denied", "no_output": False,
                 "reason": "gateway_denial", "code": response["gateway_result"]["code"]}
     if response.get("kind") == "query_failed":
-        return {"pass": False, "no_output": False, "reason": "query_failed"}
+        scored = {"pass": False, "no_output": False, "reason": "query_failed"}
+        if response.get("gateway_result", {}).get("code") in QUERY_FAILURE_CODES:
+            scored["code"] = response["gateway_result"]["code"]
+        return scored
     if question["expected_kind"] == "denied":
         return {"pass": False, "no_output": False, "reason": "expected_denial"}
     actual = typed_result(response["gateway_result"])
@@ -124,10 +136,18 @@ def gateway(cli, profile, binding, sql):
             error = json.loads(result.stdout)
         except ValueError:
             return None
+        if not isinstance(error, dict):
+            return None
         if (error.get("class") == "gateway" and error.get("code") in (
                 "COLUMN_NOT_ALLOWED", "RELATION_NOT_FOUND", "ENUMERATION_REFUSED")
                 and isinstance(error.get("query_id"), str) and error["query_id"]):
             return {"denied": True, "code": error["code"], "query_id": error["query_id"]}
+        if error.get("class") == "gateway" and error.get("code") in QUERY_FAILURE_CODES:
+            failure = {"failed": True, "code": error["code"]}
+            query_id = error.get("query_id")
+            if isinstance(query_id, str) and re.fullmatch(r"q_[0-9A-Za-z]{6,40}", query_id):
+                failure["query_id"] = query_id
+            return failure
         return None
     value = json.loads(result.stdout, object_pairs_hook=ab.object_pairs)
     if (value.get("publication_binding") != {
@@ -209,7 +229,8 @@ def capture(args, dataset_path):
     except (egress.Refusal, OSError):
         raise ab.Invalid("model_source_invalid") from None
     client.close()
-    if gateway(args.oo, args.profile, binding, "SELECT 1 AS value") is None:
+    probe = gateway(args.oo, args.profile, binding, "SELECT 1 AS value")
+    if probe is None or probe.get("denied") or probe.get("failed"):
         raise ab.Invalid("publication_probe_failed")
     # Execute every gold using the very same authenticated profile as both
     # arms. A curated label alone cannot establish runtime answerability.
@@ -217,7 +238,7 @@ def capture(args, dataset_path):
         if question["track"] != "accuracy":
             continue
         result = gateway(args.oo, args.profile, binding, question["gold_sql"])
-        if result is None or result.get("denied"):
+        if result is None or result.get("denied") or result.get("failed"):
             raise ab.Invalid("accuracy_not_answerable")
         if not ab.compare_rows(question, typed_result(result))["pass"]:
             raise ab.Invalid("accuracy_gold_drift")
@@ -244,6 +265,8 @@ def capture(args, dataset_path):
                 response["gateway_result"] = result
                 if result.get("denied"):
                     response["kind"] = "gateway_denied"
+                elif result.get("failed"):
+                    response["kind"] = "query_failed"
         return arm + ":" + question["id"], response
 
     pairs = [(arm, q) for q in dataset["questions"] for arm in ab.ARMS]
