@@ -2377,7 +2377,7 @@ fn render(model: &Model, selected: &Selected) -> Result<BTreeMap<String, String>
             },
             "candidate_metrics": selected.metric_candidates.iter()
                 .map(|m| m.metric.as_str()).collect::<Vec<_>>(),
-            "semantics": "Only role-visible assets; exported enums require every observed code approved, examples require a successful check. Empty collections describe missing certified assets, not missing stored rows or a denial of queries against visible tables. Dictionary rows can be queried without an exported enum; do not invent code meanings or completeness.",
+            "semantics": "Only role-visible assets; enums require every observed code approved, examples require a successful check. Empty collections are readiness gaps, not zero business activity.",
             "runtime_execution_verified": false,
             "business_readiness_verified": false,
         })),
@@ -2567,8 +2567,6 @@ fn render_readme(model: &Model) -> Result<String, RolePackError> {
     text.push_str(PG_DIALECT_SENTENCE);
     text.push_str("\n\nThe Gateway accepts a versioned restricted SQL subset, not all PostgreSQL syntax or function overloads. Use current CLI help, describe for execution types, and validate before query. This compiler does not verify runtime capabilities or business readiness.\n\n");
     text.push_str("A missing certified metric, exported enum or business calendar is not a permission denial for visible stored columns. Query visible stored values when they answer the question; do not invent missing definitions or code meanings. Semantic labels are not PostgreSQL input types: use the execution types for casts and predicates. Return only the columns the question requests, not extra diagnostic or context columns.\n\n");
-    text.push_str("Use definitions supplied explicitly by the question, including filters, aggregation and time windows; an ad hoc query does not require a certified metric. Report a semantic gap only when the requested answer depends on a missing definition. Do not infer business meanings from structural types, key membership or value coverage alone.\n\n");
-    text.push_str("Dictionary lookup and enum certification are different operations. Use established dictionary discriminator and effective-date columns to retrieve stored labels, without asserting complete code coverage. Application role codes in visible tables are data, not Gateway authorization grants.\n\n");
     text.push_str(
         "Read README.md, then INDEX.md, then tables, metrics.md, and examples/verified.sql.\n\n",
     );

@@ -503,12 +503,10 @@ fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
     effective["enums"] = json!([]);
     let pack = must(&effective, &visibility);
     let readme = pack.file("README.md").unwrap();
-    assert!(readme.contains("Dictionary lookup and enum certification are different"));
-    assert!(readme.contains("dictionary discriminator and effective-date columns"));
-    assert!(readme.contains("Application role codes"));
-    assert!(readme.contains("not Gateway authorization grants"));
-    assert!(readme.contains("requested answer depends on a missing definition"));
-    assert!(readme.contains("Do not infer business meanings from structural types"));
+    assert!(readme.contains("exported enum or business calendar is not a permission denial"));
+    assert!(readme.contains("Query visible stored values when they answer the question"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+    assert!(!readme.contains("If the table or column meaning is unknown"));
     let availability: serde_json::Value =
         serde_json::from_str(pack.file("availability.json").unwrap()).unwrap();
     assert_eq!(availability["available"]["enums"], json!([]));
@@ -519,8 +517,8 @@ fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
             .is_empty()
     );
     let semantics = availability["semantics"].as_str().unwrap();
-    assert!(semantics.contains("Dictionary rows can be queried without an exported enum"));
-    assert!(semantics.contains("do not invent code meanings or completeness"));
+    assert!(semantics.contains("enums require every observed code approved"));
+    assert!(semantics.contains("not zero business activity"));
     let artifact: serde_json::Value = serde_json::from_str(&pack.artifact).unwrap();
     assert!(
         !artifact["files"]
@@ -537,9 +535,9 @@ fn explicit_question_definitions_do_not_require_metric_certification() {
     effective["metrics"] = json!([]);
     let pack = must(&effective, &visibility);
     let readme = pack.file("README.md").unwrap();
-    assert!(readme.contains("Use definitions supplied explicitly by the question"));
-    assert!(readme.contains("filters, aggregation and time windows"));
-    assert!(readme.contains("an ad hoc query does not require a certified metric"));
+    assert!(readme.contains("A missing certified metric"));
+    assert!(readme.contains("not a permission denial for visible stored columns"));
+    assert!(readme.contains("Query visible stored values when they answer the question"));
     assert!(readme.contains("do not invent missing definitions or code meanings"));
     assert!(
         pack.file("metrics.md")
