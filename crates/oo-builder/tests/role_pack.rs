@@ -507,7 +507,8 @@ fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
     assert!(readme.contains("dictionary discriminator and effective-date columns"));
     assert!(readme.contains("Application role codes"));
     assert!(readme.contains("not Gateway authorization grants"));
-    assert!(readme.contains("If the table or column meaning is unknown"));
+    assert!(readme.contains("requested answer depends on a missing definition"));
+    assert!(readme.contains("Do not infer business meanings from structural types"));
     let availability: serde_json::Value =
         serde_json::from_str(pack.file("availability.json").unwrap()).unwrap();
     assert_eq!(availability["available"]["enums"], json!([]));
@@ -527,6 +528,23 @@ fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
             .unwrap()
             .iter()
             .any(|file| { file["path"].as_str().unwrap().starts_with("enums/") })
+    );
+}
+
+#[test]
+fn explicit_question_definitions_do_not_require_metric_certification() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["metrics"] = json!([]);
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("Use definitions supplied explicitly by the question"));
+    assert!(readme.contains("filters, aggregation and time windows"));
+    assert!(readme.contains("an ad hoc query does not require a certified metric"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+    assert!(
+        pack.file("metrics.md")
+            .unwrap()
+            .contains("No certified metrics")
     );
 }
 
