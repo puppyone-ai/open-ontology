@@ -80,6 +80,41 @@ def windows(requests, duration):
         result.append(dict(summary, start_seconds=start))
     return result
 
+SLICE_SECONDS = 50
+
+
+def baseline_noise(requests, duration, whole, seconds=SLICE_SECONDS, step=WINDOW):
+    """D24 applied to sliding slices of the baseline against the whole baseline.
+
+    With no product running, a fixture whose slices fail D24 against
+    themselves cannot support a relative verdict for phases of that length.
+    """
+    buckets = [[] for _ in range(math.ceil(duration / step))]
+    for row in requests:
+        if 0 <= row['intended'] < duration:
+            buckets[int(row['intended'] // step)].append(row)
+    width = seconds // step
+    slices = []
+    for first in range(0, len(buckets) - width + 1):
+        start = first * step
+        if start + seconds > duration + 1e-6:
+            break
+        selected = [dict(r, intended=r['intended'] - start,
+                         actual=None if r['actual'] is None else r['actual'] - start,
+                         end=r['end'] - start)
+                    for bucket in buckets[first:first + width] for r in bucket]
+        result = verdict(whole, summarize(selected, seconds))
+        slices.append({'start_seconds': start, 'result': result['result'],
+                       'delta_percent': result.get('delta_percent', {})})
+    deltas = lambda key: [s['delta_percent'].get(key, 0) for s in slices]
+    return {'slice_seconds': seconds, 'step_seconds': step, 'slices': len(slices),
+            'fail_p95': sum(d > 20 + 1e-9 for d in deltas('p95_ms')),
+            'fail_p99': sum(d > 50 + 1e-9 for d in deltas('p99_ms')),
+            'fail_any': sum(s['result'] != 'pass' for s in slices),
+            'max_delta_p95_percent': max(deltas('p95_ms'), default=None),
+            'max_delta_p99_percent': max(deltas('p99_ms'), default=None)}
+
+
 def verdict(baseline, phase):
     valid = (baseline and baseline['requests'] > 0 and phase['requests'] > 0
              and baseline['errors'] == 0 and baseline['achieved_rate'] > 0
@@ -179,6 +214,11 @@ class ImpactSource(t3t4.Source):
         command = list(command)
         if command[:2] == ['docker', 'create'] and self.name in command:
             command[2:2] = ['--cpus', str(self.args.cpus), '--memory', self.args.memory]
+            if self.engine == 'postgres' and getattr(self.args, 'diagnose', False):
+                command += DIAGNOSE_POSTGRES
+            if self.engine == 'mysql':
+                command += [f'--{name.replace("_", "-")}={value}'
+                            for name, value in MYSQL_SOURCE_SETTINGS.items()]
         elif (command[:2] == ['docker', 'create'] and getattr(self.args, 'target_tmpfs', False)
               and TARGET_DATA_MOUNT in ' '.join(command)):
             command = target_on_tmpfs(command)
@@ -186,6 +226,86 @@ class ImpactSource(t3t4.Source):
 
 
 SLOT_WAL_KEEP_SIZE = '16GB'
+# T10 MySQL source only, sized for the fixture's write rate on a 4-CPU/8 GiB
+# container: with the 8.4 defaults (100 MB redo, 128 MB buffer pool, 200 IOPS)
+# the foreground stalled 3-6 s on its own, so no relative verdict held.
+# Durability stays at the defaults (sync_binlog=1, flush_log_at_trx_commit=1).
+MYSQL_SOURCE_SETTINGS = {
+    'innodb_redo_log_capacity': 4 * 1024 ** 3,
+    'innodb_buffer_pool_size': 4 * 1024 ** 3,
+    'innodb_log_buffer_size': 64 * 1024 ** 2,
+    'innodb_io_capacity': 2000,
+    'innodb_io_capacity_max': 4000,
+}
+# Diagnostic runs only (--diagnose): never part of a D24 measurement.
+DIAGNOSE_POSTGRES = ['-c', 'shared_preload_libraries=pg_stat_statements',
+                     '-c', 'pg_stat_statements.track=all', '-c', 'track_io_timing=on',
+                     '-c', 'log_checkpoints=on', '-c', 'log_autovacuum_min_duration=0',
+                     '-c', 'log_lock_waits=on']
+ACTIVITY_SQL = ("SELECT extract(epoch FROM clock_timestamp())::numeric(16,3),pid,"
+                "COALESCE(usename,''),backend_type,COALESCE(state,''),"
+                "COALESCE(wait_event_type,''),COALESCE(wait_event,''),"
+                "COALESCE(extract(epoch FROM clock_timestamp()-query_start)::numeric(10,3),0),"
+                "regexp_replace(left(query,100),'[\\s|]+',' ','g') FROM pg_stat_activity "
+                "WHERE pid<>pg_backend_pid() AND (backend_type IN ('client backend','autovacuum worker',"
+                "'walsender') AND state<>'idle' AND COALESCE(usename,'')<>'t10_writer' "
+                "OR wait_event_type IN ('Lock','LWLock','IO'));")
+STATEMENTS_SQL = ("SELECT r.rolname,s.calls,round(s.total_exec_time::numeric,1),"
+                  "round(s.max_exec_time::numeric,1),s.rows,s.shared_blks_hit,s.shared_blks_read,"
+                  "s.shared_blks_dirtied,s.temp_blks_written,s.wal_bytes,"
+                  "regexp_replace(left(s.query,140),'[\\s|]+',' ','g') FROM pg_stat_statements s "
+                  "JOIN pg_roles r ON r.oid=s.userid ORDER BY s.total_exec_time DESC LIMIT 40;")
+COUNTERS_SQL = ("SELECT (SELECT row_to_json(c)::text FROM pg_stat_checkpointer c),"
+                "(SELECT row_to_json(b)::text FROM pg_stat_bgwriter b),"
+                "(SELECT json_agg(json_build_array(backend_type,object,context,reads,writes,"
+                "extends,fsyncs))::text FROM pg_stat_io WHERE reads>0 OR writes>0 OR fsyncs>0);")
+
+
+class Activity:
+    """Diagnostic sampler: one long-lived psql session inside the source.
+
+    Samples non-idle product/maintenance sessions and every wait on locks or
+    IO every 250 ms. It runs in every phase, baseline included.
+    """
+    def __init__(self, run):
+        self.run = run
+        self.path = run.path / 'diagnose-activity.tsv'
+        self.process = None
+
+    def start(self):
+        script = 'SET application_name=t10_diagnose;\n' + ACTIVITY_SQL + '\n\\watch 0.25\n'
+        self.out = self.path.open('w')
+        self.process = subprocess.Popen(
+            ['docker', 'exec', '-i', '-u', 'postgres', self.run.name, 'psql', '-X', '-q', '-A', '-t',
+             '-F', '|', '-U', 'postgres', '-d', 'fixture'],
+            stdin=subprocess.PIPE, stdout=self.out, stderr=subprocess.DEVNULL, text=True)
+        self.process.stdin.write(script)
+        self.process.stdin.flush()
+
+    def stop(self):
+        if self.process:
+            self.process.terminate()
+            try:
+                self.process.wait(10)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+            self.out.close()
+
+
+def diagnose_phase(harness, name, edge):
+    """Reset statement statistics before a phase and keep them after it."""
+    run = harness.run
+    if not getattr(run.args, 'diagnose', False) or run.engine != 'postgres':
+        return
+    if edge == 'start':
+        run.sql('SELECT pg_stat_statements_reset();', admin=True)
+    _, counters = run.sql(COUNTERS_SQL, admin=True)
+    record = {'phase': name, 'edge': edge, 'unix': time.time(), 'counters': counters.strip()}
+    if edge == 'end':
+        _, statements = run.sql(STATEMENTS_SQL, admin=True)
+        record['statements'] = [line.split('|') for line in statements.splitlines() if line.strip()]
+    with (run.path / 'diagnose-phases.jsonl').open('a') as handle:
+        handle.write(json.dumps(record) + '\n')
 TARGET_DATA_MOUNT = 'dst=/var/lib/postgresql/data'
 
 
@@ -550,6 +670,8 @@ def phase(harness, name, work, rate, seconds, action, sequence):
 
     thread = threading.Thread(target=product)
     work.warm(DEFAULT_WORKERS)
+    diagnose_phase(harness, name, 'start')
+    started_at = time.time()
     meter.thread.start()
     try:
         requests, duration = open_loop(work, rate, seconds,
@@ -559,10 +681,14 @@ def phase(harness, name, work, rate, seconds, action, sequence):
         thread.join()
         metrics = meter.finish()
         work.close()
+    diagnose_phase(harness, name, 'end')
     result = dict(summarize(requests, duration), phase=name, configured_rate=rate,
+                  started_at_unix=started_at,
                   observation_seconds=time.monotonic() - started,
                   windows=windows(requests, duration), metrics=metrics,
                   product_errors=product_errors)
+    if name == 'baseline' and requests:
+        result['self_noise'] = baseline_noise(requests, duration, result)
     runner.write_json(harness.run.path / f'{name}-requests.json', requests)
     runner.write_json(harness.run.path / f'{name}.json', result)
     return result
@@ -613,7 +739,23 @@ def prepare_phase(h, name, rate, action):
         return result
     return None
 
-def c5_phases(h, rate, every, sequence):
+def c5_cycles(run_cycle, period, seconds, clock=time.monotonic):
+    """Consecutive cycles of one binding until `seconds` have passed.
+
+    A single 20-60 s cycle against a 10-minute baseline let one host IO
+    stall decide the verdict; whole cycles keep the cycle mix intact.
+    """
+    started = clock()
+    policies = []
+    while True:
+        policy = {'cycle': len(policies) + 1, 'full_read_every': period}
+        run_cycle(policy)
+        policies.append(policy)
+        if clock() - started >= seconds:
+            return policies
+
+
+def c5_phases(h, rate, every, sequence, seconds=0):
     results = {}
     for variant, period in (('c5', every), ('c5_full', 1)):
         for suffix, tables in (('idle', ['bulk']), ('changed', ['bulk', 'items', 'other'])):
@@ -624,13 +766,18 @@ def c5_phases(h, rate, every, sequence):
                 h.snapshot(binding, tables)
                 if suffix == 'changed':
                     h.src('UPDATE items SET n=n+1 WHERE id=1;')
-            policy = {'cycle': 1, 'full_read_every': period}
+            policies = []
+
+            def cycles():
+                policies.extend(c5_cycles(
+                    lambda policy: loader(h, binding, f"{binding}-cycle-{policy['cycle']}",
+                                          '--c5', policy), period, seconds))
             result = prepare_phase(h, name, rate, prepare_binding)
             if result is None:
-                result = phase(h, name, Workload(h.run), rate, None,
-                               lambda: loader(h, binding, f'{binding}-cycle', '--c5', policy),
+                result = phase(h, name, Workload(h.run), rate, None, cycles,
                                sequence + len(results) * 1_000_000)
-            result['c5_policy'] = policy
+            result['c5_policy'] = {'cycle': 1, 'full_read_every': period}
+            result['c5_cycles'] = len(policies)
             results[name] = result
     return results
 
@@ -642,12 +789,18 @@ def parse_args(argv=None):
     parser.add_argument('--phases', default=','.join(PHASES))
     parser.add_argument('--minutes', type=float, default=10)
     parser.add_argument('--rate', default='auto')
+    parser.add_argument('--c5-minutes', type=float, default=None,
+                        help='repeat whole C5 cycles of each variant for at least this long '
+                             '(default: half of --minutes; 0 runs one cycle)')
     parser.add_argument('--cpus', type=float, default=2)
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--binary', type=Path, default=runner.ROOT / 'tools/oo-load/target/release/oo-load')
     parser.add_argument('--target-tmpfs', action='store_true',
                         help='keep the agent DB on tmpfs, off the disk the source shares')
+    parser.add_argument('--diagnose', action='store_true',
+                        help='PostgreSQL only: pg_stat_statements, IO timing, checkpoint/autovacuum '
+                             'logs and a 250 ms activity sampler; never a D24 measurement')
     parser.add_argument('--quiet-cpu-percent', type=float, default=QUIET_CPU_PERCENT,
                         help='refuse while pre-existing containers use more CPU in total '
                              '(percent of one CPU); the limit and the observed load are recorded')
@@ -662,8 +815,14 @@ def parse_args(argv=None):
     for value in (args.minutes, args.cpus):
         if not math.isfinite(value) or value <= 0:
             parser.error('minutes and cpus must be finite and positive')
+    if args.c5_minutes is None:
+        args.c5_minutes = args.minutes / 2
+    if not math.isfinite(args.c5_minutes) or args.c5_minutes < 0:
+        parser.error('c5-minutes must be finite and not negative')
     if not math.isfinite(args.quiet_cpu_percent) or not 0 <= args.quiet_cpu_percent <= 100:
         parser.error('quiet-cpu-percent must be between 0 and 100')
+    if args.diagnose and args.engine != 'postgres':
+        parser.error('--diagnose is implemented for postgres only')
     if not re.fullmatch(r'[1-9][0-9]*[kmgKMG]?', args.memory):
         parser.error('memory must be a positive Docker memory size')
     if args.rate != 'auto':
@@ -737,8 +896,16 @@ def main(argv=None):
                                     'LogMiner CPU is a sampled live-session counter, not total exited-session CPU',
                                     'C5 idle scans bulk only; foreground writes items/other outside that scope']}
     cleanup = []
+    activity = None
+    if args.diagnose:
+        report['diagnose'] = {'postgres_settings': DIAGNOSE_POSTGRES, 'activity_interval_seconds': .25,
+                              'note': 'diagnostic run; not a D24 measurement'}
     try:
         prepare(h)
+        if args.diagnose and args.engine == 'postgres':
+            run.sql('CREATE EXTENSION IF NOT EXISTS pg_stat_statements;', admin=True)
+            activity = Activity(run)
+            activity.start()
         if args.engine == 'oracle':
             report['load_timeout_calibration'] = h.measure_load_rate()
             report['load_timeout_sizing'] = h.timeout_records
@@ -747,6 +914,13 @@ def main(argv=None):
             report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
             if setting.strip() != SLOT_WAL_KEEP_SIZE:
                 raise RuntimeError('slot_retention_setting_not_applied')
+        elif args.engine == 'mysql':
+            names = list(MYSQL_SOURCE_SETTINGS) + ['innodb_flush_log_at_trx_commit', 'sync_binlog']
+            _, text = h.src('SELECT ' + ','.join(f'@@GLOBAL.{n}' for n in names) + ';')
+            applied = dict(zip(names, (int(v) for v in text.split())))
+            report['source_settings'] = applied
+            if any(applied[k] != v for k, v in MYSQL_SOURCE_SETTINGS.items()):
+                raise RuntimeError('mysql_source_settings_not_applied')
         run.record_version()
         report['resource_receipt'] = run.receipt
         _, limits = run.command(['docker', 'inspect', '--format', '{{json .HostConfig}}', run.name])
@@ -806,7 +980,8 @@ def main(argv=None):
             else:
                 # Separate scope makes the idle cycle genuinely unchanged while
                 # preserving the identical foreground workload in both subphases.
-                report['phases'].update(c5_phases(h, rate, every, 10_000_000 * (number + 1)))
+                report['phases'].update(c5_phases(h, rate, every, 10_000_000 * (number + 1),
+                                                  args.c5_minutes * 60))
                 continue
             report['phases'][name] = phase(h, name, Workload(run), rate, seconds, action,
                                            10_000_000 * (number + 1))
@@ -818,6 +993,8 @@ def main(argv=None):
     except Exception as exc:
         report['errors'].append(type(exc).__name__)
     finally:
+        if activity:
+            activity.stop()
         for close in (h.target.close, run.cleanup):
             try:
                 failures = close()
