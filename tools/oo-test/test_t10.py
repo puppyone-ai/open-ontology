@@ -18,12 +18,33 @@ class PreparationTests(unittest.TestCase):
         run = object.__new__(t10.ImpactSource)
         run.args = argparse.Namespace(cpus=4, memory='8g')
         run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
-        run.slot_wal_keep_size = '-1'
+        run.slot_wal_keep_size = t10.SLOT_WAL_KEEP_SIZE
         with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
             run.command(['docker', 'create', '--name', run.name, 'image'])
         args = command.call_args.args[1]
-        self.assertIn('max_slot_wal_keep_size=-1', args)
+        self.assertIn('max_slot_wal_keep_size=16GB', args)
         self.assertNotIn('max_slot_wal_keep_size=256MB', args)
+        # Unlimited (-1) leaves safe_wal_size NULL, which C1 refuses as unproven.
+        self.assertNotIn('max_slot_wal_keep_size=-1', args)
+
+    def test_target_tmpfs_replaces_only_the_agent_db_data_volume(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g', target_tmpfs=True)
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        target = ['docker', 'create', '--name', 'owned-target', '-p', '127.0.0.1:1:5432',
+                  '--mount', 'type=volume,src=owned-target-data,dst=/var/lib/postgresql/data',
+                  '-v', '/private:/run/private:ro', 'image']
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        args = command.call_args.args[-1]
+        self.assertNotIn('--mount', args)
+        self.assertIn('/var/lib/postgresql/data:rw,size=24g', args)
+        self.assertEqual(args[args.index('--tmpfs') - 1], '127.0.0.1:1:5432')
+        self.assertIn('/private:/run/private:ro', args)
+        run.args.target_tmpfs = False
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        self.assertEqual(command.call_args.args[-1], target)
 
     def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
         import itertools

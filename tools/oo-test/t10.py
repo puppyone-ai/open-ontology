@@ -164,7 +164,9 @@ class ImpactSource(t3t4.Source):
         super().__init__(*args, **kwargs)
         self.foreground_key = SCALE + 1
         self.foreground_lock = threading.Lock()
-        self.slot_wal_keep_size = "-1"
+        # Bounded and large: the product refuses unlimited retention as
+        # unproven WAL headroom, and 256MB invalidated the slot under load.
+        self.slot_wal_keep_size = SLOT_WAL_KEEP_SIZE
 
     def next_foreground_key(self):
         # Calibration and every phase write the same source table.
@@ -177,7 +179,26 @@ class ImpactSource(t3t4.Source):
         command = list(command)
         if command[:2] == ['docker', 'create'] and self.name in command:
             command[2:2] = ['--cpus', str(self.args.cpus), '--memory', self.args.memory]
+        elif (command[:2] == ['docker', 'create'] and getattr(self.args, 'target_tmpfs', False)
+              and TARGET_DATA_MOUNT in ' '.join(command)):
+            command = target_on_tmpfs(command)
         return super().command(command, **kwargs)
+
+
+SLOT_WAL_KEEP_SIZE = '16GB'
+TARGET_DATA_MOUNT = 'dst=/var/lib/postgresql/data'
+
+
+def target_on_tmpfs(command):
+    """Give the agent DB its own storage instead of the source's shared disk.
+
+    On one Docker host the source and the target share a virtual disk, so the
+    target's write bursts (load staging, WAL, checkpoints) stall the source's
+    commit fsyncs; no real deployment shares the source database's storage.
+    """
+    index = next(i for i, arg in enumerate(command)
+                 if arg == '--mount' and TARGET_DATA_MOUNT in command[i + 1])
+    return command[:index] + ['--tmpfs', '/var/lib/postgresql/data:rw,size=24g'] + command[index + 2:]
 
 
 class ImpactHarness(t3t4.Harness):
@@ -610,6 +631,8 @@ def parse_args(argv=None):
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--binary', type=Path, default=runner.ROOT / 'tools/oo-load/target/release/oo-load')
+    parser.add_argument('--target-tmpfs', action='store_true',
+                        help='keep the agent DB on tmpfs, off the disk the source shares')
     parser.add_argument('--quiet-cpu-percent', type=float, default=QUIET_CPU_PERCENT,
                         help='refuse while pre-existing containers use more CPU in total '
                              '(percent of one CPU); the limit and the observed load are recorded')
@@ -690,6 +713,7 @@ def main(argv=None):
     report = {'engine': args.engine, 'version': args.version, 'phases': {}, 'errors': [],
               'preexisting_containers': preexisting,
               'cpus': args.cpus, 'memory': args.memory, 'scale': SCALE,
+              'target_storage': 'tmpfs' if args.target_tmpfs else 'volume_on_shared_docker_disk',
               'product_sha': product_sha(), 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
               'measurement_notes': ['client-observed latency includes queueing',
                                     'Oracle undo counters cover the V$UNDOSTAT retention horizon',
@@ -704,7 +728,7 @@ def main(argv=None):
         elif args.engine == 'postgres':
             _, setting = h.src('SHOW max_slot_wal_keep_size;')
             report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
-            if setting.strip() != '-1':
+            if setting.strip() != SLOT_WAL_KEEP_SIZE:
                 raise RuntimeError('slot_retention_setting_not_applied')
         run.record_version()
         report['resource_receipt'] = run.receipt
