@@ -68,6 +68,9 @@ def identity(engine, version, scale, tables, platform):
         "engine": engine, "version": version, "scale": scale, "tables": tables,
         "platform": platform,
         "image": item["ref"] + "@" + item["platforms"][platform]["digest"],
+        # Oracle standard auditing (T7 on 11g/19c/21c) is static at startup,
+        # so every Oracle snapshot is built with AUDIT_TRAIL=DB,EXTENDED.
+        "oracle_audit_trail": "DB,EXTENDED" if engine == "oracle" else None,
         "generators": {str(p.relative_to(runner.ROOT)):
                        hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
     }
@@ -198,6 +201,8 @@ class SnapshotRun(t1.LaneRun):
             self.verify_shapes()
             self.gold()
             return
+        if self.engine == "oracle":
+            self.args.suites = sorted(set(getattr(self.args, "suites", [])) | {"T7"})
         super().seed()
         self.verify_shapes()
         self.gold()
