@@ -1740,20 +1740,23 @@ pub async fn harness_tls_exchange(
         .await
         .map_err(|_| "handshake".to_owned())?;
     let (mut reader, mut writer) = tokio::io::split(tls);
-    writer
-        .write_all(request)
-        .await
-        .map_err(|_| "write".to_owned())?;
-    writer.flush().await.map_err(|_| "write".to_owned())?;
+    // The gateway may answer and close before the client finishes writing (a rejected
+    // request, or a reset racing the flush on a loaded host). A failed write is still an
+    // answered request when a complete HTTP response arrives; otherwise it stays an error.
+    let wrote = match writer.write_all(request).await {
+        Ok(()) => writer.flush().await.is_ok(),
+        Err(_) => false,
+    };
     let mut buffer = Vec::new();
     // The gateway closes the socket after Connection: close and does not send a TLS close_notify.
     // read_to_end then returns an error after the HTTP bytes are already in the buffer.
     let read = reader.read_to_end(&mut buffer).await;
     drop(writer);
     match read {
-        Ok(_) => Ok(buffer),
+        Ok(_) if wrote || http_message_complete(&buffer) => Ok(buffer),
         Err(_) if http_message_complete(&buffer) => Ok(buffer),
-        Err(_) => Err("read".to_owned()),
+        _ if !wrote => Err("write".to_owned()),
+        _ => Err("read".to_owned()),
     }
 }
 

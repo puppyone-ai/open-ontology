@@ -59,6 +59,7 @@ fn scorer_health_and_p2_t_replay() {
     let directory = format!("{benchmarks}/ab");
     let status = Command::new("python3")
         .args([
+            "-B",
             "-m",
             "unittest",
             "-v",
