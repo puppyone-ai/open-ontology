@@ -498,31 +498,40 @@ impl PostgresChanges {
                 _ => return Err(SourceError::protocol("pg_event")),
             });
         }
-        // Convert each run of one relation's logged values in few statements.
-        let mut images = Vec::with_capacity(pending.len());
+        // Convert each relation's logged values in few statements; changes
+        // of several tables interleave, so group by relation, not by run.
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for (index, item) in pending.iter().enumerate() {
+            match groups.iter_mut().find(|g| {
+                let first = &pending[g[0]];
+                first.relation.oid == item.relation.oid
+                    && first.relation.columns == item.relation.columns
+                    && first.shape == item.shape
+            }) {
+                Some(group) => group.push(index),
+                None => groups.push(vec![index]),
+            }
+        }
+        let mut slots: Vec<Option<RecordBatch>> = vec![None; pending.len()];
         let mut image_bytes = 0u64;
-        let mut start = 0;
-        while start < pending.len() {
-            let first = &pending[start];
-            let run = pending[start..]
-                .iter()
-                .take_while(|p| {
-                    p.relation.oid == first.relation.oid
-                        && p.relation.columns == first.relation.columns
-                        && p.shape == first.shape
-                })
-                .count();
-            for image in
-                images_for_run(s, &pending[start..start + run], &catalog.schema_hash).await?
-            {
+        for group in groups {
+            let items: Vec<&PendingImage> = group.iter().map(|i| &pending[*i]).collect();
+            let converted = images_for_run(s, &items, &catalog.schema_hash).await?;
+            if converted.len() != group.len() {
+                return Err(SourceError::protocol("capture_image_count"));
+            }
+            for (index, image) in group.into_iter().zip(converted) {
                 image_bytes = image_bytes.saturating_add(image.get_array_memory_size() as u64);
                 if image_bytes > budget.max_chunk_bytes {
                     return Err(SourceError::budget("capture_image_bytes"));
                 }
-                images.push(image);
+                slots[index] = Some(image);
             }
-            start += run;
         }
+        let images = slots
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| SourceError::protocol("capture_image_count"))?;
         if images.len() != changes.len() {
             return Err(SourceError::protocol("capture_image_count"));
         }
@@ -569,7 +578,7 @@ fn keys(r: &Relation, cells: &[Cell], names: &[&str]) -> Result<Vec<KeyValue>, S
 /// Changes per capture batch. Many small source transactions share one
 /// bounded decode, a few image statements and one target commit; a single
 /// transaction still has to fit `max_chunk_rows` on its own.
-const BATCH_CHANGES: u64 = 4096;
+const BATCH_CHANGES: u64 = 8192;
 /// pgoutput rows per peek beyond which a skipped prefix forces a retry.
 const MAX_DECODE_LIMIT: u64 = 1 << 22;
 /// Rows converted per image statement (parameters stay below 65,535).
@@ -752,7 +761,7 @@ fn image_sql(types: &[String], rows: usize) -> String {
 
 async fn images_for_run(
     s: &mut PgSession,
-    run: &[PendingImage],
+    run: &[&PendingImage],
     schema_hash: &str,
 ) -> Result<Vec<RecordBatch>, SourceError> {
     let Some(first) = run.first() else {
