@@ -384,6 +384,14 @@ class CLITests(unittest.TestCase):
             argv = self.argv() + ['--engine', engine, '--version', version, '--rate', '42']
             self.assertEqual(t10.parse_args(argv).rate, 42)
 
+    def test_c5_variants_option(self):
+        self.assertEqual(t10.parse_args(self.argv()).c5_variants, t10.C5_PHASES)
+        args = t10.parse_args(self.argv() + ['--c5-variants', 'c5_changed,c5_full_changed'])
+        self.assertEqual(args.c5_variants, ('c5_changed', 'c5_full_changed'))
+        for bad in ('', 'c5_typo', 'c5_idle,c5'):
+            with self.subTest(bad=bad), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                t10.parse_args(self.argv() + ['--c5-variants', bad])
+
     def test_reject_invalid(self):
         for extra in [['--minutes', '0'], ['--minutes', 'nan'], ['--cpus', '-1'],
                       ['--rate', 'inf'], ['--rate', 'bad'], ['--memory', '0g'],
@@ -586,6 +594,17 @@ class IntegrationContractTests(unittest.TestCase):
             ('t10_c5_full_idle', ['bulk']),
             ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
         self.assertEqual(h.src.call_count, 2)
+
+    def test_c5_variants_remeasure_only_the_named_sub_phases(self):
+        h = Mock()
+        with patch.object(t10, 'phase', side_effect=lambda h, name, *a: {'phase': name}), \
+                patch.object(t10, 'loader'):
+            results = t10.c5_phases(h, 42, 24, 10_000_000,
+                                    only=('c5_changed', 'c5_full_changed'))
+        self.assertEqual(tuple(results), ('c5_changed', 'c5_full_changed'))
+        self.assertEqual([r['c5_policy']['full_read_every'] for r in results.values()], [24, 1])
+        self.assertEqual([call.args[0] for call in h.snapshot.call_args_list],
+                         ['t10_c5_changed', 't10_c5_full_changed'])
 
     def test_c5_repeats_whole_cycles_until_the_phase_is_long_enough(self):
         now = [0.0]

@@ -858,11 +858,13 @@ def c5_cycles(run_cycle, period, seconds, clock=time.monotonic):
             return policies
 
 
-def c5_phases(h, rate, every, sequence, seconds=0):
+def c5_phases(h, rate, every, sequence, seconds=0, only=C5_PHASES):
     results = {}
     for variant, period in (('c5', every), ('c5_full', 1)):
         for suffix, tables in (('idle', ['bulk']), ('changed', ['bulk', 'items', 'other'])):
             name = f'{variant}_{suffix}'
+            if name not in only:
+                continue
             binding = 't10_' + name
             # Independent baselines prevent the first policy priming the second.
             def prepare_binding():
@@ -895,6 +897,8 @@ def parse_args(argv=None):
     parser.add_argument('--c5-minutes', type=float, default=None,
                         help='repeat whole C5 cycles of each variant for at least this long '
                              '(default: half of --minutes; 0 runs one cycle)')
+    parser.add_argument('--c5-variants', default=','.join(C5_PHASES),
+                        help='remeasure only these C5 sub-phases (default: all four)')
     parser.add_argument('--cpus', type=float, default=2)
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
@@ -912,6 +916,9 @@ def parse_args(argv=None):
     if args.version not in versions[args.engine]:
         parser.error('unsupported version (Oracle live harness requires 19 or 23)')
     args.phases = args.phases.split(',')
+    args.c5_variants = tuple(v for v in args.c5_variants.split(',') if v)
+    if not args.c5_variants or set(args.c5_variants) - set(C5_PHASES):
+        parser.error('c5-variants must name known C5 sub-phases')
     if (not args.phases or args.phases[0] != 'baseline' or len(set(args.phases)) != len(args.phases)
             or any(p not in PHASES for p in args.phases)):
         parser.error('unique known phases required, with baseline first')
@@ -1087,7 +1094,7 @@ def main(argv=None):
                 # Separate scope makes the idle cycle genuinely unchanged while
                 # preserving the identical foreground workload in both subphases.
                 report['phases'].update(c5_phases(h, rate, every, 10_000_000 * (number + 1),
-                                                  args.c5_minutes * 60))
+                                                  args.c5_minutes * 60, args.c5_variants))
                 continue
             report['phases'][name] = phase(h, name, Workload(run), rate, seconds, action,
                                            10_000_000 * (number + 1))
@@ -1138,7 +1145,7 @@ def main(argv=None):
                     or not baseline['metrics']['samples']):
                 result['budget'].update(result='fail', reason='product_or_metrics_incomplete')
             runner.write_json(run.path / f'{name}.json', result)
-        expected = [p for p in args.phases if p != 'c5'] + (list(C5_PHASES) if 'c5' in args.phases else [])
+        expected = [p for p in args.phases if p != 'c5'] + (list(args.c5_variants) if 'c5' in args.phases else [])
         report['result'] = 'pass' if (not report['errors'] and not cleanup
             and all(report['phases'].get(p, {}).get('budget', {}).get('result') == 'pass' for p in expected)) else 'fail'
         runner.write_json(run.path / 'summary.json', report)
