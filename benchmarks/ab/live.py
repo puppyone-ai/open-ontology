@@ -127,6 +127,7 @@ def gateway(cli, profile, binding, sql):
     try:
         # The CLI intentionally reserves stdin for credentials. Use its
         # existing SQL-file interface, not SQL/secret material in argv.
+        (ab.ROOT / "evidence").mkdir(exist_ok=True)
         with tempfile.NamedTemporaryFile(mode="w", dir=ab.ROOT / "evidence") as stream:
             stream.write(sql)
             stream.flush()

@@ -36,7 +36,27 @@ fn ab_help_and_invalid_arms() {
 
 #[test]
 fn scorer_health_and_p2_t_replay() {
-    let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks/ab");
+    let benchmarks = concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks");
+    // The scorer shells out to these standalone tools at
+    // benchmarks/<tool>/target/debug/<tool>; a fresh checkout has none built.
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    for tool in [
+        "query-result-adapter",
+        "question-bank",
+        "result-comparator",
+        "sql-runner",
+        "trial-statistics",
+    ] {
+        let directory = format!("{benchmarks}/{tool}");
+        let built = Command::new(&cargo)
+            .args(["build", "--locked", "--manifest-path"])
+            .arg(format!("{directory}/Cargo.toml"))
+            .env("CARGO_TARGET_DIR", format!("{directory}/target"))
+            .status()
+            .expect("build benchmark tool");
+        assert!(built.success(), "{tool}");
+    }
+    let directory = format!("{benchmarks}/ab");
     let status = Command::new("python3")
         .args([
             "-m",

@@ -968,6 +968,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `server_error` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:107`](../../crates/oo-gateway/src/auth_device.rs#L107) |
 | `sink_bytes` | [configuration-and-source](#configuration-and-source) | [`c1_repair.rs:28`](../../tools/oo-load/src/c1_repair.rs#L28) |
 | `sink_rows` | [configuration-and-source](#configuration-and-source) | [`lib.rs:50`](../../tools/oo-load/src/lib.rs#L50) |
+| `sync_mining_floor_state` | [configuration-and-source](#configuration-and-source) | [`log_sync.rs:182`](../../tools/oo-load/src/log_sync.rs#L182) |
 | `temporarily_unavailable` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:132`](../../crates/oo-gateway/src/auth_device.rs#L132) |
-| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:592`](../../tools/oo-load/src/main.rs#L592) |
-| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:588`](../../tools/oo-load/src/main.rs#L588) |
+| `tls_ca_read` | [configuration-and-source](#configuration-and-source) | [`main.rs:664`](../../tools/oo-load/src/main.rs#L664) |
+| `tls_ca_required` | [configuration-and-source](#configuration-and-source) | [`main.rs:660`](../../tools/oo-load/src/main.rs#L660) |

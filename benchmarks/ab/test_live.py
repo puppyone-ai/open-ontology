@@ -13,6 +13,11 @@ import run as ab
 import live
 
 
+def setUpModule():
+    # evidence/ is ignored by git, so a fresh checkout does not have it.
+    (ab.ROOT / "evidence").mkdir(exist_ok=True)
+
+
 class LiveTests(unittest.TestCase):
     def result(self):
         return {"columns": [{"name": "value", "type": "int64"}],

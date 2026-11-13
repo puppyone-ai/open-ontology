@@ -14,6 +14,11 @@ import run as ab
 FIXTURE = ab.ROOT / "benchmarks/ab/fixtures/demo.json"
 
 
+def setUpModule():
+    # evidence/ is ignored by git, so a fresh checkout does not have it.
+    (ab.ROOT / "evidence").mkdir(exist_ok=True)
+
+
 class ScorerTests(unittest.TestCase):
     def test_demo_amount_is_permission_not_accuracy(self):
         dataset = ab.load(FIXTURE)

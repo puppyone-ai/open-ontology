@@ -122,7 +122,7 @@ class Lifecycle(unittest.TestCase):
     def test_state_rejects_outside_and_symlinked_parent(self):
         with self.assertRaises(ValueError):
             demo.state_path(Path.cwd().parent)
-        with tempfile.TemporaryDirectory(dir=Path.cwd() / "evidence") as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             root = Path(directory)
             (root / "link").symlink_to(root, target_is_directory=True)
             with self.assertRaises(ValueError):

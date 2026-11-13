@@ -1049,7 +1049,7 @@ mod tests {
              ($1::int4,$2::text,$3::text),($4::int4,$5::text,$6::text)) AS v(o,c0,c1) ORDER BY v.o"
         );
         assert!(crate::postgres::sqltext::read_only(&sql));
-        let per = IMAGE_ROWS.min(60_000 / (1600 + 1)).max(1);
+        let per = IMAGE_ROWS.clamp(1, 60_000 / (1600 + 1));
         assert!(per * 1601 < 65_535);
     }
 

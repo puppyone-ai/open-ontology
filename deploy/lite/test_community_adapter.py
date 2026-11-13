@@ -18,6 +18,15 @@ import selfbuild_budget as builder
 from test_selfbuild_budget import Model
 
 
+def oo_binary():
+    # The L0 Rust suites test libraries only; build the CLI this test drives.
+    path = ROOT/'target/debug/oo'
+    if not path.is_file():
+        subprocess.run(['cargo', 'build', '--locked', '-p', 'oo-cli', '--bin', 'oo'], cwd=ROOT,
+                       env=dict(os.environ, CARGO_TARGET_DIR=str(ROOT/'target')), check=True)
+    return path
+
+
 class Tests(unittest.TestCase):
     def test_embedded_modules_at_shallow_container_path(self):
         sources = {name: (ROOT/'tools/pg-builder/scripts'/(name+'.py')).read_text()
@@ -83,7 +92,7 @@ class Tests(unittest.TestCase):
                 input_sha256=builder.digest(command), reviewed_at='2026-11-04', items=decisions,
                 g14=dict(action='accept', reason='Synthetic isolated fixture',
                          summary_sha256=command['draft']['review']['summary_sha256'])))
-            result = subprocess.run([str(ROOT/'target/debug/oo'), 'review', '--input',
+            result = subprocess.run([str(oo_binary()), 'review', '--input',
                 str(root/'review-input.json'), '--review-file', str(root/'decisions.json'),
                 '--out', str(root/'reviewed.json'), '--json'], capture_output=True)
             self.assertEqual(result.returncode, 0, result.stdout+result.stderr)

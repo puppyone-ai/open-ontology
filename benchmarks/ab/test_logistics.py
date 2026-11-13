@@ -8,6 +8,11 @@ import logistics
 import run as ab
 
 
+def setUpModule():
+    # evidence/ is ignored by git, so a fresh checkout does not have it.
+    (ab.ROOT / "evidence").mkdir(exist_ok=True)
+
+
 class LogisticsTests(unittest.TestCase):
     def test_frozen_bank_matches_questions_and_has_semantic_coverage(self):
         bank = json.loads(Path(__file__).with_name("fixtures").joinpath(
