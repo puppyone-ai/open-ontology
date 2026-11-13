@@ -1,6 +1,6 @@
 ## Card T10-live-2 — resume live T10 after the quiet-host gate fix (S6-H-02; D24)
 
-Branch `v0.2/t10` at `367761004`. Your previous run was blocked by the "no pre-existing containers" gate. The host carries
+Branch `v0.2/t10` at `367761004` (this card is committed on the branch; never delete it). Your previous run was blocked by the "no pre-existing containers" gate. The host carries
 eight idle unrelated containers. NEVER stop, inspect beyond `docker stats`, or modify them. The gate now samples their CPU, refuses if not idle, and records them in the report; that is the accepted
 quiet-host condition. Do NOT redo the C5 key fix or the docs skeleton already committed; fill the docs with measured numbers.
 

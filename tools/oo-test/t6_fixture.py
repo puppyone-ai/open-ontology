@@ -20,6 +20,17 @@ def ident(value):
     return '"' + value + '"'
 
 
+def prepare_failure(result):
+    """Name a publish run without a cut by oo-load's stable error code only."""
+    try:
+        code = json.loads(result.stderr.decode().strip().splitlines()[-1])["error"]
+    except (ValueError, IndexError, KeyError, TypeError):
+        code = None
+    if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,40}", code):
+        return "PREPARE_" + code.upper()
+    return "PREPARE_NO_CUT"
+
+
 class GoldFixture(cycles.Live):
     def __init__(self, out, engine, scale, version=None, worker_image=None):
         super().__init__(out, engine)
@@ -284,7 +295,10 @@ class GoldFixture(cycles.Live):
             "exit": pending.returncode})
         (self.out / "prepare.stdout").write_bytes(pending.stdout)
         (self.out / "prepare.stderr").write_bytes(pending.stderr)
-        cut = json.loads(pending.stdout)
+        try:
+            cut = json.loads(pending.stdout)
+        except ValueError:
+            raise ValueError(prepare_failure(pending)) from None
         if pending.returncode == 0 or cut["state"] != "pending":
             raise ValueError("EXPECTED_PENDING_FENCE")
         self.cuts.append(cut)

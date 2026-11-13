@@ -104,6 +104,8 @@ pub struct OracleLogMiner {
     admitted_scn: u64,
     classified_ddl: bool,
     table_positions: BTreeMap<TableRef, u64>,
+    /// Largest commit-SCN span mined in one batch after a budget refusal.
+    scn_window: Option<u64>,
 }
 
 impl OracleLogMiner {
@@ -211,6 +213,7 @@ impl OracleLogMiner {
             admitted_scn: 0,
             classified_ddl: false,
             table_positions: BTreeMap::new(),
+            scn_window: None,
         };
         reader.check_logging()?;
         let files = reader.inventory()?;
@@ -493,6 +496,31 @@ impl OracleLogMiner {
 
     fn read(&mut self, from: u64, budget: &ReadBudget) -> Result<ChangeBatch, SourceError> {
         let deadline = Instant::now() + Duration::from_millis(budget.statement_timeout_ms);
+        let mut attempt = 0;
+        loop {
+            self.engine.last_ora = None;
+            match self.read_once(from, deadline, budget) {
+                // A busy source reused or archived an online redo log between
+                // the inventory and LogMiner's header check. Nothing of the
+                // batch was delivered: inventory again and mine the same span.
+                Err(_)
+                    if redo_reused(self.engine.last_ora)
+                        && attempt < REDO_REUSE_RETRIES
+                        && Instant::now() < deadline =>
+                {
+                    attempt += 1;
+                }
+                result => return result,
+            }
+        }
+    }
+
+    fn read_once(
+        &mut self,
+        from: u64,
+        deadline: Instant,
+        budget: &ReadBudget,
+    ) -> Result<ChangeBatch, SourceError> {
         self.engine
             .set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.check_logging()?;
@@ -522,7 +550,54 @@ impl OracleLogMiner {
             .into_iter()
             .filter(|file| file.next > self.retained_floor && file.first <= high)
             .collect();
-        self.add_files(&files)?;
+        // A cursor that fell behind a busy source (or a first batch after a
+        // long baseline) can hold more commits than one batch may carry. Mine
+        // a shorter commit-SCN span instead of refusing forever; the batch
+        // position is the span's end, so every commit at or below it is whole.
+        let mut end = window_end(from, high, self.scn_window);
+        // Largest end known to hold no commit, smallest known over budget.
+        let (mut empty, mut over) = (from, None);
+        loop {
+            match self.mine(from, end, &files, deadline, budget) {
+                // One table's rows past the limit fail the query itself.
+                Err(error)
+                    if matches!(
+                        error.fact(),
+                        Some("logminer_batch_over_budget" | "query_row_limit")
+                    ) =>
+                {
+                    over = Some(end);
+                }
+                // An empty shorter span proves nothing yet: look further.
+                Ok(batch) if batch.changes.is_empty() && end < high => empty = end,
+                Ok(batch) => {
+                    if over.is_some() {
+                        self.scn_window = Some(end - from);
+                    } else if (batch.changes.len() as u64).saturating_mul(4) < budget.max_chunk_rows
+                    {
+                        // Grow back after a light batch so a caught-up cursor
+                        // returns to whole spans.
+                        self.scn_window = self.scn_window.map(|w| w.saturating_mul(2));
+                    }
+                    return Ok(batch);
+                }
+                Err(error) => return Err(error),
+            }
+            end = next_span(high, empty, over)
+                .ok_or(SourceError::budget("logminer_batch_over_budget"))?;
+        }
+    }
+
+    /// One LogMiner session over committed changes in `(from, high]`.
+    fn mine(
+        &mut self,
+        from: u64,
+        high: u64,
+        files: &[LogFile],
+        deadline: Instant,
+        budget: &ReadBudget,
+    ) -> Result<ChangeBatch, SourceError> {
+        self.add_files(files)?;
         self.call(
             "BEGIN DBMS_LOGMNR.START_LOGMNR(STARTSCN=>:b1,ENDSCN=>:b2,\
              OPTIONS=>DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG+DBMS_LOGMNR.COMMITTED_DATA_ONLY); END;",
@@ -608,6 +683,33 @@ impl ChangeSource for OracleLogMiner {
     }
 }
 
+/// Re-inventories after a redo log switch races one batch.
+const REDO_REUSE_RETRIES: u32 = 3;
+
+/// ORA-01368 (online log header no longer matches the registered sequence)
+/// and ORA-00310 (the registered online log was archived and reused) mean
+/// the log list went stale, not that redo is missing. ORA-01291 (a missing
+/// archived log) is a real gap and is never retried.
+fn redo_reused(code: Option<usize>) -> bool {
+    matches!(code, Some(1368 | 310))
+}
+
+/// End of the next mined span: the whole backlog, or the learned window.
+fn window_end(from: u64, high: u64, window: Option<u64>) -> u64 {
+    window.map_or(high, |w| high.min(from.saturating_add(w.max(1))))
+}
+
+/// Next span end after one probe: bisect between the largest end known to
+/// hold no commit and the smallest known over budget, or take the whole
+/// remainder when nothing is over budget yet. `None` when one SCN alone (a
+/// single oversized commit) exceeds the budget: that refusal stands.
+fn next_span(high: u64, empty: u64, over: Option<u64>) -> Option<u64> {
+    match over {
+        Some(over) => (over.checked_sub(empty)? > 1).then(|| empty + (over - empty) / 2),
+        None => (empty < high).then_some(high),
+    }
+}
+
 fn validate_resume_floor(
     floor: u64,
     from: u64,
@@ -629,6 +731,56 @@ fn validate_resume_floor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_stale_online_log_lists_are_mined_again() {
+        assert!(redo_reused(Some(1368)));
+        assert!(redo_reused(Some(310)));
+        for code in [None, Some(1291), Some(1555), Some(942)] {
+            assert!(!redo_reused(code), "{code:?}");
+        }
+    }
+
+    #[test]
+    fn over_budget_backlog_is_mined_in_shrinking_commit_spans() {
+        assert_eq!(window_end(100, 1_000, None), 1_000);
+        assert_eq!(window_end(100, 1_000, Some(50)), 150);
+        // The learned window never runs past the current high mark.
+        assert_eq!(window_end(990, 1_000, Some(50)), 1_000);
+        assert_eq!(window_end(100, 1_000, Some(0)), 101);
+        // Over budget: bisect towards the cursor.
+        assert_eq!(next_span(1_000, 100, Some(1_000)), Some(550));
+        // An empty prefix moves the lower bound; bisect what remains.
+        assert_eq!(next_span(1_000, 550, Some(1_000)), Some(775));
+        // Nothing over budget yet after an empty learned window: take it all.
+        assert_eq!(next_span(1_000, 150, None), Some(1_000));
+        assert_eq!(next_span(1_000, 1_000, None), None);
+        // One SCN that alone exceeds the budget cannot be split.
+        assert_eq!(next_span(1_000, 100, Some(101)), None);
+        assert_eq!(next_span(1_000, 100, Some(102)), Some(101));
+        // Simulate commits at SCNs 400..=420 (one change each), budget 5.
+        let commits: Vec<u64> = (400..=420).collect();
+        let mined =
+            |from: u64, end: u64| commits.iter().filter(|c| **c > from && **c <= end).count();
+        let (from, high) = (100, 1_000);
+        let (mut empty, mut over, mut end, mut probes) = (from, None, high, 0);
+        loop {
+            probes += 1;
+            let n = mined(from, end);
+            if n > 5 {
+                over = Some(end);
+            } else if n == 0 && end < high {
+                empty = end;
+            } else {
+                break;
+            }
+            end = next_span(high, empty, over).unwrap();
+        }
+        let n = mined(from, end);
+        assert!((1..=5).contains(&n), "{n} changes up to {end}");
+        assert!(probes <= 20);
+    }
+
     #[test]
     fn cleared_or_unknown_logging_requires_rebaseline() {
         for minimal in [Some("YES"), Some("IMPLICIT")] {

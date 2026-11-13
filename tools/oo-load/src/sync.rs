@@ -46,7 +46,12 @@ impl engine_sync::Target for Target<'_, '_> {
             return Err("sync_rebaseline_required_lineage");
         }
         control.close().await.map_err(|_| "sync_lineage_control")?;
-        c1::check_shapes(&mut self.engine, &self.admission, &self.budget, batch).await?;
+        let shape = c1::check_shapes(&mut self.engine, &self.admission, &self.budget, batch).await;
+        self.engine
+            .close_idle_session()
+            .await
+            .map_err(|_| "sync_source_close")?;
+        shape?;
         let mut images = Vec::new();
         let mut bytes = 0u64;
         for image in &batch.images {
@@ -280,6 +285,12 @@ pub(super) async fn run(
         )
         .await?;
     }
+    // Feedback remains connected; do not retain a third metadata reader
+    // while the bounded capture session is active.
+    engine
+        .close_idle_session()
+        .await
+        .map_err(|e| e.to_string())?;
     let mut changes = PostgresChanges::new(
         config,
         CaptureConfig {

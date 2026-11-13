@@ -126,6 +126,8 @@ PG_SETTINGS = {"TIME ZONE", "TIMEZONE", "DATESTYLE", "INTERVALSTYLE", "EXTRA_FLO
                "DEFAULT_TRANSACTION_READ_ONLY", "DEFAULT_TRANSACTION_ISOLATION",
                "TRANSACTION_READ_ONLY", "TRANSACTION_ISOLATION", "CLIENT_MIN_MESSAGES",
                "STANDARD_CONFORMING_STRINGS", "TCP_KEEPALIVES_IDLE", "ROW_SECURITY",
+               # Product source sessions disable parallel query to bound source load (T10).
+               "MAX_PARALLEL_WORKERS_PER_GATHER",
                "SYNCHRONOUS_COMMIT", "JIT", "WORK_MEM"}
 MYSQL_SETTINGS = {"TIME_ZONE", "SQL_MODE", "NAMES", "CHARACTER_SET_CLIENT",
                   "CHARACTER_SET_RESULTS", "CHARACTER_SET_CONNECTION", "COLLATION_CONNECTION",
@@ -199,6 +201,14 @@ def functions(sql, engine):
         if name in SYNTAX or before.endswith((" AS", "(AS", "ORDINALITY", ")")) or before == "AS":
             continue
         calls.append(name[len(prefix):] if name.startswith(prefix) else name)
+    if engine == "oracle":
+        # Oracle calls a routine without arguments with no parentheses
+        # ("SELECT DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER FROM dual"), so a
+        # supplied-package member is a call even without "(".
+        for match in re.finditer(r"(?<![A-Z0-9_$#.])((?:SYS\.)?(?:DBMS|UTL|OWA|HTP|HTF)_[A-Z0-9_$#]*"
+                                 r"\.[A-Z_][A-Z0-9_$#]*)(?![A-Z0-9_$#.]|\s*\()", sql):
+            name = match[1]
+            calls.append(name[len(prefix):] if name.startswith(prefix) else name)
     return calls
 
 

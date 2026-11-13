@@ -217,7 +217,19 @@ fn selected(source: &Source, requested: Option<&String>) -> Result<Vec<TableRef>
     Ok(tables)
 }
 
-async fn run_engine<E: SourceEngine>(
+fn read_metadata<E: epoch::Epoch>(engine: &E, budget: &ReadBudget) -> serde_json::Value {
+    if engine.consistency() != "chunk_consistent" {
+        return serde_json::json!({"consistency": engine.consistency()});
+    }
+    serde_json::json!({
+        "consistency": engine.consistency(),
+        "chunk_bounds": {"rows": budget.max_chunk_rows, "bytes": budget.max_chunk_bytes,
+            "transaction_ms": budget.statement_timeout_ms, "cleanup_ms": 1000},
+        "cross_range_skew": "cycle", "correction": "next_c5_cycle"
+    })
+}
+
+async fn run_engine<E: epoch::Epoch>(
     engine: &mut E,
     source: &Source,
     tables: &[TableRef],
@@ -234,11 +246,13 @@ async fn run_engine<E: SourceEngine>(
     // Metadata reads also consume source budget on no-rewrite resumes.
     tokio::time::sleep(probe_started.elapsed() * (100 - duty) / duty).await;
     for table in tables {
+        engine.prepare_table(table, budget).await?;
         let mut conn = target_connection(target, store).await?;
         // Bind resume to the endpoint, not just a user-reusable display ID.
         let binding = binding(source)?;
         let mut sink = PgTarget::new(&mut conn, &binding, &target.run_id, table).await?;
         sink = documents::target(sink, source)?;
+        sink.read_metadata(read_metadata(engine, budget));
         let (receipts, replay) = match sink.completed().await? {
             Some(receipts) => (receipts, true),
             None => {
@@ -256,6 +270,15 @@ async fn run_engine<E: SourceEngine>(
             }
         };
         let bytes = sink.write_bytes().await?;
+        let metadata = if replay {
+            sink.publication_read_metadata().await?
+        } else {
+            Some(read_metadata(engine, budget))
+        };
+        let consistency = metadata
+            .as_ref()
+            .and_then(|m| m["consistency"].as_str())
+            .unwrap_or("unmeasured");
         println!(
             "{}",
             serde_json::json!({
@@ -265,7 +288,7 @@ async fn run_engine<E: SourceEngine>(
                 "read_budget":budget,
                 "write_basis":"committed_logical_stage_tuples_including_replaced_plans",
                 "publication":"local_table_view", "gateway_published":false,
-                "consistency":"B", "source_time":"unmeasured"
+                "consistency":consistency, "read_metadata":metadata, "source_time":"unmeasured"
             })
         );
         drop(sink);
@@ -305,7 +328,14 @@ fn mysql_engine(
             ..Default::default()
         },
     );
-    Ok(engine)
+    if source.snapshot == oo_stack::stack::Snapshot::Single {
+        if family != EngineFamily::Mysql {
+            return Err("single_snapshot_unsupported_family".into());
+        }
+        Ok(engine.with_single_snapshot())
+    } else {
+        Ok(engine)
+    }
 }
 
 fn mysql_family(name: &str) -> Option<EngineFamily> {
@@ -598,8 +628,27 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
-            // Physical ctid plans require a live exported snapshot. Keep its
-            // read-only owner alive until every table has finished or failed.
+            let mut engine = if source.engine == "kingbase" {
+                PostgresEngine::new_kingbase(config)
+            } else {
+                PostgresEngine::new(config)
+            };
+            if source.snapshot != oo_stack::stack::Snapshot::Single {
+                return if let Some(path) = opts.get("--c5") {
+                    c5::run(
+                        engine,
+                        source,
+                        &tables,
+                        &target,
+                        &store,
+                        &budget,
+                        serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                    )
+                    .await
+                } else {
+                    run_engine(&mut engine, source, &tables, &target, &store, &budget).await
+                };
+            }
             let ca = store.read(
                 &source
                     .tls_ca
@@ -631,13 +680,7 @@ async fn execute() -> Result<(), String> {
                 .fetch_one(&mut owner)
                 .await
                 .map_err(|_| "snapshot_export")?;
-            let mut engine = if source.engine == "kingbase" {
-                PostgresEngine::new_kingbase(config)
-            } else {
-                PostgresEngine::new(config)
-            }
-            .with_snapshot(snapshot)
-            .map_err(|e| e.to_string())?;
+            engine = engine.with_snapshot(snapshot).map_err(|e| e.to_string())?;
             let result = if let Some(path) = opts.get("--c5") {
                 c5::run(
                     engine,
@@ -692,6 +735,10 @@ async fn execute() -> Result<(), String> {
                     opts.get("--oracle-worker"),
                 )
                 .await;
+            }
+            if opts.contains_key("--c5") {
+                // Hot ranges prove their payload at its own SCN (see c5.rs).
+                engine.request_chunk_proofs();
             }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(

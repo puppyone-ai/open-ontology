@@ -9,6 +9,7 @@ pub(super) async fn seal(
     identity: &str,
     run: &str,
     plan: &TableChunkPlan,
+    publication_plan: &str,
     parts: &[C5Part],
     fields: &[DecodedField],
 ) -> Result<String> {
@@ -83,10 +84,7 @@ pub(super) async fn seal(
         "g_{}",
         &hash(&serde_json::to_vec(&(identity, run)).map_err(|_| "load_identity")?)[..40]
     );
-    let recipe = serde_json::json!({
-        "protocol":"oo.load.storage-generation/v1",
-        "plan":plan,"parts":parts,"definition":definition
-    });
+    let recipe = recipe(publication_plan, plan, parts, &definition)?;
     // Never replace a retained view: even a replay must match its sealed recipe.
     let existing: Option<(String, String)> = sqlx::query_as(
         "SELECT relation_name,recipe::text FROM _oo_load.generations
@@ -125,6 +123,28 @@ pub(super) async fn seal(
     .await
     .map_err(db)?;
     Ok(relation)
+}
+
+/// Seal the exact plan written to `_oo_load.publications`, read metadata
+/// included. The publication verifier compares the two byte-for-byte as JSON;
+/// sealing the bare plan instead makes every metadata-bearing cut unverifiable.
+pub(super) fn recipe(
+    publication_plan: &str,
+    plan: &TableChunkPlan,
+    parts: &[C5Part],
+    definition: &str,
+) -> Result<serde_json::Value> {
+    let sealed: serde_json::Value =
+        serde_json::from_str(publication_plan).map_err(|_| "generation_plan")?;
+    if serde_json::from_value::<TableChunkPlan>(sealed.clone()).map_err(|_| "generation_plan")?
+        != *plan
+    {
+        return Err("generation_plan");
+    }
+    Ok(serde_json::json!({
+        "protocol":"oo.load.storage-generation/v1",
+        "plan":sealed,"parts":parts,"definition":definition
+    }))
 }
 
 impl PgTarget<'_> {

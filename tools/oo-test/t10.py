@@ -5,6 +5,7 @@ Native Python drivers are loaded only for live runs. Latencies include arrival
 queueing, not merely database service time. Raw evidence is private/ignored.
 """
 import argparse
+from collections import Counter
 import copy
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -29,6 +30,7 @@ from oracle_t3t4 import OracleHarness
 from verdicts import product_sha
 
 PHASES = ('baseline', 'initial', 'initial_duty100', 'c1', 'c5')
+C5_PHASES = ('c5_idle', 'c5_changed', 'c5_full_idle', 'c5_full_changed')
 SCALE = 2_000_000
 WINDOW = 10
 
@@ -48,6 +50,7 @@ def summarize(requests, duration):
                for p in (50, 95, 99)},
             'duration_seconds': duration, 'requests': len(requests),
             'errors': sum(r['error'] is not None for r in requests),
+            'error_counts': dict(Counter(r['error'] for r in requests if r['error'] is not None)),
             'achieved_rate': sum(r['error'] is None and r['end'] < duration
                                  for r in requests) / duration if duration else 0,
             'max_start_delay_ms': max((r['actual'] - r['intended'] for r in requests
@@ -55,20 +58,27 @@ def summarize(requests, duration):
 
 
 def windows(requests, duration):
+    starts = range(0, math.ceil(duration), WINDOW)
+    cohorts = [[] for _ in starts]
+    completions = [0 for _ in starts]
+    # Bucket once: long loads must not rescan millions of rows per window.
+    for row in requests:
+        if 0 <= row['intended'] < duration:
+            cohorts[int(row['intended'] // WINDOW)].append(row)
+        if row['error'] is None and 0 <= row['end'] < duration:
+            completions[int(row['end'] // WINDOW)] += 1
     result = []
-    for start in range(0, math.ceil(duration), WINDOW):
+    for index, start in enumerate(starts):
         end = min(start + WINDOW, duration)
         selected = [dict(r, intended=r['intended'] - start,
                          actual=None if r['actual'] is None else r['actual'] - start,
                          end=r['end'] - start)
-                    for r in requests if start <= r['intended'] < end]
+                    for r in cohorts[index]]
         summary = summarize(selected, end - start)
         # Completions, unlike latency cohorts, belong to their completion window.
-        summary['achieved_rate'] = sum(r['error'] is None and start <= r['end'] < end
-                                       for r in requests) / (end - start)
+        summary['achieved_rate'] = completions[index] / (end - start)
         result.append(dict(summary, start_seconds=start))
     return result
-
 
 def verdict(baseline, phase):
     valid = (baseline and baseline['requests'] > 0 and phase['requests'] > 0
@@ -150,11 +160,114 @@ def sql_metrics(engine, text):
 
 
 class ImpactSource(t3t4.Source):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.foreground_key = SCALE + 1
+        self.foreground_lock = threading.Lock()
+        # Bounded and large: the product refuses unlimited retention as
+        # unproven WAL headroom, and 256MB invalidated the slot under load.
+        self.slot_wal_keep_size = SLOT_WAL_KEEP_SIZE
+
+    def next_foreground_key(self):
+        # Calibration and every phase write the same source table.
+        with self.foreground_lock:
+            key = self.foreground_key
+            self.foreground_key += 1
+            return key
+
     def command(self, command, **kwargs):
         command = list(command)
         if command[:2] == ['docker', 'create'] and self.name in command:
             command[2:2] = ['--cpus', str(self.args.cpus), '--memory', self.args.memory]
+        elif (command[:2] == ['docker', 'create'] and getattr(self.args, 'target_tmpfs', False)
+              and TARGET_DATA_MOUNT in ' '.join(command)):
+            command = target_on_tmpfs(command)
         return super().command(command, **kwargs)
+
+
+SLOT_WAL_KEEP_SIZE = '16GB'
+TARGET_DATA_MOUNT = 'dst=/var/lib/postgresql/data'
+
+
+def target_on_tmpfs(command):
+    """Give the agent DB its own storage instead of the source's shared disk.
+
+    On one Docker host the source and the target share a virtual disk, so the
+    target's write bursts (load staging, WAL, checkpoints) stall the source's
+    commit fsyncs; no real deployment shares the source database's storage.
+    """
+    index = next(i for i, arg in enumerate(command)
+                 if arg == '--mount' and TARGET_DATA_MOUNT in command[i + 1])
+    return command[:index] + ['--tmpfs', '/var/lib/postgresql/data:rw,size=24g'] + command[index + 2:]
+
+
+class ImpactHarness(t3t4.Harness):
+    def c1_binding(self, sid, tables):
+        if self.run.engine != 'mysql':
+            return super().c1_binding(sid, tables)
+        # Quiescent fixture: foreground writes start only after preparation.
+        self.snapshot(sid, tables)
+        _, epoch = self.src('SELECT @@GLOBAL.server_uuid;')
+        _, position = self.src('SHOW MASTER STATUS;' if self.run.version in ('5.7', '8.0')
+                               else 'SHOW BINARY LOG STATUS;')
+        fields = position.split()
+        self.sync[sid] = {
+            'initial_position': {'kind': 'mysql_file_pos', 'file': fields[0],
+                                 'position': int(fields[1])},
+            'source_epoch': epoch.strip(), 'baseline_aligned': True,
+            'max_batches': 100, 'server_id': next(self.server_ids),
+            'longest_cycle_seconds': 1, 'recovery_seconds': 1,
+        }
+
+
+def oracle_timeout(rows, rows_per_second):
+    if rows <= 0 or not math.isfinite(rows_per_second) or rows_per_second <= 0:
+        raise ValueError('unmeasured_oracle_load_rate')
+    return max(900, math.ceil(3 * rows / rows_per_second))
+
+
+class ImpactOracleHarness(OracleHarness):
+    load_timeout = 900
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.load_rate = None
+        self.timeout_records = []
+
+    def call(self, sid, run_id, mode=None, policy=None, required=True, timeout=None):
+        if timeout is None and mode is None and self.load_rate is not None:
+            self.size_timeout(sid)
+        return super().call(sid, run_id, mode, policy, required,
+                            self.load_timeout if timeout is None else timeout)
+
+    def size_timeout(self, sid):
+        tables = self.tables(sid)
+        _, count = self.src("SELECT " + "+".join(
+            f"(SELECT COUNT(*) FROM {table})" for table in tables) + " FROM dual;")
+        rows = int(count.strip())
+        self.load_timeout = oracle_timeout(rows, self.load_rate)
+        self.timeout_records.append({
+            'source': sid, 'tables': tables, 'rows': rows, 'rows_per_second': self.load_rate,
+            'factor': 3, 'minimum_seconds': 900, 'timeout_seconds': self.load_timeout})
+
+    def measure_load_rate(self):
+        self.src('CREATE TABLE t10_probe AS SELECT * FROM bulk WHERE id<=20000;'
+                 'ALTER TABLE t10_probe ADD PRIMARY KEY(id);'
+                 'GRANT SELECT,FLASHBACK ON t10_probe TO fixture_reader;')
+        _, count = self.src('SELECT COUNT(*) FROM t10_probe;')
+        rows = int(count.strip())
+        started = time.monotonic()
+        self.snapshot('t10_rate_probe', ['t10_probe'])
+        elapsed = time.monotonic() - started
+        rate = rows / elapsed
+        self.load_rate = rate
+        _, total = self.src('SELECT (SELECT COUNT(*) FROM bulk)+'
+                            '(SELECT COUNT(*) FROM items)+(SELECT COUNT(*) FROM other) FROM dual;')
+        total = int(total.strip())
+        self.load_timeout = oracle_timeout(total, rate)
+        return {'probe_rows': rows, 'probe_seconds': elapsed, 'rows_per_second': rate,
+                'rows': total, 'factor': 3, 'minimum_seconds': 900,
+                'timeout_seconds': self.load_timeout}
 
 
 class Workload:
@@ -164,7 +277,17 @@ class Workload:
         self.local = threading.local()
         self.connections = []
         self.lock = threading.Lock()
-        self.key = SCALE + 1
+        self.ready = queue.SimpleQueue()
+
+    def warm(self, count):
+        """Open the workers' connections before the phase clock starts.
+
+        Lazily connecting inside the first measured second (64 SCRAM/TLS
+        handshakes) inflated every phase's tail by its first second; a short
+        phase weighted that warm-up far more than the 10-minute baseline.
+        """
+        for _ in range(count):
+            self.ready.put(self.connect())
 
     def connect(self):
         run = self.run
@@ -190,7 +313,10 @@ class Workload:
 
     def __call__(self, index):
         if not getattr(self.local, 'conn', None):
-            self.local.conn = self.connect()
+            try:
+                self.local.conn = self.ready.get_nowait()
+            except queue.Empty:
+                self.local.conn = self.connect()
         # Fixed 60/30/10 mix and deterministic hot keys in every phase.
         hot = index % 20 + 1
         if index % 10 < 6:
@@ -198,9 +324,7 @@ class Workload:
         elif index % 10 < 9:
             sql = f'UPDATE items SET n=n+1 WHERE id={hot}'
         else:
-            with self.lock:
-                key = self.key
-                self.key += 1
+            key = self.run.next_foreground_key()
             sql = f"INSERT INTO other VALUES({key},'foreground',{index % 1000000})"
         with self.local.conn.cursor() as cursor:
             cursor.execute(sql)
@@ -214,14 +338,24 @@ class Workload:
         self.connections.clear()
 
 
+# Foreground client connections. Oracle Free's listener refuses new sessions
+# (ORA-12516) well below 64 under load, so Oracle runs with 32.
+WORKERS = {'oracle': 32}
+DEFAULT_WORKERS = 64
+# Latency is measured from the intended start, so queueing already shows in
+# p95/p99. Only a backlog beyond this many seconds counts as overload.
+BACKLOG_SECONDS = 30
+
+
 def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
-              sleep=time.sleep, workers=32, on_start=lambda: None):
+              sleep=time.sleep, workers=None, on_start=lambda: None):
     """Bounded queue: overloaded arrivals are errors, never silently dropped.
 
     A completion-driven phase uses finished instead of seconds. The scheduler
     never waits for an earlier request; end-to-end latency starts at intended.
     """
-    jobs = queue.Queue(maxsize=workers * 32)
+    workers = workers or DEFAULT_WORKERS
+    jobs = queue.Queue(maxsize=max(workers * 32, int(rate * BACKLOG_SECONDS)))
     results = []
     lock = threading.Lock()
     start = clock()
@@ -239,6 +373,9 @@ def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
                 work(index)
             except Exception as exc:
                 error = type(exc).__name__  # Driver messages can contain credentials.
+                code = getattr(exc.args[0], 'full_code', None) if exc.args else None
+                if isinstance(code, str) and re.fullmatch(r'(ORA|DPY|DPI)-[0-9]{4,5}', code):
+                    error += ':' + code
             record = dict(intended=intended, actual=actual, end=clock() - start, error=error)
             with lock:
                 results.append(record)
@@ -282,14 +419,21 @@ def open_loop(work, rate, seconds, finished=None, clock=time.monotonic,
 
 def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lambda: None):
     samples = []
-    for concurrency in levels:
+    for concurrency in [c for c in levels if c <= DEFAULT_WORKERS * 2]:
         stop = time.monotonic() + seconds
+        next_index = 0
+        index_lock = threading.Lock()
 
         def loop(worker):
+            nonlocal next_index
             count = errors = 0
             while time.monotonic() < stop:
                 try:
-                    work(count * concurrency + worker)
+                    # Worker-local strides bias the mix toward faster operations.
+                    with index_lock:
+                        index = next_index
+                        next_index += 1
+                    work(index)
                     count += 1
                 except Exception:
                     errors += 1
@@ -312,6 +456,44 @@ def calibrate(work, seconds=10, levels=(1, 2, 4, 8, 16, 32, 64, 128), close=lamb
             capacity = max(s['rate'] for s in samples)
             return {'capacity': capacity, 'rate': capacity * .55, 'samples': samples}
     raise RuntimeError('calibration_capacity_not_found_at_concurrency_cap')
+
+class SettleFailure(RuntimeError):
+    def __init__(self, trials):
+        super().__init__('calibration_no_sustainable_rate')
+        self.trials = trials
+
+def settle(work, rate, seconds=60, step=.7, tries=6, loop=None, close=lambda: None):
+    """Burst capacity overstates a sustainable open-loop rate (checkpoints,
+    purge and tail stalls). Step down until a sustained trial is error-free."""
+    loop = loop or open_loop
+    trials = []
+    for _ in range(tries):
+        try:
+            requests, _ = loop(work, rate, seconds)
+        finally:
+            # Each open-loop trial owns new worker threads and connections.
+            close()
+        errors = sum(r['error'] is not None for r in requests)
+        trials.append({'rate': rate, 'seconds': seconds, 'requests': len(requests), 'errors': errors,
+                       'error_counts': dict(Counter(r['error'] for r in requests if r['error']))})
+        if errors == 0:
+            return {'rate': rate, 'trials': trials}
+        rate *= step
+    raise SettleFailure(trials)
+
+def foreground_rate(calibration):
+    """Keep the settled trial intact; offer half that rate in every phase."""
+    settled = calibration['settle']['rate']
+    calibration['settled_rate'] = settled
+    calibration['load_fraction'] = .5
+    calibration['used_rate'] = settled * calibration['load_fraction']
+    return calibration['used_rate']
+
+
+def valid_baseline(result):
+    return (verdict(result, result)['result'] == 'pass'
+            and not result['product_errors'] and not result['metrics']['errors']
+            and bool(result['metrics']['samples']))
 
 
 class Meter:
@@ -367,6 +549,7 @@ def phase(harness, name, work, rate, seconds, action, sequence):
             done.set()
 
     thread = threading.Thread(target=product)
+    work.warm(DEFAULT_WORKERS)
     meter.thread.start()
     try:
         requests, duration = open_loop(work, rate, seconds,
@@ -389,7 +572,7 @@ def loader(h, sid, label, mode=None, policy=None, duty100=False):
     argv = h.argv(sid, label, mode, policy)
     if duty100:
         argv += ['--duty-cycle-percent', '100']
-    _, out = h.run.command(argv, timeout=86400)
+    _, out = h.run.command(argv, timeout=getattr(h, 'load_timeout', 86400))
     receipts = t3t4.rows(out)
     if not receipts or any('error' in r for r in receipts):
         raise RuntimeError('missing_or_failed_loader_receipt')
@@ -417,6 +600,40 @@ def prepare(h):
               "GRANT SELECT,UPDATE ON fixture.items TO 't10_writer'@'%';"
               "GRANT INSERT ON fixture.other TO 't10_writer'@'%';")
 
+def prepare_phase(h, name, rate, action):
+    started = time.monotonic()
+    try:
+        action()
+    except Exception as exc:
+        result = dict(summarize([], 0), phase=name, configured_rate=rate,
+                      observation_seconds=time.monotonic() - started, windows=[],
+                      metrics={'samples': [], 'errors': [], 'peaks': {}, 'changes': {}},
+                      product_errors=[type(exc).__name__], preparation_failed=True)
+        runner.write_json(h.run.path / f'{name}.json', result)
+        return result
+    return None
+
+def c5_phases(h, rate, every, sequence):
+    results = {}
+    for variant, period in (('c5', every), ('c5_full', 1)):
+        for suffix, tables in (('idle', ['bulk']), ('changed', ['bulk', 'items', 'other'])):
+            name = f'{variant}_{suffix}'
+            binding = 't10_' + name
+            # Independent baselines prevent the first policy priming the second.
+            def prepare_binding():
+                h.snapshot(binding, tables)
+                if suffix == 'changed':
+                    h.src('UPDATE items SET n=n+1 WHERE id=1;')
+            policy = {'cycle': 1, 'full_read_every': period}
+            result = prepare_phase(h, name, rate, prepare_binding)
+            if result is None:
+                result = phase(h, name, Workload(h.run), rate, None,
+                               lambda: loader(h, binding, f'{binding}-cycle', '--c5', policy),
+                               sequence + len(results) * 1_000_000)
+            result['c5_policy'] = policy
+            results[name] = result
+    return results
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -429,6 +646,11 @@ def parse_args(argv=None):
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--binary', type=Path, default=runner.ROOT / 'tools/oo-load/target/release/oo-load')
+    parser.add_argument('--target-tmpfs', action='store_true',
+                        help='keep the agent DB on tmpfs, off the disk the source shares')
+    parser.add_argument('--quiet-cpu-percent', type=float, default=QUIET_CPU_PERCENT,
+                        help='refuse while pre-existing containers use more CPU in total '
+                             '(percent of one CPU); the limit and the observed load are recorded')
     args = parser.parse_args(argv)
     versions = {'postgres': t3t4.POSTGRES, 'mysql': t3t4.MYSQL, 'oracle': ('19', '23')}
     if args.version not in versions[args.engine]:
@@ -440,6 +662,8 @@ def parse_args(argv=None):
     for value in (args.minutes, args.cpus):
         if not math.isfinite(value) or value <= 0:
             parser.error('minutes and cpus must be finite and positive')
+    if not math.isfinite(args.quiet_cpu_percent) or not 0 <= args.quiet_cpu_percent <= 100:
+        parser.error('quiet-cpu-percent must be between 0 and 100')
     if not re.fullmatch(r'[1-9][0-9]*[kmgKMG]?', args.memory):
         parser.error('memory must be a positive Docker memory size')
     if args.rate != 'auto':
@@ -455,6 +679,34 @@ def parse_args(argv=None):
     return args
 
 
+QUIET_CPU_PERCENT = 5.0
+
+
+def quiet_host(samples=3, limit=QUIET_CPU_PERCENT):
+    """Pre-existing containers are never stopped; they must be measured idle.
+
+    Returns their count, peak CPU % and the applied limit for the evidence
+    report, never names.
+    """
+    peaks = {}
+    for _ in range(samples):
+        text = subprocess.run(['docker', 'stats', '--no-stream', '--format', '{{.Name}}\t{{.CPUPerc}}'],
+                              capture_output=True, text=True, check=True).stdout
+        for line in text.splitlines():
+            name, _, cpu = line.partition('\t')
+            value = float(cpu.strip().rstrip('%') or 0)
+            peaks[name] = max(peaks.get(name, 0.0), value)
+    total = sum(peaks.values())
+    if total > limit:
+        raise SystemExit('blocked: pre-existing containers are not idle; nothing stopped')
+    # Names of unrelated containers can be private; record only count and load.
+    result = {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
+    if limit != QUIET_CPU_PERCENT:
+        # A raised limit is a recorded deviation, never a silent bypass.
+        result.update(total_peak_cpu_percent=total, limit_cpu_percent=limit)
+    return result
+
+
 def main(argv=None):
     args = parse_args(argv)
     # Preflight before creating resources. The unpatched loader must not silently
@@ -464,25 +716,37 @@ def main(argv=None):
     if 'initial_duty100' in args.phases and '--duty-cycle-percent' not in help_text:
         raise SystemExit('blocked: oo-load needs the coordinator duty-cycle patch in T10-VALIDATION.md')
     importlib.import_module({'postgres': 'psycopg', 'mysql': 'pymysql', 'oracle': 'oracledb'}[args.engine])
-    running = subprocess.run(['docker', 'ps', '-q'], capture_output=True, text=True, check=True).stdout
-    if running.strip():
-        raise SystemExit('blocked: quiet-host run requires no pre-existing running containers; nothing stopped')
+    preexisting = quiet_host(limit=args.quiet_cpu_percent)
+    global DEFAULT_WORKERS
+    DEFAULT_WORKERS = WORKERS.get(args.engine, DEFAULT_WORKERS)
     t1.LANE = 't10'
     args.evidence.mkdir(parents=True, mode=0o700, exist_ok=False)
     args.platform, args.health_timeout, args.scale, args.tables, args.worker_image = None, 600, SCALE, 0, None
     run = ImpactSource(args.evidence, args.engine, args.version, args)
     run.receipt = {}
-    h = (OracleHarness if args.engine == 'oracle' else t3t4.Harness)(run, binary)
+    h = (ImpactOracleHarness if args.engine == 'oracle' else ImpactHarness)(run, binary)
     report = {'engine': args.engine, 'version': args.version, 'phases': {}, 'errors': [],
+              'preexisting_containers': preexisting,
               'cpus': args.cpus, 'memory': args.memory, 'scale': SCALE,
+              'target_storage': 'tmpfs' if args.target_tmpfs else 'volume_on_shared_docker_disk',
               'product_sha': product_sha(), 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
               'measurement_notes': ['client-observed latency includes queueing',
+                                    'foreground connections open before each phase clock; '
+                                    'connection setup is not a measured request',
                                     'Oracle undo counters cover the V$UNDOSTAT retention horizon',
                                     'LogMiner CPU is a sampled live-session counter, not total exited-session CPU',
                                     'C5 idle scans bulk only; foreground writes items/other outside that scope']}
     cleanup = []
     try:
         prepare(h)
+        if args.engine == 'oracle':
+            report['load_timeout_calibration'] = h.measure_load_rate()
+            report['load_timeout_sizing'] = h.timeout_records
+        elif args.engine == 'postgres':
+            _, setting = h.src('SHOW max_slot_wal_keep_size;')
+            report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
+            if setting.strip() != SLOT_WAL_KEEP_SIZE:
+                raise RuntimeError('slot_retention_setting_not_applied')
         run.record_version()
         report['resource_receipt'] = run.receipt
         _, limits = run.command(['docker', 'inspect', '--format', '{{json .HostConfig}}', run.name])
@@ -492,10 +756,19 @@ def main(argv=None):
         try:
             if args.rate == 'auto':
                 report['calibration'] = calibrate(work, close=work.close)
-                rate = report['calibration']['rate']
+                try:
+                    report['calibration']['settle'] = settle(
+                        work, report['calibration']['rate'], close=work.close)
+                except SettleFailure as exc:
+                    report['calibration']['settle'] = {
+                        'rate': None, 'trials': exc.trials, 'error': str(exc)}
+                    raise
+                rate = foreground_rate(report['calibration'])
             else:
                 rate = args.rate
-                report['calibration'] = {'skipped': 'explicit rate', 'rate': rate}
+                report['calibration'] = {'skipped': 'explicit rate', 'rate': rate,
+                                         'capacity': None, 'settled_rate': None,
+                                         'load_fraction': None, 'used_rate': rate}
         finally:
             work.close()
         # Read the actual checked-out lite default, rather than duplicating it.
@@ -516,9 +789,15 @@ def main(argv=None):
                 h.target = t3t4.DurableAgentDB(run)
                 h.target.start()
                 t1.private(h.store / 'target-password', h.target.password)
+                if args.engine == 'oracle':
+                    h.size_timeout(sid)
                 action = lambda: loader(h, sid, sid, duty100=name == 'initial_duty100')
             elif name == 'c1':
-                h.c1_binding(sid, tables)  # Quiescent aligned baseline, outside measurement.
+                # Preparation failure must not hide independent C5 measurements.
+                failed = prepare_phase(h, name, rate, lambda: h.c1_binding(sid, tables))
+                if failed is not None:
+                    report['phases'][name] = failed
+                    continue
 
                 def action():
                     deadline = time.monotonic() + seconds
@@ -527,19 +806,13 @@ def main(argv=None):
             else:
                 # Separate scope makes the idle cycle genuinely unchanged while
                 # preserving the identical foreground workload in both subphases.
-                h.snapshot(sid + '_idle', ['bulk'])
-                h.snapshot(sid, tables)
-                for offset, (suffix, binding) in enumerate((('idle', sid + '_idle'), ('changed', sid))):
-                    if suffix == 'changed':
-                        h.src('UPDATE items SET n=n+1 WHERE id=1;')
-                    result = phase(h, f'c5_{suffix}', Workload(run), rate, None,
-                                   lambda: loader(h, binding, f'{binding}-cycle', '--c5',
-                                                  {'cycle': 1, 'full_read_every': every}),
-                                   10_000_000 * (number + 1) + offset * 1_000_000)
-                    report['phases'][f'c5_{suffix}'] = result
+                report['phases'].update(c5_phases(h, rate, every, 10_000_000 * (number + 1)))
                 continue
             report['phases'][name] = phase(h, name, Workload(run), rate, seconds, action,
                                            10_000_000 * (number + 1))
+            if name == 'baseline' and not valid_baseline(report['phases'][name]):
+                report['errors'].append('invalid_baseline')
+                break
             if name == 'c1':
                 h.retire(sid)
     except Exception as exc:
@@ -562,7 +835,7 @@ def main(argv=None):
                     or not baseline['metrics']['samples']):
                 result['budget'].update(result='fail', reason='product_or_metrics_incomplete')
             runner.write_json(run.path / f'{name}.json', result)
-        expected = [p for p in args.phases if p != 'c5'] + (['c5_idle', 'c5_changed'] if 'c5' in args.phases else [])
+        expected = [p for p in args.phases if p != 'c5'] + (list(C5_PHASES) if 'c5' in args.phases else [])
         report['result'] = 'pass' if (not report['errors'] and not cleanup
             and all(report['phases'].get(p, {}).get('budget', {}).get('result') == 'pass' for p in expected)) else 'fail'
         runner.write_json(run.path / 'summary.json', report)

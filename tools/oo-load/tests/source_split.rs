@@ -1,5 +1,5 @@
 //! Owned fixture only; the Python harness grows the table after planning.
-use arrow_array::{Int64Array, RecordBatch, UInt64Array};
+use arrow_array::{Decimal128Array, Int64Array, RecordBatch, UInt64Array};
 use oo_connectors::engine::*;
 use oo_connectors::mysql::{EngineOptions, MysqlConfig, MysqlEngine};
 use oo_connectors::postgres::PostgresEngine;
@@ -16,12 +16,16 @@ impl ChunkSink for Sink {
             self.0.push(
                 if let Some(a) = column.as_any().downcast_ref::<Int64Array>() {
                     a.value(i).try_into().unwrap()
+                } else if let Some(a) = column.as_any().downcast_ref::<UInt64Array>() {
+                    a.value(i)
                 } else {
                     column
                         .as_any()
-                        .downcast_ref::<UInt64Array>()
+                        .downcast_ref::<Decimal128Array>()
                         .unwrap()
                         .value(i)
+                        .try_into()
+                        .unwrap()
                 },
             );
         }
@@ -104,11 +108,18 @@ async fn real_growing_table_uses_trait_split() {
     let table = TableRef {
         schema: if v["engine"] == "postgres" {
             "public"
+        } else if v["engine"] == "oracle" {
+            "FIXTURE"
         } else {
             "fixture"
         }
         .into(),
-        name: "growth_events".into(),
+        name: if v["engine"] == "oracle" {
+            "GROWTH_EVENTS"
+        } else {
+            "growth_events"
+        }
+        .into(),
     };
     if v["engine"] == "postgres" {
         let config = PgSourceConfig::try_new(
@@ -132,6 +143,17 @@ async fn real_growing_table_uses_trait_split() {
         )
         .unwrap();
         verify(&mut PostgresEngine::new(config), table, directory).await;
+    } else if v["engine"] == "oracle" {
+        let mut config = oo_connectors::oracle::engine::OracleConnectConfig::new(
+            "127.0.0.1",
+            port,
+            "FREEPDB1",
+            "fixture_reader",
+            zeroize::Zeroizing::new(password),
+        );
+        config.scope = vec![table.clone()];
+        let mut engine = oo_connectors::oracle::engine::OracleEngine::connect(config).unwrap();
+        verify(&mut engine, table, directory).await;
     } else {
         assert_eq!(v["engine"], "mysql");
         let config = MysqlConfig {

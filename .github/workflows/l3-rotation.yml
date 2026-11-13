@@ -1,0 +1,65 @@
+# L3 nightly rotation (specs/test-acceleration-plan.md section 1).
+# One engine per night runs the existing full commands unchanged (2M-row
+# matrix T0/T1/T8, T2, every T3/T4 case, T7); three nights cover the P0
+# engines. The same night pairs each L2 fast fault (failpoint/toxiproxy)
+# with its real-fault case and replays the historical defect corpus.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# dtolnay/rust-toolchain @ 02cb101ec7c40f2c49e1d9714d64511d8e1b74de (2026-09-12)
+# A green job is not phase sign-off. Release still runs every engine once.
+
+name: l3-rotation
+
+on:
+  schedule:
+    - cron: "41 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: l3-rotation
+  cancel-in-progress: false
+
+jobs:
+  l3-slice:
+    name: l3-slice
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: build product binaries
+        shell: bash
+        run: |
+          export CARGO_BUILD_JOBS=4 CARGO_INCREMENTAL=0
+          cargo build --locked -p oo-cli -p oo-builder --bins -p oo-gateway
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog
+          CARGO_TARGET_DIR="$PWD/target/ta-fp" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog,failpoints
+      - name: today's L3 slice and fault pairs
+        shell: bash
+        run: |
+          mkdir -p evidence
+          tools/oo-test/oo-test l3 plan | tee "${RUNNER_TEMP}/l3-plan.json"
+          tools/oo-test/oo-test l3 run --run-id "l3-${GITHUB_RUN_ID}"
+      - name: defect replay gate
+        if: always()
+        shell: bash
+        run: tools/oo-test/oo-test gate --defects --run-id "gate-${GITHUB_RUN_ID}"
+      - name: preserve L3 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: l3-rotation-${{ github.run_id }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: ignore

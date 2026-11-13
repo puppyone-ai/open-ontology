@@ -65,14 +65,25 @@ pub struct PostgresEngine {
     session: Option<PgSession>,
     protection: Protection,
     snapshot: Option<String>,
+    snapshot_owner: Option<PgSession>,
     plans: BTreeMap<TableRef, Planned>,
     revision: u32,
     /// Actual EXPLAIN output, suitable for a caller's evidence bundle.
     pub explains: BTreeMap<TableRef, String>,
     pub last_read_timing: Option<ReadTiming>,
+    /// Digest computed in the successful chunk transaction, never a later read.
+    pub last_chunk_digest: Option<RangeDigest>,
 }
 
 impl PostgresEngine {
+    pub fn read_consistency(&self) -> &'static str {
+        if self.snapshot.is_some() {
+            "single"
+        } else {
+            "chunk_consistent"
+        }
+    }
+
     pub fn new(config: PgSourceConfig) -> Self {
         Self {
             family: EngineFamily::Postgres,
@@ -81,10 +92,12 @@ impl PostgresEngine {
             session: None,
             protection: Protection::default(),
             snapshot: None,
+            snapshot_owner: None,
             plans: BTreeMap::new(),
             revision: 0,
             explains: BTreeMap::new(),
             last_read_timing: None,
+            last_chunk_digest: None,
         }
     }
 
@@ -133,10 +146,49 @@ impl PostgresEngine {
         }
     }
 
+    /// Keep physical locators alive only for their table, not the keyed binding.
+    /// An explicitly supplied external snapshot continues to cover all tables.
+    pub async fn prepare_table_snapshot(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<(), SourceError> {
+        if self.snapshot.is_some() && self.snapshot_owner.is_none() {
+            return Ok(());
+        }
+        if let Some(owner) = self.snapshot_owner.take() {
+            self.snapshot = None;
+            owner.conn.close().await.map_err(crate::error::map_sqlx)?;
+        }
+        self.plans.clear();
+        let columns = self.export_shape(table, budget).await?;
+        let columns = columns.as_deref().unwrap_or(&[]);
+        let keyed = columns.iter().any(|c| c.primary_key_ordinal.is_some())
+            || columns
+                .iter()
+                .flat_map(|c| c.unique_key_ordinals.keys())
+                .any(|index| {
+                    columns
+                        .iter()
+                        .filter(|c| c.unique_key_ordinals.contains_key(index))
+                        .all(|c| !c.nullable)
+                });
+        if !keyed {
+            let mut owner = self.connect().await?;
+            owner.begin().await?;
+            let row =
+                session::fetch_one(&mut owner, sqlx::query("SELECT pg_export_snapshot()")).await?;
+            self.snapshot = Some(cell_string(&row, 0)?);
+            self.snapshot_owner = Some(owner);
+        }
+        Ok(())
+    }
+
     async fn connect(&mut self) -> Result<PgSession, SourceError> {
         if let Some(mut session) = self.session.take() {
             session.ensure_open()?;
             session.budget = self.connector.source_config().budget();
+            session.selection = self.connector.source_config().selection().clone();
             return Ok(session);
         }
         let mut s = self.connector.connect().await?;
@@ -161,9 +213,21 @@ impl PostgresEngine {
         }
         session::fetch_control(&mut s, sqlx::query(
             "SELECT set_config('search_path','pg_catalog',false), set_config('TimeZone','UTC',false), set_config('DateStyle','ISO, YMD',false), \
-             set_config('IntervalStyle','postgres',false), set_config('bytea_output','hex',false)"
+             set_config('IntervalStyle','postgres',false), set_config('bytea_output','hex',false), \
+             set_config('max_parallel_workers_per_gather','0',false)"
         )).await?;
         Ok(s)
+    }
+
+    async fn connect_table(&mut self, table: &TableRef) -> Result<PgSession, SourceError> {
+        self.selected(table)?;
+        let mut session = self.connect().await?;
+        // Catalog fingerprints belong to this table, not every selected table.
+        session.selection = crate::TableSelection::new(vec![crate::SelectedTable::new(
+            &table.schema,
+            &table.name,
+        )?])?;
+        Ok(session)
     }
 
     /// Release the cached reader before a separate control connection is used.
@@ -511,7 +575,7 @@ fn validate_budget(b: &ReadBudget) -> Result<(), SourceError> {
         || b.max_chunk_rows > 100_000
         || b.max_chunk_bytes == 0
         || b.max_chunk_bytes > 32 * 1024 * 1024
-        || !(1..=25).contains(&b.duty_cycle_percent)
+        || !(1..=100).contains(&b.duty_cycle_percent)
         || b.statement_timeout_ms == 0
         || b.statement_timeout_ms > 120_000
     {
@@ -620,7 +684,7 @@ impl SourceEngine for PostgresEngine {
     ) -> Result<TableChunkPlan, SourceError> {
         self.selected(table)?;
         validate_budget(budget)?;
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
@@ -666,7 +730,7 @@ impl SourceEngine for PostgresEngine {
             .plan_revision
             .checked_add(1)
             .ok_or_else(|| SourceError::budget("plan_revision"))?;
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(&chunk.table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
@@ -757,6 +821,7 @@ impl SourceEngine for PostgresEngine {
         sink: &mut dyn ChunkSink,
     ) -> Result<ChunkReceipt, SourceError> {
         self.last_read_timing = None;
+        self.last_chunk_digest = None;
         self.selected(&chunk.table)?;
         validate_budget(budget)?;
         let planned = self
@@ -767,16 +832,27 @@ impl SourceEngine for PostgresEngine {
         if !planned.plan.chunks.contains(chunk) {
             return Err(SourceError::protocol("stale_chunk"));
         }
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(&chunk.table).await?;
         guards(&mut s, budget).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
         let low = position(&mut s).await?;
-        self.transaction(&mut s).await?;
-        let result = tokio::time::timeout(
-            s.budget.statement_timeout(),
-            read::chunk(&mut s, &planned, chunk, budget, sink),
-        )
+        let result = tokio::time::timeout(s.budget.statement_timeout(), async {
+            self.transaction(&mut s).await?;
+            let payload = read::chunk(&mut s, &planned, chunk, budget, sink).await?;
+            let proof = if planned.plan.key != KeyShape::NoKey {
+                Some(
+                    read::digest(&mut s, &planned, chunk.lo.as_deref(), chunk.hi.as_deref())
+                        .await?,
+                )
+            } else {
+                None
+            };
+            if proof.as_ref().is_some_and(|d| d.rows != payload.0) {
+                return Err(SourceError::protocol("chunk_proof_count"));
+            }
+            Ok((payload, proof))
+        })
         .await
         .map_err(|_| SourceError::budget("client_timeout"))
         .and_then(|v| v);
@@ -790,16 +866,19 @@ impl SourceEngine for PostgresEngine {
             Err(err) => Err(err),
         };
         let result = match result {
-            Ok((rows, bytes, sha256)) => Ok(ChunkReceipt {
-                table: chunk.table.clone(),
-                plan_revision: chunk.plan_revision,
-                chunk_id: chunk.chunk_id,
-                rows,
-                bytes,
-                sha256,
-                low,
-                high: position(&mut s).await?,
-            }),
+            Ok(((rows, bytes, sha256), proof)) => {
+                self.last_chunk_digest = proof;
+                Ok(ChunkReceipt {
+                    table: chunk.table.clone(),
+                    plan_revision: chunk.plan_revision,
+                    chunk_id: chunk.chunk_id,
+                    rows,
+                    bytes,
+                    sha256,
+                    low,
+                    high: position(&mut s).await?,
+                })
+            }
             Err(e) => Err(e),
         };
         if result.is_ok() {
@@ -830,7 +909,7 @@ impl SourceEngine for PostgresEngine {
             .get(table)
             .ok_or_else(|| SourceError::protocol("unknown_plan"))?
             .clone();
-        let mut s = self.connect().await?;
+        let mut s = self.connect_table(table).await?;
         self.protect(&mut s).await?;
         let start = Instant::now();
         self.transaction(&mut s).await?;
@@ -913,13 +992,40 @@ mod tests {
     #[test]
     fn bounds_and_snapshot_validation() {
         assert!(validate_budget(&ReadBudget::default()).is_ok());
+        assert!(
+            validate_budget(&ReadBudget {
+                duty_cycle_percent: 100,
+                ..ReadBudget::default()
+            })
+            .is_ok()
+        );
         for b in [
             ReadBudget {
                 max_chunk_rows: 0,
                 ..ReadBudget::default()
             },
             ReadBudget {
-                duty_cycle_percent: 100,
+                duty_cycle_percent: 101,
+                ..ReadBudget::default()
+            },
+            ReadBudget {
+                max_chunk_rows: 100_001,
+                ..ReadBudget::default()
+            },
+            ReadBudget {
+                max_chunk_bytes: 0,
+                ..ReadBudget::default()
+            },
+            ReadBudget {
+                max_chunk_bytes: 32 * 1024 * 1024 + 1,
+                ..ReadBudget::default()
+            },
+            ReadBudget {
+                statement_timeout_ms: 0,
+                ..ReadBudget::default()
+            },
+            ReadBudget {
+                statement_timeout_ms: 120_001,
                 ..ReadBudget::default()
             },
         ] {

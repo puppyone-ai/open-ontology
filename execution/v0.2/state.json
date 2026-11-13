@@ -1561,11 +1561,20 @@
    "sprint": "S6",
    "lane": "H",
    "title": "生产影响测试 T10 与缓解（D24）",
-   "status": "pending",
-   "owner": null,
-   "branch": null,
-   "commits": [],
-   "evidence": []
+   "status": "in_progress",
+   "owner": "lane T10 (Claude)",
+   "branch": "v0.2/t10",
+   "commits": [
+    "4d254dfbe",
+    "38ede459b",
+    "da95152f2",
+    "69b4cecf8",
+    "076af7ebc",
+    "161bcfb89",
+    "263bf8294"
+   ],
+   "evidence": [],
+   "note": "T10-final (E472): not signed off. Oracle 23 defaults within D24; PG 17 C1 (p99 +130%) and idle C5 (p95 +270%, full idle p99 +205%) exceed D24 beyond baseline noise; Oracle LogMiner C1 (opt-in) falls behind (doctor warning); MySQL 8.4 fixture stalls on its own, verdicts inconclusive; 100% duty fails (flag only). Next: PG per-operation read size / adaptive throttle, MySQL on a non-stalling source"
   }
  ],
  "blocked": [],

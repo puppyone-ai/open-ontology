@@ -118,6 +118,13 @@ struct Recipe {
     definition: String,
 }
 
+/// The generation recipe must seal exactly the stored publication plan,
+/// including its read metadata.
+pub(crate) fn recipe_seals_plan(recipe: &Value, publication_plan: &str) -> Result<bool> {
+    Ok(recipe["plan"]
+        == serde_json::from_str::<Value>(publication_plan).map_err(|_| "publication_plan")?)
+}
+
 struct Verified {
     relation: String,
     recipe: Value,
@@ -302,7 +309,7 @@ async fn verify(
     );
     if relation != expected
         || recipe.protocol != "oo.load.storage-generation/v1"
-        || value["plan"] != serde_json::from_str::<Value>(&plan).map_err(|_| "publication_plan")?
+        || !recipe_seals_plan(&value, &plan)?
         || recipe.plan.table != *table
         || recipe.parts.len() != recipe.plan.chunks.len()
     {

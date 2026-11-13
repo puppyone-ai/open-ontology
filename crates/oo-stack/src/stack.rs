@@ -40,6 +40,16 @@ pub struct Source {
     pub scope: Scope,
     #[serde(default)]
     pub sync: Sync,
+    #[serde(default)]
+    pub snapshot: Snapshot,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Snapshot {
+    #[default]
+    ChunkConsistent,
+    Single,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

@@ -26,7 +26,7 @@ from verdicts import status, write_rows
 
 ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
-if LANE not in ("h", "m", "e", "p", "g", "c", "fhp", "v03"):
+if LANE not in ("h", "m", "e", "p", "g", "c", "fhp", "v03", "t10", "ta"):
     raise ValueError("unsupported T1 lane")
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
@@ -168,6 +168,7 @@ class AgentDB:
         self.directory.mkdir(mode=0o700)
         private(self.directory / "password", self.password)
 
+    @runner.timed("container_start")
     def start(self):
         item = runner.resolve("postgres", "17")
         _, arch = self.run.command(["docker", "info", "--format", "{{.Architecture}}"])
@@ -203,6 +204,7 @@ class AgentDB:
         return self.run.command(["docker", "exec", "-i", self.name, "psql", "-X", "-U", "postgres",
                                  "-v", "ON_ERROR_STOP=1", "-A", "-t"], data=sql)[1]
 
+    @runner.timed("cleanup")
     def close(self):
         if self.created:
             _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", self.name])
@@ -371,6 +373,34 @@ class SourceMeter:
                 "samples": [[t-self.started, c, a] for t,c,a in self.samples]}
 
 
+# The sampler steps every ~0.6 s, so a loader that lives only a few seconds is
+# dominated by quantisation (one sample is already ~20% of a 3 s window). Short
+# windows still enforce the connection cap individually; their duty is judged
+# pooled with every other window of the run, never dropped.
+SHORT_WINDOW_SECONDS = 10.0
+
+
+def t8_verdict(measurements):
+    if not measurements:
+        return "failed"
+    pooled_busy = pooled_elapsed = 0.0
+    for m in measurements:
+        if m.get("error") or m.get("sample_count", 0) < 2 or not m.get("connections_peak"):
+            return "failed"
+        if m["connections_peak"] > m["budget"]["reader_connections"]:
+            return "failed"
+        elapsed = m.get("elapsed_seconds") or 0.0
+        duty = m.get("aggregate_duty_percent")
+        if duty is None:
+            return "failed"
+        if elapsed >= SHORT_WINDOW_SECONDS and duty > m["budget"]["duty_cycle_percent"]:
+            return "failed"
+        pooled_busy += duty * elapsed / 100
+        pooled_elapsed += elapsed
+    budget = min(m["budget"]["duty_cycle_percent"] for m in measurements)
+    return "passed" if pooled_elapsed and 100 * pooled_busy / pooled_elapsed <= budget else "failed"
+
+
 def keyless_writes(cycle):
     key = 30_000_000 + cycle
     return (f"INSERT INTO no_key VALUES ({key},'before');\n"
@@ -480,6 +510,7 @@ def mysql_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_mysql(run, target, receipt, table):
     _, metadata = run.sql("SELECT column_name,data_type FROM information_schema.columns "
                           f"WHERE table_schema='fixture' AND table_name='{table}' ORDER BY ordinal_position;")
@@ -513,6 +544,7 @@ def compare_mysql(run, target, receipt, table):
     return compare(source_rows(), target_rows(), key_columns=[names.index(k) for k in keys], consistency="B")
 
 
+@runner.timed("compare")
 def compare_pg(run, target, receipt, table):
     _, columns_text = run.sql(
         "SELECT column_name||'|'||data_type FROM information_schema.columns "
@@ -560,6 +592,7 @@ def pg_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_oracle(run, target, receipt, table):
     _, raw = run.sql("SELECT column_name||'|'||data_type FROM all_tab_columns "
                      f"WHERE owner='FIXTURE' AND table_name='{table}' ORDER BY column_id;")
@@ -631,6 +664,40 @@ def compare_oracle(run, target, receipt, table):
 
 
 compare_oracle = partial(compare_oracle_lobs, scalar_compare=compare_oracle)
+
+def chunk_rows():
+    """Small boundary fixtures shrink chunks to reach the 2M-row chunk shapes."""
+    value = os.environ.get("OO_TEST_CHUNK_ROWS", "10000")
+    if not value.isdigit() or not 1 <= int(value) <= 1_000_000:
+        raise ValueError("invalid OO_TEST_CHUNK_ROWS")
+    return value
+
+
+def keyless_padding(run):
+    """Boundary shape: a keyless table past the 64 KiB COPY flush in one chunk.
+
+    The 2M-row run reaches it only because the concurrent writer grows no_key
+    for many minutes; small fixtures set OO_TEST_KEYLESS_ROWS instead.
+    """
+    count = os.environ.get("OO_TEST_KEYLESS_ROWS", "0")
+    if not count.isdigit() or int(count) > 1_000_000:
+        raise ValueError("invalid OO_TEST_KEYLESS_ROWS")
+    count = int(count)
+    if not count:
+        return 0
+    if run.engine == "postgres":
+        run.sql("INSERT INTO no_key SELECT 40000000+g,'boundary-pad-'||g "
+                f"FROM generate_series(1,{count}) g;", admin=True)
+    elif run.engine == "mysql":
+        for start in range(1, count + 1, 1000):
+            values = ",".join(f"({40_000_000 + i},'boundary-pad-{i}')"
+                              for i in range(start, min(count, start + 999) + 1))
+            run.sql(f"INSERT INTO no_key VALUES {values};", admin=True)
+    else:
+        run.sql("INSERT INTO no_key SELECT 40000000+LEVEL,'boundary-pad-'||LEVEL "
+                f"FROM dual CONNECT BY LEVEL<={count};\nCOMMIT;", admin=True)
+    return count
+
 
 def run_t1(run, binary, worker_image=None):
     target = AgentDB(run)
@@ -711,6 +778,7 @@ def run_t1(run, binary, worker_image=None):
         target.start()
         target_config = {"host": "127.0.0.1", "port": target.port, "database": "postgres",
                          "user": "postgres", "password": {"secret_ref": "target-password"}, "local_fixture": True}
+        report["keyless_padding_rows"] = keyless_padding(run)
         thread = threading.Thread(target=writer, args=(run, stop, report["writer"]))
         thread.start()
         def load(run_id, *, correction=False, only=None, cycle=1):
@@ -724,7 +792,7 @@ def run_t1(run, binary, worker_image=None):
             with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
                 code, out = run.command([str(binary), *mode, "--stack", str(store / "stack.json"),
                                         "--source", "fixture", "--target", str(store / "target.json"),
-                                        "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
+                                        "--secrets-dir", str(store), "--chunk-rows", chunk_rows(), *worker_args],
                                        timeout=7200, required=False)
             measurement = meter.result()
             measurements.append(measurement)
@@ -779,7 +847,7 @@ def run_t1(run, binary, worker_image=None):
             report["keyless_idle"] = "digest-only and periodic full-read: zero writes/generations"
         report["T1"] = "passed"
         # Enforce every invocation, including the no-rewrite resume.
-        report["T8"] = "passed" if all(m["status"] == "passed" for m in measurements) else "failed"
+        report["T8"] = t8_verdict(measurements)
         report["model_tokens"] = 0
     except Exception as error:
         report["failure"] = str(error) if isinstance(error, RuntimeError) else type(error).__name__
@@ -842,6 +910,7 @@ def main():
         run.reader_secret = Path(context["reader_password_file"]).read_text().strip()
         receipt = Path(context["evidence"]) / "resource-receipt.json"
         run.receipt = json.loads(receipt.read_text())
+        run.timing = runner.Timing(run)
         result = run_t1(run, ROOT / "target/debug/oo-load", os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         runner.checksums(run.path)
         raise SystemExit(0 if result["T1"] == "passed" and result["T8"] == "passed" else 1)

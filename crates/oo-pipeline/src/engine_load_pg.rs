@@ -13,7 +13,7 @@ use sqlx_core::sql_str::AssertSqlSafe;
 
 #[path = "engine_load_pg_c5.rs"]
 mod c5;
-pub use c5::{C5Baseline, C5Part, TableContentDigest, same_ranges};
+pub use c5::{C5Baseline, C5Part, TableContentDigest, refines, same_ranges};
 #[path = "engine_load_generation.rs"]
 mod generation;
 #[path = "engine_load_schema.rs"]
@@ -89,9 +89,18 @@ pub struct PgTarget<'a> {
     source_columns: Option<Vec<oo_connectors::engine::SourceColumnShape>>,
     projection: Option<Vec<String>>,
     pub(crate) c1_rebaseline: bool,
+    read_metadata: Option<serde_json::Value>,
 }
 
 impl<'a> PgTarget<'a> {
+    pub fn read_metadata(&mut self, metadata: serde_json::Value) {
+        self.read_metadata = Some(metadata);
+    }
+
+    fn encode_metadata(&self, value: &impl serde::Serialize) -> Result<String> {
+        encode_metadata(self.read_metadata.as_ref(), value)
+    }
+
     /// Opt in only for a source adapter's declared full-document column.
     /// Ordinary text, including text named `_document`, remains text by default.
     pub fn with_jsonb_document(mut self, name: &str) -> Result<Self> {
@@ -160,11 +169,28 @@ impl<'a> PgTarget<'a> {
             source_columns: None,
             projection: None,
             c1_rebaseline: false,
+            read_metadata: None,
         })
     }
 
     pub fn relation(&self) -> String {
         format!("oo_load_data.{}", self.view)
+    }
+
+    pub async fn publication_read_metadata(&mut self) -> Result<Option<serde_json::Value>> {
+        let metadata: Option<Option<String>> = sqlx::query_scalar(
+            "SELECT (plan->'read_metadata')::text FROM _oo_load.publications
+             WHERE identity=$1 AND run=$2",
+        )
+        .bind(&self.identity)
+        .bind(&self.run)
+        .fetch_optional(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        metadata
+            .flatten()
+            .map(|value| serde_json::from_str(&value).map_err(|_| "load_metadata"))
+            .transpose()
     }
 
     /// A completed run is immutable. Reusing its ID is resume, not refresh.
@@ -286,6 +312,7 @@ impl Target for PgTarget<'_> {
         if definitions.is_empty() {
             return Err("load_schema");
         }
+        let encoded = self.encode_metadata(receipt)?;
         let mut tx = self.conn.begin().await.map_err(db)?;
         let definition = definitions.join(",");
         sqlx::query("INSERT INTO _oo_load.schemas VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING")
@@ -314,7 +341,6 @@ impl Target for PgTarget<'_> {
         .execute(&mut *tx)
         .await
         .map_err(db)?;
-        let encoded = serde_json::to_string(receipt).map_err(|_| "load_receipt")?;
         let prior: Option<String> = sqlx::query_scalar(
             "SELECT receipt::text FROM _oo_load.chunks WHERE stage=$1 AND chunk=$2",
         )
@@ -408,12 +434,15 @@ impl Target for PgTarget<'_> {
             .await
             .map_err(db)?;
         }
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_chunk_commit");
         tx.commit().await.map_err(db)?;
         self.fields = Some(fields);
         Ok(())
     }
 
     async fn publish(&mut self, plan: &TableChunkPlan) -> Result<()> {
+        let publication_plan = self.encode_metadata(plan)?;
         if serde_json::to_string(plan).map_err(|_| "load_plan")? != self.plan {
             return Err("load_plan_changed");
         }
@@ -456,6 +485,7 @@ impl Target for PgTarget<'_> {
             &self.identity,
             &self.run,
             plan,
+            &publication_plan,
             &parts,
             self.fields.as_ref().ok_or("load_schema")?,
         )
@@ -508,7 +538,7 @@ impl Target for PgTarget<'_> {
         sqlx::query("INSERT INTO _oo_load.publications VALUES($1,$2,$3::jsonb,$4)")
             .bind(&self.identity)
             .bind(&self.run)
-            .bind(&self.plan)
+            .bind(&publication_plan)
             .bind(&self.stage)
             .execute(&mut *tx)
             .await
@@ -523,6 +553,8 @@ impl Target for PgTarget<'_> {
             self.fields.as_ref().ok_or("load_schema")?,
         )
         .await?;
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_publish_commit");
         tx.commit().await.map_err(db)
     }
 }
@@ -551,9 +583,92 @@ fn target_fields(fields: &[DecodedField], document: Option<&str>) -> Result<Vec<
     Ok(fields)
 }
 
+/// Attach read consistency to a stored receipt or plan. The publication plan
+/// written with this encoding is also the plan sealed in the generation recipe.
+fn encode_metadata(
+    metadata: Option<&serde_json::Value>,
+    value: &impl serde::Serialize,
+) -> Result<String> {
+    let mut value = serde_json::to_value(value).map_err(|_| "load_metadata")?;
+    if let Some(metadata) = metadata {
+        value["read_metadata"] = metadata.clone();
+    }
+    serde_json::to_string(&value).map_err(|_| "load_metadata")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn chunk_plan(name: &str) -> TableChunkPlan {
+        use oo_connectors::engine::*;
+        let table = TableRef {
+            schema: "app".into(),
+            name: name.into(),
+        };
+        TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["id".into()],
+            },
+            estimated_rows: None,
+            chunks: vec![ChunkSpec {
+                table,
+                plan_revision: 1,
+                chunk_id: 0,
+                lo: None,
+                hi: None,
+                estimated_rows: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn generation_recipe_seals_the_stored_publication_plan_with_read_metadata() {
+        // S6-H-01 regression: publications.plan carried read_metadata while the
+        // recipe sealed the bare plan, so every cut failed publication_seal_mismatch.
+        let plan = chunk_plan("items");
+        let metadata = serde_json::json!({"consistency": "B"});
+        let stored = encode_metadata(Some(&metadata), &plan).unwrap();
+        let recipe = generation::recipe(&stored, &plan, &[], "\"id\" bigint NOT NULL").unwrap();
+        assert_eq!(recipe["plan"]["read_metadata"], metadata);
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&recipe, &stored),
+            Ok(true)
+        );
+        // A store/JSONB round trip keeps the sealed equality.
+        let reparsed: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&recipe).unwrap()).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&reparsed, &stored),
+            Ok(true)
+        );
+        // The verifier stays strict: the pre-fix bare-plan recipe is refused.
+        let bare = serde_json::json!({"plan": plan});
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&bare, &stored),
+            Ok(false)
+        );
+        // Without read metadata the stored plan is the bare plan.
+        let legacy = encode_metadata(None, &plan).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(
+                &generation::recipe(&legacy, &plan, &[], "x").unwrap(),
+                &legacy
+            ),
+            Ok(true)
+        );
+        // A recipe cannot seal a stored plan for another table.
+        let other = encode_metadata(Some(&metadata), &chunk_plan("other")).unwrap();
+        assert_eq!(
+            generation::recipe(&other, &plan, &[], "x"),
+            Err("generation_plan")
+        );
+    }
 
     #[test]
     fn wide_decimals_copy_exactly_and_participate_in_c5_digests() {

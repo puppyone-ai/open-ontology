@@ -12,11 +12,16 @@ import uuid
 
 import runner
 import t1
+from t2 import c1_summaries, seed_scale
 from verdicts import incremental, write_rows
 from t1 import AgentDB, LaneRun, SourceMeter, configure_mysql, private
 
 ROOT = runner.ROOT
 MYSQL = {"5.7": "5.7.44", "8.0": "8.0.44", "8.4": "8.4.7", "9": "9.5.0"}
+TARGET_FORKS = ("SELECT c.relname,pg_relation_size(c.oid,'main'),"
+                "pg_relation_size(c.oid,'fsm'),pg_relation_size(c.oid,'vm') "
+                "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+                "WHERE n.nspname='_oo_load' AND c.relkind='r' ORDER BY c.relname;")
 
 class SyncRun(LaneRun):
     def command(self, command, **kwargs):
@@ -33,15 +38,6 @@ def rows(text):
     return [json.loads(line) for line in text.splitlines() if line.startswith("{")]
 
 
-def sync_receipts(receipts):
-    """Keep the cycle receipts; per-table status lines must not be stale."""
-    stale = [r["table"] for r in receipts if "table" in r and r.get("status") == "stale"]
-    if stale:
-        raise RuntimeError("table stale")
-    aggregate = [r for r in receipts if "table" not in r]
-    return aggregate or receipts
-
-
 def canonical(text):
     return [tuple(part.strip() for part in line.replace("\t", "|").split("|"))
             for line in text.splitlines() if line.strip()]
@@ -49,8 +45,10 @@ def canonical(text):
 
 def run_cycles(run, binary, worker_image):
     report = {"T2": "not_passed", "C1": "not_run", "C5": "not_run", "handoff": "not_run",
+              "baseline_rows_per_table": run.args.scale,
               "cycles": [], "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
-              "scope": "two keyed numeric/text tables; not full type/scale coverage", "consistency": "B"}
+              "scope": f"two keyed numeric/text tables; {run.args.scale} baseline rows each; not full type coverage",
+              "consistency": "B"}
     store = run.path / ".sync-private"
     store.mkdir(mode=0o700)
     target = AgentDB(run)
@@ -63,6 +61,7 @@ def run_cycles(run, binary, worker_image):
             for table in ("items", "other"):
                 run.sql(f"CREATE TABLE {table}(id bigint PRIMARY KEY,payload varchar(80) NOT NULL) DEFAULT CHARSET=utf8mb4;"
                         f"INSERT INTO {table} VALUES(1,'baseline');", admin=True)
+            seed_scale(run, "fixture", ["items", "other"])
             configure_mysql(run, store)
             run.sql("GRANT REPLICATION SLAVE,REPLICATION CLIENT ON *.* TO 'fixture_reader'@'%';", admin=True)
             _, epoch = run.sql("SELECT @@GLOBAL.server_uuid;", admin=True)
@@ -142,11 +141,17 @@ def run_cycles(run, binary, worker_image):
                 runner.write_json(store / "cycle.json", policy)
                 config["run_id"] = f"{mode}-{cycle}"
                 runner.write_json(store / "target.json", config)
+                if cycle == 2 and run.args.scale > 1:
+                    # Settle target visibility/free-space maps before the strict
+                    # zero-growth assertion; do not disable source autovacuum.
+                    target.sql("VACUUM;")
+                    report.setdefault("noop_target_maintenance", []).append(mode)
+                    target.sql(TARGET_FORKS)
                 before = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                     "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
                 with SourceMeter(run, (0 if mode == "C1" else 10)+cycle, 3 if mode == "C1" else 1) as meter:
                     _, text = run.command(command + ["--sync" if mode == "C1" else "--c5", str(store / "cycle.json")], timeout=600)
-                receipts = sync_receipts(rows(text))
+                receipts = c1_summaries(text) if mode == "C1" else rows(text)
                 comparisons = {}
                 for table, relation in relations.items():
                     _, expected = run.sql(f"SELECT id,payload FROM {schema}.{table} ORDER BY id;")
@@ -160,6 +165,8 @@ def run_cycles(run, binary, worker_image):
                         raise RuntimeError("source target difference")
                 after = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                    "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
+                if cycle == 2 and run.args.scale > 1:
+                    target.sql(TARGET_FORKS)
                 for receipt in receipts:
                     if mode == "C1":
                         p = receipt["durable_position"]
@@ -182,7 +189,8 @@ def run_cycles(run, binary, worker_image):
                 before = target.sql("SELECT source,lineage,position,generation FROM _oo_load.sync_state ORDER BY source;")
                 bad = dict(sync, source_epoch="different-epoch")
                 runner.write_json(store / "cycle.json", bad)
-                code, _ = run.command(command + ["--sync", str(store / "cycle.json")], required=False)
+                code, _ = run.command(command + ["--sync", str(store / "cycle.json"),
+                    "--run-id", "different-epoch"], required=False)
                 error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
                 if not code or error != "sync_rebaseline_required_lineage":
                     raise RuntimeError("different epoch admitted")
@@ -191,6 +199,43 @@ def run_cycles(run, binary, worker_image):
                     raise RuntimeError("epoch rejection modified target")
                 report["epoch_negative"] = {"error": error, "target_unchanged": True}
         if run.engine == "mysql":
+            handoff_schema = "fixture"
+            if run.args.scale > 100000:
+                # Full-scale C1/C5 remains intact. The repair contract is bounded;
+                # prove refusal before running its original small positive case.
+                state_sql = ("SELECT 'current',row_to_json(c)::text FROM _oo_load.current c UNION ALL "
+                             "SELECT 'publication',row_to_json(p)::text FROM _oo_load.publications p UNION ALL "
+                             "SELECT 'sync',row_to_json(s)::text FROM _oo_load.sync_state s ORDER BY 1,2;")
+                before = target.sql(state_sql)
+                runner.write_json(store / "oversized-handoff.json", {
+                    "sources": [{"source": source["id"], "server_id": 45}],
+                    "max_keys": 100000, "max_bytes": 33554432, "required_history_seconds": 2})
+                code, _ = run.command(command + ["--handoff", str(store / "oversized-handoff.json"),
+                    "--run-id", "oversized-handoff"], required=False, timeout=600)
+                error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"] if code else None
+                if (not code or error != "source error: budget fact=mysql_repair_staging_budget"
+                        or target.sql(state_sql) != before):
+                    raise RuntimeError("oversized handoff did not refuse atomically")
+                report["oversized_handoff"] = {"error": error, "target_unchanged": True}
+                handoff_schema = "fixture_handoff"
+                run.sql("CREATE DATABASE fixture_handoff;"
+                        "CREATE TABLE fixture_handoff.items LIKE fixture.items;"
+                        "CREATE TABLE fixture_handoff.other LIKE fixture.other;"
+                        "INSERT INTO fixture_handoff.items VALUES(1,'baseline');"
+                        "INSERT INTO fixture_handoff.other VALUES(1,'baseline');"
+                        "GRANT SELECT,SHOW VIEW ON fixture_handoff.* TO 'fixture_reader'@'%';", admin=True)
+                source = dict(source, id="fixture_bounded_handoff", database=handoff_schema,
+                              scope={"include": [handoff_schema+"."+t for t in tables], "exclude": []})
+                stack["sources"].append(source)
+                runner.write_json(store / "stack.json", stack)
+                command[command.index("--source")+1] = source["id"]
+                config["run_id"] = "bounded-handoff-base"
+                runner.write_json(store / "target.json", config)
+                run.command(command, timeout=300)
+                runner.write_json(store / "bounded-c5.json", {"cycle": 1, "full_read_every": 2})
+                run.command(command + ["--c5", str(store / "bounded-c5.json"),
+                    "--run-id", "bounded-handoff-c5"], timeout=300)
+                report["handoff_scale"] = "bounded separate fixture; full-scale source preserved"
             first = source["id"]
             run.sql("CREATE DATABASE fixture_peer;"
                     "CREATE TABLE fixture_peer.items(id bigint PRIMARY KEY,payload varchar(80) NOT NULL) DEFAULT CHARSET=utf8mb4;"
@@ -243,7 +288,7 @@ def run_cycles(run, binary, worker_image):
                     sql = "\n".join(f"START TRANSACTION; INSERT INTO items VALUES({20000+i},'during-handoff'); "
                                     f"INSERT INTO other VALUES({20000+i},'paired'); COMMIT; DO SLEEP(0.05);"
                                     for i in range(24))
-                    writer_run.sql(sql, admin=True)
+                    writer_run.sql(f"USE {handoff_schema};\n" + sql, admin=True)
                 except Exception as error:
                     writer_errors.append(type(error).__name__)
             writer = threading.Thread(target=write_handoff)
@@ -256,7 +301,7 @@ def run_cycles(run, binary, worker_image):
             handoff = rows(text)[0]
             if len(handoff["positions"]) != 2 or len(handoff["bindings"]) != 4 or not handoff["scope_committed_atomically"]:
                 raise RuntimeError("incomplete handoff scope")
-            for schema_name in ("fixture", "fixture_peer"):
+            for schema_name in (handoff_schema, "fixture_peer"):
                 for table in tables:
                     run.sql(f"INSERT INTO {schema_name}.{table} VALUES(9999,'after-handoff');COMMIT;", admin=True)
             for identifier, position in handoff["positions"].items():
@@ -362,11 +407,10 @@ def run_cycles(run, binary, worker_image):
                         run.sql("\n".join(statements)+"\nCOMMIT;", admin=True)
                     before = target.sql("SELECT COALESCE(sum(pg_total_relation_size(c.oid)),0) FROM pg_class c "
                                         "JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='_oo_load' AND c.relkind='r';")
-                    config["run_id"] = f"oracle-c1-{cycle}"
-                    runner.write_json(store / "target.json", config)
                     with SourceMeter(run, 30+cycle, 2, include_logminer=True) as meter:
-                        _, text = run.command(command + ["--sync", str(store / "cycle.json")], timeout=600)
-                    receipts = sync_receipts(rows(text))
+                        _, text = run.command(command + ["--sync", str(store / "cycle.json"),
+                                                         "--run-id", f"oracle-c1-{cycle}"], timeout=600)
+                    receipts = c1_summaries(text)
                     comparisons = {}
                     for table, relation in c1_relations.items():
                         _, expected = run.sql(f"SELECT id,payload FROM FIXTURE.{table} ORDER BY id;")
@@ -538,7 +582,7 @@ def family_acceptance(config_path, binary):
                 runner.write_json(store / 'cycle.json', policy)
                 args += [mode, str(store / 'cycle.json')]
             code, text = run.command(args, timeout=600, required=required)
-            return code, sync_receipts(rows(text)) if mode == '--sync' else rows(text)
+            return code, rows(text)
 
         def compare_table(table, relation):
             if not __import__('re').fullmatch(r'oo_load_data\.[a-z0-9_]+', relation):
@@ -722,7 +766,10 @@ def main():
     parser.add_argument("--run-id")
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
     parser.add_argument("--worker-image")
+    parser.add_argument("--scale", type=int, default=1)
     args = parser.parse_args()
+    if not 1 <= args.scale <= 10_000_000 or (args.engine == "oracle" and args.scale != 1):
+        parser.error("scale must be 1..10000000; Oracle uses its existing fixture")
     if args.family_config:
         raise SystemExit(family_acceptance(args.family_config, args.binary.resolve()))
     if not args.engine or not args.versions or not args.run_id:
@@ -741,7 +788,7 @@ def main():
         directory = path / (args.engine+"-"+version)
         directory.mkdir()
         run = SyncRun(directory, args.engine, version,
-                      argparse.Namespace(platform=None, health_timeout=1200, scale=1, tables=0))
+                      argparse.Namespace(platform=None, health_timeout=1200, scale=args.scale, tables=0))
         results[version] = {"T2": "not_passed", "C1": "not_run", "C5": "not_run"}
         try:
             results[version] = run_cycles(run, args.binary.resolve(), args.worker_image)

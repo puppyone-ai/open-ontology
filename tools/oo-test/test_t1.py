@@ -411,3 +411,20 @@ class T1Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class T8VerdictTests(unittest.TestCase):
+    def window(self, elapsed, duty, peak=1, error=None, samples=10):
+        return {"error": error, "sample_count": samples, "connections_peak": peak, "elapsed_seconds": elapsed,
+                "aggregate_duty_percent": duty, "budget": {"reader_connections": 1, "duty_cycle_percent": 25}}
+
+    def test_short_window_duty_is_pooled_not_dropped(self):
+        self.assertEqual(t1.t8_verdict([self.window(175, 9.8), self.window(3.1, 40.6)]), "passed")
+        self.assertEqual(t1.t8_verdict([self.window(3.1, 40.6), self.window(3.3, 30)]), "failed")
+
+    def test_long_window_over_budget_and_connection_cap_still_fail(self):
+        self.assertEqual(t1.t8_verdict([self.window(60, 26)]), "failed")
+        self.assertEqual(t1.t8_verdict([self.window(175, 5), self.window(3, 5, peak=2)]), "failed")
+        self.assertEqual(t1.t8_verdict([self.window(175, 5, error="sampler_timeout")]), "failed")
+        self.assertEqual(t1.t8_verdict([]), "failed")
+

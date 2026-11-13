@@ -15,22 +15,46 @@ from t1 import LaneRun, SourceMeter, configure_pg, private
 
 ROOT = runner.ROOT
 
+@runner.timed("seed")
+def seed_scale(run, schema, tables):
+    """Negative baseline keys leave every existing positive mutation key free."""
+    scale = run.args.scale
+    if not 1 <= scale <= 10_000_000:
+        raise ValueError("invalid T2 scale")
+    if scale == 1:
+        return
+    for table in tables:
+        if run.engine == "postgres":
+            run.sql(f"INSERT INTO {schema}.{table} SELECT -i,'bulk' "
+                    f"FROM generate_series(1,{scale-1}) i;", admin=True)
+        elif run.engine == "mysql":
+            for start in range(1, scale, 1000):
+                values = ",".join(f"({-i},'bulk')" for i in range(start, min(start+1000, scale)))
+                run.sql(f"INSERT INTO {schema}.{table} VALUES {values};", admin=True)
+        else:
+            raise ValueError("full-scale T2 fixture is PG/MySQL only")
+        _, count = run.sql(f"SELECT COUNT(*) FROM {schema}.{table};", admin=True)
+        if int(count.strip()) != scale:
+            raise RuntimeError("T2 baseline row count mismatch")
 
+def c1_summaries(text):
+    """Count writes from the aggregate, while still checking every table result."""
+    rows = [json.loads(line) for line in text.splitlines() if line.startswith("{")]
+    summaries = []
+    for row in rows:
+        if row.get("protocol") != "oo.sync/v1" or row.get("mode") != "c1" or "error" in row:
+            raise RuntimeError("unrecognized C1 receipt")
+        if "table" in row:
+            if row.get("status") not in ("fresh", "noop") or row.get("stale_reason"):
+                raise RuntimeError("C1 table not fresh")
+        else:
+            if not all(key in row for key in ("durable_position", "target_write_bytes", "new_generations")):
+                raise RuntimeError("incomplete C1 summary")
+            summaries.append(row)
+    if len(summaries) != 1:
+        raise RuntimeError("missing or ambiguous C1 summary")
+    return summaries
 
-def sync_receipts(receipts):
-    """Keep the cycle receipts; per-table status lines must not be stale."""
-    stale = [r["table"] for r in receipts if "table" in r and r.get("status") == "stale"]
-    if stale:
-        raise RuntimeError("table stale")
-    aggregate = [r for r in receipts if "table" not in r]
-    return aggregate or receipts
-
-
-def set_run_id(store, run_id):
-    """Each sync is its own cycle; reusing a run id is an idempotent replay."""
-    config = json.loads((store / "target.json").read_text())
-    config["run_id"] = run_id
-    runner.write_json(store / "target.json", config)
 
 def lsn(value):
     hi, lo = value.split("/")
@@ -52,6 +76,7 @@ def measure(run):
 def run_postgres(run, binary):
     report = {"C1": "failed", "C5": "not_implemented", "handoff": "not_implemented",
               "T2": "not_passed", "cycles": [], "consistency": "B",
+              "baseline_rows_per_table": run.args.scale,
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
     store = run.path / ".sync-private"
     store.mkdir(mode=0o700)
@@ -71,6 +96,7 @@ def run_postgres(run, binary):
                 "GRANT EXECUTE ON FUNCTION pg_control_checkpoint() TO fixture_reader;"
                 "ALTER SYSTEM SET wal_level='logical';"
                 "ALTER SYSTEM SET max_slot_wal_keep_size='128MB';", admin=True)
+        seed_scale(run, "public", ["items", "other"])
         configure_pg(run, store)
         run.command(["docker", "restart", run.name])
         for _ in range(90):
@@ -133,17 +159,16 @@ def run_postgres(run, binary):
                 thread.start()
             before_bytes = measure(run)
             with SourceMeter(run, cycle, 2) as meter:
-                set_run_id(store, f"c1-{cycle}-concurrent")
-                _, concurrent = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
+                _, concurrent = run.command(command + ["--sync", str(store / "sync.json"),
+                    "--run-id", f"c1-{cycle}-concurrent"], timeout=300)
                 if thread:
                     thread.join(timeout=60)
                     if thread.is_alive() or errors:
                         raise RuntimeError("writer failed")
                     thread = None
-                set_run_id(store, f"c1-{cycle}-drained")
-                _, drained = run.command(command + ["--sync", str(store / "sync.json")], timeout=300)
-            rows = [row for text in (concurrent, drained) for row in sync_receipts(
-                [json.loads(line) for line in text.splitlines() if line.startswith("{")])]
+                _, drained = run.command(command + ["--sync", str(store / "sync.json"),
+                    "--run-id", f"c1-{cycle}-drained"], timeout=300)
+            rows = c1_summaries(concurrent) + c1_summaries(drained)
             for row in rows:
                 position = row["durable_position"]["lsn"]
                 if position < previous:
@@ -257,8 +282,7 @@ def run_postgres(run, binary):
         source["id"] = "fixture"
         command[command.index("--source")+1] = "fixture"
         runner.write_json(store / "stack.json", stack)
-        set_run_id(store, "c1-expired")
-        code, _ = run.command(command + ["--sync", str(store / "sync.json")],
+        code, _ = run.command(command + ["--sync", str(store / "sync.json"), "--run-id", "expired-slot"],
                               timeout=300, required=False)
         error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
         if code == 0 or error != "sync_rebaseline_required_retention":
@@ -276,10 +300,15 @@ def run_postgres(run, binary):
         source["id"] = "fixture_c5"
         command[command.index("--source")+1] = "fixture_c5"
         runner.write_json(store / "stack.json", stack)
-        code, _ = run.command(command + ["--c5", str(store / "c5.json")],
+        code, negative = run.command(command + ["--c5", str(store / "c5.json"), "--run-id", "recreated-relation"],
                               timeout=300, required=False)
         error = json.loads((run.path / f"{run.seq:04d}.stderr").read_text())["error"]
-        if code == 0 or error != "c5_rebaseline_required_lineage":
+        isolated = [json.loads(line) for line in negative.splitlines() if line.startswith("{")]
+        rejected = any(r.get("table") == {"schema": "public", "name": "items"}
+                       and r.get("status") == "stale" and r.get("stale_reason") == "rebaseline_required"
+                       for r in isolated)
+        if code == 0 or not (error == "c5_rebaseline_required_lineage"
+                             or (error == "sync_partial" and rejected)):
             raise RuntimeError("changed relation identity did not require rebaseline")
         report["negative_checks"].append({"case": "recreated_relation", "error": error})
         report["T2"] = "passed"
@@ -302,7 +331,10 @@ def main():
     parser.add_argument("--versions", default="13,14,15,16,17,18")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/oo-load")
+    parser.add_argument("--scale", type=int, default=1)
     args = parser.parse_args()
+    if not 1 <= args.scale <= 10_000_000:
+        parser.error("scale must be 1..10000000")
     if not args.run_id or not all(c.isalnum() or c in "-_" for c in args.run_id):
         parser.error("invalid run ID")
     versions = args.versions.split(",")
@@ -315,7 +347,7 @@ def main():
         path = root / ("postgres-" + version)
         path.mkdir()
         run = LaneRun(path, "postgres", version,
-                      argparse.Namespace(platform=None, health_timeout=300, scale=1, tables=0))
+                      argparse.Namespace(platform=None, health_timeout=300, scale=args.scale, tables=0))
         results[version] = {"T2": "not_passed", "C1": "not_run", "C5": "not_run"}
         try:
             results[version] = run_postgres(run, args.binary.resolve())
