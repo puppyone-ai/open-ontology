@@ -182,6 +182,9 @@ def run_l1(root, args):
     day = args.day
     engines = args.engines
     cells = layers.l1_cells(engines, ["T0", "T1", "T2", "T4", "T7", "T8"], day)
+    if args.cells:
+        # Diagnostic rerun of named cells; their class roles stay as planned for the day.
+        cells = [c for c in cells if f"{c['engine']}-{c['version']}" in args.cells]
     budget = layers.docker_budget_gb()
     waves = layers.schedule(cells, budget)
     runner.write_json(root / "l1-plan.json", {"day": str(day), "budget_gb": budget,
@@ -252,6 +255,8 @@ def main(argv=None):
     parser.add_argument("--chunk-rows", type=int, default=10000)
     parser.add_argument("--keyless-rows", type=int, default=4000)
     parser.add_argument("--skip-cdc", action="store_true", help="omit T2/T4 commands")
+    parser.add_argument("--cells", type=lambda v: set(v.split(",")), default=None,
+                        help="L1 only these engine-version cells, e.g. mysql-5.7,oracle-11")
     parser.add_argument("--plan-only", action="store_true")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", args.run_id):
