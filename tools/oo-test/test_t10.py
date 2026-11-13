@@ -660,6 +660,7 @@ class IntegrationContractTests(unittest.TestCase):
                 command = call.call_args.args[-1]
                 self.assertIn('--innodb-redo-log-capacity=4294967296', command)
                 self.assertIn('--innodb-buffer-pool-size=4294967296', command)
+                self.assertIn('--binlog-group-commit-sync-delay=1000', command)
                 self.assertIn('--log-bin=oo-bin', command)
                 self.assertFalse(any('flush-log-at-trx-commit' in c or 'sync-binlog' in c for c in command))
 
