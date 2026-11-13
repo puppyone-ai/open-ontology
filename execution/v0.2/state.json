@@ -1,7 +1,7 @@
 {
  "schema": "oo.v02-state/v1",
  "as_of": "2026-11-08",
- "integration_branch": "v0.2/field-hardening",
+ "integration_branch": "v0.3/integrate",
  "current_sprint": "S6",
  "active_executors_max": 6,
  "loops": {
@@ -1442,7 +1442,7 @@
    "sprint": "S6",
    "lane": "M",
    "title": "现场加固 1：lite 镜像优化构建（D21）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "coordinator",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1456,7 +1456,7 @@
    "sprint": "S6",
    "lane": "M",
    "title": "现场加固 2a：同步按表隔离与 partial 发布（D22）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane FH-P (Codex)",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1476,7 +1476,7 @@
    "sprint": "S6",
    "lane": "M",
    "title": "现场加固 2b：结构变化按已发布投影分级与按表重建（D22）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane FH-P (Codex)",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1496,7 +1496,7 @@
    "sprint": "S6",
    "lane": "G",
    "title": "现场加固 2c：语义复核按表（D22）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane FH-Q (Codex)",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1514,7 +1514,7 @@
    "sprint": "S6",
    "lane": "A",
    "title": "现场加固 3：状态语义拆分（D22）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane FH-Q (Codex)",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1532,7 +1532,7 @@
    "sprint": "S6",
    "lane": "B",
    "title": "现场加固 4：发布绑定逻辑身份（D23）",
-   "status": "author_complete",
+   "status": "integrated",
    "owner": "lane FH-R (Codex)",
    "branch": "v0.2/field-hardening",
    "commits": [
@@ -1550,10 +1550,16 @@
    "sprint": "S6",
    "lane": "H",
    "title": "现场加固测试 T9、P0 回归、矩阵与独立审阅",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "native lanes",
    "branch": "v0.2/field-hardening",
-   "commits": [],
+   "commits": [
+    "5d44ce476",
+    "4d23e6c51",
+    "b60fc73f8",
+    "7ce62d21f",
+    "54a02d374"
+   ],
    "evidence": []
   },
   {
@@ -1561,7 +1567,7 @@
    "sprint": "S6",
    "lane": "H",
    "title": "生产影响测试 T10 与缓解（D24）",
-   "status": "in_progress",
+   "status": "integrated",
    "owner": "lane T10 (Claude)",
    "branch": "v0.2/t10",
    "commits": [
@@ -1582,7 +1588,8 @@
     "445e0dad5",
     "8f0b4eea0",
     "6d6ac09c5",
-    "d95c6eb13"
+    "d95c6eb13",
+    "edc0cd171"
    ],
    "evidence": [],
    "note": "T10 E473: not signed off. PG 17 C1 within D24 (p95 +4.0%, p99 -0.7%) and keeps up with 1,900 changes/s; idle C5 within D24; changed/full-read C5 p95 within budget, p99 over through hot-row convoys; initial failed p99 once on a canary-recorded host fsync stall. Oracle 23 LogMiner C1 (opt-in): no deadline miss, about 50 changes/s (doctor warning updated); Oracle defaults not remeasured. MySQL 8.4: baseline/initial pass; fixture disk stalls from ~20 min on (C1/C5 measure the host). Next: production-class storage host for MySQL and PG p99, Oracle LogMiner throughput, PG 17 full-scale T1 and Oracle fast L1 (disk guard)"
