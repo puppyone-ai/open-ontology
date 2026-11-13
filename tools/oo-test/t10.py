@@ -115,6 +115,15 @@ def baseline_noise(requests, duration, whole, seconds=SLICE_SECONDS, step=WINDOW
             'max_delta_p99_percent': max(deltas('p99_ms'), default=None)}
 
 
+def same_length_noise(base_requests, baseline, seconds):
+    """Baseline slices as long as a phase, against the whole baseline: the
+    deltas the fixture produces with no product for a phase of that length."""
+    length = int(seconds // WINDOW) * WINDOW
+    if length < WINDOW or length >= baseline['duration_seconds']:
+        return None
+    return baseline_noise(base_requests, baseline['duration_seconds'], baseline, seconds=length)
+
+
 def verdict(baseline, phase):
     valid = (baseline and baseline['requests'] > 0 and phase['requests'] > 0
              and baseline['errors'] == 0 and baseline['achieved_rate'] > 0
@@ -1116,6 +1125,8 @@ def main(argv=None):
                         phase_requests = json.loads((run.path / f'{name}-requests.json').read_text())
                         result['budget_without_host_io_stalls'] = stall_adjusted(
                             baseline, result, base_requests, phase_requests, samples)
+                        result['baseline_noise_same_length'] = same_length_noise(
+                            base_requests, baseline, result['duration_seconds'])
                     except (OSError, ValueError) as exc:
                         result['budget_without_host_io_stalls'] = {'error': type(exc).__name__}
         for name, result in report['phases'].items():

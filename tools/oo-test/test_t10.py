@@ -206,6 +206,14 @@ class NoiseTests(unittest.TestCase):
         # Sliding 50 s slices every 10 s, never past the end of the baseline.
         self.assertEqual((noise['slices'], noise['fail_any']), (8, 0))
 
+    def test_same_length_noise_uses_the_phase_length(self):
+        requests = self.requests(120, 50, slow=range(20, 21))
+        whole = dict(t10.summarize(requests, 120), duration_seconds=120)
+        noise = t10.same_length_noise(requests, whole, 64.9)
+        self.assertEqual((noise['slice_seconds'], noise['slices']), (60, 7))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 120))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 5))
+
     def test_a_stall_shows_as_slice_failures(self):
         requests = self.requests(120, 50, slow=range(20, 21))
         whole = t10.summarize(requests, 120)
