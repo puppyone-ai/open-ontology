@@ -277,6 +277,17 @@ class Workload:
         self.local = threading.local()
         self.connections = []
         self.lock = threading.Lock()
+        self.ready = queue.SimpleQueue()
+
+    def warm(self, count):
+        """Open the workers' connections before the phase clock starts.
+
+        Lazily connecting inside the first measured second (64 SCRAM/TLS
+        handshakes) inflated every phase's tail by its first second; a short
+        phase weighted that warm-up far more than the 10-minute baseline.
+        """
+        for _ in range(count):
+            self.ready.put(self.connect())
 
     def connect(self):
         run = self.run
@@ -302,7 +313,10 @@ class Workload:
 
     def __call__(self, index):
         if not getattr(self.local, 'conn', None):
-            self.local.conn = self.connect()
+            try:
+                self.local.conn = self.ready.get_nowait()
+            except queue.Empty:
+                self.local.conn = self.connect()
         # Fixed 60/30/10 mix and deterministic hot keys in every phase.
         hot = index % 20 + 1
         if index % 10 < 6:
@@ -535,6 +549,7 @@ def phase(harness, name, work, rate, seconds, action, sequence):
             done.set()
 
     thread = threading.Thread(target=product)
+    work.warm(DEFAULT_WORKERS)
     meter.thread.start()
     try:
         requests, duration = open_loop(work, rate, seconds,
@@ -716,6 +731,8 @@ def main(argv=None):
               'target_storage': 'tmpfs' if args.target_tmpfs else 'volume_on_shared_docker_disk',
               'product_sha': product_sha(), 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
               'measurement_notes': ['client-observed latency includes queueing',
+                                    'foreground connections open before each phase clock; '
+                                    'connection setup is not a measured request',
                                     'Oracle undo counters cover the V$UNDOSTAT retention horizon',
                                     'LogMiner CPU is a sampled live-session counter, not total exited-session CPU',
                                     'C5 idle scans bulk only; foreground writes items/other outside that scope']}

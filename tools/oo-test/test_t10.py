@@ -471,6 +471,44 @@ class IntegrationContractTests(unittest.TestCase):
             for key, statement in enumerate(statements, t10.SCALE + 1):
                 self.assertIn(f'VALUES({key},', statement)
 
+    def test_connections_open_before_the_phase_clock_and_are_reused(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            work = t10.Workload(run)
+            opened = []
+            work.connect = lambda: opened.append(MagicMock()) or opened[-1]
+            work.warm(3)
+            self.assertEqual(len(opened), 3)
+            workers = [threading.Thread(target=work, args=(0,)) for _ in range(3)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join()
+            # Every measured request used a pre-opened connection.
+            self.assertEqual(len(opened), 3)
+            self.assertTrue(all(c.cursor.called for c in opened))
+            work(0)  # a fourth worker thread still connects lazily
+            self.assertEqual(len(opened), 4)
+
+    def test_phase_warms_writer_connections_before_measuring(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, \
+                patch.object(t10, 'Meter') as meter, patch.object(t10, 'open_loop') as loop:
+            h = Mock()
+            h.run.path = Path(tmp)
+            work = Mock()
+            order = []
+            work.warm.side_effect = lambda n: order.append(('warm', n))
+            def measure(*args, on_start, **kwargs):
+                order.append('measure')
+                on_start()
+                return [], 1.0
+            loop.side_effect = measure
+            meter.return_value.finish.return_value = {'samples': [], 'errors': [], 'peaks': {}}
+            t10.phase(h, 'baseline', work, 100, .02, lambda: None, 100000)
+            self.assertEqual(order, [('warm', t10.DEFAULT_WORKERS), 'measure'])
+
     def test_c5_compares_both_policies_with_independent_baselines(self):
         from unittest.mock import Mock
         h = Mock()
