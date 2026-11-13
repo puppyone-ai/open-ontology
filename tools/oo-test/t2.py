@@ -15,6 +15,7 @@ from t1 import LaneRun, SourceMeter, configure_pg, private
 
 ROOT = runner.ROOT
 
+@runner.timed("seed")
 def seed_scale(run, schema, tables):
     """Negative baseline keys leave every existing positive mutation key free."""
     scale = run.args.scale

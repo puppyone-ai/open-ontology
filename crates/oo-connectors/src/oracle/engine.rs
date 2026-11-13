@@ -221,12 +221,6 @@ struct TableState {
     next_chunk_id: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ScnSource {
-    VDatabase,
-    DbmsFlashback,
-}
-
 /// One read-only Oracle session.
 pub struct OracleEngine {
     conn: Option<Connection>,
@@ -235,7 +229,6 @@ pub struct OracleEngine {
     session_user: String,
     version: Option<EngineVersion>,
     dialect: Option<Dialect>,
-    scn_source: Option<ScnSource>,
     session_gate: Option<bool>,
     plan_view: Option<bool>,
     extents_view: Option<bool>,
@@ -526,7 +519,6 @@ impl OracleEngine {
             session_user: String::new(),
             version: None,
             dialect: None,
-            scn_source: None,
             session_gate: None,
             plan_view: None,
             extents_view: None,
@@ -833,30 +825,14 @@ impl OracleEngine {
         Ok(n)
     }
 
-    /// Current SCN, from `V$DATABASE` or `DBMS_FLASHBACK`.
+    /// Current SCN from `V$DATABASE`, the documented reader grant
+    /// (`GRANT SELECT ON SYS.V_$DATABASE`). The reader never calls
+    /// `DBMS_FLASHBACK`: package EXECUTE is not part of the reader grant set.
     pub fn current_scn(&mut self) -> Result<u64, SourceError> {
-        let order = match self.scn_source {
-            Some(s) => vec![s],
-            None => vec![ScnSource::VDatabase, ScnSource::DbmsFlashback],
-        };
-        let mut last = SourceError::privilege("scn_unreadable");
-        for source in order {
-            let sql = match source {
-                ScnSource::VDatabase => "SELECT TO_CHAR(current_scn) FROM v$database",
-                ScnSource::DbmsFlashback => {
-                    "SELECT TO_CHAR(DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER) FROM dual"
-                }
-            };
-            match self.scalar(sql, &[]) {
-                Ok(Some(v)) => {
-                    self.scn_source = Some(source);
-                    return v.parse().map_err(|_| SourceError::protocol("scn_text"));
-                }
-                Ok(None) => last = SourceError::protocol("scn_absent"),
-                Err(e) => last = e,
-            }
+        match self.scalar("SELECT TO_CHAR(current_scn) FROM v$database", &[])? {
+            Some(v) => v.parse().map_err(|_| SourceError::protocol("scn_text")),
+            None => Err(SourceError::protocol("scn_absent")),
         }
-        Err(last)
     }
 
     fn load_meta(&mut self, t: &TableRef) -> Result<TableMeta, SourceError> {
@@ -2079,15 +2055,8 @@ impl OracleEngine {
                 }
             },
         );
-        if let Some(s) = self.scn_source {
-            settings.insert(
-                "watermark.source".into(),
-                match s {
-                    ScnSource::VDatabase => "V$DATABASE.CURRENT_SCN",
-                    ScnSource::DbmsFlashback => "DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER",
-                }
-                .into(),
-            );
+        if scn_ok {
+            settings.insert("watermark.source".into(), "V$DATABASE.CURRENT_SCN".into());
         }
 
         // D11 is an opt-in requirement even when every DBA prerequisite is met.

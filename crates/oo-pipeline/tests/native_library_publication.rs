@@ -118,6 +118,8 @@ async fn retained_engine_publication_candidate() {
         let mut target = PgTarget::new(&mut db, &request.source_binding, run, &table)
             .await
             .unwrap();
+        // oo-load always records read consistency; the sealed recipe must carry it.
+        target.read_metadata(json!({"consistency": "snapshot"}));
         target.begin(&plan).await.unwrap();
         // Synthetic source receipt; this test covers target transactions, not T2.
         target

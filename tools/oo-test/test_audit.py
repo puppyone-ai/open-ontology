@@ -76,6 +76,11 @@ class AuditTests(unittest.TestCase):
             ("mysql", "SELECT 1 LOCK IN SHARE MODE", "write_keyword:LOCK"),
             ("mysql", "EXPLAIN ANALYZE SELECT 1", "explain_analyze_executes"),
             ("oracle", "SELECT f(1) FROM dual", "unreviewed_function:F"),
+            # A routine without arguments needs no parentheses in Oracle SQL.
+            ("oracle", "SELECT /*+ NO_PARALLEL */ TO_CHAR(DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER) FROM dual",
+             "unreviewed_function:DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER"),
+            ("oracle", "SELECT SYS.DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER FROM dual",
+             "unreviewed_function:DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER"),
         ]
         for engine, sql, rule in rejections:
             self.assertEqual(audit.classify_sql(sql, engine), ("rejected", rule), sql)

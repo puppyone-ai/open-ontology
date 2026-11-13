@@ -802,6 +802,8 @@ impl<'a> PgSync<'a> {
             .bind(&self.source).bind(serde_json::to_string(&batch.position).map_err(|_| "sync_position")?)
             .bind(i64::from(applied)).bind(bytes)
             .execute(&mut *tx).await.map_err(db)?;
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("c1_apply_commit");
         tx.commit().await.map_err(db)
     }
 }

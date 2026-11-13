@@ -201,6 +201,14 @@ def functions(sql, engine):
         if name in SYNTAX or before.endswith((" AS", "(AS", "ORDINALITY", ")")) or before == "AS":
             continue
         calls.append(name[len(prefix):] if name.startswith(prefix) else name)
+    if engine == "oracle":
+        # Oracle calls a routine without arguments with no parentheses
+        # ("SELECT DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER FROM dual"), so a
+        # supplied-package member is a call even without "(".
+        for match in re.finditer(r"(?<![A-Z0-9_$#.])((?:SYS\.)?(?:DBMS|UTL|OWA|HTP|HTF)_[A-Z0-9_$#]*"
+                                 r"\.[A-Z_][A-Z0-9_$#]*)(?![A-Z0-9_$#.]|\s*\()", sql):
+            name = match[1]
+            calls.append(name[len(prefix):] if name.startswith(prefix) else name)
     return calls
 
 

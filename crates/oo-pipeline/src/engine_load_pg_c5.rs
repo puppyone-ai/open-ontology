@@ -233,6 +233,7 @@ impl PgTarget<'_> {
                 &self.identity,
                 &self.run,
                 plan,
+                &publication_plan,
                 &next.parts,
                 fields,
             )
@@ -281,6 +282,8 @@ impl PgTarget<'_> {
                 .await
                 .map_err(db)?;
         }
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("c5_commit");
         tx.commit().await.map_err(db)
     }
 
