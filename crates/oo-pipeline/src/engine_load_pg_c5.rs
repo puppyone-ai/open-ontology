@@ -1,5 +1,5 @@
 use super::*;
-use oo_connectors::engine::{ChunkSpec, KeyShape, RangeDigest};
+use oo_connectors::engine::{ChunkSpec, ChunkStrategy, KeyShape, RangeDigest};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -114,7 +114,24 @@ impl PgTarget<'_> {
         .fetch_all(&mut *self.conn)
         .await
         .map_err(db)?;
-        Ok(C5Baseline {
+        let seeds: bool =
+            sqlx::query_scalar("SELECT to_regclass('_oo_load.c5_load_digests') IS NOT NULL")
+                .fetch_one(&mut *self.conn)
+                .await
+                .map_err(db)?;
+        let seeded: Option<String> = if seeds {
+            sqlx::query_scalar(
+                "SELECT digests::text FROM _oo_load.c5_load_digests WHERE identity=$1 AND run=$2",
+            )
+            .bind(&self.identity)
+            .bind(&run)
+            .fetch_optional(&mut *self.conn)
+            .await
+            .map_err(db)?
+        } else {
+            None
+        };
+        let mut baseline = C5Baseline {
             run,
             plan: serde_json::from_str(&plan).map_err(|_| "c5_plan")?,
             parts: receipts
@@ -128,7 +145,53 @@ impl PgTarget<'_> {
                 .collect::<Result<Vec<_>>>()?,
             source_digests: vec![],
             lineage: None,
-        })
+        };
+        if let Some(seeded) = seeded {
+            let proofs: Vec<RangeDigest> =
+                serde_json::from_str(&seeded).map_err(|_| "c5_load_digests")?;
+            baseline.source_digests = seeded_digests(&baseline, &proofs);
+        }
+        Ok(baseline)
+    }
+
+    /// Record the per-range digests an initial load proved in each payload's
+    /// own read transaction as this publication's C5 source digests, so the
+    /// first C5 cycle transfers only ranges whose digest changed instead of
+    /// the whole table. Only digests that exactly match a published keyset
+    /// range and its row count are kept; anything else is read as before.
+    /// Returns how many ranges were seeded.
+    pub async fn seed_c5_digests(&mut self, proofs: &[RangeDigest]) -> Result<usize> {
+        let mut baseline = match self.c5_baseline().await {
+            Ok(baseline) => baseline,
+            // A C1 binding owns this publication; C5 never reads it.
+            Err("c5_rebaseline_required_active_sync") => return Ok(0),
+            Err(error) => return Err(error),
+        };
+        let digests = seeded_digests(&baseline, proofs);
+        if baseline.run != self.run || !baseline.source_digests.is_empty() || digests.is_empty() {
+            return Ok(0);
+        }
+        // Kept apart from c5_state: a publication with C5 state is one a C5
+        // cycle published, which C1 must not adopt without a handoff.
+        sqlx::raw_sql(
+            "CREATE TABLE IF NOT EXISTS _oo_load.c5_load_digests (
+               identity text PRIMARY KEY, run text NOT NULL, digests jsonb NOT NULL)",
+        )
+        .execute(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        sqlx::query(
+            "INSERT INTO _oo_load.c5_load_digests VALUES($1,$2,$3::jsonb)
+             ON CONFLICT(identity) DO UPDATE SET run=EXCLUDED.run,digests=EXCLUDED.digests",
+        )
+        .bind(&self.identity)
+        .bind(&baseline.run)
+        .bind(serde_json::to_string(&digests).map_err(|_| "c5_load_digests")?)
+        .execute(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        baseline.source_digests = digests;
+        Ok(baseline.source_digests.len())
     }
 
     /// Confirm source evidence and atomically compose unchanged parent ranges
@@ -290,6 +353,32 @@ impl PgTarget<'_> {
             .await
             .map_err(db)
     }
+}
+
+/// Proofs that describe exactly one published keyset range: same table and
+/// bounds and the same row count as the part published for that range.
+fn seeded_digests(baseline: &C5Baseline, proofs: &[RangeDigest]) -> Vec<RangeDigest> {
+    if baseline.plan.key == KeyShape::NoKey
+        || !matches!(baseline.plan.strategy, ChunkStrategy::Keyset { .. })
+    {
+        return Vec::new();
+    }
+    let mut digests = Vec::new();
+    for chunk in &baseline.plan.chunks {
+        let mut matching = proofs
+            .iter()
+            .filter(|d| d.table == chunk.table && d.lo == chunk.lo && d.hi == chunk.hi);
+        let (Some(proof), None) = (matching.next(), matching.next()) else {
+            continue;
+        };
+        let part = baseline.parts.iter().find(|p| {
+            p.receipt.chunk_id == chunk.chunk_id && p.receipt.plan_revision == chunk.plan_revision
+        });
+        if part.is_some_and(|p| p.receipt.rows == proof.rows && p.receipt.table == chunk.table) {
+            digests.push(proof.clone());
+        }
+    }
+    digests
 }
 
 fn keyless_transition(previous: &TableChunkPlan, plan: &TableChunkPlan) -> bool {
@@ -536,6 +625,93 @@ mod tests {
             strategy,
             estimated_rows: None,
             chunks,
+        }
+    }
+
+    #[test]
+    fn load_proofs_seed_only_exactly_matching_keyset_ranges() {
+        let table = TableRef {
+            schema: "public".into(),
+            name: "bulk".into(),
+        };
+        let edge = |v: i64| Some(vec![KeyValue::Int(v.into())]);
+        let chunk = |id: u32, lo, hi| ChunkSpec {
+            table: table.clone(),
+            plan_revision: 1,
+            chunk_id: id,
+            lo,
+            hi,
+            estimated_rows: None,
+        };
+        let chunks = vec![
+            chunk(0, None, edge(10)),
+            chunk(1, edge(10), edge(20)),
+            chunk(2, edge(20), None),
+        ];
+        let part = |id: u32, rows: u64| C5Part {
+            receipt: ChunkReceipt {
+                table: table.clone(),
+                plan_revision: 1,
+                chunk_id: id,
+                rows,
+                bytes: 1,
+                sha256: "payload".into(),
+                low: None,
+                high: None,
+            },
+            stage: "stage".into(),
+        };
+        let baseline = C5Baseline {
+            run: "load".into(),
+            plan: TableChunkPlan {
+                protocol: ENGINE_PROTOCOL.into(),
+                table: table.clone(),
+                key: KeyShape::IntegerPrimaryKey {
+                    column: "id".into(),
+                },
+                strategy: ChunkStrategy::Keyset {
+                    columns: vec!["id".into()],
+                },
+                estimated_rows: None,
+                chunks: chunks.clone(),
+            },
+            parts: vec![part(0, 9), part(1, 10), part(2, 5)],
+            source_digests: vec![],
+            lineage: None,
+        };
+        let proof = |c: &ChunkSpec, rows: u64| RangeDigest {
+            table: table.clone(),
+            lo: c.lo.clone(),
+            hi: c.hi.clone(),
+            rows,
+            digest: format!("d{}", c.chunk_id),
+        };
+        // Chunk 1's proof disagrees with its published row count; chunk 2
+        // has two proofs. Neither may skip the first cycle's transfer.
+        let proofs = vec![
+            proof(&chunks[0], 9),
+            proof(&chunks[1], 11),
+            proof(&chunks[2], 5),
+            RangeDigest {
+                digest: "other".into(),
+                ..proof(&chunks[2], 5)
+            },
+        ];
+        assert_eq!(
+            seeded_digests(&baseline, &proofs),
+            vec![proof(&chunks[0], 9)]
+        );
+        let mut unbounded = proof(&chunks[0], 9);
+        unbounded.hi = None;
+        assert!(seeded_digests(&baseline, &[unbounded]).is_empty());
+        for (key, strategy) in [
+            (KeyShape::NoKey, baseline.plan.strategy.clone()),
+            (baseline.plan.key.clone(), ChunkStrategy::SingleRead),
+        ] {
+            let mut other = baseline.clone();
+            other.plan.key = key;
+            other.plan.strategy = strategy;
+            assert!(seeded_digests(&other, &proofs).is_empty());
         }
     }
 
