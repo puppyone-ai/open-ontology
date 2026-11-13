@@ -244,8 +244,8 @@ MYSQL_SOURCE_SETTINGS = {
     'innodb_buffer_pool_size': 4 * 1024 ** 3,
     'innodb_log_buffer_size': 64 * 1024 ** 2,
     # Each commit still waits for its binlog fsync; commits arriving within
-    # 1 ms share one. Without it the fixture's two fsyncs per commit queued
-    # into 7-10 s disk stalls (fsync canary) every 16-20 s.
+    # 1 ms share one. With io_capacity 2000/4000 instead, the canary recorded
+    # 7-10 s disk stalls every 16-20 s from the first baseline minute.
     'binlog_group_commit_sync_delay': 1000,
 }
 # Diagnostic runs only (--diagnose): never part of a D24 measurement.
