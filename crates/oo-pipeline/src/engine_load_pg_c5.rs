@@ -233,6 +233,7 @@ impl PgTarget<'_> {
                 &self.identity,
                 &self.run,
                 plan,
+                &publication_plan,
                 &next.parts,
                 fields,
             )

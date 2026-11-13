@@ -93,11 +93,7 @@ impl<'a> PgTarget<'a> {
     }
 
     fn encode_metadata(&self, value: &impl serde::Serialize) -> Result<String> {
-        let mut value = serde_json::to_value(value).map_err(|_| "load_metadata")?;
-        if let Some(metadata) = &self.read_metadata {
-            value["read_metadata"] = metadata.clone();
-        }
-        serde_json::to_string(&value).map_err(|_| "load_metadata")
+        encode_metadata(self.read_metadata.as_ref(), value)
     }
 
     /// Opt in only for a source adapter's declared full-document column.
@@ -482,6 +478,7 @@ impl Target for PgTarget<'_> {
             &self.identity,
             &self.run,
             plan,
+            &publication_plan,
             &parts,
             self.fields.as_ref().ok_or("load_schema")?,
         )
@@ -577,9 +574,92 @@ fn target_fields(fields: &[DecodedField], document: Option<&str>) -> Result<Vec<
     Ok(fields)
 }
 
+/// Attach read consistency to a stored receipt or plan. The publication plan
+/// written with this encoding is also the plan sealed in the generation recipe.
+fn encode_metadata(
+    metadata: Option<&serde_json::Value>,
+    value: &impl serde::Serialize,
+) -> Result<String> {
+    let mut value = serde_json::to_value(value).map_err(|_| "load_metadata")?;
+    if let Some(metadata) = metadata {
+        value["read_metadata"] = metadata.clone();
+    }
+    serde_json::to_string(&value).map_err(|_| "load_metadata")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn chunk_plan(name: &str) -> TableChunkPlan {
+        use oo_connectors::engine::*;
+        let table = TableRef {
+            schema: "app".into(),
+            name: name.into(),
+        };
+        TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["id".into()],
+            },
+            estimated_rows: None,
+            chunks: vec![ChunkSpec {
+                table,
+                plan_revision: 1,
+                chunk_id: 0,
+                lo: None,
+                hi: None,
+                estimated_rows: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn generation_recipe_seals_the_stored_publication_plan_with_read_metadata() {
+        // S6-H-01 regression: publications.plan carried read_metadata while the
+        // recipe sealed the bare plan, so every cut failed publication_seal_mismatch.
+        let plan = chunk_plan("items");
+        let metadata = serde_json::json!({"consistency": "B"});
+        let stored = encode_metadata(Some(&metadata), &plan).unwrap();
+        let recipe = generation::recipe(&stored, &plan, &[], "\"id\" bigint NOT NULL").unwrap();
+        assert_eq!(recipe["plan"]["read_metadata"], metadata);
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&recipe, &stored),
+            Ok(true)
+        );
+        // A store/JSONB round trip keeps the sealed equality.
+        let reparsed: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&recipe).unwrap()).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&reparsed, &stored),
+            Ok(true)
+        );
+        // The verifier stays strict: the pre-fix bare-plan recipe is refused.
+        let bare = serde_json::json!({"plan": plan});
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&bare, &stored),
+            Ok(false)
+        );
+        // Without read metadata the stored plan is the bare plan.
+        let legacy = encode_metadata(None, &plan).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(
+                &generation::recipe(&legacy, &plan, &[], "x").unwrap(),
+                &legacy
+            ),
+            Ok(true)
+        );
+        // A recipe cannot seal a stored plan for another table.
+        let other = encode_metadata(Some(&metadata), &chunk_plan("other")).unwrap();
+        assert_eq!(
+            generation::recipe(&other, &plan, &[], "x"),
+            Err("generation_plan")
+        );
+    }
 
     #[test]
     fn document_mapping_is_explicit_and_does_not_change_other_text() {
