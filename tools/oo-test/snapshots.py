@@ -86,19 +86,36 @@ def locked_cache(key):
         yield CACHE / key
 
 
+def host_caps():
+    """Host limits; a roomier host raises them explicitly (recorded by the caller).
+
+    OO_TEST_MAX_ORACLE (default 1), OO_TEST_MAX_OTHER_CONTAINERS (default 2,
+    owned lane-ta non-Oracle containers), OO_TEST_DOCKER_CAP_GB (default 40).
+    """
+    def read(name, default):
+        value = int(os.environ.get(name, default))
+        if value < 1:
+            raise ValueError("invalid_host_cap:" + name)
+        return value
+    return {"oracle": read("OO_TEST_MAX_ORACLE", 1),
+            "other": read("OO_TEST_MAX_OTHER_CONTAINERS", 2),
+            "memory_gb": read("OO_TEST_DOCKER_CAP_GB", 40)}
+
+
 def capacity(engine):
     """Read-only host preflight; never stop another lane to make room."""
+    caps = host_caps()
     raw = subprocess.check_output(
         ["docker", "ps", "--format",
          '{{.Image}}|{{.Label "oo.engine"}}|{{.Label "oo.lane"}}'], text=True)
     oracle = [image for image in raw.splitlines()
               if "|oracle|" in image or "oracle" in image.lower()
               and ("xe" in image or "database" in image or "free" in image)]
-    if engine == "oracle" and oracle:
+    if engine == "oracle" and len(oracle) >= caps["oracle"]:
         raise RuntimeError("oracle_slot_occupied")
     if engine != "oracle" and sum(
             line.endswith("|ta") and "|oracle|" not in line
-            for line in raw.splitlines()) >= 2:
+            for line in raw.splitlines()) >= caps["other"]:
         raise RuntimeError("non_oracle_slots_occupied")
     stats = subprocess.check_output(
         ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}"], text=True)
@@ -112,7 +129,7 @@ def capacity(engine):
             raise RuntimeError("unrecognized_docker_memory_sample")
         used += float(match[1]) * multipliers[match[2]]
     budget = {"oracle": 4, "mysql": 2, "postgres": 1}[engine] * 1024**3
-    if used + budget >= 40 * 1024**3:
+    if used + budget >= caps["memory_gb"] * 1024**3:
         raise RuntimeError("docker_memory_budget_exhausted")
     return {"observed_bytes": used, "reserved_bytes": budget}
 

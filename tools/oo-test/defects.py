@@ -34,6 +34,11 @@ def replace_exact(path, before, after, count=1):
     path.write_text(text.replace(before, after))
 
 
+def fix_present(path, patch):
+    text = path.read_text()
+    return text.count(patch["before"]) == 0 and text.count(patch["after"]) == patch.get("count", 1)
+
+
 def classify(returncode, output, detector, baseline=False):
     """Only a completed assertion failure is a catch, never a broken build."""
     if detector == "rust":
@@ -149,8 +154,12 @@ def replay(defect, scratch, cell, env, timeout, row):
             path.write_text(path.read_text() + patch["append"])
         # A fix absent from this base is overlaid for the baseline; the mutant
         # is then the base's own code, so a catch also flags a live defect.
-        apply_replacements(scratch, defect.get("baseline_patches", []), original)
-        if defect.get("baseline_patches"):
+        # A base that already carries the fix (every overlay's postimage in
+        # place, no preimage left) needs no overlay; anything else must match.
+        overlays = [p for p in defect.get("baseline_patches", [])
+                    if not fix_present(scratch_path(scratch, p["path"]), p)]
+        apply_replacements(scratch, overlays, original)
+        if overlays:
             row["defect_present_at_base"] = True
         for phase in ("baseline", "mutant"):
             if phase == "mutant":

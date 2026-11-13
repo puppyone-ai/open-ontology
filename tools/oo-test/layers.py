@@ -242,7 +242,10 @@ def schedule(cells, budget_gb, max_oracle=1, max_other_containers=2):
     return waves
 
 
-def docker_budget_gb(cap_gb=40, fraction=0.7):
+def docker_budget_gb(cap_gb=None, fraction=0.7):
+    if cap_gb is None:
+        import snapshots
+        cap_gb = snapshots.host_caps()["memory_gb"]
     total = int(subprocess.check_output(["docker", "info", "--format", "{{.MemTotal}}"],
                                         text=True).strip())
     return min(cap_gb, fraction * total / 1024 ** 3)

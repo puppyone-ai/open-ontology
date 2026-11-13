@@ -6,8 +6,8 @@
     "mutations": [
       {
         "path": "crates/oo-connectors/src/oracle/engine.rs",
-        "before": "SourceError::new(kind, Some(fact), code)",
-        "after": "SourceError::new(kind, Some(fact), None)",
+        "before": ".flatten();\n            SourceError::new(kind, Some(fact), code)",
+        "after": ".flatten();\n            SourceError::new(kind, Some(fact), None)",
         "count": 1
       }
     ],

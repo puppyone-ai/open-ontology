@@ -111,6 +111,38 @@ class DefectGateTests(unittest.TestCase):
             self.assertIn("| d |", defects.table([dict(row, id="d", fix="x", base="head",
                                                        layer="L0")]))
 
+    def test_fix_overlay_skipped_when_base_already_has_the_fix(self):
+        with tempfile.TemporaryDirectory(dir=defects.runner.ROOT / "evidence") as directory:
+            scratch = Path(directory) / "tree"
+            cell = Path(directory) / "cell"
+            scratch.mkdir(); cell.mkdir()
+            (scratch / "f.rs").write_text("carry = wide >> 8; carry = wide >> 8;")
+            seen = []
+            def fake(command, cwd, log, env, timeout):
+                seen.append((scratch / "f.rs").read_text())
+                ok = "test result: ok. 1 passed; 0 failed; 0 ignored;"
+                bad = "test result: FAILED. 0 passed; 1 failed; 0 ignored;"
+                return (0, ok, 1.0) if len(seen) == 1 else (101, bad, 1.0)
+            defect = {"id": "d", "detector": "rust", "command": ["cargo", "test"],
+                      "baseline_patches": [{"path": "f.rs", "before": "carry >>= 8;",
+                                            "after": "carry = wide >> 8;", "count": 2}],
+                      "mutations": [{"path": "f.rs", "before": "carry = wide >> 8;",
+                                     "after": "carry >>= 8;", "count": 2}]}
+            row = {}
+            with patch.object(defects, "execute", side_effect=fake), \
+                 patch.object(defects.subprocess, "check_output", return_value=b"diff"):
+                defects.replay(defect, scratch, cell, {}, 10, row)
+            self.assertEqual(seen, ["carry = wide >> 8; carry = wide >> 8;",
+                                    "carry >>= 8; carry >>= 8;"])
+            self.assertEqual(row["status"], "caught")
+            self.assertNotIn("defect_present_at_base", row)
+            # A half-applied fix is still a preimage mismatch, never a silent skip.
+            (scratch / "f.rs").write_text("carry = wide >> 8; carry >>= 8;")
+            row = {}
+            with patch.object(defects, "execute", side_effect=fake):
+                defects.replay(defect, scratch, cell, {}, 10, row)
+            self.assertEqual(row["status"], "error")
+
 
 if __name__ == "__main__":
     unittest.main()

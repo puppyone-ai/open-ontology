@@ -22,7 +22,9 @@ class Tests(unittest.TestCase):
             config.parent.mkdir(parents=True)
             lifecycle.write(config,json.dumps({'data_user':'oo_reader'}).encode())
             with patch.object(lifecycle.subprocess,'run',return_value=Mock(returncode=0)) as run:
-                lifecycle.provision_retained_login(root,['compose','-p','owned'],{})
+                # PATH without a standalone docker-compose; the resolver must not
+                # depend on what the test host has installed.
+                lifecycle.provision_retained_login(root,['compose','-p','owned'],{'PATH':directory})
             self.assertEqual(run.call_args.args[0],
                 ['docker','compose','-p','owned','exec','-T','agent-db','psql',
                  '-X','-q','-v','ON_ERROR_STOP=1','-U','postgres'])

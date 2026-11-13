@@ -40,8 +40,10 @@ L0_COMMANDS = [
     ("rust-connectors", ["cargo", "test", "--locked", "-p", "oo-connectors", "--lib",
                          "--features", "mysql,oracle"]),
     ("rust-cli", ["cargo", "test", "--locked", "-p", "oo-cli", "--lib"]),
+    # The live layers run oo-load built with mysql-binlog; its cfg-gated
+    # modules (handoff) must compile and pass here too.
     ("rust-oo-load", ["cargo", "test", "--locked", "--manifest-path", "tools/oo-load/Cargo.toml",
-                      "--bins"]),
+                      "--bins", "--features", "mysql-binlog"]),
     ("rust-failpoints", ["cargo", "test", "--locked", "-p", "oo-pipeline", "--features",
                          "failpoints", "--lib", "failpoint"]),
     ("py-oo-test", ["python3", "-m", "unittest", "discover", "-s", "tools/oo-test"]),
@@ -185,10 +187,13 @@ def run_l1(root, args):
     if args.cells:
         # Diagnostic rerun of named cells; their class roles stay as planned for the day.
         cells = [c for c in cells if f"{c['engine']}-{c['version']}" in args.cells]
+    import snapshots
+    caps = snapshots.host_caps()
     budget = layers.docker_budget_gb()
-    waves = layers.schedule(cells, budget)
+    waves = layers.schedule(cells, budget, max_oracle=caps["oracle"],
+                            max_other_containers=caps["other"])
     runner.write_json(root / "l1-plan.json", {"day": str(day), "budget_gb": budget,
-                                              "waves": waves})
+                                              "host_caps": caps, "waves": waves})
     results = []
     for wave in waves:
         # Waves hold one cell under this host's caps; run in plan order.

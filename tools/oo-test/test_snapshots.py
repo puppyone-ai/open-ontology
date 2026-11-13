@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -104,7 +105,37 @@ class SnapshotTests(unittest.TestCase):
                     snapshots.clone_tree(root / "source", root / "clone")
             self.assertFalse((root / "clone/data").exists())
 
+    def test_host_caps_default_and_explicit(self):
+        names = ("OO_TEST_MAX_ORACLE", "OO_TEST_MAX_OTHER_CONTAINERS", "OO_TEST_DOCKER_CAP_GB")
+        clean = {k: v for k, v in os.environ.items() if k not in names}
+        with patch.dict(os.environ, clean, clear=True):
+            self.assertEqual(snapshots.host_caps(), {"oracle": 1, "other": 2, "memory_gb": 40})
+        roomy = dict(clean, OO_TEST_MAX_ORACLE="2", OO_TEST_MAX_OTHER_CONTAINERS="16",
+                     OO_TEST_DOCKER_CAP_GB="70")
+        with patch.dict(os.environ, roomy, clear=True):
+            self.assertEqual(snapshots.host_caps(), {"oracle": 2, "other": 16, "memory_gb": 70})
+            with patch.object(snapshots.subprocess, "check_output",
+                              side_effect=["gvenzl/oracle-free:23|oracle|ta\n", "8GiB / 94GiB\n"]):
+                snapshots.capacity("oracle")
+            with patch.object(snapshots.subprocess, "check_output",
+                              side_effect=["sha256:a|mysql|ta\nsha256:b|postgres|ta\n",
+                                           "60GiB / 94GiB\n"]):
+                snapshots.capacity("mysql")
+            with patch.object(snapshots.subprocess, "check_output",
+                              side_effect=["", "69GiB / 94GiB\n"]):
+                with self.assertRaisesRegex(RuntimeError, "memory_budget"):
+                    snapshots.capacity("postgres")
+        with patch.dict(os.environ, dict(clean, OO_TEST_MAX_ORACLE="0"), clear=True):
+            with self.assertRaisesRegex(ValueError, "invalid_host_cap"):
+                snapshots.host_caps()
+
     def test_oracle_slot_and_memory_fail_closed(self):
+        names = ("OO_TEST_MAX_ORACLE", "OO_TEST_MAX_OTHER_CONTAINERS", "OO_TEST_DOCKER_CAP_GB")
+        with patch.dict(os.environ, {k: v for k, v in os.environ.items() if k not in names},
+                        clear=True):
+            self._fail_closed()
+
+    def _fail_closed(self):
         with patch.object(snapshots.subprocess, "check_output",
                           return_value="gvenzl/oracle-xe:11.2.0.2\n"):
             with self.assertRaisesRegex(RuntimeError, "oracle_slot"):
