@@ -745,6 +745,10 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
+            if opts.contains_key("--c5") {
+                // Hot ranges prove their payload at its own SCN (see c5.rs).
+                engine.request_chunk_proofs();
+            }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(
                     engine,

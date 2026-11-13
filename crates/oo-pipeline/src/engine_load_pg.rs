@@ -13,7 +13,7 @@ use sqlx_core::sql_str::AssertSqlSafe;
 
 #[path = "engine_load_pg_c5.rs"]
 mod c5;
-pub use c5::{C5Baseline, C5Part, TableContentDigest, same_ranges};
+pub use c5::{C5Baseline, C5Part, TableContentDigest, refines, same_ranges};
 #[path = "engine_load_generation.rs"]
 mod generation;
 #[path = "engine_load_schema.rs"]

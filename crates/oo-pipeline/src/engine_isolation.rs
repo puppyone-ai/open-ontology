@@ -23,6 +23,7 @@ pub fn stale_reason(error: &str) -> Option<&str> {
         "schema_unproven" => return Some("schema_unproven"),
         "load_schema_drift" => return Some("schema_drift"),
         "c5_range_changed_retry" => return Some("source_changed"),
+        "c5_split_exhausted" => return Some("table_budget"),
         _ => {}
     }
     let mut parts = error.strip_prefix("source error: ")?.split(' ');
@@ -353,6 +354,7 @@ mod tests {
             "schema_unproven",
             "load_schema_drift",
             "c5_range_changed_retry",
+            "c5_split_exhausted",
             "source error: catalog fact=missing_table",
             "source error: privilege fact=statement_denied",
             "source error: budget fact=call_timeout",
@@ -426,6 +428,7 @@ mod tests {
                 "source error: budget fact=chunk_ipc_over_budget",
                 "table_budget",
             ),
+            ("c5_split_exhausted", "table_budget"),
         ] {
             assert_eq!(stale_reason(error), Some(reason));
         }
