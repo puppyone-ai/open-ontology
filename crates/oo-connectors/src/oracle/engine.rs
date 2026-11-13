@@ -2491,7 +2491,12 @@ fn logminer_opt_in() -> Requirement {
                 .into(),
         ),
         required: "Explicit Oracle C1 opt-in and version-specific T7 acceptance; \
-                   sync: auto must remain C5"
+                   sync: auto must remain C5. Production impact (T10, D24): every \
+                   LogMiner batch re-mines redo from the binding's transaction floor, so \
+                   its cost grows with redo generated since the baseline; at about 2,200 \
+                   row changes/s on a 4-CPU source C1 missed its batch deadline within \
+                   ten minutes. Opt in only for a change rate measured on the actual \
+                   workload and rebaseline periodically; otherwise keep C5"
             .into(),
         dba_statement: None,
     }
@@ -2736,6 +2741,9 @@ mod tests {
         assert!(requirement.observed.unwrap().contains("SYS.LOGMNR_GT_*"));
         assert!(requirement.required.contains("Explicit Oracle C1 opt-in"));
         assert!(requirement.required.contains("sync: auto must remain C5"));
+        // T10 measured LogMiner falling behind a busy source; doctor shows it.
+        assert!(requirement.required.contains("transaction floor"));
+        assert!(requirement.required.contains("otherwise keep C5"));
         assert!(requirement.dba_statement.is_none());
     }
 
