@@ -215,6 +215,29 @@ class NoiseTests(unittest.TestCase):
         self.assertEqual(noise['fail_any'], max(noise['fail_p95'], noise['fail_p99']))
 
 
+class CanaryTests(unittest.TestCase):
+    def test_stalls_mark_the_windows_they_touch(self):
+        samples = [(100.0, 2.0), (115.0, 150.0), (139.95, 300.0), (200.0, 500.0)]
+        # Phase from t=100 for 50 s: the 150 ms write lands in window 1; the
+        # 300 ms write starts in window 3 and ends in window 4; t=200 is outside.
+        self.assertEqual(t10.stall_windows(samples, 100.0, 50), {1, 3, 4})
+        summary = t10.canary_summary(samples, 100.0, 50)
+        self.assertEqual((summary['samples'], summary['over_stall'], summary['max_ms']), (3, 2, 300.0))
+
+    def test_adjusted_verdict_drops_stall_windows_from_both_sides(self):
+        rows = lambda seconds, slow: [dict(intended=i / 10, actual=i / 10,
+                                           end=i / 10 + (.5 if int(i / 10) // 10 in slow else .001),
+                                           error=None) for i in range(seconds * 10)]
+        base_requests, phase_requests = rows(100, set()), rows(50, {2})
+        baseline = dict(t10.summarize(base_requests, 100), started_at_unix=1000.0, duration_seconds=100)
+        phase = dict(t10.summarize(phase_requests, 50), started_at_unix=2000.0, duration_seconds=50)
+        samples = [(1031.0, 400.0), (2021.0, 400.0)]
+        self.assertEqual(t10.verdict(baseline, phase)['result'], 'fail')
+        adjusted = t10.stall_adjusted(baseline, phase, base_requests, phase_requests, samples)
+        self.assertEqual(adjusted['result'], 'pass')
+        self.assertEqual((adjusted['excluded_baseline_windows'], adjusted['excluded_phase_windows']), (1, 1))
+
+
 class ParserTests(unittest.TestCase):
     # Fixed stdout-format samples, not claims of a T10 live measurement.
     def test_docker_sample(self):

@@ -292,6 +292,98 @@ class Activity:
             self.out.close()
 
 
+# Host IO canary: an 8 KiB O_DSYNC write in the source container (its
+# writable layer shares the Docker disk with the data volume) every 100 ms.
+CANARY_SCRIPT = ('while :; do s=$(date +%s%N); '
+                 'dd if=/dev/zero of=/tmp/oo-t10-canary bs=8192 count=1 oflag=dsync conv=notrunc '
+                 '2>/dev/null; e=$(date +%s%N); echo "$s $e"; sleep 0.1; done')
+CANARY_STALL_MS = 100
+
+
+class IoCanary:
+    """Measures the fsync latency the source container's disk sees.
+
+    It writes no database object and runs in every phase, baseline included,
+    so a host IO stall is identified independently of the product.
+    """
+    def __init__(self, run):
+        self.run = run
+        self.path = run.path / 'io-canary.tsv'
+        self.process = None
+
+    def start(self):
+        self.out = self.path.open('w')
+        self.process = subprocess.Popen(['docker', 'exec', self.run.name, 'sh', '-c', CANARY_SCRIPT],
+                                        stdout=self.out, stderr=subprocess.DEVNULL)
+
+    def stop(self):
+        if self.process:
+            self.process.terminate()
+            try:
+                self.process.wait(10)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+            self.out.close()
+
+    def samples(self):
+        rows = []
+        for line in self.path.read_text().splitlines():
+            parts = line.split()
+            if len(parts) == 2 and all(p.isdigit() for p in parts):
+                start, end = (int(p) / 1e9 for p in parts)
+                rows.append((start, (end - start) * 1000))
+        return rows
+
+
+def stall_windows(samples, started, duration, limit=CANARY_STALL_MS):
+    """Indexes of the phase's 10 s windows that saw a canary write over `limit` ms."""
+    windows = set()
+    for start, latency in samples:
+        if latency > limit:
+            # A write that began before the window can still stall into it.
+            for edge in (start, start + latency / 1000):
+                offset = edge - started
+                if 0 <= offset < duration:
+                    windows.add(int(offset // WINDOW))
+    return windows
+
+
+def canary_summary(samples, started, duration):
+    inside = [lat for start, lat in samples if started <= start < started + duration]
+    stalls = stall_windows(samples, started, duration)
+    return {'samples': len(inside), 'stall_ms': CANARY_STALL_MS,
+            'over_stall': sum(lat > CANARY_STALL_MS for lat in inside),
+            'max_ms': max(inside, default=None), 'stall_windows': sorted(stalls)}
+
+
+def without_windows(requests, duration, excluded):
+    """Requests whose intended start falls outside the excluded windows, and
+    the observed time that remains."""
+    kept = [r for r in requests if int(r['intended'] // WINDOW) not in excluded]
+    removed = sum(min(WINDOW, duration - i * WINDOW) for i in excluded if i * WINDOW < duration)
+    return kept, max(duration - removed, 1e-9)
+
+
+def stall_adjusted(baseline, phase, base_requests, phase_requests, samples):
+    """D24 with the windows of host IO stalls removed from both sides.
+
+    Informational: the recorded verdict stays the unadjusted one.
+    """
+    base_ex = stall_windows(samples, baseline['started_at_unix'], baseline['duration_seconds'])
+    phase_ex = stall_windows(samples, phase['started_at_unix'], phase['duration_seconds'])
+    base_kept, base_seconds = without_windows(base_requests, baseline['duration_seconds'], base_ex)
+    phase_kept, phase_seconds = without_windows(phase_requests, phase['duration_seconds'], phase_ex)
+    base_summary = summarize(base_kept, base_seconds)
+    phase_summary = summarize(phase_kept, phase_seconds)
+    # Excluded windows also remove their completions; rates compare per kept second.
+    for summary, kept, seconds, total in ((base_summary, base_kept, base_seconds, baseline['duration_seconds']),
+                                          (phase_summary, phase_kept, phase_seconds, phase['duration_seconds'])):
+        summary['achieved_rate'] = sum(r['error'] is None and r['end'] < total for r in kept) / seconds
+    result = verdict(base_summary, phase_summary)
+    result.update(excluded_baseline_windows=len(base_ex), excluded_phase_windows=len(phase_ex))
+    return result
+
+
 def diagnose_phase(harness, name, edge):
     """Reset statement statistics before a phase and keep them after it."""
     run = harness.run
@@ -897,11 +989,14 @@ def main(argv=None):
                                     'C5 idle scans bulk only; foreground writes items/other outside that scope']}
     cleanup = []
     activity = None
+    canary = None
     if args.diagnose:
         report['diagnose'] = {'postgres_settings': DIAGNOSE_POSTGRES, 'activity_interval_seconds': .25,
                               'note': 'diagnostic run; not a D24 measurement'}
     try:
         prepare(h)
+        canary = IoCanary(run)
+        canary.start()
         if args.diagnose and args.engine == 'postgres':
             run.sql('CREATE EXTENSION IF NOT EXISTS pg_stat_statements;', admin=True)
             activity = Activity(run)
@@ -995,6 +1090,8 @@ def main(argv=None):
     finally:
         if activity:
             activity.stop()
+        if canary:
+            canary.stop()
         for close in (h.target.close, run.cleanup):
             try:
                 failures = close()
@@ -1005,6 +1102,22 @@ def main(argv=None):
         shutil.rmtree(h.store)
         report['cleanup_failures'] = cleanup
         baseline = report['phases'].get('baseline')
+        samples = canary.samples() if canary else []
+        base_requests = None
+        for name, result in report['phases'].items():
+            if samples and result.get('started_at_unix') is not None:
+                result['host_io'] = canary_summary(samples, result['started_at_unix'],
+                                                   result['duration_seconds'])
+                if (baseline and name != 'baseline' and baseline.get('started_at_unix')
+                        and result['requests']):
+                    try:
+                        if base_requests is None:
+                            base_requests = json.loads((run.path / 'baseline-requests.json').read_text())
+                        phase_requests = json.loads((run.path / f'{name}-requests.json').read_text())
+                        result['budget_without_host_io_stalls'] = stall_adjusted(
+                            baseline, result, base_requests, phase_requests, samples)
+                    except (OSError, ValueError) as exc:
+                        result['budget_without_host_io_stalls'] = {'error': type(exc).__name__}
         for name, result in report['phases'].items():
             result['budget'] = verdict(baseline, result)
             if (result['product_errors'] or result['metrics']['errors'] or not result['metrics']['samples']
