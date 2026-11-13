@@ -333,6 +333,23 @@ class CLITests(unittest.TestCase):
             source.assert_not_called()
             self.assertEqual(run.call_args.args[0][:3], ['docker', 'stats', '--no-stream'])
 
+    def test_raised_quiet_limit_is_recorded_and_still_refuses_above_it(self):
+        light = argparse.Namespace(stdout='customer-a\t9.80%\ncustomer-b\t5.10%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host()
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            seen = t10.quiet_host(limit=25)
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 9.8,
+                                'total_peak_cpu_percent': 14.9, 'limit_cpu_percent': 25})
+        self.assertNotIn('customer', json.dumps(seen))
+        busy = argparse.Namespace(stdout='customer-a\t30.0%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[busy, busy, busy]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host(limit=25)
+        with self.assertRaises(SystemExit):
+            t10.parse_args(self.argv() + ['--quiet-cpu-percent', 'nan'])
+
     def test_idle_preexisting_containers_are_recorded_not_stopped(self):
         idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
         with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:

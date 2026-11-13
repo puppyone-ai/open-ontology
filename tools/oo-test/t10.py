@@ -610,6 +610,9 @@ def parse_args(argv=None):
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--binary', type=Path, default=runner.ROOT / 'tools/oo-load/target/release/oo-load')
+    parser.add_argument('--quiet-cpu-percent', type=float, default=QUIET_CPU_PERCENT,
+                        help='refuse while pre-existing containers use more CPU in total '
+                             '(percent of one CPU); the limit and the observed load are recorded')
     args = parser.parse_args(argv)
     versions = {'postgres': t3t4.POSTGRES, 'mysql': t3t4.MYSQL, 'oracle': ('19', '23')}
     if args.version not in versions[args.engine]:
@@ -621,6 +624,8 @@ def parse_args(argv=None):
     for value in (args.minutes, args.cpus):
         if not math.isfinite(value) or value <= 0:
             parser.error('minutes and cpus must be finite and positive')
+    if not math.isfinite(args.quiet_cpu_percent) or not 0 <= args.quiet_cpu_percent <= 100:
+        parser.error('quiet-cpu-percent must be between 0 and 100')
     if not re.fullmatch(r'[1-9][0-9]*[kmgKMG]?', args.memory):
         parser.error('memory must be a positive Docker memory size')
     if args.rate != 'auto':
@@ -639,10 +644,11 @@ def parse_args(argv=None):
 QUIET_CPU_PERCENT = 5.0
 
 
-def quiet_host(samples=3):
+def quiet_host(samples=3, limit=QUIET_CPU_PERCENT):
     """Pre-existing containers are never stopped; they must be measured idle.
 
-    Returns their count and peak CPU % for the evidence report, never names.
+    Returns their count, peak CPU % and the applied limit for the evidence
+    report, never names.
     """
     peaks = {}
     for _ in range(samples):
@@ -652,10 +658,15 @@ def quiet_host(samples=3):
             name, _, cpu = line.partition('\t')
             value = float(cpu.strip().rstrip('%') or 0)
             peaks[name] = max(peaks.get(name, 0.0), value)
-    if sum(peaks.values()) > QUIET_CPU_PERCENT:
+    total = sum(peaks.values())
+    if total > limit:
         raise SystemExit('blocked: pre-existing containers are not idle; nothing stopped')
     # Names of unrelated containers can be private; record only count and load.
-    return {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
+    result = {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
+    if limit != QUIET_CPU_PERCENT:
+        # A raised limit is a recorded deviation, never a silent bypass.
+        result.update(total_peak_cpu_percent=total, limit_cpu_percent=limit)
+    return result
 
 
 def main(argv=None):
@@ -667,7 +678,7 @@ def main(argv=None):
     if 'initial_duty100' in args.phases and '--duty-cycle-percent' not in help_text:
         raise SystemExit('blocked: oo-load needs the coordinator duty-cycle patch in T10-VALIDATION.md')
     importlib.import_module({'postgres': 'psycopg', 'mysql': 'pymysql', 'oracle': 'oracledb'}[args.engine])
-    preexisting = quiet_host()
+    preexisting = quiet_host(limit=args.quiet_cpu_percent)
     global DEFAULT_WORKERS
     DEFAULT_WORKERS = WORKERS.get(args.engine, DEFAULT_WORKERS)
     t1.LANE = 't10'
