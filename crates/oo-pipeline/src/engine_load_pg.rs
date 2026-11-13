@@ -429,6 +429,8 @@ impl Target for PgTarget<'_> {
             .await
             .map_err(db)?;
         }
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_chunk_commit");
         tx.commit().await.map_err(db)?;
         self.fields = Some(fields);
         Ok(())
@@ -546,6 +548,8 @@ impl Target for PgTarget<'_> {
             self.fields.as_ref().ok_or("load_schema")?,
         )
         .await?;
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_publish_commit");
         tx.commit().await.map_err(db)
     }
 }

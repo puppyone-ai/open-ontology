@@ -26,7 +26,7 @@ from verdicts import status, write_rows
 
 ROOT = runner.ROOT
 LANE = os.environ.get("OO_TEST_LANE", "m")
-if LANE not in ("h", "m", "e", "p", "g", "c", "fhp", "t10"):
+if LANE not in ("h", "m", "e", "p", "g", "c", "fhp", "t10", "ta"):
     raise ValueError("unsupported T1 lane")
 class Relay:
     """Loopback transport to an owned fixture with no published port."""
@@ -168,6 +168,7 @@ class AgentDB:
         self.directory.mkdir(mode=0o700)
         private(self.directory / "password", self.password)
 
+    @runner.timed("container_start")
     def start(self):
         item = runner.resolve("postgres", "17")
         _, arch = self.run.command(["docker", "info", "--format", "{{.Architecture}}"])
@@ -203,6 +204,7 @@ class AgentDB:
         return self.run.command(["docker", "exec", "-i", self.name, "psql", "-X", "-U", "postgres",
                                  "-v", "ON_ERROR_STOP=1", "-A", "-t"], data=sql)[1]
 
+    @runner.timed("cleanup")
     def close(self):
         if self.created:
             _, raw = self.run.command(["docker", "inspect", "--format", "{{json .Config.Labels}}", self.name])
@@ -508,6 +510,7 @@ def mysql_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_mysql(run, target, receipt, table):
     _, metadata = run.sql("SELECT column_name,data_type FROM information_schema.columns "
                           f"WHERE table_schema='fixture' AND table_name='{table}' ORDER BY ordinal_position;")
@@ -541,6 +544,7 @@ def compare_mysql(run, target, receipt, table):
     return compare(source_rows(), target_rows(), key_columns=[names.index(k) for k in keys], consistency="B")
 
 
+@runner.timed("compare")
 def compare_pg(run, target, receipt, table):
     _, columns_text = run.sql(
         "SELECT column_name||'|'||data_type FROM information_schema.columns "
@@ -588,6 +592,7 @@ def pg_cell(value, kind):
     return value
 
 
+@runner.timed("compare")
 def compare_oracle(run, target, receipt, table):
     _, raw = run.sql("SELECT column_name||'|'||data_type FROM all_tab_columns "
                      f"WHERE owner='FIXTURE' AND table_name='{table}' ORDER BY column_id;")
@@ -659,6 +664,40 @@ def compare_oracle(run, target, receipt, table):
 
 
 compare_oracle = partial(compare_oracle_lobs, scalar_compare=compare_oracle)
+
+def chunk_rows():
+    """Small boundary fixtures shrink chunks to reach the 2M-row chunk shapes."""
+    value = os.environ.get("OO_TEST_CHUNK_ROWS", "10000")
+    if not value.isdigit() or not 1 <= int(value) <= 1_000_000:
+        raise ValueError("invalid OO_TEST_CHUNK_ROWS")
+    return value
+
+
+def keyless_padding(run):
+    """Boundary shape: a keyless table past the 64 KiB COPY flush in one chunk.
+
+    The 2M-row run reaches it only because the concurrent writer grows no_key
+    for many minutes; small fixtures set OO_TEST_KEYLESS_ROWS instead.
+    """
+    count = os.environ.get("OO_TEST_KEYLESS_ROWS", "0")
+    if not count.isdigit() or int(count) > 1_000_000:
+        raise ValueError("invalid OO_TEST_KEYLESS_ROWS")
+    count = int(count)
+    if not count:
+        return 0
+    if run.engine == "postgres":
+        run.sql("INSERT INTO no_key SELECT 40000000+g,'boundary-pad-'||g "
+                f"FROM generate_series(1,{count}) g;", admin=True)
+    elif run.engine == "mysql":
+        for start in range(1, count + 1, 1000):
+            values = ",".join(f"({40_000_000 + i},'boundary-pad-{i}')"
+                              for i in range(start, min(count, start + 999) + 1))
+            run.sql(f"INSERT INTO no_key VALUES {values};", admin=True)
+    else:
+        run.sql("INSERT INTO no_key SELECT 40000000+LEVEL,'boundary-pad-'||LEVEL "
+                f"FROM dual CONNECT BY LEVEL<={count};\nCOMMIT;", admin=True)
+    return count
+
 
 def run_t1(run, binary, worker_image=None):
     target = AgentDB(run)
@@ -739,6 +778,7 @@ def run_t1(run, binary, worker_image=None):
         target.start()
         target_config = {"host": "127.0.0.1", "port": target.port, "database": "postgres",
                          "user": "postgres", "password": {"secret_ref": "target-password"}, "local_fixture": True}
+        report["keyless_padding_rows"] = keyless_padding(run)
         thread = threading.Thread(target=writer, args=(run, stop, report["writer"]))
         thread.start()
         def load(run_id, *, correction=False, only=None, cycle=1):
@@ -752,7 +792,7 @@ def run_t1(run, binary, worker_image=None):
             with SourceMeter(run, len(measurements), 2 if run.engine == "postgres" else 1) as meter:
                 code, out = run.command([str(binary), *mode, "--stack", str(store / "stack.json"),
                                         "--source", "fixture", "--target", str(store / "target.json"),
-                                        "--secrets-dir", str(store), "--chunk-rows", "10000", *worker_args],
+                                        "--secrets-dir", str(store), "--chunk-rows", chunk_rows(), *worker_args],
                                        timeout=7200, required=False)
             measurement = meter.result()
             measurements.append(measurement)
@@ -870,6 +910,7 @@ def main():
         run.reader_secret = Path(context["reader_password_file"]).read_text().strip()
         receipt = Path(context["evidence"]) / "resource-receipt.json"
         run.receipt = json.loads(receipt.read_text())
+        run.timing = runner.Timing(run)
         result = run_t1(run, ROOT / "target/debug/oo-load", os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         runner.checksums(run.path)
         raise SystemExit(0 if result["T1"] == "passed" and result["T8"] == "passed" else 1)

@@ -397,7 +397,7 @@ pub fn scn_source(user: &str) -> Requirement {
         RequirementKind::Privilege,
         "select:V$DATABASE",
         Some("not readable".into()),
-        "SELECT on V$DATABASE (CURRENT_SCN) or EXECUTE on DBMS_FLASHBACK",
+        "SELECT on V$DATABASE (CURRENT_SCN)",
         Some(format!("GRANT SELECT ON SYS.V_$DATABASE TO {};", q(user))),
     )
 }

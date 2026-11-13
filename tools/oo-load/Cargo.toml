@@ -11,6 +11,8 @@ resolver = "3"
 [features]
 mysql-binlog = ["oo-connectors/mysql-binlog"]
 document-sources = ["oo-connectors/opensearch", "oo-connectors/mongodb"]
+# Test-only fault injection; never enabled in release builds.
+failpoints = ["oo-pipeline/failpoints"]
 
 [dependencies]
 oo-pipeline = { path = "../../crates/oo-pipeline" }
