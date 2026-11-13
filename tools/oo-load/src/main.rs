@@ -229,6 +229,73 @@ fn read_metadata<E: epoch::Epoch>(engine: &E, budget: &ReadBudget) -> serde_json
     })
 }
 
+/// Keeps the range digest each chunk read proved in its own transaction, so
+/// the publication can carry them as its first C5 source digests.
+struct Proved<'e, E> {
+    engine: &'e mut E,
+    proofs: Vec<engine::RangeDigest>,
+}
+
+impl<E: epoch::Epoch> SourceEngine for Proved<'_, E> {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<engine::SourceColumnShape>>, oo_connectors::SourceError> {
+        self.engine.column_shape(table, budget).await
+    }
+    fn family(&self) -> EngineFamily {
+        self.engine.family()
+    }
+    async fn probe(&mut self) -> Result<engine::ProbeReport, oo_connectors::SourceError> {
+        self.engine.probe().await
+    }
+    async fn plan_chunks(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<engine::TableChunkPlan, oo_connectors::SourceError> {
+        self.engine.plan_chunks(table, budget).await
+    }
+    async fn read_chunk(
+        &mut self,
+        chunk: &engine::ChunkSpec,
+        budget: &ReadBudget,
+        sink: &mut dyn engine::ChunkSink,
+    ) -> Result<engine::ChunkReceipt, oo_connectors::SourceError> {
+        let receipt = self.engine.read_chunk(chunk, budget, sink).await;
+        // A failed read leaves no proof behind for a later chunk to inherit.
+        let proof = self.engine.take_chunk_proof();
+        let receipt = receipt?;
+        if let Some(proof) = proof.filter(|p| {
+            p.table == chunk.table && p.lo == chunk.lo && p.hi == chunk.hi && p.rows == receipt.rows
+        }) {
+            self.proofs
+                .retain(|p| !(p.table == proof.table && p.lo == proof.lo && p.hi == proof.hi));
+            self.proofs.push(proof);
+        }
+        Ok(receipt)
+    }
+    async fn split_chunk(
+        &mut self,
+        chunk: &engine::ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<engine::ChunkSpec>>, oo_connectors::SourceError> {
+        self.engine.split_chunk(chunk, budget).await
+    }
+    async fn watermark(&mut self) -> Result<Option<engine::Watermark>, oo_connectors::SourceError> {
+        self.engine.watermark().await
+    }
+    async fn digest_range(
+        &mut self,
+        table: &TableRef,
+        lo: Option<&[engine::KeyValue]>,
+        hi: Option<&[engine::KeyValue]>,
+    ) -> Result<engine::RangeDigest, oo_connectors::SourceError> {
+        self.engine.digest_range(table, lo, hi).await
+    }
+}
+
 async fn run_engine<E: epoch::Epoch>(
     engine: &mut E,
     source: &Source,
@@ -262,11 +329,16 @@ async fn run_engine<E: epoch::Epoch>(
                         .await
                         .map_err(|e| e.to_string())?,
                 );
-                (
-                    engine_load::load(engine, table, budget, oo_load::IpcSink::new, &mut sink)
-                        .await?,
-                    false,
-                )
+                let mut proved = Proved {
+                    engine: &mut *engine,
+                    proofs: Vec::new(),
+                };
+                let receipts =
+                    engine_load::load(&mut proved, table, budget, oo_load::IpcSink::new, &mut sink)
+                        .await?;
+                let proofs = proved.proofs;
+                sink.seed_c5_digests(&proofs).await?;
+                (receipts, false)
             }
         };
         let bytes = sink.write_bytes().await?;

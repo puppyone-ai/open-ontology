@@ -344,7 +344,10 @@ async fn run_table<E: epoch::Epoch>(
                 source_digests.push(digest);
             }
         }
-        // Read split children first: the tail child keeps growing meanwhile.
+        // Read split children first, then the open-ended tail: an append tail
+        // keeps growing until it is read, and a long cycle (period 1 reads
+        // every range at the paced rate) can push it past the chunk budget.
+        read_chunks.sort_by_key(|c| c.hi.is_some());
         children.append(&mut read_chunks);
         let read_chunks = children;
         let mut digests = Vec::new();
@@ -359,10 +362,13 @@ async fn run_table<E: epoch::Epoch>(
         }
         for chunk in read_chunks {
             let mut sink = oo_load::IpcSink::new(budget);
-            let receipt = engine
-                .read_chunk(&chunk, budget, &mut sink)
-                .await
-                .map_err(|e| e.to_string())?;
+            let receipt = match engine.read_chunk(&chunk, budget, &mut sink).await {
+                Ok(receipt) => receipt,
+                // The range outgrew the budget after discovery: the table's
+                // retry discovers it again and splits it before reading.
+                Err(error) if outgrew(&error) => return Err("c5_range_changed_retry".into()),
+                Err(error) => return Err(error.to_string()),
+            };
             let ipc = sink.finish()?;
             source_read_bytes += ipc.len() as u64;
             let decoded = oo_pipeline::engine_chunk::decode_chunk(&chunk, &receipt, &ipc, budget)?;
@@ -465,6 +471,16 @@ async fn run_table<E: epoch::Epoch>(
         "consistency":consistency,"source_time":"unmeasured"
     });
     Ok(output)
+}
+
+/// A read refused because the range now holds more rows or bytes than one
+/// chunk may carry, as opposed to any other budget or source failure.
+fn outgrew(error: &oo_connectors::SourceError) -> bool {
+    error.kind() == oo_connectors::SourceErrorKind::Budget
+        && matches!(
+            error.fact(),
+            Some("chunk_rows_replan" | "chunk_bytes_replan")
+        )
 }
 
 /// Bound on budget splits of grown ranges in one table cycle.
@@ -592,6 +608,19 @@ fn accept_proof(
 mod tests {
     use super::*;
     use oo_connectors::engine::{ChunkSpec, KeyShape, KeyValue};
+
+    #[test]
+    fn a_range_that_outgrew_the_budget_is_retried_not_failed() {
+        use oo_connectors::SourceError;
+        assert!(outgrew(&SourceError::budget("chunk_rows_replan")));
+        assert!(outgrew(&SourceError::budget("chunk_bytes_replan")));
+        assert!(!outgrew(&SourceError::budget("client_timeout")));
+        assert!(!outgrew(&SourceError::protocol("chunk_rows_replan")));
+        assert_eq!(
+            oo_pipeline::engine_isolation::stale_reason("c5_range_changed_retry"),
+            Some("source_changed")
+        );
+    }
 
     #[test]
     fn paced_adapters_do_not_repay_duty_sleep_as_source_work() {

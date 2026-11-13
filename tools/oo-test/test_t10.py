@@ -189,6 +189,63 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(t10.verdict(self.base, dict(self.base, requests=0))['result'], 'fail')
 
 
+class NoiseTests(unittest.TestCase):
+    @staticmethod
+    def requests(seconds, rate, slow=()):
+        rows = []
+        for i in range(int(seconds * rate)):
+            intended = i / rate
+            latency = .05 if int(intended) in slow else .001
+            rows.append(dict(intended=intended, actual=intended, end=intended + latency, error=None))
+        return rows
+
+    def test_steady_baseline_slices_pass_against_themselves(self):
+        requests = self.requests(120, 50)
+        whole = t10.summarize(requests, 120)
+        noise = t10.baseline_noise(requests, 120, whole)
+        # Sliding 50 s slices every 10 s, never past the end of the baseline.
+        self.assertEqual((noise['slices'], noise['fail_any']), (8, 0))
+
+    def test_same_length_noise_uses_the_phase_length(self):
+        requests = self.requests(120, 50, slow=range(20, 21))
+        whole = dict(t10.summarize(requests, 120), duration_seconds=120)
+        noise = t10.same_length_noise(requests, whole, 64.9)
+        self.assertEqual((noise['slice_seconds'], noise['slices']), (60, 7))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 120))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 5))
+
+    def test_a_stall_shows_as_slice_failures(self):
+        requests = self.requests(120, 50, slow=range(20, 21))
+        whole = t10.summarize(requests, 120)
+        noise = t10.baseline_noise(requests, 120, whole)
+        self.assertGreater(noise['fail_p99'], 0)
+        self.assertGreater(noise['max_delta_p99_percent'], 50)
+        self.assertEqual(noise['fail_any'], max(noise['fail_p95'], noise['fail_p99']))
+
+
+class CanaryTests(unittest.TestCase):
+    def test_stalls_mark_the_windows_they_touch(self):
+        samples = [(100.0, 2.0), (115.0, 150.0), (139.95, 300.0), (200.0, 500.0)]
+        # Phase from t=100 for 50 s: the 150 ms write lands in window 1; the
+        # 300 ms write starts in window 3 and ends in window 4; t=200 is outside.
+        self.assertEqual(t10.stall_windows(samples, 100.0, 50), {1, 3, 4})
+        summary = t10.canary_summary(samples, 100.0, 50)
+        self.assertEqual((summary['samples'], summary['over_stall'], summary['max_ms']), (3, 2, 300.0))
+
+    def test_adjusted_verdict_drops_stall_windows_from_both_sides(self):
+        rows = lambda seconds, slow: [dict(intended=i / 10, actual=i / 10,
+                                           end=i / 10 + (.5 if int(i / 10) // 10 in slow else .001),
+                                           error=None) for i in range(seconds * 10)]
+        base_requests, phase_requests = rows(100, set()), rows(50, {2})
+        baseline = dict(t10.summarize(base_requests, 100), started_at_unix=1000.0, duration_seconds=100)
+        phase = dict(t10.summarize(phase_requests, 50), started_at_unix=2000.0, duration_seconds=50)
+        samples = [(1031.0, 400.0), (2021.0, 400.0)]
+        self.assertEqual(t10.verdict(baseline, phase)['result'], 'fail')
+        adjusted = t10.stall_adjusted(baseline, phase, base_requests, phase_requests, samples)
+        self.assertEqual(adjusted['result'], 'pass')
+        self.assertEqual((adjusted['excluded_baseline_windows'], adjusted['excluded_phase_windows']), (1, 1))
+
+
 class ParserTests(unittest.TestCase):
     # Fixed stdout-format samples, not claims of a T10 live measurement.
     def test_docker_sample(self):
@@ -522,12 +579,23 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertEqual(tuple(results), t10.C5_PHASES)
         self.assertEqual(policies, [{'cycle': 1, 'full_read_every': p} for p in (24, 24, 1, 1)])
         self.assertEqual([r['c5_policy'] for r in results.values()], policies)
+        self.assertEqual([r['c5_cycles'] for r in results.values()], [1, 1, 1, 1])
         self.assertEqual([call.args for call in h.snapshot.call_args_list], [
             ('t10_c5_idle', ['bulk']),
             ('t10_c5_changed', ['bulk', 'items', 'other']),
             ('t10_c5_full_idle', ['bulk']),
             ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
         self.assertEqual(h.src.call_count, 2)
+
+    def test_c5_repeats_whole_cycles_until_the_phase_is_long_enough(self):
+        now = [0.0]
+        def run_cycle(policy):
+            now[0] += 20
+        policies = t10.c5_cycles(run_cycle, 24, 50, clock=lambda: now[0])
+        self.assertEqual(policies, [{'cycle': n, 'full_read_every': 24} for n in (1, 2, 3)])
+        # Period 1 reads in full every cycle; zero seconds keeps one cycle.
+        self.assertEqual(t10.c5_cycles(run_cycle, 1, 0, clock=lambda: now[0]),
+                         [{'cycle': 1, 'full_read_every': 1}])
 
     def test_failed_preparation_preserves_remaining_c5_policies(self):
         h = Mock()
@@ -571,6 +639,30 @@ class IntegrationContractTests(unittest.TestCase):
                 self.assertEqual(command[command.index('--cpus')+1], '2.5')
                 self.assertEqual(command[command.index('--memory')+1], '6g')
                 self.assertIn('wal_level=logical', command)
+                self.assertNotIn('shared_preload_libraries=pg_stat_statements', command)
+
+    def test_diagnose_adds_postgres_statistics_only_when_asked(self):
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            args = argparse.Namespace(cpus=4, memory='8g', diagnose=True)
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', args)
+            with patch.object(t10.t1, 'LANE', 't10'), patch.object(t10.runner.Run, 'command', return_value=(0, '')) as call:
+                run.command(['docker', 'create', '--name', run.name, '--label', 'oo.lane=h', 'image'])
+                command = call.call_args.args[-1]
+                self.assertIn('shared_preload_libraries=pg_stat_statements', command)
+                self.assertIn('log_autovacuum_min_duration=0', command)
+
+    def test_mysql_source_is_sized_and_keeps_default_durability(self):
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            args = argparse.Namespace(cpus=4, memory='8g')
+            run = t10.ImpactSource(Path(tmp), 'mysql', '8.4', args)
+            with patch.object(t10.t1, 'LANE', 't10'), patch.object(t10.runner.Run, 'command', return_value=(0, '')) as call:
+                run.command(['docker', 'create', '--name', run.name, '--label', 'oo.lane=h', 'image'])
+                command = call.call_args.args[-1]
+                self.assertIn('--innodb-redo-log-capacity=4294967296', command)
+                self.assertIn('--innodb-buffer-pool-size=4294967296', command)
+                self.assertIn('--binlog-group-commit-sync-delay=1000', command)
+                self.assertIn('--log-bin=oo-bin', command)
+                self.assertFalse(any('flush-log-at-trx-commit' in c or 'sync-binlog' in c for c in command))
 
     def test_loader_duty100_requires_receipt(self):
         from unittest.mock import Mock

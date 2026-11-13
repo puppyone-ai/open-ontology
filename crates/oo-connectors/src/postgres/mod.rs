@@ -33,6 +33,11 @@ pub struct Protection {
     pub active_session_limit: u32,
     pub connection_reserve: u32,
     pub pause_timeout: Duration,
+    /// Other client sessions waiting on a heavyweight lock or an LWLock (row
+    /// lock convoys, WAL write contention) at which a read backs off. Unlike
+    /// the active-session limit this never fails a read: after
+    /// `pause_timeout` the read proceeds.
+    pub wait_limit: u32,
 }
 impl Default for Protection {
     fn default() -> Self {
@@ -40,8 +45,15 @@ impl Default for Protection {
             active_session_limit: 16,
             connection_reserve: 5,
             pause_timeout: Duration::from_secs(30),
+            wait_limit: 4,
         }
     }
+}
+
+/// Back-off before re-checking a source under lock/LWLock wait pressure:
+/// doubles from 100 ms to at most 1.6 s.
+fn wait_backoff(attempt: u32) -> Duration {
+    Duration::from_millis(100 << attempt.min(4))
 }
 
 #[derive(Clone)]
@@ -73,6 +85,37 @@ pub struct PostgresEngine {
     pub last_read_timing: Option<ReadTiming>,
     /// Digest computed in the successful chunk transaction, never a later read.
     pub last_chunk_digest: Option<RangeDigest>,
+    /// Rows per C5 discovery digest statement, adapted to DIGEST_STEP_MS.
+    digest_step: u64,
+    /// Rows per keyed chunk part, adapted to READ_STEP_MS.
+    read_step: u64,
+}
+
+/// Source time per C5 discovery digest statement. A 50,000-row range hashed
+/// in one statement held a CPU for about 90 ms and showed in foreground p99.
+const DIGEST_STEP_MS: u128 = 10;
+const DIGEST_STEP_ROWS: (u64, u64) = (1024, 65_536);
+
+/// Source time per keyed chunk part (rows, their digest and the boundary
+/// probe in one short transaction).
+const READ_STEP_MS: u128 = 25;
+
+/// Rows for the next digest statement from the last one's measured rate.
+fn next_digest_step(step: u64, rows: u64, elapsed: Duration) -> u64 {
+    next_step(step, rows, elapsed, DIGEST_STEP_MS)
+}
+
+/// Rows for the next part so that it takes about `target_ms`.
+fn next_step(step: u64, rows: u64, elapsed: Duration, target_ms: u128) -> u64 {
+    let (min, max) = DIGEST_STEP_ROWS;
+    if rows < step {
+        // A short tail measures little; keep the current size.
+        return step.clamp(min, max);
+    }
+    let rate = u128::from(rows) * 1_000_000 / elapsed.as_micros().max(1);
+    u64::try_from(rate * target_ms / 1000)
+        .unwrap_or(max)
+        .clamp(min, max)
 }
 
 impl PostgresEngine {
@@ -98,6 +141,8 @@ impl PostgresEngine {
             explains: BTreeMap::new(),
             last_read_timing: None,
             last_chunk_digest: None,
+            digest_step: 8192,
+            read_step: 8192,
         }
     }
 
@@ -112,6 +157,7 @@ impl PostgresEngine {
 
     pub fn with_protection(mut self, protection: Protection) -> Result<Self, SourceError> {
         if protection.active_session_limit == 0
+            || protection.wait_limit == 0
             || protection.pause_timeout.is_zero()
             || protection.pause_timeout > Duration::from_secs(120)
         {
@@ -259,26 +305,172 @@ impl PostgresEngine {
 
     async fn protect(&self, s: &mut PgSession) -> Result<(), SourceError> {
         let end = Instant::now() + self.protection.pause_timeout;
+        let mut waits = 0;
         loop {
             let r = session::fetch_control(s, sqlx::query(
                 "SELECT (SELECT rolsuper OR pg_has_role(current_user, 'pg_read_all_stats', 'MEMBER') FROM pg_roles WHERE rolname=current_user), \
                  count(*) FILTER (WHERE state='active' AND pid<>pg_backend_pid())::int8, count(*)::int8, \
-                 current_setting('max_connections')::int8 FROM pg_stat_activity WHERE backend_type='client backend'"
+                 current_setting('max_connections')::int8, \
+                 count(*) FILTER (WHERE state='active' AND pid<>pg_backend_pid() \
+                   AND wait_event_type IN ('Lock','LWLock'))::int8 \
+                 FROM pg_stat_activity WHERE backend_type='client backend'"
             )).await?;
             if !cell_bool(&r, 0)? {
                 return Err(SourceError::privilege("pg_read_all_stats"));
             }
-            if cell_i64(&r, 1)? < i64::from(self.protection.active_session_limit)
+            let capacity = cell_i64(&r, 1)? < i64::from(self.protection.active_session_limit)
                 && cell_i64(&r, 2)? + i64::from(self.protection.connection_reserve)
-                    < cell_i64(&r, 3)?
-            {
+                    < cell_i64(&r, 3)?;
+            let pressure = cell_i64(&r, 4)? >= i64::from(self.protection.wait_limit);
+            if capacity && (!pressure || Instant::now() >= end) {
                 return Ok(());
             }
             if Instant::now() >= end {
                 return Err(SourceError::budget("active_sessions"));
             }
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            if capacity {
+                // Adaptive: a convoy is building on the source; give it room.
+                tokio::time::sleep(wait_backoff(waits)).await;
+                waits += 1;
+            } else {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
         }
+    }
+
+    /// A keyed chunk in key-ordered parts of about READ_STEP_MS of source
+    /// work each. Every part's rows and its range digest are read in one short
+    /// read-only transaction (the same snapshot in `single` mode), and parts
+    /// are paced, so no statement holds a CPU or a snapshot (and the source's
+    /// `xmin`) for the whole range. The chunk proof is the sum of the parts'
+    /// digests, each bound to the payload rows of its own transaction.
+    async fn read_parts(
+        &mut self,
+        mut s: PgSession,
+        planned: &Planned,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+        sink: &mut dyn ChunkSink,
+    ) -> Result<ChunkReceipt, SourceError> {
+        let mut timing = ReadTiming {
+            work_ns: 0,
+            rest_ns: 0,
+        };
+        let mut stream: Option<read::ChunkStream> = None;
+        let mut proof = read::DigestSum::default();
+        let mut sub_lo = chunk.lo.clone();
+        let mut low = None;
+        let result = loop {
+            if let Err(error) = self.protect(&mut s).await {
+                break Err(error);
+            }
+            let start = Instant::now();
+            let step = self.read_step;
+            let part = async {
+                if low.is_none() {
+                    low = Some(position(&mut s).await?);
+                }
+                self.transaction(&mut s).await?;
+                tokio::time::timeout(s.budget.statement_timeout(), async {
+                    let first = stream.is_none();
+                    if first {
+                        stream = Some(read::ChunkStream::open(&mut s, planned, chunk).await?);
+                    }
+                    let reader = stream.as_mut().expect("opened above");
+                    let next = read::boundary(
+                        &mut s,
+                        planned,
+                        sub_lo.as_deref(),
+                        chunk.hi.as_deref(),
+                        step,
+                    )
+                    .await?;
+                    let hi = next.as_deref().or(chunk.hi.as_deref());
+                    let rows = reader
+                        .read(&mut s, planned, sub_lo.as_deref(), hi, budget, sink)
+                        .await?;
+                    let columns = reader.columns.clone();
+                    let digest =
+                        read::digest_with(&mut s, planned, &columns, sub_lo.as_deref(), hi).await?;
+                    if digest.rows != rows {
+                        return Err(SourceError::protocol("chunk_proof_count"));
+                    }
+                    // The plan's columns must still hold when the last part ends.
+                    if next.is_none() && !first {
+                        read::digest_columns(&mut s, planned).await?;
+                    }
+                    Ok((next, digest))
+                })
+                .await
+                .map_err(|_| SourceError::budget("client_timeout"))
+                .and_then(|v| v)
+            }
+            .await;
+            let part = match part {
+                Ok(value) => tokio::time::timeout(Duration::from_secs(1), s.finish(Ok(value)))
+                    .await
+                    .map_err(|_| SourceError::protocol("cleanup_unconfirmed"))
+                    .and_then(|v| v),
+                // An interrupted stream cannot safely accept another command.
+                Err(error) => Err(error),
+            };
+            let elapsed = start.elapsed();
+            let rest = duty(start, budget.duty_cycle_percent).await;
+            timing.work_ns += rest.work_ns;
+            timing.rest_ns += rest.rest_ns;
+            let (next, digest) = match part {
+                Ok(value) => value,
+                Err(error) => break Err(error),
+            };
+            if let Err(error) = proof.add(&digest) {
+                break Err(error);
+            }
+            self.read_step = next_step(step, digest.rows, elapsed, READ_STEP_MS);
+            match next {
+                Some(next) => sub_lo = Some(next),
+                None => break Ok(()),
+            }
+        };
+        let result = match result {
+            Ok(()) => match stream.take() {
+                Some(stream) => stream.finish(budget, sink),
+                None => Err(SourceError::protocol("arrow_ipc")),
+            },
+            Err(error) => Err(error),
+        };
+        let result = match result {
+            Ok((rows, bytes, sha256)) => {
+                let proof = proof.finish(&chunk.table, chunk.lo.as_deref(), chunk.hi.as_deref());
+                if proof.rows != rows {
+                    Err(SourceError::protocol("chunk_proof_count"))
+                } else {
+                    match position(&mut s).await {
+                        Ok(high) => {
+                            self.last_chunk_digest = Some(proof);
+                            Ok(ChunkReceipt {
+                                table: chunk.table.clone(),
+                                plan_revision: chunk.plan_revision,
+                                chunk_id: chunk.chunk_id,
+                                rows,
+                                bytes,
+                                sha256,
+                                low: low.flatten(),
+                                high,
+                            })
+                        }
+                        Err(error) => Err(error),
+                    }
+                }
+            }
+            Err(error) => Err(error),
+        };
+        if result.is_ok() {
+            self.session = Some(s);
+        } else {
+            drop(s);
+        }
+        self.last_read_timing = Some(timing);
+        result
     }
 
     /// Read a durable keyset partition (C5 keeps its baseline's ranges) after a
@@ -834,6 +1026,12 @@ impl SourceEngine for PostgresEngine {
         }
         let mut s = self.connect_table(&chunk.table).await?;
         guards(&mut s, budget).await?;
+        if planned.plan.key != KeyShape::NoKey
+            && !planned.keys.is_empty()
+            && !matches!(planned.plan.strategy, ChunkStrategy::PhysicalRange { .. })
+        {
+            return self.read_parts(s, &planned, chunk, budget, sink).await;
+        }
         self.protect(&mut s).await?;
         let start = Instant::now();
         let low = position(&mut s).await?;
@@ -910,30 +1108,82 @@ impl SourceEngine for PostgresEngine {
             .ok_or_else(|| SourceError::protocol("unknown_plan"))?
             .clone();
         let mut s = self.connect_table(table).await?;
-        self.protect(&mut s).await?;
-        let start = Instant::now();
-        self.transaction(&mut s).await?;
-        // A dropped network must end the digest, not hang it: bound it like read_chunk.
-        let result = tokio::time::timeout(
-            s.budget.statement_timeout(),
-            read::digest(&mut s, &planned, lo, hi),
-        )
-        .await
-        .map_err(|_| SourceError::budget("client_timeout"))
-        .and_then(|v| v);
-        let result = match result {
-            Ok(value) => tokio::time::timeout(Duration::from_secs(1), s.finish(Ok(value)))
-                .await
-                .map_err(|_| SourceError::protocol("cleanup_unconfirmed"))
-                .and_then(|v| v),
-            Err(error) => Err(error),
+        // Keyed ranges are digested in key-ordered sub-ranges of about
+        // DIGEST_STEP_MS each, paced in between, rather than one statement
+        // that hashes the whole range at once. The digest is additive, so the
+        // sum equals the single-statement digest of an unchanged range; each
+        // sub-range is observed at its own instant, like ranges in a cycle.
+        let keyed = !planned.keys.is_empty()
+            && !matches!(planned.plan.strategy, ChunkStrategy::PhysicalRange { .. });
+        let mut sub_lo = lo.map(<[_]>::to_vec);
+        let mut sum = read::DigestSum::default();
+        let mut columns: Option<Vec<String>> = None;
+        let result = loop {
+            if let Err(error) = self.protect(&mut s).await {
+                break Err(error);
+            }
+            let start = Instant::now();
+            if let Err(error) = self.transaction(&mut s).await {
+                break Err(error);
+            }
+            let step = self.digest_step;
+            let first = columns.is_none();
+            // A dropped network must end the digest, not hang it: bound it like read_chunk.
+            let part = tokio::time::timeout(s.budget.statement_timeout(), async {
+                let cols = match &columns {
+                    Some(cols) => cols.clone(),
+                    None => read::digest_columns(&mut s, &planned).await?,
+                };
+                let next = if keyed {
+                    read::boundary(&mut s, &planned, sub_lo.as_deref(), hi, step).await?
+                } else {
+                    None
+                };
+                let part = read::digest_with(
+                    &mut s,
+                    &planned,
+                    &cols,
+                    sub_lo.as_deref(),
+                    next.as_deref().or(hi),
+                )
+                .await?;
+                // The plan's columns must still hold when the last part ends.
+                if next.is_none() && !first {
+                    read::digest_columns(&mut s, &planned).await?;
+                }
+                Ok((cols, next, part))
+            })
+            .await
+            .map_err(|_| SourceError::budget("client_timeout"))
+            .and_then(|v| v);
+            let part = match part {
+                Ok(value) => tokio::time::timeout(Duration::from_secs(1), s.finish(Ok(value)))
+                    .await
+                    .map_err(|_| SourceError::protocol("cleanup_unconfirmed"))
+                    .and_then(|v| v),
+                Err(error) => Err(error),
+            };
+            let elapsed = start.elapsed();
+            duty(start, 25).await;
+            let (cols, next, part) = match part {
+                Ok(value) => value,
+                Err(error) => break Err(error),
+            };
+            columns = Some(cols);
+            if let Err(error) = sum.add(&part) {
+                break Err(error);
+            }
+            self.digest_step = next_digest_step(step, part.rows, elapsed);
+            match next {
+                Some(next) => sub_lo = Some(next),
+                None => break Ok(std::mem::take(&mut sum).finish(table, lo, hi)),
+            }
         };
         if result.is_ok() {
             self.session = Some(s);
         } else {
             drop(s);
         }
-        duty(start, 25).await;
         result
     }
 }
@@ -987,6 +1237,77 @@ mod tests {
         let mut empty = durable;
         empty.chunks.clear();
         assert!(!adoptable(&live, &empty));
+    }
+
+    #[test]
+    fn sub_range_digests_add_up_to_the_whole_range_digest() {
+        let table = TableRef {
+            schema: "public".into(),
+            name: "bulk".into(),
+        };
+        let part = |rows, high: i128, low: i128| RangeDigest {
+            table: table.clone(),
+            lo: None,
+            hi: None,
+            rows,
+            digest: format!("pg-text-sha256-sum128/v1:{high}:{low}"),
+        };
+        let mut sum = read::DigestSum::default();
+        sum.add(&part(3, i128::from(i64::MAX) * 3, -5)).unwrap();
+        sum.add(&part(0, 0, 0)).unwrap();
+        sum.add(&part(2, -7, i128::from(i64::MIN) * 2)).unwrap();
+        let lo = [KeyValue::Int(1.into())];
+        let whole = sum.finish(&table, Some(&lo), None);
+        assert_eq!(whole.rows, 5);
+        assert_eq!(whole.lo.as_deref(), Some(&lo[..]));
+        assert_eq!(
+            whole.digest,
+            format!(
+                "pg-text-sha256-sum128/v1:{}:{}",
+                i128::from(i64::MAX) * 3 - 7,
+                i128::from(i64::MIN) * 2 - 5
+            )
+        );
+        // An empty range matches the statement's COALESCE(..., 0) text.
+        assert_eq!(
+            read::DigestSum::default().finish(&table, None, None).digest,
+            "pg-text-sha256-sum128/v1:0:0"
+        );
+        for bad in [
+            "pg-text-sha256-sum128/v1:1",
+            "other/v1:1:2",
+            "pg-text-sha256-sum128/v1:1.5:2",
+            "pg-text-sha256-sum128/v1::2",
+            "pg-text-sha256-sum128/v1:+1:2",
+        ] {
+            let mut sum = read::DigestSum::default();
+            let mut digest = part(1, 0, 0);
+            digest.digest = bad.into();
+            assert!(sum.add(&digest).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn wait_pressure_backs_off_exponentially_up_to_a_cap() {
+        let backoff: Vec<_> = (0..7).map(|n| wait_backoff(n).as_millis()).collect();
+        assert_eq!(backoff, [100, 200, 400, 800, 1600, 1600, 1600]);
+        let defaults = Protection::default();
+        assert!(defaults.wait_limit > 0 && defaults.wait_limit < defaults.active_session_limit);
+    }
+
+    #[test]
+    fn digest_step_follows_the_measured_rate_within_bounds() {
+        let ms = Duration::from_millis;
+        // 8,192 rows in 20 ms: half that fits in 10 ms.
+        assert_eq!(next_digest_step(8192, 8192, ms(20)), 4096);
+        assert_eq!(next_digest_step(8192, 8192, ms(1)), DIGEST_STEP_ROWS.1);
+        assert_eq!(next_digest_step(8192, 8192, ms(1000)), DIGEST_STEP_ROWS.0);
+        // A short final part does not resize the step.
+        assert_eq!(next_digest_step(8192, 10, ms(1)), 8192);
+        assert_eq!(
+            next_digest_step(8192, 8192, Duration::ZERO),
+            DIGEST_STEP_ROWS.1
+        );
     }
 
     #[test]
