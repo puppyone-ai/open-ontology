@@ -35,7 +35,7 @@ Admin commands (source connections remain read-only):
           [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
           [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
           Screen 1 fields as flags. On a TTY they prefill the form; otherwise
-          oo checks them (resolve, port, TLS certificate, sign-in) and writes nothing.
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
   oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
