@@ -183,6 +183,10 @@ class SnapshotRun(t1.LaneRun):
                 command[index] = self.snapshot_image
             command[2:2] = ["--memory", {"oracle": "4g", "mysql": "2g", "postgres": "1g"}[self.engine],
                            "--label", "oo.engine=" + self.engine]
+            if self.engine == "mysql":
+                # As t7.py does: the T1/T0 TLS restart must not switch off the
+                # general log the L1 T7 audit reads.
+                command += ["--general-log=1", "--log-output=TABLE"]
         return super().command(command, **kwargs)
 
     def setup(self):
