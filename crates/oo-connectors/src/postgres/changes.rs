@@ -303,80 +303,76 @@ impl PostgresChanges {
             .map_err(crate::error::map_sqlx)?;
         // v2-v4 are negotiated, but streaming/two_phase stay off. Their ordinary
         // committed transaction messages retain the v1 framing used by the target.
-        let mut stream = sqlx::query(
-            "SELECT data FROM pg_logical_slot_peek_binary_changes($1,$2::text::pg_lsn,NULL, \
-             'proto_version',$3,'publication_names',$4)",
-        )
-        .bind(&self.config.slot)
-        .bind(lsn::format_lsn(upper))
-        .bind(status.protocol_version.to_string())
-        .bind(format!("\"{}\"", self.config.publication))
-        .fetch(&mut s.conn);
-        let mut relations = BTreeMap::new();
-        let mut open = None;
-        let mut events = Vec::new();
-        let mut bytes = 0u64;
-        let mut completed = None;
-        while let Some(row) = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await {
-            let row = row.map_err(crate::error::map_sqlx)?;
-            let data: Vec<u8> = row
-                .try_get(0)
-                .map_err(|_| SourceError::protocol("pgoutput_data"))?;
-            bytes = bytes.saturating_add(data.len() as u64);
-            if bytes > budget.max_chunk_bytes {
-                return Err(SourceError::budget("capture_replay_bytes"));
-            }
-            match wire::decode(&data).map_err(SourceError::protocol)? {
-                Message::Begin { final_lsn, .. } => {
-                    if open.replace(final_lsn).is_some() {
-                        return Err(SourceError::protocol("pg_nested_transaction"));
-                    }
+        // A peek materializes everything it decodes before returning a row, so
+        // `upto_nchanges` bounds the source work: the server stops after the
+        // transaction that reaches the limit instead of decoding the whole
+        // backlog up to `upper` on every batch.
+        let target = budget.max_chunk_rows.clamp(1, BATCH_CHANGES);
+        let mut limit = decode_limit(target);
+        let collected = loop {
+            let mut collect = Collect::new(from, target, budget);
+            let mut stream = sqlx::query(
+                "SELECT data FROM pg_logical_slot_peek_binary_changes($1,$2::text::pg_lsn,$3::int4, \
+                 'proto_version',$4,'publication_names',$5)",
+            )
+            .bind(&self.config.slot)
+            .bind(lsn::format_lsn(upper))
+            .bind(i32::try_from(limit).map_err(|_| SourceError::budget("capture_decode_limit"))?)
+            .bind(status.protocol_version.to_string())
+            .bind(format!("\"{}\"", self.config.publication))
+            .fetch(&mut s.conn);
+            while let Some(row) = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await {
+                let row = row.map_err(crate::error::map_sqlx)?;
+                let data: Vec<u8> = row
+                    .try_get(0)
+                    .map_err(|_| SourceError::protocol("pgoutput_data"))?;
+                if collect.received(data.len() as u64)? == Flow::Stop {
+                    break;
                 }
-                Message::Relation(r) => {
-                    relations.insert(r.oid, std::sync::Arc::new(r));
-                }
-                Message::Event {
-                    kind,
-                    oid,
-                    old,
-                    new,
-                } => {
-                    let final_lsn =
-                        open.ok_or_else(|| SourceError::protocol("pg_event_boundary"))?;
-                    if final_lsn >= from {
-                        if events.len() as u64 >= budget.max_chunk_rows {
-                            return Err(SourceError::budget("capture_transaction_rows"));
-                        }
-                        let relation = relations
-                            .get(&oid)
-                            .ok_or_else(|| SourceError::protocol("pg_relation"))?
-                            .clone();
-                        events.push((kind, relation, old, new));
+                let flow = match wire::decode(&data).map_err(SourceError::protocol)? {
+                    Message::Begin { final_lsn, .. } => collect.begin(final_lsn)?,
+                    Message::Relation(r) => {
+                        collect.relations.insert(r.oid, std::sync::Arc::new(r));
+                        Flow::Continue
                     }
-                }
-                Message::Commit { commit, end, .. } => {
-                    if open.take() != Some(commit) || end <= commit {
-                        return Err(SourceError::protocol("pg_commit_boundary"));
+                    Message::Event {
+                        kind,
+                        oid,
+                        old,
+                        new,
+                    } => {
+                        let relation = collect.relations.get(&oid).cloned();
+                        collect.event(|| {
+                            Ok((
+                                kind,
+                                relation.ok_or_else(|| SourceError::protocol("pg_relation"))?,
+                                old,
+                                new,
+                            ))
+                        })?
                     }
-                    if end > from && !events.is_empty() {
-                        completed = Some(end);
-                        break;
-                    }
-                    events.clear();
+                    Message::Commit { commit, end, .. } => collect.commit(commit, end)?,
+                };
+                if flow == Flow::Stop {
+                    break;
                 }
             }
-        }
-        drop(stream);
-        if open.is_some() {
-            return Err(SourceError::protocol("pg_incomplete_transaction"));
-        }
-        let Some(end) = completed else {
+            drop(stream);
+            match collect.finish(limit)? {
+                Collected::Done(done) => break done,
+                // Only transactions this cursor skips filled the decode limit.
+                Collected::Retry if limit < MAX_DECODE_LIMIT => {
+                    limit = (limit * 4).min(MAX_DECODE_LIMIT);
+                }
+                Collected::Retry => return Err(SourceError::budget("capture_decode_limit")),
+            }
+        };
+        let Some((end, events)) = collected else {
             return Ok(None);
         };
         let catalog = s.collect_catalog().await?;
         let mut changes = Vec::new();
-        let mut images = Vec::new();
-        let mut image_bytes = 0u64;
+        let mut pending: Vec<PendingImage> = Vec::new();
         let mut checked_relations = BTreeSet::new();
         for (kind, relation, mut old, mut new) in events {
             let table = TableRef {
@@ -482,20 +478,15 @@ impl PostgresChanges {
                 .as_ref()
                 .or(old.as_ref())
                 .ok_or_else(|| SourceError::protocol("pg_tuple"))?;
-            let image = image(
-                s,
-                &shape,
-                &relation,
-                cells,
-                &catalog.schema_hash,
-                kind == b'D',
-            )
-            .await?;
-            image_bytes = image_bytes.saturating_add(image.get_array_memory_size() as u64);
-            if image_bytes > budget.max_chunk_bytes {
-                return Err(SourceError::budget("capture_image_bytes"));
+            if cells.len() != shape.columns.len() {
+                return Err(SourceError::protocol("pg_tuple_shape"));
             }
-            images.push(image);
+            pending.push(PendingImage {
+                cells: cells.clone(),
+                delete: kind == b'D',
+                shape,
+                relation,
+            });
             changes.push(match kind {
                 b'I' => RowChange::Insert { table, key },
                 b'U' => RowChange::Update {
@@ -506,6 +497,43 @@ impl PostgresChanges {
                 b'D' => RowChange::Delete { table, key },
                 _ => return Err(SourceError::protocol("pg_event")),
             });
+        }
+        // Convert each relation's logged values in few statements; changes
+        // of several tables interleave, so group by relation, not by run.
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for (index, item) in pending.iter().enumerate() {
+            match groups.iter_mut().find(|g| {
+                let first = &pending[g[0]];
+                first.relation.oid == item.relation.oid
+                    && first.relation.columns == item.relation.columns
+                    && first.shape == item.shape
+            }) {
+                Some(group) => group.push(index),
+                None => groups.push(vec![index]),
+            }
+        }
+        let mut slots: Vec<Option<RecordBatch>> = vec![None; pending.len()];
+        let mut image_bytes = 0u64;
+        for group in groups {
+            let items: Vec<&PendingImage> = group.iter().map(|i| &pending[*i]).collect();
+            let converted = images_for_run(s, &items, &catalog.schema_hash).await?;
+            if converted.len() != group.len() {
+                return Err(SourceError::protocol("capture_image_count"));
+            }
+            for (index, image) in group.into_iter().zip(converted) {
+                image_bytes = image_bytes.saturating_add(image.get_array_memory_size() as u64);
+                if image_bytes > budget.max_chunk_bytes {
+                    return Err(SourceError::budget("capture_image_bytes"));
+                }
+                slots[index] = Some(image);
+            }
+        }
+        let images = slots
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| SourceError::protocol("capture_image_count"))?;
+        if images.len() != changes.len() {
+            return Err(SourceError::protocol("capture_image_count"));
         }
         // A concurrent external consumer must not advance/invalidate our slot.
         let after = self.inspect(s).await?;
@@ -547,17 +575,199 @@ fn keys(r: &Relation, cells: &[Cell], names: &[&str]) -> Result<Vec<KeyValue>, S
         .collect()
 }
 
-async fn image(
-    s: &mut PgSession,
-    shape: &crate::SourceTable,
-    r: &Relation,
-    cells: &[Cell],
-    schema_hash: &str,
-    delete: bool,
-) -> Result<RecordBatch, SourceError> {
-    if cells.len() != shape.columns.len() {
-        return Err(SourceError::protocol("pg_tuple_shape"));
+/// Changes per capture batch. Many small source transactions share one
+/// bounded decode, a few image statements and one target commit; a single
+/// transaction still has to fit `max_chunk_rows` on its own.
+const BATCH_CHANGES: u64 = 8192;
+/// pgoutput rows per peek beyond which a skipped prefix forces a retry.
+const MAX_DECODE_LIMIT: u64 = 1 << 22;
+/// Rows converted per image statement (parameters stay below 65,535).
+const IMAGE_ROWS: usize = 512;
+
+/// Each one-change transaction is Begin, the change and Commit (plus one
+/// Relation per relation), so three rows per change bound a full batch.
+fn decode_limit(target: u64) -> u64 {
+    target
+        .saturating_mul(3)
+        .saturating_add(64)
+        .min(MAX_DECODE_LIMIT)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Flow {
+    Continue,
+    Stop,
+}
+
+enum Collected<T> {
+    Done(Option<(u64, Vec<T>)>),
+    Retry,
+}
+
+/// Groups decoded pgoutput messages into whole committed transactions after
+/// `from`. It stops at a commit once the batch reaches its change or byte
+/// target, and before a transaction that would overflow the batch; the
+/// discarded transaction is decoded again by the next batch.
+struct Collect<T> {
+    from: u64,
+    target: u64,
+    max_rows: u64,
+    max_bytes: u64,
+    bytes: u64,
+    rows: u64,
+    open: Option<u64>,
+    pending: Vec<T>,
+    events: Vec<T>,
+    completed: Option<u64>,
+    stopped: bool,
+    relations: BTreeMap<u32, std::sync::Arc<Relation>>,
+}
+
+impl<T> Collect<T> {
+    fn new(from: u64, target: u64, budget: &ReadBudget) -> Self {
+        Self {
+            from,
+            target,
+            max_rows: budget.max_chunk_rows,
+            max_bytes: budget.max_chunk_bytes,
+            bytes: 0,
+            rows: 0,
+            open: None,
+            pending: Vec::new(),
+            events: Vec::new(),
+            completed: None,
+            stopped: false,
+            relations: BTreeMap::new(),
+        }
     }
+
+    fn stop(&mut self) -> Flow {
+        self.stopped = true;
+        Flow::Stop
+    }
+
+    fn received(&mut self, bytes: u64) -> Result<Flow, SourceError> {
+        self.rows += 1;
+        self.bytes = self.bytes.saturating_add(bytes);
+        if self.bytes > self.max_bytes {
+            if self.completed.is_some() {
+                return Ok(self.stop());
+            }
+            return Err(SourceError::budget("capture_replay_bytes"));
+        }
+        Ok(Flow::Continue)
+    }
+
+    fn begin(&mut self, final_lsn: u64) -> Result<Flow, SourceError> {
+        if self.open.replace(final_lsn).is_some() {
+            return Err(SourceError::protocol("pg_nested_transaction"));
+        }
+        self.pending.clear();
+        Ok(Flow::Continue)
+    }
+
+    fn event(
+        &mut self,
+        item: impl FnOnce() -> Result<T, SourceError>,
+    ) -> Result<Flow, SourceError> {
+        let final_lsn = self
+            .open
+            .ok_or_else(|| SourceError::protocol("pg_event_boundary"))?;
+        if final_lsn < self.from {
+            return Ok(Flow::Continue);
+        }
+        if self.pending.len() as u64 >= self.max_rows {
+            return Err(SourceError::budget("capture_transaction_rows"));
+        }
+        if self.completed.is_some()
+            && (self.events.len() + self.pending.len()) as u64 >= self.max_rows
+        {
+            return Ok(self.stop());
+        }
+        self.pending.push(item()?);
+        Ok(Flow::Continue)
+    }
+
+    fn commit(&mut self, commit: u64, end: u64) -> Result<Flow, SourceError> {
+        if self.open.take() != Some(commit) || end <= commit {
+            return Err(SourceError::protocol("pg_commit_boundary"));
+        }
+        if end > self.from && !self.pending.is_empty() {
+            self.events.append(&mut self.pending);
+            self.completed = Some(end);
+            if self.events.len() as u64 >= self.target || self.bytes >= self.max_bytes / 2 {
+                return Ok(self.stop());
+            }
+        }
+        self.pending.clear();
+        Ok(Flow::Continue)
+    }
+
+    fn finish(self, limit: u64) -> Result<Collected<T>, SourceError> {
+        // The server emits whole transactions, so only a deliberate stop may
+        // leave one open.
+        if self.open.is_some() && !self.stopped {
+            return Err(SourceError::protocol("pg_incomplete_transaction"));
+        }
+        match self.completed {
+            Some(end) => Ok(Collected::Done(Some((end, self.events)))),
+            // The server stops after the transaction that reaches the limit.
+            None if self.rows >= limit && !self.stopped => Ok(Collected::Retry),
+            None => Ok(Collected::Done(None)),
+        }
+    }
+}
+
+struct PendingImage {
+    cells: Vec<Cell>,
+    delete: bool,
+    shape: crate::SourceTable,
+    relation: Relation,
+}
+
+/// One statement converts up to IMAGE_ROWS logged tuples of one relation:
+/// `VALUES` keeps an ordinal so the result order is the change order.
+fn image_sql(types: &[String], rows: usize) -> String {
+    let width = types.len() + 1;
+    let values = (0..rows)
+        .map(|row| {
+            let cells = (0..width)
+                .map(|col| {
+                    let n = row * width + col + 1;
+                    if col == 0 {
+                        format!("${n}::int4")
+                    } else {
+                        format!("${n}::text")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("({cells})")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let names = (0..types.len())
+        .map(|i| format!("c{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let projections = types
+        .iter()
+        .enumerate()
+        .map(|(i, ty)| format!("CAST(v.c{i} AS {ty})"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("SELECT {projections} FROM (VALUES {values}) AS v(o,{names}) ORDER BY v.o")
+}
+
+async fn images_for_run(
+    s: &mut PgSession,
+    run: &[&PendingImage],
+    schema_hash: &str,
+) -> Result<Vec<RecordBatch>, SourceError> {
+    let Some(first) = run.first() else {
+        return Ok(Vec::new());
+    };
+    let (shape, r) = (&first.shape, &first.relation);
     let graph = s.load_type_graph(&shape.columns).await?;
     let keys: Vec<_> = shape.primary_key.iter().map(|c| c.attnum).collect();
     let plans: Vec<_> = shape
@@ -571,8 +781,8 @@ async fn image(
     {
         return Err(SourceError::protocol("capture_unsupported_column"));
     }
-    let mut projections = Vec::new();
-    for (i, c) in shape.columns.iter().enumerate() {
+    let mut types = Vec::new();
+    for c in &shape.columns {
         let ty = session::fetch_control(
             s,
             sqlx::query("SELECT format_type($1::bigint::oid,$2)")
@@ -584,28 +794,7 @@ async fn image(
         if !sqltext::valid_cast_type(&ty) {
             return Err(SourceError::protocol("pg_cast_type"));
         }
-        projections.push(format!("CAST(CAST(${} AS text) AS {})", i + 1, ty));
-    }
-    let sql = format!("SELECT {}", projections.join(","));
-    let mut q = sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql));
-    for cell in cells {
-        q = q.bind(match cell {
-            Cell::Text(v) => Some(v.clone()),
-            Cell::Null => None,
-            Cell::Unchanged => {
-                return Err(SourceError::protocol("rebaseline_required_unchanged_toast"));
-            }
-        });
-    }
-    // Convert the logged value, never re-read a later source row.
-    let row = session::fetch_control(s, q).await?;
-    let (decoded, _) = crate::bounded_read::decode_row(&plans, &row)?;
-    // Deletes may omit non-key NOT NULL columns. Their image is not an upsert.
-    let mut plans = plans;
-    if delete {
-        for p in &mut plans {
-            p.mapping.nullable = true;
-        }
+        types.push(ty);
     }
     let binding = RunBinding {
         source_id: s.source_id.clone(),
@@ -614,11 +803,51 @@ async fn image(
         run_generation: 0,
         input_digest: Sha256::digest(schema_hash.as_bytes()).into(),
     };
-    let batch = assemble_batch(&binding, plans, &keys, vec![decoded])?;
-    if !batch.rejects.is_empty() {
-        return Err(SourceError::protocol("capture_rejected_cell"));
+    let mut delete_plans = plans.clone();
+    // Deletes may omit non-key NOT NULL columns. Their image is not an upsert.
+    for p in &mut delete_plans {
+        p.mapping.nullable = true;
     }
-    batch.record_batch()
+    let mut images = Vec::with_capacity(run.len());
+    let per = IMAGE_ROWS.min(60_000 / (types.len() + 1)).max(1);
+    for part in run.chunks(per) {
+        let sql = image_sql(&types, part.len());
+        let mut q = sqlx::query(sqlx_core::sql_str::AssertSqlSafe(sql));
+        for (ordinal, pending) in part.iter().enumerate() {
+            if pending.cells.len() != shape.columns.len() {
+                return Err(SourceError::protocol("pg_tuple_shape"));
+            }
+            q = q.bind(ordinal as i32);
+            for cell in &pending.cells {
+                q = q.bind(match cell {
+                    Cell::Text(v) => Some(v.clone()),
+                    Cell::Null => None,
+                    Cell::Unchanged => {
+                        return Err(SourceError::protocol("rebaseline_required_unchanged_toast"));
+                    }
+                });
+            }
+        }
+        // Convert the logged values, never re-read a later source row.
+        let rows = session::fetch_all(s, q).await?;
+        if rows.len() != part.len() {
+            return Err(SourceError::protocol("capture_image_rows"));
+        }
+        for (row, pending) in rows.iter().zip(part) {
+            let (decoded, _) = crate::bounded_read::decode_row(&plans, row)?;
+            let plans = if pending.delete {
+                delete_plans.clone()
+            } else {
+                plans.clone()
+            };
+            let batch = assemble_batch(&binding, plans, &keys, vec![decoded])?;
+            if !batch.rejects.is_empty() {
+                return Err(SourceError::protocol("capture_rejected_cell"));
+            }
+            images.push(batch.record_batch()?);
+        }
+    }
+    Ok(images)
 }
 
 impl ChangeSource for PostgresChanges {
@@ -691,6 +920,137 @@ mod tests {
         assert_eq!(s.earliest(), 20);
         assert!(s.require_position(19).is_err());
         assert!(s.require_position(20).is_ok());
+    }
+
+    fn budget(rows: u64, bytes: u64) -> ReadBudget {
+        ReadBudget {
+            max_chunk_rows: rows,
+            max_chunk_bytes: bytes,
+            ..ReadBudget::default()
+        }
+    }
+
+    /// One-change transactions at commit LSNs 10, 20, ... ending 5 later.
+    fn feed(c: &mut Collect<u64>, txns: &[u64]) -> Flow {
+        for &commit in txns {
+            assert_eq!(c.received(10).unwrap(), Flow::Continue);
+            assert_eq!(c.begin(commit).unwrap(), Flow::Continue);
+            if c.received(10).unwrap() == Flow::Stop
+                || c.event(|| Ok(commit)).unwrap() == Flow::Stop
+            {
+                return Flow::Stop;
+            }
+            c.received(10).unwrap();
+            if c.commit(commit, commit + 5).unwrap() == Flow::Stop {
+                return Flow::Stop;
+            }
+        }
+        Flow::Continue
+    }
+
+    fn done(c: Collect<u64>, limit: u64) -> Option<(u64, Vec<u64>)> {
+        match c.finish(limit).unwrap() {
+            Collected::Done(done) => done,
+            Collected::Retry => panic!("unexpected retry"),
+        }
+    }
+
+    #[test]
+    fn small_transactions_share_one_batch_up_to_the_target() {
+        let mut c = Collect::new(0, 3, &budget(100, 1 << 20));
+        assert_eq!(feed(&mut c, &[10, 20, 30, 40]), Flow::Stop);
+        // Stops at the commit that reaches the target; 40 waits for the next batch.
+        assert_eq!(done(c, 1000), Some((35, vec![10, 20, 30])));
+        let mut c = Collect::new(0, 10, &budget(100, 1 << 20));
+        assert_eq!(feed(&mut c, &[10, 20]), Flow::Continue);
+        assert_eq!(done(c, 1000), Some((25, vec![10, 20])));
+    }
+
+    #[test]
+    fn transactions_before_the_cursor_are_skipped_and_never_complete_a_batch() {
+        let mut c = Collect::new(25, 10, &budget(100, 1 << 20));
+        feed(&mut c, &[10, 20, 30]);
+        assert_eq!(done(c, 1000), Some((35, vec![30])));
+        // Only skipped transactions filled the decode limit: decode again, wider.
+        let mut c = Collect::new(100, 10, &budget(100, 1 << 20));
+        feed(&mut c, &[10, 20]);
+        assert!(matches!(c.finish(6).unwrap(), Collected::Retry));
+        let mut c = Collect::new(100, 10, &budget(100, 1 << 20));
+        feed(&mut c, &[10, 20]);
+        assert_eq!(done(c, 1000), None);
+    }
+
+    #[test]
+    fn a_transaction_that_would_overflow_the_batch_is_left_for_the_next() {
+        let mut c = Collect::new(0, 100, &budget(3, 1 << 20));
+        assert_eq!(c.begin(10).unwrap(), Flow::Continue);
+        for i in 0..2 {
+            assert_eq!(c.event(|| Ok(i)).unwrap(), Flow::Continue);
+        }
+        c.commit(10, 15).unwrap();
+        c.begin(20).unwrap();
+        c.event(|| Ok(7)).unwrap();
+        // The second transaction would make the batch exceed max_chunk_rows.
+        assert_eq!(c.event(|| Ok(8)).unwrap(), Flow::Stop);
+        assert_eq!(done(c, 1000), Some((15, vec![0, 1])));
+        // A single transaction larger than the budget still refuses.
+        let mut c = Collect::new(0, 100, &budget(2, 1 << 20));
+        c.begin(10).unwrap();
+        c.event(|| Ok(0)).unwrap();
+        c.event(|| Ok(1)).unwrap();
+        assert_eq!(
+            c.event(|| Ok(2)).unwrap_err().to_string(),
+            SourceError::budget("capture_transaction_rows").to_string()
+        );
+    }
+
+    #[test]
+    fn byte_budget_stops_after_a_completed_transaction_and_refuses_before_one() {
+        let mut c = Collect::new(0, 100, &budget(100, 100));
+        assert_eq!(feed(&mut c, &[10]), Flow::Continue);
+        assert_eq!(c.received(80).unwrap(), Flow::Stop);
+        assert_eq!(done(c, 1000), Some((15, vec![10])));
+        let mut c = Collect::<u64>::new(0, 100, &budget(100, 50));
+        c.received(40).unwrap();
+        assert!(c.received(20).is_err());
+        // Half the byte budget closes the batch at the next commit.
+        let mut c = Collect::new(0, 100, &budget(100, 60));
+        assert_eq!(feed(&mut c, &[10]), Flow::Stop);
+    }
+
+    #[test]
+    fn protocol_boundaries_are_still_enforced() {
+        let mut c = Collect::<u64>::new(0, 10, &budget(10, 1 << 20));
+        assert!(c.event(|| Ok(1)).is_err());
+        c.begin(10).unwrap();
+        assert!(c.begin(20).is_err());
+        let mut c = Collect::<u64>::new(0, 10, &budget(10, 1 << 20));
+        c.begin(10).unwrap();
+        assert!(c.commit(11, 15).is_err());
+        let mut c = Collect::<u64>::new(0, 10, &budget(10, 1 << 20));
+        c.begin(10).unwrap();
+        c.event(|| Ok(1)).unwrap();
+        assert!(c.finish(1000).is_err());
+    }
+
+    #[test]
+    fn decode_limit_covers_a_full_batch_of_single_change_transactions() {
+        assert!(decode_limit(BATCH_CHANGES) >= 3 * BATCH_CHANGES);
+        assert_eq!(decode_limit(u64::MAX), MAX_DECODE_LIMIT);
+        assert!(i32::try_from(MAX_DECODE_LIMIT).is_ok());
+    }
+
+    #[test]
+    fn image_statement_keeps_change_order_and_binds_every_value() {
+        let sql = image_sql(&["integer".into(), "text".into()], 2);
+        assert_eq!(
+            sql,
+            "SELECT CAST(v.c0 AS integer),CAST(v.c1 AS text) FROM (VALUES \
+             ($1::int4,$2::text,$3::text),($4::int4,$5::text,$6::text)) AS v(o,c0,c1) ORDER BY v.o"
+        );
+        assert!(crate::postgres::sqltext::read_only(&sql));
+        let per = IMAGE_ROWS.min(60_000 / (1600 + 1)).max(1);
+        assert!(per * 1601 < 65_535);
     }
 
     #[test]

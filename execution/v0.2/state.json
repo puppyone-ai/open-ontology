@@ -1571,10 +1571,21 @@
     "69b4cecf8",
     "076af7ebc",
     "161bcfb89",
-    "263bf8294"
+    "263bf8294",
+    "ae3a7d89b",
+    "ace378e2e",
+    "b304cb078",
+    "63c261312",
+    "335d4700e",
+    "91ccb9894",
+    "5de3bb5af",
+    "445e0dad5",
+    "8f0b4eea0",
+    "6d6ac09c5",
+    "d95c6eb13"
    ],
    "evidence": [],
-   "note": "T10-final (E472): not signed off. Oracle 23 defaults within D24; PG 17 C1 (p99 +130%) and idle C5 (p95 +270%, full idle p99 +205%) exceed D24 beyond baseline noise; Oracle LogMiner C1 (opt-in) falls behind (doctor warning); MySQL 8.4 fixture stalls on its own, verdicts inconclusive; 100% duty fails (flag only). Next: PG per-operation read size / adaptive throttle, MySQL on a non-stalling source"
+   "note": "T10 E473: not signed off. PG 17 C1 within D24 (p95 +4.0%, p99 -0.7%) and keeps up with 1,900 changes/s; idle C5 within D24; changed/full-read C5 p95 within budget, p99 over through hot-row convoys; initial failed p99 once on a canary-recorded host fsync stall. Oracle 23 LogMiner C1 (opt-in): no deadline miss, about 50 changes/s (doctor warning updated); Oracle defaults not remeasured. MySQL 8.4: baseline/initial pass; fixture disk stalls from ~20 min on (C1/C5 measure the host). Next: production-class storage host for MySQL and PG p99, Oracle LogMiner throughput, PG 17 full-scale T1 and Oracle fast L1 (disk guard)"
   }
  ],
  "blocked": [],

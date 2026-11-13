@@ -715,7 +715,9 @@ impl<'a> PgSync<'a> {
         }
         let mut bytes = 0i64;
         let mut applied = false;
-        for (change, image) in batch.changes.iter().zip(images) {
+        let mut checked = std::collections::BTreeSet::new();
+        let superseded = superseded(&batch.changes);
+        for ((change, image), superseded) in batch.changes.iter().zip(images).zip(superseded) {
             let (table, key, old, deleted) = match change {
                 RowChange::Insert { table, key } => (table, key, None, false),
                 RowChange::Update {
@@ -733,21 +735,30 @@ impl<'a> PgSync<'a> {
             if !advance.contains(&b.identity) {
                 continue;
             }
-            lock(&mut tx, &b.identity).await?;
-            let current_run: String =
-                sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1")
-                    .bind(&b.identity)
-                    .fetch_one(&mut *tx)
-                    .await
-                    .map_err(db)?;
-            if current_run != b.run {
-                return Err("sync_rebaseline_required_baseline_changed");
+            // The transaction-scoped lock and the baseline check hold for the
+            // whole batch once taken.
+            if checked.insert(b.identity.clone()) {
+                lock(&mut tx, &b.identity).await?;
+                let current_run: String =
+                    sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1")
+                        .bind(&b.identity)
+                        .fetch_one(&mut *tx)
+                        .await
+                        .map_err(db)?;
+                if current_run != b.run {
+                    return Err("sync_rebaseline_required_baseline_changed");
+                }
             }
             applied = true;
             if let Some(old) = old {
                 bytes = bytes
                     .checked_add(remove(&mut tx, b, old).await?)
                     .ok_or("sync_byte_overflow")?;
+            }
+            // A later change of the same table removes this key again and
+            // writes its own final image, so this one's image never survives.
+            if superseded {
+                continue;
             }
             bytes = bytes
                 .checked_add(remove(&mut tx, b, key).await?)
@@ -806,6 +817,34 @@ impl<'a> PgSync<'a> {
         crate::failpoint::hit("c1_apply_commit");
         tx.commit().await.map_err(db)
     }
+}
+
+/// For each change, whether a later change in the batch touches the same
+/// table and key (as its key or as the old key it moves away from). Applying
+/// changes in order, such a later change removes the key and writes the
+/// key's final state itself, so only the earlier change's key image is moot;
+/// an update's removal of its old key is still applied.
+fn superseded(changes: &[RowChange]) -> Vec<bool> {
+    let mut later = std::collections::BTreeSet::new();
+    let mut result = vec![false; changes.len()];
+    for (index, change) in changes.iter().enumerate().rev() {
+        let (table, key, old) = match change {
+            RowChange::Insert { table, key } | RowChange::Delete { table, key } => {
+                (table, key, None)
+            }
+            RowChange::Update {
+                table,
+                key,
+                old_key,
+            } => (table, key, old_key.as_ref()),
+        };
+        result[index] = later.contains(&(table, key));
+        later.insert((table, key));
+        if let Some(old) = old {
+            later.insert((table, old));
+        }
+    }
+    result
 }
 
 fn key_predicate(b: &Binding, key: &[KeyValue]) -> Result<(String, Vec<String>)> {
@@ -953,6 +992,99 @@ fn encode(binding: &Binding, image: &DecodedStream) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Applies changes to a key -> image model the way `apply` does:
+    /// remove the old key, remove the key, write the image unless deleted.
+    fn model(
+        changes: &[RowChange],
+        skip: &[bool],
+    ) -> std::collections::BTreeMap<(String, i64), usize> {
+        let mut state = std::collections::BTreeMap::new();
+        let id = |t: &TableRef, k: &[KeyValue]| match k {
+            [KeyValue::Int(v)] => (t.name.clone(), v.to_string().parse::<i64>().unwrap()),
+            _ => unreachable!(),
+        };
+        for (image, change) in changes.iter().enumerate() {
+            match change {
+                RowChange::Insert { table, key } => {
+                    if !skip[image] {
+                        state.insert(id(table, key), image);
+                    }
+                }
+                RowChange::Update {
+                    table,
+                    key,
+                    old_key,
+                } => {
+                    if let Some(old) = old_key {
+                        state.remove(&id(table, old));
+                    }
+                    if !skip[image] {
+                        state.insert(id(table, key), image);
+                    }
+                }
+                RowChange::Delete { table, key } => {
+                    if !skip[image] {
+                        state.remove(&id(table, key));
+                    }
+                }
+            }
+        }
+        state
+    }
+
+    #[test]
+    fn skipping_superseded_changes_keeps_every_final_row() {
+        let table = |name: &str| TableRef {
+            schema: "s".into(),
+            name: name.into(),
+        };
+        let key = |v: i64| vec![KeyValue::Int(v.into())];
+        // Deterministic pseudo-random batches over few keys and two tables,
+        // including key moves onto keys touched before and after.
+        let mut seed = 7u64;
+        for _ in 0..500 {
+            let mut changes = Vec::new();
+            for _ in 0..12 {
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let t = table(if seed >> 63 == 0 { "a" } else { "b" });
+                let k = key(((seed >> 40) % 4) as i64);
+                let o = key(((seed >> 20) % 4) as i64);
+                changes.push(match (seed >> 33) % 4 {
+                    0 => RowChange::Insert { table: t, key: k },
+                    1 => RowChange::Delete { table: t, key: k },
+                    2 => RowChange::Update {
+                        table: t,
+                        key: k,
+                        old_key: None,
+                    },
+                    _ => RowChange::Update {
+                        table: t,
+                        key: k.clone(),
+                        old_key: (o != k).then_some(o),
+                    },
+                });
+            }
+            let none = vec![false; changes.len()];
+            assert_eq!(
+                model(&changes, &superseded(&changes)),
+                model(&changes, &none)
+            );
+        }
+        // Twenty updates of one hot row leave one image to write.
+        let hot: Vec<_> = (0..20)
+            .map(|_| RowChange::Update {
+                table: table("a"),
+                key: key(1),
+                old_key: None,
+            })
+            .collect();
+        let skips = superseded(&hot);
+        assert_eq!(skips.iter().filter(|s| !**s).count(), 1);
+        assert!(!skips[19]);
+    }
 
     #[test]
     fn lineage_upgrade_removes_only_pg_table_shapes() {

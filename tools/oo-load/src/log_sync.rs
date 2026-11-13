@@ -104,7 +104,86 @@ impl<E: Epoch> engine_sync::Target for Target<'_, '_, E> {
     }
 }
 
-struct OracleData(oo_connectors::oracle::engine::logminer::OracleLogMiner);
+use oo_connectors::oracle::engine::logminer::{FloorObservation, OracleLogMiner};
+
+/// LogMiner reader plus the binding's durable mining floor. Each batch
+/// starts mining at the newest floor the durable cursor has reached, so its
+/// cost follows the backlog rather than all redo since the baseline.
+struct OracleData {
+    miner: OracleLogMiner,
+    floors: MiningFloors,
+}
+
+/// Durable mining floors in the agent DB, keyed by binding and bound to the
+/// binding's lineage. A floor is only a hint: the reader rechecks it.
+struct MiningFloors {
+    conn: PgConnection,
+    identity: String,
+    lineage: String,
+    loaded: Option<FloorObservation>,
+    saved: Option<FloorObservation>,
+}
+
+impl MiningFloors {
+    async fn open(
+        mut conn: PgConnection,
+        identity: String,
+        lineage: String,
+    ) -> Result<Self, String> {
+        sqlx::raw_sql(
+            "CREATE TABLE IF NOT EXISTS _oo_load.logminer_floors (
+               identity text PRIMARY KEY, lineage text NOT NULL,
+               floor numeric(39,0) NOT NULL, valid_from numeric(39,0) NOT NULL)",
+        )
+        .execute(&mut conn)
+        .await
+        .map_err(|_| "sync_mining_floor_state")?;
+        let row: Option<(String, String)> = sqlx::query_as(
+            "SELECT floor::text, valid_from::text FROM _oo_load.logminer_floors
+             WHERE identity=$1 AND lineage=$2",
+        )
+        .bind(&identity)
+        .bind(&lineage)
+        .fetch_optional(&mut conn)
+        .await
+        .map_err(|_| "sync_mining_floor_state")?;
+        let loaded = row
+            .map(|(floor, valid_from)| {
+                Ok::<_, &str>(FloorObservation {
+                    floor: floor.parse().map_err(|_| "sync_mining_floor_state")?,
+                    valid_from: valid_from.parse().map_err(|_| "sync_mining_floor_state")?,
+                })
+            })
+            .transpose()?;
+        Ok(Self {
+            conn,
+            identity,
+            lineage,
+            loaded,
+            saved: loaded,
+        })
+    }
+
+    async fn save(&mut self, floor: FloorObservation) -> Result<(), oo_connectors::SourceError> {
+        if self.saved == Some(floor) {
+            return Ok(());
+        }
+        sqlx::query(
+            "INSERT INTO _oo_load.logminer_floors VALUES($1,$2,$3::numeric,$4::numeric)
+             ON CONFLICT(identity) DO UPDATE SET lineage=EXCLUDED.lineage,
+               floor=EXCLUDED.floor, valid_from=EXCLUDED.valid_from",
+        )
+        .bind(&self.identity)
+        .bind(&self.lineage)
+        .bind(floor.floor.to_string())
+        .bind(floor.valid_from.to_string())
+        .execute(&mut self.conn)
+        .await
+        .map_err(|_| oo_connectors::SourceError::protocol("sync_mining_floor_state"))?;
+        self.saved = Some(floor);
+        Ok(())
+    }
+}
 trait IsolatedChanges: ChangeSource {
     fn failed_tables(&self) -> std::collections::BTreeSet<TableRef> {
         Default::default()
@@ -115,25 +194,34 @@ trait IsolatedChanges: ChangeSource {
 impl IsolatedChanges for oo_connectors::mysql::MysqlChanges {}
 impl IsolatedChanges for OracleData {
     fn failed_tables(&self) -> std::collections::BTreeSet<TableRef> {
-        self.0.rebaseline_tables().clone()
+        self.miner.rebaseline_tables().clone()
     }
     fn exclude(&mut self, tables: &std::collections::BTreeSet<TableRef>) {
-        self.0.quarantine(tables);
+        self.miner.quarantine(tables);
     }
 }
 impl ChangeSource for OracleData {
     async fn earliest_available(&mut self) -> Result<Watermark, oo_connectors::SourceError> {
-        self.0.earliest_available().await
+        self.miner.earliest_available().await
     }
     async fn next_batch(
         &mut self,
         from: &Watermark,
         budget: &ReadBudget,
     ) -> Result<Option<ChangeBatch>, oo_connectors::SourceError> {
+        // `from` is the target's committed cursor: floors it reached are durable.
+        if let Watermark::OracleScn { scn } = from {
+            if let Some(hint) = self.floors.loaded.take() {
+                self.miner.resume_mining_floor(hint, *scn)?;
+            }
+            if let Some(floor) = self.miner.advance_mining_floor(*scn) {
+                self.floors.save(floor).await?;
+            }
+        }
         // Oracle scans the whole SCN window on every poll, not one transaction.
         // Keeping the old cursor on an empty window cannot hide later changes.
         Ok(self
-            .0
+            .miner
             .next_batch(from, budget)
             .await?
             .and_then(oracle_data_batch))
@@ -428,9 +516,7 @@ pub(super) async fn oracle(
     mut config: Config,
     worker: Option<&String>,
 ) -> Result<(), String> {
-    use oo_connectors::oracle::engine::{
-        OracleConnectConfig, OracleEngine, logminer::OracleLogMiner,
-    };
+    use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
     // Refuse before opening any LogMiner session (D11a).
     validate(
         &config,
@@ -590,7 +676,16 @@ pub(super) async fn oracle(
             scn,
         )
         .map_err(|e| e.to_string())?;
-    let mut changes = OracleData(changes);
+    let floors = MiningFloors::open(
+        target_connection(target, store).await?,
+        binding(source)?,
+        lineage.clone(),
+    )
+    .await?;
+    let mut changes = OracleData {
+        miner: changes,
+        floors,
+    };
     run(
         &mut engine,
         &mut changes,

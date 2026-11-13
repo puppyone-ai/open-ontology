@@ -37,6 +37,7 @@ impl engine_sync::Target for Target<'_, '_> {
         self.sink.feedback_position().await
     }
     async fn apply(&mut self, from: &Watermark, batch: &ChangeBatch) -> engine_load::Result<()> {
+        let started = std::time::Instant::now();
         // Recheck after capture and before target commit, not only after commit
         // while sending feedback. A detected epoch change must not enter data.
         let mut control = source_control_connection(self.source, self.store)
@@ -51,6 +52,8 @@ impl engine_sync::Target for Target<'_, '_> {
             .close_idle_session()
             .await
             .map_err(|_| "sync_source_close")?;
+        // Pace these source checks here; target work below is not source work.
+        pace(started, self.budget.duty_cycle_percent).await;
         shape?;
         let mut images = Vec::new();
         let mut bytes = 0u64;
@@ -67,6 +70,38 @@ impl engine_sync::Target for Target<'_, '_> {
             images.push(decode_arrow_stream(&ipc).map_err(|_| "sync_image_decode")?);
         }
         self.sink.apply(from, batch, &images).await
+    }
+}
+
+/// Sleep so that the work since `started` is `duty` percent of the elapsed time.
+async fn pace(started: std::time::Instant, duty: u8) {
+    let duty = u32::from(duty.clamp(1, 100));
+    tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
+}
+
+/// Each source operation of a step is paced once, where it runs: the capture
+/// read and the slot feedback pace themselves, the retention check here and
+/// the lineage/shape checks in `Target::apply`. Pacing the whole step again
+/// would charge target writes and those sleeps as source work a second time.
+struct Paced<'c> {
+    changes: &'c mut PostgresChanges,
+    duty: u8,
+}
+
+impl ChangeSource for Paced<'_> {
+    async fn earliest_available(&mut self) -> Result<Watermark, oo_connectors::SourceError> {
+        let started = std::time::Instant::now();
+        let result = self.changes.earliest_available().await;
+        pace(started, self.duty).await;
+        result
+    }
+
+    async fn next_batch(
+        &mut self,
+        from: &Watermark,
+        budget: &ReadBudget,
+    ) -> Result<Option<ChangeBatch>, oo_connectors::SourceError> {
+        self.changes.next_batch(from, budget).await
     }
 }
 
@@ -349,17 +384,19 @@ pub(super) async fn run(
     let duty = u32::from(budget.duty_cycle_percent);
     tokio::time::sleep(setup_started.elapsed() * (100 - duty) / duty).await;
     let mut batches = 0;
+    let mut paced = Paced {
+        changes: &mut changes,
+        duty: budget.duty_cycle_percent,
+    };
     while batches < sync.max_batches && target.admission.quarantined.len() < target.tables.len() {
-        let started = std::time::Instant::now();
         let result = engine_sync::step(
-            &mut changes,
+            &mut paced,
             &mut target,
             &mut feedback,
             budget,
             engine_sync::at_or_after,
         )
         .await;
-        tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
         if !result? {
             break;
         }

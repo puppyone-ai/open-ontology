@@ -2491,12 +2491,12 @@ fn logminer_opt_in() -> Requirement {
                 .into(),
         ),
         required: "Explicit Oracle C1 opt-in and version-specific T7 acceptance; \
-                   sync: auto must remain C5. Production impact (T10, D24): every \
-                   LogMiner batch re-mines redo from the binding's transaction floor, so \
-                   its cost grows with redo generated since the baseline; at about 2,200 \
-                   row changes/s on a 4-CPU source C1 missed its batch deadline within \
-                   ten minutes. Opt in only for a change rate measured on the actual \
-                   workload and rebaseline periodically; otherwise keep C5"
+                   sync: auto must remain C5. Production impact (T10, D24): each \
+                   LogMiner batch mines from a transaction floor that advances only \
+                   while the cursor keeps up; at about 2,000 row changes/s on a 4-CPU \
+                   source C1 applied about 50 changes/s and fell behind. Opt in only for \
+                   a change rate measured on the actual workload well below that; \
+                   otherwise keep C5"
             .into(),
         dba_statement: None,
     }

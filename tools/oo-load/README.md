@@ -238,14 +238,21 @@ Capture the transaction floor **before the aligned baseline**, no later than
 the oldest active source transaction's start SCN (or the baseline SCN if
 none is active). This is part of the caller's baseline-alignment assertion,
 not a value inferred at restart. The loader persists the floor together with
-DBID/resetlogs and rejects changing it on resume. Each reader re-mines from
-this fixed floor and filters by the durable commit SCN, preserving transactions
-that began before the snapshot but committed afterward. Missing redo covering
-the floor requires explicit rebaseline; do not move the floor forward to
-bypass the refusal. Unrelated SCN movement creates no target generation.
-The floor remains fixed for the lifetime of this baseline, so this prototype
-needs rebaseline before that history is purged; it is not an unbounded durable
-in-flight transaction spool.
+DBID/resetlogs and rejects changing it on resume. Each batch mines from a
+mining floor and filters by the durable commit SCN, preserving transactions
+that began before the snapshot but committed afterward. The mining floor
+starts at this retained floor and only advances through a recorded
+observation (SCN, then the oldest active transaction's start, then SCN
+again): once the durable cursor passes the observation's second SCN, no
+later commit can belong to a transaction that started below it. The
+advanced floor is kept per binding in the agent DB
+(`_oo_load.logminer_floors`) and rechecked against active transactions on
+resume, so batch cost follows the backlog rather than all redo since the
+baseline. Missing redo covering the mining floor requires explicit
+rebaseline; do not move the floor forward by hand to bypass the refusal.
+Unrelated SCN movement creates no target generation. Logs below the
+persisted mining floor are no longer read; logs from it onward must stay
+retained.
 
 ### MySQL C5-to-C1 Handoff
 
