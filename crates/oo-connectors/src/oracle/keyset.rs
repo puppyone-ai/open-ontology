@@ -794,6 +794,45 @@ mod tests {
     }
 
     #[test]
+    fn keyset_chunk_proof_digest_binds_the_payload_scn_before_bounds() {
+        let a = col("A", "NUMBER");
+        let keys = [&a];
+        let lo = [KeyValue::Int(10)];
+        let sql = digest_sql(
+            &dialect("23.26.3.0.0"),
+            "APP",
+            "T",
+            std::slice::from_ref(&a),
+            PageRange::Keyset {
+                keys: &keys,
+                lower: Some(Bound {
+                    values: &lo,
+                    inclusive: true,
+                }),
+                upper: None,
+            },
+            Some(42),
+        )
+        .unwrap();
+        assert!(sql.text.contains("\"APP\".\"T\" AS OF SCN :b1 WHERE "));
+        assert_eq!(sql.binds[0], Bind::Number("42".into()));
+        let live = digest_sql(
+            &dialect("23.26.3.0.0"),
+            "APP",
+            "T",
+            std::slice::from_ref(&a),
+            PageRange::Keyset {
+                keys: &keys,
+                lower: None,
+                upper: None,
+            },
+            None,
+        )
+        .unwrap();
+        assert!(!live.text.contains("AS OF"));
+    }
+
+    #[test]
     fn physical_digest_keeps_snapshot_bind_before_rowid_bounds() {
         let sql = digest_sql(
             &dialect("11.2.0.2.0"),

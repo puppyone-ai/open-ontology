@@ -239,6 +239,10 @@ pub struct OracleEngine {
     last_ora: Option<usize>,
     /// Operator budget for C5 digests, which the trait call does not carry.
     digest_budget: Option<ReadBudget>,
+    /// C5 asks each keyset chunk for a digest at the payload's own SCN.
+    chunk_proofs: bool,
+    /// Canonical range digest of the last keyset chunk, AS OF its read SCN.
+    pub last_chunk_digest: Option<RangeDigest>,
 }
 
 type Rows = Vec<Vec<Option<String>>>;
@@ -277,7 +281,17 @@ fn map_error_kind(error: &ErrorKind) -> SourceError {
         ErrorKind::UnableToRecover => (SourceErrorKind::Connect, "connection_recovery_failed"),
         _ => (SourceErrorKind::Protocol, "oracle_driver_error"),
     };
-    SourceError::new(kind, Some(fact), None)
+    // Unknown server codes keep the ORA number, as worker errors do, so a
+    // field failure names its code without carrying any driver text.
+    let code = match error {
+        ErrorKind::DbError(db)
+            if fact == "oracle_database_error" && (1..=99_999).contains(&db.code()) =>
+        {
+            crate::error::SqlState::parse(&format!("{:05}", db.code()))
+        }
+        _ => None,
+    };
+    SourceError::new(kind, Some(fact), code)
 }
 
 fn ora_code(e: &DriverError) -> Option<usize> {
@@ -454,6 +468,13 @@ impl OracleEngine {
         self.digest_budget = Some(budget);
     }
 
+    /// Bind every keyset chunk's payload to a range digest at the same SCN.
+    /// A hot range then proves itself instead of comparing two later digests
+    /// that concurrent writes keep changing. Initial loads do not pay for it.
+    pub fn request_chunk_proofs(&mut self) {
+        self.chunk_proofs = true;
+    }
+
     /// Fresh column/key fingerprint, independent of cached plans and row counts.
     pub fn table_shape(&mut self, table: &TableRef) -> Result<String, SourceError> {
         self.load_meta(table)?.shape()
@@ -531,6 +552,8 @@ impl OracleEngine {
             },
             last_ora: None,
             digest_budget: None,
+            chunk_proofs: false,
+            last_chunk_digest: None,
         };
         engine.set_timeout(Duration::from_secs(10))?;
         engine.session_user = engine
@@ -2299,6 +2322,17 @@ impl OracleEngine {
         lo: Option<&[KeyValue]>,
         hi: Option<&[KeyValue]>,
     ) -> Result<RangeDigest, SourceError> {
+        self.digest_at(table, lo, hi, None)
+    }
+
+    /// Range digest, optionally AS OF a keyset chunk's read SCN.
+    fn digest_at(
+        &mut self,
+        table: &TableRef,
+        lo: Option<&[KeyValue]>,
+        hi: Option<&[KeyValue]>,
+        keyset_scn: Option<u64>,
+    ) -> Result<RangeDigest, SourceError> {
         let d = self.ensure_version()?;
         let meta = match self.tables.get(table) {
             Some(s) => s.meta.clone(),
@@ -2345,7 +2379,7 @@ impl OracleEngine {
                     .ok_or(SourceError::catalog("physical_digest_requires_snapshot"))?,
             )
         } else {
-            None
+            keyset_scn
         };
         if meta.columns.iter().any(|c| c.kind.is_lob()) {
             // Reuse the bounded locator reader on both thin and thick transports.
@@ -2438,6 +2472,15 @@ struct Progress {
     bytes: u64,
 }
 
+/// The SCN a C5 chunk proof must use: only keyset chunks, each read at one
+/// SCN. Physical chunks already share the plan's snapshot with their digests.
+fn proof_scn(keyset_proof: bool, receipt: &ChunkReceipt) -> Option<u64> {
+    match &receipt.low {
+        Some(Watermark::OracleScn { scn }) if keyset_proof => Some(*scn),
+        _ => None,
+    }
+}
+
 fn logminer_opt_in() -> Requirement {
     Requirement {
         kind: crate::engine::RequirementKind::Feature,
@@ -2448,7 +2491,12 @@ fn logminer_opt_in() -> Requirement {
                 .into(),
         ),
         required: "Explicit Oracle C1 opt-in and version-specific T7 acceptance; \
-                   sync: auto must remain C5"
+                   sync: auto must remain C5. Production impact (T10, D24): every \
+                   LogMiner batch re-mines redo from the binding's transaction floor, so \
+                   its cost grows with redo generated since the baseline; at about 2,200 \
+                   row changes/s on a 4-CPU source C1 missed its batch deadline within \
+                   ten minutes. Opt in only for a change rate measured on the actual \
+                   workload and rebaseline periodically; otherwise keep C5"
             .into(),
         dba_statement: None,
     }
@@ -2510,8 +2558,24 @@ impl SourceEngine for OracleEngine {
         validate_budget(budget)?;
         self.protect().await?;
         let started = Instant::now();
+        self.last_chunk_digest = None;
         let result = self
             .read_chunk_sync(chunk, budget, sink)
+            .and_then(|receipt| {
+                let keyset = self
+                    .tables
+                    .get(&chunk.table)
+                    .is_some_and(|s| matches!(s.strategy, ChunkStrategy::Keyset { .. }));
+                if let Some(scn) = proof_scn(self.chunk_proofs && keyset, &receipt) {
+                    self.last_chunk_digest = Some(self.digest_at(
+                        &chunk.table,
+                        chunk.lo.as_deref(),
+                        chunk.hi.as_deref(),
+                        Some(scn),
+                    )?);
+                }
+                Ok(receipt)
+            })
             .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
@@ -2570,6 +2634,28 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn c5_chunk_proof_uses_the_payload_scn_only_when_requested() {
+        let receipt = |low| ChunkReceipt {
+            table: TableRef {
+                schema: "S".into(),
+                name: "T".into(),
+            },
+            plan_revision: 1,
+            chunk_id: 0,
+            rows: 1,
+            bytes: 1,
+            sha256: String::new(),
+            low,
+            high: Some(Watermark::OracleScn { scn: 99 }),
+        };
+        let read = receipt(Some(Watermark::OracleScn { scn: 42 }));
+        // The digest must see the payload's snapshot, never the later high mark.
+        assert_eq!(proof_scn(true, &read), Some(42));
+        assert_eq!(proof_scn(false, &read), None);
+        assert_eq!(proof_scn(true, &receipt(None)), None);
+    }
 
     #[test]
     fn unknown_worker_codes_keep_the_ora_number() {
@@ -2655,6 +2741,9 @@ mod tests {
         assert!(requirement.observed.unwrap().contains("SYS.LOGMNR_GT_*"));
         assert!(requirement.required.contains("Explicit Oracle C1 opt-in"));
         assert!(requirement.required.contains("sync: auto must remain C5"));
+        // T10 measured LogMiner falling behind a busy source; doctor shows it.
+        assert!(requirement.required.contains("transaction floor"));
+        assert!(requirement.required.contains("otherwise keep C5"));
         assert!(requirement.dba_statement.is_none());
     }
 

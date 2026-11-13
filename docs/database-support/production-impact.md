@@ -1,182 +1,102 @@
 # Production impact
 
-## Chunk-consistent mitigation: operational contract
+Engine-specific side effects, sizing and consistency notes for the T10
+production-impact measurement (S6-H-02, D24). The method, the per-phase
+latency/throughput tables and the sign-off are in the
+[production impact guide](../guide/production-impact.md). The numbers here are
+measured peaks on a 4-CPU / 8 GiB fixture source with 2,000,000 rows, not
+production sizing.
 
-The [mitigation evidence report](../../tools/oo-test/T10-MITIGATE2.md) records the
-implemented read proof, full-scale correctness reruns and preserved failures.
-New D24 measurements are still pending; no new production capacity is certified.
+## Read consistency contract
 
-Keyed PostgreSQL/MySQL default to `snapshot: chunk_consistent`; range payload and
-digest share a transaction, with configured row/byte/time bounds and one-second
-cleanup. Retained publication metadata records that class. Cross-range skew is
-bounded by the cycle, not a single source instant. Explicit `snapshot: single`
-and PostgreSQL physical/unprovable-key tables retain long-snapshot risks.
+Keyed PostgreSQL and MySQL tables default to `snapshot: chunk_consistent`: each
+transferred range and its canonical digest are read in one bounded read-only
+repeatable-read transaction, with the configured row, byte and statement-time
+limits and one-second cleanup. Oracle keyset chunks are read `AS OF` one SCN
+each; C5 now digests the range `AS OF` that same SCN, so all three engines
+prove a C5 payload against the snapshot it was read from rather than against a
+later digest. Ranges can represent different instants; the next C5 cycle
+reconciles changes. This is not a globally consistent snapshot.
 
-Source-activity gates remain enabled (PG 16 active sessions / 30-second pause;
-MySQL 16 running threads / 120 seconds; Oracle 16 active sessions / 60 seconds).
-PostgreSQL reader sessions disable parallel gather workers. PG/MySQL keep their
-per-operation duty pacing without charging completed target work and previous
-sleeps again; Oracle's existing pacing is unchanged.
+`snapshot: single` keeps one long snapshot. PostgreSQL physical (no-key) tables
+and key shapes the catalog cannot prove keep a per-table exported snapshot and
+can still hold back `xmin` for the length of that table's read.
 
-T10 alone sets and verifies PG `max_slot_wal_keep_size=-1` to prevent the fixture
-cap invalidating its slot. This is **not** a production recommendation: size and
-alert on WAL retention with DBA-approved disk headroom. MySQL aligned-baseline
-preparation requires a quiescent fixture; it does not authorize assuming alignment
-on a live production source, or raising the 100,000-key / 32 MiB repair cap.
+Keyed C5 keeps the baseline's key ranges while the key shape is unchanged. A
+range whose row count outgrows the chunk budget (typically the open-ended
+append tail) is split at C5 discovery into children that each fit in half the
+budget; the children replace their parent in the durable plan and are all read
+and staged before publication. More than 64 splits of one table in one cycle
+is a `table_budget` stale for that table. LOB-bearing Oracle tables digest
+through the bounded row reader, so a grown range there still reports
+`table_budget` until it is rebaselined.
 
-Oracle preparation/initial deadlines use a measured 20,000-row probe and each
-binding's current row count: `max(900, ceil(3 * rows / rows_per_second))`. Sizing
-queries run before foreground measurement; all inputs/deadlines are recorded.
-This does not certify undo capacity. Replica/standby reads still need identity,
-lag, position alignment, permissions and (for Oracle) licensing review.
+## Measured side effects (final run)
 
-## Historical measurement: T10-live-4
-
-No engine passed every phase. See the [measured phase table](../guide/production-impact.md)
-and [complete evidence report](../../tools/oo-test/T10-LIVE4.md). These are measured
-peaks, not production sizing recommendations. Missing preparation samples are
-unmeasured, never zero. Oracle A/B denote independent baseline comparisons.
-
-| Engine | Phase | CPU peak % | Block read / write peak bytes | Engine-side peak counters |
-| --- | --- | --- | --- | --- |
-| Oracle A | baseline | 266.040 | 26200000.000 / 21800000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=900.000; undo_blocks=106813.000 |
-| Oracle A | initial | 344.880 | 158000000.000 / 61400000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=985.000; undo_blocks=335919.000 |
-| Oracle A | initial_duty100 | 347.830 | 160000000.000 / 75200000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=900.000; undo_blocks=420990.000 |
-| Oracle B | baseline | 148.090 | 23200000.000 / 22400000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=900.000; undo_blocks=108118.000 |
-| Oracle B | c5_idle | 265.150 | 51400000.000 / 27900000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=900.000; undo_blocks=136571.000 |
-| Oracle B | c5_changed | unmeasured | unmeasured / unmeasured | unmeasured |
-| Oracle B | c5_full_idle | 170.170 | 130000000.000 / 33600000000.000 | logminer_session_cpu_centiseconds=0.000; ora_01555_count=0.000; tuned_undoretention_seconds=1014.000; undo_blocks=166720.000 |
-| Oracle B | c5_full_changed | unmeasured | unmeasured / unmeasured | unmeasured |
-| Oracle B | c1 | unmeasured | unmeasured / unmeasured | unmeasured |
-| MySQL 8.4.7 | baseline | 365.160 | 31800000.000 / 15100000000.000 | Innodb_history_list_length=465.000; Threads_running=66.000; purge_backlog_transactions=465.000 |
-| MySQL 8.4.7 | initial | 78.480 | 31800000.000 / 15100000000.000 | Innodb_history_list_length=354.000; Threads_running=4.000; purge_backlog_transactions=354.000 |
-| MySQL 8.4.7 | initial_duty100 | 77.860 | 31800000.000 / 15500000000.000 | Innodb_history_list_length=304.000; Threads_running=7.000; purge_backlog_transactions=304.000 |
-| MySQL 8.4.7 | c1 | unmeasured | unmeasured / unmeasured | unmeasured |
-| MySQL 8.4.7 | c5_idle | 388.740 | 31900000.000 / 35600000000.000 | Innodb_history_list_length=458.000; Threads_running=66.000; purge_backlog_transactions=458.000 |
-| MySQL 8.4.7 | c5_changed | 376.320 | 154000000.000 / 40600000000.000 | Innodb_history_list_length=420.000; Threads_running=66.000; purge_backlog_transactions=420.000 |
-| MySQL 8.4.7 | c5_full_idle | 377.340 | 194000000.000 / 57900000000.000 | Innodb_history_list_length=532.000; Threads_running=66.000; purge_backlog_transactions=532.000 |
-| MySQL 8.4.7 | c5_full_changed | 377.830 | 434000000.000 / 69400000000.000 | Innodb_history_list_length=623.000; Threads_running=66.000; purge_backlog_transactions=623.000 |
-| PostgreSQL 17.11 | baseline | 101.750 | 0.000 / 19600000000.000 | autovacuum_count=12.000; backend_xmin_age=0.000; n_dead_tup=1705.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | initial | 107.730 | 0.000 / 20400000000.000 | autovacuum_count=13.000; backend_xmin_age=102158.000; n_dead_tup=76346.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | initial_duty100 | 63.030 | 0.000 / 20400000000.000 | autovacuum_count=13.000; backend_xmin_age=0.000; n_dead_tup=2929.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | c1 | 142.200 | 0.000 / 36000000000.000 | autovacuum_count=24.000; backend_xmin_age=8250.000; n_dead_tup=5028.000; slot_retained_wal_bytes=305079376.000 |
-| PostgreSQL 17.11 | c5_idle | 294.660 | 0.000 / 40600000000.000 | autovacuum_count=28.000; backend_xmin_age=628178.000; n_dead_tup=472036.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | c5_changed | 413.020 | 0.000 / 48200000000.000 | autovacuum_count=35.000; backend_xmin_age=1119964.000; n_dead_tup=840325.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | c5_full_idle | 292.580 | 0.000 / 53000000000.000 | autovacuum_count=39.000; backend_xmin_age=628203.000; n_dead_tup=472160.000; slot_retained_wal_bytes=0.000 |
-| PostgreSQL 17.11 | c5_full_changed | 410.740 | 0.000 / 63100000000.000 | autovacuum_count=58.000; backend_xmin_age=2121968.000; n_dead_tup=1591492.000; slot_retained_wal_bytes=0.000 |
-
-Block IO is Docker's rounded cumulative counter, not phase IO. Undo counters
-cover retained V$UNDOSTAT history; autovacuum counts include fixture activity.
-History-list length is a purge backlog, not time lag. Live-session LogMiner CPU
-samples cannot prove total CPU for exited sessions; C1 did not complete here.
-
-PostgreSQL changed-C5 held reader xmin up to 1119964 / 2121968 transactions
-and hot-table dead tuples up to 840325 / 1591492 (period 24 / 1). Both policies
-exceeded D24. Its C1 slot peaked at 305079376 retained WAL bytes and invalidated
-under the fixture's 256 MiB cap. Size retention for measured load, outage and
-catch-up; do not treat the fixture cap as production sizing. Short-transaction
-replacement must preserve C5 correction before publication and pass full T1/T2.
-
-MySQL's history list peaked at 623 and Threads_running at 66 in the reduced-rate
-run. The initial loads passed the relative budget, but C1 repair staging and
-changed-C5 partial-sync errors remain blockers. Resolve those errors before
-using the path; do not increase budgets blindly or equate partial sync with fresh.
-
-Oracle A's interrupted load reached 335919 undo blocks in the retained history;
-Oracle B idle full C5 reached 166720, with tuned retention 1014 seconds. Sampled
-ORA-01555 was zero, but changed-C5/C1 preparation timed out and initial loads
-were incomplete. There is no validated undo capacity or C1-versus-C5 CPU ratio.
-Use measured undo generation times the longest consistent-read interval, plus
-DBA-approved headroom, and confirm under peak writes. No init parameter changed.
-
-Keep periodic full verification and low-write windows. Existing active-session
-or Threads_running gates did not establish all-phase acceptance. Adaptive tuning
-and short transactions remain unvalidated; no full-scale live T1/T2 ran in this
-attempt. Replica/standby evaluation requires the identity, lag, position-alignment
-and licensing checks in the operator checklist below. All owned resources are gone.
-
-## Historical T10-live-3 status
-
-No live D24 budget is verified for Oracle 23, MySQL 8.4, or PostgreSQL 17.
-The T10-live-3 sustained-rate attempt failed calibration for Oracle and the
-ten-minute baseline for MySQL/PostgreSQL, even after their extra 30% step.
-No initial/C1/C5 phase or mitigation comparison is available. See the
-[measured results](../guide/production-impact.md) and the
-[engine x phase report](../../tools/oo-test/T10-LIVE3.md).
-
-## T10-live-3 baseline side effects
-
-| Baseline | CPU peak | Cumulative block IO read / write peak | Source counter peaks |
+| Engine (run) | Phase | CPU peak % | Engine counters (peak) |
 | --- | --- | --- | --- |
-| mysql, settled | 233.10% | 31.8 MB / 17.300 GB | History list / purge backlog 513; Threads_running 66 |
-| mysql, lower30 | 92.15% | 31.7 MB / 16.200 GB | History list / purge backlog 426; Threads_running 66 |
-| postgres, settled | 72.33% | 0.0 MB / 18.900 GB | Reader xmin age 0; dead tuples 1074; autovacuum count 13; slot WAL 0 B |
-| postgres, lower30 | 62.73% | 0.0 MB / 10.500 GB | Reader xmin age 0; dead tuples 1087; autovacuum count 10; slot WAL 0 B |
+| Oracle 23 A | baseline | 105.5 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=69441 |
+| Oracle 23 A | initial | 172.3 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=70883 |
+| Oracle 23 A | initial_duty100 | 159.7 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=71360 |
+| Oracle 23 A | c1 | 168.1 | logminer_session_cpu_centiseconds=220; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=113014 |
+| Oracle 23 A | c5_idle | 139.2 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=126065 |
+| Oracle 23 A | c5_changed | 135.5 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=152399 |
+| Oracle 23 A | c5_full_idle | 114.7 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=166168 |
+| Oracle 23 A | c5_full_changed | 133.8 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=191601 |
+| Oracle 23 B | baseline | 85.0 | logminer_session_cpu_centiseconds=0; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=66965 |
+| Oracle 23 B | c1 | 163.1 | logminer_session_cpu_centiseconds=3261; ora_01555_count=0; tuned_undoretention_seconds=900; undo_blocks=105953 |
+| MySQL 8.4 auto | baseline | 237.5 | Innodb_history_list_length=496; Threads_running=66; purge_backlog_transactions=496 |
+| MySQL 8.4 auto | initial | 64.9 | Innodb_history_list_length=405; Threads_running=3; purge_backlog_transactions=405 |
+| MySQL 8.4 auto | initial_duty100 | 88.9 | Innodb_history_list_length=376; Threads_running=60; purge_backlog_transactions=376 |
+| MySQL 8.4 auto | c1 | 326.1 | Innodb_history_list_length=448; Threads_running=66; purge_backlog_transactions=448 |
+| MySQL 8.4 auto | c5_idle | 71.3 | Innodb_history_list_length=304; Threads_running=3; purge_backlog_transactions=304 |
+| MySQL 8.4 auto | c5_changed | 67.2 | Innodb_history_list_length=409; Threads_running=7; purge_backlog_transactions=409 |
+| MySQL 8.4 auto | c5_full_idle | 64.9 | Innodb_history_list_length=272; Threads_running=19; purge_backlog_transactions=272 |
+| MySQL 8.4 auto | c5_full_changed | 73.3 | Innodb_history_list_length=296; Threads_running=11; purge_backlog_transactions=296 |
+| MySQL 8.4 low | baseline | 122.1 | Innodb_history_list_length=371; Threads_running=66; purge_backlog_transactions=371 |
+| MySQL 8.4 low | initial | 36.9 | Innodb_history_list_length=357; Threads_running=4; purge_backlog_transactions=357 |
+| MySQL 8.4 low | initial_duty100 | 68.5 | Innodb_history_list_length=291; Threads_running=5; purge_backlog_transactions=291 |
+| MySQL 8.4 low | c1 | 157.5 | Innodb_history_list_length=605; Threads_running=63; purge_backlog_transactions=605 |
+| MySQL 8.4 low | c5_idle | 49.0 | Innodb_history_list_length=337; Threads_running=4; purge_backlog_transactions=337 |
+| MySQL 8.4 low | c5_changed | 47.9 | Innodb_history_list_length=221; Threads_running=4; purge_backlog_transactions=221 |
+| MySQL 8.4 low | c5_full_idle | 50.2 | Innodb_history_list_length=252; Threads_running=3; purge_backlog_transactions=252 |
+| MySQL 8.4 low | c5_full_changed | 49.2 | Innodb_history_list_length=344; Threads_running=5; purge_backlog_transactions=344 |
+| PostgreSQL 17 | baseline | 31.5 | autovacuum_count=12; backend_xmin_age=0; n_dead_tup=1107; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | initial | 51.9 | autovacuum_count=13; backend_xmin_age=332; n_dead_tup=902; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | initial_duty100 | 82.7 | autovacuum_count=13; backend_xmin_age=276; n_dead_tup=765; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | c1 | 121.3 | autovacuum_count=25; backend_xmin_age=2031; n_dead_tup=1169; slot_retained_wal_bytes=174398376 |
+| PostgreSQL 17 | c5_idle | 61.5 | autovacuum_count=26; backend_xmin_age=255; n_dead_tup=990; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | c5_changed | 60.0 | autovacuum_count=28; backend_xmin_age=159; n_dead_tup=807; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | c5_full_idle | 62.4 | autovacuum_count=29; backend_xmin_age=240; n_dead_tup=950; slot_retained_wal_bytes=0 |
+| PostgreSQL 17 | c5_full_changed | 61.5 | autovacuum_count=32; backend_xmin_age=171; n_dead_tup=791; slot_retained_wal_bytes=0 |
 
-These are foreground-only baselines, not connector impact. All foreground
-errors were queue rejections; metrics collection itself had no errors.
-Oracle phase side effects were not measured because settling failed.
-A fixture-only diagnosis found `DPY-6005` / `DPY-6000` / `ORA-12516` connection
-failures. Sampled process high-water was 142 of 200 and session high-water
-227 of 322; these counters do not establish the cause. Investigate listener
-admission before raising limits or rerunning a production-impact benchmark.
-The harness now closes trial connections; rate selection remains unchanged.
-
-No valid default phase exceeded D24 because no valid comparison exists.
-Retain the operator checklist below; no numeric retention sizing or changed
-product default is justified by failed foreground-only baselines.
-
-## Previous T10-live-2 baseline side effects
-
-Runs `t10-live2-{oracle,mysql,postgres}-corrected-20261109` used native arm64
-Oracle 23.5.0.24.07, MySQL 8.4.7 and PostgreSQL 17.11 in that order.
-Each source was limited to 4 CPUs / 8 GiB and observed for 600 seconds.
-
-| Engine | Peak counters | Peak cumulative container block IO, read / write |
-| --- | --- | --- |
-| Oracle | Undo 100,769 blocks; tuned retention 900 s; ORA-01555 0; live LogMiner CPU 0 centiseconds | 23.4 MB / 21.3 GB |
-| MySQL | History list / purge backlog 472 transactions; Threads_running 34 | 31.7 MB / 14.9 GB |
-| PostgreSQL | Reader xmin age 0; hot-table dead tuples 1,310; autovacuum count 11; retained slot WAL 0 bytes | 0 MB / 20.3 GB |
-
-IO values are Docker's rounded cumulative container counters, not per-phase
-IO deltas. Undo and autovacuum counters also include earlier fixture activity.
-The baseline has no product reader or C1 miner, so zero reader/slot/miner
-counters cannot establish their behavior during product phases. All foreground
-errors were `scheduler_queue_full`; none is evidence of a connector-induced
-database error. These failed baselines cannot size production retention.
+Block IO is Docker's cumulative, rounded counter. Oracle undo blocks and tuned
+undo retention cover the `V$UNDOSTAT` horizon, not only the phase; LogMiner CPU
+is sampled from live sessions and can miss sessions that already exited.
+MySQL's history-list length is purge backlog, not seconds of lag.
 
 ## Operator checklist
 
-These are measurement and mitigation instructions, not measured capacity or
-retention guarantees. The DBA, not the product reader, changes source settings.
+The DBA, not the product reader, changes source settings.
 
 | Engine | Observe during initial / C1 / C5 | Sizing and response |
 | --- | --- | --- |
-| PostgreSQL 17 | Reader `backend_xmin` age, hot-table dead tuples, autovacuum count, slot-retained WAL bytes | Measure the longest read and WAL generation over the longest expected consumer outage plus catch-up. Reserve disk headroom for that interval and alert on retained WAL growth. If long snapshots hold back cleanup, evaluate short chunk transactions plus C5 correction before publication; do not disable vacuum to hide impact. |
-| MySQL 8.4 | `Innodb_history_list_length`, `Threads_running`, foreground latency | History-list length measures purge backlog, not lag in seconds. Measure growth during the longest read and recovery after it. Investigate sustained growth before increasing concurrency. Size binlog retention for measured load, outage and catch-up windows, with DBA-approved headroom; retain the snapshot path until the short-transaction alternative passes T1/T2. |
-| Oracle 23 | Undo blocks, tuned undo retention, ORA-01555 counts, live LogMiner-session CPU | Measure peak undo generation and the longest required consistent-read interval. Use their product plus workload-specific headroom as a starting capacity estimate, then validate under peak writes; no fixed GB or seconds value is established here. If explicit LogMiner C1 exceeds budget, evaluate the default C5 path and remeasure its digest-scan cost. |
-
-Oracle's sampled `V$UNDOSTAT` totals cover the retained history, not only the
-phase. Compare before/after as well as peaks. Sampled live-session LogMiner CPU
-can miss sessions that already exited. Never use these counters alone to claim
-causal attribution or a complete CPU total.
+| PostgreSQL 17 | Reader `backend_xmin` age, hot-table dead tuples, autovacuum count, slot-retained WAL bytes, C1 lag | Keyed tables no longer hold one snapshot across a load or cycle; physical/no-key tables still do, per table. Size a bounded `max_slot_wal_keep_size` (and the disk behind it) from measured WAL generation times the longest expected consumer outage plus catch-up, with headroom, and alert on retained WAL. Unlimited retention (`-1`) leaves `safe_wal_size` unknown and C1 refuses it as `wal_retention_headroom_unproven`; T10's fixture uses a bounded 16GB (peak retained 174 MB), which is not a sizing recommendation. Never disable vacuum to hide impact. |
+| MySQL 8.4 | `Innodb_history_list_length`, `Threads_running`, foreground latency | Size binlog retention for load, outage and catch-up windows. The C1 handoff repair keeps its 100,000-key / 32 MiB bound: a larger repair refuses atomically and needs a rebaseline. T10's C1 binds at an aligned position on a quiescent fixture; do not assume alignment on a live primary. |
+| Oracle 23 | Undo blocks, tuned undo retention, ORA-01555 count, LogMiner session CPU, redo log switch rate | Size undo from peak generation times the longest consistent-read interval (each keyset chunk reads `AS OF` one SCN for the length of that chunk). No ORA-01555 occurred in any final phase. Keep `sync: auto` (C5). LogMiner C1 (opt-in) re-mines redo from the binding's transaction floor on every batch; it fell behind about 2,200 row changes/s within ten minutes. If you opt in, measure the change rate first, size online redo logs so they do not switch every few seconds (a switch during a batch is retried, up to three times), and rebaseline periodically. |
 
 ## Standby / replica option
 
-A separately provisioned replica can be evaluated for initial and C5 reads,
-but this card does not certify any replica topology. Confirm the connector's
-supported read mode, source identity, permissions, schema, replay lag, and
-required read consistency first. Keep lag visible in freshness reporting.
-If a C1 stream and snapshot use different endpoints, prove position alignment
-and retention across both; do not assume a replica snapshot matches the
-primary's change position.
+A separately provisioned replica can be evaluated for initial and C5 reads;
+T10 does not certify any replica topology. Confirm the connector's supported
+read mode, source identity, permissions, schema, replay lag and required read
+consistency first, and keep lag visible in freshness reporting. If a C1 stream
+and a snapshot use different endpoints, prove position alignment and retention
+across both; a replica snapshot does not match the primary's change position
+by default.
 
-For PostgreSQL, include standby recovery conflicts and replay lag in the
-trial. For MySQL, verify the selected endpoint actually exposes the required
-binlog/GTID history before choosing C1. For Oracle, have the DBA confirm standby
-read availability and applicable licensing before planning it. None of these
-paths authorizes product writes to the source or automatic source reconfiguration.
-
-Adaptive throttling and short-transaction mitigations remain unmeasured in this
-T10 attempt. Advance them only after an actual over-budget phase identifies the
-next mitigation, followed by unit tests, full-scale T1/T2, and a new T10 run.
+For PostgreSQL include standby recovery conflicts and replay lag in the trial.
+For MySQL verify the endpoint exposes the required binlog/GTID history before
+choosing C1. For Oracle have the DBA confirm standby read availability and
+licensing. None of these paths authorizes product writes to the source or
+automatic source reconfiguration.

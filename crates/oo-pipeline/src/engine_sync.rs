@@ -57,6 +57,20 @@ pub fn at_or_after(next: &Watermark, previous: &Watermark) -> Result<bool> {
     }
 }
 
+/// The closed fact of a source error. A server code the adapter could not
+/// name (an unknown ORA number, say) goes to stderr as a separate diagnostic
+/// line: a code, never driver text, so field failures stay diagnosable.
+fn closed(error: &oo_connectors::SourceError, fallback: &'static str) -> &'static str {
+    let fact = error.fact().unwrap_or(fallback);
+    if let Some(code) = error.sqlstate() {
+        eprintln!(
+            "{}",
+            serde_json::json!({"diagnostic":"source_error","fact":fact,"sqlstate":code})
+        );
+    }
+    fact
+}
+
 /// One bounded source batch. A no-batch poll does not touch the target.
 /// `compare` must check monotonicity within an externally verified lineage.
 pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
@@ -70,7 +84,7 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     let earliest = source
         .earliest_available()
         .await
-        .map_err(|e| e.fact().unwrap_or("sync_retention"))?;
+        .map_err(|e| closed(&e, "sync_retention"))?;
     if !compare(&from, &earliest)? {
         return Err("sync_rebaseline_required_retention");
     }
@@ -92,7 +106,7 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     let Some(batch) = source
         .next_batch(&from, budget)
         .await
-        .map_err(|e| e.fact().unwrap_or("sync_capture"))?
+        .map_err(|e| closed(&e, "sync_capture"))?
     else {
         return Ok(false);
     };

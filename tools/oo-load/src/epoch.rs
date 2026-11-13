@@ -159,6 +159,10 @@ impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
 }
 
 impl Epoch for oo_connectors::oracle::engine::OracleEngine {
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
+    }
+
     async fn epoch(
         &mut self,
         _: &Source,

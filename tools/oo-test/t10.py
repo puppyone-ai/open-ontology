@@ -164,7 +164,9 @@ class ImpactSource(t3t4.Source):
         super().__init__(*args, **kwargs)
         self.foreground_key = SCALE + 1
         self.foreground_lock = threading.Lock()
-        self.slot_wal_keep_size = "-1"
+        # Bounded and large: the product refuses unlimited retention as
+        # unproven WAL headroom, and 256MB invalidated the slot under load.
+        self.slot_wal_keep_size = SLOT_WAL_KEEP_SIZE
 
     def next_foreground_key(self):
         # Calibration and every phase write the same source table.
@@ -177,7 +179,26 @@ class ImpactSource(t3t4.Source):
         command = list(command)
         if command[:2] == ['docker', 'create'] and self.name in command:
             command[2:2] = ['--cpus', str(self.args.cpus), '--memory', self.args.memory]
+        elif (command[:2] == ['docker', 'create'] and getattr(self.args, 'target_tmpfs', False)
+              and TARGET_DATA_MOUNT in ' '.join(command)):
+            command = target_on_tmpfs(command)
         return super().command(command, **kwargs)
+
+
+SLOT_WAL_KEEP_SIZE = '16GB'
+TARGET_DATA_MOUNT = 'dst=/var/lib/postgresql/data'
+
+
+def target_on_tmpfs(command):
+    """Give the agent DB its own storage instead of the source's shared disk.
+
+    On one Docker host the source and the target share a virtual disk, so the
+    target's write bursts (load staging, WAL, checkpoints) stall the source's
+    commit fsyncs; no real deployment shares the source database's storage.
+    """
+    index = next(i for i, arg in enumerate(command)
+                 if arg == '--mount' and TARGET_DATA_MOUNT in command[i + 1])
+    return command[:index] + ['--tmpfs', '/var/lib/postgresql/data:rw,size=24g'] + command[index + 2:]
 
 
 class ImpactHarness(t3t4.Harness):
@@ -256,6 +277,17 @@ class Workload:
         self.local = threading.local()
         self.connections = []
         self.lock = threading.Lock()
+        self.ready = queue.SimpleQueue()
+
+    def warm(self, count):
+        """Open the workers' connections before the phase clock starts.
+
+        Lazily connecting inside the first measured second (64 SCRAM/TLS
+        handshakes) inflated every phase's tail by its first second; a short
+        phase weighted that warm-up far more than the 10-minute baseline.
+        """
+        for _ in range(count):
+            self.ready.put(self.connect())
 
     def connect(self):
         run = self.run
@@ -281,7 +313,10 @@ class Workload:
 
     def __call__(self, index):
         if not getattr(self.local, 'conn', None):
-            self.local.conn = self.connect()
+            try:
+                self.local.conn = self.ready.get_nowait()
+            except queue.Empty:
+                self.local.conn = self.connect()
         # Fixed 60/30/10 mix and deterministic hot keys in every phase.
         hot = index % 20 + 1
         if index % 10 < 6:
@@ -514,6 +549,7 @@ def phase(harness, name, work, rate, seconds, action, sequence):
             done.set()
 
     thread = threading.Thread(target=product)
+    work.warm(DEFAULT_WORKERS)
     meter.thread.start()
     try:
         requests, duration = open_loop(work, rate, seconds,
@@ -610,6 +646,11 @@ def parse_args(argv=None):
     parser.add_argument('--memory', default='4g')
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--binary', type=Path, default=runner.ROOT / 'tools/oo-load/target/release/oo-load')
+    parser.add_argument('--target-tmpfs', action='store_true',
+                        help='keep the agent DB on tmpfs, off the disk the source shares')
+    parser.add_argument('--quiet-cpu-percent', type=float, default=QUIET_CPU_PERCENT,
+                        help='refuse while pre-existing containers use more CPU in total '
+                             '(percent of one CPU); the limit and the observed load are recorded')
     args = parser.parse_args(argv)
     versions = {'postgres': t3t4.POSTGRES, 'mysql': t3t4.MYSQL, 'oracle': ('19', '23')}
     if args.version not in versions[args.engine]:
@@ -621,6 +662,8 @@ def parse_args(argv=None):
     for value in (args.minutes, args.cpus):
         if not math.isfinite(value) or value <= 0:
             parser.error('minutes and cpus must be finite and positive')
+    if not math.isfinite(args.quiet_cpu_percent) or not 0 <= args.quiet_cpu_percent <= 100:
+        parser.error('quiet-cpu-percent must be between 0 and 100')
     if not re.fullmatch(r'[1-9][0-9]*[kmgKMG]?', args.memory):
         parser.error('memory must be a positive Docker memory size')
     if args.rate != 'auto':
@@ -639,10 +682,11 @@ def parse_args(argv=None):
 QUIET_CPU_PERCENT = 5.0
 
 
-def quiet_host(samples=3):
+def quiet_host(samples=3, limit=QUIET_CPU_PERCENT):
     """Pre-existing containers are never stopped; they must be measured idle.
 
-    Returns their count and peak CPU % for the evidence report, never names.
+    Returns their count, peak CPU % and the applied limit for the evidence
+    report, never names.
     """
     peaks = {}
     for _ in range(samples):
@@ -652,10 +696,15 @@ def quiet_host(samples=3):
             name, _, cpu = line.partition('\t')
             value = float(cpu.strip().rstrip('%') or 0)
             peaks[name] = max(peaks.get(name, 0.0), value)
-    if sum(peaks.values()) > QUIET_CPU_PERCENT:
+    total = sum(peaks.values())
+    if total > limit:
         raise SystemExit('blocked: pre-existing containers are not idle; nothing stopped')
     # Names of unrelated containers can be private; record only count and load.
-    return {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
+    result = {'count': len(peaks), 'peak_cpu_percent': max(peaks.values(), default=0.0)}
+    if limit != QUIET_CPU_PERCENT:
+        # A raised limit is a recorded deviation, never a silent bypass.
+        result.update(total_peak_cpu_percent=total, limit_cpu_percent=limit)
+    return result
 
 
 def main(argv=None):
@@ -667,7 +716,7 @@ def main(argv=None):
     if 'initial_duty100' in args.phases and '--duty-cycle-percent' not in help_text:
         raise SystemExit('blocked: oo-load needs the coordinator duty-cycle patch in T10-VALIDATION.md')
     importlib.import_module({'postgres': 'psycopg', 'mysql': 'pymysql', 'oracle': 'oracledb'}[args.engine])
-    preexisting = quiet_host()
+    preexisting = quiet_host(limit=args.quiet_cpu_percent)
     global DEFAULT_WORKERS
     DEFAULT_WORKERS = WORKERS.get(args.engine, DEFAULT_WORKERS)
     t1.LANE = 't10'
@@ -679,8 +728,11 @@ def main(argv=None):
     report = {'engine': args.engine, 'version': args.version, 'phases': {}, 'errors': [],
               'preexisting_containers': preexisting,
               'cpus': args.cpus, 'memory': args.memory, 'scale': SCALE,
+              'target_storage': 'tmpfs' if args.target_tmpfs else 'volume_on_shared_docker_disk',
               'product_sha': product_sha(), 'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
               'measurement_notes': ['client-observed latency includes queueing',
+                                    'foreground connections open before each phase clock; '
+                                    'connection setup is not a measured request',
                                     'Oracle undo counters cover the V$UNDOSTAT retention horizon',
                                     'LogMiner CPU is a sampled live-session counter, not total exited-session CPU',
                                     'C5 idle scans bulk only; foreground writes items/other outside that scope']}
@@ -693,7 +745,7 @@ def main(argv=None):
         elif args.engine == 'postgres':
             _, setting = h.src('SHOW max_slot_wal_keep_size;')
             report['source_settings'] = {'max_slot_wal_keep_size': setting.strip()}
-            if setting.strip() != '-1':
+            if setting.strip() != SLOT_WAL_KEEP_SIZE:
                 raise RuntimeError('slot_retention_setting_not_applied')
         run.record_version()
         report['resource_receipt'] = run.receipt

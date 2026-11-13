@@ -18,12 +18,33 @@ class PreparationTests(unittest.TestCase):
         run = object.__new__(t10.ImpactSource)
         run.args = argparse.Namespace(cpus=4, memory='8g')
         run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
-        run.slot_wal_keep_size = '-1'
+        run.slot_wal_keep_size = t10.SLOT_WAL_KEEP_SIZE
         with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
             run.command(['docker', 'create', '--name', run.name, 'image'])
         args = command.call_args.args[1]
-        self.assertIn('max_slot_wal_keep_size=-1', args)
+        self.assertIn('max_slot_wal_keep_size=16GB', args)
         self.assertNotIn('max_slot_wal_keep_size=256MB', args)
+        # Unlimited (-1) leaves safe_wal_size NULL, which C1 refuses as unproven.
+        self.assertNotIn('max_slot_wal_keep_size=-1', args)
+
+    def test_target_tmpfs_replaces_only_the_agent_db_data_volume(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g', target_tmpfs=True)
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        target = ['docker', 'create', '--name', 'owned-target', '-p', '127.0.0.1:1:5432',
+                  '--mount', 'type=volume,src=owned-target-data,dst=/var/lib/postgresql/data',
+                  '-v', '/private:/run/private:ro', 'image']
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        args = command.call_args.args[-1]
+        self.assertNotIn('--mount', args)
+        self.assertIn('/var/lib/postgresql/data:rw,size=24g', args)
+        self.assertEqual(args[args.index('--tmpfs') - 1], '127.0.0.1:1:5432')
+        self.assertIn('/private:/run/private:ro', args)
+        run.args.target_tmpfs = False
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        self.assertEqual(command.call_args.args[-1], target)
 
     def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
         import itertools
@@ -333,6 +354,23 @@ class CLITests(unittest.TestCase):
             source.assert_not_called()
             self.assertEqual(run.call_args.args[0][:3], ['docker', 'stats', '--no-stream'])
 
+    def test_raised_quiet_limit_is_recorded_and_still_refuses_above_it(self):
+        light = argparse.Namespace(stdout='customer-a\t9.80%\ncustomer-b\t5.10%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host()
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            seen = t10.quiet_host(limit=25)
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 9.8,
+                                'total_peak_cpu_percent': 14.9, 'limit_cpu_percent': 25})
+        self.assertNotIn('customer', json.dumps(seen))
+        busy = argparse.Namespace(stdout='customer-a\t30.0%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[busy, busy, busy]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host(limit=25)
+        with self.assertRaises(SystemExit):
+            t10.parse_args(self.argv() + ['--quiet-cpu-percent', 'nan'])
+
     def test_idle_preexisting_containers_are_recorded_not_stopped(self):
         idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
         with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:
@@ -432,6 +470,44 @@ class IntegrationContractTests(unittest.TestCase):
             self.assertEqual(len(set(statements)), 6)
             for key, statement in enumerate(statements, t10.SCALE + 1):
                 self.assertIn(f'VALUES({key},', statement)
+
+    def test_connections_open_before_the_phase_clock_and_are_reused(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            work = t10.Workload(run)
+            opened = []
+            work.connect = lambda: opened.append(MagicMock()) or opened[-1]
+            work.warm(3)
+            self.assertEqual(len(opened), 3)
+            workers = [threading.Thread(target=work, args=(0,)) for _ in range(3)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join()
+            # Every measured request used a pre-opened connection.
+            self.assertEqual(len(opened), 3)
+            self.assertTrue(all(c.cursor.called for c in opened))
+            work(0)  # a fourth worker thread still connects lazily
+            self.assertEqual(len(opened), 4)
+
+    def test_phase_warms_writer_connections_before_measuring(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, \
+                patch.object(t10, 'Meter') as meter, patch.object(t10, 'open_loop') as loop:
+            h = Mock()
+            h.run.path = Path(tmp)
+            work = Mock()
+            order = []
+            work.warm.side_effect = lambda n: order.append(('warm', n))
+            def measure(*args, on_start, **kwargs):
+                order.append('measure')
+                on_start()
+                return [], 1.0
+            loop.side_effect = measure
+            meter.return_value.finish.return_value = {'samples': [], 'errors': [], 'peaks': {}}
+            t10.phase(h, 'baseline', work, 100, .02, lambda: None, 100000)
+            self.assertEqual(order, [('warm', t10.DEFAULT_WORKERS), 'measure'])
 
     def test_c5_compares_both_policies_with_independent_baselines(self):
         from unittest.mock import Mock

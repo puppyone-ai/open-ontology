@@ -273,7 +273,7 @@ async fn run_table<E: epoch::Epoch>(
             "target_write_bytes":target.write_bytes().await?
         }));
     }
-    let plan = durable_ranges(&previous.plan, live_plan);
+    let mut plan = durable_ranges(&previous.plan, live_plan);
     let keyless = previous.plan.key == KeyShape::NoKey && plan.key == KeyShape::NoKey;
     if !keyless && !oo_pipeline::engine_load_pg::same_ranges(&previous.plan, &plan) {
         return Err("c5_rebaseline_required_plan".into());
@@ -311,11 +311,18 @@ async fn run_table<E: epoch::Epoch>(
     } else if !replay {
         let mut source_digests = Vec::new();
         let mut read_chunks = Vec::new();
+        let mut grown = Vec::new();
         for chunk in ordered_chunks(&plan, policy)? {
             let digest = engine
                 .digest_range(table, chunk.lo.as_deref(), chunk.hi.as_deref())
                 .await
                 .map_err(|e| e.to_string())?;
+            if digest.rows > budget.max_chunk_rows {
+                // Durable ranges never move, so an append tail grows without
+                // bound; reading it whole would fail the chunk budget forever.
+                grown.push(chunk);
+                continue;
+            }
             let old = previous
                 .source_digests
                 .iter()
@@ -330,6 +337,16 @@ async fn run_table<E: epoch::Epoch>(
             }
             source_digests.push(digest);
         }
+        let mut children = Vec::new();
+        for chunk in grown {
+            for (child, digest) in split_grown(engine, table, budget, &mut plan, chunk).await? {
+                children.push(child);
+                source_digests.push(digest);
+            }
+        }
+        // Read split children first: the tail child keeps growing meanwhile.
+        children.append(&mut read_chunks);
+        let read_chunks = children;
         let mut digests = Vec::new();
         for chunk in &plan.chunks {
             digests.push(
@@ -366,20 +383,32 @@ async fn run_table<E: epoch::Epoch>(
                 .find(|d| d.lo == chunk.lo && d.hi == chunk.hi)
                 .ok_or("c5_digest_missing")?;
             accept_proof(&chunk, receipt.rows, before_digest, after, proven)?;
+            let fresh = !previous
+                .plan
+                .chunks
+                .iter()
+                .any(|c| c.chunk_id == chunk.chunk_id);
             let old = previous
                 .parts
                 .iter()
-                .find(|p| p.receipt.chunk_id == receipt.chunk_id)
-                .ok_or("c5_parent_missing")?;
-            if old.receipt.sha256 != receipt.sha256 || old.receipt.rows != receipt.rows {
+                .find(|p| p.receipt.chunk_id == receipt.chunk_id);
+            // A split child has no parent part; every kept range must have one.
+            if fresh == old.is_some() {
+                return Err("c5_parent_missing".into());
+            }
+            if old.is_none_or(|old| {
+                old.receipt.sha256 != receipt.sha256 || old.receipt.rows != receipt.rows
+            }) {
                 if receipts.is_empty() {
                     target.begin(&plan).await?;
                 }
                 target.stage(&receipt, &decoded).await?;
                 payload_bytes += receipt.bytes;
-                if classification == oo_load::schema::Classification::Unchanged
-                    || !target.staged_matches(old, receipt.chunk_id).await?
-                {
+                let matches = match old {
+                    Some(old) => target.staged_matches(old, receipt.chunk_id).await?,
+                    None => false,
+                };
+                if classification == oo_load::schema::Classification::Unchanged || !matches {
                     receipts.push(receipt);
                 }
             }
@@ -436,6 +465,94 @@ async fn run_table<E: epoch::Epoch>(
         "consistency":consistency,"source_time":"unmeasured"
     });
     Ok(output)
+}
+
+/// Bound on budget splits of grown ranges in one table cycle.
+const MAX_GROWN_SPLITS: usize = 64;
+
+/// Split a range whose rows exceed the chunk budget until every child fits in
+/// half of it, leaving the newest (tail) child room to grow during the cycle.
+/// Children replace the parent in the durable plan; all are read and staged.
+async fn split_grown<E: epoch::Epoch>(
+    engine: &mut E,
+    table: &TableRef,
+    budget: &ReadBudget,
+    plan: &mut TableChunkPlan,
+    grown: engine::ChunkSpec,
+) -> Result<Vec<(engine::ChunkSpec, RangeDigest)>, String> {
+    let fits = budget.max_chunk_rows.div_ceil(2).max(1);
+    let mut pending = vec![grown];
+    let mut done = Vec::new();
+    for _ in 0..MAX_GROWN_SPLITS {
+        let Some(chunk) = pending.pop() else {
+            return Ok(done);
+        };
+        let children = engine
+            .split_chunk(&chunk, budget)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or("c5_split_exhausted")?;
+        let children = refine(plan, &chunk, children)?;
+        engine.adopt_plan(plan)?;
+        for child in children {
+            let digest = engine
+                .digest_range(table, child.lo.as_deref(), child.hi.as_deref())
+                .await
+                .map_err(|e| e.to_string())?;
+            if digest.rows > fits {
+                pending.push(child);
+            } else {
+                done.push((child, digest));
+            }
+        }
+    }
+    if pending.is_empty() {
+        Ok(done)
+    } else {
+        Err("c5_split_exhausted".into())
+    }
+}
+
+/// Splice children over their parent with fresh ids and a newer revision.
+/// Engines number splits from their live plan; durable ids must never repeat.
+fn refine(
+    plan: &mut TableChunkPlan,
+    parent: &engine::ChunkSpec,
+    children: Vec<engine::ChunkSpec>,
+) -> Result<Vec<engine::ChunkSpec>, &'static str> {
+    let index = plan
+        .chunks
+        .iter()
+        .position(|c| c == parent)
+        .ok_or("c5_split_scope")?;
+    if children.len() < 2
+        || children.first().is_none_or(|c| c.lo != parent.lo)
+        || children.last().is_none_or(|c| c.hi != parent.hi)
+    {
+        return Err("c5_split_coverage");
+    }
+    let mut next = plan
+        .chunks
+        .iter()
+        .map(|c| c.chunk_id)
+        .max()
+        .unwrap_or(0)
+        .checked_add(1)
+        .ok_or("c5_split_ids")?;
+    let revision = parent.plan_revision.checked_add(1).ok_or("c5_split_ids")?;
+    let mut fresh = Vec::new();
+    for child in children {
+        fresh.push(engine::ChunkSpec {
+            table: parent.table.clone(),
+            plan_revision: revision,
+            chunk_id: next,
+            ..child
+        });
+        next = next.checked_add(1).ok_or("c5_split_ids")?;
+    }
+    plan.chunks.splice(index..=index, fresh.clone());
+    oo_pipeline::engine_load::validate_plan(plan, &plan.table)?;
+    Ok(fresh)
 }
 
 fn cycle_rest(family: EngineFamily, elapsed: Duration, duty: u32) -> Duration {
@@ -550,6 +667,70 @@ mod tests {
             &durable_ranges(&baseline, single)
         ));
     }
+    #[test]
+    fn grown_tail_split_gets_fresh_ids_and_a_newer_revision() {
+        let mut durable = plan(&[500, 1000], "id");
+        durable.protocol = oo_connectors::engine::ENGINE_PROTOCOL.into();
+        let tail = durable.chunks[2].clone();
+        // Engines number children from their live plan: ids 1 and 2 collide.
+        let key = |v: i64| Some(vec![KeyValue::Int(v.into())]);
+        let engine_children = vec![
+            ChunkSpec {
+                chunk_id: 1,
+                hi: key(1500),
+                ..tail.clone()
+            },
+            ChunkSpec {
+                chunk_id: 2,
+                lo: key(1500),
+                ..tail.clone()
+            },
+        ];
+        let before = durable.clone();
+        let children = refine(&mut durable, &tail, engine_children.clone()).unwrap();
+        assert_eq!(
+            children
+                .iter()
+                .map(|c| (c.chunk_id, c.plan_revision))
+                .collect::<Vec<_>>(),
+            [(3, 1), (4, 1)]
+        );
+        assert_eq!(durable.chunks.len(), 4);
+        assert_eq!(durable.chunks[..2], before.chunks[..2]);
+        let receipts: Vec<_> = children
+            .iter()
+            .map(|c| oo_connectors::engine::ChunkReceipt {
+                table: c.table.clone(),
+                plan_revision: c.plan_revision,
+                chunk_id: c.chunk_id,
+                rows: 1,
+                bytes: 1,
+                sha256: String::new(),
+                low: None,
+                high: None,
+            })
+            .collect();
+        assert!(oo_pipeline::engine_load_pg::refines(
+            &before, &durable, &receipts
+        ));
+        // Children must cover exactly the parent range.
+        let mut gap = before.clone();
+        let mut short = engine_children.clone();
+        short[1].hi = key(2000);
+        assert_eq!(refine(&mut gap, &tail, short), Err("c5_split_coverage"));
+        assert_eq!(
+            refine(&mut gap, &tail, engine_children[..1].to_vec()),
+            Err("c5_split_coverage")
+        );
+        // A chunk that is not in the durable plan cannot be split.
+        let mut foreign = tail.clone();
+        foreign.chunk_id = 9;
+        assert_eq!(
+            refine(&mut gap, &foreign, engine_children),
+            Err("c5_split_scope")
+        );
+    }
+
     #[test]
     fn hints_never_replace_digest_comparison_and_full_reads_detect_collisions() {
         let old = RangeDigest {
