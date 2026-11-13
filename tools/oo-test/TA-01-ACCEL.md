@@ -301,12 +301,36 @@ general-log and audit-trail fixes), full = s6h01c (latest rerun wins).
   incremental on PG 17). The classifier fix `5d44ce476` landed after the
   s6h01c SHA; fast ran with it. The same defect is corpus entry
   `pg-parallel-session-audit`. Expected disagreement.
-- Oracle T7, 19c and 21c (fast fail, full pass): the fast L1 T7 audits the
-  T0/T1 harness sessions and rejects three `SELECT ... DBMS_FLASHBACK.
-  GET_SYSTEM_CHANGE_NUMBER` attempts recorded as refused PL/SQL EXECUTE
-  (return code 2004) by the fixture reader. The standalone full T7
-  (`t7.py`) does not see them. **Unexplained; needs triage** (grant set or
-  audit path difference between the integrated and standalone T7).
+- Oracle T7, 19c and 21c (fast fail, full pass): **the fast run was right;
+  triaged and fixed in `7ce62d21f`.** The three refused calls came from the
+  T0 doctor (`oo doctor` in auto/C5/C1 modes, one session each). T0 runs
+  with the seed grants only, by design (it must exercise missing-privilege
+  diagnostics), so `SELECT ... FROM v$database` was refused and the product's
+  `current_scn` (`oracle/engine.rs`, shared by the doctor watermark probe,
+  snapshot SCN capture, C5, C1 and keyset chunks; every Oracle version) fell
+  back to `DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER`. That package EXECUTE is
+  not a documented reader grant (`dba-grants.md` documents only `SELECT ON
+  SYS.V_$DATABASE`; source admission keeps package EXECUTE refused). Not
+  fixture drift: the full suite's own T0 doctor at `6cdb311d9`
+  (`h-s5-20261112T140337059447Z-*/oracle-19/product-t0`) reports the same
+  missing V$DATABASE grant, so it made the same call; the full T7 (`t7.py`)
+  audits only the T1 and T2 product windows, after `t1.py` grants
+  V_$DATABASE, and never audits the doctor. Same binary behaviour, same
+  grants; only the audit scope differed.
+  Two more gaps: 11g and 23ai made the same call in the fast run but passed,
+  because their audit rows carried no `PL/SQL EXECUTE` row (11g) or an
+  `EXECUTE` row judged by its SQL text (23ai), and the classifier only saw
+  routine calls followed by `(`. Fix: `current_scn` reads V$DATABASE only
+  (the doctor still asks for `GRANT SELECT ON SYS.V_$DATABASE`); the
+  classifier treats a supplied-package member without parentheses as a call
+  (`unreviewed_function:DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER`), which
+  re-flags the old 11g/23ai records and adds no rejection to the s6h01c
+  Oracle 19c/21c/23ai T7 records (about 1M records re-judged).
+  Rerun `ta-01-scn-rerun` at `7ce62d21f` (Oracle 19c and 21c L1, `--skip-cdc`,
+  day 2026-11-12): 19c T0/T1/T8/T7 passed (866 s), 21c T0/T1/T8/T7 passed
+  (1,132 s); no DBMS_FLASHBACK statement in either audit; the only refused
+  reader statements left are the doctor's documented V$ probes. `oo-test l3
+  diff` against `s6h01c-*`: Oracle 19c/21c T1/T7/T8 6 of 6 agree.
 
 Not comparable (19 cells): T3 on versions that were not today's L2
 representative, and T1/T8 on probe-only versions (PG 15-17, Oracle 23ai).
@@ -318,8 +342,8 @@ The Oracle slot was free from about 14:55 (the other lane's 19c container
 had stopped). Snapshots for 11g, 19c EE, 21c and 23ai were built and every
 Oracle L1 cell and the Oracle 11g L2 ran live. Final Oracle verdicts: 11g
 T0/T1/T7/T8/T2/T4 and L2 passed; 19c T0/T1/T8/T2/T4 passed, T7 failed
-(triage above); 21c T0/T2/T4 passed, T1 hook failed on T8 (as in the full
-suite), T7 failed (triage); 23ai T0/T7/T2/T4 passed (T1/T8 probe only today).
+(fixed, rerun above); 21c T0/T2/T4 passed, T1 hook failed on T8 (as in the full
+suite; passed in the rerun), T7 failed (fixed, rerun above); 23ai T0/T7/T2/T4 passed (T1/T8 probe only today).
 
 ## 9. Residuals
 
@@ -331,7 +355,8 @@ suite), T7 failed (triage); 23ai T0/T7/T2/T4 passed (T1/T8 probe only today).
 2. Capability probes are the T0 doctor only (no data load), weaker than the
    spec's "one snapshot, one incremental" probe.
 3. Coverage equivalence is proven for PostgreSQL T1 only.
-4. Oracle 19c/21c fast T7 disagreement is untriaged.
+4. The full T7 (`t7.py`) does not audit the T0 doctor; only fast L1 T7
+   does. The Oracle DBMS_FLASHBACK call it missed is fixed (7d).
 5. Product findings, not fixed here: the v0.2 branch still has the
    Decimal256 carry defect (`127479529` is only on v0.3); a keyless chunk
    growing past `max_chunk_rows` during the initial load fails with
