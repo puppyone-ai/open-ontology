@@ -7,7 +7,8 @@ use crate::{
     native_c1_apply::cell_text,
 };
 use oo_connectors::engine::{
-    ChangeBatch, ChunkStrategy, KeyValue, RowChange, TableChunkPlan, TableRef, Watermark,
+    ChangeBatch, ChunkReceipt, ChunkStrategy, KeyValue, RowChange, SourceColumnShape,
+    TableChunkPlan, TableRef, Watermark,
 };
 use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection, Postgres, Transaction};
@@ -26,6 +27,55 @@ fn quote(value: &str) -> Result<String> {
     Ok(format!("\"{}\"", value.replace('"', "\"\"")))
 }
 
+/// The durable C1 lineage of a source binding, if any, before `open` may
+/// rewrite it. Read-only.
+pub async fn stored_lineage(conn: &mut PgConnection, source: &str) -> Result<Option<String>> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_state') IS NOT NULL")
+            .fetch_one(&mut *conn)
+            .await
+            .map_err(db)?;
+    if !installed {
+        return Ok(None);
+    }
+    sqlx::query_scalar("SELECT lineage FROM _oo_load.sync_state WHERE source=$1")
+        .bind(hash(source.as_bytes()))
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)
+}
+
+fn pg_shape_only_lineage_upgrade(old: &str, new: &str) -> bool {
+    let parse = |s: &str| serde_json::from_str::<(String, String, String)>(s).ok();
+    let (Some((old, old_slot, old_publication)), Some((new, slot, publication))) =
+        (parse(old), parse(new))
+    else {
+        return false;
+    };
+    if old_slot != slot || old_publication != publication {
+        return false;
+    }
+    let Ok(mut old) = serde_json::from_str::<serde_json::Value>(&old) else {
+        return false;
+    };
+    let Ok(new) = serde_json::from_str::<serde_json::Value>(&new) else {
+        return false;
+    };
+    let Some(relations) = old.get_mut(1).and_then(|v| v.as_array_mut()) else {
+        return false;
+    };
+    for relation in relations {
+        let Some(relation) = relation.as_array_mut() else {
+            return false;
+        };
+        if relation.len() != 3 || !relation[2].is_string() {
+            return false;
+        }
+        relation.truncate(2);
+    }
+    old == new
+}
+
 struct Binding {
     table: TableRef,
     identity: String,
@@ -41,9 +91,42 @@ pub struct PgSync<'a> {
     source: String,
     lineage: String,
     bindings: Vec<Binding>,
+    endpoint: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct TablePosition {
+    pub table: TableRef,
+    pub retained_run: String,
+    pub position: Watermark,
+    pub stale_reason: Option<String>,
+    pub stale_since: Option<String>,
+}
+
+/// A complete snapshot/log merge. `receipt.high` is the aligned boundary, not
+/// the time of an ordinary chunk read. Callers must prove source epoch/retention.
+pub struct AlignedRebaseline<'a> {
+    pub run: &'a str,
+    pub plan: &'a TableChunkPlan,
+    pub receipt: &'a ChunkReceipt,
+    pub rows: &'a DecodedStream,
+    pub columns: &'a [SourceColumnShape],
+    pub projection: &'a [String],
 }
 
 impl<'a> PgSync<'a> {
+    pub fn projections(&self) -> std::collections::BTreeMap<TableRef, Vec<String>> {
+        self.bindings
+            .iter()
+            .map(|b| {
+                (
+                    b.table.clone(),
+                    b.columns.iter().map(|(name, _)| name.clone()).collect(),
+                )
+            })
+            .collect()
+    }
+
     /// `lineage` must be obtained from the live source, not a display name.
     /// `initial` is an already aligned baseline position, never "now".
     /// Caller owns and closes this dedicated connection, releasing its locks.
@@ -69,6 +152,10 @@ impl<'a> PgSync<'a> {
             .execute(&mut *tx)
             .await
             .map_err(db)?;
+        sqlx::raw_sql(include_str!("../migrations/0130_c1_table_positions.sql"))
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
         // The source-wide lock serializes multi-table transactions; table locks
         // additionally fence snapshot loaders using their existing identities.
         lock(&mut tx, &source).await?;
@@ -82,8 +169,23 @@ impl<'a> PgSync<'a> {
         if let Some((old_lineage, old_scope)) = &previous {
             let old_scope: Vec<TableRef> =
                 serde_json::from_str(old_scope).map_err(|_| "sync_scope")?;
-            if old_lineage != lineage || old_scope != tables {
+            if old_scope != tables {
                 return Err("sync_rebaseline_required_lineage_or_scope");
+            }
+            if old_lineage != lineage {
+                if !matches!(initial, Watermark::PgLsn { .. })
+                    || !pg_shape_only_lineage_upgrade(old_lineage, lineage)
+                {
+                    return Err("sync_rebaseline_required_lineage_or_scope");
+                }
+                // Only the obsolete shape component moves to the per-table
+                // classifier. Instance, relation, slot and scope fences remain.
+                sqlx::query("UPDATE _oo_load.sync_state SET lineage=$2 WHERE source=$1")
+                    .bind(&source)
+                    .bind(lineage)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(db)?;
             }
         } else {
             sqlx::query("INSERT INTO _oo_load.sync_state(source,lineage,scope,position) VALUES($1,$2,$3::jsonb,$4::jsonb)")
@@ -205,12 +307,23 @@ impl<'a> PgSync<'a> {
                 tombs,
             });
         }
+        sqlx::query(
+            "INSERT INTO _oo_load.sync_table_positions(identity,position)
+             SELECT b.identity,s.position FROM _oo_load.sync_bindings b
+             JOIN _oo_load.sync_state s ON s.source=b.source WHERE b.source=$1
+             ON CONFLICT(identity) DO NOTHING",
+        )
+        .bind(&source)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
         tx.commit().await.map_err(db)?;
         Ok(Self {
             conn,
             source,
             lineage: lineage.into(),
             bindings,
+            endpoint: endpoint_binding.into(),
         })
     }
 
@@ -232,6 +345,315 @@ impl<'a> PgSync<'a> {
             .fetch_one(&mut *self.conn)
             .await
             .map_err(db)
+    }
+
+    /// Persist the fence before capture may exclude this table. Restored source
+    /// access does not clear it: only an aligned replacement may rejoin C1.
+    pub async fn quarantine(&mut self, table: &TableRef, reason: &str) -> Result<()> {
+        if !crate::stale_grammar::valid(reason) {
+            return Err("sync_table_reason");
+        }
+        let binding = self
+            .bindings
+            .iter()
+            .find(|b| &b.table == table)
+            .ok_or("sync_table_outside_scope")?;
+        let mut tx = self.conn.begin().await.map_err(db)?;
+        lock(&mut tx, &self.source).await?;
+        lock(&mut tx, &binding.identity).await?;
+        sqlx::query(
+            "UPDATE _oo_load.sync_table_positions SET stale_reason=$2,
+             stale_since=coalesce(stale_since,clock_timestamp()) WHERE identity=$1",
+        )
+        .bind(&binding.identity)
+        .bind(reason)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+        tx.commit().await.map_err(db)
+    }
+
+    pub async fn table_positions(&mut self) -> Result<Vec<TablePosition>> {
+        let mut result = Vec::new();
+        for binding in &self.bindings {
+            let (position, reason, since): (String, Option<String>, Option<String>) =
+                sqlx::query_as(
+                    "SELECT position::text,stale_reason,
+                     to_char(stale_since AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')
+                     FROM _oo_load.sync_table_positions WHERE identity=$1",
+                )
+                .bind(&binding.identity)
+                .fetch_one(&mut *self.conn)
+                .await
+                .map_err(db)?;
+            result.push(TablePosition {
+                table: binding.table.clone(),
+                retained_run: binding.run.clone(),
+                position: serde_json::from_str(&position).map_err(|_| "sync_position")?,
+                // Reasons stored by an older build keep the table quarantined
+                // under the current grammar instead of failing the source.
+                stale_reason: reason.map(|r| crate::stale_grammar::normalize_stored(&r)),
+                stale_since: since,
+            });
+        }
+        Ok(result)
+    }
+
+    /// Retain history for quarantined tables even as healthy tables advance.
+    /// Engines without feedback must check their retained floor separately.
+    pub async fn feedback_position(&mut self) -> Result<Watermark> {
+        let mut floor = self.position().await?;
+        for table in self.table_positions().await? {
+            if !crate::engine_sync::at_or_after(&table.position, &floor)? {
+                floor = table.position;
+            }
+        }
+        Ok(floor)
+    }
+
+    pub async fn record_cycle(&mut self, run: &str) -> Result<u8> {
+        let positions = self.table_positions().await?;
+        let mut tx = self.conn.begin().await.map_err(db)?;
+        for table in positions {
+            crate::engine_isolation::record(
+                &mut tx,
+                &self.endpoint,
+                run,
+                &table.table,
+                if table.stale_reason.is_some() {
+                    "stale"
+                } else {
+                    "fresh"
+                },
+                table.stale_reason.as_deref(),
+            )
+            .await?;
+        }
+        // Keep the quarantine timestamp identical in the three owner-side
+        // representations, rather than starting it again at cycle completion.
+        sqlx::query(
+            "UPDATE _oo_load.table_health h SET since=p.stale_since
+             FROM _oo_load.sync_table_positions p JOIN _oo_load.sync_bindings b USING(identity)
+             WHERE h.identity=p.identity AND b.source=$1",
+        )
+        .bind(&self.source)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+        sqlx::query(
+            "UPDATE _oo_load.sync_table_results r SET since=p.stale_since
+             FROM _oo_load.sync_table_positions p WHERE r.identity=p.identity AND r.source=$1 AND r.run=$2",
+        ).bind(&self.source).bind(run).execute(&mut *tx).await.map_err(db)?;
+        let code = crate::engine_isolation::finish(&mut tx, &self.endpoint, run).await?;
+        tx.commit().await.map_err(db)?;
+        Ok(code)
+    }
+
+    /// Refresh only observed native facts. The published projection and
+    /// physical generation remain unchanged after compatible metadata changes.
+    pub async fn observe_columns(
+        &mut self,
+        table: &TableRef,
+        columns: &[SourceColumnShape],
+    ) -> Result<()> {
+        let binding = self
+            .bindings
+            .iter()
+            .find(|b| &b.table == table)
+            .ok_or("sync_table_outside_scope")?;
+        for (name, kind) in &binding.columns {
+            let kind = match kind.as_str() {
+                "timestamp without time zone" => "timestamp",
+                "timestamp with time zone" => "timestamptz",
+                other => other,
+            };
+            if !columns
+                .iter()
+                .any(|c| &c.name == name && c.target_type == kind)
+            {
+                return Err("sync_rebaseline_required_schema");
+            }
+        }
+        let changed = sqlx::query(
+            "UPDATE _oo_load.column_catalog c SET columns=$3::jsonb
+             FROM _oo_load.sync_table_positions p WHERE c.identity=$1
+             AND c.baseline_run=$2 AND p.identity=c.identity AND p.stale_reason IS NULL",
+        )
+        .bind(&binding.identity)
+        .bind(&binding.run)
+        .bind(serde_json::to_string(columns).map_err(|_| "sync_column_catalog")?)
+        .execute(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        if changed.rows_affected() != 1 {
+            return Err("sync_column_catalog");
+        }
+        Ok(())
+    }
+
+    /// Publish the aligned replacement and clear its fence in one transaction.
+    /// The old immutable generation is retained; old overlays are not reused.
+    pub async fn rejoin(&mut self, repair: AlignedRebaseline<'_>) -> Result<()> {
+        use crate::engine_load::Target;
+        let index = self
+            .bindings
+            .iter()
+            .position(|b| b.table == repair.plan.table)
+            .ok_or("sync_table_outside_scope")?;
+        let old = &self.bindings[index];
+        let high = repair
+            .receipt
+            .high
+            .as_ref()
+            .ok_or("sync_rejoin_alignment")?;
+        let low = repair.receipt.low.as_ref().ok_or("sync_rejoin_alignment")?;
+        if !crate::engine_sync::at_or_after(high, low)?
+            || repair.run == old.run
+            || repair.receipt.table != old.table
+            || repair.plan.chunks.len() != 1
+            || repair.rows.rows as u64 != repair.receipt.rows
+            || repair.plan.strategy
+                != (ChunkStrategy::Keyset {
+                    columns: old.keys.clone(),
+                })
+            || repair.projection
+                != old
+                    .columns
+                    .iter()
+                    .map(|(n, _)| n.clone())
+                    .collect::<Vec<_>>()
+        {
+            return Err("sync_rejoin_alignment");
+        }
+        let mut tx = self.conn.begin().await.map_err(db)?;
+        lock(&mut tx, &self.source).await?;
+        lock(&mut tx, &old.identity).await?;
+        let (position, stale, current_run): (String, bool, String) = sqlx::query_as(
+            "SELECT s.position::text,p.stale_reason IS NOT NULL,c.run
+             FROM _oo_load.sync_state s JOIN _oo_load.sync_bindings b ON b.source=s.source
+             JOIN _oo_load.sync_table_positions p USING(identity)
+             JOIN _oo_load.current c USING(identity)
+             WHERE b.identity=$1 AND s.lineage=$2 FOR UPDATE",
+        )
+        .bind(&old.identity)
+        .bind(&self.lineage)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+        if !stale
+            || current_run != old.run
+            || !crate::engine_sync::at_or_after(
+                high,
+                &serde_json::from_str(&position).map_err(|_| "sync_position")?,
+            )?
+        {
+            return Err("sync_rejoin_fence");
+        }
+        let mut target =
+            crate::engine_load_pg::PgTarget::new(&mut tx, &self.endpoint, repair.run, &old.table)
+                .await?;
+        target.c1_rebaseline = true;
+        target.source_columns(Some(repair.columns.to_vec()));
+        target.published_projection(repair.projection.to_vec());
+        target.begin(repair.plan).await?;
+        target.stage(repair.receipt, repair.rows).await?;
+        target.publish(repair.plan).await?;
+        drop(target);
+        let stage: String = sqlx::query_scalar(
+            "SELECT stage FROM _oo_load.publications WHERE identity=$1 AND run=$2",
+        )
+        .bind(&old.identity)
+        .bind(repair.run)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+        let baseline = format!("_oo_load.{}", quote(&stage)?);
+        let columns: Vec<(String, String)> = sqlx::query_as(
+            "SELECT attname::text,format_type(atttypid,atttypmod)
+             FROM pg_attribute WHERE attrelid=$1::regclass AND attnum>0
+             AND NOT attisdropped AND attname<>'__oo_chunk' ORDER BY attnum",
+        )
+        .bind(&baseline)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        let names = columns
+            .iter()
+            .map(|(n, _)| quote(n))
+            .collect::<Result<Vec<_>>>()?
+            .join(",");
+        let keys = old
+            .keys
+            .iter()
+            .map(|n| quote(n))
+            .collect::<Result<Vec<_>>>()?
+            .join(",");
+        let predicate = old
+            .keys
+            .iter()
+            .map(|k| quote(k).map(|q| format!("b.{q}=x.{q}")))
+            .collect::<Result<Vec<_>>>()?
+            .join(" AND ");
+        let delta = quote(&old.delta)?;
+        let tombs = quote(&old.tombs)?;
+        sqlx::raw_sql(AssertSqlSafe(format!(
+            "DROP TABLE _oo_load.{delta},_oo_load.{tombs};
+             CREATE TABLE _oo_load.{delta} AS SELECT {names} FROM {baseline} WITH NO DATA;
+             ALTER TABLE _oo_load.{delta} ADD PRIMARY KEY ({keys});
+             CREATE TABLE _oo_load.{tombs} AS SELECT {keys} FROM {baseline} WITH NO DATA;
+             ALTER TABLE _oo_load.{tombs} ADD PRIMARY KEY ({keys});
+             CREATE OR REPLACE VIEW oo_load_data.{} AS
+             SELECT {names} FROM {baseline} b WHERE NOT EXISTS
+               (SELECT 1 FROM _oo_load.{tombs} x WHERE {predicate})
+             UNION ALL SELECT {names} FROM _oo_load.{delta};",
+            quote(&format!("t_{}", &old.identity[..40]))?,
+        )))
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+        sqlx::query("UPDATE _oo_load.sync_bindings SET baseline_run=$2 WHERE identity=$1")
+            .bind(&old.identity)
+            .bind(repair.run)
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
+        sqlx::query(
+            "UPDATE _oo_load.sync_table_positions SET position=$2::jsonb,
+             stale_reason=NULL,stale_since=NULL WHERE identity=$1",
+        )
+        .bind(&old.identity)
+        .bind(serde_json::to_string(high).map_err(|_| "sync_position")?)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+        let positions: Vec<String> = sqlx::query_scalar(
+            "SELECT p.position::text FROM _oo_load.sync_table_positions p
+             JOIN _oo_load.sync_bindings b USING(identity) WHERE b.source=$1",
+        )
+        .bind(&self.source)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        let mut floor = high.clone();
+        for position in positions {
+            let position = serde_json::from_str(&position).map_err(|_| "sync_position")?;
+            if !crate::engine_sync::at_or_after(&position, &floor)? {
+                floor = position;
+            }
+        }
+        let current: Watermark = serde_json::from_str(&position).map_err(|_| "sync_position")?;
+        if crate::engine_sync::at_or_after(&floor, &current)? && floor != current {
+            sqlx::query("UPDATE _oo_load.sync_state SET position=$2::jsonb WHERE source=$1")
+                .bind(&self.source)
+                .bind(serde_json::to_string(&floor).map_err(|_| "sync_position")?)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
+        }
+        tx.commit().await.map_err(db)?;
+        self.bindings[index].run = repair.run.into();
+        self.bindings[index].columns = columns;
+        Ok(())
     }
 
     /// Images must be independently decoded from the batch's canonical IPC.
@@ -269,8 +691,33 @@ impl<'a> PgSync<'a> {
         if serde_json::from_str::<Watermark>(&current).map_err(|_| "sync_position")? != *from {
             return Err("sync_stale_position");
         }
+        let stale: Vec<String> = sqlx::query_scalar(
+            "SELECT p.identity FROM _oo_load.sync_table_positions p
+             JOIN _oo_load.sync_bindings b USING(identity)
+             WHERE b.source=$1 AND p.stale_reason IS NOT NULL",
+        )
+        .bind(&self.source)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        if stale.len() == self.bindings.len() {
+            return Err("sync_all_stale");
+        }
+        let mut advance = Vec::new();
+        for b in &self.bindings {
+            let position: String = sqlx::query_scalar(
+                "SELECT position::text FROM _oo_load.sync_table_positions WHERE identity=$1 FOR UPDATE",
+            ).bind(&b.identity).fetch_one(&mut *tx).await.map_err(db)?;
+            let position = serde_json::from_str(&position).map_err(|_| "sync_position")?;
+            if !stale.contains(&b.identity) && !compare(&position, &batch.position)? {
+                advance.push(b.identity.clone());
+            }
+        }
         let mut bytes = 0i64;
-        for (change, image) in batch.changes.iter().zip(images) {
+        let mut applied = false;
+        let mut checked = std::collections::BTreeSet::new();
+        let superseded = superseded(&batch.changes);
+        for ((change, image), superseded) in batch.changes.iter().zip(images).zip(superseded) {
             let (table, key, old, deleted) = match change {
                 RowChange::Insert { table, key } => (table, key, None, false),
                 RowChange::Update {
@@ -285,20 +732,33 @@ impl<'a> PgSync<'a> {
                 .iter()
                 .find(|b| &b.table == table)
                 .ok_or("sync_table_outside_scope")?;
-            lock(&mut tx, &b.identity).await?;
-            let current_run: String =
-                sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1")
-                    .bind(&b.identity)
-                    .fetch_one(&mut *tx)
-                    .await
-                    .map_err(db)?;
-            if current_run != b.run {
-                return Err("sync_rebaseline_required_baseline_changed");
+            if !advance.contains(&b.identity) {
+                continue;
             }
+            // The transaction-scoped lock and the baseline check hold for the
+            // whole batch once taken.
+            if checked.insert(b.identity.clone()) {
+                lock(&mut tx, &b.identity).await?;
+                let current_run: String =
+                    sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1")
+                        .bind(&b.identity)
+                        .fetch_one(&mut *tx)
+                        .await
+                        .map_err(db)?;
+                if current_run != b.run {
+                    return Err("sync_rebaseline_required_baseline_changed");
+                }
+            }
+            applied = true;
             if let Some(old) = old {
                 bytes = bytes
                     .checked_add(remove(&mut tx, b, old).await?)
                     .ok_or("sync_byte_overflow")?;
+            }
+            // A later change of the same table removes this key again and
+            // writes its own final image, so this one's image never survives.
+            if superseded {
+                continue;
             }
             bytes = bytes
                 .checked_add(remove(&mut tx, b, key).await?)
@@ -338,12 +798,53 @@ impl<'a> PgSync<'a> {
                 bytes = bytes.checked_add(row_bytes).ok_or("sync_byte_overflow")?;
             }
         }
+        sqlx::query(
+            "UPDATE _oo_load.sync_table_positions p SET position=$2::jsonb
+             FROM _oo_load.sync_bindings b WHERE p.identity=b.identity
+             AND b.source=$1 AND p.identity=ANY($3)",
+        )
+        .bind(&self.source)
+        .bind(serde_json::to_string(&batch.position).map_err(|_| "sync_position")?)
+        .bind(&advance)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
         sqlx::query("UPDATE _oo_load.sync_state SET position=$2::jsonb,generation=generation+$3,write_bytes=write_bytes+$4 WHERE source=$1")
             .bind(&self.source).bind(serde_json::to_string(&batch.position).map_err(|_| "sync_position")?)
-            .bind(i64::from(!batch.changes.is_empty())).bind(bytes)
+            .bind(i64::from(applied)).bind(bytes)
             .execute(&mut *tx).await.map_err(db)?;
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("c1_apply_commit");
         tx.commit().await.map_err(db)
     }
+}
+
+/// For each change, whether a later change in the batch touches the same
+/// table and key (as its key or as the old key it moves away from). Applying
+/// changes in order, such a later change removes the key and writes the
+/// key's final state itself, so only the earlier change's key image is moot;
+/// an update's removal of its old key is still applied.
+fn superseded(changes: &[RowChange]) -> Vec<bool> {
+    let mut later = std::collections::BTreeSet::new();
+    let mut result = vec![false; changes.len()];
+    for (index, change) in changes.iter().enumerate().rev() {
+        let (table, key, old) = match change {
+            RowChange::Insert { table, key } | RowChange::Delete { table, key } => {
+                (table, key, None)
+            }
+            RowChange::Update {
+                table,
+                key,
+                old_key,
+            } => (table, key, old_key.as_ref()),
+        };
+        result[index] = later.contains(&(table, key));
+        later.insert((table, key));
+        if let Some(old) = old {
+            later.insert((table, old));
+        }
+    }
+    result
 }
 
 fn key_predicate(b: &Binding, key: &[KeyValue]) -> Result<(String, Vec<String>)> {
@@ -437,13 +938,25 @@ async fn remove(tx: &mut Transaction<'_, Postgres>, b: &Binding, key: &[KeyValue
 
 fn encode(binding: &Binding, image: &DecodedStream) -> Result<Vec<u8>> {
     if image.rows != 1
-        || image.fields.len() != binding.columns.len()
         || image.columns.len() != image.fields.len()
+        || image
+            .fields
+            .iter()
+            .map(|f| &f.name)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != image.fields.len()
     {
         return Err("sync_image_shape");
     }
     let mut row = Vec::new();
-    for (i, (field, (name, kind))) in image.fields.iter().zip(&binding.columns).enumerate() {
+    for (i, (name, kind)) in binding.columns.iter().enumerate() {
+        let index = image
+            .fields
+            .iter()
+            .position(|f| &f.name == name)
+            .ok_or("sync_rebaseline_required_schema")?;
+        let field = &image.fields[index];
         let (oid, expected) = column(field)?;
         let kind = match kind.as_str() {
             "timestamp without time zone" => "timestamp",
@@ -456,7 +969,7 @@ fn encode(binding: &Binding, image: &DecodedStream) -> Result<Vec<u8>> {
         if i > 0 {
             row.push(b'\t');
         }
-        let cell = image.columns[i].first().ok_or("sync_image_shape")?;
+        let cell = image.columns[index].first().ok_or("sync_image_shape")?;
         if let NativeCell::UInt64(v) = cell {
             cell_text(
                 &mut row,
@@ -474,4 +987,131 @@ fn encode(binding: &Binding, image: &DecodedStream) -> Result<Vec<u8>> {
     }
     row.push(b'\n');
     Ok(row)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Applies changes to a key -> image model the way `apply` does:
+    /// remove the old key, remove the key, write the image unless deleted.
+    fn model(
+        changes: &[RowChange],
+        skip: &[bool],
+    ) -> std::collections::BTreeMap<(String, i64), usize> {
+        let mut state = std::collections::BTreeMap::new();
+        let id = |t: &TableRef, k: &[KeyValue]| match k {
+            [KeyValue::Int(v)] => (t.name.clone(), v.to_string().parse::<i64>().unwrap()),
+            _ => unreachable!(),
+        };
+        for (image, change) in changes.iter().enumerate() {
+            match change {
+                RowChange::Insert { table, key } => {
+                    if !skip[image] {
+                        state.insert(id(table, key), image);
+                    }
+                }
+                RowChange::Update {
+                    table,
+                    key,
+                    old_key,
+                } => {
+                    if let Some(old) = old_key {
+                        state.remove(&id(table, old));
+                    }
+                    if !skip[image] {
+                        state.insert(id(table, key), image);
+                    }
+                }
+                RowChange::Delete { table, key } => {
+                    if !skip[image] {
+                        state.remove(&id(table, key));
+                    }
+                }
+            }
+        }
+        state
+    }
+
+    #[test]
+    fn skipping_superseded_changes_keeps_every_final_row() {
+        let table = |name: &str| TableRef {
+            schema: "s".into(),
+            name: name.into(),
+        };
+        let key = |v: i64| vec![KeyValue::Int(v.into())];
+        // Deterministic pseudo-random batches over few keys and two tables,
+        // including key moves onto keys touched before and after.
+        let mut seed = 7u64;
+        for _ in 0..500 {
+            let mut changes = Vec::new();
+            for _ in 0..12 {
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let t = table(if seed >> 63 == 0 { "a" } else { "b" });
+                let k = key(((seed >> 40) % 4) as i64);
+                let o = key(((seed >> 20) % 4) as i64);
+                changes.push(match (seed >> 33) % 4 {
+                    0 => RowChange::Insert { table: t, key: k },
+                    1 => RowChange::Delete { table: t, key: k },
+                    2 => RowChange::Update {
+                        table: t,
+                        key: k,
+                        old_key: None,
+                    },
+                    _ => RowChange::Update {
+                        table: t,
+                        key: k.clone(),
+                        old_key: (o != k).then_some(o),
+                    },
+                });
+            }
+            let none = vec![false; changes.len()];
+            assert_eq!(
+                model(&changes, &superseded(&changes)),
+                model(&changes, &none)
+            );
+        }
+        // Twenty updates of one hot row leave one image to write.
+        let hot: Vec<_> = (0..20)
+            .map(|_| RowChange::Update {
+                table: table("a"),
+                key: key(1),
+                old_key: None,
+            })
+            .collect();
+        let skips = superseded(&hot);
+        assert_eq!(skips.iter().filter(|s| !**s).count(), 1);
+        assert!(!skips[19]);
+    }
+
+    #[test]
+    fn lineage_upgrade_removes_only_pg_table_shapes() {
+        let old = serde_json::json!([
+            serde_json::json!([["system",1,2],[[{"schema":"public","name":"items"},42,"[]"]]])
+                .to_string(),
+            "slot",
+            "publication"
+        ])
+        .to_string();
+        let new = serde_json::json!([
+            serde_json::json!([["system",1,2],[[{"schema":"public","name":"items"},42]]])
+                .to_string(),
+            "slot",
+            "publication"
+        ])
+        .to_string();
+        assert!(pg_shape_only_lineage_upgrade(&old, &new));
+        for changed in [
+            new.replace("system", "restored"),
+            new.replace("slot", "other"),
+            new.replace("publication", "other"),
+            new.replace("42", "43"),
+            new.replace("items", "other"),
+            "unstructured".into(),
+        ] {
+            assert!(!pg_shape_only_lineage_upgrade(&old, &changed));
+        }
+    }
 }

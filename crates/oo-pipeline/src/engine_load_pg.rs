@@ -13,9 +13,12 @@ use sqlx_core::sql_str::AssertSqlSafe;
 
 #[path = "engine_load_pg_c5.rs"]
 mod c5;
-pub use c5::{C5Baseline, C5Part, TableContentDigest, same_ranges};
+pub use c5::{C5Baseline, C5Part, TableContentDigest, refines, same_ranges};
 #[path = "engine_load_generation.rs"]
 mod generation;
+#[path = "engine_load_schema.rs"]
+mod schema;
+pub use schema::SealedColumnCatalog;
 
 fn db(_: sqlx::Error) -> &'static str {
     "load_target"
@@ -44,14 +47,19 @@ pub(crate) fn column(field: &DecodedField) -> Result<(i64, String)> {
         "list(utf8)" => (114, "json"),
         "binary" => (17, "bytea"),
         "float64" => (701, "double precision"),
-        "decimal128" => {
+        "decimal128" | "decimal256" => {
+            let limit = if field.arrow_type == "decimal256" {
+                76
+            } else {
+                38
+            };
             let precision = field
                 .precision
-                .filter(|p| (1..=38).contains(p))
+                .filter(|p| (1..=limit).contains(p))
                 .ok_or("load_unsupported_type")?;
             let scale = field
                 .scale
-                .filter(|s| *s <= precision)
+                .filter(|s| *s >= -128 && *s <= precision)
                 .ok_or("load_unsupported_type")?;
             if scale < 0 {
                 // NUMBER(p,-s) holds integers of up to p+s digits; stay bounded so the
@@ -78,9 +86,21 @@ pub struct PgTarget<'a> {
     plan: String,
     fields: Option<Vec<DecodedField>>,
     document_column: Option<String>,
+    source_columns: Option<Vec<oo_connectors::engine::SourceColumnShape>>,
+    projection: Option<Vec<String>>,
+    pub(crate) c1_rebaseline: bool,
+    read_metadata: Option<serde_json::Value>,
 }
 
 impl<'a> PgTarget<'a> {
+    pub fn read_metadata(&mut self, metadata: serde_json::Value) {
+        self.read_metadata = Some(metadata);
+    }
+
+    fn encode_metadata(&self, value: &impl serde::Serialize) -> Result<String> {
+        encode_metadata(self.read_metadata.as_ref(), value)
+    }
+
     /// Opt in only for a source adapter's declared full-document column.
     /// Ordinary text, including text named `_document`, remains text by default.
     pub fn with_jsonb_document(mut self, name: &str) -> Result<Self> {
@@ -133,6 +153,10 @@ impl<'a> PgTarget<'a> {
             .execute(&mut *conn)
             .await
             .map_err(db)?;
+        sqlx::raw_sql(include_str!("../migrations/0129_sealed_column_catalog.sql"))
+            .execute(&mut *conn)
+            .await
+            .map_err(db)?;
         Ok(Self {
             conn,
             view: format!("t_{}", &identity[..40]),
@@ -142,11 +166,31 @@ impl<'a> PgTarget<'a> {
             plan: String::new(),
             fields: None,
             document_column: None,
+            source_columns: None,
+            projection: None,
+            c1_rebaseline: false,
+            read_metadata: None,
         })
     }
 
     pub fn relation(&self) -> String {
         format!("oo_load_data.{}", self.view)
+    }
+
+    pub async fn publication_read_metadata(&mut self) -> Result<Option<serde_json::Value>> {
+        let metadata: Option<Option<String>> = sqlx::query_scalar(
+            "SELECT (plan->'read_metadata')::text FROM _oo_load.publications
+             WHERE identity=$1 AND run=$2",
+        )
+        .bind(&self.identity)
+        .bind(&self.run)
+        .fetch_optional(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        metadata
+            .flatten()
+            .map(|value| serde_json::from_str(&value).map_err(|_| "load_metadata"))
+            .transpose()
     }
 
     /// A completed run is immutable. Reusing its ID is resume, not refresh.
@@ -214,7 +258,7 @@ impl Target for PgTarget<'_> {
             .fetch_one(&mut *self.conn)
             .await
             .map_err(db)?;
-            if active {
+            if active && !self.c1_rebaseline {
                 return Err("load_rebaseline_required_active_sync");
             }
         }
@@ -232,6 +276,13 @@ impl Target for PgTarget<'_> {
     }
 
     async fn stage(&mut self, receipt: &ChunkReceipt, decoded: &DecodedStream) -> Result<()> {
+        let projected;
+        let decoded = if let Some(names) = &self.projection {
+            projected = self.project(decoded.clone(), names)?;
+            &projected
+        } else {
+            decoded
+        };
         if self
             .document_column
             .as_ref()
@@ -261,6 +312,7 @@ impl Target for PgTarget<'_> {
         if definitions.is_empty() {
             return Err("load_schema");
         }
+        let encoded = self.encode_metadata(receipt)?;
         let mut tx = self.conn.begin().await.map_err(db)?;
         let definition = definitions.join(",");
         sqlx::query("INSERT INTO _oo_load.schemas VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING")
@@ -289,7 +341,6 @@ impl Target for PgTarget<'_> {
         .execute(&mut *tx)
         .await
         .map_err(db)?;
-        let encoded = serde_json::to_string(receipt).map_err(|_| "load_receipt")?;
         let prior: Option<String> = sqlx::query_scalar(
             "SELECT receipt::text FROM _oo_load.chunks WHERE stage=$1 AND chunk=$2",
         )
@@ -383,12 +434,15 @@ impl Target for PgTarget<'_> {
             .await
             .map_err(db)?;
         }
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_chunk_commit");
         tx.commit().await.map_err(db)?;
         self.fields = Some(fields);
         Ok(())
     }
 
     async fn publish(&mut self, plan: &TableChunkPlan) -> Result<()> {
+        let publication_plan = self.encode_metadata(plan)?;
         if serde_json::to_string(plan).map_err(|_| "load_plan")? != self.plan {
             return Err("load_plan_changed");
         }
@@ -431,11 +485,49 @@ impl Target for PgTarget<'_> {
             &self.identity,
             &self.run,
             plan,
+            &publication_plan,
             &parts,
             self.fields.as_ref().ok_or("load_schema")?,
         )
         .await?;
-        sqlx::query(AssertSqlSafe(format!(
+        let existing: Vec<(String, String)> = sqlx::query_as(
+            "SELECT attname::text,format_type(atttypid,atttypmod) FROM pg_attribute
+             WHERE attrelid=to_regclass($1) AND attnum>0 AND NOT attisdropped ORDER BY attnum",
+        )
+        .bind(format!("oo_load_data.{}", self.view))
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        let next = self
+            .fields
+            .as_ref()
+            .ok_or("load_schema")?
+            .iter()
+            .map(|f| {
+                column(f).map(|(_, ty)| {
+                    (
+                        f.name.clone(),
+                        match ty.as_str() {
+                            "timestamp" => "timestamp without time zone".into(),
+                            "timestamptz" => "timestamp with time zone".into(),
+                            _ => ty,
+                        },
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        // DROP has no CASCADE. A changed-type intake alias with unexpected
+        // dependants fails atomically; immutable published generations survive.
+        if !existing.is_empty() && existing != next {
+            sqlx::query(AssertSqlSafe(format!(
+                "DROP VIEW oo_load_data.{}",
+                quote(&self.view)?,
+            )))
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
+        }
+        sqlx::raw_sql(AssertSqlSafe(format!(
             "CREATE OR REPLACE VIEW oo_load_data.{} AS SELECT {fields} FROM _oo_load.{}",
             quote(&self.view)?,
             quote(&sealed)?
@@ -446,13 +538,23 @@ impl Target for PgTarget<'_> {
         sqlx::query("INSERT INTO _oo_load.publications VALUES($1,$2,$3::jsonb,$4)")
             .bind(&self.identity)
             .bind(&self.run)
-            .bind(&self.plan)
+            .bind(&publication_plan)
             .bind(&self.stage)
             .execute(&mut *tx)
             .await
             .map_err(db)?;
         sqlx::query("INSERT INTO _oo_load.current VALUES($1,$2) ON CONFLICT(identity) DO UPDATE SET run=EXCLUDED.run")
             .bind(&self.identity).bind(&self.run).execute(&mut *tx).await.map_err(db)?;
+        schema::seal_columns(
+            &mut tx,
+            &self.identity,
+            &self.run,
+            self.source_columns.as_deref(),
+            self.fields.as_ref().ok_or("load_schema")?,
+        )
+        .await?;
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("load_publish_commit");
         tx.commit().await.map_err(db)
     }
 }
@@ -481,9 +583,171 @@ fn target_fields(fields: &[DecodedField], document: Option<&str>) -> Result<Vec<
     Ok(fields)
 }
 
+/// Attach read consistency to a stored receipt or plan. The publication plan
+/// written with this encoding is also the plan sealed in the generation recipe.
+fn encode_metadata(
+    metadata: Option<&serde_json::Value>,
+    value: &impl serde::Serialize,
+) -> Result<String> {
+    let mut value = serde_json::to_value(value).map_err(|_| "load_metadata")?;
+    if let Some(metadata) = metadata {
+        value["read_metadata"] = metadata.clone();
+    }
+    serde_json::to_string(&value).map_err(|_| "load_metadata")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn chunk_plan(name: &str) -> TableChunkPlan {
+        use oo_connectors::engine::*;
+        let table = TableRef {
+            schema: "app".into(),
+            name: name.into(),
+        };
+        TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["id".into()],
+            },
+            estimated_rows: None,
+            chunks: vec![ChunkSpec {
+                table,
+                plan_revision: 1,
+                chunk_id: 0,
+                lo: None,
+                hi: None,
+                estimated_rows: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn generation_recipe_seals_the_stored_publication_plan_with_read_metadata() {
+        // S6-H-01 regression: publications.plan carried read_metadata while the
+        // recipe sealed the bare plan, so every cut failed publication_seal_mismatch.
+        let plan = chunk_plan("items");
+        let metadata = serde_json::json!({"consistency": "B"});
+        let stored = encode_metadata(Some(&metadata), &plan).unwrap();
+        let recipe = generation::recipe(&stored, &plan, &[], "\"id\" bigint NOT NULL").unwrap();
+        assert_eq!(recipe["plan"]["read_metadata"], metadata);
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&recipe, &stored),
+            Ok(true)
+        );
+        // A store/JSONB round trip keeps the sealed equality.
+        let reparsed: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&recipe).unwrap()).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&reparsed, &stored),
+            Ok(true)
+        );
+        // The verifier stays strict: the pre-fix bare-plan recipe is refused.
+        let bare = serde_json::json!({"plan": plan});
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(&bare, &stored),
+            Ok(false)
+        );
+        // Without read metadata the stored plan is the bare plan.
+        let legacy = encode_metadata(None, &plan).unwrap();
+        assert_eq!(
+            crate::engine_publication::recipe_seals_plan(
+                &generation::recipe(&legacy, &plan, &[], "x").unwrap(),
+                &legacy
+            ),
+            Ok(true)
+        );
+        // A recipe cannot seal a stored plan for another table.
+        let other = encode_metadata(Some(&metadata), &chunk_plan("other")).unwrap();
+        assert_eq!(
+            generation::recipe(&other, &plan, &[], "x"),
+            Err("generation_plan")
+        );
+    }
+
+    #[test]
+    fn wide_decimals_copy_exactly_and_participate_in_c5_digests() {
+        for precision in [40u8, 65, 76] {
+            for scale in [0i8, 12, precision as i8, -2] {
+                let field = DecodedField {
+                    name: "amount".into(),
+                    nullable: true,
+                    arrow_type: "decimal256".into(),
+                    precision: Some(i32::from(precision)),
+                    scale: Some(i32::from(scale)),
+                    timezone: None,
+                };
+                let (_, target) = column(&field).unwrap();
+                assert_eq!(
+                    target,
+                    if scale < 0 {
+                        format!("numeric({},0)", i32::from(precision) - i32::from(scale))
+                    } else {
+                        format!("numeric({precision},{scale})")
+                    }
+                );
+                for digits in [
+                    "0".to_owned(),
+                    "1".to_owned(),
+                    "9".repeat(precision as usize),
+                ] {
+                    for negative in [false, true] {
+                        // Independent base-10 construction of the Arrow little-endian coefficient.
+                        let mut coefficient = [0u8; 32];
+                        for digit in digits.bytes() {
+                            let mut carry = u16::from(digit - b'0');
+                            for byte in &mut coefficient {
+                                carry += u16::from(*byte) * 10;
+                                *byte = carry as u8;
+                                carry >>= 8;
+                            }
+                            assert_eq!(carry, 0);
+                        }
+                        if negative {
+                            let mut carry = 1u16;
+                            for byte in &mut coefficient {
+                                carry += u16::from(!*byte);
+                                *byte = carry as u8;
+                                carry >>= 8;
+                            }
+                        }
+                        let cell = NativeCell::Decimal256 {
+                            precision,
+                            scale,
+                            coefficient,
+                        };
+                        let mut expected =
+                            oo_core::ExactDecimal::new(negative, digits.clone(), i32::from(scale))
+                                .unwrap()
+                                .to_string();
+                        // PostgreSQL numeric(p,0) renders zero without exponent padding.
+                        if digits == "0" && scale < 0 {
+                            expected = "0".into();
+                        }
+                        let mut out = Vec::new();
+                        cell_text(&mut out, 1700, -1, &cell).unwrap();
+                        assert_eq!(String::from_utf8(out).unwrap(), expected);
+                        let stream = DecodedStream {
+                            rows: 1,
+                            fields: vec![field.clone()],
+                            columns: vec![vec![cell]],
+                        };
+                        let mut digest = TableContentDigest::default();
+                        digest.add(&stream).unwrap();
+                        let mut twice = TableContentDigest::default();
+                        twice.add(&stream).unwrap();
+                        twice.add(&stream).unwrap();
+                        assert_ne!(digest.finish(), twice.finish());
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn document_mapping_is_explicit_and_does_not_change_other_text() {

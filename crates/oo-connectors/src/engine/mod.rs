@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::SourceError;
 
 pub(crate) mod declared;
+pub(crate) mod shape;
 mod version;
 
 pub use version::{EngineVersion, VersionRange};
@@ -347,9 +348,58 @@ pub struct DeclaredSourceColumn {
     pub comment: Option<String>,
 }
 
+/// Fresh source catalog facts, before hashing or target projection.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceColumnShape {
+    pub name: String,
+    pub ordinal: u32,
+    /// Complete declaration, including length, precision, scale and signedness.
+    pub source_type: String,
+    /// Closed mapped type, using the same mapping as the chunk reader.
+    pub target_type: String,
+    pub nullable: bool,
+    pub charset: Option<String>,
+    pub collation: Option<String>,
+    pub primary_key_ordinal: Option<u32>,
+    /// Unique index name to this column's position in that index.
+    pub unique_key_ordinals: BTreeMap<String, u32>,
+}
+
+/// One table found by bounded catalog discovery. Every field comes from
+/// catalog metadata and optimizer statistics; no table row is read.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveredTable {
+    pub table: TableRef,
+    /// Statistics estimate; `None` when the table was never analyzed.
+    pub estimated_rows: Option<u64>,
+    pub has_primary_key: bool,
+    /// A valid, non-partial unique index or constraint besides the primary key.
+    pub has_unique_key: bool,
+    /// A partition of a partitioned table (read through its parent).
+    pub partition_child: bool,
+    /// Distinct targets of outgoing foreign keys, sorted.
+    pub references: Vec<TableRef>,
+    /// Column name -> native type, from the catalog only.
+    #[serde(default)]
+    pub columns: BTreeMap<String, String>,
+}
+
+/// Upper bound on the tables one discovery call returns.
+pub const DISCOVERY_TABLE_LIMIT: u64 = 10_000;
+
 /// Read-only source engine. Implementations open no write transaction,
 /// create no object and take no lock.
 pub trait SourceEngine: Send {
+    /// None is unproven, never an empty observed table or inferred equality.
+    /// Concrete engines must refresh this from their native metadata adapters.
+    fn column_shape(
+        &mut self,
+        _table: &TableRef,
+        _budget: &ReadBudget,
+    ) -> impl Future<Output = Result<Option<Vec<SourceColumnShape>>, SourceError>> + Send {
+        async { Ok(None) }
+    }
+
     /// Selected-table metadata within the source read budget. None means
     /// unavailable, not an observed empty catalog. No new source privileges.
     /// Implementations return protocol oo.builder.source-catalog/v1.

@@ -28,6 +28,8 @@ struct Deployment {
     image: String,
     lane: String,
     user: String,
+    input_secret_mounts: Vec<Value>,
+    input_stack_sha256: Option<String>,
 }
 
 impl Deployment {
@@ -50,6 +52,11 @@ impl Deployment {
             image: text("image")?,
             lane: lite::lane(&root),
             user: lite::user(&root)?,
+            input_secret_mounts: owner["input_secret_mounts"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+            input_stack_sha256: owner["input_stack_sha256"].as_str().map(str::to_owned),
             root,
         })
     }
@@ -96,6 +103,26 @@ impl Deployment {
             .args(["--read-only", "--tmpfs", "/tmp", "--cap-drop", "ALL"])
             .args(["--security-opt", "no-new-privileges:true"])
             .args(["--memory", "2g", "--pids-limit", "512"]);
+        for mount in &self.input_secret_mounts {
+            let source = mount["source"]
+                .as_str()
+                .filter(|s| Path::new(s).is_absolute() && !s.contains([',', '\n', '\r']))
+                .ok_or_else(|| Failure::local("BUILD_LITE_SECRET_MOUNT"))?;
+            let target = mount["target"]
+                .as_str()
+                .filter(|s| {
+                    s.strip_prefix("/home/oo/.config/open-ontology/secrets/")
+                        .is_some_and(oo_stack::stack::secret_name)
+                })
+                .ok_or_else(|| Failure::local("BUILD_LITE_SECRET_MOUNT"))?;
+            if mount["read_only"] != true || mount["type"] != "bind" {
+                return Err(Failure::local("BUILD_LITE_SECRET_MOUNT"));
+            }
+            command.args([
+                "--mount",
+                &format!("type=bind,source={source},target={target},readonly"),
+            ]);
+        }
         Ok(command)
     }
 
@@ -125,7 +152,7 @@ fn wait_previous(name: &str) -> Result<()> {
 }
 
 /// The runtime's copy of the stack: a loopback source is this host.
-fn runtime_stack(stack: &oo_stack::Stack) -> Result<Value> {
+fn runtime_stack(stack: &oo_stack::Stack, private_inputs: bool) -> Result<Value> {
     let mut value = serde_json::to_value(stack).map_err(|_| Failure::local("BUILD_LITE_STACK"))?;
     for source in value["sources"]
         .as_array_mut()
@@ -136,6 +163,23 @@ fn runtime_stack(stack: &oo_stack::Stack) -> Result<Value> {
             .is_some_and(|host| LOOPBACK.contains(&host))
         {
             source["host"] = json!("host.docker.internal");
+        }
+    }
+    if private_inputs {
+        value["model"]["key"]["secret_ref"] = json!("oo-lite-model-key");
+        if value["model"]["base_url"].is_object() {
+            value["model"]["base_url"]["secret_ref"] = json!("oo-lite-model-endpoint");
+        }
+        for (index, source) in value["sources"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+        {
+            source["password"]["secret_ref"] = json!(format!("oo-lite-source-{index}-password"));
+            if source["tls_ca"].is_object() {
+                source["tls_ca"]["secret_ref"] = json!(format!("oo-lite-source-{index}-ca"));
+            }
         }
     }
     Ok(value)
@@ -291,6 +335,13 @@ fn owner_review(
     review_file: Option<&Path>,
 ) -> Result<()> {
     let input = review::read(&state.join("review-input.json"))?;
+    let adjudication = state.join("adjudication.json");
+    if adjudication.exists() {
+        build_retained::save(
+            &base.join("review/adjudication.json"),
+            &review::read(&adjudication)?,
+        )?;
+    }
     let compiler = compiler_argv(&deployment.lane, Some(&deployment.user), &deployment.image);
     let reviewed = review_on_host(base, &input, review_file, compiler, vec![])?;
     let handoff = state.join("reviewed-registry.json");
@@ -333,7 +384,17 @@ pub(super) fn run(
 ) -> Result<Invocation> {
     let base = progress::state_dir(config)?;
     let deployment = Deployment::open(config)?;
-    if review::read(&deployment.root.join("work/build/stack.json"))? != runtime_stack(stack)? {
+    let input = serde_json::to_value(stack).map_err(|_| Failure::local("BUILD_LITE_STACK"))?;
+    let changed = deployment
+        .input_stack_sha256
+        .as_ref()
+        .is_some_and(|expected| {
+            expected != &oo_core::api::payload_sha256(input.to_string().as_bytes())
+        });
+    if changed
+        || review::read(&deployment.root.join("work/build/stack.json"))?
+            != runtime_stack(stack, !deployment.input_secret_mounts.is_empty())?
+    {
         return Err(Failure::local(
             "BUILD_LITE_STACK_CHANGED: run oo up --config again before building",
         ));
@@ -363,13 +424,46 @@ pub(super) fn run(
         if current["status"] == "complete" {
             // Reconcile the deployment: starts the Gateway service on the
             // reviewed publication if it is not already serving it.
-            if let Invocation::AdminReport(_, exit) = lite::run("up", config, stack)?
+            if let Invocation::AdminReport(report, exit) = lite::run("up", config, stack)?
                 && exit != 0
             {
-                return Err(Failure::local("BUILD_LITE_GATEWAY_SERVICE"));
+                // Name the deployment state so the cause is not hidden.
+                let status = serde_json::from_str::<Value>(&report)
+                    .ok()
+                    .and_then(|v| v["status"].as_str().map(str::to_owned))
+                    .unwrap_or_else(|| "unknown".into());
+                return Err(Failure::local(format!(
+                    "BUILD_LITE_GATEWAY_SERVICE: deployment status {status} after the build; run oo status --json"
+                )));
             }
             deployment.service("gateway")?;
-            return build::completion(&current, &state, json_output);
+            let mut result = build::completion(&current, &state, json_output)?;
+            if json_output && cycle.is_none() {
+                let profile = issued_profile(config)?;
+                let name = &stack.sources[0].id;
+                let directory = crate::lifecycle::directory()?;
+                match crate::profile::load(&directory, name) {
+                    Ok(saved) if saved == profile => {
+                        crate::profile::select(&directory, name).map_err(Failure::local)?;
+                    }
+                    _ => {
+                        crate::profile::save(&directory, name, &profile).map_err(Failure::local)?
+                    }
+                }
+                let readiness = crate::lifecycle::runtime()?
+                    .block_on(crate::check::readiness(&profile))
+                    .map_err(Failure::local)?;
+                if let Invocation::AdminReport(body, _) = &mut result {
+                    let mut report: Value = serde_json::from_str(body)
+                        .map_err(|_| Failure::local("BUILD_COMPLETION_PROTOCOL"))?;
+                    report["profile"] = json!(name);
+                    report["readiness"] = readiness;
+                    report["share_prompt"] =
+                        json!(crate::share_prompt::render(name).map_err(Failure::local)?);
+                    *body = report.to_string();
+                }
+            }
+            return Ok(result);
         }
         if cycle.is_some() || !review_pending(&current, &state) {
             return Ok(build::report(&current, json_output));
@@ -386,6 +480,26 @@ pub(super) fn run(
     Err(Failure::local("BUILD_LITE_NO_PROGRESS"))
 }
 
+/// Host-local references to the credential actually issued by this completed build.
+pub(super) fn issued_profile(config: &Path) -> Result<Value> {
+    let root = progress::state_dir(config)?.join("lite");
+    let state = root.join("work/build/.oo");
+    let chain = review::read(&state.join("chain.json"))?;
+    let publication = review::read(&state.join("publication.json"))?;
+    if chain["status"] != "complete"
+        || chain["publication"] != "published"
+        || publication["published"] != true
+    {
+        return Err(Failure::local("BUILD_PROFILE_NOT_PUBLISHED"));
+    }
+    super::build_tail::verify_token(&state)?;
+    Ok(
+        json!({"schema_version":1,"gateway":publication["gateway_url"],
+        "token_file":state.join("first-user.token"),"ca_file":root.join("consumer/ca.crt"),
+        "client_pem":root.join("consumer/client.pem")}),
+    )
+}
+
 fn review_pending(chain: &Value, state: &Path) -> bool {
     chain["stages"][2]["status"] == "complete"
         && chain["stages"][3]["status"] == "blocked"
@@ -394,6 +508,13 @@ fn review_pending(chain: &Value, state: &Path) -> bool {
 
 /// Without a TTY or decision file, leave the review input on this host.
 fn owner_review_input(base: &Path, state: &Path) -> Result<()> {
+    let adjudication = state.join("adjudication.json");
+    if adjudication.exists() {
+        build_retained::save(
+            &base.join("adjudication.json"),
+            &review::read(&adjudication)?,
+        )?;
+    }
     let input = review::read(&state.join("review-input.json"))?;
     let path = base.join("review-input.json");
     if path.exists() {
@@ -410,20 +531,106 @@ mod tests {
     use super::*;
 
     #[test]
+    fn delivery_requires_publication_and_the_issued_token_receipt() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-issued-profile-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let config = root.join("stack.json");
+        fs::write(&config, "{}").unwrap();
+        let state = root.join(".oo/lite/work/build/.oo");
+        build_retained::save(
+            &state.join("chain.json"),
+            &json!({"status":"blocked","publication":"not_published"}),
+        )
+        .ok()
+        .unwrap();
+        build_retained::save(
+            &state.join("publication.json"),
+            &json!({"published":true,"gateway_url":"https://localhost:8443"}),
+        )
+        .ok()
+        .unwrap();
+        assert!(issued_profile(&config).is_err());
+        build_retained::save(
+            &state.join("chain.json"),
+            &json!({"status":"complete","publication":"published"}),
+        )
+        .ok()
+        .unwrap();
+        let token = format!("{}{}", "ooct_", "x".repeat(43));
+        let token_path = state.join("first-user.token");
+        fs::write(&token_path, &token).unwrap();
+        fs::set_permissions(&token_path, fs::Permissions::from_mode(0o600)).unwrap();
+        build_retained::save(
+            &state.join("first_token-receipt.json"),
+            &json!({"result":{"token_sha256":oo_core::api::payload_sha256(token.as_bytes())}}),
+        )
+        .ok()
+        .unwrap();
+        let profile = issued_profile(&config).ok().unwrap();
+        assert_eq!(profile["gateway"], "https://localhost:8443");
+        assert!(!profile.to_string().contains(&token));
+        assert!(Path::new(profile["token_file"].as_str().unwrap()).is_absolute());
+        fs::write(&token_path, format!("{}{}", "ooct_", "y".repeat(43))).unwrap();
+        assert!(issued_profile(&config).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn runtime_stack_redirects_only_loopback_sources() {
         let mut value: Value =
             serde_json::from_str(include_str!("../../../oo-stack/example.stack.json")).unwrap();
         value["sources"][0]["host"] = json!("127.0.0.1");
         let stack = oo_stack::parse(&value.to_string()).unwrap();
-        let runtime = runtime_stack(&stack).ok().unwrap();
+        let runtime = runtime_stack(&stack, false).ok().unwrap();
         assert_eq!(runtime["sources"][0]["host"], "host.docker.internal");
         runtime["sources"][0]["port"].as_u64().unwrap();
         value["sources"][0]["host"] = json!("db.internal");
         let stack = oo_stack::parse(&value.to_string()).unwrap();
         assert_eq!(
-            runtime_stack(&stack).ok().unwrap()["sources"][0]["host"],
+            runtime_stack(&stack, false).ok().unwrap()["sources"][0]["host"],
             "db.internal"
         );
+    }
+
+    #[test]
+    fn private_input_refs_and_phase_mounts_match_compose() {
+        let mut value: Value =
+            serde_json::from_str(include_str!("../../../oo-stack/example.stack.json")).unwrap();
+        value["model"]["base_url"] = json!({"secret_ref":"file:/private/endpoint"});
+        value["model"]["key"] = json!({"secret_ref":"file:/private/key"});
+        let stack = oo_stack::parse(&value.to_string()).unwrap();
+        let runtime = runtime_stack(&stack, true).ok().unwrap();
+        assert_eq!(runtime["model"]["key"]["secret_ref"], "oo-lite-model-key");
+        assert_eq!(
+            runtime["model"]["base_url"]["secret_ref"],
+            "oo-lite-model-endpoint"
+        );
+        assert_eq!(
+            runtime["sources"][0]["password"]["secret_ref"],
+            "oo-lite-source-0-password"
+        );
+        assert!(!runtime.to_string().contains("/private/"));
+        let mut deployment = Deployment {
+            root: PathBuf::from("/state"),
+            project: "owned".into(),
+            image: "image".into(),
+            lane: "v03".into(),
+            user: "1000:1000".into(),
+            input_stack_sha256: None,
+            input_secret_mounts: vec![json!({"type":"bind","source":"/private/model-key",
+                "target":"/home/oo/.config/open-ontology/secrets/oo-lite-model-key","read_only":true})],
+        };
+        let command = deployment.container(None, "network").ok().unwrap();
+        let args: Vec<_> = command.get_args().map(|s| s.to_string_lossy()).collect();
+        assert!(
+            args.iter()
+                .any(|s| s.contains("source=/private/model-key") && s.ends_with(",readonly"))
+        );
+        deployment.input_secret_mounts[0]["read_only"] = json!(false);
+        assert!(deployment.container(None, "network").is_err());
     }
 
     #[test]

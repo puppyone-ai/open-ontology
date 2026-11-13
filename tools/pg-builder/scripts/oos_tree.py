@@ -22,6 +22,9 @@ COLLECTIONS = {
 }
 
 
+EVIDENCE_PATH = 'evidence/relationships.json'
+
+
 def digest(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
                                     separators=(',', ':')).encode()).hexdigest()
@@ -76,7 +79,8 @@ def assembled(files, include_empty):
 def source_tree(generated, effective):
     """Keep unreviewed generation separate from ledger-approved changes."""
     allowed = set(COLLECTIONS) | {
-        'protocol', 'ontology', 'project', 'ontology_version', 'catalog_version', 'policy', 'knowledge'}
+        'protocol', 'ontology', 'project', 'ontology_version', 'catalog_version', 'policy', 'knowledge',
+        'relationship_evidence'}
     if (set(generated) | set(effective)) - allowed:
         raise ValueError('unsupported_oos_field')
     generated_files = documents(generated)
@@ -103,12 +107,18 @@ def source_tree(generated, effective):
     bindings['generated_sha256'] = digest(assembled(generated_files, True))
     bindings['curated_sha256'] = digest(assembled(curated_files, False))
     bindings['ontology_sha256'] = digest(effective['ontology'])
+    if 'relationship_evidence' in effective:
+        # Versioned companion, bound by digest; the compiler checks it against the relationships.
+        files[EVIDENCE_PATH] = effective['relationship_evidence']
+        bindings['relationship_evidence_sha256'] = digest(effective['relationship_evidence'])
     return files, bindings
 
 
 def write_source_tree(root, generated, effective):
     files, bindings = source_tree(generated, effective)
-    encoded = {path: (yaml(json.loads(json.dumps(value, sort_keys=True, ensure_ascii=False))) + '\n').encode()
+    encoded = {path: (json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
+                      if path == EVIDENCE_PATH else
+                      yaml(json.loads(json.dumps(value, sort_keys=True, ensure_ascii=False)))).encode() + b'\n'
                for path, value in files.items()}
     if any(len(value) > 1_048_576 for value in encoded.values()):
         raise ValueError('oos_fragment_budget')

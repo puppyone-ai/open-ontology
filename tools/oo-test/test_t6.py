@@ -120,6 +120,23 @@ class GoldDialogueTests(unittest.TestCase):
             result = subprocess.run([str(entry), *arguments], capture_output=True)
             self.assertEqual(result.returncode, expected)
 
+    def test_prepare_without_cut_reports_publish_error_code(self):
+        with tempfile.TemporaryDirectory() as root:
+            fixture = GoldFixture.__new__(GoldFixture)
+            fixture.out = Path(root)
+            fixture.stack = fixture.target = Path(root) / "unused.json"
+            fixture.db = types.SimpleNamespace(directory=Path(root))
+            for stderr, code in [(b'{"error":"publication_seal_mismatch","status":"failed"}\n',
+                                  "PREPARE_PUBLICATION_SEAL_MISMATCH"),
+                                 (b"", "PREPARE_NO_CUT"),
+                                 (b'{"error":"Not A Code: secret"}', "PREPARE_NO_CUT")]:
+                result = subprocess.CompletedProcess([], 1, b"", stderr)
+                with patch("t6_fixture.subprocess.run", return_value=result):
+                    with self.assertRaises(ValueError) as caught:
+                        fixture.prepare("baseline")
+                self.assertEqual(str(caught.exception), code)
+                self.assertEqual(t6.error_code(caught.exception), code)
+
     def test_catalog_uses_native_aliases_without_changing_source_names(self):
         with tempfile.TemporaryDirectory() as root:
             fixture = GoldFixture.__new__(GoldFixture)

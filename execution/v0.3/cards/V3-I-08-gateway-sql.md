@@ -1,0 +1,12 @@
+## V3-I-08 — Gateway must admit normal read-only analytical SQL, then run the ERP A/B
+Branch `v0.3/integrate`. Read tools/oo-test/V3-I-07-VALIDATION.md (ERP gold preflight: 17 accepted, 23 refused: 12 date/text comparisons, 10 casts, 1 subquery). Commit as the owner, no agent trailers, trailer `Plan: V3-I-08`. Whole repo in scope. No container limit; label oo.lane=v03 and clean up; never touch other containers.
+
+1. Gateway SQL admission (crates/oo-gateway query guard / pg_query AST checks): admit, with tests, the read-only constructs analysts write every day, without weakening any guard on writes, functions with side effects, catalog access, cross-role leakage or cost limits:
+   - CAST / `::` to scalar types (numeric, integer, text, date, timestamp, timestamptz, boolean, interval), including on literals;
+   - comparisons between date/timestamp columns and date/time literals or casts, and between text columns and literals, including BETWEEN, IN, LIKE/ILIKE on visible columns;
+   - scalar and IN/EXISTS subqueries and CTEs over visible relations (role filters still apply inside them);
+   - common pure functions on an explicit allowlist (date_trunc, extract, date_part, coalesce, nullif, lower/upper, length, substring, round, abs, greatest/least, to_char, now()/current_date with the freshness rule documented).
+   Each refusal still carries its closed reason code. Add a corpus test: every one of the 40 ERP gold SQLs + T6 gold + demo gold is admitted for its role; a negative corpus (writes, DDL, pg_catalog, set_config, dblink, COPY, lo_*, unbounded cross joins over the cost gate, hidden columns via subquery/CTE/cast) stays refused. Update docs/reference for the admitted grammar (scope granted).
+2. Rebuild the lite image, re-publish the own-MySQL ERP pack exactly as in V3-I-07 (reuse its fixture and flow), and run the live A/B `--arms c0,c3` with the 40-question ERP bank + demo + permission/injection, seed 42, model files by path only (`~/.config/open-ontology/secrets/model-endpoint-9r`, `~/.config/open-ontology/secrets/model-key-9r-sol`; never print/commit/log contents). Report relative change, fixed/broken lists, health counters; replay byte-identical. If C3 breaks questions C0 answers, diagnose the pack content and fix the product (as with q16), then rerun once and report both runs.
+3. Regression: gateway full test suite, QS-01..05, touched crates, spec/plan checks, evidence scan.
+Report: commits, admission corpus results, A/B tables (both runs if rerun), regression, residuals.

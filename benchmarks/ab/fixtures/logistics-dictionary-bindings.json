@@ -1,0 +1,89 @@
+{
+  "protocol": "oo.reviewed-dictionary-bindings/v1",
+  "bindings": [
+    {
+      "id": "khzt",
+      "concept": "Customer status",
+      "from": null,
+      "dictionary": {
+        "dataset": "fixture.zd",
+        "discriminator": "zdlx",
+        "value": "khzt",
+        "code": "zddm",
+        "label": "zdz",
+        "valid_from": "yxqq",
+        "valid_to": "yxqz"
+      },
+      "interval": "closed_closed_date_null_end_unbounded",
+      "provenance": {
+        "origin": "operator_reviewed",
+        "source_sha256": "fbac114f5146fdde5b33e578effe599ddda1594261c13079e148ae33acc4bc9b",
+        "reviewer": "synthetic-fixture-curation",
+        "reviewed_at": "2026-11-12"
+      }
+    },
+    {
+      "id": "ydzt",
+      "concept": "Waybill status",
+      "from": null,
+      "dictionary": {
+        "dataset": "fixture.zd",
+        "discriminator": "zdlx",
+        "value": "ydzt",
+        "code": "zddm",
+        "label": "zdz",
+        "valid_from": "yxqq",
+        "valid_to": "yxqz"
+      },
+      "interval": "closed_closed_date_null_end_unbounded",
+      "provenance": {
+        "origin": "operator_reviewed",
+        "source_sha256": "fbac114f5146fdde5b33e578effe599ddda1594261c13079e148ae33acc4bc9b",
+        "reviewer": "synthetic-fixture-curation",
+        "reviewed_at": "2026-11-12"
+      }
+    },
+    {
+      "id": "hb",
+      "concept": "Currency",
+      "from": null,
+      "dictionary": {
+        "dataset": "fixture.zd",
+        "discriminator": "zdlx",
+        "value": "hb",
+        "code": "zddm",
+        "label": "zdz",
+        "valid_from": "yxqq",
+        "valid_to": "yxqz"
+      },
+      "interval": "closed_closed_date_null_end_unbounded",
+      "provenance": {
+        "origin": "operator_reviewed",
+        "source_sha256": "fbac114f5146fdde5b33e578effe599ddda1594261c13079e148ae33acc4bc9b",
+        "reviewer": "synthetic-fixture-curation",
+        "reviewed_at": "2026-11-12"
+      }
+    },
+    {
+      "id": "jsdm",
+      "concept": "Application role codes (data, not authorization grants)",
+      "from": null,
+      "dictionary": {
+        "dataset": "fixture.zd",
+        "discriminator": "zdlx",
+        "value": "jsdm",
+        "code": "zddm",
+        "label": "zdz",
+        "valid_from": "yxqq",
+        "valid_to": "yxqz"
+      },
+      "interval": "closed_closed_date_null_end_unbounded",
+      "provenance": {
+        "origin": "operator_reviewed",
+        "source_sha256": "fbac114f5146fdde5b33e578effe599ddda1594261c13079e148ae33acc4bc9b",
+        "reviewer": "synthetic-fixture-curation",
+        "reviewed_at": "2026-11-12"
+      }
+    }
+  ]
+}

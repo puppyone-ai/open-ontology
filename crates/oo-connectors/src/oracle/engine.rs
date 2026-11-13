@@ -49,6 +49,10 @@ type IntegerBoundaries = (Vec<Vec<KeyValue>>, u64);
 
 #[path = "declared.rs"]
 mod declared;
+#[path = "discover.rs"]
+mod discover;
+#[path = "shape.rs"]
+mod shape;
 
 fn serial_query(sql: &str) -> Cow<'_, str> {
     // Enterprise can spawn PX sessions behind a single connection. Keep the
@@ -219,12 +223,6 @@ struct TableState {
     next_chunk_id: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ScnSource {
-    VDatabase,
-    DbmsFlashback,
-}
-
 /// One read-only Oracle session.
 pub struct OracleEngine {
     conn: Option<Connection>,
@@ -233,7 +231,6 @@ pub struct OracleEngine {
     session_user: String,
     version: Option<EngineVersion>,
     dialect: Option<Dialect>,
-    scn_source: Option<ScnSource>,
     session_gate: Option<bool>,
     plan_view: Option<bool>,
     extents_view: Option<bool>,
@@ -244,6 +241,10 @@ pub struct OracleEngine {
     last_ora: Option<usize>,
     /// Operator budget for C5 digests, which the trait call does not carry.
     digest_budget: Option<ReadBudget>,
+    /// C5 asks each keyset chunk for a digest at the payload's own SCN.
+    chunk_proofs: bool,
+    /// Canonical range digest of the last keyset chunk, AS OF its read SCN.
+    pub last_chunk_digest: Option<RangeDigest>,
 }
 
 type Rows = Vec<Vec<Option<String>>>;
@@ -282,7 +283,17 @@ fn map_error_kind(error: &ErrorKind) -> SourceError {
         ErrorKind::UnableToRecover => (SourceErrorKind::Connect, "connection_recovery_failed"),
         _ => (SourceErrorKind::Protocol, "oracle_driver_error"),
     };
-    SourceError::new(kind, Some(fact), None)
+    // Unknown server codes keep the ORA number, as worker errors do, so a
+    // field failure names its code without carrying any driver text.
+    let code = match error {
+        ErrorKind::DbError(db)
+            if fact == "oracle_database_error" && (1..=99_999).contains(&db.code()) =>
+        {
+            crate::error::SqlState::parse(&format!("{:05}", db.code()))
+        }
+        _ => None,
+    };
+    SourceError::new(kind, Some(fact), code)
 }
 
 fn ora_code(e: &DriverError) -> Option<usize> {
@@ -313,7 +324,11 @@ fn map_driver(e: &DriverError) -> SourceError {
                 1017 | 28000 => (SourceErrorKind::Auth, "authentication_failed"),
                 _ => (SourceErrorKind::Protocol, "oracle_worker_error"),
             };
-            SourceError::new(kind, Some(fact), None)
+            // Unknown codes keep the ORA number so field failures stay diagnosable.
+            let code = (fact == "oracle_worker_error" && (1..=99_999).contains(code))
+                .then(|| crate::error::SqlState::parse(&format!("{code:05}")))
+                .flatten();
+            SourceError::new(kind, Some(fact), code)
         }
     }
 }
@@ -455,6 +470,13 @@ impl OracleEngine {
         self.digest_budget = Some(budget);
     }
 
+    /// Bind every keyset chunk's payload to a range digest at the same SCN.
+    /// A hot range then proves itself instead of comparing two later digests
+    /// that concurrent writes keep changing. Initial loads do not pay for it.
+    pub fn request_chunk_proofs(&mut self) {
+        self.chunk_proofs = true;
+    }
+
     /// Fresh column/key fingerprint, independent of cached plans and row counts.
     pub fn table_shape(&mut self, table: &TableRef) -> Result<String, SourceError> {
         self.load_meta(table)?.shape()
@@ -520,7 +542,6 @@ impl OracleEngine {
             session_user: String::new(),
             version: None,
             dialect: None,
-            scn_source: None,
             session_gate: None,
             plan_view: None,
             extents_view: None,
@@ -533,6 +554,8 @@ impl OracleEngine {
             },
             last_ora: None,
             digest_budget: None,
+            chunk_proofs: false,
+            last_chunk_digest: None,
         };
         engine.set_timeout(Duration::from_secs(10))?;
         engine.session_user = engine
@@ -609,6 +632,60 @@ impl OracleEngine {
             .unwrap()
             .set_call_timeout(Some(d))
             .map_err(|e| map_ora(&e))
+    }
+
+    /// A timed-out thin call may also lose its cancellation connection.
+    /// Reconnect before returning the timeout so the next table is isolated.
+    /// Arbitrary disconnects are still source-wide failures.
+    fn recover_timed_out_call(
+        &mut self,
+        error: SourceError,
+        started: Instant,
+        budget: &ReadBudget,
+    ) -> SourceError {
+        let lost = error.fact() == Some("connection_recovery_failed")
+            && started.elapsed() >= Duration::from_millis(budget.statement_timeout_ms);
+        let timeout = lost
+            || matches!(
+                error.fact(),
+                Some("call_timeout" | "ora_01013_call_cancelled" | "timeout_connection_closed")
+            );
+        if !timeout {
+            return error;
+        }
+        if lost && self.worker.is_none() {
+            // UnableToRecover has already closed the socket. Keep its handle
+            // until reconnect succeeds so a failed reconnect cannot leave an
+            // engine whose next operation panics on a missing connection.
+            let replacement = (|| {
+                let config = oracledb::Config::default()
+                    .set_stmtcachesize(0)
+                    .set_credentials(&self.cfg.user, self.cfg.password.as_str())
+                    .set_connect_string(&format!(
+                        "{}:{}/{}",
+                        self.cfg.host, self.cfg.port, self.cfg.service
+                    ))
+                    .map_err(|e| map_ora(&e))?;
+                let conn = oracledb::connect(config).map_err(|e| map_ora(&e))?;
+                conn.set_module("oo-source-engine")
+                    .map_err(|e| map_ora(&e))?;
+                conn.set_call_timeout(Some(Duration::from_millis(budget.statement_timeout_ms)))
+                    .map_err(|e| map_ora(&e))?;
+                Ok::<_, SourceError>(conn)
+            })();
+            match replacement {
+                Ok(conn) => self.conn = Some(conn),
+                Err(error) => return error,
+            }
+            self.tables.clear();
+            self.nls = None;
+            self.stats.sessions += 1;
+        }
+        if lost {
+            SourceError::budget("timeout_connection_closed")
+        } else {
+            error
+        }
     }
 
     /// Run a query and return up to `max_rows` rows of nullable text.
@@ -773,30 +850,14 @@ impl OracleEngine {
         Ok(n)
     }
 
-    /// Current SCN, from `V$DATABASE` or `DBMS_FLASHBACK`.
+    /// Current SCN from `V$DATABASE`, the documented reader grant
+    /// (`GRANT SELECT ON SYS.V_$DATABASE`). The reader never calls
+    /// `DBMS_FLASHBACK`: package EXECUTE is not part of the reader grant set.
     pub fn current_scn(&mut self) -> Result<u64, SourceError> {
-        let order = match self.scn_source {
-            Some(s) => vec![s],
-            None => vec![ScnSource::VDatabase, ScnSource::DbmsFlashback],
-        };
-        let mut last = SourceError::privilege("scn_unreadable");
-        for source in order {
-            let sql = match source {
-                ScnSource::VDatabase => "SELECT TO_CHAR(current_scn) FROM v$database",
-                ScnSource::DbmsFlashback => {
-                    "SELECT TO_CHAR(DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER) FROM dual"
-                }
-            };
-            match self.scalar(sql, &[]) {
-                Ok(Some(v)) => {
-                    self.scn_source = Some(source);
-                    return v.parse().map_err(|_| SourceError::protocol("scn_text"));
-                }
-                Ok(None) => last = SourceError::protocol("scn_absent"),
-                Err(e) => last = e,
-            }
+        match self.scalar("SELECT TO_CHAR(current_scn) FROM v$database", &[])? {
+            Some(v) => v.parse().map_err(|_| SourceError::protocol("scn_text")),
+            None => Err(SourceError::protocol("scn_absent")),
         }
-        Err(last)
     }
 
     fn load_meta(&mut self, t: &TableRef) -> Result<TableMeta, SourceError> {
@@ -2019,15 +2080,8 @@ impl OracleEngine {
                 }
             },
         );
-        if let Some(s) = self.scn_source {
-            settings.insert(
-                "watermark.source".into(),
-                match s {
-                    ScnSource::VDatabase => "V$DATABASE.CURRENT_SCN",
-                    ScnSource::DbmsFlashback => "DBMS_FLASHBACK.GET_SYSTEM_CHANGE_NUMBER",
-                }
-                .into(),
-            );
+        if scn_ok {
+            settings.insert("watermark.source".into(), "V$DATABASE.CURRENT_SCN".into());
         }
 
         // D11 is an opt-in requirement even when every DBA prerequisite is met.
@@ -2270,6 +2324,17 @@ impl OracleEngine {
         lo: Option<&[KeyValue]>,
         hi: Option<&[KeyValue]>,
     ) -> Result<RangeDigest, SourceError> {
+        self.digest_at(table, lo, hi, None)
+    }
+
+    /// Range digest, optionally AS OF a keyset chunk's read SCN.
+    fn digest_at(
+        &mut self,
+        table: &TableRef,
+        lo: Option<&[KeyValue]>,
+        hi: Option<&[KeyValue]>,
+        keyset_scn: Option<u64>,
+    ) -> Result<RangeDigest, SourceError> {
         let d = self.ensure_version()?;
         let meta = match self.tables.get(table) {
             Some(s) => s.meta.clone(),
@@ -2316,7 +2381,7 @@ impl OracleEngine {
                     .ok_or(SourceError::catalog("physical_digest_requires_snapshot"))?,
             )
         } else {
-            None
+            keyset_scn
         };
         if meta.columns.iter().any(|c| c.kind.is_lob()) {
             // Reuse the bounded locator reader on both thin and thick transports.
@@ -2409,6 +2474,15 @@ struct Progress {
     bytes: u64,
 }
 
+/// The SCN a C5 chunk proof must use: only keyset chunks, each read at one
+/// SCN. Physical chunks already share the plan's snapshot with their digests.
+fn proof_scn(keyset_proof: bool, receipt: &ChunkReceipt) -> Option<u64> {
+    match &receipt.low {
+        Some(Watermark::OracleScn { scn }) if keyset_proof => Some(*scn),
+        _ => None,
+    }
+}
+
 fn logminer_opt_in() -> Requirement {
     Requirement {
         kind: crate::engine::RequirementKind::Feature,
@@ -2419,7 +2493,12 @@ fn logminer_opt_in() -> Requirement {
                 .into(),
         ),
         required: "Explicit Oracle C1 opt-in and version-specific T7 acceptance; \
-                   sync: auto must remain C5"
+                   sync: auto must remain C5. Production impact (T10, D24): each \
+                   LogMiner batch mines from a transaction floor that advances only \
+                   while the cursor keeps up; at about 2,000 row changes/s on a 4-CPU \
+                   source C1 applied about 50 changes/s and fell behind. Opt in only for \
+                   a change rate measured on the actual workload well below that; \
+                   otherwise keep C5"
             .into(),
         dba_statement: None,
     }
@@ -2431,6 +2510,14 @@ enum PageError {
 }
 
 impl SourceEngine for OracleEngine {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> std::result::Result<Option<Vec<crate::engine::SourceColumnShape>>, SourceError> {
+        self.export_shape(table, budget).await
+    }
+
     async fn declared_catalog(
         &mut self,
         tables: &[TableRef],
@@ -2441,6 +2528,14 @@ impl SourceEngine for OracleEngine {
 
     fn family(&self) -> EngineFamily {
         EngineFamily::Oracle
+    }
+
+    async fn discover_tables(&mut self, budget: &ReadBudget) -> Result<Vec<TableRef>, SourceError> {
+        Ok(self
+            .discover_catalog(budget)?
+            .into_iter()
+            .map(|t| t.table)
+            .collect())
     }
 
     async fn probe(&mut self) -> Result<ProbeReport, SourceError> {
@@ -2456,7 +2551,9 @@ impl SourceEngine for OracleEngine {
         validate_budget(budget)?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.plan_sync(table, budget);
+        let result = self
+            .plan_sync(table, budget)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
         result
@@ -2471,18 +2568,49 @@ impl SourceEngine for OracleEngine {
         validate_budget(budget)?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.read_chunk_sync(chunk, budget, sink).map_err(|e| {
-            // The thin driver can close the socket when timeout cancellation
-            // itself times out. Keep that budget failure distinct from a
-            // protocol failure, without treating arbitrary disconnects as timeouts.
-            if e.fact() == Some("connection_recovery_failed")
-                && started.elapsed() >= Duration::from_millis(budget.statement_timeout_ms)
-            {
-                SourceError::budget("timeout_connection_closed")
-            } else {
-                e
-            }
-        });
+        self.last_chunk_digest = None;
+        let result = self
+            .read_chunk_sync(chunk, budget, sink)
+            .and_then(|receipt| {
+                let keyset = self
+                    .tables
+                    .get(&chunk.table)
+                    .is_some_and(|s| matches!(s.strategy, ChunkStrategy::Keyset { .. }));
+                if let Some(scn) = proof_scn(self.chunk_proofs && keyset, &receipt) {
+                    self.last_chunk_digest = Some(self.digest_at(
+                        &chunk.table,
+                        chunk.lo.as_deref(),
+                        chunk.hi.as_deref(),
+                        Some(scn),
+                    )?);
+                }
+                Ok(receipt)
+            })
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
+        self.schedule_next(started.elapsed(), budget);
+        self.pace().await;
+        result
+    }
+
+    async fn split_chunk(
+        &mut self,
+        chunk: &ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<ChunkSpec>>, SourceError> {
+        validate_budget(budget)?;
+        let state = self
+            .tables
+            .get(&chunk.table)
+            .ok_or(SourceError::catalog("table_not_planned"))?;
+        if !matches!(state.strategy, ChunkStrategy::Keyset { .. }) {
+            return Ok(None);
+        }
+        self.set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
+        self.protect().await?;
+        let started = Instant::now();
+        let result = OracleEngine::split_chunk(self, chunk, budget)
+            .map(Some)
+            .map_err(|e| self.recover_timed_out_call(e, started, budget));
         self.schedule_next(started.elapsed(), budget);
         self.pace().await;
         result
@@ -2504,7 +2632,9 @@ impl SourceEngine for OracleEngine {
         self.set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.protect().await?;
         let started = Instant::now();
-        let result = self.digest_sync(table, lo, hi);
+        let result = self
+            .digest_sync(table, lo, hi)
+            .map_err(|e| self.recover_timed_out_call(e, started, &budget));
         self.schedule_next(started.elapsed(), &budget);
         self.pace().await;
         result
@@ -2514,6 +2644,47 @@ impl SourceEngine for OracleEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn c5_chunk_proof_uses_the_payload_scn_only_when_requested() {
+        let receipt = |low| ChunkReceipt {
+            table: TableRef {
+                schema: "S".into(),
+                name: "T".into(),
+            },
+            plan_revision: 1,
+            chunk_id: 0,
+            rows: 1,
+            bytes: 1,
+            sha256: String::new(),
+            low,
+            high: Some(Watermark::OracleScn { scn: 99 }),
+        };
+        let read = receipt(Some(Watermark::OracleScn { scn: 42 }));
+        // The digest must see the payload's snapshot, never the later high mark.
+        assert_eq!(proof_scn(true, &read), Some(42));
+        assert_eq!(proof_scn(false, &read), None);
+        assert_eq!(proof_scn(true, &receipt(None)), None);
+    }
+
+    #[test]
+    fn unknown_worker_codes_keep_the_ora_number() {
+        let e = map_driver(&DriverError::Worker {
+            code: 2049,
+            timeout: false,
+        });
+        assert_eq!(e.sqlstate(), Some("02049"));
+        let known = map_driver(&DriverError::Worker {
+            code: 1555,
+            timeout: false,
+        });
+        assert_eq!(known.sqlstate(), None);
+        let none = map_driver(&DriverError::Worker {
+            code: 0,
+            timeout: false,
+        });
+        assert_eq!(none.sqlstate(), None);
+    }
 
     #[test]
     fn serial_reads_preserve_sql_and_bind_positions() {
@@ -2580,6 +2751,9 @@ mod tests {
         assert!(requirement.observed.unwrap().contains("SYS.LOGMNR_GT_*"));
         assert!(requirement.required.contains("Explicit Oracle C1 opt-in"));
         assert!(requirement.required.contains("sync: auto must remain C5"));
+        // T10 measured LogMiner falling behind a busy source; doctor shows it.
+        assert!(requirement.required.contains("transaction floor"));
+        assert!(requirement.required.contains("otherwise keep C5"));
         assert!(requirement.dba_statement.is_none());
     }
 

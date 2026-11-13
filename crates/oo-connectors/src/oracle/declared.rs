@@ -19,7 +19,7 @@ fn ordinal(row: &[Option<String>], index: usize) -> Result<i32, SourceError> {
 }
 
 impl OracleEngine {
-    fn declared_rows(
+    pub(super) fn declared_rows(
         &mut self,
         sql: &str,
         table: &TableRef,

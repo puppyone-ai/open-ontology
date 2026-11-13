@@ -1,0 +1,35 @@
+schema_version: config/v1
+defaults:
+  limits:
+    max_rows: 200
+    max_rows_cap: 2000
+    export_rows: 500000
+    export_bytes: 1GB
+    concurrency: 2
+    statement_timeout: 30s
+    export_timeout: 120s
+  allow_external_clients: false
+roles:
+  analyst:
+    label: Demo region 1 analyst
+    grants:
+      - schema: demo
+        tables: [regions, areas, sites, codes, orders, shipments, calendar, order_lines, events]
+      - table: demo.customers
+        columns: {exclude: [phone_synthetic]}
+    row_filters:
+      demo.orders: "region_id = 1"
+    allow_external_clients: true
+  ops:
+    label: Demo region 2 operations
+    grants:
+      - schema: demo
+        tables: [regions, areas, sites, codes, orders, shipments, calendar, order_lines, events]
+      - table: demo.customers
+        columns: {exclude: [phone_synthetic]}
+    row_filters:
+      demo.orders: "region_id = 2"
+    allow_external_clients: true
+bindings:
+  - match: {any: true}
+    role: null

@@ -1,6 +1,6 @@
 [package]
 name = "oo-eval"
-description = "Evaluation runner. SP00-W01 skeleton; no scorer or dataset generator."
+description = "Repository-local deterministic A/B evaluation entry point."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true

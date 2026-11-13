@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
+│  graph  │  relations  │  entity                    summary d73614b6… ┊ decisions ··········· ·  ·   by data evidence │
+│                                                                      ┊                                               │
+│        ╭────────────╮    ╭──────────╮    ╭───────────╮               ┊ ▸ ○ pii  routes.mobile_… visible  ▰▰▰▰▰ 0.91  │
+│        │ 日历       │    │ 客户     │    │ 网点      │               ┊     format hits 0 · name hit                  │
+│        │ day · 3.7k │    │ id · 48k │    │ id · 1.8k │               ┊     Name looks personal but no value matches… │
+│        ╰──────┬─────╯    ╰─────┬────╯    ╰─┬─┬┬─┬┬─┬─╯               ┊   ◌ pii  customers.phone hidden   ▰▰▰▰▰ 0.98  │
+│               1                1           1 11 11 N                 ┊     distinct 0.97 · format hits 0.982         │
+│            ╭──╯             ╭──┼───────────╯ │╰╮│╰─┼───────╮         ┊     98% of values match a phone number forma… │
+│            │   ╭────────────┼──╯             │ ┆╰──┼─────╮ │         ┊   ◌ pii  drivers.id_num… hidden   ▰▰▰▰▰ 0.99  │
+│            │   │            │   ╭──── #2 ────╯ ┆   ╰─────┼─┼─╮       ┊     distinct 1 · format hits 1                │
+│            N   N            N   N              N         │ │ │       ┊     Every value matches an identity document… │
+│        ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    │ │ │       ┊   ✗ rel  司机 → 员工     rejected ▰▰▱▱▱ 0.38  │
+│        │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │       ┊     contain ▕██████···┊▏ 0.64<0.9  distinct … │
+│        │ id · 1.2M │    │ id · 420 │    │ code · 36 │    │ │ │       ┊     Only 64% of drivers match an employee; c… │
+│        ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │       ┊   ✗ rel  运单 → 仓库     rejected ▰▰▱▱▱ 0.41  │
+│            1   N            N  1              1          │ │ │       ┊     contain ▕███████··┊▏ 0.71<0.98  distinct… │
+│            ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │       ┊     29% of origin_wh values have no warehous… │
+│                ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │       ┊   ✗ rel  订单 → 线路     rejected ▰▰▰▰▰ 0.99  │
+│                            N  N  N                       │ │ │       ┊     contain ▕██████████▏ 0.99≥0.9  distinct … │
+│                         ┏━━┷━━┷━━┷━━┓                    │ │ │       ┊     Parent key repeats; unique only together… │
+│                         ┃ 运单      ┃                    │ │ │       ┊   ✗ rel  仓库 → 网点     rejected ▰▰▰▰▰    1  │
+│                         ┃ id · 982k ┃                    │ │ │       ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│                         ┗━━┯━━┯━━┯━━┛                    │ │ │       ┊     Parent keys collide after trim/lower-cas… │
+│                            N  1  1                       │ │ │       ┊   ↓ met  avg_parcel_wei… demoted  ▰▰▱▱▱ 0.44  │
+│               ╭────────────╯  ╰╮ ╰────────────╮          │ │ │       ┊     non empty · recompute match · unit consi… │
+│               1                N              N          │ │ │       ┊     Mixes grams and kilograms; kept as an ex… │
+│         ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │       ┊   ✓ rel  网点 → 员工     adopted  ▰▰▰▰▰  0.9  │
+│         │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │       ┊     contain ▕█████████┊▏ 0.93≥0.9  distinct … │
+│         │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │       ┊     Containment 0.93 plus naming and JOIN ev… │
+│         ╰───┬──┬───╯    ╰─────┬────╯    ╰───────────╯    │ │ │       ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.93  │
+│             1  1              N                          │ │ │       ┊     contain ▕██████████▏ 0.97≥0.9  distinct … │
+│          ╭┄┄╯  ╰──────────────┼╮ ╭───────────────────────╯ │ │       ┊     Containment 0.97 plus naming and JOIN ev… │
+│          ┆   ╭────────────────┼┼─┼─────────────────────────╯ │       ┊   ✓ rel  订单 → 日历     adopted  ▰▰▰▰▰ 0.94  │
+│          ┆   │  ╭─────────────┼┼─┼───────────────────────────╯       ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│          ┆   │  │             ╰┼─┼──────────────╮                    ┊     Every order date is a calendar day.       │
+│          1   N  1              1 N              1                    ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.95  │
+│ roles  #1 origin_station  #2 dest_station                            ┊     contain ▕██████████▏ 0.988≥0.9  distinct… │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 3 more  ┊     Containment 0.988 with a unique parent.   │
+╰ tab view  ←↑↓→ select  f focus  j/k decisions  o override  ⏎ confirm publish  q quit  ───────────────────────────────╯

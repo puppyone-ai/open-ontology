@@ -120,6 +120,7 @@ fn catalog(relations: Vec<VisibleRelation>) -> PolicyCatalog {
             text: Some(TEXT_OID),
             boolean: Some(BOOL_OID),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }
@@ -217,7 +218,11 @@ fn signature_diagnostics_isolate_sum_from_time_comparison_without_echoing_sql() 
         result_type_oid: BOOL_OID,
     });
     admit(&catalog, "SELECT SUM(amount) FROM sales.payments");
-    let sql = "SELECT /* marker */ SUM(amount) FROM sales.payments WHERE paid_at >= '2026-09-01'";
+    admit(
+        &catalog,
+        "SELECT SUM(amount) FROM sales.payments WHERE paid_at >= '2026-09-01'",
+    );
+    let sql = "SELECT /* marker */ SUM(amount) FROM sales.payments WHERE paid_at >= 'tomorrow'";
     let error = refuse(&catalog, sql);
     assert_eq!(error.code(), ErrorCode::FunctionNotAllowed);
     let hint = error.hint().unwrap();
@@ -232,7 +237,7 @@ fn signature_diagnostics_isolate_sum_from_time_comparison_without_echoing_sql() 
         "private_",
         "sales.payments",
         "paid_at",
-        "2026-09-01",
+        "tomorrow",
         "SUM",
         "marker",
     ] {
@@ -670,6 +675,8 @@ fn timestamp_comparisons_require_valid_literals_and_catalogued_same_type_operato
         "SELECT COUNT(*) FROM logistics.shipment WHERE created >= '2024-02-29T12:30:59.123456'::pg_catalog.timestamp",
         "SELECT COUNT(*) FROM logistics.shipment WHERE occurred >= TIMESTAMPTZ '2026-01-01T00:00:00Z'",
         "SELECT COUNT(*) FROM logistics.shipment WHERE occurred < TIMESTAMPTZ '2026-01-01 00:00:00+08:00'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE created >= '2026-01-01'",
+        "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= '2026-09-01'",
     ] {
         let plan = admit(&catalog, sql);
         assert!(!plan.bindings.operators.is_empty());
@@ -688,13 +695,13 @@ fn timestamp_comparisons_require_valid_literals_and_catalogued_same_type_operato
     );
     let mismatch = refuse(
         &catalog,
-        "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= '2026-09-01'",
+        "SELECT SUM(paid_amount) FROM logistics.shipment WHERE created >= 'today'",
     );
     assert_eq!(mismatch.code(), ErrorCode::FunctionNotAllowed);
     assert!(mismatch.hint().unwrap().contains("TIMESTAMP"));
     for sql in [
         "SELECT TIMESTAMP '2026-01-01 00:00:00'",
-        "SELECT COUNT(*) FROM logistics.shipment WHERE created >= '2026-01-01'",
+        "SELECT COUNT(*) FROM logistics.shipment WHERE created >= '01/02/2026'",
         "SELECT COUNT(*) FROM logistics.shipment WHERE created >= TIMESTAMP 'now'",
         "SELECT COUNT(*) FROM logistics.shipment WHERE created >= TIMESTAMP 'infinity'",
         "SELECT COUNT(*) FROM logistics.shipment WHERE created >= TIMESTAMP '2026-02-29 00:00:00'",
@@ -815,13 +822,11 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
         .code(),
         ErrorCode::FunctionNotAllowed
     );
-    assert!(matches!(
-        refuse(
-            &catalog,
-            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'"
-        ),
-        error if error.code() == ErrorCode::FunctionNotAllowed
-    ));
+    let implicit = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket = '2026-05-06'",
+    );
+    assert_eq!(implicit.bindings.operators[0].oid, DATE_EQ);
     assert!(matches!(
         refuse(
             &catalog,
@@ -837,13 +842,11 @@ fn date_literal_binds_only_the_catalogued_date_comparison() {
         refuse(&catalog, "SELECT hidden_balance FROM logistics.shipment"),
         GuardError::ColumnNotAllowed { .. }
     ));
-    assert!(matches!(
-        refuse(
-            &catalog,
-            "SELECT COUNT(*) FROM logistics.shipment WHERE bucket IN (DATE '2026-05-06')"
-        ),
-        GuardError::Unsupported { construct: "cast" }
-    ));
+    let in_plan = admit(
+        &catalog,
+        "SELECT COUNT(*) FROM logistics.shipment WHERE bucket IN (DATE '2026-05-06')",
+    );
+    assert_eq!(in_plan.bindings.operators[0].oid, DATE_EQ);
 }
 
 #[test]
@@ -1024,21 +1027,14 @@ fn writes_are_rejected_including_inside_a_cte() {
 }
 
 #[test]
-fn read_cte_and_subquery_are_unsupported() {
+fn read_cte_and_named_derived_projection_are_admitted() {
     let cat = small();
-    assert_eq!(
-        refuse(
-            &cat,
-            "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t"
-        ),
-        GuardError::Unsupported { construct: "CTE" }
-    );
-    assert_eq!(
-        refuse(&cat, "SELECT * FROM (SELECT 1) AS s"),
-        GuardError::Unsupported {
-            construct: "subquery"
-        }
-    );
+    for sql in [
+        "WITH t AS (SELECT 1 AS order_id) SELECT order_id FROM t",
+        "SELECT * FROM (SELECT 1 AS order_id) AS s",
+    ] {
+        admit(&cat, sql);
+    }
 }
 
 #[test]
@@ -1331,7 +1327,8 @@ fn join_star_charges_the_starred_relation() {
 
 #[test]
 fn explicit_joins_of_base_relations_are_admitted() {
-    let cat = joined();
+    // Exercise join grammar below the independent Cartesian row-cost gate.
+    let cat = catalog(vec![customer(2), shipment(2)]);
     for sql in [
         "SELECT c.customer_id, s.order_id FROM logistics.customer AS c \
          INNER JOIN logistics.shipment AS s ON c.region = s.region",
@@ -1807,6 +1804,7 @@ async fn live_catalog(client: &Client, shadow: &Shadow) -> PolicyCatalog {
             text: Some(text_oid),
             boolean: Some(bool_oid),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 1_000_000,
     }

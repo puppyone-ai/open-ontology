@@ -1,0 +1,20 @@
+# oo.adjudication/v1 summary sha256:d73614b66850600723830f6316a5796103b47c7db9d4892289536d7fbc143176
+订单     >─1 客户    via orders.customer_id           ✓ 0.99
+运单     >─1 订单    via shipments.order_id           ✓ 0.98
+包裹     >─1 运单    via parcels.shipment_id          ✓ 0.99
+运单     >─1 线路    via shipments.route_id           ✓ 0.96
+运单     >┄1 仓库    via shipments.origin_wh          ✗ containment 0.71 < 0.98
+线路     >─1 网点    via routes.origin_station_id     ✓ 0.93
+线路     >─1 网点    via routes.dest_station_id       ✓ 0.95
+车辆     >─1 网点    via vehicles.home_station_id     ✓ 0.95
+司机     1─1 车辆    via drivers.vehicle_id           ✓ 0.97
+运单     >─1 司机    via shipments.driver_id          ✓ 0.96
+运单事件 >─1 运单    via shipment_events.shipment_id  ✓ 0.99
+运单事件 >─1 状态码  via shipment_events.status_code  ✓ 0.99
+订单     >─1 日历    via orders.order_date            ✓ 0.94
+员工     >─1 员工    via employees.manager_id         ✓ 0.95
+员工     >─1 网点    via employees.station_id         ✓ 0.97
+网点     >─1 员工    via stations.manager_id          ✓ 0.9
+司机     1┄1 员工    via drivers.employee_id          ✗ distinct 0.52 < 0.9 (rows 0.64)
+订单     >┄< 线路    via orders.route_code            ✗ scope valid_from required, fan-out ×3
+仓库     >┄1 网点    via warehouses.station_code      ✗ 2 keys collide after trim/lower

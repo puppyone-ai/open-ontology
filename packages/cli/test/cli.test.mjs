@@ -10,12 +10,30 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nativeArgs, nativeBinary, timeContext, expandLongOptions } from '../bin/oo.mjs';
+import { nativeArgs, nativeBinary, timeContext, expandLongOptions, installationReport } from '../bin/oo.mjs';
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const digest = data => createHash('sha256').update(data).digest('hex');
 const target = `${process.platform}-${process.arch}`;
 const integration = (name, fn) => test(name, { skip: process.platform === 'win32', timeout: 15000 }, fn);
+
+test('post-install check requires a verified MySQL discovery helper', t => {
+  const f = fixture(t);
+  assert.throws(() => installationReport(f.pkg), /MYSQL_DOCTOR_INSTALL/);
+  writeFileSync(join(dirname(f.binary), 'oo-lite-image'), `registry.example/oo@sha256:${'a'.repeat(64)}\n`);
+  assert.throws(() => installationReport(f.pkg), /oo-mysql-doctor is missing/);
+  const helper = join(dirname(f.binary), 'oo-mysql-doctor');
+  copyFileSync(f.binary, helper);
+  assert.throws(() => installationReport(f.pkg), /NATIVE_MANIFEST_INVALID/);
+  const manifest = JSON.parse(readFileSync(f.manifestPath, 'utf8'));
+  manifest.binaries[target].mysql_doctor = {
+    path: `native/${target}/oo-mysql-doctor`, sha256: digest(readFileSync(helper)),
+  };
+  writeFileSync(f.manifestPath, JSON.stringify(manifest));
+  assert.equal(installationReport(f.pkg).mysql_doctor, 'packaged_verified');
+  writeFileSync(helper, 'tampered');
+  assert.throws(() => installationReport(f.pkg), /NATIVE_DIGEST_MISMATCH/);
+});
 
 test('business dates use the explicit timezone, not UTC or a fabricated business calendar', () => {
   const value = timeContext('Asia/Shanghai', '2026-10-29T19:43:38Z');
@@ -186,7 +204,8 @@ integration('all existing commands and arbitrary SQL arguments pass through with
     ['freshness', '--summary'], ['knowledge', 'cat', 'README.md'],
     ['knowledge', 'search', '--offset', '20', '--limit', '10', 'order'],
     ['cancel', 'q_actual001'], ['status', 'q_actual001'], ['operations'],
-    ['agent-skill', '--json'], ['query', '--help'],
+    ['agent-skill', '--json'], ['query', '--help'], ['try', '--role', 'ops'],
+    ['quickstart', '--yes'], ['quickstart', '--down', '--json'],
   ]) assert.deepEqual(output(f.run(args)).argv, args);
   const marker = join(f.root, 'shell-must-not-run');
   const sql = `SELECT '--gateway https://evil.example', '$(touch ${marker})';\n-- " \`touch ${marker}\` ; & |`;
@@ -202,6 +221,17 @@ integration('native stdout, stderr and exit code pass through', t => {
   assert.equal(result.status, 23);
   assert.equal(result.stderr, 'fixture stderr');
   assert.deepEqual(JSON.parse(result.stdout).argv, ['tables']);
+});
+
+integration('demo try uses the saved profile while quickstart cleanup does not', t => {
+  const f = fixture(t);
+  const profile = f.configure();
+  const args = output(f.run(['try', '--role', 'ops', '--json'])).argv;
+  assert(args.includes(profile.token_file));
+  assert.deepEqual(args.slice(-4), ['--transport', 'production', '--auth', 'external']);
+  assert.deepEqual(output(f.run(['try', '--help'])).argv, ['try', '--help']);
+  assert.deepEqual(output(f.run(['quickstart', '--down', '--json'])).argv,
+    ['quickstart', '--down', '--json']);
 });
 
 integration('stdin token stays private, off argv, off display and out of the package', t => {
@@ -353,6 +383,14 @@ integration('help aliases and config help work without profiles or credentials',
   }
   assert.notEqual(f.run(['help', '--token-file']).status, 0);
   assert.deepEqual(output(f.run(['-V', '--json'])), output(f.run(['--version', '--json'])));
+});
+
+integration('MCP help works without a bridge but launching requires a verified bridge', t => {
+  const f = fixture(t);
+  for (const args of [['mcp', '--help'], ['mcp', '-h'], ['help', 'mcp']]) {
+    assert.equal(f.run(args).status, 0);
+  }
+  assert.notEqual(f.run(['mcp', '--stdio', '--profile', 'example']).status, 0);
 });
 
 integration('untrusted saved config, permissive files and symlink config directories fail closed', t => {
@@ -510,7 +548,8 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   assert.equal(pkg.version, '0.2.0');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
-  assert.deepEqual(Object.keys(pkg.scripts), ['test']);
+  assert.deepEqual(Object.keys(pkg.scripts), ['postinstall', 'test']);
+  assert.equal(pkg.scripts.postinstall, 'node bin/oo.mjs install-check --json');
   for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) assert(!pkg[key]);
   for (const name of ['LICENSE', 'NOTICE', 'SKILL.md', 'THIRD_PARTY_NOTICES.txt', 'dependencies.json']) {
     writeFileSync(join(f.pkg, name), 'fixture release asset');

@@ -1,0 +1,24 @@
+╭ ◆ open ontology ────────────────────────────────────────────●━●━◉ build─○─○ ─╮
+│ build ············································   ···       2/5 · stopped │
+│                                                                              │
+│ █████████████ █████████████ ✗············ ············· ·············   40%  │
+│                                                                              │
+│ ● load       ▕████████████████████▏ 12/12 tables   0:42     passed           │
+│ │            copy selected tables into the private replica                   │
+│ ● profile    ▕████████████████████▏ 12/12 tables   1:01     passed           │
+│ │            measure keys, containment, formats, cardinality                 │
+│ ✗ draft      ▕····················▏                         failed           │
+│ ┆            ✗ MODEL_BUDGET: 40 calls used                                   │
+│ ○ adjudicate ▕····················▏                         queued           │
+│ ┆            decide warn items from data evidence                            │
+│ ○ compile    ▕····················▏                         queued           │
+│              compile and verify the role pack                                │
+│                                                                              │
+│ ✗ the build stopped at draft: the model call budget is used up               │
+│   finished stages are kept: load, profile                                    │
+│   next fix the cause, then oo build --resume                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ q stop watching (the build continues)  ⏎ continue when done  ────────────────╯

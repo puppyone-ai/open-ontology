@@ -107,11 +107,75 @@ async fn execute() -> Result<&'static str, &'static str> {
             .fetch_one(&mut db)
             .await
             .map_err(|_| "database")?;
+    // Sealed column catalog (lane FH-P2, migration 0129); idempotent.
+    sqlx::raw_sql(
+        "CREATE SCHEMA IF NOT EXISTS _oo_load; REVOKE ALL ON SCHEMA _oo_load FROM PUBLIC;",
+    )
+    .execute(&mut db)
+    .await
+    .map_err(|_| "sealed_column_catalog")?;
+    sqlx::raw_sql(include_str!(
+        "../../migrations/0129_sealed_column_catalog.sql"
+    ))
+    .execute(&mut db)
+    .await
+    .map_err(|_| "sealed_column_catalog")?;
+    // C1 per-table positions; install the source state before its child table.
+    sqlx::raw_sql(include_str!("../../migrations/0120_engine_sync.sql"))
+        .execute(&mut db)
+        .await
+        .map_err(|_| "c1_table_positions")?;
+    sqlx::raw_sql(include_str!("../../migrations/0130_c1_table_positions.sql"))
+        .execute(&mut db)
+        .await
+        .map_err(|_| "c1_table_positions")?;
     if installed {
+        install_logical_identity(&mut db).await?;
         return Ok("already_installed");
     }
     install(&mut db).await?;
+    install_logical_identity(&mut db).await?;
     Ok("installed")
+}
+
+async fn install_logical_identity(db: &mut PgConnection) -> Result<(), &'static str> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo.publication_identity') IS NOT NULL")
+            .fetch_one(&mut *db)
+            .await
+            .map_err(|_| "logical_publication")?;
+    if !installed {
+        db.execute(
+            "DO $$ BEGIN
+             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='oo_target_admin') THEN
+                 CREATE ROLE oo_target_admin NOLOGIN;
+             END IF;
+             END $$;",
+        )
+        .await
+        .map_err(|_| "logical_publication_role")?;
+        db.execute(include_str!(
+            "../../migrations/0135_logical_publication_identity.sql"
+        ))
+        .await
+        .map_err(|_| "logical_publication")?;
+    }
+    // Routine dependencies of published views (0136); for fresh and
+    // already-installed targets alike, applied once.
+    let routines: bool = sqlx::query_scalar(
+        "SELECT to_regprocedure('_oo.publication_routine_identity(oid[])') IS NOT NULL",
+    )
+    .fetch_one(&mut *db)
+    .await
+    .map_err(|_| "logical_publication_routines")?;
+    if !routines {
+        db.execute(include_str!(
+            "../../migrations/0136_publication_routine_identity.sql"
+        ))
+        .await
+        .map_err(|_| "logical_publication_routines")?;
+    }
+    Ok(())
 }
 
 async fn install(db: &mut PgConnection) -> Result<(), &'static str> {

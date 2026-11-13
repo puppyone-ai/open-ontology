@@ -24,6 +24,11 @@ pub struct PublicationRequest {
     pub source_binding: String,
     pub generation: String,
     pub tables: Vec<TableRef>,
+    /// The sync cycle whose per-table outcomes the cut must record. When it
+    /// differs from `generation`, `generation` is replayed only if both cycles
+    /// recorded the same outcomes; otherwise the cut is minted at this run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome_run: Option<String>,
 }
 
 fn digest(v: &Value) -> String {
@@ -50,7 +55,10 @@ fn logical(s: &str) -> Result<String> {
 }
 
 fn validate(r: &PublicationRequest) -> Result<()> {
-    for value in [&r.library_id, &r.generation] {
+    for value in [&r.library_id, &r.generation]
+        .into_iter()
+        .chain(r.outcome_run.as_ref())
+    {
         if value.is_empty()
             || value.len() > 128
             || !value
@@ -110,11 +118,157 @@ struct Recipe {
     definition: String,
 }
 
+/// The generation recipe must seal exactly the stored publication plan,
+/// including its read metadata.
+pub(crate) fn recipe_seals_plan(recipe: &Value, publication_plan: &str) -> Result<bool> {
+    Ok(recipe["plan"]
+        == serde_json::from_str::<Value>(publication_plan).map_err(|_| "publication_plan")?)
+}
+
 struct Verified {
     relation: String,
     recipe: Value,
     columns: Vec<(String, String)>,
     rows: u64,
+    outcome: Outcome,
+}
+
+#[derive(Serialize)]
+struct Outcome {
+    #[serde(skip)]
+    isolated: bool,
+    retained_run: String,
+    status: String,
+    stale_reason: Option<String>,
+    stale_since: Option<String>,
+}
+
+async fn outcome(
+    tx: &mut Transaction<'_, Postgres>,
+    request: &PublicationRequest,
+    identity: &str,
+) -> Result<Outcome> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_cycles') IS NOT NULL")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(db)?;
+    if installed {
+        let source = hash(request.source_binding.as_bytes());
+        let cycle: Option<(String, String)> = sqlx::query_as(
+            "SELECT state,scope::text FROM _oo_load.sync_cycles WHERE source=$1 AND run=$2 FOR SHARE",
+        ).bind(&source).bind(&request.generation).fetch_optional(&mut **tx).await.map_err(db)?;
+        if let Some((state, scope)) = cycle {
+            if !matches!(state.as_str(), "succeeded" | "partial") {
+                return Err("publication_cycle_incomplete");
+            }
+            if serde_json::from_str::<Vec<TableRef>>(&scope).map_err(|_| "publication_scope")?
+                != request.tables
+            {
+                return Err("publication_cycle_scope");
+            }
+            let row: (Option<String>, String, Option<String>, Option<String>) = sqlx::query_as(
+                "SELECT retained_run,state,reason,
+                 to_char(since AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')
+                 FROM _oo_load.sync_table_results WHERE source=$1 AND run=$2 AND identity=$3 FOR SHARE",
+            ).bind(&source).bind(&request.generation).bind(identity)
+                .fetch_optional(&mut **tx).await.map_err(db)?.ok_or("publication_table_result_missing")?;
+            let retained_run = row.0.ok_or("publication_retained_generation_missing")?;
+            // A fresh table was written by this very cycle.
+            if row.1 == "fresh" && retained_run != request.generation {
+                return Err("publication_outcome_run");
+            }
+            return Ok(Outcome {
+                isolated: true,
+                retained_run,
+                status: row.1,
+                stale_reason: row.2,
+                stale_since: row.3,
+            });
+        }
+    }
+    Ok(Outcome {
+        isolated: false,
+        retained_run: request.generation.clone(),
+        status: "fresh".into(),
+        stale_reason: None,
+        stale_since: None,
+    })
+}
+
+/// Whether `current` is a completed cycle over the same scope that recorded
+/// the same per-table health as `request.generation`: the same retained run,
+/// stale or not, and the same reason and stale interval. Fresh and no-op are
+/// the same health; both were read and verified in their cycle.
+async fn same_outcomes(
+    tx: &mut Transaction<'_, Postgres>,
+    request: &PublicationRequest,
+    current: &str,
+) -> Result<bool> {
+    let installed: bool =
+        sqlx::query_scalar("SELECT to_regclass('_oo_load.sync_cycles') IS NOT NULL")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(db)?;
+    if !installed {
+        return Err("publication_cycle_incomplete");
+    }
+    let source = hash(request.source_binding.as_bytes());
+    let mut states = Vec::new();
+    for run in [current, request.generation.as_str()] {
+        let cycle: Option<(String, String)> = sqlx::query_as(
+            "SELECT state,scope::text FROM _oo_load.sync_cycles WHERE source=$1 AND run=$2 FOR SHARE",
+        )
+        .bind(&source)
+        .bind(run)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(db)?;
+        states.push(match cycle {
+            Some((state, scope)) => {
+                if serde_json::from_str::<Vec<TableRef>>(&scope).map_err(|_| "publication_scope")?
+                    != request.tables
+                {
+                    return Err("publication_cycle_scope");
+                }
+                Some(state)
+            }
+            None => None,
+        });
+    }
+    if !states[0]
+        .as_deref()
+        .is_some_and(|s| matches!(s, "succeeded" | "partial"))
+    {
+        return Err("publication_cycle_incomplete");
+    }
+    if !states[1]
+        .as_deref()
+        .is_some_and(|s| matches!(s, "succeeded" | "partial"))
+    {
+        return Ok(false);
+    }
+    let (differ, current_rows, anchor_rows): (i64, i64, i64) = sqlx::query_as(
+        "SELECT count(*) FILTER (WHERE a.identity IS NULL
+            OR c.retained_run IS DISTINCT FROM a.retained_run
+            OR (c.state='stale') <> (a.state='stale')
+            OR c.reason IS DISTINCT FROM a.reason
+            OR c.since IS DISTINCT FROM a.since),
+          count(*),
+          (SELECT count(*) FROM _oo_load.sync_table_results WHERE source=$1 AND run=$3)
+         FROM _oo_load.sync_table_results c
+         LEFT JOIN _oo_load.sync_table_results a
+           ON a.source=c.source AND a.run=$3 AND a.identity=c.identity
+         WHERE c.source=$1 AND c.run=$2",
+    )
+    .bind(&source)
+    .bind(current)
+    .bind(&request.generation)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(db)?;
+    let tables = request.tables.len() as i64;
+    Ok(differ == 0 && current_rows == tables && anchor_rows == tables)
 }
 
 async fn verify(
@@ -132,13 +286,14 @@ async fn verify(
         .execute(&mut **tx)
         .await
         .map_err(db)?;
+    let outcome = outcome(tx, request, &identity).await?;
     let (relation, raw, plan): (String, String, String) = sqlx::query_as(
         "SELECT g.relation_name,g.recipe::text,p.plan::text
          FROM _oo_load.generations g JOIN _oo_load.publications p USING(identity,run)
          WHERE g.identity=$1 AND g.run=$2 FOR SHARE OF g,p",
     )
     .bind(&identity)
-    .bind(&request.generation)
+    .bind(&outcome.retained_run)
     .fetch_optional(&mut **tx)
     .await
     .map_err(db)?
@@ -148,13 +303,13 @@ async fn verify(
     let expected = format!(
         "g_{}",
         &hash(
-            &serde_json::to_vec(&(&identity, &request.generation))
+            &serde_json::to_vec(&(&identity, &outcome.retained_run))
                 .map_err(|_| "publication_identity")?
         )[..40]
     );
     if relation != expected
         || recipe.protocol != "oo.load.storage-generation/v1"
-        || value["plan"] != serde_json::from_str::<Value>(&plan).map_err(|_| "publication_plan")?
+        || !recipe_seals_plan(&value, &plan)?
         || recipe.plan.table != *table
         || recipe.parts.len() != recipe.plan.chunks.len()
     {
@@ -282,6 +437,7 @@ async fn verify(
         recipe: value,
         columns,
         rows,
+        outcome,
     })
 }
 
@@ -344,7 +500,6 @@ pub async fn publish_generation(
     request
         .tables
         .sort_by(|a, b| (&a.schema, &a.name).cmp(&(&b.schema, &b.name)));
-    let r = &request;
     let mut tx = conn.begin().await.map_err(db)?;
     sqlx::query(
         "SELECT set_config('lock_timeout','5s',true),set_config('statement_timeout','120s',true)",
@@ -353,10 +508,27 @@ pub async fn publish_generation(
     .await
     .map_err(db)?;
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
-        .bind(format!("oo-load-library:{}", r.library_id))
+        .bind(format!("oo-load-library:{}", request.library_id))
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+    // Sync holds this fence for the entire cycle, including table retries.
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
+        .bind(format!(
+            "oo-load-cycle:{}",
+            hash(request.source_binding.as_bytes())
+        ))
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    // Never let an older cycle's per-table health stand for this cycle's.
+    if let Some(current) = request.outcome_run.take()
+        && current != request.generation
+        && !same_outcomes(&mut tx, &request, &current).await?
+    {
+        request.generation = current;
+    }
+    let r = &request;
     let mut verified = Vec::new();
     for table in &r.tables {
         verified.push(verify(&mut tx, r, table).await?);
@@ -376,6 +548,11 @@ pub async fn publish_generation(
             "SELECT to_regprocedure('_oo.native_library_retained_table(text)') IS NOT NULL",
             include_str!("../migrations/0125_retained_generation_read.sql"),
         ),
+        (
+            "SELECT EXISTS(SELECT 1 FROM pg_attribute
+             WHERE attrelid=to_regclass('_oo.table_freshness') AND attname='sync_state' AND NOT attisdropped)",
+            include_str!("../migrations/0128_partial_publication.sql"),
+        ),
     ] {
         let installed: bool = sqlx::query_scalar(AssertSqlSafe(probe.to_owned()))
             .fetch_one(&mut *tx)
@@ -389,8 +566,17 @@ pub async fn publish_generation(
         }
     }
     let config = hash(r.source_binding.as_bytes());
-    let descriptor = json!({"source_id":r.source_id,"binding_sha256":config,
+    let stale_tables: Vec<Value> = r.tables.iter().zip(&verified)
+        .filter(|(_, v)| v.outcome.status == "stale")
+        .map(|(table, v)| json!({"table":table,"reason":v.outcome.stale_reason,"since":v.outcome.stale_since}))
+        .collect();
+    let isolated = verified.iter().any(|v| v.outcome.isolated);
+    let mut descriptor = json!({"source_id":r.source_id,"binding_sha256":config,
         "tables":r.tables,"recipes":verified.iter().map(|v| &v.recipe).collect::<Vec<_>>()});
+    if isolated {
+        descriptor["outcomes"] = json!(verified.iter().map(|v| &v.outcome).collect::<Vec<_>>());
+        descriptor["stale_tables"] = json!(stale_tables);
+    }
     sqlx::query(
         "INSERT INTO _oo_load.gateway_publications(library_id,source,run,request)
          VALUES($1,$2,$3,$4::jsonb) ON CONFLICT DO NOTHING",
@@ -491,12 +677,19 @@ pub async fn publish_generation(
                 proofs.push(proof);
             }
         }
-        tables.push(json!({"schema":table.schema,"table":table.name,
+        let mut entry = json!({"schema":table.schema,"table":table.name,
             "storage_schema":logical(&table.schema)?,"storage_table":logical(&table.name)?,
             "run_id":r.generation,"physical_name":physical,"accepted_rows":cut.rows,
             "recipe_sha256":recipe_sha,"source_generation":generation,
             "target_generation":generation,"applied_pos":"0","capture_method":"c5_diff",
-            "delete_detection":"reconcile","consistency_grade":"B"}));
+            "delete_detection":"reconcile","consistency_grade":"B"});
+        if isolated {
+            entry["retained_run"] = json!(cut.outcome.retained_run);
+            entry["status"] = json!(cut.outcome.status);
+            entry["stale_reason"] = json!(cut.outcome.stale_reason);
+            entry["stale_since"] = json!(cut.outcome.stale_since);
+        }
+        tables.push(entry);
         vector.push(
             json!({"dataset":format!("{}.{}",logical(&table.schema)?,logical(&table.name)?),
             "source_id":r.source_id,"generation":generation,"recipe_sha256":recipe_sha,
@@ -547,12 +740,15 @@ pub async fn publish_generation(
     let (schema, names) = schemas.into_iter().next().ok_or("publication_scope")?;
     let manifest = json!({"protocol":"oo.library.membership/v1","library_id":r.library_id,
         "sources":[{"source_id":r.source_id,"schema":schema,"tables":names}]});
-    let receipt = json!({"protocol":"oo.load.per-table-receipt/v1",
+    let mut receipt = json!({"protocol":"oo.load.per-table-receipt/v1",
         "source_id":r.source_id,"run_id":r.generation,"run_ids":[r.generation],
         "source_generation":generation,"target_generation":generation,
         "position_codec":"snapshot-zero/v1","position_lineage":"oo-load.retained",
         "applied_pos":"0","consistency":"retained_generation","consistency_grade":"B",
         "cross_table_consistent":false,"tables":tables});
+    if isolated {
+        receipt["stale_tables"] = json!(stale_tables);
+    }
     let library = json!({"protocol":"oo.pipeline.native-library-publication/v1",
         "library_id":r.library_id,"manifest_sha256":digest(&manifest),"manifest":manifest,
         "expected_tables":tables.len(),"shards":[r.source_id]});
@@ -617,7 +813,8 @@ pub async fn publish_generation(
     }
     sqlx::query(
         "UPDATE _oo_load.gateway_publications SET receipt_sha256=$4,shard=$5::jsonb,
-         data_vector=$6::jsonb,data_vector_sha256=$7,relation_proofs=$8::jsonb,sealed_at=clock_timestamp()
+         data_vector=$6::jsonb,data_vector_sha256=$7,relation_proofs=$8::jsonb,
+         stale_tables=$9::jsonb,sealed_at=clock_timestamp()
          WHERE library_id=$1 AND source=$2 AND run=$3 AND receipt_sha256 IS NULL",
     )
     .bind(&r.library_id)
@@ -628,6 +825,7 @@ pub async fn publish_generation(
     .bind(json!(vector).to_string())
     .bind(digest(&json!(vector)))
     .bind(json!(proofs).to_string())
+    .bind(json!(stale_tables).to_string())
     .execute(&mut *tx)
     .await
     .map_err(db)?;
@@ -636,7 +834,8 @@ pub async fn publish_generation(
         json!({"protocol":"oo.load.publication-candidate/v1","state":"pending",
         "gateway_published":false,"receipt_sha256":sha,"receipt":cut,
         "data_vector":vector,"data_vector_sha256":digest(&json!(vector)),
-        "generation":generation,"config_digest":config}),
+        "generation":generation,"run":r.generation,"config_digest":config,
+        "stale_tables":stale_tables}),
     )
 }
 
@@ -782,6 +981,7 @@ mod tests {
                 schema: "app".into(),
                 name: "items".into(),
             }],
+            outcome_run: None,
         }
     }
     #[test]
@@ -798,7 +998,13 @@ mod tests {
         let mut r = request();
         r.source_id = "not a source".into();
         assert_eq!(validate(&r), Err("publication_source_binding"));
+        let mut r = request();
+        r.outcome_run = Some("bad run".into());
+        assert_eq!(validate(&r), Err("publication_identity"));
+        r.outcome_run = Some("cycle-2".into());
+        assert!(validate(&r).is_ok());
         let mut value = serde_json::to_value(request()).unwrap();
+        assert!(value.get("outcome_run").is_none());
         value["verified"] = json!(true);
         assert!(serde_json::from_value::<PublicationRequest>(value).is_err());
         let mut oracle = request();

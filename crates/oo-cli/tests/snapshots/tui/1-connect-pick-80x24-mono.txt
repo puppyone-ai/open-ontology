@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ › paste or type a URL, JDBC URL, DATABASE_URL=… or host:port                 │
+│                                                                              │
+│                                                                              │
+│ found on this machine                                                        │
+│ ▸ ▐PG▌ recent logistics   oo_reader@db.internal:5432/logistics · 17          │
+│   ▐PG▌ ~/.pgpass          ro@10.0.4.12:5432/dw · ••••••                      │
+│   ▐Or▌ tns SALES          ora.internal:1521/SALES                            │
+│                                                                              │
+│ engines                                                                      │
+│   ▐PG▌ PostgreSQL   13–18     ● verified                                     │
+│   ▐My▌ MySQL        5.7–9.5   ● verified                                     │
+│   ▐Or▌ Oracle       11g–23ai  ● verified                                     │
+│                                                                              │
+│   ◇ no database? try the demo                                                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ passwords from these files are moved to the secret store, never shown        │
+╰ ↑↓ choose  ⏎ next  › type or paste anything  esc quit  ──────────────────────╯

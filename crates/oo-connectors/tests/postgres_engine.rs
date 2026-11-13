@@ -403,6 +403,7 @@ async fn matrix_t0_t1_t8() {
             active_session_limit: 1,
             connection_reserve: 5,
             pause_timeout: Duration::from_millis(200),
+            wait_limit: 4,
         })
         .unwrap();
     assert_eq!(

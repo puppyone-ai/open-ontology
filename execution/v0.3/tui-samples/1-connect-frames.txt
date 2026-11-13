@@ -1,0 +1,157 @@
+# 1-connect: 6 frames at 80x24; the last one is the still frame
+
+── frame 0 · form opened: defaults dim, host resolving ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ auto-detect ›              · 13–18 · detected on connect      │
+│ ▸ host       localhost▏                   ⠋ resolving…                       │
+│   port       5432                         · default                          │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│   TLS        ‹ auto ›                                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯
+
+── frame 1 · host resolved, port checking ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ auto-detect ›              · 13–18 · detected on connect      │
+│ ▸ host       localhost▏                   ✓ 127.0.0.1                        │
+│   port       5432                         ⠙ checking…                        │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│   TLS        ‹ auto ›                                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯
+
+── frame 2 · port open, reading the certificate ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ auto-detect ›              · 13–18 · detected on connect      │
+│ ▸ host       localhost▏                   ✓ 127.0.0.1                        │
+│   port       5432                         ✓ open · 1 ms                      │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│   TLS        ‹ auto ›                     ⠹ reading certificate…             │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯
+
+── frame 3 · certificate shown, trust or choose a CA ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ auto-detect ›              · 13–18 · detected on connect      │
+│ ▸ host       localhost▏                   ✓ 127.0.0.1                        │
+│   port       5432                         ✓ open · 1 ms                      │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│   TLS        ‹ auto ›                     ! presents localhost · choose bel… │
+│                                                                              │
+│ certificate localhost · issuer oo fixture CA · until 2036-11-08              │
+│ sha256      83a8839e311bbf2c…9a18bc97                                        │
+│ → t trust this CA (private network) · c choose a CA file                     │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯
+
+── frame 4 · t trusts the CA, ⏎ signs in ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ auto-detect ›              · 13–18 · detected on connect      │
+│   host       localhost                    ✓ 127.0.0.1                        │
+│   port       5432                         ✓ open · 1 ms                      │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│ ▸ TLS        ‹ trust server CA ›          ✓ trusting the presented CA        │
+│                                                                              │
+│ certificate localhost · issuer oo fixture CA · until 2036-11-08              │
+│ sha256      83a8839e311bbf2c…9a18bc97                                        │
+│ ⠼ signing in (read-only)…                                                    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯
+
+── frame 5 · signed in, version detected and picked ──
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                │
+│                                                                              │
+│   version    ‹ 17 ›                       ✓ detected 17.11 · verified        │
+│   host       localhost                    ✓ 127.0.0.1                        │
+│   port       5432                         ✓ open · 1 ms                      │
+│   database   postgres                                                        │
+│   user       oo_reader                    · suggested read-only account      │
+│   password   ••••••                       · kept in the secret store         │
+│ ▸ TLS        ‹ trust server CA ›          ✓ trusting the presented CA        │
+│                                                                              │
+│ certificate localhost · issuer oo fixture CA · until 2036-11-08              │
+│ sha256      83a8839e311bbf2c…9a18bc97                                        │
+│ ✓ signed in as oo_reader   ⏎ continue                                        │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────╯

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prove SQL catalog capabilities in a new, TLS-only local PostgreSQL fixture."""
 
+import argparse
 import getpass
 import json
 import os
@@ -13,12 +14,19 @@ import tempfile
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence-dir", type=Path)
+    args = parser.parse_args()
     product = Path(__file__).resolve().parents[3]
     pg_bin = Path(shutil.which("pg_ctl") or "").resolve().parent
     for name in ("initdb", "pg_ctl", "psql", "postgres"):
         if not (pg_bin / name).is_file():
             raise SystemExit(f"missing installed PostgreSQL binary: {name}")
-    root = Path(tempfile.mkdtemp(prefix="oo-sql-capabilities-", dir="/tmp")).resolve()
+    if args.evidence_dir:
+        root = args.evidence_dir.resolve()
+        root.mkdir(mode=0o700)
+    else:
+        root = Path(tempfile.mkdtemp(prefix="oo-sql-capabilities-", dir="/tmp")).resolve()
     root.chmod(0o700)
     data, sockets = root / "data", root / "socket"
     sockets.mkdir(mode=0o700)
@@ -142,6 +150,9 @@ GRANT SELECT(id,small,big,amount,fraction,txt,code,fixed,day,clock,stamp,zoned,s
 GRANT SELECT(id,label,code) ON capability_fixture.patterns,logistics.pattern_lookup TO {reader};
 GRANT SELECT(order_status,upd_time) ON logistics.daily_orders TO {reader};
 GRANT SELECT ON capability_fixture.balances,logistics.balances TO {reader};
+CREATE VIEW capability_fixture.role_shipments AS SELECT id,flag FROM capability_fixture.shipments WHERE flag IS TRUE;
+CREATE VIEW logistics.filtered AS SELECT id,flag FROM capability_fixture.role_shipments;
+GRANT SELECT ON capability_fixture.role_shipments,logistics.filtered TO {reader};
 """)
         config = {
             "port": port, "database": database, "user": reader, "nonce": nonce,
@@ -180,6 +191,25 @@ GRANT SELECT ON capability_fixture.balances,logistics.balances TO {reader};
                 report["mutated_builtin_refusals"].append(label)
             finally:
                 run(psql + ["-d", database], restore)
+        env["OO_SQL_CAST_MUTATION"] = "1"
+        for label, mutate, restore in [
+            ("cast_security_definer",
+             "ALTER FUNCTION pg_catalog.int8(numeric) SECURITY DEFINER;",
+             "ALTER FUNCTION pg_catalog.int8(numeric) SECURITY INVOKER;"),
+            ("cast_input_volatile",
+             "ALTER FUNCTION pg_catalog.numeric_in(cstring,oid,integer) VOLATILE;",
+             "ALTER FUNCTION pg_catalog.numeric_in(cstring,oid,integer) IMMUTABLE;"),
+            ("cast_io_override",
+             "CREATE FUNCTION capability_fixture.bad_cast(text) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT 1'; CREATE CAST (text AS integer) WITH FUNCTION capability_fixture.bad_cast(text);",
+             "DROP CAST (text AS integer); DROP FUNCTION capability_fixture.bad_cast(text);"),
+        ]:
+            run(psql + ["-d", database], mutate)
+            try:
+                run(negative_command)
+                report["mutated_builtin_refusals"].append(label)
+            finally:
+                run(psql + ["-d", database], restore)
+        del env["OO_SQL_CAST_MUTATION"]
         (root / "actual-db-report.json").write_text(json.dumps(report, indent=2))
         lifecycle["test_passed"] = True
         print(json.dumps({"actualDB": report["actualDB"],

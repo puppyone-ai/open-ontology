@@ -1,0 +1,1282 @@
+{
+  "protocol": "oo.adjudication/v1",
+  "input_sha256": "7954087bef05ac9df2087879a45da80d13f81d9bbf509d7e847e0343ee672487",
+  "thresholds": {
+    "relation_containment_strict": 0.98,
+    "relation_containment_with_signal": 0.9,
+    "code_coverage": 0.99
+  },
+  "items": [
+    {
+      "id": "relation/orders.customer_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.orders.customer_id",
+        "to": "lg.customers.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.9995,
+        "parent_unique": true,
+        "name_similarity": 0.92,
+        "join_cooccurrence": 14,
+        "cardinality": "many_to_one",
+        "rows_checked": 1203345,
+        "distinct_containment": 0.9995,
+        "child_distinct": 48210,
+        "matched_distinct": 48186,
+        "matched_rows": 1202743,
+        "unmatched_rows": 602,
+        "unmatched_distinct": 24,
+        "empty_rows": 0,
+        "parent_rows": 48210,
+        "parent_distinct": 48210,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "customer_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.declared_fk",
+      "reason": "Declared foreign key; data agrees."
+    },
+    {
+      "id": "relation/shipments.order_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipments.order_id",
+        "to": "lg.orders.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.998,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 9,
+        "cardinality": "many_to_one",
+        "rows_checked": 982114,
+        "distinct_containment": 0.998,
+        "child_distinct": 982114,
+        "matched_distinct": 980150,
+        "matched_rows": 980150,
+        "unmatched_rows": 1964,
+        "unmatched_distinct": 1964,
+        "empty_rows": 0,
+        "parent_rows": 1203345,
+        "parent_distinct": 1203345,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "order_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.98
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.998 with a unique parent."
+    },
+    {
+      "id": "relation/parcels.shipment_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.parcels.shipment_id",
+        "to": "lg.shipments.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 6,
+        "cardinality": "many_to_one",
+        "rows_checked": 2410877,
+        "distinct_containment": 1.0,
+        "child_distinct": 982114,
+        "matched_distinct": 982114,
+        "matched_rows": 2410877,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 982114,
+        "parent_distinct": 982114,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "shipment_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.declared_fk",
+      "reason": "Declared foreign key; data agrees."
+    },
+    {
+      "id": "relation/shipments.route_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipments.route_id",
+        "to": "lg.routes.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.991,
+        "parent_unique": true,
+        "name_similarity": 0.85,
+        "join_cooccurrence": 4,
+        "cardinality": "many_to_one",
+        "rows_checked": 982114,
+        "distinct_containment": 0.9905,
+        "child_distinct": 420,
+        "matched_distinct": 416,
+        "matched_rows": 973275,
+        "unmatched_rows": 8839,
+        "unmatched_distinct": 4,
+        "empty_rows": 0,
+        "parent_rows": 420,
+        "parent_distinct": 420,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "route_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.96
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.991 with a unique parent."
+    },
+    {
+      "id": "relation/shipments.origin_wh",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipments.origin_wh",
+        "to": "lg.warehouses.code"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 0.71,
+        "parent_unique": true,
+        "name_similarity": 0.42,
+        "join_cooccurrence": 0,
+        "cardinality": "many_to_one",
+        "rows_checked": 982114,
+        "distinct_containment": 0.75,
+        "child_distinct": 36,
+        "matched_distinct": 27,
+        "matched_rows": 697301,
+        "unmatched_rows": 284813,
+        "unmatched_distinct": 9,
+        "empty_rows": 0,
+        "parent_rows": 36,
+        "parent_distinct": 36,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "origin_wh"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 0.41
+      },
+      "rule_id": "relation.containment_insufficient",
+      "reason": "29% of origin_wh values have no warehouse; not adopted."
+    },
+    {
+      "id": "relation/routes.origin_station_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.routes.origin_station_id",
+        "to": "lg.stations.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.97,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 2,
+        "cardinality": "many_to_one",
+        "rows_checked": 420,
+        "distinct_containment": 0.969,
+        "child_distinct": 420,
+        "matched_distinct": 407,
+        "matched_rows": 407,
+        "unmatched_rows": 13,
+        "unmatched_distinct": 13,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": "origin_station",
+        "source": "model",
+        "from_columns": [
+          "origin_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.93
+      },
+      "rule_id": "relation.containment_with_signal",
+      "reason": "Containment 0.97 plus naming and JOIN evidence."
+    },
+    {
+      "id": "relation/routes.dest_station_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.routes.dest_station_id",
+        "to": "lg.stations.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.988,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 2,
+        "cardinality": "many_to_one",
+        "rows_checked": 420,
+        "distinct_containment": 0.9881,
+        "child_distinct": 420,
+        "matched_distinct": 415,
+        "matched_rows": 415,
+        "unmatched_rows": 5,
+        "unmatched_distinct": 5,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": "dest_station",
+        "source": "model",
+        "from_columns": [
+          "dest_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.95
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.988 with a unique parent."
+    },
+    {
+      "id": "relation/vehicles.home_station_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.vehicles.home_station_id",
+        "to": "lg.stations.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.7,
+        "join_cooccurrence": 1,
+        "cardinality": "many_to_one",
+        "rows_checked": 310,
+        "distinct_containment": 1.0,
+        "child_distinct": 310,
+        "matched_distinct": 310,
+        "matched_rows": 310,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "home_station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.95
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 1.0 with a unique parent."
+    },
+    {
+      "id": "relation/drivers.vehicle_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.drivers.vehicle_id",
+        "to": "lg.vehicles.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.996,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 3,
+        "cardinality": "one_to_one",
+        "rows_checked": 540,
+        "distinct_containment": 0.9963,
+        "child_distinct": 538,
+        "matched_distinct": 536,
+        "matched_rows": 538,
+        "unmatched_rows": 2,
+        "unmatched_distinct": 2,
+        "empty_rows": 0,
+        "parent_rows": 310,
+        "parent_distinct": 310,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "vehicle_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.97
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.996; measured one-to-one."
+    },
+    {
+      "id": "relation/shipments.driver_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipments.driver_id",
+        "to": "lg.drivers.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.989,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 5,
+        "cardinality": "many_to_one",
+        "rows_checked": 982114,
+        "distinct_containment": 0.9889,
+        "child_distinct": 540,
+        "matched_distinct": 534,
+        "matched_rows": 971311,
+        "unmatched_rows": 10803,
+        "unmatched_distinct": 6,
+        "empty_rows": 0,
+        "parent_rows": 540,
+        "parent_distinct": 540,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "driver_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.96
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.989 with a unique parent."
+    },
+    {
+      "id": "relation/shipment_events.shipment_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipment_events.shipment_id",
+        "to": "lg.shipments.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 11,
+        "cardinality": "many_to_one",
+        "rows_checked": 11032556,
+        "distinct_containment": 1.0,
+        "child_distinct": 982114,
+        "matched_distinct": 982114,
+        "matched_rows": 11032556,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 982114,
+        "parent_distinct": 982114,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "declared_fk",
+        "role": null,
+        "source": "declared",
+        "from_columns": [
+          "shipment_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.declared_fk",
+      "reason": "Declared foreign key; data agrees."
+    },
+    {
+      "id": "relation/shipment_events.status_code",
+      "class": "relation",
+      "subject": {
+        "from": "lg.shipment_events.status_code",
+        "to": "lg.status_codes.code"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.9993,
+        "parent_unique": true,
+        "name_similarity": 0.95,
+        "join_cooccurrence": 8,
+        "cardinality": "many_to_one",
+        "rows_checked": 11032556,
+        "distinct_containment": 1.0,
+        "child_distinct": 14,
+        "matched_distinct": 14,
+        "matched_rows": 11024833,
+        "unmatched_rows": 7723,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 14,
+        "parent_distinct": 14,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "status_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Code values fully covered."
+    },
+    {
+      "id": "relation/orders.order_date",
+      "class": "relation",
+      "subject": {
+        "from": "lg.orders.order_date",
+        "to": "lg.calendar.day"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.3,
+        "join_cooccurrence": 7,
+        "cardinality": "many_to_one",
+        "rows_checked": 1203345,
+        "distinct_containment": 1.0,
+        "child_distinct": 3653,
+        "matched_distinct": 3653,
+        "matched_rows": 1203345,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 3653,
+        "parent_distinct": 3653,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "order_date"
+        ],
+        "to_columns": [
+          "day"
+        ]
+      },
+      "scores": {
+        "confidence": 0.94
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Every order date is a calendar day."
+    },
+    {
+      "id": "relation/employees.manager_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.employees.manager_id",
+        "to": "lg.employees.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.994,
+        "parent_unique": true,
+        "name_similarity": 0.6,
+        "join_cooccurrence": 2,
+        "cardinality": "many_to_one",
+        "rows_checked": 2130,
+        "distinct_containment": 0.9939,
+        "child_distinct": 2130,
+        "matched_distinct": 2117,
+        "matched_rows": 2117,
+        "unmatched_rows": 13,
+        "unmatched_distinct": 13,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "manager_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.95
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Self reference: manager is an employee."
+    },
+    {
+      "id": "relation/employees.station_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.employees.station_id",
+        "to": "lg.stations.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.999,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 3,
+        "cardinality": "many_to_one",
+        "rows_checked": 2130,
+        "distinct_containment": 0.9989,
+        "child_distinct": 1820,
+        "matched_distinct": 1818,
+        "matched_rows": 2128,
+        "unmatched_rows": 2,
+        "unmatched_distinct": 2,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "station_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.97
+      },
+      "rule_id": "relation.containment_strict",
+      "reason": "Containment 0.999 with a unique parent."
+    },
+    {
+      "id": "relation/stations.manager_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.stations.manager_id",
+        "to": "lg.employees.id"
+      },
+      "decision": "adopted",
+      "evidence": {
+        "containment": 0.93,
+        "parent_unique": true,
+        "name_similarity": 0.6,
+        "join_cooccurrence": 2,
+        "cardinality": "many_to_one",
+        "rows_checked": 1820,
+        "distinct_containment": 0.9302,
+        "child_distinct": 1820,
+        "matched_distinct": 1693,
+        "matched_rows": 1693,
+        "unmatched_rows": 127,
+        "unmatched_distinct": 127,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "manager_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.9
+      },
+      "rule_id": "relation.containment_with_signal",
+      "reason": "Containment 0.93 plus naming and JOIN evidence."
+    },
+    {
+      "id": "relation/drivers.employee_id",
+      "class": "relation",
+      "subject": {
+        "from": "lg.drivers.employee_id",
+        "to": "lg.employees.id"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 0.64,
+        "parent_unique": true,
+        "name_similarity": 0.9,
+        "join_cooccurrence": 0,
+        "cardinality": "one_to_one",
+        "rows_checked": 540,
+        "distinct_containment": 0.5204,
+        "child_distinct": 540,
+        "matched_distinct": 281,
+        "matched_rows": 346,
+        "unmatched_rows": 194,
+        "unmatched_distinct": 259,
+        "empty_rows": 0,
+        "parent_rows": 2130,
+        "parent_distinct": 2130,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 0,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "employee_id"
+        ],
+        "to_columns": [
+          "id"
+        ]
+      },
+      "scores": {
+        "confidence": 0.38
+      },
+      "rule_id": "relation.containment_insufficient",
+      "reason": "Only 64% of drivers match an employee; contractors likely."
+    },
+    {
+      "id": "relation/orders.route_code",
+      "class": "relation",
+      "subject": {
+        "from": "lg.orders.route_code",
+        "to": "lg.routes.code"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 0.99,
+        "parent_unique": false,
+        "name_similarity": 0.85,
+        "join_cooccurrence": 3,
+        "cardinality": "many_to_many",
+        "rows_checked": 1203345,
+        "distinct_containment": 0.9929,
+        "child_distinct": 140,
+        "matched_distinct": 139,
+        "matched_rows": 1191312,
+        "unmatched_rows": 12033,
+        "unmatched_distinct": 1,
+        "empty_rows": 0,
+        "parent_rows": 420,
+        "parent_distinct": 140,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 140,
+        "max_fanout": 3,
+        "normalized_collisions": 0,
+        "scope_columns": [
+          "valid_from"
+        ],
+        "kind": "scoped",
+        "role": null,
+        "source": "model",
+        "from_columns": [
+          "route_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "relation.scope_required",
+      "reason": "Parent key repeats; unique only together with valid_from. Filter the parent on that column first."
+    },
+    {
+      "id": "relation/warehouses.station_code",
+      "class": "relation",
+      "subject": {
+        "from": "lg.warehouses.station_code",
+        "to": "lg.stations.code"
+      },
+      "decision": "rejected",
+      "evidence": {
+        "containment": 1.0,
+        "parent_unique": true,
+        "name_similarity": 0.8,
+        "join_cooccurrence": 0,
+        "cardinality": "many_to_one",
+        "rows_checked": 36,
+        "distinct_containment": 1.0,
+        "child_distinct": 34,
+        "matched_distinct": 34,
+        "matched_rows": 36,
+        "unmatched_rows": 0,
+        "unmatched_distinct": 0,
+        "empty_rows": 0,
+        "parent_rows": 1820,
+        "parent_distinct": 1820,
+        "parent_empty_rows": 0,
+        "parent_duplicate_keys": 0,
+        "max_fanout": 1,
+        "normalized_collisions": 2,
+        "scope_columns": [],
+        "kind": "inferred_id",
+        "role": null,
+        "source": "discovery",
+        "from_columns": [
+          "station_code"
+        ],
+        "to_columns": [
+          "code"
+        ]
+      },
+      "scores": {
+        "confidence": 1.0
+      },
+      "rule_id": "relation.normalized_collision",
+      "reason": "Parent keys collide after trim/lower-case; the match is ambiguous."
+    },
+    {
+      "id": "sensitive/customers.phone",
+      "class": "sensitive",
+      "subject": {
+        "column": "lg.customers.phone"
+      },
+      "decision": "hidden",
+      "evidence": {
+        "format_hit_rate": 0.982,
+        "distinct_ratio": 0.97
+      },
+      "scores": {
+        "confidence": 0.98
+      },
+      "rule_id": "sensitive.format_phone",
+      "reason": "98% of values match a phone number format."
+    },
+    {
+      "id": "sensitive/drivers.id_number",
+      "class": "sensitive",
+      "subject": {
+        "column": "lg.drivers.id_number"
+      },
+      "decision": "hidden",
+      "evidence": {
+        "format_hit_rate": 1.0,
+        "distinct_ratio": 1.0
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "sensitive.format_national_id",
+      "reason": "Every value matches an identity document format."
+    },
+    {
+      "id": "sensitive/routes.mobile_code",
+      "class": "sensitive",
+      "subject": {
+        "column": "lg.routes.mobile_code"
+      },
+      "decision": "visible",
+      "evidence": {
+        "format_hit_rate": 0.0,
+        "name_hit": true
+      },
+      "scores": {
+        "confidence": 0.91
+      },
+      "rule_id": "sensitive.name_only_refuted",
+      "reason": "Name looks personal but no value matches a phone format."
+    },
+    {
+      "id": "metric/on_time_rate",
+      "class": "metric",
+      "subject": {
+        "metric": "on_time_rate",
+        "table": "lg.shipments"
+      },
+      "decision": "certified",
+      "evidence": {
+        "non_empty": true,
+        "unit_consistent": true,
+        "recompute_match": true,
+        "window_stable": true
+      },
+      "scores": {
+        "confidence": 0.97
+      },
+      "rule_id": "metric.reconciled",
+      "reason": "All reconciliation checks passed."
+    },
+    {
+      "id": "metric/avg_parcel_weight",
+      "class": "metric",
+      "subject": {
+        "metric": "avg_parcel_weight",
+        "table": "lg.parcels"
+      },
+      "decision": "demoted",
+      "evidence": {
+        "non_empty": true,
+        "unit_consistent": false,
+        "recompute_match": true,
+        "window_stable": true
+      },
+      "scores": {
+        "confidence": 0.44
+      },
+      "rule_id": "metric.unit_mismatch",
+      "reason": "Mixes grams and kilograms; kept as an example query."
+    },
+    {
+      "id": "entity_key/calendar",
+      "class": "entity_key",
+      "subject": {
+        "table": "lg.calendar",
+        "key": [
+          "day"
+        ]
+      },
+      "decision": "adopted",
+      "evidence": {
+        "distinct_ratio": 1.0,
+        "non_null_ratio": 1.0,
+        "referenced": true,
+        "key_source": "declared_pk",
+        "null_rows": 0,
+        "empty_rows": 0,
+        "considered": [
+          [
+            "day"
+          ]
+        ]
+      },
+      "scores": {
+        "confidence": 1.0
+      },
+      "rule_id": "entity_key.declared_pk",
+      "reason": "Declared primary key day; unique and never empty."
+    },
+    {
+      "id": "code_table/status_codes",
+      "class": "code_table",
+      "subject": {
+        "table": "lg.status_codes"
+      },
+      "decision": "complete",
+      "evidence": {
+        "coverage": 0.9993,
+        "rows": 14
+      },
+      "scores": {
+        "confidence": 0.99
+      },
+      "rule_id": "code_table.coverage",
+      "reason": "99.93% of status codes in events are listed."
+    }
+  ],
+  "discovery": {
+    "status": "complete",
+    "budget": 64,
+    "checked": 19,
+    "remaining": 0,
+    "unchecked": []
+  },
+  "graph": {
+    "entities": [
+      {
+        "id": "entity/customers",
+        "label": "客户",
+        "table": "lg.customers",
+        "key": [
+          "id"
+        ],
+        "display": "name",
+        "rows": 48210
+      },
+      {
+        "id": "entity/orders",
+        "label": "订单",
+        "table": "lg.orders",
+        "key": [
+          "id"
+        ],
+        "display": "order_no",
+        "rows": 1203345
+      },
+      {
+        "id": "entity/shipments",
+        "label": "运单",
+        "table": "lg.shipments",
+        "key": [
+          "id"
+        ],
+        "display": "waybill_no",
+        "rows": 982114
+      },
+      {
+        "id": "entity/parcels",
+        "label": "包裹",
+        "table": "lg.parcels",
+        "key": [
+          "id"
+        ],
+        "display": "barcode",
+        "rows": 2410877
+      },
+      {
+        "id": "entity/warehouses",
+        "label": "仓库",
+        "table": "lg.warehouses",
+        "key": [
+          "code"
+        ],
+        "display": "name",
+        "rows": 36
+      },
+      {
+        "id": "entity/routes",
+        "label": "线路",
+        "table": "lg.routes",
+        "key": [
+          "id"
+        ],
+        "display": "name",
+        "rows": 420
+      },
+      {
+        "id": "entity/vehicles",
+        "label": "车辆",
+        "table": "lg.vehicles",
+        "key": [
+          "id"
+        ],
+        "display": "plate",
+        "rows": 310
+      },
+      {
+        "id": "entity/drivers",
+        "label": "司机",
+        "table": "lg.drivers",
+        "key": [
+          "id"
+        ],
+        "display": "name",
+        "rows": 540
+      },
+      {
+        "id": "entity/stations",
+        "label": "网点",
+        "table": "lg.stations",
+        "key": [
+          "id"
+        ],
+        "display": "name",
+        "rows": 1820
+      },
+      {
+        "id": "entity/status_codes",
+        "label": "状态码",
+        "table": "lg.status_codes",
+        "key": [
+          "code"
+        ],
+        "display": "label",
+        "rows": 14
+      },
+      {
+        "id": "entity/calendar",
+        "label": "日历",
+        "table": "lg.calendar",
+        "key": [
+          "day"
+        ],
+        "display": "day",
+        "rows": 3653
+      },
+      {
+        "id": "entity/shipment_events",
+        "label": "运单事件",
+        "table": "lg.shipment_events",
+        "key": [
+          "id"
+        ],
+        "display": "id",
+        "rows": 11032556
+      },
+      {
+        "id": "entity/employees",
+        "label": "员工",
+        "table": "lg.employees",
+        "key": [
+          "id"
+        ],
+        "display": "name",
+        "rows": 2130
+      }
+    ],
+    "edges": [
+      {
+        "relation": "relation/orders.customer_id",
+        "from": "entity/orders",
+        "to": "entity/customers",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipments.order_id",
+        "from": "entity/shipments",
+        "to": "entity/orders",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/parcels.shipment_id",
+        "from": "entity/parcels",
+        "to": "entity/shipments",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipments.route_id",
+        "from": "entity/shipments",
+        "to": "entity/routes",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipments.origin_wh",
+        "from": "entity/shipments",
+        "to": "entity/warehouses",
+        "cardinality": "many_to_one",
+        "adopted": false
+      },
+      {
+        "relation": "relation/routes.origin_station_id",
+        "from": "entity/routes",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/routes.dest_station_id",
+        "from": "entity/routes",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/vehicles.home_station_id",
+        "from": "entity/vehicles",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/drivers.vehicle_id",
+        "from": "entity/drivers",
+        "to": "entity/vehicles",
+        "cardinality": "one_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipments.driver_id",
+        "from": "entity/shipments",
+        "to": "entity/drivers",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipment_events.shipment_id",
+        "from": "entity/shipment_events",
+        "to": "entity/shipments",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/shipment_events.status_code",
+        "from": "entity/shipment_events",
+        "to": "entity/status_codes",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/orders.order_date",
+        "from": "entity/orders",
+        "to": "entity/calendar",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/employees.manager_id",
+        "from": "entity/employees",
+        "to": "entity/employees",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/employees.station_id",
+        "from": "entity/employees",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/stations.manager_id",
+        "from": "entity/stations",
+        "to": "entity/employees",
+        "cardinality": "many_to_one",
+        "adopted": true
+      },
+      {
+        "relation": "relation/drivers.employee_id",
+        "from": "entity/drivers",
+        "to": "entity/employees",
+        "cardinality": "one_to_one",
+        "adopted": false
+      },
+      {
+        "relation": "relation/orders.route_code",
+        "from": "entity/orders",
+        "to": "entity/routes",
+        "cardinality": "many_to_many",
+        "adopted": false
+      },
+      {
+        "relation": "relation/warehouses.station_code",
+        "from": "entity/warehouses",
+        "to": "entity/stations",
+        "cardinality": "many_to_one",
+        "adopted": false
+      }
+    ]
+  },
+  "summary_sha256": "d73614b66850600723830f6316a5796103b47c7db9d4892289536d7fbc143176"
+}

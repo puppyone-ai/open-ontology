@@ -83,12 +83,13 @@ pub(super) async fn run(
     let mut engines = Vec::new();
     let mut plans = BTreeMap::new();
     let mut epochs = BTreeMap::new();
+    let mut columns = BTreeMap::new();
     for member in &config.sources {
         let source = sources
             .iter()
             .find(|s| s.id == member.source)
             .ok_or("handoff_source")?;
-        let mut engine = mysql_engine(EngineFamily::Mysql, source, store, opts)?;
+        let mut engine = mysql_engine(EngineFamily::Mysql, source, store)?;
         engine
             .use_file_positions()
             .await
@@ -96,6 +97,13 @@ pub(super) async fn run(
         let epoch = engine.source_epoch().await.map_err(|e| e.to_string())?;
         let mut bindings = Vec::new();
         for table in selected(source, None)? {
+            columns.insert(
+                (source.id.clone(), table.clone()),
+                engine
+                    .column_shape(&table, budget)
+                    .await
+                    .map_err(|e| e.to_string())?,
+            );
             let plan = engine
                 .plan_chunks(&table, budget)
                 .await
@@ -141,6 +149,15 @@ pub(super) async fn run(
         let tables = selected(source, None)?;
         for table in &tables {
             let mut sink = PgTarget::new(&mut tx, &binding(source)?, &target.run_id, table).await?;
+            let key = (source.id.clone(), table.clone());
+            let live = engine
+                .column_shape(table, budget)
+                .await
+                .map_err(|e| e.to_string())?;
+            if live != columns[&key] {
+                return Err("handoff_schema_changed".into());
+            }
+            sink.source_columns(live);
             if sink.completed().await?.is_some() {
                 return Err("handoff_run_already_published".into());
             }

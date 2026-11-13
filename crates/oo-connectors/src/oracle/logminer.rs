@@ -1,7 +1,9 @@
 //! Bounded, platform-owned online-catalog LogMiner sessions.
 //!
-//! Mining starts at the retained-log floor, not the last commit watermark:
-//! a transaction can start before the watermark and commit after it. No
+//! Mining starts at a transaction floor, not the last commit watermark: a
+//! transaction can start before the watermark and commit after it. The floor
+//! starts at the binding's retained floor and only advances through
+//! [`FloorObservation`]s, never with the commit watermark alone. No
 //! dictionary build, source DML/DDL, continuous mining, or redo SQL execution.
 
 use super::*;
@@ -91,6 +93,46 @@ fn coverage(files: &[LogFile], end: u64) -> Result<u64, SourceError> {
     Ok(floor)
 }
 
+/// Proof that no transaction committing after `valid_from` started before
+/// `floor`. Taken as: SCN `s0`, then the oldest active transaction's start
+/// `oldest`, then SCN `valid_from`, with `floor = min(s0, oldest)`. A
+/// transaction that commits after `valid_from` and started before `oldest`
+/// was read would still have been active then, so its start is at least
+/// `oldest`; one that started later started at or after `s0`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FloorObservation {
+    pub floor: u64,
+    pub valid_from: u64,
+}
+
+impl FloorObservation {
+    pub fn new(s0: u64, oldest: Option<u64>, valid_from: u64) -> Option<Self> {
+        let floor = oldest.map_or(s0, |start| start.min(s0));
+        (floor > 0 && s0 <= valid_from).then_some(Self { floor, valid_from })
+    }
+}
+
+/// Observations waiting for the cursor to reach their `valid_from`.
+const MAX_FLOOR_OBSERVATIONS: usize = 64;
+
+/// Adopt the newest observation the cursor has reached. The floor never
+/// moves back and never passes the cursor.
+fn advance_floor(
+    floor: &mut FloorObservation,
+    pending: &mut std::collections::VecDeque<FloorObservation>,
+    cursor: u64,
+) {
+    while let Some(next) = pending.front().copied() {
+        if next.valid_from > cursor {
+            break;
+        }
+        pending.pop_front();
+        if next.floor > floor.floor && next.floor <= cursor {
+            *floor = next;
+        }
+    }
+}
+
 /// Owns a root/common-user mining session; metadata is admitted from the
 /// matching PDB engine. `rebaseline_tables` identifies dictionary failures.
 /// Unsupported types fail admission rather than decoding lossy row images.
@@ -102,9 +144,29 @@ pub struct OracleLogMiner {
     rebaseline: BTreeSet<TableRef>,
     retained_floor: u64,
     admitted_scn: u64,
+    classified_ddl: bool,
+    table_positions: BTreeMap<TableRef, u64>,
+    /// Largest commit-SCN span mined in one batch after a budget refusal.
+    scn_window: Option<u64>,
+    /// Where each batch starts mining: at or above `retained_floor`.
+    mining_floor: FloorObservation,
+    observations: std::collections::VecDeque<FloorObservation>,
 }
 
 impl OracleLogMiner {
+    /// The coordinator must validate the native projection before and after
+    /// capture. Unknown dictionary/row errors still require rebaseline.
+    pub fn allow_classified_ddl(&mut self) {
+        self.classified_ddl = true;
+    }
+    pub fn table_positions(&mut self, positions: BTreeMap<TableRef, u64>) {
+        self.table_positions = positions;
+    }
+    /// Exclusion is legal only after the coordinator persists quarantine.
+    pub fn quarantine(&mut self, tables: &BTreeSet<TableRef>) {
+        self.tables.retain(|table, _| !tables.contains(table));
+        self.rebaseline.retain(|table| !tables.contains(table));
+    }
     /// Resume with the transaction floor captured before the aligned baseline.
     /// Persist it with DBID/resetlogs and the cursor; advancing a commit SCN
     /// does not permit advancing this floor.
@@ -114,13 +176,86 @@ impl OracleLogMiner {
         let available = coverage(&files, high)?;
         validate_resume_floor(floor, from, available, self.retained_floor, high)?;
         self.retained_floor = floor;
+        self.mining_floor = FloorObservation {
+            floor,
+            valid_from: 0,
+        };
+        self.observations.clear();
         self.admitted_scn = from;
+        Ok(())
+    }
+
+    /// Resume at a floor this binding proved in an earlier process. It is
+    /// ignored (the retained floor stays) unless the durable cursor reached
+    /// its `valid_from`, it lies between the retained floor and the cursor,
+    /// and no transaction active now started below it.
+    pub fn resume_mining_floor(
+        &mut self,
+        hint: FloorObservation,
+        cursor: u64,
+    ) -> Result<bool, SourceError> {
+        if hint.valid_from > cursor
+            || hint.floor <= self.mining_floor.floor
+            || hint.floor < self.retained_floor
+            || hint.floor > cursor
+        {
+            return Ok(false);
+        }
+        let oldest = self
+            .engine
+            .scalar("SELECT TO_CHAR(MIN(start_scn)) FROM v$transaction", &[])?;
+        if oldest
+            .as_deref()
+            .map(|v| number(Some(v)))
+            .transpose()?
+            .is_some_and(|start| start < hint.floor)
+        {
+            return Ok(false);
+        }
+        self.mining_floor = hint;
+        Ok(true)
+    }
+
+    /// Adopt every observation the durable `cursor` reached and return the
+    /// floor to persist, if it is above the retained floor.
+    pub fn advance_mining_floor(&mut self, cursor: u64) -> Option<FloorObservation> {
+        advance_floor(&mut self.mining_floor, &mut self.observations, cursor);
+        (self.mining_floor.floor > self.retained_floor).then_some(self.mining_floor)
+    }
+
+    fn observe_floor(&mut self, s0: u64) -> Result<(), SourceError> {
+        let oldest = self
+            .engine
+            .scalar("SELECT TO_CHAR(MIN(start_scn)) FROM v$transaction", &[])?;
+        let oldest = oldest.as_deref().map(|v| number(Some(v))).transpose()?;
+        let valid_from = self.engine.current_scn()?;
+        if let Some(observation) = FloorObservation::new(s0, oldest, valid_from) {
+            if self.observations.len() == MAX_FLOOR_OBSERVATIONS {
+                self.observations.pop_front();
+            }
+            self.observations.push_back(observation);
+        }
         Ok(())
     }
 
     /// Persist DBID/resetlogs identity with the SCN and compare on reconstruction.
     pub fn source_epoch(&self) -> &str {
         &self.identity
+    }
+
+    /// Checked before any target state is written for a cycle: a refusal for
+    /// cleared database logging must leave a fresh binding untouched.
+    pub fn require_logging(engine: &mut OracleEngine) -> Result<(), SourceError> {
+        let rows = engine.query(
+            "SELECT log_mode, supplemental_log_data_min FROM v$database",
+            &[],
+            1,
+        )?;
+        let row = rows.first();
+        validate_logging(
+            row.and_then(|r| r.first()).and_then(Option::as_deref),
+            row.and_then(|r| r.get(1)).and_then(Option::as_deref),
+        )
     }
 
     pub fn new(
@@ -179,6 +314,14 @@ impl OracleLogMiner {
             rebaseline: BTreeSet::new(),
             retained_floor: 0,
             admitted_scn: 0,
+            classified_ddl: false,
+            table_positions: BTreeMap::new(),
+            scn_window: None,
+            mining_floor: FloorObservation {
+                floor: 0,
+                valid_from: 0,
+            },
+            observations: std::collections::VecDeque::new(),
         };
         reader.check_logging()?;
         let files = reader.inventory()?;
@@ -193,6 +336,7 @@ impl OracleLogMiner {
         }
         // Retain the oldest active transaction, not unrelated historical logs.
         reader.retained_floor = oldest.map_or(high, |start| start.min(high));
+        reader.mining_floor.floor = reader.retained_floor;
         reader.admitted_scn = reader.engine.current_scn()?;
         Ok(reader)
     }
@@ -236,16 +380,7 @@ impl OracleLogMiner {
     fn check_logging(&mut self) -> Result<(), SourceError> {
         // Recreating a controlfile can preserve the tables but clear logging.
         // An empty LogMiner result in that state is not a no-change proof.
-        let rows = self.engine.query(
-            "SELECT log_mode, supplemental_log_data_min FROM v$database",
-            &[],
-            1,
-        )?;
-        let row = rows.first();
-        validate_logging(
-            row.and_then(|r| r.first()).and_then(Option::as_deref),
-            row.and_then(|r| r.get(1)).and_then(Option::as_deref),
-        )
+        Self::require_logging(&mut self.engine)
     }
 
     fn inventory(&mut self) -> Result<Vec<LogFile>, SourceError> {
@@ -332,9 +467,14 @@ impl OracleLogMiner {
         } else {
             ""
         };
+        let data_only = if self.classified_ddl {
+            " AND OPERATION_CODE IN (1,2,3)"
+        } else {
+            ""
+        };
         let sql = format!(
             "SELECT {} FROM v$logmnr_contents WHERE SEG_OWNER=:b1 AND TABLE_NAME=:b2 \
-             AND NVL(COMMIT_SCN,SCN)>:b3{pdb_clause} ORDER BY COMMIT_SCN,SCN,RS_ID,SSN",
+             AND NVL(COMMIT_SCN,SCN)>:b3{pdb_clause}{data_only} ORDER BY COMMIT_SCN,SCN,RS_ID,SSN",
             projections.join(",")
         );
         let mut binds = vec![
@@ -345,17 +485,22 @@ impl OracleLogMiner {
         if let Some(pdb) = &self.pdb {
             binds.push(Bind::Text(pdb.clone()));
         }
+        let invalid_operation = if self.classified_ddl {
+            "STATUS<>0"
+        } else {
+            "OPERATION_CODE=5 OR STATUS<>0"
+        };
         let invalid = self.engine.scalar(
             &format!(
                 "SELECT TO_CHAR(COUNT(*)) FROM v$logmnr_contents \
              WHERE SEG_OWNER=:b1 AND TABLE_NAME=:b2 AND SCN>:b3{pdb_clause} \
-             AND (OPERATION_CODE=5 OR STATUS<>0)"
+             AND ({invalid_operation})"
             ),
             &binds,
         )?;
         if invalid.as_deref() != Some("0") {
             self.rebaseline.insert(table.clone());
-            return Err(SourceError::catalog("logminer_table_rebaseline"));
+            return Err(SourceError::catalog("logminer_table_status_rebaseline"));
         }
         let rows = self
             .engine
@@ -375,13 +520,20 @@ impl OracleLogMiner {
             let commit = number(row[0].as_deref())?;
             let sequence = number(row[1].as_deref())?;
             let operation = number(row[4].as_deref())?;
-            if !matches!(operation, 1..=3)
-                || row[5].as_deref() != Some("0")
-                || row[7].as_deref() != Some("0")
-                || number(row[6].as_deref()).map_or(true, |start| start < floor)
-            {
+            let refusal = if !matches!(operation, 1..=3) {
+                Some("logminer_operation_rebaseline")
+            } else if row[5].as_deref() != Some("0") {
+                Some("logminer_row_status_rebaseline")
+            } else if row[7].as_deref() != Some("0") {
+                Some("logminer_continuation_rebaseline")
+            } else if number(row[6].as_deref()).map_or(true, |start| start < floor) {
+                Some("logminer_transaction_floor_rebaseline")
+            } else {
+                None
+            };
+            if let Some(refusal) = refusal {
                 self.rebaseline.insert(table.clone());
-                return Err(SourceError::catalog("logminer_table_rebaseline"));
+                return Err(SourceError::catalog(refusal));
             }
             let mut before = Vec::new();
             let mut after = Vec::new();
@@ -453,6 +605,31 @@ impl OracleLogMiner {
 
     fn read(&mut self, from: u64, budget: &ReadBudget) -> Result<ChangeBatch, SourceError> {
         let deadline = Instant::now() + Duration::from_millis(budget.statement_timeout_ms);
+        let mut attempt = 0;
+        loop {
+            self.engine.last_ora = None;
+            match self.read_once(from, deadline, budget) {
+                // A busy source reused or archived an online redo log between
+                // the inventory and LogMiner's header check. Nothing of the
+                // batch was delivered: inventory again and mine the same span.
+                Err(_)
+                    if redo_reused(self.engine.last_ora)
+                        && attempt < REDO_REUSE_RETRIES
+                        && Instant::now() < deadline =>
+                {
+                    attempt += 1;
+                }
+                result => return result,
+            }
+        }
+    }
+
+    fn read_once(
+        &mut self,
+        from: u64,
+        deadline: Instant,
+        budget: &ReadBudget,
+    ) -> Result<ChangeBatch, SourceError> {
         self.engine
             .set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.check_logging()?;
@@ -461,11 +638,16 @@ impl OracleLogMiner {
             return Err(SourceError::config("logminer_future_watermark"));
         }
         let high = current.saturating_sub(1);
+        // Mine from the newest proven floor the cursor reached; record a new
+        // observation for later batches.
+        advance_floor(&mut self.mining_floor, &mut self.observations, from);
+        self.observe_floor(current)?;
+        let mining_floor = self.mining_floor.floor;
         let files = self.inventory()?;
         let floor = coverage(&files, high)?;
         // Without a durable pre-baseline floor, restart needs a new baseline.
-        // Never advance the transaction floor with the commit watermark.
-        if from < self.admitted_scn || floor > self.retained_floor {
+        // Never advance the transaction floor with the commit watermark alone.
+        if from < self.admitted_scn || floor > mining_floor {
             return Err(SourceError::catalog("logminer_session_rebaseline"));
         }
         if from < floor {
@@ -480,14 +662,61 @@ impl OracleLogMiner {
         }
         let files: Vec<_> = files
             .into_iter()
-            .filter(|file| file.next > self.retained_floor && file.first <= high)
+            .filter(|file| file.next > mining_floor && file.first <= high)
             .collect();
-        self.add_files(&files)?;
+        // A cursor that fell behind a busy source (or a first batch after a
+        // long baseline) can hold more commits than one batch may carry. Mine
+        // a shorter commit-SCN span instead of refusing forever; the batch
+        // position is the span's end, so every commit at or below it is whole.
+        let mut end = window_end(from, high, self.scn_window);
+        // Largest end known to hold no commit, smallest known over budget.
+        let (mut empty, mut over) = (from, None);
+        loop {
+            match self.mine(from, end, &files, deadline, budget) {
+                // One table's rows past the limit fail the query itself.
+                Err(error)
+                    if matches!(
+                        error.fact(),
+                        Some("logminer_batch_over_budget" | "query_row_limit")
+                    ) =>
+                {
+                    over = Some(end);
+                }
+                // An empty shorter span proves nothing yet: look further.
+                Ok(batch) if batch.changes.is_empty() && end < high => empty = end,
+                Ok(batch) => {
+                    if over.is_some() {
+                        self.scn_window = Some(end - from);
+                    } else if (batch.changes.len() as u64).saturating_mul(4) < budget.max_chunk_rows
+                    {
+                        // Grow back after a light batch so a caught-up cursor
+                        // returns to whole spans.
+                        self.scn_window = self.scn_window.map(|w| w.saturating_mul(2));
+                    }
+                    return Ok(batch);
+                }
+                Err(error) => return Err(error),
+            }
+            end = next_span(high, empty, over)
+                .ok_or(SourceError::budget("logminer_batch_over_budget"))?;
+        }
+    }
+
+    /// One LogMiner session over committed changes in `(from, high]`.
+    fn mine(
+        &mut self,
+        from: u64,
+        high: u64,
+        files: &[LogFile],
+        deadline: Instant,
+        budget: &ReadBudget,
+    ) -> Result<ChangeBatch, SourceError> {
+        self.add_files(files)?;
         self.call(
             "BEGIN DBMS_LOGMNR.START_LOGMNR(STARTSCN=>:b1,ENDSCN=>:b2,\
              OPTIONS=>DBMS_LOGMNR.DICT_FROM_ONLINE_CATALOG+DBMS_LOGMNR.COMMITTED_DATA_ONLY); END;",
             &[
-                Bind::Number(self.retained_floor.to_string()),
+                Bind::Number(self.mining_floor.floor.to_string()),
                 Bind::Number(high.to_string()),
             ],
         )?;
@@ -507,7 +736,10 @@ impl OracleLogMiner {
                     .checked_duration_since(Instant::now())
                     .ok_or(SourceError::budget("logminer_deadline"))?;
                 self.engine.set_timeout(remaining)?;
-                let next = self.table_changes(&table, &meta, from, self.retained_floor, budget)?;
+                let table_from =
+                    from.max(self.table_positions.get(&table).copied().unwrap_or(from));
+                let next =
+                    self.table_changes(&table, &meta, table_from, self.mining_floor.floor, budget)?;
                 bytes += next
                     .iter()
                     .map(|event| event.5.get_array_memory_size())
@@ -565,6 +797,33 @@ impl ChangeSource for OracleLogMiner {
     }
 }
 
+/// Re-inventories after a redo log switch races one batch.
+const REDO_REUSE_RETRIES: u32 = 3;
+
+/// ORA-01368 (online log header no longer matches the registered sequence)
+/// and ORA-00310 (the registered online log was archived and reused) mean
+/// the log list went stale, not that redo is missing. ORA-01291 (a missing
+/// archived log) is a real gap and is never retried.
+fn redo_reused(code: Option<usize>) -> bool {
+    matches!(code, Some(1368 | 310))
+}
+
+/// End of the next mined span: the whole backlog, or the learned window.
+fn window_end(from: u64, high: u64, window: Option<u64>) -> u64 {
+    window.map_or(high, |w| high.min(from.saturating_add(w.max(1))))
+}
+
+/// Next span end after one probe: bisect between the largest end known to
+/// hold no commit and the smallest known over budget, or take the whole
+/// remainder when nothing is over budget yet. `None` when one SCN alone (a
+/// single oversized commit) exceeds the budget: that refusal stands.
+fn next_span(high: u64, empty: u64, over: Option<u64>) -> Option<u64> {
+    match over {
+        Some(over) => (over.checked_sub(empty)? > 1).then(|| empty + (over - empty) / 2),
+        None => (empty < high).then_some(high),
+    }
+}
+
 fn validate_resume_floor(
     floor: u64,
     from: u64,
@@ -586,6 +845,56 @@ fn validate_resume_floor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_stale_online_log_lists_are_mined_again() {
+        assert!(redo_reused(Some(1368)));
+        assert!(redo_reused(Some(310)));
+        for code in [None, Some(1291), Some(1555), Some(942)] {
+            assert!(!redo_reused(code), "{code:?}");
+        }
+    }
+
+    #[test]
+    fn over_budget_backlog_is_mined_in_shrinking_commit_spans() {
+        assert_eq!(window_end(100, 1_000, None), 1_000);
+        assert_eq!(window_end(100, 1_000, Some(50)), 150);
+        // The learned window never runs past the current high mark.
+        assert_eq!(window_end(990, 1_000, Some(50)), 1_000);
+        assert_eq!(window_end(100, 1_000, Some(0)), 101);
+        // Over budget: bisect towards the cursor.
+        assert_eq!(next_span(1_000, 100, Some(1_000)), Some(550));
+        // An empty prefix moves the lower bound; bisect what remains.
+        assert_eq!(next_span(1_000, 550, Some(1_000)), Some(775));
+        // Nothing over budget yet after an empty learned window: take it all.
+        assert_eq!(next_span(1_000, 150, None), Some(1_000));
+        assert_eq!(next_span(1_000, 1_000, None), None);
+        // One SCN that alone exceeds the budget cannot be split.
+        assert_eq!(next_span(1_000, 100, Some(101)), None);
+        assert_eq!(next_span(1_000, 100, Some(102)), Some(101));
+        // Simulate commits at SCNs 400..=420 (one change each), budget 5.
+        let commits: Vec<u64> = (400..=420).collect();
+        let mined =
+            |from: u64, end: u64| commits.iter().filter(|c| **c > from && **c <= end).count();
+        let (from, high) = (100, 1_000);
+        let (mut empty, mut over, mut end, mut probes) = (from, None, high, 0);
+        loop {
+            probes += 1;
+            let n = mined(from, end);
+            if n > 5 {
+                over = Some(end);
+            } else if n == 0 && end < high {
+                empty = end;
+            } else {
+                break;
+            }
+            end = next_span(high, empty, over).unwrap();
+        }
+        let n = mined(from, end);
+        assert!((1..=5).contains(&n), "{n} changes up to {end}");
+        assert!(probes <= 20);
+    }
+
     #[test]
     fn cleared_or_unknown_logging_requires_rebaseline() {
         for minimal in [Some("YES"), Some("IMPLICIT")] {
@@ -630,6 +939,43 @@ mod tests {
     fn positions_reject_other_engines() {
         assert!(scn(&Watermark::PgLsn { lsn: 10 }).is_err());
         assert_eq!(scn(&Watermark::OracleScn { scn: 10 }).unwrap(), 10);
+    }
+
+    #[test]
+    fn floor_observation_takes_the_older_of_its_first_scn_and_the_oldest_active_start() {
+        let at = |floor, valid_from| FloorObservation { floor, valid_from };
+        assert_eq!(FloorObservation::new(100, Some(80), 105), Some(at(80, 105)));
+        // A transaction that starts after the first SCN read starts above it.
+        assert_eq!(
+            FloorObservation::new(100, Some(102), 105),
+            Some(at(100, 105))
+        );
+        assert_eq!(FloorObservation::new(100, None, 100), Some(at(100, 100)));
+        // Out-of-order reads or a zero SCN prove nothing.
+        assert_eq!(FloorObservation::new(100, None, 99), None);
+        assert_eq!(FloorObservation::new(0, None, 5), None);
+    }
+
+    #[test]
+    fn mining_floor_advances_only_to_observations_the_cursor_reached() {
+        let at = |floor, valid_from| FloorObservation { floor, valid_from };
+        let mut floor = at(10, 0);
+        let mut pending: std::collections::VecDeque<_> =
+            [at(50, 60), at(70, 90), at(120, 130)].into();
+        advance_floor(&mut floor, &mut pending, 59);
+        assert_eq!((floor, pending.len()), (at(10, 0), 3));
+        advance_floor(&mut floor, &mut pending, 95);
+        assert_eq!((floor, pending.len()), (at(70, 90), 1));
+        // A later observation with an older floor (a long transaction began
+        // in between) never moves the floor back.
+        pending.push_front(at(40, 100));
+        advance_floor(&mut floor, &mut pending, 200);
+        assert_eq!((floor, pending.len()), (at(120, 130), 0));
+        // Never past the cursor, even for a reached observation.
+        let mut floor = at(10, 0);
+        let mut pending: std::collections::VecDeque<_> = [at(80, 60)].into();
+        advance_floor(&mut floor, &mut pending, 70);
+        assert_eq!(floor, at(10, 0));
     }
 
     #[test]

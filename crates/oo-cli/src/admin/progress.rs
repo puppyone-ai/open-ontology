@@ -39,6 +39,8 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
         return Ok(Invocation::AdminReport(
             json!({"protocol":"oo.build-progress/v1","status":"not_started",
                 "last_success":null,"last_failure":null,"next_due":null,
+                "data_published_at":null,"data_verified_at":null,"cycle":null,
+                "tables":{"stale":[],"review_pending":[]},
                 "nearest_credential_expiry":null,"gateway_health":"unmeasured"})
             .to_string(),
             0,
@@ -69,6 +71,7 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
         return Err(Failure::local("BUILD_STATE_PROTOCOL"));
     }
     state["gateway_health"] = json!("unmeasured");
+    unmeasured_publication(&mut state);
     state["nearest_credential_expiry"] = Value::Null;
     let failed = state["status"] == "failed";
     Ok(Invocation::AdminReport(
@@ -79,6 +82,13 @@ pub(super) fn status(config: &Path, json_output: bool) -> Result<Invocation, Fai
         },
         if failed { 1 } else { 0 },
     ))
+}
+
+pub(super) fn unmeasured_publication(state: &mut Value) {
+    state["data_published_at"] = Value::Null;
+    state["data_verified_at"] = Value::Null;
+    state["cycle"] = Value::Null;
+    state["tables"] = json!({"stale":[],"review_pending":[]});
 }
 
 pub(super) fn display(state: &Value) -> String {
@@ -115,6 +125,62 @@ pub(super) fn display(state: &Value) -> String {
         q / Esc / Ctrl-C: stop; saved state is retained.\n\
         Inspect: oo status --config <same stack>\nResume: oo build --resume --config <same stack>\n");
     text
+}
+
+pub(super) fn display_status(state: &Value) -> String {
+    let mut safe = state.clone();
+    oo_stack::status::review_status(&mut safe);
+    let state = &safe;
+    let mut lines = vec![
+        format!(
+            "Review: {}",
+            state["review_state"].as_str().unwrap_or("unmeasured")
+        ),
+        format!(
+            "Health: {}",
+            state["status"].as_str().unwrap_or("unmeasured")
+        ),
+        format!(
+            "Data published at: {}",
+            state["data_published_at"].as_str().unwrap_or("unmeasured")
+        ),
+        format!(
+            "Data verified current at: {}",
+            state["data_verified_at"].as_str().unwrap_or("unmeasured")
+        ),
+        format!(
+            "Cycle: {} at {} ({})",
+            state["cycle"]["result"].as_str().unwrap_or("unmeasured"),
+            state["cycle"]["at"].as_str().unwrap_or("unmeasured"),
+            state["cycle"]["reason"].as_str().unwrap_or("no reason")
+        ),
+    ];
+    for key in ["stale", "review_pending"] {
+        if let Some(rows) = state["tables"][key].as_array() {
+            for row in rows {
+                lines.push(format!(
+                    "{key}: {} {}",
+                    row["table"].as_str().unwrap_or("unknown"),
+                    if key == "stale" {
+                        format!("{} since {}", row["reason"], row["since"])
+                    } else {
+                        row["code"].as_str().unwrap_or("unmeasured").to_owned()
+                    }
+                ));
+            }
+        }
+    }
+    for key in [
+        "services",
+        "gateway_health",
+        "bootstrap_credentials",
+        "alert",
+    ] {
+        if !state[key].is_null() {
+            lines.push(format!("{key}: {}", state[key]));
+        }
+    }
+    lines.join("\n")
 }
 
 pub(super) fn completion(state: &Value) -> String {
@@ -198,7 +264,7 @@ pub(super) fn build(
                 latest = state;
             }
             if let Some(screen) = &mut screen
-                && screen.progress(&display(&latest))?
+                && screen.progress(&latest, &display(&latest))?
             {
                 return Err(Failure::local(
                     "BUILD_INTERRUPTED: use oo status and oo build --resume",
@@ -246,6 +312,28 @@ pub(super) fn build(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn status_separates_failed_cycle_from_fresh_publication() {
+        let text = display_status(
+            &json!({"status":"degraded","data_published_at":"2026-11-07T12:00:00Z",
+            "cycle":{"result":"failed","at":"2026-11-07T12:01:00Z","reason":"sync_failed"},
+            "tables":{"stale":[{"table":"app.a","reason":"source_timeout","since":"2026-11-07T11:00:00Z"}],
+                "review_pending":[{"table":"app.b","changes":["comment"]}]}}),
+        );
+        for expected in [
+            "Health: degraded",
+            "Data published at: 2026-11-07",
+            "Cycle: failed",
+            "sync_failed",
+            "stale: app.a",
+            "source_timeout",
+            "held_by_review",
+        ] {
+            assert!(text.contains(expected), "{expected}");
+        }
+        assert!(!text.contains("comment"));
+        assert!(!text.contains("app.b"));
+    }
     #[test]
     fn screens_distinguish_work_rates_retries_and_unpublished_outputs() {
         let state = json!({"status":"failed","token":"must-not-render",

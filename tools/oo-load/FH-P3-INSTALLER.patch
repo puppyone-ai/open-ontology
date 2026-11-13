@@ -1,0 +1,18 @@
+--- a/crates/oo-pipeline/src/bin/install-retained-target.rs
++++ b/crates/oo-pipeline/src/bin/install-retained-target.rs
+@@ -120,6 +120,15 @@
+     .execute(&mut db)
+     .await
+     .map_err(|_| "sealed_column_catalog")?;
++    // C1 per-table positions; install the source state before its child table.
++    sqlx::raw_sql(include_str!("../../migrations/0120_engine_sync.sql"))
++        .execute(&mut db)
++        .await
++        .map_err(|_| "c1_table_positions")?;
++    sqlx::raw_sql(include_str!("../../migrations/0130_c1_table_positions.sql"))
++        .execute(&mut db)
++        .await
++        .map_err(|_| "c1_table_positions")?;
+     if installed {
+         install_logical_identity(&mut db).await?;
+         return Ok("already_installed");

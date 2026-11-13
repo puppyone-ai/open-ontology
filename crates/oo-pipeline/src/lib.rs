@@ -40,14 +40,18 @@ pub mod catalog_import;
 pub mod copy_encoder;
 pub mod copy_sink;
 pub mod engine_chunk;
+pub mod engine_isolation;
 pub mod engine_load;
 pub mod engine_load_pg;
 pub mod engine_publication;
 pub mod engine_sync;
 pub mod engine_sync_pg;
+#[cfg(feature = "failpoints")]
+pub mod failpoint;
 pub mod full_import;
 pub mod jsonb_document;
 pub mod native_catalog;
+pub mod stale_grammar;
 pub use full_import::{ApprovedColumn, approved_column_typmod, approved_columns};
 pub mod c1_buffer_position;
 pub mod c1_key;

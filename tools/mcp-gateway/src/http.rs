@@ -18,6 +18,7 @@ const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(8);
 pub(crate) struct GatewayClient {
     port: u16,
     token_file: PathBuf,
+    profile: Option<(PathBuf, String)>,
 }
 
 pub(crate) struct GatewayReply {
@@ -35,7 +36,23 @@ impl Drop for Secret {
 
 impl GatewayClient {
     pub(crate) fn new(port: u16, token_file: PathBuf) -> Self {
-        Self { port, token_file }
+        Self {
+            port,
+            token_file,
+            profile: None,
+        }
+    }
+
+    pub(crate) fn profile(cli: PathBuf, name: String) -> Self {
+        Self {
+            port: 0,
+            token_file: PathBuf::new(),
+            profile: Some((cli, name)),
+        }
+    }
+
+    pub(crate) fn is_profile(&self) -> bool {
+        self.profile.is_some()
     }
 
     pub(crate) async fn get(&self, path: &str) -> Result<GatewayReply, ()> {
@@ -53,6 +70,9 @@ impl GatewayClient {
         if !path.starts_with('/') || path.contains('?') || path.contains('#') {
             return Err(());
         }
+        if let Some((cli, name)) = &self.profile {
+            return profile_exchange(cli, name, path, body).await;
+        }
         let token = read_token(&self.token_file).await?;
         let mut request = Vec::new();
         let result = write_and_read(&mut request, self.port, path, &token.0, body).await;
@@ -61,6 +81,59 @@ impl GatewayClient {
         let body = serde_json::from_slice(&payload).map_err(|_| ())?;
         Ok(GatewayReply { status, body })
     }
+}
+
+async fn profile_exchange(
+    cli: &Path,
+    name: &str,
+    path: &str,
+    body: Option<Vec<u8>>,
+) -> Result<GatewayReply, ()> {
+    let body: Option<Value> = body
+        .map(|b| serde_json::from_slice(&b))
+        .transpose()
+        .map_err(|_| ())?;
+    let input =
+        serde_json::to_vec(&serde_json::json!({"path":path,"body":body})).map_err(|_| ())?;
+    timeout(Duration::from_secs(20), async {
+        let mut child = tokio::process::Command::new(cli)
+            .args(["mcp-request", "--profile", name])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|_| ())?;
+        let mut stdin = child.stdin.take().ok_or(())?;
+        stdin.write_all(&input).await.map_err(|_| ())?;
+        drop(stdin);
+        let stdout = child.stdout.take().ok_or(())?;
+        let mut bytes = Vec::new();
+        stdout
+            .take(4 * 1024 * 1024 + 8193)
+            .read_to_end(&mut bytes)
+            .await
+            .map_err(|_| ())?;
+        if bytes.len() > 4 * 1024 * 1024 + 8192 {
+            return Err(());
+        }
+        if !child.wait().await.map_err(|_| ())?.success() {
+            return Err(());
+        }
+        let value: Value = serde_json::from_slice(&bytes).map_err(|_| ())?;
+        let status = value["status"]
+            .as_u64()
+            .filter(|s| (100..=599).contains(s))
+            .ok_or(())? as u16;
+        let body = value
+            .get("body")
+            .filter(|b| b.is_object())
+            .ok_or(())?
+            .clone();
+        Ok(GatewayReply { status, body })
+    })
+    .await
+    .map_err(|_| ())?
 }
 
 async fn write_and_read(
@@ -94,7 +167,9 @@ async fn write_and_read(
         request.extend_from_slice(&bytes);
     }
     let exchange = async {
-        let mut stream = TcpStream::connect(("127.0.0.1", port)).await.map_err(|_| ())?;
+        let mut stream = TcpStream::connect(("127.0.0.1", port))
+            .await
+            .map_err(|_| ())?;
         stream.write_all(request).await.map_err(|_| ())?;
         stream.flush().await.map_err(|_| ())?;
         let mut buffer = Vec::new();
@@ -134,7 +209,10 @@ fn message_complete(bytes: &[u8]) -> bool {
 }
 
 fn parse_response(bytes: &[u8]) -> Result<(u16, Vec<u8>), ()> {
-    let split = bytes.windows(4).position(|window| window == b"\r\n\r\n").ok_or(())?;
+    let split = bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .ok_or(())?;
     let head = &bytes[..split];
     let rest = &bytes[split + 4..];
     let status_line = head.split(|byte| *byte == b'\n').next().ok_or(())?;

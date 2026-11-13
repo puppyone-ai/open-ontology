@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━●━◉ deliver ─╮
+│ deliver ·····················   ·  CLI profile + share prompt · MCP optional │
+│                                                                              │
+│ profile  logistics   ○ profile store not available in this build (V3-B-01)   │
+│                                                                              │
+│ share prompt  c copy                                                         │
+│ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
+│ ┆ Use the local Open Ontology profile logistics.                           ┆ │
+│ ┆ Run oo use logis╭─ MCP configuration for ──────────────╮skill.           ┆ │
+│ ┆ Inspect oo table│ ▸ Claude Code                        │ery only through ┆ │
+│ ┆ the Gateway.    │   Cursor                             │                 ┆ │
+│ ┆ … 4 more lines (│   Codex                              │                 ┆ │
+│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│                                      │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
+│                   │ ⏎ show   esc back                    │                   │
+│ readiness         ╰──────────────────────────────────────╯                   │
+│ ○ nothing published for this profile yet                                     │
+│   pack published · gateway reachable · visible tables · freshness            │
+│   next run oo build to publish a pack and issue its token, then r to re-…    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ ○ not published yet: the prompt works once a pack is published               │
+╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯

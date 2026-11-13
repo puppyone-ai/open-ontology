@@ -203,6 +203,7 @@ async fn owned_numeric_catalog_and_execution() {
             text: Some(types["text"]),
             boolean: Some(types["bool"]),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };

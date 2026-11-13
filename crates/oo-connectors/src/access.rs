@@ -12,7 +12,7 @@ use crate::model::{
 use crate::session::{self, PgSession};
 use crate::sql;
 
-const ESSENTIAL: &[&str] = &[
+pub(crate) const ESSENTIAL: &[&str] = &[
     "pg_class",
     "pg_namespace",
     "pg_attribute",
@@ -26,6 +26,11 @@ const ESSENTIAL: &[&str] = &[
     "pg_operator",
     "pg_cast",
 ];
+
+/// Catalog relations table discovery may read besides [`ESSENTIAL`]:
+/// `pg_database` (public to every role) for the databases a role can connect to.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) const DISCOVERY: &[&str] = &["pg_database"];
 
 const WRITE_PRIVILEGES: &[&str] = &["INSERT", "UPDATE", "DELETE", "TRUNCATE"];
 

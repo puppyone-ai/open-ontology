@@ -1,0 +1,714 @@
+"""Offline T10 checks. No Docker, native driver, or customer connection is used."""
+import argparse
+from contextlib import redirect_stderr
+import io
+import json
+from pathlib import Path
+import tempfile
+import threading
+import time
+import unittest
+from unittest.mock import Mock, patch
+
+import t10
+
+
+class PreparationTests(unittest.TestCase):
+    def test_pg_slot_retention_is_set_at_startup_not_shadowed_by_command_line(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g')
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        run.slot_wal_keep_size = t10.SLOT_WAL_KEEP_SIZE
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(['docker', 'create', '--name', run.name, 'image'])
+        args = command.call_args.args[1]
+        self.assertIn('max_slot_wal_keep_size=16GB', args)
+        self.assertNotIn('max_slot_wal_keep_size=256MB', args)
+        # Unlimited (-1) leaves safe_wal_size NULL, which C1 refuses as unproven.
+        self.assertNotIn('max_slot_wal_keep_size=-1', args)
+
+    def test_target_tmpfs_replaces_only_the_agent_db_data_volume(self):
+        run = object.__new__(t10.ImpactSource)
+        run.args = argparse.Namespace(cpus=4, memory='8g', target_tmpfs=True)
+        run.name, run.engine, run.host_port = 'owned-source', 'postgres', 54321
+        target = ['docker', 'create', '--name', 'owned-target', '-p', '127.0.0.1:1:5432',
+                  '--mount', 'type=volume,src=owned-target-data,dst=/var/lib/postgresql/data',
+                  '-v', '/private:/run/private:ro', 'image']
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        args = command.call_args.args[-1]
+        self.assertNotIn('--mount', args)
+        self.assertIn('/var/lib/postgresql/data:rw,size=24g', args)
+        self.assertEqual(args[args.index('--tmpfs') - 1], '127.0.0.1:1:5432')
+        self.assertIn('/private:/run/private:ro', args)
+        run.args.target_tmpfs = False
+        with patch.object(t10.runner.Run, 'command', return_value=(0, '')) as command:
+            run.command(target)
+        self.assertEqual(command.call_args.args[-1], target)
+
+    def test_mysql_aligned_position_is_captured_after_snapshot_without_handoff(self):
+        import itertools
+        h = object.__new__(t10.ImpactHarness)
+        h.run = Mock(engine='mysql', version='8.4')
+        h.sync, h.server_ids = {}, itertools.count(42)
+        calls = []
+        h.snapshot = lambda *args: calls.append('snapshot')
+        def sql(query):
+            calls.append(query)
+            return 0, 'uuid' if 'server_uuid' in query else 'bin.000001 1234'
+        h.src = sql
+        h.c1_binding('fixture', ['bulk'])
+        self.assertEqual(calls, ['snapshot', 'SELECT @@GLOBAL.server_uuid;',
+                                 'SHOW BINARY LOG STATUS;'])
+        self.assertTrue(h.sync['fixture']['baseline_aligned'])
+        self.assertEqual(h.sync['fixture']['initial_position'],
+                         {'kind': 'mysql_file_pos', 'file': 'bin.000001', 'position': 1234})
+
+    def test_oracle_timeout_requires_measured_positive_rate(self):
+        self.assertEqual(t10.oracle_timeout(2_000_000, 1000), 6000)
+        self.assertEqual(t10.oracle_timeout(20, 1000), 900)
+        for rate in (0, -1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                t10.oracle_timeout(2_000_000, rate)
+
+    def test_oracle_preparation_uses_calibrated_timeout(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_timeout = 6000
+        h.load_rate = None
+        with patch.object(t10.OracleHarness, 'call', return_value=(0, [], None)) as call:
+            h.call('s', 'run')
+            self.assertEqual(call.call_args.args[-1], 6000)
+            h.call('s', 'run', timeout=42)
+            self.assertEqual(call.call_args.args[-1], 42)
+
+    def test_oracle_timeout_tracks_current_binding_rows_not_seed_rows(self):
+        h = object.__new__(t10.ImpactOracleHarness)
+        h.load_rate, h.timeout_records = 1000, []
+        h.tables = Mock(return_value=['bulk', 'other'])
+        h.src = Mock(return_value=(0, '3000000'))
+        h.size_timeout('later_binding')
+        self.assertEqual(h.load_timeout, 9000)
+        self.assertEqual(h.timeout_records[0]['rows'], 3000000)
+        self.assertEqual(h.timeout_records[0]['tables'], ['bulk', 'other'])
+
+
+class MathTests(unittest.TestCase):
+    def test_percentiles_interpolate(self):
+        self.assertEqual(t10.percentile([40, 10, 30, 20], 50), 25)
+        self.assertAlmostEqual(t10.percentile([10, 20, 30, 40], 95), 38.5)
+        self.assertAlmostEqual(t10.percentile([10, 20, 30, 40], 99), 39.7)
+
+    def test_percentile_empty_singleton(self):
+        self.assertIsNone(t10.percentile([], 95))
+        self.assertEqual(t10.percentile([7], 99), 7)
+
+    def test_queue_delay_is_latency(self):
+        result = t10.summarize([dict(intended=0, actual=2, end=3, error=None)], 4)
+        self.assertEqual(result['p95_ms'], 3000)
+        self.assertEqual(result['max_start_delay_ms'], 2000)
+
+    def test_error_classes_remain_distinct(self):
+        rows = [dict(intended=0, actual=0, end=1, error=error)
+                for error in (None, 'scheduler_queue_full', 'DatabaseError', 'scheduler_queue_full')]
+        result = t10.summarize(rows, 2)
+        self.assertEqual(result['errors'], 3)
+        self.assertEqual(result['error_counts'], {'scheduler_queue_full': 2, 'DatabaseError': 1})
+
+    def test_late_completion_not_counted_as_on_time_throughput(self):
+        result = t10.summarize([dict(intended=0, actual=2, end=3, error=None)], 2)
+        self.assertEqual(result['achieved_rate'], 0)
+        self.assertEqual(result['requests'], 1)
+
+    def test_partial_window_and_completion_window(self):
+        rows = [dict(intended=9, actual=9, end=11, error=None),
+                dict(intended=10, actual=10, end=12, error=None),
+                dict(intended=11, actual=None, end=11, error='queue_full')]
+        windows = t10.windows(rows, 15)
+        self.assertEqual([w['requests'] for w in windows], [1, 2])
+        self.assertEqual([w['duration_seconds'] for w in windows], [10, 5])
+        self.assertEqual([w['achieved_rate'] for w in windows], [0, .4])
+        self.assertEqual(windows[1]['errors'], 1)
+
+    def test_zero_duration(self):
+        self.assertEqual(t10.windows([], 0), [])
+        self.assertIsNone(t10.summarize([], 0)['p99_ms'])
+
+
+class WindowScalingTests(unittest.TestCase):
+    def test_boundary_and_late_rows_match_reference(self):
+        rows = [dict(intended=start, actual=None if error else start + .2,
+                     end=end, error=error, extra='retained')
+                for start, end, error in (
+                    (10, 20, None), (9.9, 10, None), (0, 25, None),
+                    (20, 20.1, 'DatabaseError'), (20.2, 21, None),
+                    (21, 22, None), (19, 20.9, None), (-1, .1, None))]
+        expected = []
+        for start in (0, 10, 20):
+            end = min(start + 10, 21)
+            cohort = [dict(r, intended=r['intended'] - start,
+                           actual=None if r['actual'] is None else r['actual'] - start,
+                           end=r['end'] - start)
+                      for r in rows if start <= r['intended'] < end]
+            summary = t10.summarize(cohort, end - start)
+            summary['achieved_rate'] = sum(
+                r['error'] is None and start <= r['end'] < end for r in rows) / (end - start)
+            expected.append(dict(summary, start_seconds=start))
+        self.assertEqual(t10.windows(rows, 21), expected)
+
+    def test_long_phase_visits_input_once(self):
+        class Counted(list):
+            visits = 0
+            def __iter__(self):
+                for row in super().__iter__():
+                    self.visits += 1
+                    yield row
+        rows = Counted(dict(intended=i, actual=i, end=i + .1, error=None)
+                       for i in range(1000))
+        self.assertEqual(len(t10.windows(rows, 1000)), 100)
+        self.assertEqual(rows.visits, len(rows))
+
+class VerdictTests(unittest.TestCase):
+    def setUp(self):
+        self.base = dict(requests=100, errors=0, achieved_rate=100, p95_ms=10, p99_ms=20)
+
+    def test_inclusive_boundaries(self):
+        phase = dict(self.base, p95_ms=12, p99_ms=30, achieved_rate=95)
+        self.assertEqual(t10.verdict(self.base, phase)['result'], 'pass')
+
+    def test_each_budget_failure(self):
+        for field, value in [('p95_ms', 12.01), ('p99_ms', 30.01), ('achieved_rate', 94.99), ('errors', 1)]:
+            with self.subTest(field=field):
+                self.assertEqual(t10.verdict(self.base, dict(self.base, **{field: value}))['result'], 'fail')
+
+    def test_invalid_baselines_cannot_pass(self):
+        for base in (None, dict(self.base, errors=1), dict(self.base, achieved_rate=0),
+                     dict(self.base, p95_ms=None), dict(self.base, requests=0)):
+            self.assertEqual(t10.verdict(base, self.base)['result'], 'fail')
+
+    def test_empty_phase_cannot_pass(self):
+        self.assertEqual(t10.verdict(self.base, dict(self.base, requests=0))['result'], 'fail')
+
+
+class NoiseTests(unittest.TestCase):
+    @staticmethod
+    def requests(seconds, rate, slow=()):
+        rows = []
+        for i in range(int(seconds * rate)):
+            intended = i / rate
+            latency = .05 if int(intended) in slow else .001
+            rows.append(dict(intended=intended, actual=intended, end=intended + latency, error=None))
+        return rows
+
+    def test_steady_baseline_slices_pass_against_themselves(self):
+        requests = self.requests(120, 50)
+        whole = t10.summarize(requests, 120)
+        noise = t10.baseline_noise(requests, 120, whole)
+        # Sliding 50 s slices every 10 s, never past the end of the baseline.
+        self.assertEqual((noise['slices'], noise['fail_any']), (8, 0))
+
+    def test_same_length_noise_uses_the_phase_length(self):
+        requests = self.requests(120, 50, slow=range(20, 21))
+        whole = dict(t10.summarize(requests, 120), duration_seconds=120)
+        noise = t10.same_length_noise(requests, whole, 64.9)
+        self.assertEqual((noise['slice_seconds'], noise['slices']), (60, 7))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 120))
+        self.assertIsNone(t10.same_length_noise(requests, whole, 5))
+
+    def test_a_stall_shows_as_slice_failures(self):
+        requests = self.requests(120, 50, slow=range(20, 21))
+        whole = t10.summarize(requests, 120)
+        noise = t10.baseline_noise(requests, 120, whole)
+        self.assertGreater(noise['fail_p99'], 0)
+        self.assertGreater(noise['max_delta_p99_percent'], 50)
+        self.assertEqual(noise['fail_any'], max(noise['fail_p95'], noise['fail_p99']))
+
+
+class CanaryTests(unittest.TestCase):
+    def test_stalls_mark_the_windows_they_touch(self):
+        samples = [(100.0, 2.0), (115.0, 150.0), (139.95, 300.0), (200.0, 500.0)]
+        # Phase from t=100 for 50 s: the 150 ms write lands in window 1; the
+        # 300 ms write starts in window 3 and ends in window 4; t=200 is outside.
+        self.assertEqual(t10.stall_windows(samples, 100.0, 50), {1, 3, 4})
+        summary = t10.canary_summary(samples, 100.0, 50)
+        self.assertEqual((summary['samples'], summary['over_stall'], summary['max_ms']), (3, 2, 300.0))
+
+    def test_adjusted_verdict_drops_stall_windows_from_both_sides(self):
+        rows = lambda seconds, slow: [dict(intended=i / 10, actual=i / 10,
+                                           end=i / 10 + (.5 if int(i / 10) // 10 in slow else .001),
+                                           error=None) for i in range(seconds * 10)]
+        base_requests, phase_requests = rows(100, set()), rows(50, {2})
+        baseline = dict(t10.summarize(base_requests, 100), started_at_unix=1000.0, duration_seconds=100)
+        phase = dict(t10.summarize(phase_requests, 50), started_at_unix=2000.0, duration_seconds=50)
+        samples = [(1031.0, 400.0), (2021.0, 400.0)]
+        self.assertEqual(t10.verdict(baseline, phase)['result'], 'fail')
+        adjusted = t10.stall_adjusted(baseline, phase, base_requests, phase_requests, samples)
+        self.assertEqual(adjusted['result'], 'pass')
+        self.assertEqual((adjusted['excluded_baseline_windows'], adjusted['excluded_phase_windows']), (1, 1))
+
+
+class ParserTests(unittest.TestCase):
+    # Fixed stdout-format samples, not claims of a T10 live measurement.
+    def test_docker_sample(self):
+        sample = '{"CPUPerc":"125.50%","BlockIO":"1.5MB / 2.0GiB"}'
+        self.assertEqual(t10.docker_metrics(sample), dict(cpu_percent=125.5,
+                         block_read_bytes=1500000, block_write_bytes=2 * 1024**3))
+
+    def test_postgres_sample(self):
+        self.assertEqual(t10.sql_metrics('postgres', ' 120|43|2|1048576\n'),
+                         dict(backend_xmin_age=120, n_dead_tup=43, autovacuum_count=2,
+                              slot_retained_wal_bytes=1048576))
+
+    def test_mysql_sample(self):
+        self.assertEqual(t10.sql_metrics('mysql', 'Threads_running\t4\nInnodb_history_list_length\t83\n'),
+                         dict(Threads_running=4, Innodb_history_list_length=83, purge_backlog_transactions=83))
+
+    def test_oracle_sample(self):
+        self.assertEqual(t10.sql_metrics('oracle', '\n 2048|900|3\n\n'),
+                         dict(undo_blocks=2048, tuned_undoretention_seconds=900, ora_01555_count=3))
+
+    def test_missing_invalid_metrics_fail_closed(self):
+        for engine, sample in [('postgres', ''), ('postgres', '1|2|3'),
+                               ('postgres', '1|2|3|NaN'), ('oracle', 'ORA-00942'),
+                               ('mysql', 'Threads_running\t2')]:
+            with self.subTest(engine=engine, sample=sample), self.assertRaises((ValueError, KeyError)):
+                t10.sql_metrics(engine, sample)
+
+    def test_bad_block_io(self):
+        with self.assertRaises(ValueError):
+            t10.byte_size('unknown')
+        with self.assertRaises(ValueError):
+            t10.docker_metrics('{"CPUPerc":"NaN%","BlockIO":"0B / 0B"}')
+
+
+class SchedulerTests(unittest.TestCase):
+    def test_arrivals_do_not_wait_for_previous_completion(self):
+        def slow(_):
+            time.sleep(.025)
+        rows, duration = t10.open_loop(slow, 200, .05, workers=1)
+        rows.sort(key=lambda r: r['intended'])
+        self.assertEqual(len(rows), 10)
+        self.assertAlmostEqual(rows[-1]['intended'], .045)
+        self.assertGreater(rows[-1]['actual'] - rows[-1]['intended'], .1)
+        self.assertGreater(rows[-1]['end'], duration)
+
+    def test_fixed_schedule_fake_clock(self):
+        now = [0.0]
+        def sleep(delta):
+            now[0] += delta
+        rows, duration = t10.open_loop(lambda _: None, 2, 2, clock=lambda: now[0], sleep=sleep, workers=1)
+        self.assertEqual(sorted(r['intended'] for r in rows), [0, .5, 1, 1.5])
+        self.assertEqual(duration, 2)
+
+    def test_errors_retained_without_driver_message(self):
+        def bad(_):
+            raise ValueError('sensitive driver details')
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(r['error'] == 'ValueError' for r in rows))
+        self.assertNotIn('sensitive', json.dumps(rows))
+
+    def test_only_allowlisted_oracle_codes_survive_error_sanitizing(self):
+        class DriverError:
+            full_code = 'ORA-00020'
+            def __str__(self):
+                return 'sensitive driver details'
+        def bad(_):
+            raise RuntimeError(DriverError())
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError:ORA-00020' for r in rows))
+        self.assertNotIn('sensitive', json.dumps(rows))
+        DriverError.full_code = 'ORA-00020 sensitive details'
+        rows, _ = t10.open_loop(bad, 100, .02, workers=1)
+        self.assertTrue(all(r['error'] == 'RuntimeError' for r in rows))
+
+    def test_completion_driven_phase(self):
+        done = threading.Event()
+        rows, _ = t10.open_loop(lambda _: done.set(), 100, None, finished=done, workers=1)
+        self.assertGreaterEqual(len(rows), 1)
+        self.assertLess(len(rows), 10)
+
+    def test_overload_is_explicit_not_dropped(self):
+        now = [0.0]
+        gate = threading.Event()
+        def sleep(delta):
+            now[0] += delta
+        def slow(_):
+            gate.wait(.05)
+        with patch.object(t10, 'BACKLOG_SECONDS', 0.01):  # backlog beyond the bound
+            rows, _ = t10.open_loop(slow, 1000, .1, clock=lambda: now[0], sleep=sleep, workers=1)
+        self.assertEqual(len(rows), 100)
+        self.assertTrue(any(r['error'] == 'scheduler_queue_full' for r in rows))
+
+    def test_calibration_refuses_unproven_capacity(self):
+        with self.assertRaisesRegex(RuntimeError, 'capacity_not_found'):
+            t10.calibrate(lambda _: None, seconds=.001, levels=(1,))
+
+    def test_calibration_errors_fail(self):
+        with self.assertRaisesRegex(RuntimeError, 'calibration_errors'):
+            t10.calibrate(lambda _: 1 / 0, seconds=.01, levels=(1,))
+
+    def test_calibration_uses_one_sequence_despite_unequal_worker_speeds(self):
+        seen = []
+        def work(index):
+            seen.append(index)
+            time.sleep(.001 if index % 2 else .0001)
+        with self.assertRaisesRegex(RuntimeError, 'capacity_not_found'):
+            t10.calibrate(work, seconds=.03, levels=(4,))
+        self.assertGreater(len(seen), 10)
+        self.assertEqual(sorted(seen), list(range(len(seen))))
+
+    def test_calibration_plateau_and_55_percent(self):
+        with patch.object(t10, 'ThreadPoolExecutor') as executor, \
+                patch.object(t10.time, 'monotonic', side_effect=[0, 0, 1, 2, 2, 3, 4, 4, 5]):
+            executor.return_value.__enter__.return_value.map.side_effect = [
+                [(100, 0)], [(200, 0)], [(205, 0)]]
+            result = t10.calibrate(lambda _: None)
+        self.assertEqual(result['capacity'], 205)
+        self.assertAlmostEqual(result['rate'], 112.75)
+        self.assertEqual(len(result['samples']), 3)
+
+
+class CLITests(unittest.TestCase):
+    def argv(self):
+        return ['--engine', 'postgres', '--version', '17', '--evidence',
+                str(t10.runner.ROOT / 'evidence' / 'unit-not-created')]
+
+    def test_defaults(self):
+        args = t10.parse_args(self.argv())
+        self.assertEqual(args.phases, list(t10.PHASES))
+        self.assertEqual(args.minutes, 10)
+        self.assertEqual(args.rate, 'auto')
+
+    def test_explicit_rate_and_engine_versions(self):
+        for engine, version in [('mysql', '8.4'), ('oracle', '23'), ('postgres', '17')]:
+            argv = self.argv() + ['--engine', engine, '--version', version, '--rate', '42']
+            self.assertEqual(t10.parse_args(argv).rate, 42)
+
+    def test_c5_variants_option(self):
+        self.assertEqual(t10.parse_args(self.argv()).c5_variants, t10.C5_PHASES)
+        args = t10.parse_args(self.argv() + ['--c5-variants', 'c5_changed,c5_full_changed'])
+        self.assertEqual(args.c5_variants, ('c5_changed', 'c5_full_changed'))
+        for bad in ('', 'c5_typo', 'c5_idle,c5'):
+            with self.subTest(bad=bad), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                t10.parse_args(self.argv() + ['--c5-variants', bad])
+
+    def test_reject_invalid(self):
+        for extra in [['--minutes', '0'], ['--minutes', 'nan'], ['--cpus', '-1'],
+                      ['--rate', 'inf'], ['--rate', 'bad'], ['--memory', '0g'],
+                      ['--phases', 'initial'], ['--phases', 'baseline,c1,c1'],
+                      ['--phases', 'baseline,typo'], ['--version', 'bad'],
+                      ['--engine', 'oracle', '--version', '11'], ['--evidence', '/tmp/outside']]:
+            with self.subTest(extra=extra), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                t10.parse_args(self.argv() + extra)
+
+    def test_unpatched_loader_refused_before_docker(self):
+        with patch.object(t10.subprocess, 'run', return_value=argparse.Namespace(stdout='oo-load --help')):
+            with patch.object(t10, 'ImpactSource') as source:
+                with self.assertRaisesRegex(SystemExit, 'duty-cycle'):
+                    t10.main(self.argv())
+                source.assert_not_called()
+
+    def test_busy_host_refused_without_creating_resources(self):
+        busy = argparse.Namespace(stdout='unrelated-container\t42.0%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[
+                argparse.Namespace(stdout='--duty-cycle-percent'), busy, busy, busy]) as run, \
+                patch.object(t10.importlib, 'import_module'), \
+                patch.object(t10, 'ImpactSource') as source:
+            with self.assertRaisesRegex(SystemExit, 'not idle; nothing stopped'):
+                t10.main(self.argv())
+            source.assert_not_called()
+            self.assertEqual(run.call_args.args[0][:3], ['docker', 'stats', '--no-stream'])
+
+    def test_raised_quiet_limit_is_recorded_and_still_refuses_above_it(self):
+        light = argparse.Namespace(stdout='customer-a\t9.80%\ncustomer-b\t5.10%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host()
+        with patch.object(t10.subprocess, 'run', side_effect=[light, light, light]):
+            seen = t10.quiet_host(limit=25)
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 9.8,
+                                'total_peak_cpu_percent': 14.9, 'limit_cpu_percent': 25})
+        self.assertNotIn('customer', json.dumps(seen))
+        busy = argparse.Namespace(stdout='customer-a\t30.0%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[busy, busy, busy]):
+            with self.assertRaisesRegex(SystemExit, 'not idle'):
+                t10.quiet_host(limit=25)
+        with self.assertRaises(SystemExit):
+            t10.parse_args(self.argv() + ['--quiet-cpu-percent', 'nan'])
+
+    def test_idle_preexisting_containers_are_recorded_not_stopped(self):
+        idle = argparse.Namespace(stdout='customer-a\t0.00%\ncustomer-b\t0.01%\n')
+        with patch.object(t10.subprocess, 'run', side_effect=[idle, idle, idle]) as run:
+            seen = t10.quiet_host()
+        self.assertEqual(seen, {'count': 2, 'peak_cpu_percent': 0.01})
+        self.assertNotIn('customer', json.dumps(seen))
+        self.assertTrue(all(call.args[0][:2] == ['docker', 'stats'] for call in run.call_args_list))
+
+
+class BacklogTests(unittest.TestCase):
+    def test_short_stall_is_latency_not_overload(self):
+        clock = {'now': 0.0}
+        def work(index):
+            if index == 0:
+                clock['now'] += 2.0  # one two-second stall
+        requests, _ = t10.open_loop(work, 5000, 1, clock=lambda: clock['now'],
+                                    sleep=lambda d: clock.__setitem__('now', clock['now'] + d), workers=1)
+        self.assertFalse([r for r in requests if r['error'] == 'scheduler_queue_full'])
+        self.assertGreaterEqual(max(r['latency_ms'] for r in requests), 1000)
+
+
+class SettleTests(unittest.TestCase):
+    def test_phase_rate_is_half_settled_not_half_burst_capacity(self):
+        calibration = {'capacity': 1000, 'rate': 550,
+                       'settle': {'rate': 269.5, 'trials': [{'rate': 269.5, 'errors': 0}]}}
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+        self.assertEqual(calibration['capacity'], 1000)
+        self.assertEqual(calibration['rate'], 550)
+        self.assertEqual(calibration['settled_rate'], 269.5)
+        self.assertEqual(calibration['settle']['trials'], [{'rate': 269.5, 'errors': 0}])
+        self.assertEqual(calibration['load_fraction'], .5)
+        self.assertEqual(calibration['used_rate'], 134.75)
+        # Re-rendering a receipt must not halve the offered rate again.
+        self.assertEqual(t10.foreground_rate(calibration), 134.75)
+
+    def test_closes_connections_between_trials_and_after_success(self):
+        active = []
+        def loop(work, rate, seconds):
+            self.assertEqual(active, [])
+            active.extend(range(64))
+            return [dict(error='scheduler_queue_full' if rate > 70 else None)], seconds
+        result = t10.settle(None, 100, loop=loop, close=active.clear)
+        self.assertEqual(result['rate'], 70)
+        self.assertEqual(active, [])
+
+    def test_failed_settle_preserves_sanitized_trials_and_closes_connections(self):
+        close = Mock()
+        loop = lambda work, rate, seconds: ([dict(error='OperationalError')], seconds)
+        with self.assertRaises(t10.SettleFailure) as raised:
+            t10.settle(None, 100, loop=loop, tries=2, close=close)
+        self.assertEqual(close.call_count, 2)
+        self.assertEqual([t['rate'] for t in raised.exception.trials], [100, 70])
+        self.assertEqual(raised.exception.trials[0]['error_counts'], {'OperationalError': 1})
+
+    def test_closes_connections_when_trial_raises(self):
+        close = Mock()
+        with self.assertRaises(ValueError):
+            t10.settle(None, 100, loop=Mock(side_effect=ValueError), close=close)
+        close.assert_called_once_with()
+
+    def test_steps_down_until_a_sustained_trial_is_error_free(self):
+        def loop(work, rate, seconds):
+            error = 'scheduler_queue_full' if rate > 50 else None
+            return [dict(error=error), dict(error=None)], seconds
+        result = t10.settle(None, 100, loop=loop)
+        self.assertAlmostEqual(result['rate'], 49.0)
+        self.assertEqual([t['errors'] for t in result['trials']], [1, 1, 0])
+
+    def test_refuses_when_no_rate_is_sustainable(self):
+        loop = lambda work, rate, seconds: ([dict(error='x')], seconds)
+        with self.assertRaisesRegex(RuntimeError, 'no_sustainable_rate'):
+            t10.settle(None, 100, loop=loop, tries=2)
+
+
+class IntegrationContractTests(unittest.TestCase):
+    def test_invalid_baseline_cannot_start_product_comparison(self):
+        result = dict(requests=100, errors=0, achieved_rate=100, p95_ms=10, p99_ms=20,
+                      product_errors=[], metrics={'errors': [], 'samples': [{}]})
+        self.assertTrue(t10.valid_baseline(result))
+        for change in ({'errors': 1}, {'requests': 0}, {'product_errors': ['RuntimeError']},
+                       {'metrics': {'errors': ['missing'], 'samples': [{}]}},
+                       {'metrics': {'errors': [], 'samples': []}}):
+            self.assertFalse(t10.valid_baseline(dict(result, **change)))
+
+    def test_insert_keys_survive_calibration_and_phase_boundaries(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            statements = []
+            for _ in range(3):
+                work = t10.Workload(run)
+                work.local.conn = MagicMock()
+                cursor = work.local.conn.cursor.return_value.__enter__.return_value
+                for index in (9, 19):
+                    work(index)
+                    statements.append(cursor.execute.call_args.args[0])
+            self.assertEqual(len(set(statements)), 6)
+            for key, statement in enumerate(statements, t10.SCALE + 1):
+                self.assertIn(f'VALUES({key},', statement)
+
+    def test_connections_open_before_the_phase_clock_and_are_reused(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', argparse.Namespace())
+            work = t10.Workload(run)
+            opened = []
+            work.connect = lambda: opened.append(MagicMock()) or opened[-1]
+            work.warm(3)
+            self.assertEqual(len(opened), 3)
+            workers = [threading.Thread(target=work, args=(0,)) for _ in range(3)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join()
+            # Every measured request used a pre-opened connection.
+            self.assertEqual(len(opened), 3)
+            self.assertTrue(all(c.cursor.called for c in opened))
+            work(0)  # a fourth worker thread still connects lazily
+            self.assertEqual(len(opened), 4)
+
+    def test_phase_warms_writer_connections_before_measuring(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, \
+                patch.object(t10, 'Meter') as meter, patch.object(t10, 'open_loop') as loop:
+            h = Mock()
+            h.run.path = Path(tmp)
+            work = Mock()
+            order = []
+            work.warm.side_effect = lambda n: order.append(('warm', n))
+            def measure(*args, on_start, **kwargs):
+                order.append('measure')
+                on_start()
+                return [], 1.0
+            loop.side_effect = measure
+            meter.return_value.finish.return_value = {'samples': [], 'errors': [], 'peaks': {}}
+            t10.phase(h, 'baseline', work, 100, .02, lambda: None, 100000)
+            self.assertEqual(order, [('warm', t10.DEFAULT_WORKERS), 'measure'])
+
+    def test_c5_compares_both_policies_with_independent_baselines(self):
+        from unittest.mock import Mock
+        h = Mock()
+        policies = []
+        def measure(h, name, work, rate, seconds, action, sequence):
+            action()
+            return {'phase': name}
+        with patch.object(t10, 'phase', side_effect=measure), \
+                patch.object(t10, 'loader', side_effect=lambda *args: policies.append(args[-1])):
+            results = t10.c5_phases(h, 42, 24, 10_000_000)
+        self.assertEqual(tuple(results), t10.C5_PHASES)
+        self.assertEqual(policies, [{'cycle': 1, 'full_read_every': p} for p in (24, 24, 1, 1)])
+        self.assertEqual([r['c5_policy'] for r in results.values()], policies)
+        self.assertEqual([r['c5_cycles'] for r in results.values()], [1, 1, 1, 1])
+        self.assertEqual([call.args for call in h.snapshot.call_args_list], [
+            ('t10_c5_idle', ['bulk']),
+            ('t10_c5_changed', ['bulk', 'items', 'other']),
+            ('t10_c5_full_idle', ['bulk']),
+            ('t10_c5_full_changed', ['bulk', 'items', 'other'])])
+        self.assertEqual(h.src.call_count, 2)
+
+    def test_c5_variants_remeasure_only_the_named_sub_phases(self):
+        h = Mock()
+        with patch.object(t10, 'phase', side_effect=lambda h, name, *a: {'phase': name}), \
+                patch.object(t10, 'loader'):
+            results = t10.c5_phases(h, 42, 24, 10_000_000,
+                                    only=('c5_changed', 'c5_full_changed'))
+        self.assertEqual(tuple(results), ('c5_changed', 'c5_full_changed'))
+        self.assertEqual([r['c5_policy']['full_read_every'] for r in results.values()], [24, 1])
+        self.assertEqual([call.args[0] for call in h.snapshot.call_args_list],
+                         ['t10_c5_changed', 't10_c5_full_changed'])
+
+    def test_c5_repeats_whole_cycles_until_the_phase_is_long_enough(self):
+        now = [0.0]
+        def run_cycle(policy):
+            now[0] += 20
+        policies = t10.c5_cycles(run_cycle, 24, 50, clock=lambda: now[0])
+        self.assertEqual(policies, [{'cycle': n, 'full_read_every': 24} for n in (1, 2, 3)])
+        # Period 1 reads in full every cycle; zero seconds keeps one cycle.
+        self.assertEqual(t10.c5_cycles(run_cycle, 1, 0, clock=lambda: now[0]),
+                         [{'cycle': 1, 'full_read_every': 1}])
+
+    def test_failed_preparation_preserves_remaining_c5_policies(self):
+        h = Mock()
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            h.run.path = Path(tmp)
+            h.snapshot.side_effect = [RuntimeError('sensitive'), None, None, None]
+            with patch.object(t10, 'phase', return_value={'phase': 'measured'}) as measure:
+                result = t10.c5_phases(h, 42, 24, 100)
+            failed = result['c5_idle']
+            self.assertTrue(failed['preparation_failed'])
+            self.assertEqual(failed['requests'], 0)
+            self.assertEqual(failed['product_errors'], ['RuntimeError'])
+            self.assertEqual(t10.verdict(failed, failed)['result'], 'fail')
+            self.assertNotIn('sensitive', (h.run.path / 'c5_idle.json').read_text())
+            self.assertEqual(measure.call_count, 3)
+            self.assertEqual(len(result), 4)
+
+    def test_phase_retains_product_failure_and_closes_writer(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp, patch.object(t10, 'Meter') as meter:
+            h = Mock()
+            h.run.path = Path(tmp)
+            work = Mock()
+            meter.return_value.finish.return_value = {'samples': [], 'errors': ['missing'], 'peaks': {}}
+            def fail():
+                raise RuntimeError('not logged')
+            result = t10.phase(h, 'baseline', work, 100, .02, fail, 100000)
+            self.assertEqual(result['product_errors'], ['RuntimeError'])
+            self.assertEqual(result['metrics']['errors'], ['missing'])
+            self.assertTrue((Path(tmp) / 'baseline-requests.json').exists())
+            work.close.assert_called_once()
+
+    def test_source_limits_and_lane_labels(self):
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            args = argparse.Namespace(cpus=2.5, memory='6g')
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', args)
+            with patch.object(t10.t1, 'LANE', 't10'), patch.object(t10.runner.Run, 'command', return_value=(0, '')) as call:
+                run.command(['docker', 'create', '--name', run.name, '--label', 'oo.lane=h', 'image'])
+                command = call.call_args.args[-1]
+                self.assertIn('oo.lane=t10', command)
+                self.assertEqual(command[command.index('--cpus')+1], '2.5')
+                self.assertEqual(command[command.index('--memory')+1], '6g')
+                self.assertIn('wal_level=logical', command)
+                self.assertNotIn('shared_preload_libraries=pg_stat_statements', command)
+
+    def test_diagnose_adds_postgres_statistics_only_when_asked(self):
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            args = argparse.Namespace(cpus=4, memory='8g', diagnose=True)
+            run = t10.ImpactSource(Path(tmp), 'postgres', '17', args)
+            with patch.object(t10.t1, 'LANE', 't10'), patch.object(t10.runner.Run, 'command', return_value=(0, '')) as call:
+                run.command(['docker', 'create', '--name', run.name, '--label', 'oo.lane=h', 'image'])
+                command = call.call_args.args[-1]
+                self.assertIn('shared_preload_libraries=pg_stat_statements', command)
+                self.assertIn('log_autovacuum_min_duration=0', command)
+
+    def test_mysql_source_is_sized_and_keeps_default_durability(self):
+        with tempfile.TemporaryDirectory(dir=t10.runner.ROOT) as tmp:
+            args = argparse.Namespace(cpus=4, memory='8g')
+            run = t10.ImpactSource(Path(tmp), 'mysql', '8.4', args)
+            with patch.object(t10.t1, 'LANE', 't10'), patch.object(t10.runner.Run, 'command', return_value=(0, '')) as call:
+                run.command(['docker', 'create', '--name', run.name, '--label', 'oo.lane=h', 'image'])
+                command = call.call_args.args[-1]
+                self.assertIn('--innodb-redo-log-capacity=4294967296', command)
+                self.assertIn('--innodb-buffer-pool-size=4294967296', command)
+                self.assertIn('--binlog-group-commit-sync-delay=1000', command)
+                self.assertIn('--log-bin=oo-bin', command)
+                self.assertFalse(any('flush-log-at-trx-commit' in c or 'sync-binlog' in c for c in command))
+
+    def test_loader_duty100_requires_receipt(self):
+        from unittest.mock import Mock
+        h = Mock()
+        h.argv.return_value = ['oo-load']
+        h.run.command.return_value = (0, '{"read_budget":{"duty_cycle_percent":25}}')
+        with self.assertRaisesRegex(RuntimeError, 'duty100_not_confirmed'):
+            t10.loader(h, 'source', 'run', duty100=True)
+        self.assertEqual(h.run.command.call_args.args[0][-2:], ['--duty-cycle-percent', '100'])
+
+    def test_loader_rejects_structured_errors_and_empty_output(self):
+        from unittest.mock import Mock
+        h = Mock()
+        h.argv.return_value = ['oo-load']
+        for output in ('', '{"error":"failed"}'):
+            h.run.command.return_value = (0, output)
+            with self.assertRaisesRegex(RuntimeError, 'missing_or_failed'):
+                t10.loader(h, 'source', 'run')
+
+    def test_product_defaults_not_overridden(self):
+        from unittest.mock import Mock
+        h = Mock()
+        h.argv.return_value = ['oo-load', '--source', 'fixture']
+        h.run.command.return_value = (0, '{"read_budget":{"duty_cycle_percent":25}}')
+        t10.loader(h, 'source', 'run')
+        self.assertEqual(h.run.command.call_args.args[0], h.argv.return_value)
+
+
+if __name__ == '__main__':
+    unittest.main()

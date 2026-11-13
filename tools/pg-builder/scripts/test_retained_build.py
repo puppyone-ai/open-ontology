@@ -57,6 +57,19 @@ def cut(generation, rows=1, engine='postgres', data_type='bigint', column='amoun
             'attributes': [{'relname': physical, 'attname': mapped, 'data_type': data_type, 'not_null': True}]}
 
 
+class StructuralSeedTests(unittest.TestCase):
+    def test_structural_types_do_not_grant_pii_or_invent_business_units(self):
+        columns=[dict(name=name,data_type=kind,nullable=False,comment=None) for name,kind in
+                 [('id','bigint'),('amount','numeric(40,12)'),('day','date'),
+                  ('stamp','timestamp without time zone'),('active','boolean'),('note','text')]]
+        command=build.review_input([dict(dataset='app.items',primary_key=['id'],columns=columns)],{},'test')
+        output=command['effective']['datasets'][0]['columns']
+        self.assertEqual([c['semantic_type'] for c in output],
+                         ['identifier','quantity','date','event_time','boolean_flag','free_text'])
+        self.assertTrue(all(c['pii']=='restricted' for c in output))
+        self.assertTrue(all('unit' not in c and 'review' not in c for c in output))
+
+
 class Db:
     def __init__(self, metadata, rows=1, distinct=1):
         self.metadata, self.rows, self.distinct, self.queries = metadata, rows, distinct, []
@@ -71,6 +84,11 @@ class Db:
                 {'name': name, 'non_null': self.rows, 'distinct': self.distinct,
                  'min_length': 2 if self.rows else None, 'max_length': 2 if self.rows else None,
                  'blank_rows': 0, 'digits_rows': self.rows, 'leading_zero_rows': 0}]}
+        if "'entropy'" in sql:
+            return dict(rows=self.rows, non_null=self.rows, distinct=self.distinct,
+                        readable=0, phone=0, id_card=0, email=0, bank_card=0, entropy=0)
+        if "'distinct',count(distinct ROW(" in sql:
+            return dict(rows=self.rows, non_null=self.rows, distinct=self.distinct)
         raise AssertionError('unexpected query')
 
 
@@ -140,6 +158,41 @@ class RetainedRoute(unittest.TestCase):
 
 
 class RetainedBuild(unittest.TestCase):
+    def test_resume_copies_only_receipts_without_changing_failure_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = root / 'builder-failed-1/community/receipts'
+            old.mkdir(parents=True)
+            raw = b'{"accepted_hash":"must still be checked by Runner"}'
+            name = 'a' * 64 + '.json'
+            (old / name).write_bytes(raw)
+            (old.parent.parent / 'facts.json').write_text('not reusable')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertEqual((output / 'community/receipts' / name).read_bytes(), raw)
+            self.assertEqual((old / name).read_bytes(), raw)
+            self.assertFalse((output / 'facts.json').exists())
+            self.assertEqual((output / 'community/receipts' / name).stat().st_mode & 0o777, 0o600)
+
+    def test_resume_refuses_symlinks_and_unexpected_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'builder-failed-1/community/receipts'
+            source.mkdir(parents=True)
+            (source / 'unexpected.json').write_text('{}')
+            output = root / 'builder'
+            output.mkdir()
+            with self.assertRaisesRegex(ValueError, 'retained_cache_name'):
+                build.restore_receipts(output)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'builder-failed-1').symlink_to(root, target_is_directory=True)
+            output = root / 'builder'
+            output.mkdir()
+            with self.assertRaisesRegex(ValueError, 'retained_cache_symlink'):
+                build.restore_receipts(output)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -182,8 +235,32 @@ class RetainedBuild(unittest.TestCase):
                     {'name': 'amount', 'data_type': data_type}]}]}}}
 
     def run_build(self, generation, origin=None):
-        with patch.object(build.lib, 'ReadOnlyPostgres', return_value=Db(cut(generation))):
+        original = build.review_input
+        def review_input(tables, draft, project):
+            # Supply the real graph shape omitted by the old replay stubs.
+            return original(tables, dict(draft, graph={"edges": []}), project)
+        with patch.object(build.lib, 'ReadOnlyPostgres', return_value=Db(cut(generation))), patch.object(
+                build, 'review_input', side_effect=review_input):
             return build.run(self.config(generation, origin), self.root / ('out-%d' % generation))
+
+    def test_removing_dictionary_definitions_requires_new_review(self):
+        draft = ({'protocol': 'oo.selfbuild.community-draft/v1'}, 2)
+        with patch.object(build, 'draft', return_value=draft):
+            self.run_build(1)
+        reviewed = self.reviewed()
+        reviewed['command'] = {'adjudication_input': json.dumps({
+            'adjudication_specs': {'dictionary_bindings': [{'id': 'previous'}]}})}
+        origin = {
+            'facts': self.pin('old-facts.json', json.loads(
+                (self.root / 'out-1/facts.json').read_text())),
+            'reviewed_registry': self.pin('old-reviewed.json', reviewed),
+        }
+        with patch.object(build, 'draft', return_value=draft) as model:
+            second = self.run_build(2, origin)
+        model.assert_called_once()
+        self.assertEqual(second['stage'], 'review_required')
+        command = json.loads((self.root / 'out-2/review-input.json').read_text())
+        self.assertNotIn('dictionary_bindings', command.get('adjudication_specs', {}))
 
     def test_data_only_cycle_reuses_review_with_zero_model_calls(self):
         with patch.object(build, 'draft', return_value=({'protocol': 'oo.selfbuild.community-draft/v1'}, 2)) as model:
@@ -192,6 +269,10 @@ class RetainedBuild(unittest.TestCase):
         command = json.loads((self.root / 'out-1/review-input.json').read_text())
         self.assertEqual(command['effective']['datasets'][0]['columns'][0]['data_type'], 'bigint')
         self.assertEqual(command['visibility']['role'], 'oo_r_owner')
+        decisions = json.loads((self.root / 'out-1/adjudication.json').read_text())
+        self.assertEqual(decisions['input_sha256'], hashlib.sha256(
+            (self.root / 'out-1/review-input.json').read_bytes()).hexdigest())
+        self.assertEqual({i['class'] for i in decisions['items']}, {'sensitive', 'entity_key'})
         origin = {'facts': self.pin('facts.json', json.loads((self.root / 'out-1/facts.json').read_text())),
                   'reviewed_registry': self.pin('reviewed.json', self.reviewed())}
         with patch.object(build, 'draft', side_effect=AssertionError('model called')):
@@ -225,6 +306,48 @@ class RetainedBuild(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'retained_origin_review_required'):
             build.reviewed_shape(bad, current)
 
+
+    def test_confirmed_origin_replays_compiler_before_data_only_reuse(self):
+        current = facts(cut(1))
+        command = build.review_input(build.inventory(current), {'graph': {'edges': []}}, 'test')
+        command['adjudication_replica'] = cut(1)
+        raw = build.lib.canonical(command)
+        document = build.adjudication.collect(
+            Db(cut(1)), command, current['tables'], hashlib.sha256(raw.encode()).hexdigest())
+        overrides = dict(protocol='oo.adjudication-override/v1',
+                         summary_sha256=document['summary_sha256'], items={})
+        confirmation = dict(protocol='oo.publish-confirm/v1',
+                            summary_sha256=document['summary_sha256'],
+                            overrides_sha256=build.lib.digest(overrides),
+                            reason='Synthetic confirmation', confirmed_at='2026-11-09T12:00:00Z')
+        envelope = dict(adjudication_input=raw, adjudication=document,
+                        overrides=overrides, confirmation=confirmation)
+        compiled = build.lib.selfbuild_budget.bridge('reviewed', command=envelope)
+        reviewed = dict(protocol='oo.owner-reviewed-registry/v1', status='reviewed',
+                        published=False, authentication='not_claimed', review_decision=confirmation,
+                        command=envelope, compiled=compiled)
+        origin = dict(facts=self.pin('facts.json', current),
+                      reviewed_registry=self.pin('reviewed.json', reviewed))
+        with patch.object(build, 'draft', side_effect=AssertionError('model called')):
+            result = self.run_build(2, origin)
+        self.assertEqual((result['stage'], result['model_calls']), ('data_only', 0))
+        compiled['effective']['datasets'][0]['columns'][0]['data_type'] = 'text'
+        with self.assertRaisesRegex(ValueError, 'retained_origin_compiled_mismatch'):
+            build.reviewed_shape(reviewed, current)
+        confirmation['summary_sha256'] = '0' * 64
+        with self.assertRaises(ValueError):
+            build.reviewed_shape(reviewed, current)
+
+    def test_changed_retained_cut_never_writes_adjudication(self):
+        config = self.config(1)
+        current, before = build.facts_for(Db(cut(1)), json.loads(config.read_text()))
+        after = dict(before, receipt_sha256='0' * 64)
+        with patch.object(build.lib, 'ReadOnlyPostgres', return_value=Db(cut(1))), \
+                patch.object(build, 'facts_for', side_effect=[(current, before), (current, after)]), \
+                patch.object(build, 'draft', return_value=({'graph': {'edges': []}}, 0)):
+            with self.assertRaisesRegex(ValueError, 'adjudication_retained_cut_changed'):
+                build.run(config, self.root / 'changed-cut')
+        self.assertFalse((self.root / 'changed-cut/adjudication.json').exists())
 
 if __name__ == '__main__':
     unittest.main()

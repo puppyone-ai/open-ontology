@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ read-only checks ··········· ·     advice only; oo never runs DBA statements │
+│                                                                              │
+│ PostgreSQL localhost:5432 / logistics · oo_reader                            │
+│                                                                              │
+│ ✓ source source                                                              │
+│ ! access         missing SELECT on lg.audit_trail                            │
+│                  fix GRANT SELECT ON lg.audit_trail TO oo_reader;            │
+│ ✓ model probe                                                                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ⏎ continue  esc quit  ───────────────────────────────────────────────────────╯

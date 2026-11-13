@@ -1,0 +1,26 @@
+--- a/crates/oo-connectors/src/engine/shape.rs
++++ b/crates/oo-connectors/src/engine/shape.rs
+@@ -15,7 +15,7 @@
+         DurationMicros => "interval".into(),
+         TimestampMicrosNaive => "timestamp".into(),
+         TimestampMicrosUtc => "timestamptz".into(),
+-        Decimal128 { precision, scale } => {
++        Decimal128 { precision, scale } | Decimal256 { precision, scale } => {
+             if *scale < 0 {
+                 format!("numeric({},0)", i16::from(*precision) - i16::from(*scale))
+             } else {
+@@ -33,6 +33,14 @@
+ 
+     #[test]
+     fn chunk_storage_does_not_preserve_source_varchar_limits() {
++        assert_eq!(
++            target_type(&ArrowPhysical::Decimal256 {
++                precision: 40,
++                scale: 12
++            })
++            .unwrap(),
++            "numeric(40,12)"
++        );
+         assert_eq!(target_type(&ArrowPhysical::Utf8).unwrap(), "text");
+         assert_eq!(target_type(&ArrowPhysical::Int32).unwrap(), "integer");
+         assert_eq!(target_type(&ArrowPhysical::Int64).unwrap(), "bigint");

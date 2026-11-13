@@ -60,6 +60,13 @@ def fixture():
 
 class RelatedDb(Db):
     def query(self, sql):
+        if 'from pg_views' in sql:
+            return []
+        if 'from pg_extension' in sql:
+            return None
+        if "'entropy'" in sql:
+            return dict(rows=2, non_null=2, distinct=2, readable=0, max_length=1,
+                        phone=0, id_card=0, email=0, bank_card=0, entropy=1)
         if "'columns'," in sql and 'pg_current_snapshot' in sql:
             self.queries.append(sql)
             mappings = [m for m in self.metadata['mappings']
@@ -68,6 +75,11 @@ class RelatedDb(Db):
                 dict(name=m['logical_column'], non_null=2, distinct=2, min_length=1,
                      max_length=1, blank_rows=0, digits_rows=2, leading_zero_rows=0)
                 for m in mappings])
+        if sql.startswith('select (with c as'):
+            return dict(child_rows=2, empty_rows=0, child_distinct=2, non_blank_rows=2,
+                        matched_distinct=2, matched_rows=2, max_fanout=1, parent_rows=2,
+                        parent_empty_rows=0, parent_distinct=2, parent_duplicate_keys=0,
+                        parent_normalized_distinct=2, scope={})
         if "'non_null_rows'" in sql:
             return dict(non_null=2, matched=2, non_null_rows=2, matched_rows=2)
         if "'distinct'" in sql:
@@ -111,15 +123,15 @@ class RetainedCatalog(unittest.TestCase):
         # Existing generation equivalence remains covered by test_retained_build.
         self.assertEqual(semantics.data_only_digest(facts(cut(1))),
                          semantics.data_only_digest(facts(cut(2))))
-        # Gold values from the card's base commit, not refreshed by this change.
+        # Gold values of oo.library.data-only-semantics/v2 (key quality added in V3-G-01).
         for engine, expected in {
-            'postgres': 'c412c1956e8d7cef50b63d143c729966eb44243b6f8f896ba3966066338df87f',
-            'mysql': '059f73795be5a993aa9fca6cd95e18c475db773bfe3fc44897d29556482e93cd',
-            'oracle': '135786bcee3d43c0ca1017f2ff823fc64dce24b704b9f568c17ae372698c227c',
+            'postgres': '6a273dabbc86b5cc96c9e1a5a44402533c0bcaf597feb86266c9c19732592dc7',
+            'mysql': '0aceda0264368de5ac0aa08f3d700aaec6cff96ccb8fefa6ea8a5cb31db205ea',
+            'oracle': 'c1a652ffd78714025af4618d6fd29fab0abb0482f3285167e25f41c733a2581c',
         }.items():
             self.assertEqual(semantics.data_only_digest(facts(cut(1, engine=engine), engine)), expected)
         self.assertEqual(semantics.data_only_digest(current),
-                         '43ed0f668e9f5e41cd83b81ed0ede5ae918371fe7ce78cbe4722a2ae44759937')
+                         '2eeb6aea7955e49bda8ba0efc47164cd31c8c1bfb79ec95d5392d6da49654be6')
         self.assertNotEqual(semantics.data_only_digest(current),
                             semantics.data_only_digest(self.observed()))
 
@@ -208,7 +220,7 @@ class RetainedCatalog(unittest.TestCase):
         path = self.root / 'config.json'
         path.write_text(json.dumps(config))
         with patch.object(build.lib, 'ReadOnlyPostgres', return_value=RelatedDb(self.metadata)), \
-                patch.object(build, 'draft', return_value=({}, 0)):
+                patch.object(build, 'draft', return_value=({'graph': {'edges': []}}, 0)):
             result = build.run(path, self.root / 'output')
         self.assertEqual(result['stage'], 'review_required')
         command = json.loads((self.root / 'output/review-input.json').read_text())

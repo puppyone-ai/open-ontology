@@ -1,6 +1,20 @@
 use super::*;
 
 pub(super) trait Epoch: SourceEngine {
+    async fn prepare_table(
+        &mut self,
+        _table: &TableRef,
+        _budget: &ReadBudget,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+    fn consistency(&self) -> &'static str {
+        "B"
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        None
+    }
+
     async fn close_source(&mut self) {}
 
     async fn epoch(
@@ -10,8 +24,15 @@ pub(super) trait Epoch: SourceEngine {
         tables: &[TableRef],
     ) -> Result<String, String>;
 
-    /// Catalog fingerprint for engines whose epoch does not cover columns.
-    async fn shape(&mut self, _table: &TableRef) -> Result<Option<String>, String> {
+    /// The C5 lineage this table would have stored before the sealed column
+    /// catalog (migration 0129): the epoch with the table's catalog shape
+    /// folded in. `None` where no such format existed.
+    async fn legacy_lineage(
+        &mut self,
+        _source: &Source,
+        _store: &SecretStore,
+        _table: &TableRef,
+    ) -> Result<Option<String>, String> {
         Ok(None)
     }
 
@@ -22,17 +43,12 @@ pub(super) trait Epoch: SourceEngine {
     }
 }
 
-/// C5 lineage: instance epoch plus, where separate, the table's catalog shape.
-/// Rename/widen/nullability DDL can leave every range digest equal; a changed
-/// shape must refuse (`c5_rebaseline_required_lineage`), never publish stale columns.
-pub(super) fn c5_lineage(epoch: String, shape: Option<String>) -> String {
-    match shape {
-        Some(shape) => format!("{epoch}{SHAPE}{shape}"),
-        None => epoch,
-    }
-}
-
 const SHAPE: &str = "#shape:";
+
+/// MySQL/Oracle C5 lineage before 0129: epoch, marker, shape fingerprint.
+fn legacy(epoch: String, shape: String) -> String {
+    format!("{epoch}{SHAPE}{shape}")
+}
 
 /// The instance epoch part of a stored C5 lineage, for C5-to-C1 handoff.
 pub(super) fn epoch_part(lineage: &str) -> &str {
@@ -40,6 +56,35 @@ pub(super) fn epoch_part(lineage: &str) -> &str {
 }
 
 impl Epoch for PostgresEngine {
+    async fn prepare_table(&mut self, table: &TableRef, budget: &ReadBudget) -> Result<(), String> {
+        self.prepare_table_snapshot(table, budget)
+            .await
+            .map_err(|e| e.to_string())
+    }
+    fn consistency(&self) -> &'static str {
+        self.read_consistency()
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
+    }
+
+    async fn legacy_lineage(
+        &mut self,
+        source: &Source,
+        store: &SecretStore,
+        table: &TableRef,
+    ) -> Result<Option<String>, String> {
+        // Before 0129 the PostgreSQL C5 lineage kept each relation's column,
+        // type, nullability and primary-key array as its third element.
+        self.close_idle_session().await.map_err(|e| e.to_string())?;
+        let mut control = source_control_connection(source, store).await?;
+        let result = sync::lineage(&mut control, std::slice::from_ref(table))
+            .await
+            .map_err(String::from);
+        control.close().await.map_err(|_| "epoch_source_close")?;
+        result.map(Some)
+    }
+
     fn adopt_plan(&mut self, plan: &engine::TableChunkPlan) -> Result<(), String> {
         self.adopt_keyset_plan(plan).map_err(|e| e.to_string())
     }
@@ -56,11 +101,38 @@ impl Epoch for PostgresEngine {
             .await
             .map_err(String::from);
         control.close().await.map_err(|_| "epoch_source_close")?;
-        result
+        // The column catalog is compared by the shared projection classifier.
+        // Keep instance/timeline/database and relation identity in this fence.
+        let mut value: serde_json::Value =
+            serde_json::from_str(&result?).map_err(|_| "epoch_shape")?;
+        if let Some(relations) = value.get_mut(1).and_then(|v| v.as_array_mut()) {
+            for relation in relations {
+                relation.as_array_mut().ok_or("epoch_shape")?.truncate(2);
+            }
+        } else {
+            return Err("epoch_shape".into());
+        }
+        serde_json::to_string(&value).map_err(|_| "epoch_shape".into())
     }
 }
 
 impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
+    async fn prepare_table(
+        &mut self,
+        _table: &TableRef,
+        _budget: &ReadBudget,
+    ) -> Result<(), String> {
+        self.prepare_table_snapshot()
+            .await
+            .map_err(|e| e.to_string())
+    }
+    fn consistency(&self) -> &'static str {
+        self.read_consistency()
+    }
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
+    }
+
     async fn close_source(&mut self) {
         self.close().await;
     }
@@ -74,17 +146,21 @@ impl Epoch for oo_connectors::mysql::engine::MysqlEngine {
         self.source_epoch().await.map_err(|e| e.to_string())
     }
 
-    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
-        self.table_shape(table)
-            .await
-            .map(Some)
-            .map_err(|e| e.to_string())
+    async fn legacy_lineage(
+        &mut self,
+        _: &Source,
+        _: &SecretStore,
+        table: &TableRef,
+    ) -> Result<Option<String>, String> {
+        let epoch = self.source_epoch().await.map_err(|e| e.to_string())?;
+        let shape = self.table_shape(table).await.map_err(|e| e.to_string())?;
+        Ok(Some(legacy(epoch, shape)))
     }
 }
 
 impl Epoch for oo_connectors::oracle::engine::OracleEngine {
-    async fn shape(&mut self, table: &TableRef) -> Result<Option<String>, String> {
-        self.table_shape(table).map(Some).map_err(|e| e.to_string())
+    fn take_chunk_proof(&mut self) -> Option<engine::RangeDigest> {
+        self.last_chunk_digest.take()
     }
 
     async fn epoch(
@@ -95,6 +171,17 @@ impl Epoch for oo_connectors::oracle::engine::OracleEngine {
     ) -> Result<String, String> {
         self.source_epoch().map_err(|e| e.to_string())
     }
+
+    async fn legacy_lineage(
+        &mut self,
+        _: &Source,
+        _: &SecretStore,
+        table: &TableRef,
+    ) -> Result<Option<String>, String> {
+        let epoch = self.source_epoch().map_err(|e| e.to_string())?;
+        let shape = self.table_shape(table).map_err(|e| e.to_string())?;
+        Ok(Some(legacy(epoch, shape)))
+    }
 }
 
 #[cfg(test)]
@@ -102,12 +189,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shape_is_part_of_c5_lineage_but_not_of_the_handoff_epoch() {
-        let a = c5_lineage("uuid".into(), Some("s1".into()));
-        let b = c5_lineage("uuid".into(), Some("s2".into()));
-        assert_ne!(a, b);
-        assert_eq!(epoch_part(&a), "uuid");
-        assert_eq!(c5_lineage("pg".into(), None), "pg");
+    fn legacy_lineage_is_the_pre_0129_format() {
+        let stored = legacy("uuid".into(), "s1".into());
+        assert_eq!(stored, "uuid#shape:s1");
+        assert_eq!(epoch_part(&stored), "uuid");
+        assert_ne!(stored, legacy("uuid".into(), "s2".into()));
+    }
+
+    #[test]
+    fn legacy_shape_suffix_is_not_part_of_the_handoff_epoch() {
+        assert_eq!(epoch_part("uuid#shape:s1"), "uuid");
         assert_eq!(epoch_part("pg"), "pg");
     }
 }

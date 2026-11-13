@@ -38,7 +38,7 @@
       "properties": {
         "secret_ref": {
           "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9_-]{0,63}|env:[A-Za-z_][A-Za-z0-9_]{0,127}|file:/[^\\u0000-\\u001f\\u007f]+)$"
         }
       },
       "required": [
@@ -201,6 +201,11 @@
         },
         "sync": {
           "$ref": "#/$defs/sync"
+        },
+        "snapshot": {
+          "type": "string",
+          "enum": ["chunk_consistent", "single"],
+          "default": "chunk_consistent"
         }
       },
       "required": [

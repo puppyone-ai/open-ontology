@@ -2,8 +2,8 @@
 use std::sync::Arc;
 
 use arrow_array::{
-    Array, ArrayRef, BinaryArray, Decimal128Array, Float64Array, Int64Array, StringArray,
-    TimestampMicrosecondArray,
+    Array, ArrayRef, BinaryArray, Decimal128Array, Decimal256Array, Float64Array, Int64Array,
+    StringArray, TimestampMicrosecondArray,
 };
 use arrow_schema::{DataType, Field, TimeUnit};
 use sha2::{Digest, Sha256};
@@ -15,6 +15,7 @@ pub(super) fn data_type(kind: &str, precision: Option<u8>, scale: Option<i8>) ->
         "NUMBER" | "INTEGER" => match (precision, scale) {
             (Some(1..=18), Some(0)) => DataType::Int64,
             (Some(p @ 1..=38), Some(s)) if s <= p as i8 => DataType::Decimal128(p, s),
+            (Some(p @ 39..=76), Some(s)) if s <= p as i8 => DataType::Decimal256(p, s),
             _ => DataType::Utf8,
         },
         "BINARY_FLOAT" | "BINARY_DOUBLE" => DataType::Float64,
@@ -49,6 +50,25 @@ pub(super) fn array(field: &Field, values: Vec<Option<String>>) -> Result<ArrayR
             Decimal128Array::from(convert(&|v| super::arrow_part::coefficient(v, *p, *s))?)
                 .with_precision_and_scale(*p, *s)
                 .map_err(|_| bad())?,
+        ),
+        DataType::Decimal256(p, s) => Arc::new(
+            Decimal256Array::from(
+                values
+                    .iter()
+                    .map(|v| {
+                        v.as_deref()
+                            .map(|v| {
+                                super::arrow_part::coefficient_text(v, *p, *s)
+                                    .map_err(|_| bad())?
+                                    .parse::<arrow_buffer::i256>()
+                                    .map_err(|_| bad())
+                            })
+                            .transpose()
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+            .with_precision_and_scale(*p, *s)
+            .map_err(|_| bad())?,
         ),
         DataType::Float64 => Arc::new(Float64Array::from(
             values
@@ -137,6 +157,13 @@ pub(super) fn hash_cell(hash: &mut Sha256, col: &ArrayRef, row: usize) -> Result
             .value(row)
             .to_be_bytes()
             .to_vec(),
+        DataType::Decimal256(..) => col
+            .as_any()
+            .downcast_ref::<Decimal256Array>()
+            .unwrap()
+            .value(row)
+            .to_be_bytes()
+            .to_vec(),
         DataType::Float64 => col
             .as_any()
             .downcast_ref::<Float64Array>()
@@ -182,6 +209,41 @@ mod tests {
         )
         .field(0)
         .clone()
+    }
+
+    #[test]
+    fn wide_numeric_mapping_preserves_digits_and_digest() {
+        for p in [40, 65, 76] {
+            for s in [0, 12, p as i8, -2] {
+                let f = field("NUMBER", Some(p), Some(s));
+                assert_eq!(f.data_type(), &DataType::Decimal256(p, s));
+                for coefficient in ["0".to_owned(), "1".to_owned(), "9".repeat(p as usize)] {
+                    for negative in [false, true] {
+                        let value =
+                            oo_core::ExactDecimal::new(negative, coefficient.clone(), i32::from(s))
+                                .unwrap()
+                                .to_string();
+                        let a = array(&f, vec![Some(value), None]).unwrap();
+                        let expected = format!("{}{coefficient}", if negative { "-" } else { "" })
+                            .parse::<arrow_buffer::i256>()
+                            .unwrap();
+                        assert_eq!(
+                            a.as_any()
+                                .downcast_ref::<Decimal256Array>()
+                                .unwrap()
+                                .value(0),
+                            expected
+                        );
+                        let mut hash = Sha256::new();
+                        hash_cell(&mut hash, &a, 0).unwrap();
+                        let mut null = Sha256::new();
+                        hash_cell(&mut null, &a, 1).unwrap();
+                        assert_ne!(hash.finalize(), null.finalize());
+                    }
+                }
+                assert!(array(&f, vec![Some("9".repeat(100))]).is_err());
+            }
+        }
     }
 
     #[test]

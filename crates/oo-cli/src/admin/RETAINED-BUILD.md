@@ -11,6 +11,16 @@ login, and writes the Gateway operator directory, `target.json`,
 `work/operator`, plus `work/build/stack.json` (loopback source hosts become
 `host.docker.internal`). It reports `retained_ready`.
 
+Input model and source credentials (including absolute `file:` references)
+are copied only into the deployment-specific private directory under
+`$HOME/.config/open-ontology/deployments/`, outside every Git worktree.
+Directories are 0700 and files 0600. Compose services and one-shot build
+phases mount those files read-only over empty placeholders in `home`.
+The runtime stack contains only renamed references; `owner.json` binds the
+original stack hash and mount paths, not credential bytes. Changed credential
+bytes require explicit rotation. `oo status` exposes only whether model
+sources are configured. A HOME inside Git is rejected for these copies.
+
 `oo build` then runs each phase as a one-shot container of the pinned runtime
 image with the deployment's `work`, `home` and read-only `pki` mounts. Before
 the first publication it joins the deployment network and verifies the

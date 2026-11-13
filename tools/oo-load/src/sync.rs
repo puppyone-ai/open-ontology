@@ -26,21 +26,35 @@ struct Target<'a, 's> {
     store: &'s SecretStore,
     lineage: String,
     tables: Vec<TableRef>,
+    engine: PostgresEngine,
+    admission: c1::Admission,
 }
 impl engine_sync::Target for Target<'_, '_> {
     async fn position(&mut self) -> engine_load::Result<Watermark> {
         self.sink.position().await
     }
+    async fn feedback_position(&mut self) -> engine_load::Result<Watermark> {
+        self.sink.feedback_position().await
+    }
     async fn apply(&mut self, from: &Watermark, batch: &ChangeBatch) -> engine_load::Result<()> {
+        let started = std::time::Instant::now();
         // Recheck after capture and before target commit, not only after commit
         // while sending feedback. A detected epoch change must not enter data.
         let mut control = source_control_connection(self.source, self.store)
             .await
             .map_err(|_| "sync_lineage_control")?;
-        if lineage(&mut control, &self.tables).await? != self.lineage {
+        if capture_lineage(&mut control, &self.tables).await? != self.lineage {
             return Err("sync_rebaseline_required_lineage");
         }
         control.close().await.map_err(|_| "sync_lineage_control")?;
+        let shape = c1::check_shapes(&mut self.engine, &self.admission, &self.budget, batch).await;
+        self.engine
+            .close_idle_session()
+            .await
+            .map_err(|_| "sync_source_close")?;
+        // Pace these source checks here; target work below is not source work.
+        pace(started, self.budget.duty_cycle_percent).await;
+        shape?;
         let mut images = Vec::new();
         let mut bytes = 0u64;
         for image in &batch.images {
@@ -57,6 +71,54 @@ impl engine_sync::Target for Target<'_, '_> {
         }
         self.sink.apply(from, batch, &images).await
     }
+}
+
+/// Sleep so that the work since `started` is `duty` percent of the elapsed time.
+async fn pace(started: std::time::Instant, duty: u8) {
+    let duty = u32::from(duty.clamp(1, 100));
+    tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
+}
+
+/// Each source operation of a step is paced once, where it runs: the capture
+/// read and the slot feedback pace themselves, the retention check here and
+/// the lineage/shape checks in `Target::apply`. Pacing the whole step again
+/// would charge target writes and those sleeps as source work a second time.
+struct Paced<'c> {
+    changes: &'c mut PostgresChanges,
+    duty: u8,
+}
+
+impl ChangeSource for Paced<'_> {
+    async fn earliest_available(&mut self) -> Result<Watermark, oo_connectors::SourceError> {
+        let started = std::time::Instant::now();
+        let result = self.changes.earliest_available().await;
+        pace(started, self.duty).await;
+        result
+    }
+
+    async fn next_batch(
+        &mut self,
+        from: &Watermark,
+        budget: &ReadBudget,
+    ) -> Result<Option<ChangeBatch>, oo_connectors::SourceError> {
+        self.changes.next_batch(from, budget).await
+    }
+}
+
+async fn capture_lineage(
+    conn: &mut PgConnection,
+    tables: &[TableRef],
+) -> engine_load::Result<String> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(&lineage(conn, tables).await?).map_err(|_| "sync_lineage")?;
+    for relation in value
+        .get_mut(1)
+        .and_then(|v| v.as_array_mut())
+        .ok_or("sync_lineage")?
+    {
+        relation.as_array_mut().ok_or("sync_lineage")?.truncate(2);
+    }
+    serde_json::to_string(&value).map_err(|_| "sync_lineage")
 }
 
 struct Feedback {
@@ -126,7 +188,7 @@ impl engine_sync::Feedback for Feedback {
         let result = super::bounded(
             super::SOURCE_CONTROL_TIMEOUT,
             async {
-                if lineage(&mut self.connection, &self.tables).await? != self.lineage {
+                if capture_lineage(&mut self.connection, &self.tables).await? != self.lineage {
                     return Err("sync_rebaseline_required_lineage");
                 }
                 let Watermark::PgLsn { lsn } = durable else {
@@ -188,10 +250,82 @@ pub(super) async fn run(
     let mut feedback_conn = source_control_connection(source, store).await?;
     let mut tables = tables.to_vec();
     tables.sort();
-    let live_lineage = lineage(&mut feedback_conn, &tables).await?;
+    let live_lineage = capture_lineage(&mut feedback_conn, &tables).await?;
     let binding = super::binding(source)?;
     let durable_lineage = serde_json::to_string(&(&live_lineage, &sync.slot, &sync.publication))
         .map_err(|_| "sync_lineage")?;
+    // Pre-0129 bindings stored relation shapes in the lineage (see c1::prepare).
+    let legacy_lineage = serde_json::to_string(&(
+        lineage(&mut feedback_conn, &tables).await?,
+        &sync.slot,
+        &sync.publication,
+    ))
+    .map_err(|_| "sync_lineage")?;
+    let mut conn = target_connection(target, store).await?;
+    let mut engine = PostgresEngine::new(config.clone());
+    let mut admission = c1::prepare(
+        &mut engine,
+        &mut conn,
+        source,
+        &tables,
+        target,
+        budget,
+        &durable_lineage,
+        Some(&legacy_lineage),
+        &sync.initial_position,
+    )
+    .await?;
+    if let Some(code) = admission.replay {
+        conn.close().await.map_err(|_| "sync_target_close")?;
+        feedback_conn
+            .close()
+            .await
+            .map_err(|_| "sync_source_close")?;
+        return c1::outcome(code);
+    }
+    for table in admission.repairs.clone() {
+        let mut repair_changes = PostgresChanges::new(
+            config.clone(),
+            CaptureConfig {
+                slot: sync.slot.clone(),
+                publication: sync.publication.clone(),
+                required_wal_headroom: sync.required_wal_headroom,
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        repair_changes.quarantine(tables.iter().filter(|t| **t != table).cloned().collect());
+        let repaired = c1_repair::run(
+            &mut engine,
+            &mut repair_changes,
+            &mut conn,
+            source,
+            store,
+            &tables,
+            &table,
+            target,
+            budget,
+            &durable_lineage,
+            &sync.initial_position,
+        )
+        .await;
+        c1::finish_repair(
+            &mut conn,
+            source,
+            &tables,
+            &durable_lineage,
+            &sync.initial_position,
+            &mut admission,
+            table,
+            repaired,
+        )
+        .await?;
+    }
+    // Feedback remains connected; do not retain a third metadata reader
+    // while the bounded capture session is active.
+    engine
+        .close_idle_session()
+        .await
+        .map_err(|e| e.to_string())?;
     let mut changes = PostgresChanges::new(
         config,
         CaptureConfig {
@@ -201,12 +335,12 @@ pub(super) async fn run(
         },
     )
     .map_err(|e| e.to_string())?;
+    changes.quarantine(admission.quarantined.clone());
     changes
         .earliest_available()
         .await
         .map_err(|e| e.to_string())?;
-    let mut conn = target_connection(target, store).await?;
-    let sink = PgSync::open(
+    let mut sink = PgSync::open(
         &mut conn,
         &binding,
         &durable_lineage,
@@ -214,6 +348,19 @@ pub(super) async fn run(
         &sync.initial_position,
     )
     .await?;
+    changes.projections(sink.projections());
+    changes.table_positions(
+        sink.table_positions()
+            .await?
+            .into_iter()
+            .map(|table| {
+                let Watermark::PgLsn { lsn } = table.position else {
+                    return Err("sync_position_kind");
+                };
+                Ok((table.table, lsn))
+            })
+            .collect::<Result<_, &str>>()?,
+    );
     let mut target = Target {
         sink,
         budget: budget.clone(),
@@ -221,6 +368,8 @@ pub(super) async fn run(
         store,
         lineage: live_lineage.clone(),
         tables: tables.clone(),
+        engine,
+        admission,
     };
     let mut feedback = Feedback {
         connection: feedback_conn,
@@ -235,17 +384,19 @@ pub(super) async fn run(
     let duty = u32::from(budget.duty_cycle_percent);
     tokio::time::sleep(setup_started.elapsed() * (100 - duty) / duty).await;
     let mut batches = 0;
-    while batches < sync.max_batches {
-        let started = std::time::Instant::now();
+    let mut paced = Paced {
+        changes: &mut changes,
+        duty: budget.duty_cycle_percent,
+    };
+    while batches < sync.max_batches && target.admission.quarantined.len() < target.tables.len() {
         let result = engine_sync::step(
-            &mut changes,
+            &mut paced,
             &mut target,
             &mut feedback,
             budget,
             engine_sync::at_or_after,
         )
         .await;
-        tokio::time::sleep(started.elapsed() * (100 - duty) / duty).await;
         if !result? {
             break;
         }
@@ -263,6 +414,12 @@ pub(super) async fn run(
             "publication":"local_table_view", "gateway_published":false, "source_time":"unmeasured"
         })
     );
+    let outcome = c1::report(&mut target.sink, source, &target.admission).await;
+    target
+        .engine
+        .close_idle_session()
+        .await
+        .map_err(|e| e.to_string())?;
     drop(target);
     conn.close().await.map_err(|_| "sync_target_close")?;
     feedback
@@ -270,5 +427,5 @@ pub(super) async fn run(
         .close()
         .await
         .map_err(|_| "sync_source_close")?;
-    Ok(())
+    outcome
 }

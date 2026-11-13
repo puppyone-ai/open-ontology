@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ › paste or type a URL, JDBC URL, DATABASE_URL=… or host:port                 │
+│                                                                              │
+│                                                                              │
+│ engines                                                                      │
+│   ▐PG▌ PostgreSQL   13–18     ● verified                                     │
+│   ▐My▌ MySQL        5.7–9.5   ● verified                                     │
+│ ▸ ▐Or▌ Oracle       11g–23ai  ● verified                                     │
+│                                                                              │
+│   ◇ no database? try the demo                                                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ versions  11g● 19c● 21c● 23ai●   CDC varies by version                       │
+╰ ↑↓ choose  ⏎ next  › type or paste anything  esc quit  ──────────────────────╯

@@ -3,6 +3,81 @@
 Python 3 standard library + Docker CLI. No root Cargo dependency/lock changes.
 Run from this checkout; the tool resolves paths relative to its own file.
 
+## Stage timing (TA-01, initial instrumentation)
+
+```sh
+tools/oo-test/oo-test timing evidence/<run-id>
+tools/oo-test/oo-test timing evidence/<run-id> --json
+```
+
+`Run` source setup, seed, gold/shape comparisons and cleanup now record
+monotonic timings, including subclass overrides and exceptional exits.
+The T1 target lifecycle and row comparisons, T2 bulk seed, and T3/T4 target
+lifecycle and comparison methods use the same recorder. Synchronous native
+product commands through `Run.command` and matrix hook orchestration record
+`product_run`. T7 inherits the source/workload instrumentation.
+
+Each completed stage writes `timing.json` and embeds the same measurement
+in an existing `resource-receipt.json`. Stages missing instrumentation or not
+executed have `seconds: null`, not zero. `raised` counts exceptions, not failed
+suite verdicts: expected refusal commands can return nonzero without raising.
+Nested timings are exclusive within one call stack; parallel threads,
+subprocess hook receipts and different fixture receipts must not be summed
+as overall wall time. `wall_seconds` covers the timer's lifetime through its
+last completed stage, not necessarily the whole suite invocation.
+
+The summary reads existing evidence only, rejects paths outside this
+worktree's evidence tree, and exits nonzero for empty or legacy uninstrumented
+receipts. It is a timing inventory, not an acceptance gate.
+
+T3/T4 background product lifetimes are recorded from spawn through finish,
+including diagnostic exceptions, with `background: true`. These overlap
+foreground stages; adding their durations does not measure wall time.
+
+Instrumentation is not yet complete: inline T2 comparisons/setup,
+independent T5/T6 and installation runners, and
+T9/T10-specific setup/comparison work still need explicit stage boundaries.
+Inherited measurements do not establish complete suite-stage accounting.
+No fixture scale, verdict, fault, version selection or full command changes.
+No fast/full timing or coverage equivalence is claimed by this first slice.
+
+## Cold fixture snapshots (TA-01, opt-in)
+
+```sh
+tools/oo-test/oo-test snapshot --engine postgres --versions 13,14,15,16,17,18 --run-id ta-pg-build
+tools/oo-test/oo-test snapshot --engine postgres --versions 13,14,15,16,17,18 --run-id ta-pg-restore
+tools/oo-test/oo-test snapshot --engine mysql --versions 5.7,8.0,8.4,9 --run-id ta-mysql-build
+```
+
+This command builds or restores **source fixtures only**, not product-suite
+acceptance. Default dimensions are 2,000 rows and three small tables. All
+restores repeat the existing shape, read-only-grant and 20 gold-answer checks.
+Existing full-suite commands do not use this cache and remain unchanged.
+
+Snapshots live in ignored `evidence/ta-fixture-cache/`, under private parents.
+The key covers the pinned platform image digest, generator, preamble, gold SQL,
+runner code and fixture dimensions. A changed key builds a new snapshot.
+Per-key file locks serialize builders; metadata is published only after a
+stopped data directory and a labelled container image have been captured.
+Generated credentials stay in the private cache, never in the manifest.
+
+APFS `clonefile` (Linux `FICLONE`) restores the data directory without a
+full-copy fallback. Unsupported filesystems fail explicitly. External
+symlinks are rejected; only MySQL's known, transient socket link is removed
+after shutdown, since its entrypoint recreates it. Mutation of a clone does
+not alter the next restore (live PG 17/MySQL 8.4 checks).
+
+Resources are labelled `oo.lane=ta`; containers have explicit memory limits.
+The preflight refuses an occupied Oracle slot and a sampled total plus this
+container's reservation of 40 GiB or more. This is a preflight, not a global
+cross-lane scheduler or peak-memory proof. Only the current run's containers
+and mutable clone are removed; cold cache data and images intentionally remain.
+
+PG 13-18 and MySQL 5.7/8.0/8.4/9.5 cold/warm fixture checks passed locally.
+Oracle 11/19 EE/21/23 paths are selectable but **not live-validated**: the
+current host's Oracle slot is occupied by lane T. Linux reflink support is
+also untested. See `TA-01-SNAPSHOTS.md` for evidence and remaining exits.
+
 ```sh
 tools/oo-test/oo-test matrix --engine mysql --versions 5.7,8.0,8.4,9.x --suites T0
 tools/oo-test/oo-test matrix --engine postgres --versions 13,14,15,16,17,18 --suites T0

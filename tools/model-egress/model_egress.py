@@ -52,6 +52,12 @@ def private_open(path, flags=os.O_RDONLY, mode=0o600, directory=False):
 
 
 def read_key(name, root=None):
+    if isinstance(name, str) and name.startswith('file:'):
+        path = Path(name[5:])
+        if not path.is_absolute() or '..' in path.parts:
+            raise Refusal('SECRET_REFERENCE', 500)
+        with os.fdopen(private_open(path), 'rb') as stream:
+            return secret_text(stream.read(4098))
     if not isinstance(name, str) or not NAME.fullmatch(name):
         raise Refusal('SECRET_REFERENCE', 500)
     root = Path(root) if root is not None else Path.home() / '.config/open-ontology/secrets'
@@ -66,6 +72,9 @@ def read_key(name, root=None):
             raw = file.read(4098)
     finally:
         os.close(directory)
+    return secret_text(raw)
+
+def secret_text(raw):
     raw = raw.removesuffix(b'\n')
     if not raw or len(raw) > 4096 or any(b < 33 or b > 126 for b in raw):
         raise Refusal('SECRET_CONTENT', 500)

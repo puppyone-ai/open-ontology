@@ -288,3 +288,31 @@ PostgreSQL runner reuses the Gateway lifecycle assertions with native
 login/whoami/share-prompt/query invocations and records their counts. It creates
 and stops its own PostgreSQL cluster and Gateway. These tests do not prove
 cross-platform support, a real Agent session, or business-answer acceptance.
+
+## Named local profiles and installation checks
+
+`oo login --gateway URL --code-stdin --profile NAME --json` stores a named
+profile and returns a credential-free, same-machine `share_prompt`.
+Use `oo profile list`, `oo use NAME`, then `oo check --json`. An existing name
+is never implicitly overwritten. Legacy `oo configure` still selects the
+single `config.json` profile. Certificates stay local; no copying is needed
+between a local CLI and its MCP bridge.
+
+`oo mcp-config --agent claude|cursor|codex --profile NAME` renders configuration
+containing only `oo mcp --stdio --profile NAME`. The prebuilt bridge must be
+included by release staging. It uses the named profile, not whichever profile
+is later selected with `oo use`.
+
+After installation, run `oo install-check --json`. This offline check verifies
+packaged executable hashes and distinguishes an optional packaged MySQL doctor
+from the pinned Docker runtime fallback. `runtime_tested: false` is intentional:
+it does not contact Docker or a database and is not an engine-support claim.
+No npm lifecycle hook contacts the network or silently installs missing helpers.
+
+Stack secret references additionally accept `env:VARIABLE` and
+`file:/absolute/path`. External files must be owned by the user, be 0400 or
+0600 regular single-link files, and have no symlink path components. Reads do
+not chmod, copy, or print the file. Path-only consumers reject env references.
+Container/SSH mount and environment propagation still require explicit
+deployment integration; these forms do not silently grant a container access
+to host files or environment variables.

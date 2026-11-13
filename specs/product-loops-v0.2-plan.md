@@ -176,6 +176,14 @@ ID 格式 `S<sprint>-<车道>-<序号>`。“测试 / 退出”列末尾的 `AT-
 | S6-M-03 | M | **L1、L3 闭环独立审阅**（固定 SHA） | 审阅报告 | 阻断项清零 |
 | S6-B-01 | B | npm 发布 `@reduxxx888/ontology-cli@0.2.0`：`npm pack` → 空目录安装 → 全命令 → 同一 tarball 发布；报告精确版本与升级命令 | 发布记录 | 两架构安装验证 |
 | S6-M-04 | M | 核对本期所有设计变化均已当期回填原文档、Spec 与矩阵（D7）；来源基线升至最终 revision | docs、specs | 三个检查脚本通过；无“待回填”条目 |
+| S6-M-05 | M | 现场加固 1（D21）：lite 运行时镜像改为优化构建并保留 `debug-assertions`/`overflow-checks`；重签镜像、重打 npm 包 | deploy/lite/Dockerfile；镜像摘要 | 两架构 build；弱 CPU（2 vCPU 容器）Gateway 目录预热与查询时间对比 dev；最终验收 |
+| S6-M-06 | M | 现场加固 2a（D22）：同步按表隔离——单表失败不中断本源其他表，失败表记 `stale`（命名原因）并保留上一代数据；只要有新鲜表就以 `partial` 发布，release 带 `stale_tables`；源不可达等全局错误仍整期失败 | tools/oo-load、crates/oo-pipeline 发布路径、deploy/lite/scheduler.py 消费 | T9 隔离用例（权限拒绝、超时、结构漂移各一张表）在 PG/MySQL/Oracle；T2/T3/T7 回归 |
+| S6-M-07 | M | 现场加固 2b（D22）：结构变化按已发布投影分级——封印列目录作为目标库正式状态；`additive`、`unpublished_only` 放行；目标类型不变的加宽（字符串均为 `text`）放行；改变目标类型的兼容加宽按表重建到新物理代、发布原子切换；其余 `schema_drift:<列>:<种类>` 只让该表 stale；无封印目录记 `schema_unproven`，不猜 | migrations、tools/oo-load/src/c5.rs、epoch | T4 全部用例改为期望分级结果；T9 漂移用例；P0 全版本 T3/T4 重测 |
+| S6-G-01 | G | 现场加固 2c（D22）：语义复核按表——一张表的元数据（注释、外键）变化只把该表标为 `review_pending`，其余表照常按已审注册表发布；新列在审阅前不发布 | retained_build、scheduler data_only、review 输入 | 单测：改一表注释 → 仅该表 pending，其余 data_only；live PG 周期 |
+| S6-A-01 | A | 现场加固 3（D22）：状态语义拆分——`oo status` 给出 `data_published_at`、最近一期 `cycle.result`（succeeded/partial/review_required/failed）与原因、逐表 `stale`/`review_pending` 及原因；健康按服务与数据发布时间判定，`partial` 为降级而非失败；文档与故障排查同步 | crates/oo-cli、deploy/lite/lifecycle.py、docs/guide | 单测 + T9 状态用例；生成文档检查 |
+| S6-B-02 | B | 现场加固 4（D23）：发布绑定按逻辑身份校验——用 schema/关系名、relkind、列定义（序号、名称、`format_type`）、规范化视图定义与发布方写入的身份记录替代 OID、relfilenode、类型 OID；保持防替换（换表、改列、改视图仍拒绝）；`pg_dump`/`pg_restore` 与物理迁移后发布仍有效 | crates/oo-gateway/src/publication_binding.rs、migrations | 篡改负例全部仍拒绝；逻辑备份恢复后查询成功（T9）；Gateway 套件 |
+| S6-H-01 | H | 现场加固测试 T9 与回归：T9（单表隔离、结构分级、语义按表复核、状态语义、逻辑恢复）在 PG 17、MySQL 8.4、Oracle 23；固定 SHA 重测 P0 全版本 T2/T3/T4/T7；矩阵重生成；独立审阅 | tools/oo-test、evidence-index、matrix-baseline | 全部通过或命名残留；审阅无阻断项 |
+| S6-H-02 | H | 生产影响测试 T10（D24）：在源库持续前台 OLTP 负载下，分别测量首次全量拉库、C1、C5 对生产吞吐与延迟的影响，以及各引擎副作用（PG xmin/死元组/槽保留 WAL；MySQL history list/Threads_running；Oracle undo/ORA-01555/LogMiner CPU）；超出预算则落地缓解（C5 只重读变化范围、自适应限流、分块短事务+C5 修正替代长快照、备库读取、时间窗）并复测 | tools/oo-test/t10.py、证据、缓解代码与文档 | PostgreSQL 17、MySQL 8.4、Oracle 23（优先），前台 p95 增幅 ≤20%、p99 ≤50%、吞吐降幅 ≤5%、零前台错误，或命名残留与运维建议 |
 
 ## 5. 测试与校验方案
 
@@ -187,6 +195,27 @@ ID 格式 `S<sprint>-<车道>-<序号>`。“测试 / 退出”列末尾的 `AT-
 | L2 | token 五种操作成功与失败用例；过期、吊销、重复兑换、超寿命、错误 audience；CLI 到期预警；`/v1/meta` 版本拒绝；mTLS 到期告警；发布切换期间对话不断 | 执行者 B + 独立审阅 | 测试报告 |
 | L3 | P0 每个版本 T0–T8；P1 每个版本至少 T0–T2；矩阵由证据生成 | 夜间矩阵 + 主线程 | `evidence/<run-id>/` |
 | L4 | T1–T4 在并发写入与故障注入下零差异 | 引擎 owner | 比对报告 |
+
+现场加固测试清单（S6-M-05…S6-H-01，T9 由 `tools/oo-test` 新增；每项在 PostgreSQL 17、MySQL 8.4、Oracle 23 上运行，结构分级另覆盖 P0 全版本 T3/T4）：
+
+| 编号 | 场景 | 期望 |
+|---|---|---|
+| T9-01 | 一张表源端权限被收回，其余正常 | 该表 `stale: source_permission`，其余新鲜，`partial` 发布，查询该表返回上一代数据并带 stale 标记 |
+| T9-02 | 一张表读取超时（语句超时） | 该表 `stale: source_timeout`，下一期自动恢复 |
+| T9-03 | 末尾新增列 / 只改未发布列 | `additive` / `unpublished_only` 放行，新列不进入发布直至审阅 |
+| T9-04 | 已发布字符串列加宽 | 目标类型不变，放行，零重建 |
+| T9-05 | 已发布整数列加宽（目标类型改变） | 仅该表重建到新物理代，发布原子切换，切换前旧代继续服务 |
+| T9-06 | 已发布列删除 / 改名 / 改可空 | 仅该表 `stale: schema_drift:<列>:<种类>`，其余 partial 发布 |
+| T9-07 | 封印目录缺失 | `schema_unproven`，不猜 |
+| T9-08 | 一张表注释或外键变化 | 仅该表 `review_pending`，其余 data_only 发布 |
+| T9-09 | 状态语义 | `oo status` 给出数据发布时间、整期结果与逐表原因；partial 为降级，健康按数据发布时间 |
+| T9-10 | 目标库 `pg_dump`/`pg_restore` 恢复 | 发布绑定仍有效、查询成功；换表/改列/改视图篡改仍被拒绝 |
+| T9-11 | 全局错误（源不可达） | 整期 failed，不发布，数据发布时间不推进 |
+| T9-12 | 弱 CPU（2 vCPU 容器）Gateway 预热与查询 | 优化构建在预热上限内，记录对 dev 构建的倍数 |
+| T10-01 | 首次全量拉库 × 前台 OLTP | 记录基线与拉库期间 p50/p95/p99、吞吐、错误；源 CPU/IO；PG backend_xmin 年龄与热表死元组增长、MySQL history list length、Oracle undo 使用与 ORA-01555 |
+| T10-02 | C1 持续同步 × 前台 OLTP | 同上；PG 槽保留 WAL，Oracle LogMiner CPU |
+| T10-03 | C5 周期 × 前台 OLTP | 同上；空闲与有变化两种周期 |
+| T10-04 | 超预算时的缓解复测 | 同一负载下缓解后的同一组指标 |
 | L5 | 上千表夹具 T5；连通性指标；数据-only 周期零模型调用 | 执行者 G | 审核摘要、调用计量 |
 
 **每个 sprint 末**：主线程在 P0 全版本跑一次 T0–T5（本机原生 + amd64 仿真），把结果写入 `state.json`；未通过的项不进下个 sprint 的“已完成”。
@@ -243,6 +272,10 @@ Web UI；短期 access + refresh 轮换 token（v0.3 评估）；云数仓（Sno
 | D18 | tiny-keccak 的许可证 | MongoDB 驱动（仅 opt-in 的 document 源，P1）依赖 `tiny-keccak`（CC0-1.0，公共领域贡献，宽松但不在 OSI 列表）。所有者授权由协调者决定：仅对该 crate 例外，范围限于 opt-in 特性，不进入默认制品；最终 PR 标注供所有者复核 | S5-F-02；ci/deny.toml |
 | D19 | 所有者 CLI 链接源连接器 | `oo` 同时是 Agent 客户端和所有者部署 CLI：`doctor`/`oo init` 的只读源探测需要源驱动。v0.1 架构门 `R-CLIENT-DB-DRIVER` 禁止 oo-cli 触达数据库驱动，S0 起即被违反而未被车道门发现（最终门 E408 发现）。协调者决定：oo-cli 只能经 `oo-connectors` 触达驱动（直接依赖仍违规），oo-sdk/oo-mcp 规则不变；新增成员 `oo-stack` 与边 oo-cli→oo-connectors、oo-cli→oo-stack、oo-connectors→oo-stack；docs/17 回填，来源基线 revision 32。最终 PR 标注供所有者复核 | S6-M-04；crates/oo-arch-check |
 | D20 | zstd 发布期豁免 | `zstd` 0.13.4 / `zstd-safe` 7.4.0 是 RUSTSEC 修复版，mysql_common binlog（D10）必需；旧版带 5 个公告。所有者 2026-11-07 要求立即全绿发版，授权对这两个精确版本（绑定 crates.io 发布时间）豁免 7 天发布期；其他包规则不变；2026-11-08T14:12Z 后自然失效，届时删除 | S6-B-01；crates/xtask/src/supply.rs |
+| D21 | 交付构建默认优化 | 现场经验第 13 条：dev 构建在弱 CPU 上使 Gateway 目录预热超时、查询 12–20 秒。lite 镜像改为 release，并保留运行时检查（debug-assertions、overflow-checks）；CLI 原本即 release | S6-M-05 |
+| D22 | 故障按表隔离与状态分层 | 产品已声明逐表一致（`consistency=per_table`），故障应隔离到表：单表失败 stale 并保留上一代、其余 partial 发布；结构变化按已发布投影分级、证明而非推断；语义复核按表；状态分为数据发布时间、整期结果与逐表原因，告警按数据发布时间。依据现场经验第 1–9 条 | S6-M-06、S6-M-07、S6-G-01、S6-A-01 |
+| D23 | 发布绑定基于逻辑身份 | 现场经验第 14 条：OID/relfilenode 绑定使任何备份恢复、迁移、升级都让发布失效。改为逻辑身份 + 发布方身份记录，篡改检测能力不降低 | S6-B-02 |
+| D24 | 生产影响预算 | 产品读取生产库，首次全量与持续同步都不得明显影响源库正常吞吐：以前台负载 p95/p99 延迟与吞吐相对基线的变化为准（p95 ≤+20%、p99 ≤+50%、吞吐 ≤−5%、零错误），并披露长事务/日志保留等副作用；超出时优先降低读取（只读变化范围、自适应限流、短事务分块），再给出备库与时间窗建议。所有者 2026-11-08 要求 | S6-H-02 |
 
 ## 10. 提交规范
 

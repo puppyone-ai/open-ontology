@@ -38,6 +38,14 @@ struct Review {
 /// Converts a complete candidate registry only after independently supplied review.
 /// Existing classifications and grants are preserved, not inferred by this adapter.
 pub fn compile_reviewed_community(input: &Value) -> Result<Value, String> {
+    if input.get("adjudication").is_some()
+        || input.get("confirmation").is_some()
+        || input.get("adjudication_input").is_some()
+        || input.get("adjudication_replica").is_some()
+        || input.get("overrides").is_some()
+    {
+        return crate::adjudication::compile_confirmed_community(input);
+    }
     if input["protocol"] != "oo.builder.reviewed-community/v1" {
         return Err("community_review_protocol".into());
     }

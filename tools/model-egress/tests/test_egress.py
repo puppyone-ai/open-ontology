@@ -274,6 +274,21 @@ class Tests(unittest.TestCase):
         with self.assertRaises(Refusal):
             read_key('model-key', self.secrets)
 
+    def test_in_place_file_sources_keep_the_same_private_file_boundary(self):
+        reference = 'file:' + str(self.path)
+        self.assertEqual(read_key(reference), self.key)
+        self.path.chmod(0o644)
+        with self.assertRaisesRegex(Refusal, 'SECRET_PERMISSIONS'):
+            read_key(reference)
+        self.path.chmod(0o600)
+        link = self.root / 'external-link'
+        link.symlink_to(self.path)
+        with self.assertRaises(OSError):
+            read_key('file:' + str(link))
+        for reference in ('file:relative', 'file:/tmp/../secret'):
+            with self.assertRaisesRegex(Refusal, 'SECRET_REFERENCE'):
+                read_key(reference)
+
     def test_symlinked_ancestor_but_not_secret_directory_is_accepted(self):
         alias = self.root / 'alias'
         alias.symlink_to(self.root, target_is_directory=True)

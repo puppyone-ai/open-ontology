@@ -272,6 +272,15 @@ pub(crate) fn cell_text(
                 scale, coefficient, ..
             },
         ) => numeric_text(out, typmod, *scale, *coefficient)?,
+        (
+            1700,
+            NativeCell::Decimal256 {
+                scale, coefficient, ..
+            },
+        ) => {
+            let (negative, digits) = crate::native_arrow::i256_digits(coefficient);
+            numeric_digits(out, typmod, *scale, negative, &digits)?;
+        }
         (25 | 1042 | 1043 | 1083 | 1186 | 2950, NativeCell::Utf8(text)) => {
             escape(out, text.as_bytes())
         }
@@ -336,13 +345,32 @@ fn numeric_text(
     scale: i8,
     coefficient: i128,
 ) -> Result<(), &'static str> {
+    numeric_digits(
+        out,
+        typmod,
+        scale,
+        coefficient < 0,
+        &coefficient.unsigned_abs().to_string(),
+    )
+}
+
+fn numeric_digits(
+    out: &mut Vec<u8>,
+    typmod: i32,
+    scale: i8,
+    negative: bool,
+    digits: &str,
+) -> Result<(), &'static str> {
     if scale < 0 {
         // Negative-scale sources load into numeric(p+s,0): only scale 0 typmods fit.
         if typmod >= 4 && (typmod - 4) & 0xffff != 0 {
             return Err("precision");
         }
-        out.extend_from_slice(coefficient.to_string().as_bytes());
-        if coefficient != 0 {
+        if negative {
+            out.push(b'-');
+        }
+        out.extend_from_slice(digits.as_bytes());
+        if digits != "0" {
             out.extend(std::iter::repeat_n(b'0', (-i16::from(scale)) as usize));
         }
         return Ok(());
@@ -351,8 +379,7 @@ fn numeric_text(
     if typmod >= 4 && usize::try_from((typmod - 4) & 0xffff).ok() != Some(scale) {
         return Err("precision");
     }
-    let digits = coefficient.unsigned_abs().to_string();
-    if coefficient < 0 {
+    if negative {
         out.push(b'-');
     }
     if scale == 0 {

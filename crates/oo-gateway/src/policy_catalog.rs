@@ -30,6 +30,9 @@ use super::CompiledPolicy;
 #[path = "policy_catalog_snapshot.rs"]
 mod snapshot;
 
+#[path = "policy_casts.rs"]
+mod casts;
+
 #[cfg(test)]
 #[path = "policy_catalog_numeric_pg_tests.rs"]
 mod numeric_pg_tests;
@@ -230,6 +233,27 @@ pub const ADDITIONAL_AGGREGATE_SIGNATURES: &[(&str, &str, &str)] = &[("sum", "in
 pub const ADDITIONAL_SCALAR_SIGNATURES: &[(&str, &[&str], &str)] = &[
     ("abs", &["numeric"], "numeric"),
     ("to_char", &["timestamp", "text"], "text"),
+    ("extract", &["text", "date"], "numeric"),
+    ("extract", &["text", "timestamp"], "numeric"),
+    ("extract", &["text", "interval"], "numeric"),
+    ("date_part", &["text", "timestamp"], "float8"),
+    ("date_part", &["text", "interval"], "float8"),
+    ("lower", &["text"], "text"),
+    ("upper", &["text"], "text"),
+    ("length", &["text"], "int4"),
+    ("substring", &["text", "int4"], "text"),
+    ("substring", &["text", "int4", "int4"], "text"),
+    ("round", &["numeric", "int4"], "numeric"),
+    ("round", &["float8"], "float8"),
+    ("abs", &["int2"], "int2"),
+    ("abs", &["int4"], "int4"),
+    ("abs", &["int8"], "int8"),
+    ("abs", &["float8"], "float8"),
+    ("date_trunc", &["text", "timestamptz"], "timestamptz"),
+    ("extract", &["text", "timestamptz"], "numeric"),
+    ("date_part", &["text", "timestamptz"], "float8"),
+    ("to_char", &["numeric", "text"], "text"),
+    ("now", &[], "timestamptz"),
 ];
 
 /// Result inference is closed over the same signatures the live loader verifies.
@@ -261,15 +285,33 @@ pub(crate) fn builtin_function_result_type(function: &ResolvedFunction) -> Optio
             _ => *argument,
         });
     }
-    match function.name.as_str() {
-        "date_trunc" if args == &[Type::TEXT.oid(), Type::TIMESTAMP.oid()] => {
-            Some(Type::TIMESTAMP.oid())
-        }
-        "date" if args == &[Type::TIMESTAMP.oid()] => Some(Type::DATE.oid()),
-        "abs" if args == &[Type::NUMERIC.oid()] => Some(Type::NUMERIC.oid()),
-        "to_char" if args == &[Type::TIMESTAMP.oid(), Type::TEXT.oid()] => Some(Type::TEXT.oid()),
-        _ => None,
-    }
+    DAY_FUNCTION_SIGNATURES
+        .iter()
+        .chain(ADDITIONAL_SCALAR_SIGNATURES)
+        .find(|(name, inputs, _)| {
+            *name == function.name
+                && inputs.len() == args.len()
+                && inputs
+                    .iter()
+                    .zip(args)
+                    .all(|(name, oid)| Type::from_oid(*oid).is_some_and(|ty| ty.name() == *name))
+        })
+        .and_then(|(_, _, result)| {
+            [
+                Type::INT2,
+                Type::INT4,
+                Type::INT8,
+                Type::NUMERIC,
+                Type::FLOAT8,
+                Type::TEXT,
+                Type::DATE,
+                Type::TIMESTAMP,
+                Type::TIMESTAMPTZ,
+            ]
+            .into_iter()
+            .find(|ty| ty.name() == *result)
+            .map(|ty| ty.oid())
+        })
 }
 
 /// Type OID used for integer literals. Not a hard-coded PostgreSQL OID.
@@ -1033,6 +1075,7 @@ async fn load_in_snapshot(
     let types = load_types(tx).await?;
     let operators = load_operators(tx, &types, limits).await?;
     let functions = load_functions(tx, &types, limits).await?;
+    let casts = casts::load(tx).await?;
     let physical = snapshot::Relations::load(tx, bound, &index, limits).await?;
     let entries = vector.map(index_vector).transpose()?;
     let library = if let (Some(entries), Some(catalog)) = (entries.as_ref(), catalog)
@@ -1075,6 +1118,7 @@ async fn load_in_snapshot(
         relations,
         functions,
         operators,
+        casts,
         literal_types: LiteralTypes {
             integer: Some(integer),
             text: Some(text),
@@ -1584,14 +1628,23 @@ async fn load_scalar_function(
         .map(|kind| oid(*kind))
         .collect::<Result<Vec<_>, _>>()?;
     let result_oid = oid(result)?;
+    let stable_source = match (name, arguments) {
+        ("to_char", ["timestamp", "text"]) => "timestamp_to_char",
+        ("to_char", ["numeric", "text"]) => "numeric_to_char",
+        ("date_trunc", ["text", "timestamptz"]) => "timestamptz_trunc",
+        ("date_part", ["text", "timestamptz"]) => "timestamptz_part",
+        ("extract", ["text", "timestamptz"]) => "extract_timestamptz",
+        ("now", []) => "now",
+        _ => "",
+    };
+    let volatility = if stable_source.is_empty() { "i" } else { "s" };
     let rows = tx
         .query(
             "SELECT p.oid::int4 FROM pg_catalog.pg_proc p \
          JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace \
          JOIN pg_catalog.pg_language l ON l.oid=p.prolang \
          WHERE n.nspname='pg_catalog' AND p.proname=$1 AND p.prokind='f' \
-           AND ((p.proname='to_char' AND p.provolatile='s' AND p.prosrc='timestamp_to_char') \
-             OR (p.proname<>'to_char' AND p.provolatile='i')) \
+           AND p.provolatile::text=$4 AND ($5='' OR p.prosrc=$5) \
            AND NOT p.proretset AND NOT p.prosecdef \
            AND p.provariadic=0 AND p.proconfig IS NULL \
            AND p.pronargs=cardinality($2::int4[]) \
@@ -1604,7 +1657,13 @@ async fn load_scalar_function(
                  AND c.castmethod='f' AND c.castcontext='a' AND c.castfunc=p.oid \
                  AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d WHERE d.objid=c.oid \
                      AND d.classid='pg_catalog.pg_cast'::regclass AND d.deptype='e')))",
-            &[&name, &argument_oids, &result_oid],
+            &[
+                &name,
+                &argument_oids,
+                &result_oid,
+                &volatility,
+                &stable_source,
+            ],
         )
         .await
         .map_err(db_error)?;
@@ -2325,7 +2384,7 @@ mod tests {
 
     #[test]
     fn aggregate_catalog_has_exact_bounded_signatures() {
-        assert_eq!(FUNCTION_CATALOG_LIMIT, 33);
+        assert_eq!(FUNCTION_CATALOG_LIMIT, 54);
         assert_eq!(UNARY_AGGREGATE_SIGNATURES.len(), 26);
         let unique = UNARY_AGGREGATE_SIGNATURES.iter().collect::<BTreeSet<_>>();
         assert_eq!(unique.len(), UNARY_AGGREGATE_SIGNATURES.len());

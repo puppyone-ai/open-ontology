@@ -15,6 +15,8 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import stat
 from pathlib import Path
 import socket
 import subprocess
@@ -25,11 +27,12 @@ import time
 import library_selfbuild as lib
 import library_semantics as semantics
 import retained_observation
+import adjudication
 
 PROTOCOL = 'oo.builder.retained-build/v1'
 KEYS = {'protocol', 'psql_command', 'library_id', 'generation', 'source_engine', 'project'}
 OPTIONAL = {'origin', 'model', 'statement_timeout_ms', 'max_relationship_checks', 'min_enum_containment',
-            'source_catalog'}
+            'source_catalog', 'relationship_cache', 'dictionary_bindings_input'}
 
 
 def save(path, value):
@@ -50,11 +53,26 @@ def pinned(reference, limit=64_000_000):
         raise ValueError('retained_origin_digest')
     return raw
 
+def reviewed_dictionary_bindings(config):
+    if 'dictionary_bindings_input' not in config:
+        return []
+    document = json.loads(pinned(config['dictionary_bindings_input'], limit=262144))
+    if (set(document) != {'protocol', 'bindings'}
+            or document['protocol'] != 'oo.reviewed-dictionary-bindings/v1'
+            or not isinstance(document['bindings'], list)
+            or len(document['bindings']) > 128):
+        raise ValueError('retained_dictionary_bindings')
+    ids = [b.get('id') for b in document['bindings']]
+    if any(not isinstance(i, str) for i in ids) or len(ids) != len(set(ids)):
+        raise ValueError('retained_dictionary_bindings')
+    return document['bindings']
 
-def facts_for(db, config):
+
+def facts_for(db, config, previous=None, stale_tables=()):
     catalog = json.loads(pinned(config['source_catalog'])) if 'source_catalog' in config else None
     tables, provenance = retained_observation.observe(
-        db, config['library_id'], config['generation'], config['source_engine'], catalog)
+        db, config['library_id'], config['generation'], config['source_engine'], catalog,
+        previous=previous, stale_tables=stale_tables)
     facts = lib.build_facts(tables, lib.database_containment(db, config.get('max_relationship_checks', 65536)),
                             lib.database_enums(db, config.get('min_enum_containment', .5)))
     lib.require_complete_relationship_observations(facts)
@@ -63,14 +81,36 @@ def facts_for(db, config):
 
 def reviewed_shape(reviewed, facts):
     """Early refusal; the publisher re-binds every column/type to the cut itself."""
-    if (reviewed.get('protocol') != 'oo.owner-reviewed-registry/v1' or reviewed.get('status') != 'reviewed'
-            or reviewed.get('review_decision', {}).get('mode') != 'self'):
+    if reviewed.get('protocol') != 'oo.owner-reviewed-registry/v1' or reviewed.get('status') != 'reviewed':
+        raise ValueError('retained_origin_review_required')
+    decision = reviewed.get('review_decision', {})
+    if decision.get('protocol') == 'oo.publish-confirm/v1':
+        command = reviewed.get('command', {})
+        if (decision != command.get('confirmation') or reviewed.get('published') is not False
+                or reviewed.get('authentication') != 'not_claimed'):
+            raise ValueError('retained_origin_review_required')
+        # Replay the compiler gate; a protocol tag alone is not confirmation.
+        if lib.selfbuild_budget.bridge('reviewed', command=command) != reviewed.get('compiled'):
+            raise ValueError('retained_origin_compiled_mismatch')
+    elif decision.get('mode') != 'self':
         raise ValueError('retained_origin_review_required')
     effective = {d['dataset']: {c['name']: c.get('data_type') for c in d['columns']}
                  for d in reviewed['compiled']['effective']['datasets']}
     current = {t['dataset']: {c['name']: c['data_type'] for c in t['columns']} for t in facts['tables']}
-    if effective != current:
+    if not effective or any(not columns or name not in current or any(current[name].get(column) != kind
+                                                                     for column, kind in columns.items())
+           for name, columns in effective.items()):
         raise ValueError('retained_origin_shape_drift')
+
+
+def relationship_quality_pending(db, reviewed, facts, scope='library'):
+    """Adopted relationships of a confirmed review must still measure the same."""
+    document = reviewed.get('command', {}).get('adjudication')
+    if not isinstance(document, dict):
+        return []
+    drift = adjudication.relationship_quality_drift(db, document, facts['tables'])
+    return [{'table': scope, 'scope': 'library',
+             'changes': ['relationship_quality:' + r for r in drift]}] if drift else []
 
 
 def inventory(facts):
@@ -80,6 +120,23 @@ def inventory(facts):
                           for c in t['columns']], foreign_keys=t.get('foreign_keys', []))
             for t in facts['tables']]
 
+
+def storage_semantic(column, primary_key):
+    """Structural seed only; no code meaning, money unit or PII approval."""
+    if column['name'] in primary_key:
+        return 'identifier'
+    kind = column['data_type'].lower()
+    if kind == 'date':
+        return 'date'
+    if kind.startswith(('timestamp', 'datetime')):
+        return 'event_time'
+    if kind in ('bool', 'boolean'):
+        return 'boolean_flag'
+    if lib.numeric_type(kind):
+        return 'quantity'
+    if kind in ('json', 'jsonb'):
+        return 'json'
+    return 'free_text'
 
 def review_input(tables, draft, project):
     """oo review input. Most restrictive classification proposal; the owner decides."""
@@ -94,7 +151,8 @@ def review_input(tables, draft, project):
                          sample_values=dict(default='masked', max_per_column=0))),
         datasets=[dict(schema_version='oos/v1', dataset=t['dataset'], tier='file', label=t['dataset'],
             primary_key=t['primary_key'],
-            columns=[dict(name=c['name'], data_type=c['data_type'], pii='restricted', semantic_type='free_text')
+            columns=[dict(name=c['name'], data_type=c['data_type'], pii='restricted',
+                          semantic_type=storage_semantic(c, t['primary_key']))
                      for c in t['columns']]) for t in tables])
     for key in ('relationships', 'enums', 'glossary', 'entities', 'metrics', 'examples'):
         effective[key] = []
@@ -167,27 +225,73 @@ def draft(facts, config, output):
             egress.wait()
 
 
+def restore_receipts(output):
+    """Resume only model receipts; the Runner rechecks input hashes and semantics."""
+    candidates = []
+    for path in output.parent.glob(output.name + '-failed-*'):
+        suffix = path.name.removeprefix(output.name + '-failed-')
+        if suffix.isdigit() and 1 <= int(suffix) < 1000:
+            candidates.append((int(suffix), path))
+    if not candidates:
+        return
+    previous = max(candidates)[1]
+    source = previous / 'community' / 'receipts'
+    if any(p.is_symlink() for p in (previous, previous / 'community', source)):
+        raise ValueError('retained_cache_symlink')
+    if not source.exists():
+        return
+    files = sorted(source.iterdir())
+    if len(files) > 4096:
+        raise ValueError('retained_cache_budget')
+    target = output / 'community' / 'receipts'
+    target.mkdir(parents=True, mode=0o700)
+    total = 0
+    for path in files:
+        if not re.fullmatch(r'[0-9a-f]{64}\.json', path.name):
+            raise ValueError('retained_cache_name')
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8 * 1024 * 1024:
+                raise ValueError('retained_cache_file')
+            raw = stream.read(8 * 1024 * 1024 + 1)
+        total += len(raw)
+        if len(raw) > 8 * 1024 * 1024 or total > 64 * 1024 * 1024:
+            raise ValueError('retained_cache_budget')
+        with os.fdopen(os.open(target / path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
+            stream.write(raw)
+
+
 def run(config_path, output):
     config = json.loads(Path(config_path).read_text())
     if (config.get('protocol') != PROTOCOL or not KEYS <= set(config) or set(config) - KEYS - OPTIONAL
             or config['source_engine'] not in retained_observation.ENGINES):
         raise ValueError('retained_build_config')
+    dictionary_specs = reviewed_dictionary_bindings(config)
     output = Path(output)
     output.mkdir(mode=0o700)
+    restore_receipts(output)
     db = lib.ReadOnlyPostgres(config['psql_command'], config.get('statement_timeout_ms', 30000))
     facts, provenance = facts_for(db, config)
     current = semantics.data_only_digest(facts)
     save(output / 'facts.json', facts)
     report = dict(protocol=PROTOCOL, library_id=config['library_id'], generation=config['generation'],
                   source_engine=config['source_engine'], receipt_sha256=provenance['receipt_sha256'],
-                  facts_sha256=facts['facts_sha256'], data_only_digest=current, published=False)
+                  facts_sha256=facts['facts_sha256'], data_only_digest=current,
+                  table_data_only_digests=semantics.table_data_only_digests(facts), published=False)
     origin = config.get('origin')
     if origin is not None:
         if not isinstance(origin, dict) or set(origin) != {'facts', 'reviewed_registry'}:
             raise ValueError('retained_origin_pin')
         old = json.loads(pinned(origin['facts']))
         raw = pinned(origin['reviewed_registry'])
-        if semantics.data_only_digest(old) == current:
+        previous_command = json.loads(
+            json.loads(raw).get('command', {}).get('adjudication_input', '{}'))
+        previous_bindings = previous_command.get('adjudication_specs', {}).get('dictionary_bindings', [])
+        quality = (relationship_quality_pending(db, json.loads(raw), facts, 'library:' + config['library_id'])
+                   if semantics.data_only_digest(old) == current else [])
+        if (semantics.data_only_digest(old) == current and not quality
+                and 'dictionary_bindings_input' not in config
+                and not previous_bindings):
             reviewed_shape(json.loads(raw), facts)
             reuse = dict(protocol='oo.builder.retained-data-only/v1', origin_facts_sha256=old['facts_sha256'],
                          current_facts_sha256=facts['facts_sha256'], data_only_digest=current,
@@ -199,9 +303,15 @@ def run(config_path, output):
             return dict(report, stage='data_only', model_calls=0,
                         reviewed_registry=origin['reviewed_registry'])
         report['semantic_change'] = True
+        report['review_pending'] = quality + semantics.table_review_pending(old, facts)
     result, calls = draft(facts, config, output)
     save(output / 'draft.json', result)
     command = review_input(inventory(facts), result, config['project'])
+    if dictionary_specs:
+        command['adjudication_specs'] = {'dictionary_bindings': dictionary_specs}
+    command['adjudication_replica'] = provenance
+    if 'review_pending' in report:
+        command['review_pending'] = report['review_pending']
     if 'source_catalog' in config:
         # Evidence is visible and pinned by the owner's input digest, not approval.
         command['source_inventory'] = inventory(facts)
@@ -209,8 +319,20 @@ def run(config_path, output):
         command['excluded_foreign_keys'] = [
             dict(dataset=t['dataset'], **fk)
             for t in facts['tables'] for fk in t.get('excluded_foreign_keys', [])]
-    save(output / 'review-input.json', command)
-    return dict(report, stage='review_required', model_calls=calls, review_input='review-input.json')
+    adjudication.discover_candidates(command, facts['tables'])
+    input_hash = save(output / 'review-input.json', command)
+    cache = config.get('relationship_cache')
+    if cache is not None and (not isinstance(cache, str) or not cache):
+        raise ValueError('retained_relationship_cache')
+    decisions = adjudication.collect(db, command, facts['tables'], input_hash,
+                                     budget=config.get('max_relationship_checks', 65536),
+                                     cache_path=Path(cache) if cache else output / 'adjudication-measurements.json')
+    _, current_provenance = facts_for(db, config)
+    if current_provenance != provenance:
+        raise ValueError('adjudication_retained_cut_changed')
+    save(output / 'adjudication.json', decisions)
+    return dict(report, stage='review_required', model_calls=calls, review_input='review-input.json',
+                adjudication='adjudication.json', summary_sha256=decisions['summary_sha256'])
 
 
 def main():

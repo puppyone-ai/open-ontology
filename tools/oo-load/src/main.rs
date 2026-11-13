@@ -14,6 +14,8 @@ use sqlx::{
 };
 use std::{collections::BTreeMap, path::PathBuf, time::Duration};
 
+mod c1;
+mod c1_repair;
 mod c5;
 mod db2_load;
 mod dm8_load;
@@ -215,7 +217,86 @@ fn selected(source: &Source, requested: Option<&String>) -> Result<Vec<TableRef>
     Ok(tables)
 }
 
-async fn run_engine<E: SourceEngine>(
+fn read_metadata<E: epoch::Epoch>(engine: &E, budget: &ReadBudget) -> serde_json::Value {
+    if engine.consistency() != "chunk_consistent" {
+        return serde_json::json!({"consistency": engine.consistency()});
+    }
+    serde_json::json!({
+        "consistency": engine.consistency(),
+        "chunk_bounds": {"rows": budget.max_chunk_rows, "bytes": budget.max_chunk_bytes,
+            "transaction_ms": budget.statement_timeout_ms, "cleanup_ms": 1000},
+        "cross_range_skew": "cycle", "correction": "next_c5_cycle"
+    })
+}
+
+/// Keeps the range digest each chunk read proved in its own transaction, so
+/// the publication can carry them as its first C5 source digests.
+struct Proved<'e, E> {
+    engine: &'e mut E,
+    proofs: Vec<engine::RangeDigest>,
+}
+
+impl<E: epoch::Epoch> SourceEngine for Proved<'_, E> {
+    async fn column_shape(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<engine::SourceColumnShape>>, oo_connectors::SourceError> {
+        self.engine.column_shape(table, budget).await
+    }
+    fn family(&self) -> EngineFamily {
+        self.engine.family()
+    }
+    async fn probe(&mut self) -> Result<engine::ProbeReport, oo_connectors::SourceError> {
+        self.engine.probe().await
+    }
+    async fn plan_chunks(
+        &mut self,
+        table: &TableRef,
+        budget: &ReadBudget,
+    ) -> Result<engine::TableChunkPlan, oo_connectors::SourceError> {
+        self.engine.plan_chunks(table, budget).await
+    }
+    async fn read_chunk(
+        &mut self,
+        chunk: &engine::ChunkSpec,
+        budget: &ReadBudget,
+        sink: &mut dyn engine::ChunkSink,
+    ) -> Result<engine::ChunkReceipt, oo_connectors::SourceError> {
+        let receipt = self.engine.read_chunk(chunk, budget, sink).await;
+        // A failed read leaves no proof behind for a later chunk to inherit.
+        let proof = self.engine.take_chunk_proof();
+        let receipt = receipt?;
+        if let Some(proof) = proof.filter(|p| {
+            p.table == chunk.table && p.lo == chunk.lo && p.hi == chunk.hi && p.rows == receipt.rows
+        }) {
+            self.proofs
+                .retain(|p| !(p.table == proof.table && p.lo == proof.lo && p.hi == proof.hi));
+            self.proofs.push(proof);
+        }
+        Ok(receipt)
+    }
+    async fn split_chunk(
+        &mut self,
+        chunk: &engine::ChunkSpec,
+        budget: &ReadBudget,
+    ) -> Result<Option<Vec<engine::ChunkSpec>>, oo_connectors::SourceError> {
+        self.engine.split_chunk(chunk, budget).await
+    }
+    async fn watermark(&mut self) -> Result<Option<engine::Watermark>, oo_connectors::SourceError> {
+        self.engine.watermark().await
+    }
+    async fn digest_range(
+        &mut self,
+        table: &TableRef,
+        lo: Option<&[engine::KeyValue]>,
+        hi: Option<&[engine::KeyValue]>,
+    ) -> Result<engine::RangeDigest, oo_connectors::SourceError> {
+        self.engine.digest_range(table, lo, hi).await
+    }
+}
+
+async fn run_engine<E: epoch::Epoch>(
     engine: &mut E,
     source: &Source,
     tables: &[TableRef],
@@ -232,19 +313,44 @@ async fn run_engine<E: SourceEngine>(
     // Metadata reads also consume source budget on no-rewrite resumes.
     tokio::time::sleep(probe_started.elapsed() * (100 - duty) / duty).await;
     for table in tables {
+        engine.prepare_table(table, budget).await?;
         let mut conn = target_connection(target, store).await?;
         // Bind resume to the endpoint, not just a user-reusable display ID.
         let binding = binding(source)?;
         let mut sink = PgTarget::new(&mut conn, &binding, &target.run_id, table).await?;
         sink = documents::target(sink, source)?;
+        sink.read_metadata(read_metadata(engine, budget));
         let (receipts, replay) = match sink.completed().await? {
             Some(receipts) => (receipts, true),
-            None => (
-                engine_load::load(engine, table, budget, oo_load::IpcSink::new, &mut sink).await?,
-                false,
-            ),
+            None => {
+                sink.source_columns(
+                    engine
+                        .column_shape(table, budget)
+                        .await
+                        .map_err(|e| e.to_string())?,
+                );
+                let mut proved = Proved {
+                    engine: &mut *engine,
+                    proofs: Vec::new(),
+                };
+                let receipts =
+                    engine_load::load(&mut proved, table, budget, oo_load::IpcSink::new, &mut sink)
+                        .await?;
+                let proofs = proved.proofs;
+                sink.seed_c5_digests(&proofs).await?;
+                (receipts, false)
+            }
         };
         let bytes = sink.write_bytes().await?;
+        let metadata = if replay {
+            sink.publication_read_metadata().await?
+        } else {
+            Some(read_metadata(engine, budget))
+        };
+        let consistency = metadata
+            .as_ref()
+            .and_then(|m| m["consistency"].as_str())
+            .unwrap_or("unmeasured");
         println!(
             "{}",
             serde_json::json!({
@@ -254,7 +360,7 @@ async fn run_engine<E: SourceEngine>(
                 "read_budget":budget,
                 "write_basis":"committed_logical_stage_tuples_including_replaced_plans",
                 "publication":"local_table_view", "gateway_published":false,
-                "consistency":"B", "source_time":"unmeasured"
+                "consistency":consistency, "read_metadata":metadata, "source_time":"unmeasured"
             })
         );
         drop(sink);
@@ -267,7 +373,6 @@ fn mysql_engine(
     family: EngineFamily,
     source: &Source,
     store: &SecretStore,
-    opts: &BTreeMap<String, String>,
 ) -> Result<oo_connectors::mysql::engine::MysqlEngine, String> {
     use oo_connectors::mysql::{
         MysqlConfig,
@@ -276,22 +381,14 @@ fn mysql_engine(
     let ca = source.tls_ca.as_ref().ok_or("source_tls_required")?;
     // Validate the owner-private reference before passing its path to the driver.
     store.read(&ca.secret_ref)?;
-    let root = opts
-        .get("--secrets-dir")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-                .join(".config/open-ontology/secrets")
-        });
     let config = MysqlConfig {
         mysql_host: source.host.clone(),
         mysql_port: source.port,
         mysql_database: source.database.clone(),
         mysql_user: source.user.clone(),
-        mysql_ca_file: root.join(&ca.secret_ref),
+        mysql_ca_file: store.path(&ca.secret_ref)?,
         mysql_tls_server_name: None,
-        secret_ref: SecretRef::new(format!("secret://{}", source.password.secret_ref))
-            .map_err(|e| e.to_string())?,
+        secret_ref: SecretRef::new("secret://source-password").map_err(|e| e.to_string())?,
         connect_timeout_ms: 10000,
     };
     let engine = MysqlEngine::new_family(
@@ -303,7 +400,14 @@ fn mysql_engine(
             ..Default::default()
         },
     );
-    Ok(engine)
+    if source.snapshot == oo_stack::stack::Snapshot::Single {
+        if family != EngineFamily::Mysql {
+            return Err("single_snapshot_unsupported_family".into());
+        }
+        Ok(engine.with_single_snapshot())
+    } else {
+        Ok(engine)
+    }
 }
 
 fn mysql_family(name: &str) -> Option<EngineFamily> {
@@ -339,13 +443,14 @@ async fn execute() -> Result<(), String> {
         if key == "--help" {
             println!(
                 "oo-load --stack FILE --source ID [--tables schema.table,...] --target FILE\n\
-                [--secrets-dir DIR] [--chunk-rows N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
-                [--dm8-worker EXECUTABLE]\n\
+                [--secrets-dir DIR] [--chunk-rows N] [--statement-timeout-ms N] [--oracle-worker EXECUTABLE] [--db2-worker EXECUTABLE]\n\
+                [--dm8-worker EXECUTABLE] [--duty-cycle-percent N]\n\
                 [--sync FILE] Explicit epoch-bound C1; MySQL requires mysql-binlog; Oracle requires opt-in.\n\
                 [--c5 FILE] PostgreSQL/MySQL/Oracle C5 range cycle over an existing snapshot.\n\
                 [--handoff FILE] Atomic MySQL multi-source C5-to-C1 repair (mysql-binlog feature).\n\
                 oo-load sync uses the same flags, requires an explicit sync mode and --run-id ID.\n\
                 oo-load publish --generation ID --library ID uses --stack, --source and --target.\n\
+                [--outcome-run ID] records that cycle's per-table outcomes; ID is minted unless they equal --generation's.\n\
                 oo-load prune --library ID [--retain-seconds 86400] uses --stack, --source and --target.\n\
                 It prepares a verified data cut; pending is NOT a Gateway-ready semantic publication.\n\
                 --run-id ID overrides the target run_id; reuse it only to resume that cycle.\n\
@@ -361,6 +466,8 @@ async fn execute() -> Result<(), String> {
             "--target",
             "--secrets-dir",
             "--chunk-rows",
+            "--statement-timeout-ms",
+            "--duty-cycle-percent",
             "--oracle-worker",
             "--db2-worker",
             "--dm8-worker",
@@ -369,6 +476,7 @@ async fn execute() -> Result<(), String> {
             "--handoff",
             "--run-id",
             "--generation",
+            "--outcome-run",
             "--library",
             "--retain-seconds",
         ]
@@ -387,6 +495,8 @@ async fn execute() -> Result<(), String> {
             "--handoff",
             "--run-id",
             "--chunk-rows",
+            "--statement-timeout-ms",
+            "--duty-cycle-percent",
             "--oracle-worker",
             "--db2-worker",
             "--dm8-worker",
@@ -396,12 +506,15 @@ async fn execute() -> Result<(), String> {
         {
             return Err("publication_arguments".into());
         }
-        if (prune && opts.contains_key("--generation"))
+        if (prune && (opts.contains_key("--generation") || opts.contains_key("--outcome-run")))
             || (publish && opts.contains_key("--retain-seconds"))
         {
             return Err("publication_arguments".into());
         }
-    } else if opts.contains_key("--generation") || opts.contains_key("--library") {
+    } else if opts.contains_key("--generation")
+        || opts.contains_key("--outcome-run")
+        || opts.contains_key("--library")
+    {
         return Err("publication_subcommand_required".into());
     } else if opts.contains_key("--retain-seconds") {
         return Err("prune_subcommand_required".into());
@@ -470,6 +583,7 @@ async fn execute() -> Result<(), String> {
                 .ok_or("generation_required")?
                 .clone(),
             tables,
+            outcome_run: opts.get("--outcome-run").cloned(),
         };
         let mut conn = target_connection(&target, &store).await?;
         let candidate =
@@ -489,6 +603,19 @@ async fn execute() -> Result<(), String> {
         }
     }
     let mut budget = ReadBudget::default();
+    if let Some(duty) = opts.get("--duty-cycle-percent") {
+        budget.duty_cycle_percent = duty.parse().map_err(|_| "duty_cycle_percent")?;
+        if !(1..=100).contains(&budget.duty_cycle_percent) {
+            return Err("duty_cycle_percent".into());
+        }
+    }
+    if let Some(timeout) = opts.get("--statement-timeout-ms") {
+        let timeout: u64 = timeout.parse().map_err(|_| "statement_timeout")?;
+        if !(100..=budget.statement_timeout_ms).contains(&timeout) {
+            return Err("statement_timeout".into());
+        }
+        budget.statement_timeout_ms = timeout;
+    }
     if let Some(rows) = opts.get("--chunk-rows") {
         budget.max_chunk_rows = rows.parse().map_err(|_| "chunk_rows")?;
         if budget.max_chunk_rows == 0 || budget.max_chunk_rows > 100_000 {
@@ -522,7 +649,7 @@ async fn execute() -> Result<(), String> {
                     SourceId::new(&source.id)?,
                     PgEndpoint::new(&source.host, source.port, &source.database)?,
                     PgCredentials::new(source.user.clone(), password)?,
-                    SecretRef::new(format!("secret://{}", source.password.secret_ref))?,
+                    SecretRef::new("secret://source-password")?,
                     PgTlsConfig::from_ca_pem(
                         store
                             .read(
@@ -573,8 +700,27 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
-            // Physical ctid plans require a live exported snapshot. Keep its
-            // read-only owner alive until every table has finished or failed.
+            let mut engine = if source.engine == "kingbase" {
+                PostgresEngine::new_kingbase(config)
+            } else {
+                PostgresEngine::new(config)
+            };
+            if source.snapshot != oo_stack::stack::Snapshot::Single {
+                return if let Some(path) = opts.get("--c5") {
+                    c5::run(
+                        engine,
+                        source,
+                        &tables,
+                        &target,
+                        &store,
+                        &budget,
+                        serde_json::from_slice(&read(path)?).map_err(|_| "c5_config")?,
+                    )
+                    .await
+                } else {
+                    run_engine(&mut engine, source, &tables, &target, &store, &budget).await
+                };
+            }
             let ca = store.read(
                 &source
                     .tls_ca
@@ -606,13 +752,7 @@ async fn execute() -> Result<(), String> {
                 .fetch_one(&mut owner)
                 .await
                 .map_err(|_| "snapshot_export")?;
-            let mut engine = if source.engine == "kingbase" {
-                PostgresEngine::new_kingbase(config)
-            } else {
-                PostgresEngine::new(config)
-            }
-            .with_snapshot(snapshot)
-            .map_err(|e| e.to_string())?;
+            engine = engine.with_snapshot(snapshot).map_err(|e| e.to_string())?;
             let result = if let Some(path) = opts.get("--c5") {
                 c5::run(
                     engine,
@@ -668,6 +808,10 @@ async fn execute() -> Result<(), String> {
                 )
                 .await;
             }
+            if opts.contains_key("--c5") {
+                // Hot ranges prove their payload at its own SCN (see c5.rs).
+                engine.request_chunk_proofs();
+            }
             if let Some(path) = opts.get("--c5") {
                 return c5::run(
                     engine,
@@ -687,7 +831,7 @@ async fn execute() -> Result<(), String> {
             if opts.contains_key("--sync") {
                 mysql_sync_family(family)?;
             }
-            let mut engine = mysql_engine(family, source, &store, &opts)?;
+            let mut engine = mysql_engine(family, source, &store)?;
             if let Some(tunnel) = tunnel {
                 engine = engine.with_tunnel(tunnel).map_err(|e| e.to_string())?;
             }
@@ -735,14 +879,50 @@ async fn execute() -> Result<(), String> {
 #[tokio::main]
 async fn main() {
     if let Err(error) = execute().await {
-        eprintln!("{}", serde_json::json!({"status":"failed","error":error}));
-        std::process::exit(1);
+        let exit = sync_command::exit_code(&error);
+        eprintln!(
+            "{}",
+            serde_json::json!({
+                "status":if exit == 3 {"partial"} else {"failed"},
+                "error":error
+            })
+        );
+        std::process::exit(exit);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mysql_file_references_resolve_without_becoming_connector_names() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-load-file-refs-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let password = root.join("password");
+        let ca = root.join("ca");
+        for (path, text) in [(&password, "synthetic-reader"), (&ca, "synthetic-ca")] {
+            std::fs::write(path, text).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let store = SecretStore::create(root.join("secrets")).unwrap();
+        let source: Source = serde_json::from_value(serde_json::json!({
+            "id":"fixture","engine":"mysql","host":"localhost","port":3306,
+            "database":"fixture","user":"fixture_reader",
+            "password":{"secret_ref":format!("file:{}",password.display())},
+            "tls_ca":{"secret_ref":format!("file:{}",ca.display())},
+            "scope":{"include":["fixture.wide_decimal"],"exclude":[]}
+        }))
+        .unwrap();
+        // Construction only; live TLS verification is exercised by the owned fixture.
+        assert!(mysql_engine(EngineFamily::Mysql, &source, &store).is_ok());
+        std::fs::set_permissions(&ca, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(mysql_engine(EngineFamily::Mysql, &source, &store).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[tokio::test]
     async fn source_control_operations_are_bounded_on_the_client() {

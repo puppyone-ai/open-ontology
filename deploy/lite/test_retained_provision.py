@@ -79,7 +79,7 @@ class Tests(unittest.TestCase):
         self.assertFalse(any('gateway' in c[0] for c in calls if isinstance(c[0], list)))
 
     def test_schedule_waits_for_the_first_build_and_reuses_its_review(self):
-        request = {'stack': stack(), 'jobs': {name: '-- ' + name for name in lifecycle.JOBS}}
+        request = {'stack': stack(), 'cycle_events': 'synthetic', 'jobs': {name: '-- ' + name for name in lifecycle.JOBS}}
         self.assertFalse(lifecycle.provision_schedule(self.root, [], {}, request))
         state = self.root / 'work/build/.oo'
         state.mkdir(parents=True, mode=0o700)
@@ -104,7 +104,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(config['cycle']['gateway_probe']['url'], 'https://gateway:4443')
         self.assertEqual(config['cycle']['builder']['origin']['reviewed_registry']['path'],
                          '/work/build/.oo/reviewed-registry.json')
-        self.assertIn(config['project'], sql[2].decode())
+        self.assertIn(config['project'], sql[3].decode())
         with self.assertRaisesRegex(ValueError, 'LITE_JOBS_TEMPLATES'):
             lifecycle.provision_schedule(self.root, [], {}, {'stack': stack()})
 

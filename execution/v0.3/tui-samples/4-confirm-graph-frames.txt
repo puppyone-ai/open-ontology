@@ -1,0 +1,157 @@
+# 4-confirm-graph: 6 frames at 80x24; the last one is the still frame
+
+── frame 0 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│                                                              ↑ 3 more above  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                   ▓                                          │
+│                               ▓▓▓▓▓▓▓▓▓                                      │
+│                             ▓ ▓ ▒       ▓                                    │
+│                             ▓ ▓▒ ▒ ▒▒▒▓ ▓                                    │
+│                             ▓▓▓▓▒▒▒▒▒▓▓▓▓                                    │
+│                                ▓  ▓  ▓                                       │
+│                                   ▓▓                                         │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 2 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│                                                              ↑ 3 more above  │
+│                             ▓ ▓ ▓      ▓                                     │
+│                             ▓ ▓▒ ▒ ▒▒▒ ▓    ▓                                │
+│                      ▓▓▓    ▒▒▒▒▒▒▒▒▒▒▒▒    ▓▓▓▓                             │
+│                                 ▒  1                                         │
+│                   ▓▓▓▓▒▒▒▒▒▒───╮┆ ╭╯ ╭┄┄ ▒ ▒▒▒▒ ▓▓▓                          │
+│                    ▓▒ ▒ ▒cope ┄┼╯ │  ┆                                       │
+│                                N  N  N                                       │
+│                             ┏━━┷━━┷━━┷━━┓                                    │
+│                             ┃ 运单      ┃                                    │
+│                             ┃ id · 982k ┃                                    │
+│                             ┗━━┯━━┯━━┯━━┛                                    │
+│                                N  1  1                                       │
+│                   ▓▒▒▒▒▒───────╯  ╰╮ ╰───────▒▒▒▒▒▓                          │
+│                   ▓                N              ▓                          │
+│                   ▓▓▓▓▒▒    ╭──────┴───╮    ▒▒▒▓▓▓▓                          │
+│                        ▒    ▒ ▒ ▒ 事▒  ▒    ▒ ▓ ▓                            │
+│                      ▓ ▓    ▒ ▒▒ ▒ ▒▒▒ ▒    ▓ ▓▓                             │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 4 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│            ▓▓▒▒▒▒▒▒▒───╮    ╭───┴───┴──╮    ╭────▒▒▒▒▒▒▒▓    ↑ 3 more above  │
+│            ▓ ▒ ▒       │    │ 线路     │    │ 仓库      ▒                    │
+│            ▒ ▒▒ · 1.2M │    │ id · 420 │    │ code · ▒▒ ▒    ▓               │
+│            ▒▒▒─┬───┬───╯    ╰───┬──┬───╯    ╰─────┬────▒▒    ▓               │
+│                1   N            N  1              1          ▓ ▓             │
+│                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          ▒ ▓             │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       ▒ ▓             │
+│                                N  N  N                       ▒ ▓ ▓           │
+│                             ┏━━┷━━┷━━┷━━┓                    ▒ ▓ ▓           │
+│                             ┃ 运单      ┃                    ▒ ▓ ▓           │
+│                             ┃ id · 982k ┃                    ▒ ▒ ▓           │
+│                             ┗━━┯━━┯━━┯━━┛                    ▒ ▓ ▓           │
+│                                N  1  1                       ▒ ▓ ▓           │
+│                   ╭────────────╯  ╰╮ ╰────────────╮          ▒ ▓ ▓           │
+│                   1                N              N          ▒ ▓             │
+│             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    ▒ ▓             │
+│             ▒ 司机     │    │ 运单事件 │    │ 包裹      ▒    ▓ ▓             │
+│             ▒ id · 540 │    │ id · 11M │    │ id · 2.4M ▒    ▓               │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 6 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│            ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    ↑ 3 more above  │
+│            │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │           │
+│            │ id · 1.2M │    │ id · 420 │    │ code · 36 │    │ │ │           │
+│            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
+│                1   N            N  1              1          │ │ │           │
+│                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
+│                                N  N  N                       │ │ │           │
+│                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
+│                             ┃ 运单      ┃                    │ │ │           │
+│                             ┃ id · 982k ┃                    │ │ │           │
+│                             ┗━━┯━━┯━━┯━━┛                    │ │ │           │
+│                                N  1  1                       │ │ │           │
+│                   ╭────────────╯  ╰╮ ╰────────────╮          │ │ │           │
+│                   1                N              N          │ │ │           │
+│             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
+│             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
+│             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 8 · radar reveal from the selected hub ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│            ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    ↑ 3 more above  │
+│            │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │           │
+│            │ id · 1.2M │    │ id · 420 │    │ code · 36 │    │ │ │           │
+│            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
+│                1   N            N  1              1          │ │ │           │
+│                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
+│                                N  N  N                       │ │ │           │
+│                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
+│                             ┃ 运单      ┃                    │ │ │           │
+│                             ┃ id · 982k ┃                    │ │ │           │
+│                             ┗━━┯━━┯━━┯━━┛                    │ │ │           │
+│                                N  1  1                       │ │ │           │
+│                   ╭────────────╯  ╰╮ ╰────────────╮          │ │ │           │
+│                   1                N              N          │ │ │           │
+│             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
+│             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
+│             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯
+
+── frame 18446744073709551615 · still ──
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━◉ confirm─○ ─╮
+│  graph  │  relations  │  entity  │  decisions              summary d73614b6… │
+│                                                                              │
+│            ╭───┴───┴───╮    ╭───┴───┴──╮    ╭──────┴────╮    ↑ 3 more above  │
+│            │ 订单      │    │ 线路     │    │ 仓库      │    │ │ │           │
+│            │ id · 1.2M │    │ id · 420 │    │ code · 36 │    │ │ │           │
+│            ╰───┬───┬───╯    ╰───┬──┬───╯    ╰─────┬─────╯    │ │ │           │
+│                1   N            N  1              1          │ │ │           │
+│                ╰───┼───────────╮┆ ╭╯ ╭┄┄ ✗ 0.71 ┄┄╯          │ │ │           │
+│                    ╰┄ ✗ scope ┄┼╯ │  ┆                       │ │ │           │
+│                                N  N  N                       │ │ │           │
+│                             ┏━━┷━━┷━━┷━━┓                    │ │ │           │
+│                             ┃ 运单      ┃                    │ │ │           │
+│                             ┃ id · 982k ┃                    │ │ │           │
+│                             ┗━━┯━━┯━━┯━━┛                    │ │ │           │
+│                                N  1  1                       │ │ │           │
+│                   ╭────────────╯  ╰╮ ╰────────────╮          │ │ │           │
+│                   1                N              N          │ │ │           │
+│             ╭─────┴────╮    ╭──────┴───╮    ╭─────┴─────╮    │ │ │           │
+│             │ 司机     │    │ 运单事件 │    │ 包裹      │    │ │ │           │
+│             │ id · 540 │    │ id · 11M │    │ id · 2.4M │    │ │ │           │
+│ roles  #1 origin_station  #2 dest_station                                    │
+│ N─1 many-to-one  ┄ rejected   13 entities · 19 relations · ↓ 6 more below    │
+╰ tab view  ←↑↓→ select  f focus  o override  ⏎ confirm publish  q quit  ──────╯

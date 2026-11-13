@@ -1,0 +1,24 @@
+╭ ◆ open ontology ──────────────────────────────────────────◉ connect─○─○─○─○ ─╮
+│ connect ·············  ·     read-only · nothing is written to your database │
+│                                                                              │
+│ › bc:postgresql://db.internal:5432/logistics?user=oo_reader&password=••••••▏ │
+│   ✓ JDBC URL  PostgreSQL · db.internal:5432/logistics · user oo_r…  ⏎ use    │
+│                                                                              │
+│ engines                                                                      │
+│   ▐PG▌ PostgreSQL   13–18     ● verified                                     │
+│   ▐My▌ MySQL        5.7–9.5   ● verified                                     │
+│   ▐Or▌ Oracle       11g–23ai  ● verified                                     │
+│                                                                              │
+│   ◇ no database? try the demo                                                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰ ↑↓ choose  ⏎ next  › type or paste anything  esc quit  ──────────────────────╯

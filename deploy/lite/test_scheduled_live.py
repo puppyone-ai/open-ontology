@@ -79,6 +79,7 @@ class Scheduled(retained.Retained):
             sql.append(f"INSERT INTO jobs.schema_migrations(version,checksum,phase,filename) VALUES('{version}','{digest}','expand','{name}');")
         sql.append('COMMIT;')
         self.control_sql('\n'.join(sql))
+        self.control_sql((ROOT / 'deploy/lite/cycle_events.sql').read_text())
         self.control_sql(f"SET ROLE oo_jobs_runtime; INSERT INTO jobs.schedules(project_id,kind,config_version,artifact_digest,dedupe_prefix,next_run_at) VALUES('{PROJECT}','lite_retained','v1',repeat('a',64),'lite',clock_timestamp());")
 
     def config(self):
@@ -117,14 +118,14 @@ class Scheduled(retained.Retained):
             query = self.http()
             assert query['status'] == 200 and query['body']['rows'] == [[expected]], query
             results.append({'name': name, 'cycle': result, 'query': query})
-        # Semantic change must stop scheduling and leave the published data alone.
+        # Changed semantic observations retain review but do not stop data updates.
         self.source_sql('DELETE FROM app.items;')
         self.control_sql('UPDATE jobs.schedules SET next_run_at=clock_timestamp();')
         scheduler.fire(config)
         changed = scheduler.work(config)
-        assert changed['stage'] == 'review_required', changed
-        assert self.control_sql('SELECT enabled FROM jobs.schedules').strip() == 'f'
-        assert self.http()['body']['rows'] == [['11']]
+        assert changed['stage'] == 'succeeded' and changed['review_pending'], changed
+        assert self.control_sql('SELECT enabled FROM jobs.schedules').strip() == 't'
+        assert self.http()['body']['rows'] == []
         scheduler.save(self.out / 'scheduled-result.json', {
             'status': 'passed', 'version': self.db.sql('SHOW server_version').strip(),
             'initial_model_basis': 'deterministic_test_transport', 'cycles': results,

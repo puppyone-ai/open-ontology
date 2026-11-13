@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────◉ connect──○ tables──○ build──○ confirm──○ deliver ─╮
+│ ▐PG▌ PostgreSQL  ·  read-only                                                                                        │
+│                                                                                                                      │
+│   version    ‹ 17 ›                                   ✓ detected 17.11 · verified                                    │
+│   host       localhost                                ✓ 127.0.0.1                                                    │
+│   port       5432                                     ✓ open · 2 ms                                                  │
+│   database   logistics                                ‹› ←→ 2 known                                                  │
+│   user       oo_reader                                · suggested read-only account                                  │
+│   password   ••••••                                   · kept in the secret store                                     │
+│ ▸ TLS        ‹ trust server CA ›                      ✓ trusting the presented CA                                    │
+│                                                                                                                      │
+│ certificate localhost · issuer oo fixture CA · until 2036-11-08                                                      │
+│ sha256      83a8839e311bbf2c…9a18bc97                                                                                │
+│ ✓ signed in as oo_reader   ⏎ continue                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+╰ ↑↓ field  ←→ option  tab complete  ⏎ connect  esc back  ─────────────────────────────────────────────────────────────╯

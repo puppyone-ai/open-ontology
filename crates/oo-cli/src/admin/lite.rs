@@ -12,6 +12,23 @@ pub(super) fn run(
     path: &Path,
     stack: &oo_stack::Stack,
 ) -> Result<Invocation, Failure> {
+    run_mode(action, path, stack, false)
+}
+
+pub(super) fn run_demo(
+    action: &str,
+    path: &Path,
+    stack: &oo_stack::Stack,
+) -> Result<Invocation, Failure> {
+    run_mode(action, path, stack, true)
+}
+
+fn run_mode(
+    action: &str,
+    path: &Path,
+    stack: &oo_stack::Stack,
+    demo: bool,
+) -> Result<Invocation, Failure> {
     if stack.deploy.target != "local" || stack.deploy.profile != "lite" {
         return Err(Failure::local("LITE_LOCAL_ONLY"));
     }
@@ -29,19 +46,21 @@ pub(super) fn run(
     }
     if action == "up" {
         require_images(&image)?;
-        let store = oo_stack::secret::SecretStore::from_home().map_err(Failure::local)?;
-        store
-            .read(&stack.model.key.secret_ref)
-            .map_err(Failure::local)?;
-        if let oo_stack::stack::ModelEndpoint::Secret(reference) = &stack.model.base_url {
-            store.read(&reference.secret_ref).map_err(Failure::local)?;
-        }
-        for source in &stack.sources {
+        if !demo {
+            let store = super::wizard::owner_secret_store()?;
             store
-                .read(&source.password.secret_ref)
+                .read(&stack.model.key.secret_ref)
                 .map_err(Failure::local)?;
-            if let Some(ca) = &source.tls_ca {
-                store.read(&ca.secret_ref).map_err(Failure::local)?;
+            if let oo_stack::stack::ModelEndpoint::Secret(reference) = &stack.model.base_url {
+                store.read(&reference.secret_ref).map_err(Failure::local)?;
+            }
+            for source in &stack.sources {
+                store
+                    .read(&source.password.secret_ref)
+                    .map_err(Failure::local)?;
+                if let Some(ca) = &source.tls_ca {
+                    store.read(&ca.secret_ref).map_err(Failure::local)?;
+                }
             }
         }
         for dir in [&state, &root] {
@@ -60,7 +79,11 @@ pub(super) fn run(
     // One helper per process: credential creation and the status report below.
     let saved = saved_image(&root);
     let _openssl = if action == "up" {
-        Some(OpensslHelper::start(&root.join("pki"), &image)?)
+        Some(OpensslHelper::start_lane(
+            &root.join("pki"),
+            &image,
+            demo.then_some("v03"),
+        )?)
     } else if root.join("pki").exists() {
         OpensslHelper::start(&root.join("pki"), saved.as_deref().unwrap_or(&image)).ok()
     } else {
@@ -76,7 +99,7 @@ pub(super) fn run(
     // OO_SHARE_NPM_REGISTRY: a registry that carries this exact CLI version,
     // named in the share prompt's install step (validated by share-prompt).
     let registry = std::env::var("OO_SHARE_NPM_REGISTRY").ok();
-    let request = json!({"action":action,"root":root,"stack":stack,"image":image,"retained":true,
+    let request = json!({"action":action,"root":root,"stack":stack,"image":image,"retained":true,"demo":demo,
     "prompt_npm_registry":registry,
     "templates":{
         "compose.yaml":include_str!("../../../../deploy/lite/compose.yaml"),
@@ -84,7 +107,7 @@ pub(super) fn run(
         "scheduler.py":include_str!("../../../../deploy/lite/scheduler.py"),
     },
     // Control-DB jobs schema for the scheduled cycle, armed after the first build.
-    "jobs":jobs()});
+    "jobs":jobs(),"cycle_events":include_str!("../../../../deploy/lite/cycle_events.sql")});
     let mut child = Command::new("python3")
         .args(["-c", include_str!("../../../../deploy/lite/lifecycle.py")])
         .stdin(Stdio::piped())
@@ -178,6 +201,10 @@ pub(super) struct OpensslHelper(Option<String>);
 
 impl OpensslHelper {
     pub(super) fn start(pki: &Path, image: &str) -> Result<Self, Failure> {
+        Self::start_lane(pki, image, None)
+    }
+
+    fn start_lane(pki: &Path, image: &str, label: Option<&str>) -> Result<Self, Failure> {
         if oo_stack::credentials::host_openssl_supports_ed25519() {
             return Ok(Self(None));
         }
@@ -205,7 +232,13 @@ impl OpensslHelper {
                 "--network",
                 "none",
             ])
-            .args(["--label", &format!("oo.lane={}", lane(root))])
+            .args([
+                "--label",
+                &format!(
+                    "oo.lane={}",
+                    label.map(str::to_owned).unwrap_or_else(|| lane(root))
+                ),
+            ])
             .args(["--read-only", "--cap-drop", "ALL"])
             .args([
                 "--security-opt",

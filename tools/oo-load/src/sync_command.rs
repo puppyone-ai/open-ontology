@@ -1,6 +1,14 @@
 //! Explicit scheduled-cycle intake. A sync command must never become a snapshot.
 use std::collections::BTreeMap;
 
+pub(super) fn exit_code(error: &str) -> i32 {
+    match error {
+        "sync_partial" => 3,
+        "sync_all_stale" => 4,
+        _ => 1,
+    }
+}
+
 pub(super) fn arguments(args: impl Iterator<Item = String>) -> (bool, Vec<String>) {
     let mut args = args.peekable();
     let sync = args.peek().is_some_and(|arg| arg == "sync");
@@ -69,6 +77,20 @@ pub(super) fn validate_engine(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_completed_cycle_errors_use_partial_exit_codes() {
+        assert_eq!(exit_code("sync_partial"), 3);
+        assert_eq!(exit_code("sync_all_stale"), 4);
+        for error in [
+            "source error: auth fact=authentication_failed",
+            "sync_target",
+            "partial",
+            "",
+        ] {
+            assert_eq!(exit_code(error), 1);
+        }
+    }
 
     #[test]
     fn reconciliation_engines_accept_only_explicit_c5() {

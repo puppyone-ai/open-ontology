@@ -26,6 +26,8 @@ def ddl(case):
         return [f"ALTER TABLE {table} DROP COLUMN n;"], columns[:2]
     if case == "rename_column":
         return [f"ALTER TABLE {table} RENAME COLUMN payload TO label;"], ("id", "label", "n")
+    if case == "widen_string":
+        return [f"ALTER TABLE {table} MODIFY (payload VARCHAR2(160));"], columns
     if case == "widen_type":
         return [f"ALTER TABLE {table} MODIFY (n NUMBER(18),payload VARCHAR2(160));"], columns
     if case == "add_table":
@@ -162,6 +164,7 @@ class OracleHarness(t3t4.Harness):
         super().remember(sid, receipts)
         self.relations = {(s, t.lower()): r for (s, t), r in self.relations.items()}
 
+    @runner.timed("compare")
     def compare(self, sid):
         result = {}
         for table in self.tables(sid):

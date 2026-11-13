@@ -565,7 +565,11 @@ async fn access_log(State(state): State<AppState>, request: Request, next: Next)
         path_raw.as_str(),
         "/v1/query" | "/v1/freshness" | "/v1/tables" | "/v1/sql/validate" | "/v1/pack/metadata"
     ) || path_raw.starts_with("/v1/knowledge/")
-        || path_raw.starts_with("/v1/tables/");
+        || path_raw.starts_with("/v1/tables/")
+        || path_raw.starts_with("/v1/check/")
+        || path_raw.starts_with("/v1/entities/")
+        || path_raw == "/v1/values/search"
+        || path_raw == "/v1/feedback/gap";
     let response = if uses_pack {
         let catalog = match state
             .inner
@@ -630,11 +634,16 @@ fn logged_path(path: &str, probe: bool) -> &'static str {
         "/v1/sql/validate" => "/v1/sql/validate",
         "/v1/query" => "/v1/query",
         "/v1/freshness" => "/v1/freshness",
+        "/v1/check/readiness" => "/v1/check/readiness",
+        "/v1/check/answerable" => "/v1/check/answerable",
+        "/v1/values/search" => "/v1/values/search",
+        "/v1/feedback/gap" => "/v1/feedback/gap",
         "/v1/knowledge/search" => "/v1/knowledge/search",
         "/v1/operations" => "/v1/operations",
         "/slow" if probe => "/slow",
         "/hold" if probe => "/hold",
         path if path.starts_with("/v1/tables/") => "/v1/tables/item",
+        path if path.starts_with("/v1/entities/") => "/v1/entities/item/resolve",
         path if path.starts_with("/v1/knowledge/") => "/v1/knowledge/item",
         path if path.starts_with("/v1/queries/") && path.ends_with("/cancel") => {
             "/v1/queries/cancel"
@@ -1731,20 +1740,23 @@ pub async fn harness_tls_exchange(
         .await
         .map_err(|_| "handshake".to_owned())?;
     let (mut reader, mut writer) = tokio::io::split(tls);
-    writer
-        .write_all(request)
-        .await
-        .map_err(|_| "write".to_owned())?;
-    writer.flush().await.map_err(|_| "write".to_owned())?;
+    // The gateway may answer and close before the client finishes writing (a rejected
+    // request, or a reset racing the flush on a loaded host). A failed write is still an
+    // answered request when a complete HTTP response arrives; otherwise it stays an error.
+    let wrote = match writer.write_all(request).await {
+        Ok(()) => writer.flush().await.is_ok(),
+        Err(_) => false,
+    };
     let mut buffer = Vec::new();
     // The gateway closes the socket after Connection: close and does not send a TLS close_notify.
     // read_to_end then returns an error after the HTTP bytes are already in the buffer.
     let read = reader.read_to_end(&mut buffer).await;
     drop(writer);
     match read {
-        Ok(_) => Ok(buffer),
+        Ok(_) if wrote || http_message_complete(&buffer) => Ok(buffer),
         Err(_) if http_message_complete(&buffer) => Ok(buffer),
-        Err(_) => Err("read".to_owned()),
+        _ if !wrote => Err("write".to_owned()),
+        _ => Err("read".to_owned()),
     }
 }
 

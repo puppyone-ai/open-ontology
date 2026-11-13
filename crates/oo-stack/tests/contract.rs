@@ -50,6 +50,36 @@ fn defaults_and_roundtrip() {
 }
 
 #[test]
+fn explicit_secret_sources_roundtrip_without_values() {
+    let mut value = config();
+    value["sources"][0]["password"]["secret_ref"] = json!("env:OO_SOURCE_PASSWORD");
+    value["model"]["key"]["secret_ref"] = json!("file:/run/secrets/model-key");
+    let stack = parse(&value.to_string()).unwrap();
+    let saved = serde_json::to_value(stack).unwrap();
+    assert_eq!(
+        saved["sources"][0]["password"],
+        value["sources"][0]["password"]
+    );
+    assert_eq!(saved["model"]["key"], value["model"]["key"]);
+}
+
+#[test]
+fn snapshot_mode_is_explicit_and_closed() {
+    let mut c = config();
+    assert!(matches!(
+        parse(&c.to_string()).unwrap().sources[0].snapshot,
+        oo_stack::stack::Snapshot::ChunkConsistent
+    ));
+    c["sources"][0]["snapshot"] = json!("single");
+    assert!(matches!(
+        parse(&c.to_string()).unwrap().sources[0].snapshot,
+        oo_stack::stack::Snapshot::Single
+    ));
+    c["sources"][0]["snapshot"] = json!("eventually");
+    assert!(parse(&c.to_string()).is_err());
+}
+
+#[test]
 fn source_tls_anchor_is_a_reference_not_inline_material() {
     let mut value = config();
     value["sources"][0]["tls_ca"] = json!({"secret_ref":"fixture-ca"});

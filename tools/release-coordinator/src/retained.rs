@@ -49,6 +49,99 @@ const TABLE_KEYS: [&str; 14] = [
     "target_generation",
 ];
 
+const ISOLATED_SHARD_KEYS: [&str; 14] = [
+    "applied_pos",
+    "consistency",
+    "consistency_grade",
+    "cross_table_consistent",
+    "position_codec",
+    "position_lineage",
+    "protocol",
+    "run_id",
+    "run_ids",
+    "source_generation",
+    "source_id",
+    "stale_tables",
+    "tables",
+    "target_generation",
+];
+const ISOLATED_TABLE_KEYS: [&str; 18] = [
+    "accepted_rows",
+    "applied_pos",
+    "capture_method",
+    "consistency_grade",
+    "delete_detection",
+    "physical_name",
+    "recipe_sha256",
+    "retained_run",
+    "run_id",
+    "schema",
+    "source_generation",
+    "stale_reason",
+    "stale_since",
+    "status",
+    "storage_schema",
+    "storage_table",
+    "table",
+    "target_generation",
+];
+
+/// The loader's closed stale-reason grammar, compiled from the same file.
+#[path = "../../../crates/oo-pipeline/src/stale_grammar.rs"]
+#[allow(dead_code)]
+mod stale_grammar;
+
+fn stale_reason_code(value: &Value) -> bool {
+    value.as_str().is_some_and(stale_grammar::valid)
+}
+
+fn bounded_text(value: &Value) -> bool {
+    value
+        .as_str()
+        .is_some_and(|s| (1..=64).contains(&s.len()) && !s.chars().any(char::is_control))
+}
+
+/// Fresh and no-op tables carry no stale fields; a stale table names its
+/// reason and since-time and keeps the run that produced its retained data.
+/// A fresh table was written by this cut's own run.
+fn isolated_outcome(table: &Value, run_id: &str) -> bool {
+    run_token(table["retained_run"].as_str().unwrap_or(""))
+        && match table["status"].as_str() {
+            Some(status @ ("fresh" | "noop")) => {
+                table["stale_reason"].is_null()
+                    && table["stale_since"].is_null()
+                    && (status == "noop" || table["retained_run"] == run_id)
+            }
+            Some("stale") => {
+                stale_reason_code(&table["stale_reason"]) && bounded_text(&table["stale_since"])
+            }
+            _ => false,
+        }
+}
+
+/// `list` names every stale table exactly once, with its own reason and since.
+fn stale_tables_match(list: &Value, tables: &[Value]) -> bool {
+    let Some(list) = list.as_array() else {
+        return false;
+    };
+    let stale: Vec<&Value> = tables.iter().filter(|t| t["status"] == "stale").collect();
+    let mut used = vec![false; stale.len()];
+    list.len() == stale.len()
+        && list.iter().all(|entry| {
+            closed(entry, &["reason", "since", "table"])
+                && closed(&entry["table"], &["name", "schema"])
+                && stale.iter().zip(used.iter_mut()).any(|(t, used)| {
+                    let same = !*used
+                        && entry["table"]["schema"] == t["schema"]
+                        && entry["table"]["name"] == t["table"]
+                        && entry["reason"] == t["stale_reason"]
+                        && entry["since"] == t["stale_since"];
+                    *used |= same;
+                    same
+                })
+        })
+}
+
 macro_rules! p {
     ($($value:expr),* $(,)?) => {
         &[$(&$value as &(dyn postgres_types::ToSql + Sync)),*]
@@ -166,7 +259,7 @@ pub fn validate_cut(cut: &Value, generation: &str) -> Result<(), StoreError> {
         &["source_id", "anchor_run", "receipt", "receipt_sha256"],
     ) || shard["anchor_run"] != generation
         || shard["receipt_sha256"].as_str() != Some(crate::canon::canonical_sha(receipt).as_str())
-        || !closed(receipt, &SHARD_KEYS)
+        || !(closed(receipt, &SHARD_KEYS) || closed(receipt, &ISOLATED_SHARD_KEYS))
         || receipt["protocol"] != RECEIPT_PROTOCOL
         || receipt["source_id"] != source
         || receipt["run_id"] != generation
@@ -190,10 +283,19 @@ pub fn validate_cut(cut: &Value, generation: &str) -> Result<(), StoreError> {
     if names.len() != tables.len() {
         return Err(StoreError::Input);
     }
+    // Per-table isolation (plan D22): an isolated cut carries every table's
+    // outcome, and `stale_tables` lists exactly the stale ones.
+    let isolated = receipt.get("stale_tables").is_some();
+    if isolated && !stale_tables_match(&receipt["stale_tables"], tables) {
+        return Err(StoreError::Input);
+    }
     for table in tables {
         let (storage_schema, name) = crate::native_publication::storage_names(table)?;
-        if !closed(table, &TABLE_KEYS)
-            || storage_schema != schema
+        if !(if isolated {
+            closed(table, &ISOLATED_TABLE_KEYS) && isolated_outcome(table, generation)
+        } else {
+            closed(table, &TABLE_KEYS)
+        }) || storage_schema != schema
             || names.iter().filter(|n| n.as_str() == Some(name)).count() != 1
             || !seen.insert(name)
             || !physical(&table["physical_name"])
@@ -234,7 +336,58 @@ pub struct Reviewed {
     pub registry_sha256: String,
 }
 
+// D28: the Builder replays the exact input, overrides and graph confirmation.
+fn reviewed_confirmation(value: &Value) -> Result<Reviewed, &'static str> {
+    let command = &value["command"];
+    if value["protocol"] != REVIEWED
+        || value["status"] != "reviewed"
+        || value["published"] != false
+        || value["authentication"] != "not_claimed"
+        || value["review_decision"] != command["confirmation"]
+    {
+        return Err("review_confirmation_required");
+    }
+    let compiled =
+        oo_builder::compile_reviewed_community(command).map_err(|_| "review_compile_refused")?;
+    if compiled != value["compiled"] || compiled["published"] != false {
+        return Err("review_compiled_mismatch");
+    }
+    let input: Value = serde_json::from_str(
+        command["adjudication_input"]
+            .as_str()
+            .ok_or("review_confirmation_required")?,
+    )
+    .map_err(|_| "review_confirmation_required")?;
+    let decided = compiled["summary"]["items"]
+        .as_array()
+        .ok_or("review_confirmation_required")?
+        .iter()
+        .filter(|item| item["class"] == "sensitive")
+        .map(|item| {
+            item["subject"]["column"]
+                .as_str()
+                .map(str::to_owned)
+                .ok_or("review_confirmation_required")
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    Ok(Reviewed {
+        effective: compiled["effective"].clone(),
+        visibility: compiled["visibility"].clone(),
+        ceilings: input["ceilings"].clone(),
+        pack_digest: compiled["producer"]["pack_digest"]
+            .as_str()
+            .ok_or("review_compiled_mismatch")?
+            .to_owned(),
+        producer: compiled["producer"].clone(),
+        decided,
+        registry_sha256: gateway_sha(value),
+    })
+}
+
 pub fn reviewed(value: &Value) -> Result<Reviewed, &'static str> {
+    if value["command"]["confirmation"]["protocol"] == "oo.publish-confirm/v1" {
+        return reviewed_confirmation(value);
+    }
     let decision = &value["review_decision"];
     let session = &decision["decisions"];
     let command = &value["command"];
@@ -599,6 +752,76 @@ async fn role_guard(
     Ok(None)
 }
 
+/// Whether the open fence has a current logical publication identity
+/// (migration 0135). Targets without the identity table have none to check.
+async fn identity_current(
+    tx: &Transaction<'_>,
+    role: &str,
+    relation: &str,
+) -> Result<Option<bool>, StoreError> {
+    let installed: bool = tx
+        .query_one(
+            "SELECT to_regclass('_oo.publication_identity') IS NOT NULL",
+            &[],
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    if !installed {
+        return Ok(None);
+    }
+    // The same predicate the Gateway binds a receipt to, never a weaker one.
+    let current: bool = tx
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM oo_publish_target.fence f JOIN _oo.publication_identity i              ON i.role_name=f.role_name AND i.schema_name=f.schema_name AND i.relation_name=f.relation_name              WHERE f.role_name=$1 AND f.schema_name='_oo' AND f.relation_name=$2 AND f.state='open'              AND i.valid AND i.publication_id=f.opened_pack_digest AND i.generation=f.opened_version              AND i.relation_identity_sha256=_oo.publication_relation_digest(i.schema_name,i.relation_name))",
+            p!(role, relation),
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    Ok(Some(current))
+}
+
+/// On a replayed (already open, same Pack) fence, mint a MISSING identity
+/// (a fence opened before migration 0135) with the publisher's own fence
+/// write: the 0135 trigger recomputes the relation digest exactly as on a
+/// normal open. An existing but invalid record is a detected change (view,
+/// relation or routine) and is never re-approved by a replay: it refuses
+/// until the owner reviews and publishes again (review N1). `None`: refuse.
+async fn replay_identity(
+    tx: &Transaction<'_>,
+    role: &str,
+    relation: &str,
+) -> Result<Option<&'static str>, StoreError> {
+    match identity_current(tx, role, relation).await? {
+        None => return Ok(Some("not_installed")),
+        Some(true) => return Ok(Some("current")),
+        Some(false) => {}
+    }
+    let recorded: bool = tx
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM _oo.publication_identity \
+             WHERE role_name=$1 AND schema_name='_oo' AND relation_name=$2)",
+            p!(role, relation),
+        )
+        .await
+        .map_err(query_error)?
+        .get(0);
+    if recorded {
+        return Ok(None);
+    }
+    tx.execute(
+        "UPDATE oo_publish_target.fence SET state='open'          WHERE role_name=$1 AND schema_name='_oo' AND relation_name=$2 AND state='open'",
+        p!(role, relation),
+    )
+    .await
+    .map_err(query_error)?;
+    Ok(match identity_current(tx, role, relation).await? {
+        Some(true) => Some("reminted"),
+        _ => None,
+    })
+}
+
 /// Open each reviewed fence closed -> granted -> open, then activate the head.
 /// One transaction: a failed semantic admission leaves every fence and the head unchanged.
 pub async fn publish_reviewed_registry(
@@ -757,7 +980,14 @@ async fn body(
             && pack.as_deref() == Some(review.pack_digest.as_str())
             && opened == sorted
         {
-            fences.push(json!({"dataset":b.dataset,"relation":b.physical,"fence_state":"open","outcome":"replay"}));
+            // Fences opened before migration 0135 (or tombstoned since) have no
+            // current identity record; re-mint it through the fence trigger.
+            let identity = match replay_identity(tx, role, &b.physical).await? {
+                Some(identity) => identity,
+                None => return Ok(refusal("publication_identity_invalid")),
+            };
+            fences.push(json!({"dataset":b.dataset,"relation":b.physical,"fence_state":"open","outcome":"replay",
+                "identity":identity}));
             continue;
         }
         replay = false;
@@ -862,3 +1092,149 @@ async fn body(
 #[cfg(test)]
 #[path = "../tests/observations/retained.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/observations/retained_replay_identity.rs"]
+mod replay_identity_tests;
+
+#[cfg(test)]
+mod isolation_cut_tests {
+    use super::*;
+
+    const GEN: &str = "run_a";
+
+    fn table(name: &str) -> Value {
+        json!({"schema":"app","table":name,"storage_schema":"app","storage_table":name,
+            "run_id":GEN,"physical_name":format!("pt_{}", "a".repeat(60)),
+            "accepted_rows":1,"recipe_sha256":"b".repeat(64),"source_generation":2,
+            "target_generation":2,"applied_pos":"0","capture_method":"c5_diff",
+            "delete_detection":"reconcile","consistency_grade":"B"})
+    }
+
+    fn cut(mut tables: Vec<Value>, stale: Option<Value>) -> Value {
+        for (i, t) in tables.iter_mut().enumerate() {
+            t["physical_name"] = json!(format!("pt_{}{}", "a".repeat(59), i));
+        }
+        let names: Vec<Value> = tables.iter().map(|t| t["table"].clone()).collect();
+        let manifest = json!({"protocol":"oo.library.membership/v1","library_id":"lib",
+            "sources":[{"source_id":"src","schema":"app","tables":names}]});
+        let mut receipt = json!({"protocol":RECEIPT_PROTOCOL,"source_id":"src","run_id":GEN,
+            "run_ids":[GEN],"source_generation":2,"target_generation":2,
+            "position_codec":"snapshot-zero/v1","position_lineage":"oo-load.retained",
+            "applied_pos":"0","consistency":"retained_generation","consistency_grade":"B",
+            "cross_table_consistent":false,"tables":tables});
+        if let Some(stale) = stale {
+            receipt["stale_tables"] = stale;
+        }
+        json!({"library":{"protocol":crate::native_library::PROTOCOL,"library_id":"lib",
+            "manifest_sha256":crate::canon::canonical_sha(&manifest),"manifest":manifest,
+            "expected_tables":names.len(),"shards":["src"]},
+            "shards":[{"source_id":"src","anchor_run":GEN,
+                "receipt_sha256":crate::canon::canonical_sha(&receipt),"receipt":receipt}]})
+    }
+
+    fn outcome(mut t: Value, status: &str, reason: Option<&str>, since: Option<&str>) -> Value {
+        t["retained_run"] = json!(if status == "stale" { "run_prev" } else { GEN });
+        t["status"] = json!(status);
+        t["stale_reason"] = json!(reason);
+        t["stale_since"] = json!(since);
+        t
+    }
+
+    #[test]
+    fn legacy_cut_is_still_valid() {
+        assert!(validate_cut(&cut(vec![table("a"), table("b")], None), GEN).is_ok());
+    }
+
+    #[test]
+    fn isolated_cut_with_matching_stale_list_is_valid() {
+        let t = vec![
+            outcome(table("a"), "fresh", None, None),
+            outcome(
+                table("b"),
+                "stale",
+                Some("source_permission"),
+                Some("2026-11-08T00:00:00Z"),
+            ),
+        ];
+        let stale = json!([{"table":{"schema":"app","name":"b"},"reason":"source_permission",
+            "since":"2026-11-08T00:00:00Z"}]);
+        assert!(validate_cut(&cut(t, Some(stale)), GEN).is_ok());
+    }
+
+    #[test]
+    fn isolated_cut_rejects_inconsistent_outcomes() {
+        let fresh_with_reason = vec![outcome(table("a"), "fresh", Some("x"), None)];
+        assert!(validate_cut(&cut(fresh_with_reason, Some(json!([]))), GEN).is_err());
+        let stale_without_reason = vec![outcome(table("a"), "stale", None, Some("t"))];
+        assert!(validate_cut(&cut(stale_without_reason, Some(json!([]))), GEN).is_err());
+        let unknown_status = vec![outcome(table("a"), "maybe", None, None)];
+        assert!(validate_cut(&cut(unknown_status, Some(json!([]))), GEN).is_err());
+        let unlisted = vec![outcome(
+            table("a"),
+            "stale",
+            Some("source_timeout"),
+            Some("t"),
+        )];
+        assert!(validate_cut(&cut(unlisted, Some(json!([]))), GEN).is_err());
+        let mixed = vec![table("a")];
+        assert!(validate_cut(&cut(mixed, Some(json!([]))), GEN).is_err());
+        let extra = vec![outcome(table("a"), "fresh", None, None)];
+        assert!(validate_cut(&cut(extra, None), GEN).is_err());
+    }
+
+    fn stale(name: &str, reason: &str) -> (Value, Value) {
+        let since = "2026-11-08T00:00:00Z";
+        (
+            outcome(table(name), "stale", Some(reason), Some(since)),
+            json!({"table":{"schema":"app","name":name},"reason":reason,"since":since}),
+        )
+    }
+
+    #[test]
+    fn loader_drift_reasons_with_raw_case_and_non_ascii_names_are_accepted() {
+        let wide = format!("schema_drift:h.{}:type", "0123456789abcdef");
+        let upper = format!("schema_drift:c.{}:nullability", "P".repeat(63));
+        for reason in [
+            "schema_drift:c.PAYLOAD:dropped",
+            "schema_drift:c.userId:renamed",
+            "schema_drift:c.%e5%90%8d%e5%89%8d:type",
+            "schema_drift:c.a%3ab:collation",
+            "schema_drift:unpublished_column:key",
+            upper.as_str(),
+            wide.as_str(),
+        ] {
+            let (t, entry) = stale("b", reason);
+            let tables = vec![outcome(table("a"), "fresh", None, None), t];
+            assert!(validate_cut(&cut(tables, Some(json!([entry]))), GEN).is_ok(), "{reason}");
+        }
+        for reason in [
+            "schema_drift:PAYLOAD:dropped",
+            "schema_drift:c.payload:unknown",
+            "schema_drift:c.%61:type",
+            "mystery_code",
+        ] {
+            let (t, entry) = stale("b", reason);
+            let tables = vec![outcome(table("a"), "fresh", None, None), t];
+            assert!(validate_cut(&cut(tables, Some(json!([entry]))), GEN).is_err(), "{reason}");
+        }
+    }
+
+    #[test]
+    fn stale_list_is_one_to_one_and_fresh_rows_carry_the_cut_run() {
+        let (b, b_entry) = stale("b", "source_timeout");
+        let (c, c_entry) = stale("c", "source_timeout");
+        let tables = vec![b.clone(), c.clone()];
+        assert!(validate_cut(&cut(tables.clone(), Some(json!([b_entry, c_entry]))), GEN).is_ok());
+        // One stale table repeated while another is omitted.
+        assert!(validate_cut(&cut(tables, Some(json!([b_entry, b_entry]))), GEN).is_err());
+        let mut extra = b_entry.clone();
+        extra["table"]["extra"] = json!(1);
+        assert!(validate_cut(&cut(vec![b], Some(json!([extra]))), GEN).is_err());
+        let mut fresh = outcome(table("a"), "fresh", None, None);
+        fresh["retained_run"] = json!("run_prev");
+        assert!(validate_cut(&cut(vec![fresh.clone()], Some(json!([]))), GEN).is_err());
+        fresh["status"] = json!("noop");
+        assert!(validate_cut(&cut(vec![fresh], Some(json!([]))), GEN).is_ok());
+    }
+}

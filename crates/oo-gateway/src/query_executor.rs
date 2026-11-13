@@ -2530,8 +2530,8 @@ fn probe_sql(name: &str) -> &'static str {
             "SELECT schema_name::text, table_name::text, COALESCE(state, ''), \
              COALESCE(to_char(source_committed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), ''), \
              COALESCE(to_char(applied_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), ''), \
-             source::text,source_generation::int8,target_generation::int8,physical_name::text \
-             FROM _oo.table_freshness"
+             source::text,source_generation::int8,target_generation::int8,physical_name::text,to_jsonb(f)::text \
+             FROM _oo.table_freshness f"
         }
         "source_watermark" => {
             "SELECT source::text, consistency::text, cross_table_consistent, \
@@ -2648,7 +2648,25 @@ fn absorb_rows(
                 let Some(logical) = match_quality_table(tables, &schema, &table) else {
                     continue;
                 };
+                let source: String = row.try_get(5).map_err(decode)?;
+                if logical
+                    .source
+                    .as_ref()
+                    .is_some_and(|expected| expected != &source)
+                {
+                    continue;
+                }
+                let metadata: String = row.try_get(9).map_err(decode)?;
+                if let Ok(metadata) = serde_json::from_str(&metadata)
+                    && let Some(warning) =
+                        stale_table_warning(&logical.schema, &logical.name, &metadata)
+                {
+                    snapshot.warnings.push(warning);
+                }
                 if let Some(b) = &logical.native_binding {
+                    if b["_freshness_status_only"] == true {
+                        continue;
+                    }
                     let source: String = row.try_get(5).map_err(decode)?;
                     let source_gen: i64 = row.try_get(6).map_err(decode)?;
                     let target_gen: i64 = row.try_get(7).map_err(decode)?;
@@ -3041,6 +3059,104 @@ fn record_receipt(
     }
 }
 
+// JSON extraction tolerates older targets without the lane-P status columns.
+/// The loader's closed stale-reason grammar, compiled from the same file.
+#[path = "../../oo-pipeline/src/stale_grammar.rs"]
+#[allow(dead_code)]
+mod stale_grammar;
+
+fn stale_table_warning(
+    schema: &str,
+    table: &str,
+    row: &serde_json::Value,
+) -> Option<QualityWarning> {
+    // oo-load per-table isolation records `sync_state` (plan D22) beside the
+    // publication `state`, which stays `live` for retained data.
+    if row["state"] != "stale" && row["stale"] != true && row["sync_state"] != "stale" {
+        return None;
+    }
+    let reason = ["stale_reason", "reason", "failure_reason"]
+        .iter()
+        .find_map(|key| row[*key].as_str().filter(|s| !s.trim().is_empty()))
+        .unwrap_or("reason unavailable");
+    // This warning has no role context, and a loaded column is not
+    // necessarily visible to the caller's role, so Agents never get a column
+    // name here: only the drift kind. The owner sees the full reason in
+    // `oo status` (review R8).
+    let reason: String = if reason.starts_with("schema_drift:") {
+        match stale_grammar::parse_drift(reason) {
+            Some((_, kind)) => format!("schema_drift:{kind}"),
+            None => "schema_drift".into(),
+        }
+    } else {
+        reason
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(256)
+            .collect()
+    };
+    Some(QualityWarning {
+        code: "STALE_DATA",
+        schema: schema.into(),
+        table: table.into(),
+        message: format!("Table is stale; last published data retained. Reason: {reason}"),
+    })
+}
+
+#[test]
+fn stale_status_is_optional_scoped_and_preserves_reason() {
+    use serde_json::json;
+    assert!(stale_table_warning("app", "items", &json!({"state":"live"})).is_none());
+    for row in [
+        json!({"state":"stale","stale_reason":"SCHEMA_CHANGED"}),
+        json!({"stale":true,"reason":"SCHEMA_CHANGED"}),
+        json!({"state":"live","sync_state":"stale","stale_reason":"SCHEMA_CHANGED"}),
+    ] {
+        let warning = stale_table_warning("app", "items", &row).unwrap();
+        assert_eq!(
+            (warning.schema.as_str(), warning.table.as_str()),
+            ("app", "items")
+        );
+        assert_eq!(warning.code, "STALE_DATA");
+        assert!(warning.message.ends_with("SCHEMA_CHANGED"));
+    }
+    assert!(
+        stale_table_warning("app", "items", &json!({"state":"stale"}))
+            .unwrap()
+            .message
+            .ends_with("reason unavailable")
+    );
+}
+
+#[test]
+fn stale_drift_never_names_columns_to_agents() {
+    use serde_json::json;
+    let message = |reason: &str| {
+        stale_table_warning(
+            "app",
+            "items",
+            &json!({"sync_state":"stale","stale_reason":reason}),
+        )
+        .unwrap()
+        .message
+    };
+    for (reason, shown) in [
+        ("schema_drift:c.userId:type", "schema_drift:type"),
+        ("schema_drift:c.%e5%90%8d:dropped", "schema_drift:dropped"),
+        ("schema_drift:unpublished_column:key", "schema_drift:key"),
+        ("schema_drift:h.0123456789abcdef:type", "schema_drift:type"),
+        ("schema_drift:secret_key:key", "schema_drift"),
+        ("schema_drift:SSN:dropped", "schema_drift"),
+        ("schema_drift:x", "schema_drift"),
+    ] {
+        let text = message(reason);
+        assert!(text.ends_with(&format!("Reason: {shown}")), "{text}");
+        for name in ["userId", "名", "secret_key", "SSN", "0123456789abcdef"] {
+            assert!(!text.contains(name), "{text}");
+        }
+    }
+}
+
 fn project_held(held: &[HeldMap], tables: &[QualityTable], snapshot: &mut QualitySnapshot) {
     for table in tables.iter().filter(|t| t.native_binding.is_some()) {
         if !held
@@ -3147,6 +3263,7 @@ mod source_engine_projection_tests {
             }],
             operators: vec![],
             literal_types: crate::LiteralTypes::default(),
+            casts: Vec::new(),
             null_test_allowed: false,
             large_table_row_threshold: 100,
         }
@@ -3842,6 +3959,19 @@ fn quality_probe_tables<'a>(
             &table.name,
         )
         .map_err(StopKind::synced)?;
+        if name == "table_freshness"
+            && matches!(
+                receipt["consistency"].as_str(),
+                Some("per_table" | "retained_generation")
+            )
+        {
+            let mut table = table.clone();
+            if let Some(binding) = &mut table.native_binding {
+                binding["_freshness_status_only"] = serde_json::json!(true);
+            }
+            scoped.push(table);
+            continue;
+        }
         if (receipt["consistency"] == "retained_generation" && name != "physical_mappings")
             || (receipt["consistency"] == "per_table"
                 && matches!(
@@ -3910,7 +4040,14 @@ fn project_library_cut(
         snapshot.freshness.push(FreshnessObserved {
             schema: table.schema.clone(),
             table: table.name.clone(),
-            state: "live".into(),
+            state: if snapshot.warnings.iter().any(|w| {
+                w.code == "STALE_DATA" && w.schema == table.schema && w.table == table.name
+            }) {
+                "stale"
+            } else {
+                "live"
+            }
+            .into(),
             source_committed_at: String::new(),
             applied_at,
         });

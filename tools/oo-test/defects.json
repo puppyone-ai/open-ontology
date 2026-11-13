@@ -1,0 +1,347 @@
+[
+  {
+    "id": "oracle-worker-code",
+    "fix": "5c0fadda4",
+    "detector": "rust",
+    "mutations": [
+      {
+        "path": "crates/oo-connectors/src/oracle/engine.rs",
+        "before": ".flatten();\n            SourceError::new(kind, Some(fact), code)",
+        "after": ".flatten();\n            SourceError::new(kind, Some(fact), None)",
+        "count": 1
+      }
+    ],
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-connectors",
+      "--lib",
+      "--features",
+      "mysql,oracle",
+      "unknown_worker_codes_keep_the_ora_number",
+      "--",
+      "--nocapture"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "c1-run-id-replay",
+    "fix": "c23d26df8",
+    "detector": "python",
+    "mutations": [
+      {
+        "path": "tools/oo-test/t3t4.py",
+        "before": "\"local_fixture\": True, \"run_id\": run_id",
+        "after": "\"local_fixture\": True, \"run_id\": \"baseline\"",
+        "count": 1
+      }
+    ],
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tools/oo-test",
+      "-p",
+      "defect_checks.py",
+      "-v"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "mysql-latin1",
+    "fix": "c1ebe3524",
+    "detector": "rust",
+    "mutations": [
+      {
+        "path": "crates/oo-connectors/src/mysql/map.rs",
+        "before": "Some(\"latin1\" | \"gbk\" | \"ucs2\")",
+        "after": "Some(\"gbk\" | \"ucs2\")",
+        "count": 1
+      }
+    ],
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-connectors",
+      "--lib",
+      "--features",
+      "mysql,oracle",
+      "transcoded_capture_does_not_shadow_the_source_order_key",
+      "--",
+      "--nocapture"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "mysql-rename-57",
+    "fix": "c23d26df8",
+    "detector": "python",
+    "mutations": [
+      {
+        "path": "tools/oo-test/t3t4.py",
+        "before": "if my and h.run.version.startswith(\"5.\"):",
+        "after": "if my and h.run.version == \"5.7\":",
+        "count": 1
+      }
+    ],
+    "command": [
+      "python3",
+      "tools/oo-test/defect_live.py",
+      "mysql"
+    ],
+    "layer": "L1"
+  },
+  {
+    "id": "decimal256-carry",
+    "fix": "127479529",
+    "detector": "rust",
+    "mutations": [
+      {
+        "path": "crates/oo-connectors/src/mysql/values.rs",
+        "before": "carry = wide >> 8;",
+        "after": "carry >>= 8;",
+        "count": 2
+      }
+    ],
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-connectors",
+      "--lib",
+      "--features",
+      "mysql,oracle",
+      "ta_wide_decimal_carries",
+      "--",
+      "--nocapture"
+    ],
+    "detector_patches": [
+      {
+        "path": "crates/oo-connectors/src/mysql/values.rs",
+        "append": "\n#[cfg(test)]\nmod ta_defect_regression {\n    #[test]\n    fn ta_wide_decimal_carries() {\n        for precision in [40, 65, 76] {\n            for digits in [\"256\".to_owned(), \"65536\".to_owned(), \"9\".repeat(precision)] {\n                for negative in [false, true] {\n                    let value = oo_core::ExactDecimal::new(negative, &digits, 0).unwrap();\n                    let actual = super::unscaled_i256(&value).unwrap();\n                    let expected = format!(\"{}{digits}\", if negative { \"-\" } else { \"\" })\n                        .parse::<arrow_buffer::i256>().unwrap();\n                    assert_eq!(arrow_buffer::i256::from_le_bytes(actual), expected);\n                }\n            }\n        }\n    }\n}\n"
+      }
+    ],
+    "baseline_patches": [
+      {
+        "path": "crates/oo-connectors/src/mysql/values.rs",
+        "before": "carry >>= 8;",
+        "after": "carry = wide >> 8;",
+        "count": 2
+      }
+    ],
+    "note": "Fix 127479529 is on v0.3/integrate only; v0.2 still carries the defect, so the gate overlays the fix for the baseline.",
+    "layer": "L0"
+  },
+  {
+    "id": "pg-parallel-session-audit",
+    "fix": "5d44ce476",
+    "detector": "python",
+    "mutations": [
+      {
+        "path": "tools/oo-test/audit.py",
+        "before": "               \"MAX_PARALLEL_WORKERS_PER_GATHER\",\n",
+        "after": "",
+        "count": 1
+      }
+    ],
+    "command": [
+      "python3",
+      "tools/oo-test/defect_live.py",
+      "postgres"
+    ],
+    "layer": "L1"
+  },
+  {
+    "id": "t8-short-window-duty",
+    "fix": "4d23e6c51",
+    "detector": "python",
+    "mutations": [
+      {
+        "path": "tools/oo-test/t1.py",
+        "before": "if elapsed >= SHORT_WINDOW_SECONDS and duty > m[\"budget\"][\"duty_cycle_percent\"]:",
+        "after": "if duty > m[\"budget\"][\"duty_cycle_percent\"]:",
+        "count": 1
+      }
+    ],
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tools/oo-test",
+      "-p",
+      "test_t1.py",
+      "-v"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "isolated-stale-grammar",
+    "fix": "1f8057ae3",
+    "detector": "rust",
+    "mutations": [
+      {
+        "path": "crates/oo-pipeline/src/stale_grammar.rs",
+        "before": "CODES.contains(&reason) || parse_drift(reason).is_some()",
+        "after": "CODES.contains(&reason)",
+        "count": 1
+      }
+    ],
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-pipeline",
+      "--lib",
+      "stale_grammar",
+      "--",
+      "--nocapture"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "overbroad-audit-grants",
+    "fix": "9c32c0d49",
+    "detector": "python",
+    "mutations": [
+      {
+        "path": "tools/oo-test/audit.py",
+        "before": "allowed = {\"USAGE\", \"SELECT\", \"SHOW VIEW\"}",
+        "after": "allowed = {\"USAGE\", \"SELECT\", \"SHOW VIEW\", \"INSERT\"}",
+        "count": 1
+      }
+    ],
+    "command": [
+      "python3",
+      "tools/oo-test/defect_live.py",
+      "mysql"
+    ],
+    "layer": "L1"
+  },
+  {
+    "id": "mysql-transcode-key-alias",
+    "fix": "cc2d21e17",
+    "detector": "rust",
+    "mutations": [
+      {
+        "path": "crates/oo-connectors/src/mysql/map.rs",
+        "before": "ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END\"",
+        "after": "ELSE REPEAT(CAST(0xFF AS BINARY),OCTET_LENGTH({name})) END AS {name}\"",
+        "count": 1
+      }
+    ],
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-connectors",
+      "--lib",
+      "--features",
+      "mysql,oracle",
+      "transcoded_capture_does_not_shadow_the_source_order_key",
+      "--",
+      "--nocapture"
+    ],
+    "layer": "L0"
+  },
+  {
+    "id": "publication-identity-0135-0136",
+    "fix": "a05fa33fb",
+    "mutations": [
+      {
+        "path": "crates/oo-pipeline/migrations/0136_publication_routine_identity.sql",
+        "before": "THEN d.definition || jsonb_build_array(jsonb_build_array('routines',r.routines))",
+        "after": "THEN d.definition"
+      }
+    ],
+    "detector": "python",
+    "command": [
+      "python3",
+      "tools/oo-test/defect_live.py",
+      "publication"
+    ],
+    "layer": "L1"
+  },
+  {
+    "id": "adjudication-summary-hash",
+    "fix": "d526f8bf4",
+    "mutations": [
+      {
+        "path": "crates/oo-cli/src/tui/adjudication.rs",
+        "before": "#[serde(default)]\n    pub display: Option<String>",
+        "after": "#[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub display: Option<String>"
+      }
+    ],
+    "detector": "rust",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "oo-cli",
+      "--lib",
+      "shared_adjudication_hash_vector",
+      "--",
+      "--nocapture"
+    ],
+    "required_paths": [
+      "crates/oo-cli/src/tui/adjudication.rs",
+      "execution/v0.3/contracts/hash-vector.json"
+    ],
+    "base_ref": "d526f8bf4",
+    "note": "Adjudication code exists only on v0.3 branches; replayed at the fix commit in its own scratch tree and target dir.",
+    "layer": "L0"
+  },
+  {
+    "id": "publication-identity-tombstone",
+    "fix": "0c6f4f3a4",
+    "detector": "python",
+    "command": [
+      "python3",
+      "tools/oo-test/defect_live.py",
+      "publication"
+    ],
+    "mutations": [
+      {
+        "path": "crates/oo-pipeline/migrations/0135_logical_publication_identity.sql",
+        "before": "WHERE i.valid AND i.relation_identity_sha256 IS DISTINCT FROM",
+        "after": "WHERE false AND i.relation_identity_sha256 IS DISTINCT FROM"
+      }
+    ],
+    "layer": "L1"
+  },
+  {
+    "id": "library-review-silent-publish",
+    "fix": "2dfddc72e",
+    "detector": "python",
+    "layer": "L0",
+    "mutations": [
+      {
+        "path": "deploy/lite/scheduler.py",
+        "before": "'stage': 'review_required' if library else 'data_only'",
+        "after": "'stage': 'data_only'"
+      }
+    ],
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "deploy/lite",
+      "-p",
+      "test_scheduler.py",
+      "-v"
+    ]
+  }
+]

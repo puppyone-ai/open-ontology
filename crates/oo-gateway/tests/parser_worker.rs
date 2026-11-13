@@ -56,19 +56,19 @@ fn main() {
         }
         "echo" => echo(),
         "trailer" => {
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1, 0xff]).unwrap();
             out.flush().unwrap();
         }
         "delayed" => {
             thread::sleep(Duration::from_millis(250));
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
         }
-        "kind" => write_header(2, 99, 0),
+        "kind" => write_header(WIRE_VERSION, 99, 0),
         "partial" => {
             let mut out = std::io::stdout().lock();
             out.write_all(b"OOSW").unwrap();
@@ -76,7 +76,7 @@ fn main() {
             thread::sleep(Duration::from_secs(30));
         }
         "hold-stdout" => {
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -84,7 +84,7 @@ fn main() {
         }
         "late" => {
             thread::sleep(Duration::from_millis(700));
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -135,7 +135,7 @@ fn setsid_stdout() {
 }
 
 fn oversize() {
-    write_header(2, 2, u32::MAX);
+    write_header(WIRE_VERSION, 2, u32::MAX);
     thread::sleep(Duration::from_secs(30));
 }
 
@@ -217,7 +217,11 @@ fn compile_faults() -> Vec<(String, PathBuf)> {
         .join("a187-fault");
     fs::create_dir_all(&dir).unwrap();
     let src = dir.join("fault.rs");
-    fs::write(&src, FAULT_SRC).unwrap();
+    fs::write(
+        &src,
+        FAULT_SRC.replace("WIRE_VERSION", &PROTOCOL_VERSION.to_string()),
+    )
+    .unwrap();
     let mut built = Vec::new();
     for mode in FAULT_MODES {
         let bin = dir.join(format!("fault-{mode}"));
@@ -322,6 +326,7 @@ fn catalog(relations: Vec<VisibleRelation>, threshold: u64) -> PolicyCatalog {
             text: Some(TEXT_OID),
             boolean: Some(BOOL_OID),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: threshold,
     }
@@ -684,7 +689,7 @@ fn admission_stays_blocked_and_the_sandbox_is_unsupported() {
     let deadline = PARSE_DEADLINE;
     assert_eq!(restriction, RestrictionCapability::Unsupported);
     assert_eq!(admission, UntrustedAdmission::Blocked);
-    assert_eq!(version, 2);
+    assert_eq!(version, 3);
     assert_eq!(request_kind, 1);
     assert_eq!(plan_kind, 2);
     assert_eq!(refusal_kind, 3);
@@ -833,6 +838,7 @@ fn tags_and_trailing_bytes_are_rejected() {
     body.push(0);
     body.push(0);
     body.push(0);
+    body.extend_from_slice(&0u32.to_le_bytes()); // cast catalog
     body.push(1);
     body.extend_from_slice(&0u64.to_le_bytes());
     push_str(&mut body, "SELECT 1");
@@ -840,7 +846,7 @@ fn tags_and_trailing_bytes_are_rejected() {
     let mut flagged = body.clone();
     let mut prefix = Vec::new();
     push_identities(&mut prefix);
-    let flag_at = prefix.len() + 12 + 3;
+    let flag_at = prefix.len() + 12 + 3 + 4;
     flagged[flag_at] = 2;
     assert_eq!(decode_request(&flagged), Err(CodecError::Tag));
     let mut optional = body.clone();

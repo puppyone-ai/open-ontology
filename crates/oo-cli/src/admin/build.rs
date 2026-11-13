@@ -94,11 +94,12 @@ fn publish_reviewed_registry(
 }
 
 pub(super) fn status(root: &Path, json_output: bool) -> Result<Invocation, Failure> {
-    let state = review::read(&root.join("chain.json"))?;
+    let mut state = review::read(&root.join("chain.json"))?;
     let fingerprint = state["config_sha256"]
         .as_str()
         .ok_or_else(|| Failure::local("BUILD_RESUME_PROTOCOL"))?;
     validate(&state, fingerprint, root)?;
+    progress::unmeasured_publication(&mut state);
     Ok(report(&state, json_output))
 }
 
@@ -289,6 +290,15 @@ pub(super) fn run(
                             &root.join("review-input.json"),
                             &review::read(&root.join("builder/review-input.json"))?,
                         )?;
+                        let adjudication = root.join("builder/adjudication.json");
+                        if adjudication.exists() {
+                            build_retained::save(
+                                &root.join("adjudication.json"),
+                                &review::read(&adjudication)?,
+                            )?;
+                            state["artifacts"]["adjudication.json"] =
+                                json!(artifact(&root, "adjudication.json")?);
+                        }
                     } else {
                         return Err(Failure::local("BUILD_BUILDER_RECEIPT"));
                     }
@@ -322,8 +332,9 @@ pub(super) fn run(
                     let output = root.join("reviewed-registry.json");
                     let reviewed = if output.exists() {
                         let value = review::read(&output)?;
-                        if value["review_decision"]["decisions"]["input_sha256"]
-                            != review::hash(&input)
+                        if value["review_decision"]["protocol"] != "oo.publish-confirm/v1"
+                            && value["review_decision"]["decisions"]["input_sha256"]
+                                != review::hash(&input)
                         {
                             return Err(Failure::local("BUILD_REVIEW_INPUT_CHANGED"));
                         }

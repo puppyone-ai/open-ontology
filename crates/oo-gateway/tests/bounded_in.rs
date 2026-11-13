@@ -96,6 +96,7 @@ fn catalog(rows: u64, operators: Vec<ResolvedOperator>, integer: Option<u32>) ->
             text: Some(TEXT_OID),
             boolean: Some(BOOL_OID),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }
@@ -330,11 +331,11 @@ fn unsupported_in_shapes_fail_closed() {
             "IN predicate",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id IN (SELECT entry_id FROM shop.entry)",
+            "SELECT entry_id FROM shop.entry WHERE entry_id IN (SELECT entry_id,qty FROM shop.entry)",
             "subquery",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (SELECT entry_id FROM shop.entry)",
+            "SELECT entry_id FROM shop.entry WHERE entry_id NOT IN (SELECT entry_id,qty FROM shop.entry)",
             "subquery",
         ),
         (
@@ -366,7 +367,7 @@ fn unsupported_in_shapes_fail_closed() {
             "LIKE predicate",
         ),
         (
-            "SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN 0 AND 2",
+            "SELECT entry_id FROM shop.entry WHERE entry_id BETWEEN SYMMETRIC 0 AND 2",
             "BETWEEN predicate",
         ),
     ];

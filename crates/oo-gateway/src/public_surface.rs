@@ -57,6 +57,9 @@ use crate::sql_guard::{GuardError, OutputItem, PolicyIdentity, guard_select};
 mod query_lifecycle;
 use query_lifecycle::{QueryState, RequestLifetime, SessionLease};
 
+#[path = "semantic_tools.rs"]
+mod semantic_tools;
+
 #[cfg(test)]
 #[path = "f22_owned_pg_tests.rs"]
 mod f22_owned_pg;
@@ -1053,6 +1056,7 @@ impl Plane {
     }
 }
 
+#[derive(Clone)]
 struct WalAudit {
     dir: PathBuf,
     collector: Option<PathBuf>,
@@ -1086,6 +1090,28 @@ impl AuditAdmission for WalAudit {
 }
 
 impl WalAudit {
+    async fn refuse(
+        &self,
+        code: ErrorCode,
+        identity: &PolicyIdentity,
+        sql: &str,
+    ) -> Result<(), ExecError> {
+        let mut fields = Map::new();
+        fields.insert(
+            "code".into(),
+            serde_json::to_value(code).map_err(|_| ExecError::AuditUnavailable)?,
+        );
+        fields.insert("status".into(), Value::from("denied"));
+        fields.insert("project".into(), Value::from(identity.project.clone()));
+        fields.insert("role".into(), Value::from(identity.role.clone()));
+        fields.insert("policy_id".into(), Value::from(identity.policy_id.clone()));
+        fields.insert(
+            "original_sha256".into(),
+            Value::from(oo_core::api::payload_sha256(sql.as_bytes())),
+        );
+        self.persist("refuse", 1, fields).await
+    }
+
     async fn persist(
         &self,
         phase: &str,
@@ -1293,6 +1319,14 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/sql/validate", post(validate))
         .route("/v1/query", post(query))
         .route("/v1/freshness", get(freshness))
+        .route("/v1/check/readiness", get(check_readiness))
+        .route("/v1/check/answerable", post(check_answerable))
+        .route(
+            "/v1/entities/{entity}/resolve",
+            post(semantic_tools::resolve_entity),
+        )
+        .route("/v1/values/search", post(semantic_tools::search_values))
+        .route("/v1/feedback/gap", post(semantic_tools::report_gap))
         .route("/v1/meta", get(meta))
         .route("/v1/knowledge/search", post(knowledge_search))
         .route("/v1/knowledge/{*path}", get(knowledge))
@@ -1301,6 +1335,139 @@ pub(crate) fn mount(router: Router<AppState>) -> Router<AppState> {
         .route("/v1/operations", get(operations))
         .route("/v1/operations/{server_id}", get(operation_status))
         .route("/v1/operations/{server_id}/cancel", post(operation_cancel))
+}
+
+async fn check_readiness(
+    State(state): State<AppState>,
+    mut headers: HeaderMap,
+    RawQuery(query): RawQuery,
+    peer: crate::http_gateway::PublicPeer,
+) -> Response {
+    // Reuse the authenticated, role-filtered surfaces and bind the second read
+    // to the first publication; never infer a published pack from HTTP 200 alone.
+    headers
+        .entry(crate::publication_binding::EXPECTED)
+        .or_insert(HeaderValue::from_static("current"));
+    let table_response = tables(
+        State(state.clone()),
+        headers.clone(),
+        RawQuery(query.clone()),
+        peer.clone(),
+    )
+    .await;
+    if !table_response.status().is_success() {
+        return table_response;
+    }
+    let (parts, body) = table_response.into_parts();
+    let publication = parts
+        .headers
+        .get(crate::publication_binding::ACTUAL)
+        .cloned();
+    if let Some(id) = &publication {
+        headers.insert(crate::publication_binding::EXPECTED, id.clone());
+    }
+    let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+        Ok(bytes) => bytes,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let table_doc: Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let response = freshness(State(state), headers, RawQuery(query), peer).await;
+    if !response.status().is_success() {
+        return response;
+    }
+    let (parts, body) = response.into_parts();
+    let bytes = match axum::body::to_bytes(body, 4 * 1024 * 1024).await {
+        Ok(bytes) => bytes,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let fresh: Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return error_response(ErrorCode::Internal, "readiness unavailable", None, None),
+    };
+    let count = table_doc["tables"].as_array().map(Vec::len).unwrap_or(0);
+    let published = publication.is_some()
+        && fresh["publication"] == "live"
+        && fresh["knowledge_version"] == table_doc["knowledge_version"]
+        && fresh["policy_version"] == table_doc["policy_version"];
+    let mut response = json_ok(serde_json::json!({
+        "ready": published && count > 0, "gateway_reachable": true,
+        "pack_published": published, "visible_tables": count, "freshness": fresh,
+        "source_realtime": "not_claimed",
+    }));
+    response.headers_mut().extend(parts.headers);
+    response.headers_mut().remove(header::CONTENT_LENGTH);
+    response
+}
+
+async fn check_answerable(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+    peer: crate::http_gateway::PublicPeer,
+    body: Bytes,
+) -> Response {
+    let caller = match crate::http_gateway::public_caller(&state, &headers, &query, peer).await {
+        Ok(caller) => caller,
+        Err(response) => return *response,
+    };
+    let binding = match metadata_binding(&state, &caller, &headers, false).await {
+        Ok(binding) => binding,
+        Err(response) => return *response,
+    };
+    if let Err(response) = agree(&headers, &caller) {
+        return *response;
+    }
+    let input: Value = match serde_json::from_slice(&body) {
+        Ok(input) => input,
+        Err(_) => {
+            return error_response(
+                ErrorCode::SchemaInvalid,
+                "invalid preflight request",
+                None,
+                None,
+            );
+        }
+    };
+    let Some(question) = input["question"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty() && s.len() <= 2048 && !s.chars().any(char::is_control))
+    else {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "invalid preflight question",
+            None,
+            None,
+        );
+    };
+    if input.as_object().is_none_or(|o| o.len() != 1) {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "invalid preflight request",
+            None,
+            None,
+        );
+    }
+    let Some(pack) = find_pack(&state.pack_catalog(), &caller) else {
+        return error_response(
+            ErrorCode::SchemaInvalid,
+            "knowledge pack is not loaded",
+            None,
+            None,
+        );
+    };
+    let mut result =
+        crate::semantic_coverage::CoverageIndex::from_pack(&state.pack_catalog(), &pack)
+            .assess(question);
+    result["knowledge_version"] = Value::String(pack.knowledge_version);
+    result["policy_version"] = Value::String(pack.policy_version);
+    result["pack_digest"] = Value::String(pack.pack_digest);
+    with_binding(
+        json_ok(result),
+        binding.as_ref().map(|(receipt, _, _)| receipt),
+    )
 }
 
 fn expected_binding(headers: &HeaderMap) -> Result<Option<Expected>, Box<Response>> {
@@ -1651,6 +1818,10 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
         "truncated": false,
         "functions": functions,
         "operators": operators,
+        "scalar_casts": catalog.casts.iter().map(|cast| serde_json::json!({
+            "source": if cast.source_type_oid == 0 { "literal".to_owned() } else { type_name(cast.source_type_oid) },
+            "target": type_name(cast.target_type_oid),
+        })).collect::<Vec<_>>(),
         "literal_types": {
             "integer": catalog.literal_types.integer.map(type_name),
             "text": catalog.literal_types.text.map(type_name),
@@ -1666,7 +1837,19 @@ fn query_capabilities(catalog: Option<&crate::sql_guard::PolicyCatalog>) -> Valu
             "date_trunc_day_timestamp": catalog.functions.iter().any(|f| f.name == "date_trunc"),
             "to_char_timestamp_literal_format": catalog.functions.iter().any(|f| f.name == "to_char"),
             "like_literal_pattern": catalog.operators.iter().any(crate::policy::catalog::pattern_signature_allowed),
-            "timezone_dependent_day_conversion": false
+            "temporal_iso_string_comparison": true,
+            "between_visible_column": true,
+            "temporal_literal_in": true,
+            "coalesce_nullif_minmax": true,
+            "scalar_in_exists_subqueries": true,
+            "nonrecursive_cte": true,
+            "same_type_union_all": true,
+            "clock_is_source_freshness": false,
+            "transaction_clock": catalog.functions.iter().any(|f| f.name == "now"),
+            "between_scalar_expression": true,
+            "timezone_dependent_day_conversion": catalog.casts.iter().any(|cast|
+                cast.source_type_oid == postgres_types::Type::TIMESTAMPTZ.oid()
+                    && cast.target_type_oid == postgres_types::Type::DATE.oid())
         },
     })
 }
@@ -2555,7 +2738,7 @@ async fn query(
                         read_quality: true,
                         quality_vector: quality_vector.as_ref(),
                     },
-                    audit,
+                    audit.clone(),
                     binding,
                 )
                 .await
@@ -2564,6 +2747,13 @@ async fn query(
                 Err(err) => {
                     if matches!(err, ExecError::Timeout { .. }) { status.finish("timed_out"); }
                     let (code, message) = exec_public(&err);
+                    // Guard refusals happen before executor admission. Persist
+                    // them here without SQL text, values or denied column names.
+                    if matches!(err, ExecError::Guard(_))
+                        && audit.refuse(code, &identity, request.sql.as_str()).await.is_err()
+                    {
+                        return error_response(ErrorCode::AuditUnavailable, "refusal audit failed", None, Some(query_id.as_str()));
+                    }
                     return error_response(code, message, exec_hint(&err), Some(query_id.as_str()));
                 }
             };
@@ -2995,6 +3185,11 @@ fn freshness_document(snapshot: &QualitySnapshot, knowledge: &str, policy: &str)
         "imports": snapshot.imports.iter().map(import_value).collect::<Vec<_>>(),
         "quality_counts": snapshot.quality_counts.iter().map(quality_count_value).collect::<Vec<_>>(),
         "publication": publication_label(snapshot),
+        // shortcut: review holds live in the scheduler control DB, not this
+        // published quality snapshot. Add a scoped producer signal before
+        // reporting true/false; not_ready is not evidence of a review hold.
+        "held_by_review": null,
+        "review_state": "unmeasured",
         "replica_lag": "unmeasured",
         "capture_method": measured(&snapshot.capture_method),
         "deletion_guarantee": measured(&snapshot.delete_detection),
@@ -3541,7 +3736,9 @@ fn freshness_row(observed: &crate::query_executor::FreshnessObserved) -> Option<
     let state = match observed.state.as_str() {
         "live" => FreshnessState::Live,
         "paused" => FreshnessState::Paused,
-        "snapshotting" | "catching_up" | "awaiting_publish" | "error" => FreshnessState::Stale,
+        "stale" | "snapshotting" | "catching_up" | "awaiting_publish" | "error" => {
+            FreshnessState::Stale
+        }
         _ => return None,
     };
     let table = QualifiedTable::new(format!("{}.{}", observed.schema, observed.table)).ok()?;
@@ -3551,6 +3748,30 @@ fn freshness_row(observed: &crate::query_executor::FreshnessObserved) -> Option<
         lag_ms,
         state,
     })
+}
+
+#[test]
+fn stale_reason_survives_without_a_measured_source_time() {
+    let mut snapshot = QualitySnapshot::blank("read");
+    snapshot.warnings.push(QualityWarning {
+        code: "STALE_DATA",
+        schema: "app".into(),
+        table: "items".into(),
+        message: "Table is stale; last published data retained. Reason: SCHEMA_CHANGED".into(),
+    });
+    let document = freshness_document(&snapshot, "knowledge", "policy");
+    assert_eq!(document["source_time"], "unmeasured");
+    assert_eq!(document["freshness"], serde_json::json!([]));
+    let warnings = serde_json::to_value(project_quality(&snapshot).warnings).unwrap();
+    assert_eq!(document["warnings"], warnings);
+    assert_eq!(warnings[0]["code"], "STALE_DATA");
+    assert_eq!(warnings[0]["table"], "app.items");
+    assert!(
+        warnings[0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("SCHEMA_CHANGED")
+    );
 }
 
 fn lag_between(source: &str, applied: &str) -> Option<u64> {
@@ -3631,7 +3852,14 @@ fn warning_row(warning: &QualityWarning) -> Option<Warning> {
 }
 
 fn public_column(column: &ResultColumn) -> Result<QueryColumn, ()> {
-    let name = TableName::new(column.name.clone()).map_err(|_| ())?;
+    // PostgreSQL labels unaliased scalar expressions "?column?". It is not
+    // a database identifier; expose a safe label without widening TableName.
+    let name = TableName::new(if column.name == "?column?" {
+        "value".into()
+    } else {
+        column.name.clone()
+    })
+    .map_err(|_| ())?;
     let type_name = Label::new(type_label(column.oid)).map_err(|_| ())?;
     let (precision, scale) = if column.oid == 1700 {
         numeric_parts(column.typmod)
@@ -4061,6 +4289,69 @@ mod tests {
     use super::*;
 
     #[test]
+    fn anonymous_scalar_results_have_a_safe_public_label() {
+        for (source, expected) in [("?column?", "value"), ("net_receipts", "net_receipts")] {
+            let column = public_column(&ResultColumn {
+                name: source.into(),
+                oid: 20,
+                typmod: -1,
+            })
+            .unwrap();
+            assert_eq!(serde_json::to_value(column).unwrap()["name"], expected);
+        }
+        for name in ["", "?column?extra", "private.column", "private column"] {
+            assert!(
+                public_column(&ResultColumn {
+                    name: name.into(),
+                    oid: 20,
+                    typmod: -1,
+                })
+                .is_err()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn guard_refusal_is_durable_without_sql_or_denied_names() {
+        let root = std::env::temp_dir().join(format!("oo-refusal-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let audit = WalAudit {
+            dir: root.clone(),
+            collector: None,
+            query_id: "q_refusal_test".into(),
+            principal: "analyst".into(),
+        };
+        let identity = PolicyIdentity {
+            project: "demo".into(),
+            role: "oo_r_analyst".into(),
+            policy_id: "test".into(),
+        };
+        let sql = "SELECT private_canary FROM demo.customers";
+        audit
+            .refuse(ErrorCode::ColumnNotAllowed, &identity, sql)
+            .await
+            .unwrap();
+        let text = fs::read_to_string(root.join("q_refusal_test-refuse.wal")).unwrap();
+        let row: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(row["query_id"], "q_refusal_test");
+        assert_eq!(row["phase"], "refuse");
+        assert_eq!(row["code"], "COLUMN_NOT_ALLOWED");
+        assert_eq!(
+            row["original_sha256"],
+            oo_core::api::payload_sha256(sql.as_bytes())
+        );
+        assert!(!text.contains("private_canary"));
+        assert!(!text.contains(sql));
+        fs::remove_dir_all(&root).unwrap();
+        assert!(
+            audit
+                .refuse(ErrorCode::ColumnNotAllowed, &identity, sql)
+                .await
+                .is_err()
+        );
+    }
+
+    #[test]
     fn reviewed_roles_reload_atomically_and_never_fall_back_to_stale_permissions() {
         let root = std::env::temp_dir().join(format!(
             "oo-role-reload-{}-{}",
@@ -4180,6 +4471,7 @@ mod tests {
                 text: Some(25),
                 boolean: Some(16),
             },
+            casts: Vec::new(),
             null_test_allowed: true,
             large_table_row_threshold: 100,
         };
@@ -4194,6 +4486,13 @@ mod tests {
         assert_eq!(capabilities["operators"][0]["result_type_oid"], 16);
         assert!(!capabilities.to_string().contains("private_"));
         assert_eq!(capabilities["requires_validate"], true);
+        for shape in [
+            "temporal_iso_string_comparison",
+            "between_visible_column",
+            "temporal_literal_in",
+        ] {
+            assert_eq!(capabilities["sql_shapes"][shape], true);
+        }
         assert_eq!(capabilities["truncated"], false);
         assert_eq!(capabilities["functions"][0]["argument_type_oids"][0], 1700);
         catalog.operators.push(ResolvedOperator {

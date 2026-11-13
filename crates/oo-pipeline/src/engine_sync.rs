@@ -6,6 +6,11 @@ use oo_connectors::engine::{ChangeBatch, ChangeSource, ReadBudget, Watermark};
 /// The target atomically commits row changes, tombstones and the position.
 pub trait Target {
     fn position(&mut self) -> impl std::future::Future<Output = Result<Watermark>>;
+    /// May lag the source cursor when a table is quarantined. Releasing logs
+    /// past this point would erase unapplied history.
+    fn feedback_position(&mut self) -> impl std::future::Future<Output = Result<Watermark>> {
+        self.position()
+    }
     fn apply(
         &mut self,
         from: &Watermark,
@@ -52,6 +57,20 @@ pub fn at_or_after(next: &Watermark, previous: &Watermark) -> Result<bool> {
     }
 }
 
+/// The closed fact of a source error. A server code the adapter could not
+/// name (an unknown ORA number, say) goes to stderr as a separate diagnostic
+/// line: a code, never driver text, so field failures stay diagnosable.
+fn closed(error: &oo_connectors::SourceError, fallback: &'static str) -> &'static str {
+    let fact = error.fact().unwrap_or(fallback);
+    if let Some(code) = error.sqlstate() {
+        eprintln!(
+            "{}",
+            serde_json::json!({"diagnostic":"source_error","fact":fact,"sqlstate":code})
+        );
+    }
+    fact
+}
+
 /// One bounded source batch. A no-batch poll does not touch the target.
 /// `compare` must check monotonicity within an externally verified lineage.
 pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
@@ -65,16 +84,29 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     let earliest = source
         .earliest_available()
         .await
-        .map_err(|e| e.fact().unwrap_or("sync_retention"))?;
+        .map_err(|e| closed(&e, "sync_retention"))?;
     if !compare(&from, &earliest)? {
         return Err("sync_rebaseline_required_retention");
     }
+    let mut floor = target.feedback_position().await?;
+    if !compare(&from, &floor)? {
+        return Err("sync_rebaseline_required_retention");
+    }
+    if !compare(&floor, &earliest)? {
+        // Only quarantined tables can hold the feedback floor below the
+        // healthy cursor. They rejoin through a fresh snapshot corrected with
+        // the log after it, never from their frozen position, so log already
+        // removed below the floor costs them nothing: keep isolating them
+        // instead of failing every table (plan D22). The healthy cursor check
+        // above still refuses lost history for tables that are being applied.
+        floor = earliest.clone();
+    }
     // Also repairs feedback lost after the previous successful target commit.
-    feedback.acknowledge(&from).await?;
+    feedback.acknowledge(&floor).await?;
     let Some(batch) = source
         .next_batch(&from, budget)
         .await
-        .map_err(|e| e.fact().unwrap_or("sync_capture"))?
+        .map_err(|e| closed(&e, "sync_capture"))?
     else {
         return Ok(false);
     };
@@ -90,7 +122,11 @@ pub async fn step<S: ChangeSource, T: Target, F: Feedback>(
     if target.position().await? != batch.position {
         return Err("sync_target_position");
     }
-    feedback.acknowledge(&batch.position).await?;
+    let floor = target.feedback_position().await?;
+    if !compare(&batch.position, &floor)? {
+        return Err("sync_feedback_ahead");
+    }
+    feedback.acknowledge(&floor).await?;
     Ok(true)
 }
 
@@ -127,10 +163,14 @@ mod tests {
         position: u64,
         fail: bool,
         events: Arc<Mutex<Vec<u64>>>,
+        feedback_floor: Option<u64>,
     }
     impl Target for Store {
         async fn position(&mut self) -> Result<Watermark> {
             Ok(pos(self.position))
+        }
+        async fn feedback_position(&mut self) -> Result<Watermark> {
+            Ok(pos(self.feedback_floor.unwrap_or(self.position)))
         }
         async fn apply(&mut self, _: &Watermark, batch: &ChangeBatch) -> Result<()> {
             if self.fail {
@@ -171,6 +211,7 @@ mod tests {
             position: 10,
             fail: false,
             events: events.clone(),
+            feedback_floor: None,
         };
         let mut ack = Ack {
             events: events.clone(),
@@ -201,6 +242,7 @@ mod tests {
             position: 10,
             fail: true,
             events: events.clone(),
+            feedback_floor: None,
         };
         let mut ack = Ack {
             events: events.clone(),
@@ -226,6 +268,56 @@ mod tests {
             Err("sync_position_not_advanced")
         );
     }
+    #[tokio::test]
+    async fn quarantine_retains_history_despite_healthy_cursor_progress() {
+        let events = Arc::new(Mutex::new(vec![]));
+        let mut source = Source {
+            floor: 10,
+            next: 30,
+        };
+        let mut store = Store {
+            position: 20,
+            fail: false,
+            events: events.clone(),
+            feedback_floor: Some(10),
+        };
+        let mut ack = Ack {
+            events: events.clone(),
+            fail: false,
+        };
+        let budget = ReadBudget::default();
+        assert!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after)
+                .await
+                .unwrap()
+        );
+        assert_eq!(store.position, 30);
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110]);
+        // Log removed below a quarantined table's frozen floor: the healthy
+        // cursor (30) is still retained, so the source keeps running and the
+        // feedback floor moves up to the earliest retained position.
+        source.floor = 11;
+        assert!(
+            !step(&mut source, &mut store, &mut ack, &budget, at_or_after)
+                .await
+                .unwrap()
+        );
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110, 111]);
+        // History lost for the healthy cursor itself still refuses.
+        source.floor = 31;
+        assert_eq!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
+            Err("sync_rebaseline_required_retention")
+        );
+        source.floor = 11;
+        store.feedback_floor = Some(31);
+        assert_eq!(
+            step(&mut source, &mut store, &mut ack, &budget, at_or_after).await,
+            Err("sync_rebaseline_required_retention")
+        );
+        assert_eq!(*events.lock().unwrap(), vec![110, 30, 110, 111]);
+    }
+
     #[test]
     fn file_numbers_are_numeric_and_prefix_changes_require_rebaseline() {
         let p = |file: &str| Watermark::MysqlFilePos {

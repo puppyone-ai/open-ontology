@@ -1,0 +1,237 @@
+{
+ "protocol": "oo.table-catalog/v1",
+ "tables": [
+  {
+   "schema": "lg",
+   "name": "customers",
+   "rows": 48210,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "orders",
+   "rows": 1203345,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.customers",
+    "lg.calendar"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "shipments",
+   "rows": 982114,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.orders",
+    "lg.routes",
+    "lg.drivers"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "parcels",
+   "rows": 2410877,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.shipments"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "warehouses",
+   "rows": 36,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "routes",
+   "rows": 420,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.stations"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "vehicles",
+   "rows": 310,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.stations"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "drivers",
+   "rows": 540,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.vehicles"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "stations",
+   "rows": 1820,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.employees"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "status_codes",
+   "rows": 14,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "calendar",
+   "rows": 3653,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "shipment_events",
+   "rows": 11032556,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.shipments",
+    "lg.status_codes"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "employees",
+   "rows": 2130,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": [
+    "lg.employees",
+    "lg.stations"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "shipment_log",
+   "rows": 8120554,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "import_tmp",
+   "rows": 0,
+   "has_primary_key": false,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "orders_bak",
+   "rows": 1190020,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "django_migrations",
+   "rows": 212,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "audit_trail",
+   "rows": 530221,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "session_tokens",
+   "rows": 3302,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "price_rules",
+   "rows": 88,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "kpi_snapshot",
+   "rows": 3650,
+   "has_primary_key": false,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  },
+  {
+   "schema": "lg",
+   "name": "parcels_2026_10",
+   "rows": 210331,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": true,
+   "references": [
+    "lg.shipments"
+   ]
+  },
+  {
+   "schema": "lg",
+   "name": "notes",
+   "rows": 0,
+   "has_primary_key": true,
+   "has_unique_key": false,
+   "partition_child": false,
+   "references": []
+  }
+ ]
+}

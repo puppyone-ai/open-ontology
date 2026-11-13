@@ -37,11 +37,9 @@ fn run() -> Result<Value, &'static str> {
         mysql_user: source.user.clone(),
         mysql_ca_file: store.path(&ca.secret_ref)?,
         mysql_tls_server_name: None,
-        secret_ref: oo_connectors::SecretRef::new(format!(
-            "secret://{}",
-            source.password.secret_ref
-        ))
-        .map_err(|_| "SECRET_NAME")?,
+        // The connector receives resolved bytes, not a file:/env: locator.
+        secret_ref: oo_connectors::SecretRef::new("secret://source-password")
+            .map_err(|_| "SECRET_NAME")?,
         connect_timeout_ms: 10_000,
     };
     let options = EngineOptions {
@@ -68,6 +66,26 @@ fn run() -> Result<Value, &'static str> {
                 .await
                 .map_err(|error| error.fact().unwrap_or("SOURCE_CATALOG_FAILED"))?;
             return Ok(json!({"status":"ok","catalog":catalog}));
+        }
+        if value["operation"] == "discover" {
+            // `oo init`: sign in, then the databases and tables it can see.
+            // Catalog views and statistics only; table discovery may fail on
+            // its own (reported) without failing the sign-in.
+            let budget = ReadBudget::default();
+            // The database list is the sign-in: it needs a session and no grant.
+            let databases = engine
+                .list_databases(&budget)
+                .await
+                .map_err(|error| error.fact().unwrap_or("SOURCE_SIGN_IN_FAILED"))?;
+            let version = engine.probe().await.ok().map(|p| p.version.raw);
+            let mut report = json!({"status":"ok","version":version,"databases":databases});
+            match engine.discover_catalog(&budget).await {
+                Ok(tables) => report["tables"] = json!(tables),
+                Err(error) => {
+                    report["tables_error"] = json!(error.fact().unwrap_or("SOURCE_CATALOG_FAILED"))
+                }
+            }
+            return Ok(report);
         }
         let mut report = inspection::inspect(&mut engine, &tables, &source.sync.mode).await;
         if let Some(ssh) = &source.ssh {

@@ -437,6 +437,7 @@ fn catalog() -> OwnedCatalog {
         functions: Vec::new(),
         operators: Vec::new(),
         literal_types: LiteralTypes { integer: Some(23), text: Some(25), boolean: Some(16) },
+        casts: Vec::new(),
         null_test_allowed: false,
         large_table_row_threshold: 1_000_000,
     };

@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from audit import Audit
 from datetime import datetime, timezone
 from matrix import P0, downgrade_report, index_rows
+from timing import Timing, product_command, timed
 
 ROOT = Path(__file__).resolve().parents[2]
 ENGINES = ROOT / "testing/engines"
@@ -115,6 +116,15 @@ def suites(value):
 
 
 class Run:
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Overrides must retain timing, including failures before super() runs.
+        for method, stage in (("setup", "container_start"), ("seed", "seed"),
+                              ("cleanup", "cleanup"), ("gold", "compare"),
+                              ("verify_shapes", "compare")):
+            if method in cls.__dict__:
+                setattr(cls, method, timed(stage)(cls.__dict__[method]))
+
     def __init__(self, path, engine, version, args):
         self.path, self.engine, self.version, self.args = path, engine, version, args
         path.chmod(0o700)
@@ -130,7 +140,9 @@ class Run:
         self.created_container = False
         self.created_volume = False
         self.started = time.monotonic()
+        self.timing = Timing(self)
 
+    @product_command
     def command(self, command, *, data=None, stdin=None, timeout=300, required=True):
         if command[:2] == ["docker", "pull"]:
             image = command[-1]
@@ -203,6 +215,7 @@ class Run:
                 return self.command(command, stdin=stream, timeout=timeout, required=required)
         return self.command(command, data=text, timeout=timeout, required=required)
 
+    @timed("container_start")
     def setup(self):
         disk_gate(self.path)
         item = resolve(self.engine, self.version)
@@ -306,6 +319,7 @@ class Run:
         else:
             raise RuntimeError("database health timeout")
 
+    @timed("seed")
     def seed(self):
         if self.engine == "oracle":
             if "T7" in getattr(self.args, "suites", []) and self.version.startswith(("11", "19", "21")):
@@ -371,6 +385,7 @@ class Run:
         self.receipt["version_actual"] = actual.group()
         write_json(self.path / "resource-receipt.json", self.receipt)
 
+    @timed("compare")
     def gold(self):
         self.record_version()
         answers = {}
@@ -404,6 +419,7 @@ class Run:
         write_json(self.path / "gold-answers.json", answers)
         return answers
 
+    @timed("compare")
     def verify_shapes(self):
         counts = {"regions": 2, "areas": 4, "sites": 8, "codes": 3, "customers": 24,
                   "orders": 120, "shipments": 90, "calendar": 28, "order_lines": 240,
@@ -460,6 +476,7 @@ class Run:
                              if self.version.startswith("11") else ["JSON stored as validated CLOB"]))
             if self.engine == "oracle" else []})
 
+    @timed("cleanup")
     def cleanup(self):
         failures = []
         for kind, name, created in [("container", self.name, self.created_container),
@@ -497,6 +514,7 @@ class Run:
         return failures
 
 
+@timed("product_run")
 def execute_suites(run, requested, hooks):
     from verdicts import merge
     def explicit(suite):
@@ -540,7 +558,9 @@ def execute_suites(run, requested, hooks):
         if audit:
             audit.marker("end")
             report = audit.collect()
-            report["dependencies"] = {s: results.get(s, "not_run") for s in ("T1", "T2")}
+            # The full matrix always adds T1 and T2 to T7; fast L1 audits only what it ran.
+            report["dependencies"] = {s: results.get(s, "not_run") for s in ("T1", "T2")
+                                      if s in requested}
             report["passed"] &= all(v == "passed" for v in report["dependencies"].values())
             write_json(run.path / "audit-report.json", report)
             results["T7"] = "passed" if report["passed"] else "failed"

@@ -63,6 +63,9 @@ const NULL_NOT: i32 = pb::NullTestType::IsNotNull as i32;
 const SORT_USING: i32 = pb::SortByDir::SortbyUsing as i32;
 const LIMIT_TIES: i32 = pb::LimitOption::WithTies as i32;
 
+#[path = "sql_scopes.rs"]
+mod scopes;
+
 /// Exact project, role, and policy identity. Compared byte for byte.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolicyIdentity {
@@ -85,6 +88,8 @@ pub struct PolicyCatalog {
     pub functions: Vec<ResolvedFunction>,
     /// Binary operators the adapter has already resolved.
     pub operators: Vec<ResolvedOperator>,
+    /// Scalar conversions verified in the same snapshot. Empty grants no new casts.
+    pub casts: Vec<ResolvedCast>,
     /// Type OIDs for integer, text, and boolean literals. Absent means unresolved.
     pub literal_types: LiteralTypes,
     /// `IS NULL` / `IS NOT NULL` on a column. No OID is invented when this is false.
@@ -137,6 +142,30 @@ pub struct ResolvedFunction {
     /// `count(*)`-style call with no argument types.
     pub aggregate_star: bool,
 }
+
+/// One exact builtin conversion; source zero denotes a literal input.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolvedCast {
+    pub source_type_oid: u32,
+    pub target_type_oid: u32,
+    pub functions: Vec<ResolvedFunction>,
+}
+
+/// Closed scalar cast targets. Domains, arrays, regclass and pseudo-types are absent.
+pub const SCALAR_CAST_TYPES: &[Type] = &[
+    Type::BOOL,
+    Type::INT2,
+    Type::INT4,
+    Type::INT8,
+    Type::NUMERIC,
+    Type::FLOAT8,
+    Type::TEXT,
+    Type::VARCHAR,
+    Type::DATE,
+    Type::TIMESTAMP,
+    Type::TIMESTAMPTZ,
+    Type::INTERVAL,
+];
 
 /// One binary operator the adapter resolved.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -406,7 +435,7 @@ impl GuardError {
             Self::Unqualified { suggestion: None } => Some("use schema.name".to_string()),
             Self::CostTooHigh { .. } => Some("add a filter or use export".to_string()),
             Self::FunctionNotAllowed => Some(
-                "no allowed function/operator signature matches; check describe.column_details and argument types. Time filters require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings or implicit casts. This alone does not establish a column permission denial"
+                "no allowed function/operator signature matches; check describe.column_details and argument types. Time filters require matching DATE, TIMESTAMP or TIMESTAMPTZ types or ISO date/time literals; TIMESTAMPTZ literals need an explicit offset. This alone does not establish a column permission denial"
                     .to_string(),
             ),
             Self::SignatureNotAllowed { operator, argument_type_oids, position } => {
@@ -417,7 +446,7 @@ impl GuardError {
                     .collect::<Vec<_>>().join(",");
                 let offset = if *position >= 0 { position.to_string() } else { "unknown".into() };
                 Some(format!(
-                    "phase=signature_binding; expression={expression}; byte_offset={offset}; argument_types=[{types}]; no unique allowed signature matches. Check describe.query_capabilities and column_details, then validate. Time comparisons require matching explicit DATE, TIMESTAMP or TIMESTAMPTZ literals, not bare strings. This is not evidence of denied column access"
+                    "phase=signature_binding; expression={expression}; byte_offset={offset}; argument_types=[{types}]; no unique allowed signature matches. Check describe.query_capabilities and column_details, then validate. Time comparisons require matching DATE, TIMESTAMP or TIMESTAMPTZ types or ISO date/time literals; TIMESTAMPTZ literals need an explicit offset. This is not evidence of denied column access"
                 ))
             }
             Self::Unsupported { construct } => Some(format!(
@@ -508,9 +537,6 @@ fn guard_with(
         return Err(GuardError::Write);
     }
     let mut admitted = admit_select(&mut parsed.protobuf, catalog, surface)?;
-    if let Some(relation) = large_relation(&admitted, catalog) {
-        return Err(GuardError::CostTooHigh { relation });
-    }
     let executed = pg_query::deparse(&parsed.protobuf)
         .map_err(|_| GuardError::Serialize { reason: "deparse" })?;
     if executed.is_empty() {
@@ -584,6 +610,8 @@ enum WhereFold {
 }
 
 struct Admitted {
+    output_columns: Vec<VisibleColumn>,
+    estimated_rows: u64,
     expansions: Vec<StarExpansion>,
     relations: Vec<OrderedRelation>,
     outputs: Vec<OutputItem>,
@@ -599,6 +627,7 @@ struct OrderedRelation {
     bound: BoundRelation,
 }
 
+#[derive(Clone)]
 struct RangeBind {
     rel_index: usize,
     alias: Option<String>,
@@ -607,6 +636,9 @@ struct RangeBind {
 }
 
 struct Ctx<'a> {
+    outer_ranges: Vec<Vec<RangeBind>>,
+    nested: Vec<Admitted>,
+    output_columns: Vec<VisibleColumn>,
     catalog: &'a PolicyCatalog,
     surface: Surface,
     ranges: Vec<RangeBind>,
@@ -688,8 +720,25 @@ fn admit_select(
         Some(_) => return Err(GuardError::Statement),
         None => return Err(GuardError::Statement),
     };
+    admit_query(select, catalog, surface, &[])
+}
+
+fn admit_query(
+    select: &mut pb::SelectStmt,
+    catalog: &PolicyCatalog,
+    surface: Surface,
+    outer_ranges: &[Vec<RangeBind>],
+) -> Result<Admitted, GuardError> {
+    if select.op == pb::SetOperation::SetopUnion as i32 && select.all {
+        return scopes::admit_union(select, catalog, surface, outer_ranges);
+    }
     reject_select_shape(select)?;
+    let prepared = scopes::prepare(select, catalog, surface, outer_ranges)?;
+    let catalog = &prepared.catalog;
     let mut ctx = Ctx {
+        outer_ranges: outer_ranges.to_vec(),
+        nested: prepared.nested,
+        output_columns: Vec::new(),
         catalog,
         surface,
         ranges: Vec::new(),
@@ -723,6 +772,17 @@ fn admit_select(
         }
     }
     let where_fold = admit_where(select.where_clause.as_mut(), &mut ctx)?;
+    if matches!(&where_fold, WhereFold::Absent | WhereFold::TrueConst)
+        && ctx.ranges.len() > 1
+        && select.from_clause.iter().all(scopes::cartesian_input)
+        && ctx.ranges.iter().fold(1_u64, |rows, range| {
+            rows.saturating_mul(catalog.relations[range.rel_index].estimated_rows)
+        }) > catalog.large_table_row_threshold
+    {
+        return Err(GuardError::CostTooHigh {
+            relation: "cross join".into(),
+        });
+    }
     ctx.aggregates_allowed = true;
     if let Some(having) = select.having_clause.as_mut() {
         let kind = admit_expr(having, &mut ctx)?;
@@ -735,12 +795,30 @@ fn admit_select(
             construct: "column reference",
         });
     }
+    let estimated_rows =
+        if select.group_clause.is_empty() && select.target_list.iter().any(contains_aggregate) {
+            1
+        } else {
+            ctx.ranges
+                .iter()
+                .map(|range| catalog.relations[range.rel_index].estimated_rows)
+                .max()
+                .unwrap_or(1)
+        };
     let relations = ctx
         .ranges
         .iter()
+        .filter(|range| {
+            !matches!(
+                catalog.relations[range.rel_index].schema.as_str(),
+                "" | "@derived"
+            )
+        })
         .map(|range| ordered_relation(range, catalog))
         .collect();
-    Ok(Admitted {
+    let mut admitted = Admitted {
+        output_columns: ctx.output_columns,
+        estimated_rows,
         expansions: ctx.expansions,
         relations,
         outputs: ctx.outputs,
@@ -749,7 +827,18 @@ fn admit_select(
         null_tests: ctx.null_tests,
         where_fold,
         starred: ctx.starred,
-    })
+    };
+    if let Some(relation) = large_relation(&admitted, catalog) {
+        return Err(GuardError::CostTooHigh { relation });
+    }
+    for nested in ctx.nested {
+        admitted.relations.extend(nested.relations);
+        admitted.functions.extend(nested.functions);
+        admitted.operators.extend(nested.operators);
+        admitted.expansions.extend(nested.expansions);
+        admitted.null_tests = admitted.null_tests.saturating_add(nested.null_tests);
+    }
+    Ok(admitted)
 }
 
 fn uses_column(ctx: &Ctx<'_>) -> bool {
@@ -760,9 +849,6 @@ fn uses_column(ctx: &Ctx<'_>) -> bool {
 }
 
 fn reject_select_shape(select: &pb::SelectStmt) -> Result<(), GuardError> {
-    if select.with_clause.is_some() {
-        return Err(GuardError::Unsupported { construct: "CTE" });
-    }
     if !select.distinct_clause.is_empty() {
         return Err(GuardError::Unsupported {
             construct: "DISTINCT",
@@ -833,9 +919,7 @@ fn bind_from_item(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardErr
     match node.node.as_mut() {
         Some(pb::node::Node::RangeVar(var)) => bind_range(var, ctx),
         Some(pb::node::Node::JoinExpr(join)) => bind_join(join, ctx),
-        Some(pb::node::Node::RangeSubselect(_)) => Err(GuardError::Unsupported {
-            construct: "subquery",
-        }),
+        Some(pb::node::Node::RangeSubselect(sub)) => scopes::bind_derived(sub, ctx),
         Some(pb::node::Node::RangeFunction(_)) => Err(GuardError::Unsupported {
             construct: "range function",
         }),
@@ -907,6 +991,9 @@ fn bind_range(var: &mut pb::RangeVar, ctx: &mut Ctx<'_>) -> Result<(), GuardErro
         });
     }
     let alias = range_alias(var)?;
+    if var.schemaname.is_empty() && scopes::bind_cte(var, ctx)? {
+        return Ok(());
+    }
     if var.schemaname.is_empty() {
         return Err(GuardError::Unqualified {
             suggestion: unique_suggestion(ctx.catalog, &var.relname),
@@ -997,17 +1084,14 @@ fn rewrite_one_target(
     if let Some(names) = star_names {
         return expand_star(&names, &alias, ctx);
     }
-    let cast_column_alias = match target_val(&mut target)?.node.as_ref() {
-        Some(pb::node::Node::TypeCast(cast))
-            if cast.type_name.as_ref().is_some_and(plain_date_type) =>
-        {
-            match cast.arg.as_deref().and_then(|arg| arg.node.as_ref()) {
-                Some(pb::node::Node::ColumnRef(column)) => plain_names(column)?.last().cloned(),
-                _ => None,
-            }
+    let mut original = target_val(&mut target)? as &pb::Node;
+    let mut cast_column_alias = None;
+    while let Some(pb::node::Node::TypeCast(cast)) = original.node.as_ref() {
+        original = cast.arg.as_deref().ok_or_else(|| unsupported("cast"))?;
+        if let Some(pb::node::Node::ColumnRef(column)) = original.node.as_ref() {
+            cast_column_alias = plain_names(column)?.last().cloned();
         }
-        _ => None,
-    };
+    }
     let kind = {
         let val = target_val(&mut target)?;
         admit_expr(val, ctx)?
@@ -1033,6 +1117,22 @@ fn rewrite_one_target(
         Some(pb::node::Node::ResTarget(res)) => res.name.clone(),
         _ => String::new(),
     };
+    ctx.output_columns.push(scopes::output_column(
+        &target,
+        infer_type(&kind, ctx.catalog).unwrap_or(
+            if matches!(
+                kind,
+                ExprKind::Literal {
+                    kind: LiteralKind::Null,
+                    ..
+                }
+            ) {
+                Type::TEXT.oid()
+            } else {
+                0
+            },
+        ),
+    )?);
     ctx.outputs
         .push(output_item(&kind, &output_name, ctx.catalog));
     Ok(vec![target])
@@ -1158,6 +1258,11 @@ fn expand_slot(
     });
     let mut nodes = Vec::with_capacity(columns.len());
     for (logical, physical, type_oid) in columns {
+        ctx.output_columns.push(VisibleColumn {
+            name: logical.clone(),
+            physical_name: logical.clone(),
+            type_oid,
+        });
         ctx.outputs.push(OutputItem::Column(BoundOutputColumn {
             relation_schema: schema.clone(),
             relation_name: relation.clone(),
@@ -1234,6 +1339,8 @@ fn is_aggregate(node: &pb::Node) -> bool {
 fn expression_children(node: &pb::Node) -> Vec<&pb::Node> {
     match node.node.as_ref() {
         Some(pb::node::Node::FuncCall(call)) => call.args.iter().collect(),
+        Some(pb::node::Node::CoalesceExpr(expr)) => expr.args.iter().collect(),
+        Some(pb::node::Node::MinMaxExpr(expr)) => expr.args.iter().collect(),
         Some(pb::node::Node::AExpr(expr)) => expr
             .lexpr
             .iter()
@@ -1416,6 +1523,9 @@ fn admit_sort_item(
                             | pb::node::Node::TypeCast(_)
                             | pb::node::Node::AExpr(_)
                             | pb::node::Node::CaseExpr(_)
+                            | pb::node::Node::CoalesceExpr(_)
+                            | pb::node::Node::MinMaxExpr(_)
+                            | pb::node::Node::SubLink(_)
                     )
                 ) {
                     return Err(GuardError::Unsupported {
@@ -1457,15 +1567,45 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         Some(pb::node::Node::BoolExpr(_)) => admit_bool(node, ctx),
         Some(pb::node::Node::NullTest(_)) => admit_null(node, ctx),
         Some(pb::node::Node::TypeCast(_)) => admit_cast(node, ctx),
+        Some(pb::node::Node::SqlvalueFunction(value))
+            if value.op == pb::SqlValueFunctionOp::SvfopCurrentDate as i32 =>
+        {
+            let now = resolve_function(ctx.catalog, Some("pg_catalog"), "now", &[], false)?;
+            let cast = ctx
+                .catalog
+                .casts
+                .iter()
+                .find(|cast| {
+                    cast.source_type_oid == Type::TIMESTAMPTZ.oid()
+                        && cast.target_type_oid == Type::DATE.oid()
+                })
+                .ok_or(GuardError::FunctionNotAllowed)?;
+            ctx.functions.push(bound_function(now));
+            ctx.functions
+                .extend(cast.functions.iter().map(bound_function));
+            Ok(ExprKind::Case {
+                result_type_oid: Type::DATE.oid(),
+            })
+        }
         Some(pb::node::Node::ParamRef(_)) => Err(GuardError::Unsupported {
             construct: "parameter",
         }),
-        Some(pb::node::Node::SubLink(_)) | Some(pb::node::Node::RangeSubselect(_)) => {
-            Err(GuardError::Unsupported {
-                construct: "subquery",
-            })
-        }
+        Some(pb::node::Node::SubLink(link)) => scopes::admit_link(link, ctx),
         Some(pb::node::Node::CaseExpr(_)) => admit_case(node, ctx),
+        Some(pb::node::Node::CoalesceExpr(expr)) => {
+            let result_type_oid = admit_alternatives(&mut expr.args, ctx)?;
+            Ok(ExprKind::Case { result_type_oid })
+        }
+        Some(pb::node::Node::MinMaxExpr(expr)) => {
+            let result_type_oid = admit_alternatives(&mut expr.args, ctx)?;
+            let token = match pb::MinMaxOp::try_from(expr.op) {
+                Ok(pb::MinMaxOp::IsGreatest) => ">",
+                Ok(pb::MinMaxOp::IsLeast) => "<",
+                _ => return Err(unsupported("minmax")),
+            };
+            bind_comparator(ctx, token, result_type_oid)?;
+            Ok(ExprKind::Case { result_type_oid })
+        }
         Some(_) => Err(GuardError::Unsupported {
             construct: "expression",
         }),
@@ -1473,6 +1613,117 @@ fn admit_expr(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             construct: "expression",
         }),
     }
+}
+
+fn bind_comparator(ctx: &mut Ctx<'_>, token: &str, oid: u32) -> Result<(), GuardError> {
+    let op = resolve_binary_operator(
+        ctx.catalog,
+        Some("pg_catalog"),
+        token,
+        oid,
+        oid,
+        false,
+        false,
+    )?;
+    ctx.operators.push(BoundOperator {
+        oid: op.oid,
+        procedure_oid: op.procedure_oid,
+        schema: op.schema.clone(),
+        name: op.name.clone(),
+    });
+    Ok(())
+}
+
+fn admit_alternatives(args: &mut [pb::Node], ctx: &mut Ctx<'_>) -> Result<u32, GuardError> {
+    if args.is_empty() || args.len() > IN_LIST_LIMIT {
+        return Err(GuardError::Budget);
+    }
+    let mut result = None;
+    let numeric = [
+        Type::INT2.oid(),
+        Type::INT4.oid(),
+        Type::INT8.oid(),
+        Type::NUMERIC.oid(),
+        Type::FLOAT8.oid(),
+    ];
+    let mut types = Vec::new();
+    for arg in args.iter_mut() {
+        let kind = admit_expr(arg, ctx)?;
+        let ty = infer_type(&kind, ctx.catalog);
+        types.push(ty);
+        let Some(oid) = ty else {
+            continue;
+        };
+        if ![
+            Type::BOOL,
+            Type::INT2,
+            Type::INT4,
+            Type::INT8,
+            Type::NUMERIC,
+            Type::FLOAT8,
+            Type::TEXT,
+            Type::VARCHAR,
+            Type::DATE,
+            Type::TIMESTAMP,
+            Type::TIMESTAMPTZ,
+            Type::INTERVAL,
+        ]
+        .iter()
+        .any(|ty| ty.oid() == oid)
+        {
+            return Err(unsupported("common scalar type"));
+        }
+        result = Some(match result {
+            None => oid,
+            Some(previous) if previous == oid => oid,
+            Some(previous) if numeric.contains(&previous) && numeric.contains(&oid) => {
+                numeric[numeric
+                    .iter()
+                    .position(|v| *v == previous)
+                    .unwrap()
+                    .max(numeric.iter().position(|v| *v == oid).unwrap())]
+            }
+            Some(previous)
+                if [previous, oid]
+                    .iter()
+                    .all(|oid| [Type::TEXT.oid(), Type::VARCHAR.oid()].contains(oid)) =>
+            {
+                Type::TEXT.oid()
+            }
+            _ => return Err(unsupported("common scalar type")),
+        });
+    }
+    let result = result
+        .or(ctx.catalog.literal_types.text)
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    for (arg, source) in args.iter_mut().zip(types) {
+        let Some(source) = source else { continue };
+        if source == result || !numeric.contains(&source) || !numeric.contains(&result) {
+            continue;
+        }
+        let cast = ctx
+            .catalog
+            .casts
+            .iter()
+            .find(|cast| cast.source_type_oid == source && cast.target_type_oid == result)
+            .ok_or(GuardError::FunctionNotAllowed)?;
+        ctx.functions
+            .extend(cast.functions.iter().map(bound_function));
+        *arg = pb::Node {
+            node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+                arg: Some(Box::new(arg.clone())),
+                type_name: Some(pb::TypeName {
+                    names: vec![
+                        string_node("pg_catalog"),
+                        string_node(Type::from_oid(result).unwrap().name()),
+                    ],
+                    ..Default::default()
+                }),
+                location: -1,
+            }))),
+        };
+    }
+    Ok(result)
 }
 
 fn admit_case(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -1552,10 +1803,10 @@ fn admit_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, Guar
             });
         }
     };
-    let (slot, column_index) = resolve_column(&names, ctx)?;
-    let rel_index = ctx.ranges[slot].rel_index;
+    let (range, column_index) = scopes::resolve_column_scope(&names, ctx)?;
+    let rel_index = range.rel_index;
     let type_oid = ctx.catalog.relations[rel_index].columns[column_index].type_oid;
-    let qualifier = ctx.ranges[slot].exposed.clone();
+    let qualifier = range.exposed.clone();
     let physical = ctx.catalog.relations[rel_index].columns[column_index]
         .physical_name
         .clone();
@@ -1776,6 +2027,9 @@ fn admit_cast(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if let Ok(literal) = admit_literal_cast(node) {
         return Ok(literal);
     }
+    if let Some(kind) = admit_scalar_cast(node, ctx)? {
+        return Ok(kind);
+    }
     let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut() else {
         return Err(unsupported("cast"));
     };
@@ -1810,6 +2064,78 @@ fn admit_cast(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
         bound,
         result_type_oid: Some(Type::DATE.oid()),
     })
+}
+
+fn admit_scalar_cast(
+    node: &mut pb::Node,
+    ctx: &mut Ctx<'_>,
+) -> Result<Option<ExprKind>, GuardError> {
+    let Some(pb::node::Node::TypeCast(cast)) = node.node.as_mut() else {
+        return Err(unsupported("cast"));
+    };
+    let name = cast.type_name.as_ref().ok_or_else(|| unsupported("cast"))?;
+    let Some(target) = SCALAR_CAST_TYPES
+        .iter()
+        .find(|ty| plain_literal_type(name, ty.name()))
+    else {
+        return Err(unsupported("cast"));
+    };
+    if !ctx
+        .catalog
+        .casts
+        .iter()
+        .any(|cast| cast.target_type_oid == target.oid())
+    {
+        return Ok(None);
+    }
+    let arg = cast.arg.as_deref_mut().ok_or_else(|| unsupported("cast"))?;
+    if let Some(text) = const_string(arg) {
+        let valid = match *target {
+            Type::DATE => civil_date(text),
+            Type::TIMESTAMP => civil_date(text) || civil_timestamp(text, false),
+            Type::TIMESTAMPTZ => civil_timestamp(text, true),
+            _ => true,
+        };
+        if !valid {
+            return Err(unsupported("cast"));
+        }
+    }
+    let source = match arg.node.as_ref() {
+        Some(pb::node::Node::AConst(value))
+            if value.isnull || matches!(value.val, Some(pb::a_const::Val::Sval(_))) =>
+        {
+            0
+        }
+        Some(pb::node::Node::AConst(value))
+            if matches!(value.val, Some(pb::a_const::Val::Fval(_))) =>
+        {
+            let Some(pb::a_const::Val::Fval(value)) = &value.val else {
+                unreachable!()
+            };
+            if value.fval.parse::<i64>().is_ok() {
+                Type::INT8.oid()
+            } else {
+                Type::NUMERIC.oid()
+            }
+        }
+        _ => {
+            let kind = admit_expr(arg, ctx)?;
+            infer_type(&kind, ctx.catalog).ok_or_else(|| unsupported("cast"))?
+        }
+    };
+    let found = ctx
+        .catalog
+        .casts
+        .iter()
+        .find(|cast| cast.source_type_oid == source && cast.target_type_oid == target.oid())
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    ctx.functions
+        .extend(found.functions.iter().map(bound_function));
+    cast.type_name.as_mut().unwrap().names =
+        vec![string_node("pg_catalog"), string_node(target.name())];
+    Ok(Some(ExprKind::Case {
+        result_type_oid: target.oid(),
+    }))
 }
 
 fn plain_date_type(type_name: &pb::TypeName) -> bool {
@@ -1973,7 +2299,28 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
             || aggregate_star
             || (name == "date_trunc"
                 && (call.args.len() != 2
-                    || call.args.first().and_then(const_string) != Some("day")))
+                    || !call
+                        .args
+                        .first()
+                        .and_then(const_string)
+                        .is_some_and(|unit| {
+                            matches!(
+                                unit,
+                                "microseconds"
+                                    | "milliseconds"
+                                    | "second"
+                                    | "minute"
+                                    | "hour"
+                                    | "day"
+                                    | "week"
+                                    | "month"
+                                    | "quarter"
+                                    | "year"
+                                    | "decade"
+                                    | "century"
+                                    | "millennium"
+                            )
+                        })))
             || (name == "date" && call.args.len() != 1)
             || (name == "to_char"
                 && (call.args.len() != 2 || call.args.get(1).and_then(const_string).is_none()))
@@ -1984,7 +2331,7 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if aggregate {
         ctx.aggregate_depth += 1;
     }
-    let types = if aggregate_star {
+    let mut types = if aggregate_star {
         Vec::new()
     } else {
         let args = match node.node.as_mut() {
@@ -2004,6 +2351,57 @@ fn admit_func(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     };
     if aggregate {
         ctx.aggregate_depth -= 1;
+    }
+    if matches!(name.as_str(), "date_part" | "date_trunc")
+        && schema
+            .as_deref()
+            .is_none_or(|schema| schema == "pg_catalog")
+        && types == [Type::TEXT.oid(), Type::DATE.oid()]
+        && let Some(pb::node::Node::FuncCall(call)) = node.node.as_mut()
+    {
+        let target = if name == "date_part" {
+            Type::TIMESTAMP
+        } else {
+            Type::TIMESTAMPTZ
+        };
+        let cast = ctx
+            .catalog
+            .casts
+            .iter()
+            .find(|cast| {
+                cast.source_type_oid == Type::DATE.oid() && cast.target_type_oid == target.oid()
+            })
+            .ok_or(GuardError::FunctionNotAllowed)?;
+        ctx.functions
+            .extend(cast.functions.iter().map(bound_function));
+        call.args[1] = pb::Node {
+            node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+                arg: Some(Box::new(call.args[1].clone())),
+                type_name: Some(pb::TypeName {
+                    names: vec![string_node("pg_catalog"), string_node(target.name())],
+                    ..Default::default()
+                }),
+                location: -1,
+            }))),
+        };
+        types[1] = target.oid();
+    }
+    // The one-argument numeric overload is a SQL wrapper. Bind directly to
+    // the verified internal implementation instead of admitting SQL functions.
+    if name == "round"
+        && schema
+            .as_deref()
+            .is_none_or(|schema| schema == "pg_catalog")
+        && types == [Type::NUMERIC.oid()]
+        && let Some(pb::node::Node::FuncCall(call)) = node.node.as_mut()
+    {
+        call.args.push(pb::Node {
+            node: Some(pb::node::Node::AConst(pb::AConst {
+                val: Some(pb::a_const::Val::Ival(pb::Integer { ival: 0 })),
+                ..Default::default()
+            })),
+        });
+        types.push(Type::INT4.oid());
     }
     let resolved = resolve_function(
         ctx.catalog,
@@ -2071,12 +2469,21 @@ fn resolve_function<'a>(
             && !function.aggregate_star
             && function.argument_type_oids.len() == 1
             && args.len() == 1;
-        let varchar_minmax = function.schema == "pg_catalog"
-            && matches!(name, "min" | "max")
+        let varchar_text = function.schema == "pg_catalog"
+            && matches!(
+                name,
+                "min" | "max" | "lower" | "upper" | "length" | "substring"
+            )
             && !aggregate_star
-            && args == [Type::VARCHAR.oid()]
-            && function.argument_type_oids == [Type::TEXT.oid()];
-        if function.argument_type_oids != args && !count_any && !varchar_minmax {
+            && args.len() == function.argument_type_oids.len()
+            && args
+                .iter()
+                .zip(&function.argument_type_oids)
+                .all(|(actual, expected)| {
+                    actual == expected
+                        || (*actual == Type::VARCHAR.oid() && *expected == Type::TEXT.oid())
+                });
+        if function.argument_type_oids != args && !count_any && !varchar_text {
             continue;
         }
         if found.is_some() {
@@ -2111,6 +2518,57 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     };
     if kind == AEXPR_IN {
         return admit_in(node, ctx);
+    }
+    if kind == pb::AExprKind::AexprNullif as i32 {
+        let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut() else {
+            return Err(unsupported("NULLIF"));
+        };
+        let mut args = [
+            *expr.lexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
+            *expr.rexpr.take().ok_or_else(|| unsupported("NULLIF"))?,
+        ];
+        let left = admit_expr(&mut args[0], ctx)?;
+        let right = admit_expr(&mut args[1], ctx)?;
+        let left_type = infer_type(&left, ctx.catalog);
+        let right_type = infer_type(&right, ctx.catalog);
+        let resolved = resolve_binary_operator(
+            ctx.catalog,
+            Some("pg_catalog"),
+            "=",
+            left_type.or(right_type).unwrap_or(Type::TEXT.oid()),
+            right_type.or(left_type).unwrap_or(Type::TEXT.oid()),
+            matches!(
+                left,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
+            matches!(
+                right,
+                ExprKind::Literal {
+                    kind: LiteralKind::Integer,
+                    ..
+                }
+            ),
+        )?;
+        let result_type_oid = resolved.left_type_oid;
+        ctx.operators.push(BoundOperator {
+            oid: resolved.oid,
+            procedure_oid: resolved.procedure_oid,
+            schema: resolved.schema.clone(),
+            name: resolved.name.clone(),
+        });
+        let [left, right] = args;
+        expr.lexpr = Some(Box::new(left));
+        expr.rexpr = Some(Box::new(right));
+        return Ok(ExprKind::Case { result_type_oid });
+    }
+    if matches!(
+        pb::AExprKind::try_from(kind).ok(),
+        Some(pb::AExprKind::AexprBetween | pb::AExprKind::AexprNotBetween)
+    ) {
+        return admit_between(node, ctx);
     }
     if matches!(
         pb::AExprKind::try_from(kind).ok(),
@@ -2154,11 +2612,30 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let left = expr.lexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let (left_type, left_int) = admit_comparison_operand(left, ctx)?;
+        let (mut left_type, left_int) = admit_comparison_operand(left, ctx)?;
         let right = expr.rexpr.as_mut().ok_or(GuardError::Unsupported {
             construct: "operator expression",
         })?;
-        let (right_type, right_int) = admit_comparison_operand(right, ctx)?;
+        let (mut right_type, right_int) = admit_comparison_operand(right, ctx)?;
+        if crate::policy::catalog::COMPARISON_OPERATORS.contains(&name.as_str())
+            && schema
+                .as_deref()
+                .is_none_or(|schema| schema == "pg_catalog")
+        {
+            if bind_temporal_literal(left, right_type) {
+                left_type = right_type;
+            }
+            if bind_temporal_literal(right, left_type) {
+                right_type = left_type;
+            }
+            if left_type == Type::DATE.oid() && right_type == Type::TIMESTAMP.oid() {
+                promote_date_timestamp(left, ctx)?;
+                left_type = Type::TIMESTAMP.oid();
+            } else if right_type == Type::DATE.oid() && left_type == Type::TIMESTAMP.oid() {
+                promote_date_timestamp(right, ctx)?;
+                right_type = Type::TIMESTAMP.oid();
+            }
+        }
         (left_type, right_type, left_int, right_int)
     };
     let (left_type, right_type, left_int_literal, right_int_literal) = compared;
@@ -2182,6 +2659,73 @@ fn admit_op(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
     Ok(ExprKind::Operator {
         result_type_oid: resolved.result_type_oid,
     })
+}
+
+fn promote_date_timestamp(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<(), GuardError> {
+    let cast = ctx
+        .catalog
+        .casts
+        .iter()
+        .find(|cast| {
+            cast.source_type_oid == Type::DATE.oid()
+                && cast.target_type_oid == Type::TIMESTAMP.oid()
+        })
+        .ok_or(GuardError::FunctionNotAllowed)?;
+    ctx.functions
+        .extend(cast.functions.iter().map(bound_function));
+    *node = pb::Node {
+        node: Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+            arg: Some(Box::new(node.clone())),
+            type_name: Some(pb::TypeName {
+                names: vec![string_node("pg_catalog"), string_node("timestamp")],
+                ..Default::default()
+            }),
+            location: -1,
+        }))),
+    };
+    Ok(())
+}
+
+// Unknown string literals may take the other operand's temporal type. Make
+// that choice explicit in the executed AST; never coerce a text column, accept
+// a relative clock expression, or rely on the session's DateStyle/timezone.
+fn bind_temporal_literal(node: &mut pb::Node, other_type: u32) -> bool {
+    let Some(text) = const_string(node) else {
+        return false;
+    };
+    let (name, valid) = if other_type == Type::DATE.oid() {
+        ("date", civil_date(text))
+    } else if other_type == Type::TIMESTAMP.oid() {
+        (
+            "timestamp",
+            civil_date(text) || civil_timestamp(text, false),
+        )
+    } else if other_type == Type::TIMESTAMPTZ.oid() {
+        ("timestamptz", civil_timestamp(text, true))
+    } else {
+        return false;
+    };
+    if !valid {
+        return false;
+    }
+    let mut argument = node.clone();
+    if name == "timestamp"
+        && civil_date(text)
+        && let Some(pb::node::Node::AConst(value)) = argument.node.as_mut()
+        && let Some(pb::a_const::Val::Sval(text)) = value.val.as_mut()
+    {
+        text.sval.push_str(" 00:00:00");
+    }
+    node.node = Some(pb::node::Node::TypeCast(Box::new(pb::TypeCast {
+        arg: Some(Box::new(argument)),
+        type_name: Some(pb::TypeName {
+            names: vec![string_node("pg_catalog"), string_node(name)],
+            typemod: -1,
+            ..Default::default()
+        }),
+        location: -1,
+    })));
+    true
 }
 
 fn admit_pattern(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
@@ -2384,9 +2928,73 @@ fn admit_in(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardErr
         let left = left.ok_or_else(in_predicate)?;
         admit_in_column(left, ctx)?
     };
-    let items = in_list(node)?;
-    for item in &items {
+    let mut items = in_list(node)?;
+    for item in &mut items {
         admit_in_literal(item, left_type, token, ctx)?;
+    }
+    if let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut()
+        && let Some(pb::node::Node::List(list)) = expr
+            .rexpr
+            .as_deref_mut()
+            .and_then(|right| right.node.as_mut())
+    {
+        list.items = items;
+    }
+    Ok(ExprKind::Bool(Fold::Other))
+}
+
+fn admit_between(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardError> {
+    let Some(pb::node::Node::AExpr(expr)) = node.node.as_mut() else {
+        return Err(unsupported("BETWEEN predicate"));
+    };
+    let left = expr
+        .lexpr
+        .as_deref_mut()
+        .ok_or_else(|| unsupported("BETWEEN predicate"))?;
+    let kind = admit_expr(left, ctx)?;
+    if !matches!(
+        kind,
+        ExprKind::Column { .. }
+            | ExprKind::Function { .. }
+            | ExprKind::Operator { .. }
+            | ExprKind::Case { .. }
+    ) {
+        return Err(unsupported("BETWEEN predicate"));
+    }
+    let type_oid = infer_type(&kind, ctx.catalog).ok_or(GuardError::FunctionNotAllowed)?;
+    let Some(pb::node::Node::List(bounds)) = expr
+        .rexpr
+        .as_deref_mut()
+        .and_then(|right| right.node.as_mut())
+    else {
+        return Err(unsupported("BETWEEN predicate"));
+    };
+    if bounds.items.len() != 2 {
+        return Err(unsupported("BETWEEN predicate"));
+    }
+    let operators = if expr.kind == pb::AExprKind::AexprNotBetween as i32 {
+        ["<", ">"]
+    } else {
+        [">=", "<="]
+    };
+    for (bound, token) in bounds.items.iter_mut().zip(operators) {
+        bind_temporal_literal(bound, type_oid);
+        let (right_type, integer) = admit_comparison_operand(bound, ctx)?;
+        let resolved = resolve_binary_operator(
+            ctx.catalog,
+            Some("pg_catalog"),
+            token,
+            type_oid,
+            right_type,
+            false,
+            integer,
+        )?;
+        ctx.operators.push(BoundOperator {
+            oid: resolved.oid,
+            procedure_oid: resolved.procedure_oid,
+            schema: resolved.schema.clone(),
+            name: resolved.name.clone(),
+        });
     }
     Ok(ExprKind::Bool(Fold::Other))
 }
@@ -2428,11 +3036,39 @@ fn admit_in_column(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<u32, GuardE
 }
 
 fn admit_in_literal(
-    node: &pb::Node,
+    node: &mut pb::Node,
     left_type: u32,
     token: &str,
     ctx: &mut Ctx<'_>,
 ) -> Result<(), GuardError> {
+    let temporal = [
+        Type::DATE.oid(),
+        Type::TIMESTAMP.oid(),
+        Type::TIMESTAMPTZ.oid(),
+    ]
+    .contains(&left_type);
+    if temporal {
+        bind_temporal_literal(node, left_type);
+        if let Some(pb::node::Node::TypeCast(cast)) = node.node.as_ref()
+            && cast.arg.as_deref().and_then(const_string).is_some()
+        {
+            let (right_type, _) = admit_comparison_operand(node, ctx)?;
+            let resolved = resolve_operator(
+                ctx.catalog,
+                Some("pg_catalog"),
+                token,
+                left_type,
+                right_type,
+            )?;
+            ctx.operators.push(BoundOperator {
+                oid: resolved.oid,
+                procedure_oid: resolved.procedure_oid,
+                schema: resolved.schema.clone(),
+                name: resolved.name.clone(),
+            });
+            return Ok(());
+        }
+    }
     refuse_closed_shape(node)?;
     if !matches!(node.node, Some(pb::node::Node::AConst(_))) {
         // A column in the list is not granted, including one the snapshot hides.
@@ -2696,6 +3332,7 @@ fn admit_null(node: &mut pb::Node, ctx: &mut Ctx<'_>) -> Result<ExprKind, GuardE
     if !matches!(
         kind,
         ExprKind::Column { .. }
+            | ExprKind::Case { .. }
             | ExprKind::Function {
                 result_type_oid: Some(_),
                 ..
@@ -2717,7 +3354,7 @@ fn predicate_fold(kind: &ExprKind, catalog: &PolicyCatalog) -> Result<Fold, Guar
         } => Ok(*fold),
         ExprKind::Bool(fold) => Ok(*fold),
         ExprKind::NullTest => Ok(Fold::Other),
-        ExprKind::Operator { result_type_oid }
+        ExprKind::Operator { result_type_oid } | ExprKind::Case { result_type_oid }
             if catalog.literal_types.boolean == Some(*result_type_oid) =>
         {
             Ok(Fold::Other)
@@ -2899,6 +3536,7 @@ fn physical_catalog(catalog: &PolicyCatalog) -> PolicyCatalog {
         functions: catalog.functions.clone(),
         operators: catalog.operators.clone(),
         literal_types: catalog.literal_types,
+        casts: catalog.casts.clone(),
         null_test_allowed: catalog.null_test_allowed,
         large_table_row_threshold: catalog.large_table_row_threshold,
     }
@@ -2917,6 +3555,30 @@ fn validate(
     validate_relations(catalog, surface)?;
     validate_functions(catalog)?;
     validate_operators(catalog)?;
+    let mut casts = BTreeSet::new();
+    if catalog.casts.len() > SCALAR_CAST_TYPES.len() * (SCALAR_CAST_TYPES.len() + 1) {
+        return Err(GuardError::CatalogInvalid {
+            reason: "cast budget",
+        });
+    }
+    for cast in &catalog.casts {
+        let scalar = |oid| SCALAR_CAST_TYPES.iter().any(|ty| ty.oid() == oid);
+        if !(cast.source_type_oid == 0 || scalar(cast.source_type_oid))
+            || !scalar(cast.target_type_oid)
+            || !casts.insert((cast.source_type_oid, cast.target_type_oid))
+            || cast.functions.len() > 2
+            || cast.functions.iter().any(|function| {
+                function.oid == 0
+                    || function.schema != "pg_catalog"
+                    || function.aggregate_star
+                    || !closed_ident(&function.name)
+            })
+        {
+            return Err(GuardError::CatalogInvalid {
+                reason: "cast signature",
+            });
+        }
+    }
     for oid in [
         catalog.literal_types.integer,
         catalog.literal_types.text,

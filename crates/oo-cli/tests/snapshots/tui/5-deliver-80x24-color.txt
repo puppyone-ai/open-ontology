@@ -1,0 +1,49 @@
+╭ ◆ open ontology ──────────────────────────────────────────●━●━●━●━◉ deliver ─╮
+│ deliver ·····················   ·  CLI profile + share prompt · MCP optional │
+│                                                                              │
+│ profile  logistics   ● token saved · switch with oo use logistics            │
+│                                                                              │
+│ MCP · Codex  ✓ copied  profile name only, no credentials · p prompt          │
+│ ╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╮ │
+│ ┆ [mcp_servers.open-ontology]                                              ┆ │
+│ ┆ command = "oo"                                                           ┆ │
+│ ┆ args = ["mcp", "--stdio", "--profile", "logistics"]                      ┆ │
+│ ╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╯ │
+│                                                                              │
+│ readiness                                                                    │
+│ ✓ pack published     generation 3 · 13 entities                              │
+│ ✓ gateway reachable  https://127.0.0.1:8443 · 4 ms                           │
+│ ✓ visible tables     11 tables for role analyst                              │
+│ ✓ freshness          published 2 min ago                                     │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│ ✓ ready · hand the prompt to your agent ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+╰ c copy  m MCP config  p prompt  r re-check  ⏎ done  ─────────────────────────╯
+--- colour layer ---
+f.A.iiii.iiiiiiii.ffffffffffffffffffffffffffffffffffffffffffEEEEEEEEA.AAAAAAA.ff
+f.iiiiiii.fffffffffffffffffffff...f..ddd.ddddddd.d.ddddd.dddddd.d.ddd.dddddddd.f
+f..............................................................................f
+f.ddddddd..AAAAAAAAA...G.ddddd.ddddd.d.dddddd.dddd.dd.ddd.ddddddddd............f
+f..............................................................................f
+f.iii.i.iiiii..G.GGGGGG..fffffff.ffff.fffff.ff.fffffffffff.f.f.ffffff..........f
+f.ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.f
+f.f.BBBBBBBBBBBBBBBBBBBBBBBBBBB..............................................f.f
+f.f.BBBBBBB.B.BBBB...........................................................f.f
+f.f.BBBB.B.BBBBBBB.BBBBBBBBBB.BBBBBBBBBBBB.BBBBBBBBBBBB......................f.f
+f.ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.f
+f..............................................................................f
+f.iiiiiiiii....................................................................f
+f.G.iiii.iiiiiiiii.....dddddddddd.d.d.dd.dddddddd..............................f
+f.G.iiiiiii.iiiiiiiii..dddddddddddddddddddddd.d.d.dd...........................f
+f.G.iiiiiii.iiiiii.....dd.dddddd.ddd.dddd.ddddddd..............................f
+f.G.iiiiiiiii..........ddddddddd.d.ddd.ddd.....................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f..............................................................................f
+f.G.iiiii.i.iiii.iii.iiiiii.ii.iiii.iiiii.EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE.f
+f.A.dddd..A.ddd.dddddd..A.dddddd..A.dddddddd..A.dddd..ffffffffffffffffffffffffff

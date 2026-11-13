@@ -1,0 +1,41 @@
+# Separate from the operator foundation: starting demo never starts model-egress
+# or a third database. Explicit --profile demo and service selection are required.
+services:
+  demo-db:
+    profiles: [demo]
+    image: docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+    pull_policy: never
+    labels:
+      oo.lane: m
+      oo.demo: ${OO_DEMO_ID:?}
+    entrypoint: [/bin/sh, /demo/postgres.sh]
+    environment:
+      POSTGRES_PASSWORD_FILE: /tmp/admin-password
+      POSTGRES_DB: logistics
+    volumes:
+      - demo-data:/var/lib/postgresql/data
+      - ${OO_DEMO_STATE:?}/pki:/pki:ro
+      - ./demo/postgres.sh:/demo/postgres.sh:ro
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, pg_isready, -U, postgres, -d, logistics]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+volumes:
+  demo-data:
+    labels:
+      oo.lane: m
+      oo.demo: ${OO_DEMO_ID:?}
+networks:
+  default:
+    internal: true
+    labels:
+      oo.lane: m
+      oo.demo: ${OO_DEMO_ID:?}

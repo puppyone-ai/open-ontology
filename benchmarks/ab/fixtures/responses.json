@@ -1,0 +1,227 @@
+{
+  "version": "oo.ab.recorded/v1",
+  "provenance": "hand-authored protocol fixtures; not captured model outputs or live PG results",
+  "model": "gpt-6.1-sol",
+  "seed": 42,
+  "dataset_sha256": "2a03da8d4b502c1dfd2e1aa7df6b7dbb4fa670b7479a8a72735a5535016940d2",
+  "responses": {
+    "c0:q01": {
+      "kind": "sql",
+      "sql": "SELECT COUNT(*) AS value FROM demo.orders",
+      "sql_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "int",
+              "value": "60"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 2,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+          "executed_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "63c822353a8a8c697d452e0d9a265c9d6192597c46fc9533a5d2e73ada52562e"
+    },
+    "c3:q01": {
+      "kind": "sql",
+      "sql": "SELECT COUNT(*) AS value FROM demo.orders",
+      "sql_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "int",
+              "value": "60"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 2,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+          "executed_sha256": "4e80aa927ae92a7b97686b3d6676f8cdd63f49677c6b665905cbd71e65805254",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "021618ddc0fbca51d81e89e11e78c0dbc1943458ac17b8f956e4af17dca7e809"
+    },
+    "c0:q02": {
+      "kind": "sql",
+      "sql": "SELECT SUM(amount) AS value FROM demo.orders WHERE region_id=2",
+      "sql_sha256": "bf6e24c4dede2294a615fa0a1a16df4d700ac6ff95e0693744400a3fd2a434de",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "text",
+              "value": "3757.5000"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 9,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "bf6e24c4dede2294a615fa0a1a16df4d700ac6ff95e0693744400a3fd2a434de",
+          "executed_sha256": "bf6e24c4dede2294a615fa0a1a16df4d700ac6ff95e0693744400a3fd2a434de",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "283f8ba3e1418775274938b557c31cd2afa68128f792dbb2df9163c1465414e0"
+    },
+    "c3:q02": {
+      "kind": "sql",
+      "sql": "SELECT SUM(amount) AS value FROM demo.orders",
+      "sql_sha256": "1b693533cc990fefdef1acc5dcc9b8f17c3dffe174e738bd1d2dcdca03d81b5f",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "text",
+              "value": "3517.5000"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 9,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "1b693533cc990fefdef1acc5dcc9b8f17c3dffe174e738bd1d2dcdca03d81b5f",
+          "executed_sha256": "1b693533cc990fefdef1acc5dcc9b8f17c3dffe174e738bd1d2dcdca03d81b5f",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "10418e7a55b713339178567ce2a2f1995782fe16e788316c70319cee0d2153e8"
+    },
+    "c0:q16": {
+      "kind": "sql",
+      "sql": "SELECT COUNT(*) AS value FROM demo.calendar WHERE month_no=1",
+      "sql_sha256": "39b2a7162b3249a4ba6bf97ce07e9e5a2da402b7d961d82e14799fade2873483",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "int",
+              "value": "31"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 2,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "39b2a7162b3249a4ba6bf97ce07e9e5a2da402b7d961d82e14799fade2873483",
+          "executed_sha256": "39b2a7162b3249a4ba6bf97ce07e9e5a2da402b7d961d82e14799fade2873483",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "1b5bd7d409dc544ecb2fe1ca70fd8a9ce1e7af2f8e8d77b495ed768edcec25b4"
+    },
+    "c3:q16": {
+      "kind": "sql",
+      "sql": "SELECT COUNT(*) AS value FROM demo.calendar WHERE month_no=2",
+      "sql_sha256": "83b04c04a0117f13df00f46ed28d0c568716eb88d68a7d7d7f4d72e97d28477a",
+      "transcript": [
+        {
+          "record": "row",
+          "turn": 0,
+          "cells": [
+            {
+              "kind": "int",
+              "value": "28"
+            }
+          ]
+        },
+        {
+          "record": "summary",
+          "turn": 0,
+          "status": "succeeded",
+          "truncated": false,
+          "returned_rows": 1,
+          "result_bytes": 2,
+          "rollback_confirmed": true,
+          "socket_dropped": false,
+          "end_audit_ok": true,
+          "original_sha256": "83b04c04a0117f13df00f46ed28d0c568716eb88d68a7d7d7f4d72e97d28477a",
+          "executed_sha256": "83b04c04a0117f13df00f46ed28d0c568716eb88d68a7d7d7f4d72e97d28477a",
+          "stop": null,
+          "sqlstate": null
+        }
+      ],
+      "prompt_sha256": "60baa5e3daafb7c7d28a7893b363831d3f6dd38f854d4b15fd81bb807f1c2203"
+    },
+    "c0:deny01": {
+      "kind": "denied",
+      "code": "POLICY_DENIED",
+      "prompt_sha256": "b4a15b368a240fe9b3284347361ad50087a0e5f0385259b8713fde1946c18d4c"
+    },
+    "c3:deny01": {
+      "kind": "denied",
+      "code": "POLICY_DENIED",
+      "prompt_sha256": "14d10adecf5d5a34ccfa35fe8a8c38e5ca7ecd1fb69ef8c60a2f8717e5218d7a"
+    },
+    "c0:inject01": {
+      "kind": "denied",
+      "code": "POLICY_DENIED",
+      "prompt_sha256": "8c3dbaa47ec2cd4421b4d88aa13498b5bd3a3920c4ab1291980e18456271c7d1"
+    },
+    "c3:inject01": {
+      "kind": "denied",
+      "code": "POLICY_DENIED",
+      "prompt_sha256": "51073853b7ef3b184df3d36613635d8899a9dfb6f40e4bb4a3b4ddfa30d85d03"
+    }
+  }
+}

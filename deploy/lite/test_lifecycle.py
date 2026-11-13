@@ -12,6 +12,17 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_large_review_artifact_does_not_relax_private_config_or_mode_checks(self):
+        path=self.root/'large-review.json'
+        data=b'x'*(1048576+1)
+        lifecycle.write(path,data)
+        with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+            lifecycle.read_private(path)
+        self.assertEqual(lifecycle.read_private(path,64*1024*1024),data)
+        path.chmod(0o644)
+        with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+            lifecycle.read_private(path,64*1024*1024)
+
     def test_schedule_catalog_migration_is_additive_and_idempotent(self):
         state=self.root/'work/build/.oo'
         state.mkdir(parents=True,mode=0o700)
@@ -24,7 +35,7 @@ class Tests(unittest.TestCase):
             lifecycle.write(path,b'synthetic')
         (self.root/'work/operator').mkdir(mode=0o700)
         lifecycle.save_json(self.root/'owner.json',{'gateway_port':8443})
-        request=dict(jobs={name:'synthetic' for name in lifecycle.JOBS},
+        request=dict(cycle_events='synthetic',jobs={name:'synthetic' for name in lifecycle.JOBS},
                      stack={'sources':[{'id':'source','engine':'postgres'}]})
         path=self.root/'work/operator/schedule.json'
         with patch.object(lifecycle,'compose_input',return_value=b't'):
@@ -91,18 +102,20 @@ class Tests(unittest.TestCase):
         def docker(args,env):
             return json.dumps(rows).encode() if '--format' in args and 'ps' in args else b''
         history={'schedule_status':'measured','last_success':'2026-11-04T01:00:00.000Z',
-                 'last_failure':None,'next_due':'2026-11-04T02:00:00.000Z'}
+                 'last_failure':None,'next_due':'2026-11-04T02:00:00.000Z',
+                 'data_published_at':lifecycle.datetime.now(lifecycle.timezone.utc).isoformat()}
         with patch.object(lifecycle,'docker',side_effect=docker), patch.object(
                 lifecycle,'health',return_value={'status':'measured'}), patch.object(
                 lifecycle,'control_status',return_value=history):
             self.assertTrue(lifecycle.main(self.request)['healthy'])
-            for key,value in [('next_due',None),('last_success',None),
-                              ('last_failure','2026-11-04T01:30:00.000Z'),
-                              ('schedule_status','unavailable')]:
+            for key,value in [('data_published_at',None),
+                              ('data_published_at','2026-01-01T00:00:00Z')]:
                 old=history[key]
                 history[key]=value
                 self.assertFalse(lifecycle.main(self.request)['healthy'])
                 history[key]=old
+            history['last_failure']='2099-01-01T00:00:00Z'
+            self.assertTrue(lifecycle.main(self.request)['healthy'])
             rows[-1]['State']='running'
             self.assertFalse(lifecycle.main(self.request)['healthy'])
 
@@ -164,7 +177,9 @@ class Tests(unittest.TestCase):
                'next_due':'2026-11-04T01:02:33.000Z'}
         with patch.object(lifecycle,'docker',return_value=json.dumps(times).encode()) as call:
             result=lifecycle.control_status(self.root,['compose'],{})
-        self.assertEqual(result,{**times,'schedule_basis':'control_db','schedule_status':'measured'})
+        self.assertEqual({k:result[k] for k in times},times)
+        self.assertEqual(result['schedule_status'],'measured')
+        self.assertIsNone(result['data_published_at'])
         args=call.call_args.args[0]
         self.assertEqual(args[1:5],['exec','-T','control-db','psql'])
         self.assertIn('READ ONLY',args[-1])
@@ -180,6 +195,23 @@ class Tests(unittest.TestCase):
             lifecycle.control_status(self.root,['compose'],{})
         sql=call.call_args.args[0][-1]
         self.assertEqual(sql.count("kind='lite_retained'"),3)
+
+    def test_initial_publication_requires_the_ready_database_head(self):
+        self.schedule()
+        path=self.root/'work/operator/schedule.json'
+        config=json.loads(path.read_text())
+        config['cycle']={'library':'owned'}
+        lifecycle.write(path,json.dumps(config).encode())
+        stamp='2026-11-07T12:00:00.000Z'
+        with patch.object(lifecycle,'docker',return_value=stamp.encode()) as call:
+            self.assertEqual(lifecycle.active_publication(self.root,[],{}),stamp)
+        sql=call.call_args.args[0][-1]
+        self.assertIn('READ ONLY',sql)
+        self.assertIn("h.state='ready'",sql)
+        self.assertIn('h.receipt_sha256=p.receipt_sha256',sql)
+        for raw in (b'',b'invalid',b'private error'):
+            with patch.object(lifecycle,'docker',return_value=raw):
+                self.assertIsNone(lifecycle.active_publication(self.root,[],{}))
 
     def test_control_errors_do_not_fall_back_to_saved_success(self):
         self.schedule()
@@ -256,18 +288,63 @@ class Tests(unittest.TestCase):
         for name,data in [('endpoint',b'https://private.example/v1'),('model',b'synthetic-key')]:
             lifecycle.write(store/name,data)
         self.request.update(action='up',image='sha256:'+'a'*64,
-            templates={name:'' for name in ('compose.yaml','postgres.sh','scheduler.py')},
+            templates={name:('    - ${OO_LITE_STATE:?}/home:/home/oo:ro\n' if name=='compose.yaml' else '') for name in ('compose.yaml','postgres.sh','scheduler.py')},
             stack={'sources':[],'gateway':{'public_url':'auto'},
                    'model':{'key':{'secret_ref':'model'},'base_url':{'secret_ref':'endpoint'}}})
-        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''), patch.object(lifecycle,'operator_bootstrap'):
+        with patch.object(lifecycle,'require_outside_git'), patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''), patch.object(lifecycle,'operator_bootstrap'):
             lifecycle.main(self.request)
-        self.assertEqual(lifecycle.read_private(self.root/'home/.config/open-ontology/secrets/endpoint'),
-                         b'https://private.example/v1')
+        state=next((home/'.config/open-ontology/deployments').iterdir())
+        self.assertEqual(lifecycle.read_private(state/'model-endpoint'),b'https://private.example/v1')
+        self.assertFalse((self.root/'home/.config/open-ontology/secrets/endpoint').exists())
+        self.assertEqual(lifecycle.read_private(
+            self.root/'home/.config/open-ontology/secrets/oo-lite-model-endpoint'),b'')
+        self.assertIn(b'oo-lite-model-endpoint',lifecycle.read_private(self.root/'work/stack.json'))
+        self.assertIn(b'read_only',lifecycle.read_private(self.root/'compose.yaml'))
         self.assertNotIn(b'private.example',lifecycle.read_private(self.root/'work/stack.json'))
         lifecycle.write(store/'endpoint',b'https://changed.example/v1')
-        with patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
+        with patch.object(lifecycle,'require_outside_git'), patch.object(lifecycle.Path,'home',return_value=home), patch.object(lifecycle,'docker',return_value=b''):
             with self.assertRaisesRegex(ValueError,'LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION'):
                 lifecycle.main(self.request)
+
+    def test_file_model_sources_are_private_bound_and_not_imported(self):
+        home=self.root.parent/'home'
+        home.mkdir(mode=0o700)
+        source=home/'external'
+        lifecycle.write(source,b'synthetic-model-value')
+        stack={'model':{'key':{'secret_ref':'file:'+str(source)},
+                        'base_url':{'secret_ref':'file:'+str(source)}}}
+        with patch.object(lifecycle.Path,'home',return_value=home):
+            result,mounts=lifecycle.model_sources(self.root,stack)
+            self.assertEqual(stack['model']['key']['secret_ref'],'file:'+str(source))
+            self.assertEqual(result['model']['key']['secret_ref'],'oo-lite-model-key')
+            self.assertEqual(len(mounts),2)
+            for mount in mounts:
+                dest=Path(mount['source'])
+                self.assertEqual(dest,source)
+                self.assertEqual(dest.stat().st_mode & 0o777,0o600)
+                self.assertEqual(dest.parent.stat().st_mode & 0o777,0o700)
+                self.assertTrue(mount['read_only'])
+                self.assertFalse(dest.is_relative_to(self.root))
+            self.assertNotIn('synthetic-model-value',json.dumps(result))
+            self.assertFalse((home/'.config/open-ontology/deployments').exists())
+            self.assertEqual(lifecycle.model_sources(self.root,stack),(result,mounts))
+            source.chmod(0o644)
+            with self.assertRaisesRegex(ValueError,'LITE_PRIVATE_FILE'):
+                lifecycle.model_sources(self.root,stack)
+            source.chmod(0o600)
+            link=home/'link'
+            link.symlink_to(source)
+            stack['model']['key']['secret_ref']='file:'+str(link)
+            with self.assertRaises(OSError):
+                lifecycle.model_sources(self.root,stack)
+
+    def test_model_state_rejects_git_worktrees_and_symlink_aliases(self):
+        with self.assertRaisesRegex(ValueError,'LITE_MODEL_STATE_IN_GIT'):
+            lifecycle.require_outside_git(self.root/'not-created')
+        alias=self.root.parent/'alias'
+        alias.symlink_to(self.root,target_is_directory=True)
+        with self.assertRaisesRegex(ValueError,'LITE_MODEL_STATE_IN_GIT'):
+            lifecycle.require_outside_git(alias/'not-created')
 
     def test_operator_bootstrap_is_reserved_idempotent_and_file_only(self):
         pki=self.root/'pki'

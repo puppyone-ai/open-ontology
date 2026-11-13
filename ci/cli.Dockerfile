@@ -1,6 +1,6 @@
 # Zig supplies the glibc 2.31 sysroot; the host distribution is not the ABI floor.
 FROM docker.io/library/rust@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e AS build
-LABEL oo.lane=m
+LABEL oo.lane=b
 ARG TARGETARCH
 RUN case "$TARGETARCH" in \
       arm64) arch=aarch64; sha=f7a654acc967864f7a050ddacfaa778c7504a0eca8d2b678839c21eea47c992b ;; \
@@ -17,8 +17,14 @@ COPY . .
 RUN rustc --version | grep '^rustc 1.98.1 ' && \
     target="$(rustc -vV | sed -n 's/^host: //p')" && \
     cargo zigbuild --release --locked -p oo-cli --bin oo --target "$target.2.31" && \
+    cargo zigbuild --release --locked --manifest-path tools/mcp-gateway/Cargo.toml --target "$target.2.31" && \
+    cargo zigbuild --release --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml --target "$target.2.31" && \
     mkdir /out && cp "target/$target/release/oo" /out/oo && \
+    cp "tools/mcp-gateway/target/$target/release/mcp-gateway" /out/mcp-gateway && \
+    cp "deploy/lite/mysql-doctor/target/$target/release/oo-mysql-doctor" /out/oo-mysql-doctor && \
     /out/oo --version && /out/oo doctor --help
 FROM scratch
-LABEL oo.lane=m
+LABEL oo.lane=b
 COPY --from=build /out/oo /oo
+COPY --from=build /out/mcp-gateway /mcp-gateway
+COPY --from=build /out/oo-mysql-doctor /oo-mysql-doctor

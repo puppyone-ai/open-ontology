@@ -1,0 +1,26 @@
+{
+ "protocol": "oo.connect-pty/v1",
+ "terminal": "80x24",
+ "postgres": {
+  "server": "postgres:17.11 (TLS, scram, read-only role)",
+  "keys_first_run": 46,
+  "keys_recent_rerun": 3,
+  "password_chars": 24,
+  "detected": "17.11 → 17",
+  "stored_secrets": [
+   "source-ca",
+   "source-password"
+  ]
+ },
+ "mysql": {
+  "server": "stub greeting 8.4.7 + TLS upgrade",
+  "keys_first_run": 42,
+  "password_chars": 24,
+  "detected": "8.4.7 → 8.4"
+ },
+ "oracle": {
+  "server": "stub listener; sign-in deferred to oo doctor (worker)",
+  "keys_first_run": 36,
+  "password_chars": 24
+ }
+}

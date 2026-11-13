@@ -152,9 +152,158 @@ fn catalog() -> PolicyCatalog {
             text: Some(oid("text")),
             boolean: Some(oid("bool")),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     }
+}
+
+#[test]
+fn temporal_comparisons_bind_only_iso_literals_to_verified_operators() {
+    let cat = catalog();
+    for (column, literal, oid) in [
+        ("day", "'2024-02-29'", Type::DATE.oid()),
+        ("stamp", "'2024-02-29'", Type::TIMESTAMP.oid()),
+        (
+            "stamp",
+            "'2024-02-29 23:59:59.123456'",
+            Type::TIMESTAMP.oid(),
+        ),
+        ("zoned", "'2024-02-29T23:59:59Z'", Type::TIMESTAMPTZ.oid()),
+        (
+            "zoned",
+            "'2024-02-29 23:59:59+08:00'",
+            Type::TIMESTAMPTZ.oid(),
+        ),
+    ] {
+        for operator in COMPARISON_OPERATORS {
+            for predicate in [
+                format!("{column} {operator} {literal}"),
+                format!("{literal} {operator} {column}"),
+            ] {
+                let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+                let plan = guard_select(&cat.identity, &cat, &sql)
+                    .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+                assert!(plan.executed_sql.contains(&format!("pc_{column}")));
+                assert_eq!(plan.bindings.operators.len(), 1);
+                let binding = &plan.bindings.operators[0];
+                assert!(cat.operators.iter().any(|op| op.oid == binding.oid
+                    && op.left_type_oid == oid
+                    && op.right_type_oid == oid));
+                let mut missing = cat.clone();
+                missing.operators.retain(|op| op.oid != binding.oid);
+                assert!(guard_select(&missing.identity, &missing, &sql).is_err());
+            }
+        }
+    }
+    for predicate in [
+        "day = 'today'",
+        "day = '2026-02-29'",
+        "day = '02/03/2026'",
+        "stamp = 'infinity'",
+        "stamp = '2026-01-01 25:00:00'",
+        "stamp = '2026-01-01 00:00:00Z'",
+        "zoned = '2026-01-01'",
+        "zoned = '2026-01-01 00:00:00'",
+        "zoned = '2026-01-01 00:00:00 America/New_York'",
+        "day = code",
+        "code = day",
+        "secret = '2026-01-01'",
+        "secret::date = '2026-01-01'",
+        "day = set_config('TimeZone','UTC',false)",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
+}
+
+#[test]
+fn between_and_temporal_in_keep_bounds_nulls_and_catalog_authority() {
+    let cat = catalog();
+    for predicate in [
+        "day BETWEEN '2026-01-01' AND '2026-01-31'",
+        "day NOT BETWEEN DATE '2026-01-01' AND DATE '2026-01-31'",
+        "stamp BETWEEN '2026-01-01' AND TIMESTAMP '2026-02-01'",
+        "zoned BETWEEN '2026-01-01 00:00:00Z' AND '2026-02-01 00:00:00+00'",
+        "id BETWEEN 1 AND 3",
+        "amount NOT BETWEEN 1 AND 3",
+        "code BETWEEN 'a' AND 'z'",
+        "day IN ('2026-01-01', DATE '2026-01-02', NULL)",
+        "day NOT IN (NULL, '2026-01-01'::date)",
+        "stamp IN ('2026-01-01', TIMESTAMP '2026-01-02')",
+        "zoned NOT IN ('2026-01-01 00:00:00Z', NULL)",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        let plan = guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+        assert_eq!(
+            plan.executed_sql.contains("NULL"),
+            predicate.contains("NULL")
+        );
+        assert_eq!(plan.executed_sql.contains("NOT"), predicate.contains("NOT"));
+        assert_eq!(
+            plan.executed_sql.contains("BETWEEN"),
+            predicate.contains("BETWEEN")
+        );
+        for binding in &plan.bindings.operators {
+            let mut missing = cat.clone();
+            missing.operators.retain(|op| op.oid != binding.oid);
+            assert!(
+                guard_select(&missing.identity, &missing, &sql).is_err(),
+                "{sql}"
+            );
+        }
+    }
+    for predicate in [
+        "day IN ('today')",
+        "day IN ('2026-02-30')",
+        "day IN (secret::date)",
+        "day IN (code)",
+        "day IN (set_config('DateStyle','ISO',false))",
+        "day BETWEEN 'today' AND 'tomorrow'",
+        "day BETWEEN secret::date AND '2026-01-01'",
+        "secret BETWEEN 'a' AND 'z'",
+        "'a' BETWEEN 'a' AND 'z'",
+    ] {
+        let sql = format!("SELECT id FROM logistics.orders WHERE {predicate}");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
+}
+
+#[test]
+fn analytical_predicates_do_not_open_write_catalog_or_hidden_column_paths() {
+    use oo_core::api::ErrorCode;
+    let mut cat = catalog();
+    for sql in [
+        "DELETE FROM logistics.orders WHERE day='2026-01-01'",
+        "UPDATE logistics.orders SET code='x'",
+        "CREATE TABLE logistics.copy AS SELECT * FROM logistics.orders",
+        "COPY logistics.orders TO STDOUT",
+        "SELECT * FROM pg_catalog.pg_class",
+        "SELECT set_config('role','owner',false) FROM logistics.orders",
+        "SELECT dblink('remote','SELECT 1') FROM logistics.orders",
+        "SELECT lo_get(1) FROM logistics.orders",
+        "SELECT lo_export(1,'output') FROM logistics.orders",
+        "SELECT secret::date FROM logistics.orders WHERE day='2026-01-01'",
+        "SELECT (SELECT secret FROM logistics.orders)",
+        "WITH x AS (SELECT secret FROM logistics.orders) SELECT * FROM x",
+        "SELECT id FROM logistics.orders WHERE EXISTS (SELECT secret FROM logistics.orders)",
+    ] {
+        let error = guard_select(&cat.identity, &cat, sql).expect_err(sql);
+        assert!(!error.to_string().contains("secret"), "{sql}: {error}");
+        assert_ne!(error.code(), ErrorCode::Internal);
+    }
+    let mut other_role = cat.identity.clone();
+    other_role.role = "owner".into();
+    assert!(guard_select(&other_role, &cat, "SELECT id FROM logistics.orders").is_err());
+    cat.relations[0].estimated_rows = cat.large_table_row_threshold + 1;
+    let error = guard_select(
+        &cat.identity,
+        &cat,
+        "SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b",
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::CostTooHigh);
 }
 
 #[test]
@@ -265,7 +414,7 @@ fn having_uses_only_exact_aggregate_results_and_grouped_columns() {
         "SELECT COUNT(*) FROM logistics.orders a JOIN logistics.orders b ON COUNT(*)>0",
         "SELECT COUNT(*) FROM logistics.orders HAVING SUM(secret)>0",
         "SELECT COUNT(*) FROM logistics.orders HAVING pg_sleep(1)=0",
-        "SELECT COUNT(*) FROM logistics.orders HAVING (SELECT 1)>0",
+        "SELECT COUNT(*) FROM logistics.orders HAVING (SELECT secret FROM logistics.orders)>0",
         "SELECT MIN(stamp) FROM logistics.orders HAVING MIN(stamp)>DATE '2026-10-28'",
         "SELECT code,COUNT(*) FROM logistics.orders GROUP BY 1 ORDER BY amount",
         "SELECT stamp::date,COUNT(*) FROM logistics.orders GROUP BY 1 HAVING stamp>=TIMESTAMP '2026-10-28 00:00:00'",
@@ -278,9 +427,9 @@ fn having_uses_only_exact_aggregate_results_and_grouped_columns() {
 fn day_operations_and_having_fail_closed_without_catalog_authority() {
     let cat = catalog();
     for sql in [
-        "SELECT date_trunc('hour',stamp) FROM logistics.orders",
+        "SELECT date_trunc('invalid',stamp) FROM logistics.orders",
         "SELECT date_trunc(code,stamp) FROM logistics.orders",
-        "SELECT date_trunc('day',zoned) FROM logistics.orders",
+        "SELECT date_trunc('invalid',zoned) FROM logistics.orders",
         "SELECT date_trunc('day',zoned,'UTC') FROM logistics.orders",
         "SELECT zoned::date FROM logistics.orders",
         "SELECT code::date FROM logistics.orders",
@@ -335,6 +484,9 @@ fn temporal_grouping_and_having_survive_the_actual_parser_worker() {
         "SELECT stamp::date,MIN(stamp) FROM logistics.orders GROUP BY 1 HAVING MIN(stamp)>=TIMESTAMP '2026-10-28 00:00:00' ORDER BY 1",
         "SELECT code,SUM(amount) FROM logistics.orders GROUP BY 1 HAVING SUM(amount)>0 ORDER BY 2",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28' AND stamp<TIMESTAMP '2026-10-29'",
+        "SELECT id FROM logistics.orders WHERE day BETWEEN '2026-01-01' AND '2026-01-31'",
+        "SELECT id FROM logistics.orders WHERE day NOT IN (DATE '2026-01-01', NULL)",
+        "SELECT id FROM logistics.orders WHERE stamp>='2026-01-01'",
         "SELECT code,COUNT(*) AS n,SUM(CASE WHEN stamp>=TIMESTAMP '2026-10-29' THEN 1 ELSE 0 END) FROM logistics.orders GROUP BY code",
         "SELECT code,SUM(amount) FROM logistics.orders GROUP BY code HAVING SUM(abs(amount))+SUM(abs(amount))>0",
         "SELECT zoned::date FROM logistics.orders",
@@ -380,6 +532,8 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
         for (left, right) in [
             ("stamp".to_string(), format!("TIMESTAMP '{date}'")),
             (format!("TIMESTAMP '{date}'"), "stamp".to_string()),
+            ("stamp".to_string(), format!("'{date}'")),
+            (format!("'{date}'"), "stamp".to_string()),
         ] {
             let sql = format!("SELECT id FROM logistics.orders WHERE {left}>={right}");
             let plan = guard_select(&cat.identity, &cat, &sql).unwrap();
@@ -398,7 +552,7 @@ fn date_only_timestamp_constants_normalize_to_midnight_without_widening_casts() 
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '0000-01-01'",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP '2026-10-28Z'",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP 'today'",
-        "SELECT id FROM logistics.orders WHERE stamp>='2026-10-28'",
+        "SELECT id FROM logistics.orders WHERE stamp>='today'",
         "SELECT id FROM logistics.orders WHERE stamp>=code::timestamp",
         "SELECT id FROM logistics.orders WHERE stamp>=TIMESTAMP(0) '2026-10-28'",
         "SELECT id FROM logistics.orders WHERE zoned>=TIMESTAMPTZ '2026-10-28'",
@@ -445,12 +599,12 @@ fn searched_numeric_case_and_abs_use_exact_function_results() {
         "SELECT CASE WHEN flag THEN stamp ELSE stamp END FROM logistics.orders",
         "SELECT CASE WHEN false THEN secret ELSE 1 END FROM logistics.orders",
         "SELECT CASE WHEN false THEN pg_sleep(1) ELSE 1 END FROM logistics.orders",
-        "SELECT CASE WHEN flag THEN (SELECT 1) ELSE 0 END FROM logistics.orders",
+        "SELECT CASE WHEN flag THEN (SELECT secret FROM logistics.orders) ELSE 0 END FROM logistics.orders",
         "SELECT SUM(CASE WHEN flag THEN SUM(amount) ELSE amount END) FROM logistics.orders",
         "SELECT id FROM logistics.orders WHERE CASE WHEN flag THEN 1 ELSE 0 END",
         "SELECT code,CASE WHEN flag THEN 1 ELSE 0 END,COUNT(*) FROM logistics.orders GROUP BY code",
         "SELECT public.abs(amount) FROM logistics.orders",
-        "SELECT abs(id) FROM logistics.orders",
+        "SELECT abs(flag) FROM logistics.orders",
         "SELECT abs(code) FROM logistics.orders",
         "SELECT abs(amount) OVER () FROM logistics.orders",
         "SELECT abs(amount) FILTER (WHERE true) FROM logistics.orders",
@@ -507,4 +661,432 @@ fn timestamp_to_char_requires_exact_builtin_and_literal_format() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn analytical_scalar_functions_require_exact_catalog_authority() {
+    let cat = catalog();
+    for expression in [
+        "extract(isodow FROM day) BETWEEN 1 AND 5",
+        "extract(month FROM day)",
+        "extract(year FROM stamp)",
+        "date_part('month',stamp)",
+        "date_trunc('month',stamp)",
+        "lower(code)",
+        "upper(code)",
+        "length(code)",
+        "substring(code FROM 1 FOR 2)",
+        "substring(code FROM 2)",
+        "coalesce(id,0)",
+        "nullif(id,0)",
+        "greatest(id,1)",
+        "least(id,2)",
+        "coalesce(code,'')",
+        "nullif(code,'')",
+        "greatest(code,'a')",
+        "round(amount)",
+        "round(amount,2)",
+        "abs(id)",
+    ] {
+        let sql = format!("SELECT {expression} FROM logistics.orders");
+        let plan = guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|error| panic!("{sql}: {error:?}"));
+        for function in plan.bindings.functions {
+            let mut missing = cat.clone();
+            missing.functions.retain(|f| f.oid != function.oid);
+            assert!(
+                guard_select(&missing.identity, &missing, &sql).is_err(),
+                "{sql}"
+            );
+        }
+    }
+    for expression in [
+        "lower(secret)",
+        "extract(month FROM secret)",
+        "public.lower(code)",
+        "set_config('TimeZone','UTC',false)",
+        "substring(code FROM '(.*)')",
+        "round(flag)",
+        "coalesce(id,secret)",
+        "greatest(id,secret)",
+        "nullif(id,secret)",
+        "coalesce(id,pg_sleep(1))",
+    ] {
+        let sql = format!("SELECT {expression} FROM logistics.orders");
+        assert!(guard_select(&cat.identity, &cat, &sql).is_err(), "{sql}");
+    }
+}
+
+#[test]
+fn scalar_casts_bind_arguments_and_exact_conversion_authority() {
+    use oo_gateway::sql_guard::ResolvedCast;
+    let mut cat = catalog();
+    for (source, target) in [
+        (oid("numeric"), oid("int8")),
+        (0, oid("numeric")),
+        (0, oid("timestamp")),
+        (oid("int4"), oid("numeric")),
+    ] {
+        cat.casts.push(ResolvedCast {
+            source_type_oid: source,
+            target_type_oid: target,
+            functions: vec![ResolvedFunction {
+                oid: 9000 + cat.casts.len() as u32,
+                schema: "pg_catalog".into(),
+                name: if target == oid("int8") {
+                    "int8"
+                } else {
+                    "numeric"
+                }
+                .into(),
+                argument_type_oids: vec![source],
+                aggregate_star: false,
+            }],
+        });
+    }
+    for sql in [
+        "SELECT COALESCE(SUM(amount),0),NULLIF(SUM(amount),0),GREATEST(amount,0),LEAST(amount,0) FROM logistics.orders GROUP BY amount",
+        "SELECT CAST(SUM(amount) AS BIGINT) FROM logistics.orders",
+        "SELECT amount::bigint FROM logistics.orders",
+        "SELECT '123.45'::numeric,1::numeric,'2026-01-01'::timestamp",
+    ] {
+        let plan =
+            guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
+        assert!(!plan.bindings.functions.is_empty());
+        let mut missing = cat.clone();
+        missing.casts.clear();
+        assert!(
+            guard_select(&missing.identity, &missing, sql).is_err(),
+            "{sql}"
+        );
+    }
+    for sql in [
+        "SELECT secret::bigint FROM logistics.orders",
+        "SELECT pg_sleep(1)::bigint",
+        "SELECT 'pg_class'::regclass",
+        "SELECT '1'::public.numeric",
+        "SELECT 'now'::timestamp",
+        "SELECT '1'::numeric(10,2)",
+        "SELECT ARRAY[1]::integer[]",
+    ] {
+        assert!(guard_select(&cat.identity, &cat, sql).is_err(), "{sql}");
+    }
+    cat.casts.push(cat.casts[0].clone());
+    assert!(guard_select(&cat.identity, &cat, "SELECT 1").is_err());
+}
+
+#[test]
+fn analytical_scopes_bind_every_base_relation_and_hidden_argument() {
+    let cat = catalog();
+    for sql in [
+        "SELECT (SELECT COUNT(*) FROM logistics.orders)",
+        "SELECT (SELECT SUM(amount) FROM logistics.orders) - (SELECT SUM(amount) FROM logistics.orders)",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders i WHERE i.id=o.id)",
+        "SELECT id FROM logistics.orders WHERE id IN (SELECT id FROM logistics.orders WHERE flag)",
+        "SELECT id FROM logistics.orders WHERE id NOT IN (SELECT id FROM logistics.orders WHERE flag)",
+        "WITH a AS (SELECT id FROM logistics.orders WHERE flag) SELECT * FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders),b AS (SELECT id FROM a) SELECT id FROM b",
+        "WITH a(n) AS (SELECT COUNT(*) FROM logistics.orders) SELECT n FROM a",
+        "SELECT d.id FROM (SELECT id FROM logistics.orders WHERE flag) d",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT (WITH a AS (SELECT id FROM logistics.orders WHERE flag) SELECT COUNT(*) FROM a) FROM a",
+    ] {
+        let plan =
+            guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
+        assert!(!plan.bindings.relations.is_empty(), "{sql}");
+        assert!(
+            plan.bindings
+                .relations
+                .iter()
+                .all(|r| r.schema == "logistics" && r.physical_schema == "_oo")
+        );
+        assert!(plan.executed_sql.contains("pt_orders"));
+    }
+    for sql in [
+        "SELECT (SELECT secret FROM logistics.orders)",
+        "WITH a AS (SELECT secret FROM logistics.orders) SELECT COUNT(*) FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT secret FROM a",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders i WHERE i.secret=o.id)",
+        "SELECT o.id FROM logistics.orders o WHERE EXISTS (SELECT 1 FROM logistics.orders o WHERE o.secret=1)",
+        "WITH a AS (DELETE FROM logistics.orders RETURNING id) SELECT * FROM a",
+        "WITH RECURSIVE a AS (SELECT id FROM logistics.orders) SELECT * FROM a",
+        "WITH a AS (SELECT id FROM pg_catalog.pg_class) SELECT * FROM a",
+        "SELECT (SELECT set_config('TimeZone','UTC',false))",
+        "SELECT id FROM logistics.orders WHERE id IN (SELECT id,amount FROM logistics.orders)",
+        "SELECT (SELECT 1 FROM hidden.orders)",
+    ] {
+        assert!(guard_select(&cat.identity, &cat, sql).is_err(), "{sql}");
+    }
+    let mut large = cat.clone();
+    large.relations[0].estimated_rows = u64::MAX;
+    for sql in [
+        "SELECT (SELECT COUNT(*) FROM (SELECT * FROM logistics.orders) d)",
+        "WITH a AS (SELECT * FROM logistics.orders) SELECT COUNT(*) FROM a",
+        "WITH a AS (SELECT id FROM logistics.orders) SELECT * FROM a",
+    ] {
+        assert!(
+            matches!(
+                guard_select(&large.identity, &large, sql),
+                Err(oo_gateway::GuardError::CostTooHigh { .. })
+            ),
+            "{sql}"
+        );
+    }
+}
+
+fn corpus_catalog(schema: &str, role: &str, tables: &serde_json::Value) -> PolicyCatalog {
+    let mut cat = catalog();
+    cat.identity.role = role.into();
+    cat.relations = tables
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(table, columns)| VisibleRelation {
+            schema: schema.into(),
+            name: table.clone(),
+            physical_schema: "_oo".into(),
+            physical_name: format!("pt_{table}"),
+            columns: columns
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(name, ty)| VisibleColumn {
+                    name: name.clone(),
+                    physical_name: format!("pc_{name}"),
+                    type_oid: oid(ty.as_str().unwrap()),
+                })
+                .collect(),
+            pending_unclassified: 1,
+            estimated_rows: 4,
+        })
+        .collect();
+    for (source, target, name) in [
+        (oid("numeric"), oid("int8"), "int8"),
+        (oid("date"), oid("timestamp"), "timestamp"),
+    ] {
+        cat.casts.push(oo_gateway::ResolvedCast {
+            source_type_oid: source,
+            target_type_oid: target,
+            functions: vec![ResolvedFunction {
+                oid: 9500 + cat.casts.len() as u32,
+                schema: "pg_catalog".into(),
+                name: name.into(),
+                argument_type_oids: vec![source],
+                aggregate_star: false,
+            }],
+        });
+    }
+    cat
+}
+
+#[test]
+fn frozen_erp_t6_and_demo_gold_admission_corpus() {
+    use sha2::{Digest, Sha256};
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/admission-catalogs.json")).unwrap();
+    for (path, expected) in schema["sources"].as_object().unwrap() {
+        assert_eq!(
+            format!(
+                "{:x}",
+                Sha256::digest(std::fs::read(root.join(path)).unwrap())
+            ),
+            expected.as_str().unwrap(),
+            "refresh source-derived admission metadata: {path}"
+        );
+    }
+    let bank: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../benchmarks/ab/fixtures/logistics-bank.json"
+    ))
+    .unwrap();
+    let cat = corpus_catalog("fixture", bank["role"].as_str().unwrap(), &schema["erp"]);
+    assert_eq!(bank["questions"].as_array().unwrap().len(), 40);
+    for q in bank["questions"].as_array().unwrap() {
+        let sql = q["gold_sql"].as_str().unwrap();
+        guard_select(&cat.identity, &cat, sql)
+            .unwrap_or_else(|e| panic!("ERP {}: {sql}: {e:?}", q["id"]));
+    }
+    let cat = corpus_catalog("app", "oo_r_f22", &schema["t6"]);
+    let t6 = include_str!("../../../testing/engines/gold/postgres.sql");
+    let queries = t6
+        .lines()
+        .filter(|line| !line.starts_with("--"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut count = 0;
+    for source_sql in queries.split(';').filter(|sql| !sql.trim().is_empty()) {
+        // Source gold uses search_path; bind only the deployed T6 namespace.
+        let mut sql = source_sql.to_owned();
+        for table in schema["t6"].as_object().unwrap().keys() {
+            for keyword in ["FROM", "JOIN"] {
+                sql = sql.replace(
+                    &format!("{keyword} {table}"),
+                    &format!("{keyword} app.{table}"),
+                );
+            }
+        }
+        count += 1;
+        guard_select(&cat.identity, &cat, &sql)
+            .unwrap_or_else(|e| panic!("T6 Q{count:02}: {sql}: {e:?}"));
+    }
+    assert_eq!(count, 20);
+    let demo: serde_json::Value =
+        serde_json::from_str(include_str!("../../../deploy/lite/demo/gold.json")).unwrap();
+    for role in ["analyst", "ops"] {
+        let reviewed: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(root.join(format!("deploy/lite/demo/reviewed-{role}.json"))).unwrap(),
+        )
+        .unwrap();
+        let mut tables = serde_json::Map::new();
+        for visible in reviewed["visibility"]["datasets"].as_array().unwrap() {
+            let name = visible["dataset"].as_str().unwrap();
+            let dataset = reviewed["effective"]["datasets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|d| d["dataset"] == name)
+                .unwrap();
+            let mut columns = serde_json::Map::new();
+            for column in dataset["columns"].as_array().unwrap() {
+                if !visible["columns"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&column["name"])
+                {
+                    continue;
+                }
+                let kind = column["data_type"].as_str().unwrap();
+                let ty = if kind == "bigint" {
+                    "int8"
+                } else if kind == "timestamp without time zone" {
+                    "timestamp"
+                } else if kind.starts_with("numeric") {
+                    "numeric"
+                } else {
+                    kind
+                };
+                columns.insert(column["name"].as_str().unwrap().into(), ty.into());
+            }
+            tables.insert(name.strip_prefix("demo.").unwrap().into(), columns.into());
+        }
+        let cat = corpus_catalog("demo", role, &tables.into());
+        for q in demo.as_array().unwrap() {
+            let result = guard_select(&cat.identity, &cat, q["sql"].as_str().unwrap());
+            if q["denied"] == true {
+                assert!(result.is_err(), "{role}: {}", q["id"]);
+            } else {
+                result.unwrap_or_else(|e| panic!("demo {role} {}: {e:?}", q["id"]));
+            }
+        }
+    }
+}
+
+#[test]
+fn analytical_negative_corpus_keeps_closed_refusal_codes() {
+    use oo_core::api::ErrorCode;
+    let cat = catalog();
+    for (sql, expected) in [
+        (
+            "DELETE FROM logistics.orders",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "UPDATE logistics.orders SET id=1",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "CREATE TABLE stolen(id integer)",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "COPY logistics.orders TO STDOUT",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "SELECT * FROM pg_catalog.pg_class",
+            ErrorCode::StatementNotAllowed,
+        ),
+        (
+            "SELECT set_config('TimeZone','UTC',false)",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT dblink('connection','SELECT 1')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT lo_import('/not-a-file')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT lo_export(1,'/not-a-file')",
+            ErrorCode::FunctionNotAllowed,
+        ),
+        (
+            "SELECT (SELECT secret FROM logistics.orders)",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (SELECT secret FROM logistics.orders) SELECT COUNT(*) FROM x",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "SELECT secret::date FROM logistics.orders",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (SELECT id FROM logistics.orders) SELECT secret FROM x",
+            ErrorCode::ColumnNotAllowed,
+        ),
+        (
+            "WITH x AS (DELETE FROM logistics.orders RETURNING id) SELECT * FROM x",
+            ErrorCode::StatementNotAllowed,
+        ),
+    ] {
+        assert_eq!(
+            guard_select(&cat.identity, &cat, sql).unwrap_err().code(),
+            expected,
+            "{sql}"
+        );
+    }
+    let mut large = cat.clone();
+    large.relations[0].estimated_rows = u64::MAX;
+    for sql in [
+        "SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b",
+        "WITH x AS (SELECT * FROM logistics.orders a CROSS JOIN logistics.orders b) SELECT COUNT(*) FROM x",
+    ] {
+        assert_eq!(
+            guard_select(&large.identity, &large, sql)
+                .unwrap_err()
+                .code(),
+            ErrorCode::CostTooHigh,
+            "{sql}"
+        );
+    }
+}
+
+#[test]
+fn unfiltered_cartesian_aggregates_cannot_bypass_the_row_cost_gate() {
+    let mut cat = catalog();
+    cat.relations[0].estimated_rows = 100_000;
+    cat.large_table_row_threshold = 1_000_000_000;
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.orders a CROSS JOIN logistics.orders b",
+        "SELECT COUNT(*) FROM logistics.orders a,logistics.orders b",
+        "SELECT a.id FROM logistics.orders a CROSS JOIN logistics.orders b WHERE true",
+        "WITH x AS (SELECT COUNT(*) AS n FROM logistics.orders a CROSS JOIN logistics.orders b) SELECT n FROM x",
+    ] {
+        assert!(
+            matches!(
+                guard_select(&cat.identity, &cat, sql),
+                Err(oo_gateway::GuardError::CostTooHigh { .. })
+            ),
+            "{sql}"
+        );
+    }
+    for sql in [
+        "SELECT COUNT(*) FROM logistics.orders a JOIN logistics.orders b ON a.id=b.id",
+        "SELECT * FROM (SELECT COUNT(*) AS n FROM logistics.orders) a CROSS JOIN (SELECT COUNT(*) AS n FROM logistics.orders) b",
+    ] {
+        guard_select(&cat.identity, &cat, sql).unwrap_or_else(|e| panic!("{sql}: {e:?}"));
+    }
 }

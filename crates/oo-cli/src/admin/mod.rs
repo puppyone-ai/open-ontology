@@ -4,9 +4,12 @@ mod build_lite;
 mod build_retained;
 mod build_tail;
 mod build_token;
+mod demo;
+mod demo_try;
 mod doctor;
 mod lite;
 mod ontology;
+mod ontology_graph;
 mod progress;
 mod remote;
 mod review;
@@ -22,12 +25,24 @@ use std::path::Path;
 
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -41,10 +56,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -65,6 +83,29 @@ pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
+    if command == "try" {
+        return Some(demo_try::run(rest));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "try") {
+        return Some(Ok(Invocation::Help(demo_try::HELP.into())));
+    }
+    if command == "help" && rest.first().is_some_and(|c| c == "quickstart") {
+        return Some(Ok(Invocation::Help(HELP.into())));
+    }
+    if command == "quickstart" {
+        if rest.iter().any(|a| a == "--help" || a == "-h") {
+            return Some(Ok(Invocation::Help(HELP.into())));
+        }
+        if rest.iter().any(|a| a == "--down") {
+            return Some(demo::run(rest));
+        }
+        // Demo deployment does not require the own-database selection screens.
+        let demo_args: Vec<_> = ["init".to_owned(), "--demo".to_owned()]
+            .into_iter()
+            .chain(rest.iter().cloned())
+            .collect();
+        return dispatch(&demo_args);
+    }
     // Internal runtime entry point; deliberately absent from public help.
     if command == "admin" && rest.first().is_some_and(|s| s == "source-catalog") {
         return Some(build_retained::export_catalog(&rest[1..]));
@@ -84,6 +125,31 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     if command == "status" && !admin_status(rest) {
         return None;
     }
+    if command == "status" {
+        let json = rest.iter().any(|arg| arg == "--json");
+        let mut machine_args = rest.to_vec();
+        if !json {
+            machine_args.push("--json".into());
+        }
+        return Some(
+            execute(command, &machine_args).and_then(|report| match report {
+                Invocation::AdminReport(body, code) => {
+                    let mut state: serde_json::Value = serde_json::from_str(&body)
+                        .map_err(|_| Failure::local("ADMIN_STATUS_PROTOCOL"))?;
+                    oo_stack::status::review_status(&mut state);
+                    Ok(Invocation::AdminReport(
+                        if json {
+                            state.to_string()
+                        } else {
+                            progress::display_status(&state)
+                        },
+                        code,
+                    ))
+                }
+                other => Ok(other),
+            }),
+        );
+    }
     Some(execute(command, rest))
 }
 
@@ -100,6 +166,7 @@ fn is_admin(command: &str) -> bool {
             | "ontology"
             | "token"
             | "share-prompt"
+            | "quickstart"
     )
 }
 
@@ -116,19 +183,55 @@ fn admin_status(args: &[String]) -> bool {
 }
 
 fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
+    let v03_init = rest.iter().any(|a| {
+        matches!(
+            a.split('=').next().unwrap_or(a),
+            "--demo"
+                | "--catalog"
+                | "--tables"
+                | "--tables-recommended"
+                | "--no-anim"
+                | "--profile"
+                | "--dsn"
+                | "--engine"
+                | "--version"
+                | "--host"
+                | "--port"
+                | "--database"
+                | "--service"
+                | "--sid"
+                | "--user"
+                | "--password-env"
+                | "--password-file"
+                | "--ca-file"
+        )
+    });
+    if command == "quickstart" || (command == "init" && v03_init) {
+        if rest.iter().any(|s| s == "--help" || s == "-h") {
+            return Ok(Invocation::Help(HELP.into()));
+        }
+        if rest.iter().any(|s| s == "--demo") {
+            return demo::run(rest);
+        }
+        return wizard::init(&wizard::parse_init(rest, command == "quickstart")?);
+    }
     if command == "review" {
         return review::run(rest);
     }
     if command == "ontology" {
-        return ontology::run(rest)
-            .map(Invocation::Help)
-            .map_err(|message| {
-                if message == "ADMIN_ARGUMENT" {
-                    Failure::usage(message)
-                } else {
-                    Failure::local(message)
-                }
-            });
+        let graph = rest.first().is_some_and(|s| s == "graph");
+        let result = if graph {
+            ontology_graph::run(&rest[1..])
+        } else {
+            ontology::run(rest)
+        };
+        return result.map(Invocation::Help).map_err(|message| {
+            if message == "ADMIN_ARGUMENT" {
+                Failure::usage(message)
+            } else {
+                Failure::local(message)
+            }
+        });
     }
     if rest.iter().any(|s| s == "--help" || s == "-h") {
         return Ok(Invocation::Help(HELP.into()));
@@ -272,7 +375,15 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
         let path = Path::new(config.unwrap_or("stack.yaml"));
         let mut stack = read_stack(path)?;
         match target.unwrap_or(stack.deploy.target.as_str()) {
-            "ssh" => return remote::run(command, path, &stack),
+            "ssh" => {
+                return remote::run(command, path, &stack).map(|report| match report {
+                    Invocation::AdminReport(body, code) if command == "status" && !json => {
+                        let state = serde_json::from_str(&body).unwrap_or_default();
+                        Invocation::AdminReport(progress::display_status(&state), code)
+                    }
+                    other => other,
+                });
+            }
             _ if target == Some("local") => stack.deploy.target = "local".into(),
             _ => (),
         }
@@ -294,7 +405,13 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
             .parent()
             .is_some_and(|p| p.join(".oo/lite/owner.json").exists())
         {
-            return lite::run("status", path, &stack);
+            return lite::run("status", path, &stack).map(|report| match report {
+                Invocation::AdminReport(body, code) if !json => {
+                    let state = serde_json::from_str(&body).unwrap_or_default();
+                    Invocation::AdminReport(progress::display_status(&state), code)
+                }
+                other => other,
+            });
         }
         return progress::status(path, json);
     }
@@ -305,7 +422,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     }
     let Some(config) = config else {
         if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !json {
-            return wizard::run();
+            return wizard::run(&wizard::InitOptions::default());
         }
         return Err(Failure::usage(
             "ADMIN_CONFIG_REQUIRED: use --config for non-interactive init",

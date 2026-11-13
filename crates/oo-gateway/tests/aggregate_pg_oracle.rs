@@ -169,6 +169,7 @@ fn guarded_business_aggregates_match_postgres_without_expanding_permissions() {
             text: Some(25),
             boolean: Some(16),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };
@@ -290,6 +291,8 @@ fn guarded_business_aggregates_match_postgres_without_expanding_permissions() {
             "2026-10-01 00:00:00",
         ),
         ("paid_day", "DATE", "2026-09-01", "2026-10-01"),
+        ("paid_day", "", "2026-09-01", "2026-10-01"),
+        ("paid_at", "", "2026-09-01", "2026-10-01"),
     ] {
         let sql = format!(
             "SELECT COUNT(*), SUM(amount) FROM logistics.receipt
@@ -307,7 +310,7 @@ fn guarded_business_aggregates_match_postgres_without_expanding_permissions() {
         guard_select(
             &identity,
             &catalog,
-            "SELECT SUM(amount) FROM logistics.receipt WHERE paid_at >= '2026-09-01'"
+            "SELECT SUM(amount) FROM logistics.receipt WHERE paid_at >= 'today'"
         ),
         Err(GuardError::SignatureNotAllowed { operator: true, .. })
     ));

@@ -159,6 +159,11 @@ async fn owned_sql_capabilities() {
         .unwrap();
     let types = load_types(&tx).await.unwrap();
     let operators = load_operators(&tx, &types, &limits).await.unwrap();
+    for &(name, arguments, result) in ADDITIONAL_SCALAR_SIGNATURES {
+        load_scalar_function(&tx, &types, name, arguments, result)
+            .await
+            .unwrap_or_else(|error| panic!("scalar {name} {arguments:?}: {error:?}"));
+    }
     let functions = load_functions(&tx, &types, &limits).await.unwrap();
     assert_eq!(functions.len(), FUNCTION_CATALOG_LIMIT as usize);
     assert_eq!(operators.len(), required_operator_count());
@@ -190,10 +195,10 @@ async fn owned_sql_capabilities() {
         );
     }
     for (name, arguments, result) in [
-        ("date_trunc", &["text", "timestamptz"][..], "timestamptz"),
+        ("date_trunc", &["text", "bool"][..], "timestamptz"),
         ("date", &["timestamptz"][..], "date"),
         ("date_trunc", &["text", "timestamp"][..], "date"),
-        ("lower", &["text"][..], "text"),
+        ("lower", &["bool"][..], "text"),
     ] {
         assert_eq!(
             load_scalar_function(&tx, &types, name, arguments, result).await,
@@ -239,12 +244,29 @@ async fn owned_sql_capabilities() {
         assert_eq!(row.get::<_, String>(1), function.name);
         let scalar = matches!(
             function.name.as_str(),
-            "date" | "date_trunc" | "abs" | "to_char"
+            "date"
+                | "date_trunc"
+                | "abs"
+                | "to_char"
+                | "extract"
+                | "date_part"
+                | "lower"
+                | "upper"
+                | "length"
+                | "substring"
+                | "round"
+                | "now"
         );
         assert_eq!(row.get::<_, String>(2), if scalar { "f" } else { "a" });
         assert_eq!(
             row.get::<_, String>(3),
-            if function.name == "to_char" { "s" } else { "i" }
+            if matches!(function.name.as_str(), "to_char" | "now")
+                || function.argument_type_oids == [types["text"], types["timestamptz"]]
+            {
+                "s"
+            } else {
+                "i"
+            }
         );
         assert_eq!(
             row.get::<_, i16>(4) as usize,
@@ -271,15 +293,16 @@ async fn owned_sql_capabilities() {
         let result_oid = if function.name == "count" {
             types["int8"]
         } else if scalar {
-            types[if function.name == "to_char" {
-                "text"
-            } else if function.name == "abs" {
-                "numeric"
-            } else if function.name == "date" {
-                "date"
-            } else {
-                "timestamp"
-            }]
+            let (_, _, result) = DAY_FUNCTION_SIGNATURES
+                .iter()
+                .chain(ADDITIONAL_SCALAR_SIGNATURES)
+                .find(|(name, args, _)| {
+                    *name == function.name
+                        && args.iter().map(|arg| types[*arg]).collect::<Vec<_>>()
+                            == function.argument_type_oids
+                })
+                .unwrap();
+            types[*result]
         } else {
             let (_, _, result) = UNARY_AGGREGATE_SIGNATURES
                 .iter()
@@ -321,6 +344,7 @@ async fn owned_sql_capabilities() {
         VisibleColumn { name: name.clone(), physical_name: name, type_oid: row.get::<_, i32>(1) as u32 }
     }).collect::<Vec<_>>();
     assert_eq!(columns.len(), 18);
+    let scalar_casts = casts::load(&tx).await.unwrap();
     tx.commit().await.unwrap();
     client.batch_execute("SET search_path=''").await.unwrap();
     let identity = PolicyIdentity {
@@ -346,6 +370,7 @@ async fn owned_sql_capabilities() {
             text: Some(types["text"]),
             boolean: Some(types["bool"]),
         },
+        casts: Vec::new(),
         null_test_allowed: true,
         large_table_row_threshold: 100,
     };
@@ -359,7 +384,111 @@ async fn owned_sql_capabilities() {
         crate::parser_worker::decode_request(&encoded).unwrap(),
         request
     );
+    let mut cast_catalog = catalog.clone();
+    cast_catalog.casts = scalar_casts;
+    let cast_request = crate::parser_worker::AdmitRequest {
+        catalog: cast_catalog.clone(),
+        ..request.clone()
+    };
+    assert_eq!(
+        crate::parser_worker::decode_request(
+            &crate::parser_worker::encode_request(&cast_request).unwrap()
+        )
+        .unwrap(),
+        cast_request
+    );
     let mut queries = Vec::new();
+    for sql in [
+        "SELECT CAST(SUM(amount) AS bigint),SUM(id)::numeric FROM logistics.shipment",
+        "SELECT id::text,code::text,amount::bigint,amount::integer,flag::text FROM logistics.shipment ORDER BY id",
+        "SELECT day::timestamp,stamp::timestamp::date,zoned::date,stamp::timestamptz FROM logistics.shipment ORDER BY id",
+        "SELECT '123.45'::numeric,1::numeric,1.5::numeric,2147483648::bigint,NULL::text,'true'::boolean",
+        "SELECT '2026-01-01'::date,'2026-01-01'::timestamp,'2026-01-01 00:00:00Z'::timestamptz,'1 day'::interval",
+        "SELECT '1'::int2,'1'::integer,'1'::bigint,'1.5'::float8,'hello'::text",
+    ] {
+        queries.push(oracle(&client, &cast_catalog, sql).await);
+    }
+    for sql in [
+        "SELECT secret::text FROM logistics.shipment",
+        "SELECT pg_sleep(1)::text",
+        "SELECT 'pg_class'::regclass",
+        "SELECT '1'::public.numeric",
+        "SELECT 'today'::date",
+        "SELECT 'now'::timestamp",
+        "SELECT '2026-01-01'::timestamptz",
+        "SELECT '1'::numeric(10,2)",
+        "SELECT ARRAY[1]::integer[]",
+    ] {
+        assert!(
+            guard_select(&identity, &cast_catalog, sql).is_err(),
+            "{sql}"
+        );
+    }
+    let mut missing_cast = cast_catalog.clone();
+    missing_cast
+        .casts
+        .retain(|c| !(c.source_type_oid == types["numeric"] && c.target_type_oid == types["int8"]));
+    assert!(
+        guard_select(
+            &identity,
+            &missing_cast,
+            "SELECT amount::bigint FROM logistics.shipment"
+        )
+        .is_err()
+    );
+
+    for sql in [
+        "SELECT (SELECT SUM(amount)::bigint FROM logistics.shipment) - (SELECT SUM(amount)::bigint FROM logistics.shipment)",
+        "SELECT COUNT(*) FROM (SELECT id FROM logistics.shipment UNION ALL SELECT id FROM logistics.shipment) shards",
+        "SELECT id FROM logistics.shipment WHERE stamp>=DATE '2026-01-01' ORDER BY id",
+        "SELECT o.id FROM logistics.shipment o WHERE EXISTS (SELECT 1 FROM logistics.shipment i WHERE i.id=o.id AND i.flag) ORDER BY o.id",
+        "SELECT id FROM logistics.shipment WHERE id IN (SELECT id FROM logistics.shipment WHERE flag) ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE id NOT IN (SELECT id FROM logistics.shipment WHERE flag) ORDER BY id",
+        "WITH a AS (SELECT id FROM logistics.shipment WHERE flag),b AS (SELECT id FROM a) SELECT * FROM b ORDER BY id",
+        "WITH a(n) AS (SELECT COUNT(*) FROM logistics.shipment) SELECT n FROM a",
+        "SELECT d.id FROM (SELECT id FROM logistics.shipment WHERE flag) d ORDER BY d.id",
+        "SELECT EXTRACT(MONTH FROM zoned),date_part('month',day),date_trunc('month',day),date_trunc('month',zoned),to_char(amount,'FM9999990.00') FROM logistics.shipment ORDER BY id",
+        "SELECT coalesce(SUM(amount),'0'::numeric),nullif(SUM(amount),'0'::numeric) FROM logistics.shipment",
+        "SELECT COALESCE(SUM(amount),0),NULLIF(SUM(amount),0) FROM logistics.shipment",
+        "SELECT greatest(amount,0),least(amount,0),NULLIF(id,big) FROM logistics.shipment ORDER BY id",
+    ] {
+        queries.push(oracle(&client, &cast_catalog, sql).await);
+    }
+    client.batch_execute("BEGIN READ ONLY").await.unwrap();
+    queries.push(oracle(&client, &cast_catalog, "SELECT now(),current_date").await);
+    client.batch_execute("ROLLBACK").await.unwrap();
+    let mut filtered = cast_catalog.clone();
+    filtered.relations[0].name = "filtered".into();
+    filtered.relations[0].physical_name = "role_shipments".into();
+    filtered.relations[0]
+        .columns
+        .retain(|col| matches!(col.name.as_str(), "id" | "flag"));
+    for sql in [
+        "SELECT (SELECT COUNT(*) FROM logistics.filtered)",
+        "WITH a AS (SELECT id FROM logistics.filtered) SELECT COUNT(*) FROM a",
+        "SELECT o.id FROM logistics.filtered o WHERE EXISTS(SELECT 1 FROM logistics.filtered i WHERE i.id=o.id) ORDER BY o.id",
+        "SELECT id FROM logistics.filtered WHERE id IN (SELECT id FROM logistics.filtered) ORDER BY id",
+    ] {
+        let plan = guard_select(&identity, &filtered, sql).unwrap();
+        assert!(
+            plan.bindings
+                .relations
+                .iter()
+                .all(|rel| rel.physical_name == "role_shipments")
+        );
+        queries.push(oracle(&client, &filtered, sql).await);
+    }
+    assert_ne!(
+        rows(&client, "SELECT COUNT(*) FROM logistics.filtered").await,
+        rows(&client, "SELECT COUNT(*) FROM logistics.shipment").await
+    );
+    for sql in [
+        "WITH a AS (SELECT secret::text FROM logistics.filtered) SELECT COUNT(*) FROM a",
+        "SELECT (SELECT COUNT(*) FROM logistics.shipment)",
+        "SELECT o.id FROM logistics.filtered o WHERE EXISTS(SELECT 1 FROM logistics.filtered i WHERE i.secret=o.id)",
+    ] {
+        assert!(guard_select(&identity, &filtered, sql).is_err(), "{sql}");
+    }
     for (column, result_type) in [
         ("id", "int4"),
         ("small", "int2"),
@@ -457,7 +586,24 @@ async fn owned_sql_capabilities() {
     queries.push(oracle(&client, &catalog,
         "SELECT flag,MIN(stamp) AS first_seen,MAX(day) AS last_day FROM logistics.shipment GROUP BY flag ORDER BY first_seen").await);
     let day_queries = [
+        "SELECT id FROM logistics.shipment WHERE day='2026-10-28' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE '2026-10-28'<=day ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE stamp>='2026-10-28' AND stamp<'2026-10-29' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE '2026-10-28'<=stamp ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE zoned>='2026-10-28 00:00:00Z' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE day BETWEEN '2026-10-28' AND '2026-10-29' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE stamp NOT BETWEEN '2026-10-28' AND TIMESTAMP '2026-10-29' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE id BETWEEN 1 AND 3 ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE code BETWEEN 'a' AND 'z' ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE day IN ('2026-10-28', DATE '2026-10-29', NULL) ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE day NOT IN (NULL, '2026-10-28'::date) ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE stamp IN ('2026-10-28', TIMESTAMP '2026-10-29') ORDER BY id",
         "SELECT date_trunc('day',stamp) FROM logistics.shipment ORDER BY id",
+        "SELECT extract(month FROM day),extract(year FROM stamp),date_part('month',stamp) FROM logistics.shipment ORDER BY id",
+        "SELECT id FROM logistics.shipment WHERE EXTRACT(ISODOW FROM day) BETWEEN 1 AND 5 ORDER BY id",
+        "SELECT coalesce(code,''),nullif(code,'a'),greatest(code,'a'),least(code,'z') FROM logistics.shipment ORDER BY id",
+        "SELECT lower(code),upper(code),length(code),substring(code FROM 1 FOR 2),substring(code FROM 2) FROM logistics.shipment ORDER BY id",
+        "SELECT date_trunc('month',stamp),date_trunc('hour',stamp) FROM logistics.shipment ORDER BY id",
         "SELECT pg_catalog.date_trunc('day',stamp) AS bucket,COUNT(*) FROM logistics.shipment GROUP BY 1 ORDER BY 1",
         "SELECT stamp::date,COUNT(*) FROM logistics.shipment GROUP BY 1 ORDER BY 1 NULLS LAST",
         "SELECT CAST(stamp AS pg_catalog.date) AS bucket,COUNT(*) AS n FROM logistics.shipment GROUP BY 1 ORDER BY 2 DESC,1",
@@ -677,12 +823,12 @@ async fn owned_sql_capabilities() {
         "SELECT CASE WHEN flag THEN stamp ELSE stamp END FROM logistics.shipment",
         "SELECT CASE WHEN false THEN secret ELSE 1 END FROM logistics.shipment",
         "SELECT CASE WHEN false THEN pg_sleep(1) ELSE 1 END FROM logistics.shipment",
-        "SELECT CASE WHEN flag THEN (SELECT 1) ELSE 0 END FROM logistics.shipment",
+        "SELECT CASE WHEN flag THEN (SELECT secret FROM logistics.shipment) ELSE 0 END FROM logistics.shipment",
         "SELECT SUM(CASE WHEN flag THEN SUM(amount) ELSE amount END) FROM logistics.shipment",
         "SELECT id FROM logistics.shipment WHERE CASE WHEN flag THEN 1 ELSE 0 END",
         "SELECT code,CASE WHEN flag THEN 1 ELSE 0 END,COUNT(*) FROM logistics.shipment GROUP BY code",
         "SELECT logistics.abs(amount) FROM logistics.shipment",
-        "SELECT abs(id) FROM logistics.shipment",
+        "SELECT abs(flag) FROM logistics.shipment",
         "SELECT abs(code) FROM logistics.shipment",
         "SELECT abs(amount) OVER () FROM logistics.shipment",
         "SELECT abs(amount) FILTER (WHERE true) FROM logistics.shipment",
@@ -840,25 +986,25 @@ async fn owned_sql_capabilities() {
         "SELECT id FROM logistics.shipment WHERE code <> fixed",
         "SELECT id FROM logistics.shipment WHERE code::text <> ''",
         "SELECT id FROM logistics.shipment WHERE code OPERATOR(logistics.<>) ''",
-        "SELECT id FROM logistics.shipment WHERE lower(code) <> ''",
+        "SELECT id FROM logistics.shipment WHERE lower(secret) <> ''",
         "SELECT id FROM logistics.shipment WHERE code LIKE txt",
         "SELECT MIN(stamp) FROM private.shipment",
         "SELECT MIN(stamp) FROM capability_fixture.shipments",
         "SELECT MIN(stamp) FROM logistics.shipment HAVING id>0",
         "SELECT flag,MIN(stamp) FROM logistics.shipment GROUP BY 2",
         "SELECT MIN(stamp) FROM logistics.shipment ORDER BY 0",
-        "SELECT date_trunc('day',zoned) FROM logistics.shipment",
+        "SELECT date_trunc('invalid',zoned) FROM logistics.shipment",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP '2026-02-29'",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP '2026-02-31'",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP '0000-01-01'",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP '2026-10-28Z'",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP 'today'",
-        "SELECT id FROM logistics.shipment WHERE stamp>='2026-10-28'",
+        "SELECT id FROM logistics.shipment WHERE stamp>='today'",
         "SELECT id FROM logistics.shipment WHERE stamp>=code::timestamp",
         "SELECT id FROM logistics.shipment WHERE stamp>=TIMESTAMP(0) '2026-10-28'",
         "SELECT id FROM logistics.shipment WHERE zoned>=TIMESTAMPTZ '2026-10-28'",
         "SELECT date_trunc('day',zoned,'Asia/Shanghai') FROM logistics.shipment",
-        "SELECT date_trunc('hour',stamp) FROM logistics.shipment",
+        "SELECT date_trunc('invalid',stamp) FROM logistics.shipment",
         "SELECT date_trunc(code,stamp) FROM logistics.shipment",
         "SELECT date_trunc('day',secret) FROM logistics.shipment",
         "SELECT logistics.date_trunc('day',stamp) FROM logistics.shipment",
@@ -884,7 +1030,7 @@ async fn owned_sql_capabilities() {
         "SELECT COUNT(*) FROM logistics.shipment HAVING COUNT(*)>pg_sleep(1)",
         "SELECT COUNT(*) FROM logistics.shipment HAVING SUM(secret)>0",
         "SELECT COUNT(*) FROM logistics.shipment HAVING SUM(COUNT(*))>0",
-        "SELECT COUNT(*) FROM logistics.shipment HAVING (SELECT 1)>0",
+        "SELECT COUNT(*) FROM logistics.shipment HAVING (SELECT secret FROM logistics.shipment)>0",
         "SELECT COUNT(*) AS n FROM logistics.shipment HAVING n>0",
         "SELECT COUNT(*) FROM logistics.shipment WHERE COUNT(*)>0",
         "SELECT COUNT(*) FROM logistics.shipment a JOIN logistics.shipment b ON COUNT(*)>0",
@@ -978,6 +1124,7 @@ async fn owned_sql_capabilities() {
             "read_only":true,"elevated_role_flags":false,"fixture_write_grants":false},
         "scope":"live load_types/load_functions/load_operators + guard_select + rewritten SQL execution; not publication/HTTP/deployment acceptance",
         "function_count":catalog.functions.len(),"operator_count":catalog.operators.len(),
+        "cast_count":cast_catalog.casts.len(),
         "parser_catalog_wire_roundtrip":true,
         "signatures":signatures,"function_budgets":budgets,"queries":queries,"refusals":refusals,
         "business_instances_touched":false,
@@ -1038,10 +1185,14 @@ async fn owned_day_catalog_refuses_modified_builtin() {
         large_table_row_threshold: 100,
         unknown_rows: UnknownRows::Refuse,
     };
-    assert_eq!(
-        load_functions(&tx, &types, &limits).await,
-        Err(CatalogError::MissingObject)
-    );
+    if std::env::var_os("OO_SQL_CAST_MUTATION").is_some() {
+        assert_eq!(casts::load(&tx).await, Err(CatalogError::MissingObject));
+    } else {
+        assert_eq!(
+            load_functions(&tx, &types, &limits).await,
+            Err(CatalogError::MissingObject)
+        );
+    }
     tx.rollback().await.unwrap();
     drop(client);
     driver.await.unwrap().unwrap();

@@ -20,7 +20,7 @@ def main():
     signal.signal(signal.SIGINT, interrupted)
     signal.signal(signal.SIGTERM, interrupted)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine", choices=["mysql", "postgres"], required=True)
+    parser.add_argument("--engine", choices=["mysql", "postgres", "oracle"], required=True)
     parser.add_argument("--versions", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--test-binary", type=Path, required=True)
@@ -43,14 +43,22 @@ def main():
         try:
             run.setup()
             run.seed()
-            (configure_pg if args.engine == "postgres" else configure_mysql)(run, store)
-            port = 5432 if args.engine == "postgres" else 3306
+            if args.engine == "oracle":
+                run.sql("GRANT SELECT ON SYS.V_$DATABASE TO fixture_reader;\n"
+                        "GRANT SELECT ON SYS.V_$SESSION TO fixture_reader;\n"
+                        "GRANT SELECT ON SYS.V_$SQL_PLAN TO fixture_reader;\n"
+                        "GRANT SELECT ON SYS.DBA_EXTENTS TO fixture_reader;\n"
+                        "GRANT EXECUTE ON SYS.DBMS_ROWID TO fixture_reader;\n"
+                        "GRANT FLASHBACK ON growth_events TO fixture_reader;\n", admin=True)
+            else:
+                (configure_pg if args.engine == "postgres" else configure_mysql)(run, store)
+            port = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[args.engine]
             _, published = run.command(["docker", "port", run.name, f"{port}/tcp"])
             private(store / "source-password", run.reader_secret)
             private(store / "config.json", json.dumps({
                 "engine": args.engine, "port": int(published.strip().rsplit(":", 1)[1])}))
-            values = ",".join(f"({n*10},1)" for n in range(1, 9))
-            run.sql(f"DELETE FROM growth_events; INSERT INTO growth_events VALUES {values};", admin=True)
+            inserts = "".join(f"INSERT INTO growth_events VALUES({n*10},1);\n" for n in range(1, 9))
+            run.sql("DELETE FROM growth_events;\n" + inserts + "COMMIT;\n", admin=True)
             with (path / "test.log").open("w") as output:
                 child = subprocess.Popen([
                     str(args.test_binary.resolve()), "--exact", "real_growing_table_uses_trait_split",
@@ -62,8 +70,8 @@ def main():
                     if child.poll() is not None or time.monotonic() > deadline:
                         raise RuntimeError("split plan handshake failed")
                     time.sleep(0.05)
-                values = ",".join(f"({n},1)" for n in range(81, 101))
-                run.sql(f"INSERT INTO growth_events VALUES {values};", admin=True)
+                inserts = "".join(f"INSERT INTO growth_events VALUES({n},1);\n" for n in range(81, 101))
+                run.sql(inserts + "COMMIT;\n", admin=True)
                 (store / "grown").write_text("ready")
                 if child.wait(timeout=180) != 0:
                     raise RuntimeError("trait split test failed")

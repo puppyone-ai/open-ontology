@@ -1,5 +1,5 @@
 use super::*;
-use oo_connectors::engine::{KeyShape, RangeDigest};
+use oo_connectors::engine::{ChunkSpec, ChunkStrategy, KeyShape, RangeDigest};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -114,7 +114,24 @@ impl PgTarget<'_> {
         .fetch_all(&mut *self.conn)
         .await
         .map_err(db)?;
-        Ok(C5Baseline {
+        let seeds: bool =
+            sqlx::query_scalar("SELECT to_regclass('_oo_load.c5_load_digests') IS NOT NULL")
+                .fetch_one(&mut *self.conn)
+                .await
+                .map_err(db)?;
+        let seeded: Option<String> = if seeds {
+            sqlx::query_scalar(
+                "SELECT digests::text FROM _oo_load.c5_load_digests WHERE identity=$1 AND run=$2",
+            )
+            .bind(&self.identity)
+            .bind(&run)
+            .fetch_optional(&mut *self.conn)
+            .await
+            .map_err(db)?
+        } else {
+            None
+        };
+        let mut baseline = C5Baseline {
             run,
             plan: serde_json::from_str(&plan).map_err(|_| "c5_plan")?,
             parts: receipts
@@ -128,7 +145,53 @@ impl PgTarget<'_> {
                 .collect::<Result<Vec<_>>>()?,
             source_digests: vec![],
             lineage: None,
-        })
+        };
+        if let Some(seeded) = seeded {
+            let proofs: Vec<RangeDigest> =
+                serde_json::from_str(&seeded).map_err(|_| "c5_load_digests")?;
+            baseline.source_digests = seeded_digests(&baseline, &proofs);
+        }
+        Ok(baseline)
+    }
+
+    /// Record the per-range digests an initial load proved in each payload's
+    /// own read transaction as this publication's C5 source digests, so the
+    /// first C5 cycle transfers only ranges whose digest changed instead of
+    /// the whole table. Only digests that exactly match a published keyset
+    /// range and its row count are kept; anything else is read as before.
+    /// Returns how many ranges were seeded.
+    pub async fn seed_c5_digests(&mut self, proofs: &[RangeDigest]) -> Result<usize> {
+        let mut baseline = match self.c5_baseline().await {
+            Ok(baseline) => baseline,
+            // A C1 binding owns this publication; C5 never reads it.
+            Err("c5_rebaseline_required_active_sync") => return Ok(0),
+            Err(error) => return Err(error),
+        };
+        let digests = seeded_digests(&baseline, proofs);
+        if baseline.run != self.run || !baseline.source_digests.is_empty() || digests.is_empty() {
+            return Ok(0);
+        }
+        // Kept apart from c5_state: a publication with C5 state is one a C5
+        // cycle published, which C1 must not adopt without a handoff.
+        sqlx::raw_sql(
+            "CREATE TABLE IF NOT EXISTS _oo_load.c5_load_digests (
+               identity text PRIMARY KEY, run text NOT NULL, digests jsonb NOT NULL)",
+        )
+        .execute(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        sqlx::query(
+            "INSERT INTO _oo_load.c5_load_digests VALUES($1,$2,$3::jsonb)
+             ON CONFLICT(identity) DO UPDATE SET run=EXCLUDED.run,digests=EXCLUDED.digests",
+        )
+        .bind(&self.identity)
+        .bind(&baseline.run)
+        .bind(serde_json::to_string(&digests).map_err(|_| "c5_load_digests")?)
+        .execute(&mut *self.conn)
+        .await
+        .map_err(db)?;
+        baseline.source_digests = digests;
+        Ok(baseline.source_digests.len())
     }
 
     /// Confirm source evidence and atomically compose unchanged parent ranges
@@ -173,30 +236,37 @@ impl PgTarget<'_> {
         }
         let mut ids = std::collections::BTreeSet::new();
         for receipt in replacements {
-            if !ids.insert(receipt.chunk_id) || receipt.table != plan.table {
+            if !ids.insert(receipt.chunk_id)
+                || receipt.table != plan.table
+                || !plan.chunks.iter().any(|c| {
+                    c.chunk_id == receipt.chunk_id && c.plan_revision == receipt.plan_revision
+                })
+            {
                 return Err("c5_replacement_scope");
             }
-            let part = next
-                .parts
-                .iter_mut()
-                .find(|p| p.receipt.chunk_id == receipt.chunk_id)
-                .ok_or("c5_replacement_scope")?;
-            if receipt.plan_revision != part.receipt.plan_revision {
-                return Err("c5_replacement_scope");
-            }
-            *part = C5Part {
-                receipt: receipt.clone(),
-                stage: self.stage.clone(),
-            };
+        }
+        if !whole_table {
+            next.parts = compose_parts(previous, plan, replacements, &self.stage)?;
         }
         next.source_digests = digests;
+        let sealed_columns = self.sealed_columns().await?;
+        let catalog_changed = match (&self.source_columns, sealed_columns) {
+            (Some(live), Some(sealed)) => live != &sealed.columns,
+            _ => false,
+        };
         // An established no-change cycle writes no target rows or metadata.
         if replacements.is_empty()
             && next.source_digests == previous.source_digests
             && next.lineage == previous.lineage
+            && !catalog_changed
         {
             return Ok(());
         }
+        if !replacements.is_empty() {
+            next.run = self.run.clone();
+        }
+        let encoded = self.encode_metadata(&next)?;
+        let publication_plan = self.encode_metadata(plan)?;
         let mut tx = self.conn.begin().await.map_err(db)?;
         let current: String =
             sqlx::query_scalar("SELECT run FROM _oo_load.current WHERE identity=$1 FOR UPDATE")
@@ -222,6 +292,7 @@ impl PgTarget<'_> {
                 &self.identity,
                 &self.run,
                 plan,
+                &publication_plan,
                 &next.parts,
                 fields,
             )
@@ -237,7 +308,7 @@ impl PgTarget<'_> {
             sqlx::query("INSERT INTO _oo_load.publications VALUES($1,$2,$3::jsonb,$4)")
                 .bind(&self.identity)
                 .bind(&self.run)
-                .bind(&self.plan)
+                .bind(&publication_plan)
                 .bind(&self.stage)
                 .execute(&mut *tx)
                 .await
@@ -248,7 +319,6 @@ impl PgTarget<'_> {
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
-            next.run = self.run.clone();
         }
         sqlx::query(
             "INSERT INTO _oo_load.c5_state VALUES($1,$2,$3::jsonb)
@@ -256,10 +326,23 @@ impl PgTarget<'_> {
         )
         .bind(&self.identity)
         .bind(&next.run)
-        .bind(serde_json::to_string(&next).map_err(|_| "c5_state")?)
+        .bind(encoded)
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+        if catalog_changed {
+            sqlx::query("UPDATE _oo_load.column_catalog SET columns=$2::jsonb WHERE identity=$1")
+                .bind(&self.identity)
+                .bind(
+                    serde_json::to_string(&self.source_columns)
+                        .map_err(|_| "load_column_catalog")?,
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
+        }
+        #[cfg(feature = "failpoints")]
+        crate::failpoint::hit("c5_commit");
         tx.commit().await.map_err(db)
     }
 
@@ -270,6 +353,32 @@ impl PgTarget<'_> {
             .await
             .map_err(db)
     }
+}
+
+/// Proofs that describe exactly one published keyset range: same table and
+/// bounds and the same row count as the part published for that range.
+fn seeded_digests(baseline: &C5Baseline, proofs: &[RangeDigest]) -> Vec<RangeDigest> {
+    if baseline.plan.key == KeyShape::NoKey
+        || !matches!(baseline.plan.strategy, ChunkStrategy::Keyset { .. })
+    {
+        return Vec::new();
+    }
+    let mut digests = Vec::new();
+    for chunk in &baseline.plan.chunks {
+        let mut matching = proofs
+            .iter()
+            .filter(|d| d.table == chunk.table && d.lo == chunk.lo && d.hi == chunk.hi);
+        let (Some(proof), None) = (matching.next(), matching.next()) else {
+            continue;
+        };
+        let part = baseline.parts.iter().find(|p| {
+            p.receipt.chunk_id == chunk.chunk_id && p.receipt.plan_revision == chunk.plan_revision
+        });
+        if part.is_some_and(|p| p.receipt.rows == proof.rows && p.receipt.table == chunk.table) {
+            digests.push(proof.clone());
+        }
+    }
+    digests
 }
 
 fn keyless_transition(previous: &TableChunkPlan, plan: &TableChunkPlan) -> bool {
@@ -318,13 +427,114 @@ fn validate_c5_replacement(
         {
             return Err("c5_incomplete_table_replacement");
         }
-    } else if !same_ranges(&previous.plan, plan)
-        || previous.parts.len() != plan.chunks.len()
+    } else if !refines(&previous.plan, plan, replacements)
+        || previous.parts.len() != previous.plan.chunks.len()
         || digests.len() != plan.chunks.len()
     {
         return Err("c5_rebaseline_required_plan");
     }
     Ok(())
+}
+
+fn same_chunk(a: &ChunkSpec, b: &ChunkSpec) -> bool {
+    a.table == b.table
+        && a.plan_revision == b.plan_revision
+        && a.chunk_id == b.chunk_id
+        && a.lo == b.lo
+        && a.hi == b.hi
+}
+
+/// A keyed C5 plan may keep its parent's ranges or refine them: a parent range
+/// that outgrew the chunk budget (an append tail, say) is covered exactly by
+/// newer-revision children with fresh ids, and every child is a staged
+/// replacement. No parent payload is carried into a range it did not prove.
+pub fn refines(
+    previous: &TableChunkPlan,
+    plan: &TableChunkPlan,
+    replaced: &[ChunkReceipt],
+) -> bool {
+    if same_ranges(previous, plan) {
+        return true;
+    }
+    if previous.protocol != plan.protocol
+        || previous.table != plan.table
+        || previous.key != plan.key
+        || previous.strategy != plan.strategy
+        || !matches!(
+            plan.strategy,
+            oo_connectors::engine::ChunkStrategy::Keyset { .. }
+        )
+    {
+        return false;
+    }
+    let old_ids: std::collections::BTreeSet<u32> =
+        previous.chunks.iter().map(|c| c.chunk_id).collect();
+    let mut next = plan.chunks.iter().peekable();
+    for parent in &previous.chunks {
+        match next.peek() {
+            Some(chunk) if same_chunk(chunk, parent) => {
+                next.next();
+                continue;
+            }
+            Some(chunk) if chunk.lo == parent.lo => {}
+            _ => return false,
+        }
+        loop {
+            let Some(child) = next.next() else {
+                return false;
+            };
+            if child.table != parent.table
+                || child.plan_revision <= parent.plan_revision
+                || old_ids.contains(&child.chunk_id)
+                || !replaced.iter().any(|r| {
+                    r.table == child.table
+                        && r.chunk_id == child.chunk_id
+                        && r.plan_revision == child.plan_revision
+                })
+            {
+                return false;
+            }
+            if child.hi == parent.hi {
+                break;
+            }
+            if child.hi.is_none() {
+                return false;
+            }
+        }
+    }
+    next.next().is_none()
+}
+
+/// Parts in plan order: staged replacements, else the parent's unchanged part.
+fn compose_parts(
+    previous: &C5Baseline,
+    plan: &TableChunkPlan,
+    replacements: &[ChunkReceipt],
+    stage: &str,
+) -> Result<Vec<C5Part>> {
+    plan.chunks
+        .iter()
+        .map(|chunk| {
+            if let Some(receipt) = replacements.iter().find(|r| r.chunk_id == chunk.chunk_id) {
+                if receipt.plan_revision != chunk.plan_revision {
+                    return Err("c5_replacement_scope");
+                }
+                return Ok(C5Part {
+                    receipt: receipt.clone(),
+                    stage: stage.into(),
+                });
+            }
+            previous
+                .parts
+                .iter()
+                .find(|p| {
+                    p.receipt.chunk_id == chunk.chunk_id
+                        && p.receipt.plan_revision == chunk.plan_revision
+                })
+                .cloned()
+                .ok_or("c5_replacement_scope")
+        })
+        .collect()
 }
 
 pub fn same_ranges(a: &TableChunkPlan, b: &TableChunkPlan) -> bool {
@@ -415,6 +625,93 @@ mod tests {
             strategy,
             estimated_rows: None,
             chunks,
+        }
+    }
+
+    #[test]
+    fn load_proofs_seed_only_exactly_matching_keyset_ranges() {
+        let table = TableRef {
+            schema: "public".into(),
+            name: "bulk".into(),
+        };
+        let edge = |v: i64| Some(vec![KeyValue::Int(v.into())]);
+        let chunk = |id: u32, lo, hi| ChunkSpec {
+            table: table.clone(),
+            plan_revision: 1,
+            chunk_id: id,
+            lo,
+            hi,
+            estimated_rows: None,
+        };
+        let chunks = vec![
+            chunk(0, None, edge(10)),
+            chunk(1, edge(10), edge(20)),
+            chunk(2, edge(20), None),
+        ];
+        let part = |id: u32, rows: u64| C5Part {
+            receipt: ChunkReceipt {
+                table: table.clone(),
+                plan_revision: 1,
+                chunk_id: id,
+                rows,
+                bytes: 1,
+                sha256: "payload".into(),
+                low: None,
+                high: None,
+            },
+            stage: "stage".into(),
+        };
+        let baseline = C5Baseline {
+            run: "load".into(),
+            plan: TableChunkPlan {
+                protocol: ENGINE_PROTOCOL.into(),
+                table: table.clone(),
+                key: KeyShape::IntegerPrimaryKey {
+                    column: "id".into(),
+                },
+                strategy: ChunkStrategy::Keyset {
+                    columns: vec!["id".into()],
+                },
+                estimated_rows: None,
+                chunks: chunks.clone(),
+            },
+            parts: vec![part(0, 9), part(1, 10), part(2, 5)],
+            source_digests: vec![],
+            lineage: None,
+        };
+        let proof = |c: &ChunkSpec, rows: u64| RangeDigest {
+            table: table.clone(),
+            lo: c.lo.clone(),
+            hi: c.hi.clone(),
+            rows,
+            digest: format!("d{}", c.chunk_id),
+        };
+        // Chunk 1's proof disagrees with its published row count; chunk 2
+        // has two proofs. Neither may skip the first cycle's transfer.
+        let proofs = vec![
+            proof(&chunks[0], 9),
+            proof(&chunks[1], 11),
+            proof(&chunks[2], 5),
+            RangeDigest {
+                digest: "other".into(),
+                ..proof(&chunks[2], 5)
+            },
+        ];
+        assert_eq!(
+            seeded_digests(&baseline, &proofs),
+            vec![proof(&chunks[0], 9)]
+        );
+        let mut unbounded = proof(&chunks[0], 9);
+        unbounded.hi = None;
+        assert!(seeded_digests(&baseline, &[unbounded]).is_empty());
+        for (key, strategy) in [
+            (KeyShape::NoKey, baseline.plan.strategy.clone()),
+            (baseline.plan.key.clone(), ChunkStrategy::SingleRead),
+        ] {
+            let mut other = baseline.clone();
+            other.plan.key = key;
+            other.plan.strategy = strategy;
+            assert!(seeded_digests(&other, &proofs).is_empty());
         }
     }
 
@@ -526,5 +823,134 @@ mod tests {
             };
             assert!(!keyless_transition(&previous.plan, &keyed));
         }
+    }
+
+    fn keyed(chunks: &[(u32, u32, Option<i64>, Option<i64>)]) -> TableChunkPlan {
+        let table = TableRef {
+            schema: "fixture".into(),
+            name: "other".into(),
+        };
+        let key = |v: Option<i64>| v.map(|v| vec![KeyValue::Int(v.into())]);
+        TableChunkPlan {
+            protocol: ENGINE_PROTOCOL.into(),
+            table: table.clone(),
+            key: KeyShape::IntegerPrimaryKey {
+                column: "id".into(),
+            },
+            strategy: ChunkStrategy::Keyset {
+                columns: vec!["id".into()],
+            },
+            estimated_rows: None,
+            chunks: chunks
+                .iter()
+                .map(|(id, revision, lo, hi)| ChunkSpec {
+                    table: table.clone(),
+                    plan_revision: *revision,
+                    chunk_id: *id,
+                    lo: key(*lo),
+                    hi: key(*hi),
+                    estimated_rows: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn staged(plan: &TableChunkPlan, ids: &[u32]) -> Vec<ChunkReceipt> {
+        plan.chunks
+            .iter()
+            .filter(|c| ids.contains(&c.chunk_id))
+            .map(|c| ChunkReceipt {
+                table: c.table.clone(),
+                plan_revision: c.plan_revision,
+                chunk_id: c.chunk_id,
+                rows: 1,
+                bytes: 1,
+                sha256: format!("new-{}", c.chunk_id),
+                low: None,
+                high: None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn grown_append_tail_refines_only_into_replaced_newer_children() {
+        let previous = keyed(&[(0, 1, None, Some(100)), (1, 1, Some(100), None)]);
+        // The open tail outgrew its budget: two fresh, newer children.
+        let split = keyed(&[
+            (0, 1, None, Some(100)),
+            (2, 2, Some(100), Some(200)),
+            (3, 2, Some(200), None),
+        ]);
+        assert!(!same_ranges(&previous, &split));
+        assert!(refines(&previous, &split, &staged(&split, &[2, 3])));
+        assert!(refines(&previous, &previous, &[]));
+        // Every child must be proven by a staged replacement.
+        assert!(!refines(&previous, &split, &staged(&split, &[2])));
+        // Children may not reuse a parent id or an older revision.
+        let reused = keyed(&[
+            (0, 1, None, Some(100)),
+            (1, 2, Some(100), Some(200)),
+            (3, 2, Some(200), None),
+        ]);
+        assert!(!refines(&previous, &reused, &staged(&reused, &[1, 3])));
+        let older = keyed(&[
+            (0, 1, None, Some(100)),
+            (2, 1, Some(100), Some(200)),
+            (3, 1, Some(200), None),
+        ]);
+        assert!(!refines(&previous, &older, &staged(&older, &[2, 3])));
+        // A moved boundary or dropped tail is not a refinement.
+        let moved = keyed(&[(0, 1, None, Some(150)), (2, 2, Some(150), None)]);
+        assert!(!refines(&previous, &moved, &staged(&moved, &[0, 2])));
+        let short = keyed(&[(0, 1, None, Some(100)), (2, 2, Some(100), Some(200))]);
+        assert!(!refines(&previous, &short, &staged(&short, &[2])));
+    }
+
+    #[test]
+    fn refined_parts_keep_unchanged_parents_and_drop_the_split_parent() {
+        let previous_plan = keyed(&[(0, 1, None, Some(100)), (1, 1, Some(100), None)]);
+        let old = staged(&previous_plan, &[0, 1]);
+        let previous = C5Baseline {
+            run: "baseline".into(),
+            plan: previous_plan.clone(),
+            parts: old
+                .iter()
+                .map(|receipt| C5Part {
+                    receipt: receipt.clone(),
+                    stage: "s_old".into(),
+                })
+                .collect(),
+            source_digests: vec![],
+            lineage: None,
+        };
+        let split = keyed(&[
+            (0, 1, None, Some(100)),
+            (2, 2, Some(100), Some(200)),
+            (3, 2, Some(200), None),
+        ]);
+        let replacements = staged(&split, &[2, 3]);
+        let digests: Vec<RangeDigest> = split
+            .chunks
+            .iter()
+            .map(|c| RangeDigest {
+                table: c.table.clone(),
+                lo: c.lo.clone(),
+                hi: c.hi.clone(),
+                rows: 1,
+                digest: "d".into(),
+            })
+            .collect();
+        assert_eq!(
+            validate_c5_replacement(&previous, &split, &digests, &replacements),
+            Ok(())
+        );
+        assert!(validate_c5_replacement(&previous, &split, &digests[..2], &replacements).is_err());
+        let parts = compose_parts(&previous, &split, &replacements, "s_new").unwrap();
+        let ids: Vec<(u32, &str)> = parts
+            .iter()
+            .map(|p| (p.receipt.chunk_id, p.stage.as_str()))
+            .collect();
+        assert_eq!(ids, [(0, "s_old"), (2, "s_new"), (3, "s_new")]);
+        assert!(compose_parts(&previous, &split, &replacements[..1], "s_new").is_err());
     }
 }

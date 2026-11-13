@@ -33,6 +33,74 @@ fn none_col(name: &str) -> Value {
 }
 
 #[test]
+fn assurance_gaps_do_not_deny_visible_data_or_grant_hidden_data() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["metrics"][0]["certified"] = json!(false);
+    effective["metrics"][0]["status"] = json!("draft");
+    effective["ontology"]["publish"]["include_unreviewed"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("metrics"));
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("Visible data is usable with caveats"));
+    assert!(readme.contains("Hidden or denied data remains inaccessible"));
+    assert!(readme.contains("Never guess a dictionary discriminator"));
+    let metrics = pack.file("metrics.md").unwrap();
+    assert!(metrics.contains("NOT CERTIFIED"));
+    assert!(metrics.contains("visible inputs remain usable"));
+    let availability: Value =
+        serde_json::from_str(pack.file("metrics/availability.json").unwrap()).unwrap();
+    assert_eq!(availability["certified_metrics"], json!([]));
+    assert_eq!(availability["business_readiness_verified"], false);
+}
+
+#[test]
+fn reviewed_dictionary_binding_requires_visibility_and_unambiguous_evidence() {
+    let (mut effective, mut visibility) = analyst_documents();
+    let cols = ["kind", "code", "label", "valid_from", "valid_to"];
+    effective["datasets"].as_array_mut().unwrap().push(json!({
+        "schema_version":"oos/v1", "dataset":"sales.dictionary", "label":"Dictionary",
+        "tier":"file", "columns":cols.iter().map(|c| none_col(c)).collect::<Vec<_>>()
+    }));
+    visibility["datasets"].as_array_mut().unwrap().push(json!({
+        "dataset":"sales.dictionary", "row_security":"none",
+        "global_stats":"permitted", "columns":cols
+    }));
+    effective["dictionary_bindings"] = json!([{
+        "id":"order-state", "concept":"Order state",
+        "from":{"dataset":"sales.order","code":"status","at":"received_at"},
+        "dictionary":{"dataset":"sales.dictionary","discriminator":"kind",
+            "value":"ORDER_STATE","code":"code","label":"label",
+            "valid_from":"valid_from","valid_to":"valid_to"},
+        "interval":"closed_open_null_end_unbounded",
+        "provenance":{"origin":"operator_reviewed","source_sha256":"a".repeat(64),
+            "reviewer":"fixture-owner","reviewed_at":"2026-11-12"},
+        "evidence":{"rows_checked":10,"matched_rows":9,"ambiguous_rows":0,
+            "invalid_intervals":0,"overlap_pairs":0,"gap_pairs":1}
+    }]);
+    let pack = must(&effective, &visibility);
+    let page = pack.file("dictionaries.md").unwrap();
+    assert!(page.contains("ORDER_STATE") && page.contains("closed_open_null_end_unbounded"));
+    assert!(!page.contains("rows_checked")); // Fact table has RLS.
+    for col in cols {
+        let mut hidden = visibility.clone();
+        hidden["datasets"][4]["columns"] =
+            json!(cols.iter().filter(|c| **c != col).collect::<Vec<_>>());
+        let pack = must(&effective, &hidden);
+        assert!(pack.file("dictionaries.md").is_err());
+        assert!(!pack.artifact.contains("ORDER_STATE"));
+    }
+    for key in ["ambiguous_rows", "invalid_intervals", "overlap_pairs"] {
+        let mut invalid = effective.clone();
+        invalid["dictionary_bindings"][0]["evidence"][key] = json!(1);
+        assert!(compile(&invalid, &visibility).is_err());
+    }
+    effective["dictionary_bindings"][0]["provenance"]["origin"] = json!("model");
+    assert!(compile(&effective, &visibility).is_err());
+}
+
+#[test]
 fn metric_business_metadata_survives_role_projection() {
     let (mut effective, visibility) = analyst_documents();
     effective["metrics"][0]["synonyms"] = json!(["received total"]);
@@ -475,6 +543,75 @@ fn execution_type_slot_does_not_publish_private_types_or_arbitrary_text() {
         assert!(!table.contains(private_type), "{private_type}");
         assert!(table.contains("describe"));
     }
+}
+
+#[test]
+fn missing_business_calendar_does_not_deny_visible_calendar_attributes() {
+    let (effective, visibility) = analyst_documents();
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("not a permission denial for visible stored columns"));
+    assert!(readme.contains("Return only the columns the question requests"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+
+    let (mut effective, visibility) = analyst_documents();
+    effective.as_object_mut().unwrap().remove("calendar");
+    let pack = must(&effective, &visibility);
+    let calendar = pack.file("calendar.md").unwrap();
+    assert!(!calendar.contains("has no calendar"));
+    assert!(calendar.contains("visible calendar tables"));
+    assert!(calendar.contains("stored period columns"));
+    assert!(calendar.contains("EXTRACT/date_part"));
+    assert!(calendar.contains("current runtime capabilities"));
+}
+
+#[test]
+fn missing_exported_enums_do_not_deny_visible_dictionary_lookups() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["enums"] = json!([]);
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("exported enum or business calendar is not a permission denial"));
+    assert!(readme.contains("Query visible stored values when they answer the question"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+    assert!(!readme.contains("If the table or column meaning is unknown"));
+    let availability: serde_json::Value =
+        serde_json::from_str(pack.file("availability.json").unwrap()).unwrap();
+    assert_eq!(availability["available"]["enums"], json!([]));
+    assert!(
+        !availability["available"]["datasets"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let semantics = availability["semantics"].as_str().unwrap();
+    assert!(semantics.contains("enums require every observed code approved"));
+    assert!(semantics.contains("not zero business activity"));
+    let artifact: serde_json::Value = serde_json::from_str(&pack.artifact).unwrap();
+    assert!(
+        !artifact["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| { file["path"].as_str().unwrap().starts_with("enums/") })
+    );
+}
+
+#[test]
+fn explicit_question_definitions_do_not_require_metric_certification() {
+    let (mut effective, visibility) = analyst_documents();
+    effective["metrics"] = json!([]);
+    let pack = must(&effective, &visibility);
+    let readme = pack.file("README.md").unwrap();
+    assert!(readme.contains("A missing certified metric"));
+    assert!(readme.contains("not a permission denial for visible stored columns"));
+    assert!(readme.contains("Query visible stored values when they answer the question"));
+    assert!(readme.contains("do not invent missing definitions or code meanings"));
+    assert!(
+        pack.file("metrics.md")
+            .unwrap()
+            .contains("No certified metrics")
+    );
 }
 
 #[test]

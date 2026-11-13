@@ -203,3 +203,43 @@ class OosTreeTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RelationshipEvidenceRoundTrip(unittest.TestCase):
+    """Confirmed adjudication -> effective with evidence -> OOS tree -> same Pack."""
+    @classmethod
+    def setUpClass(cls):
+        OosTreeTest.setUpClass.__func__(cls)
+
+    def test_evidence_survives_the_yaml_round_trip_without_drift(self):
+        import selfbuild_budget
+        from test_adjudication import BUILDER_FIXTURE
+        envelope = json.loads(BUILDER_FIXTURE.read_text())['complete']
+        summary = envelope['adjudication']['summary_sha256']
+        overrides = {'protocol': 'oo.adjudication-override/v1', 'summary_sha256': summary, 'items': {}}
+        envelope.update(overrides=overrides, confirmation={
+            'protocol': 'oo.publish-confirm/v1', 'summary_sha256': summary,
+            'overrides_sha256': oos_tree.digest(overrides), 'reason': 'Round trip',
+            'confirmed_at': '2026-11-11T12:00:00Z'})
+        compiled = selfbuild_budget.bridge('reviewed', command=envelope)
+        effective = compiled['effective']
+        self.assertIn('relationship_evidence', effective)
+        generated = {k: effective.get(k, []) for k in oos_tree.COLLECTIONS}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binding = oos_tree.write_source_tree(root / 'ontology', generated, effective)
+            (root / 'binding.json').write_text(json.dumps(binding))
+            (root / 'visibility.json').write_text(json.dumps(compiled['visibility']))
+            (root / 'ceilings.json').write_text('{}')
+            run = lambda out: subprocess.run(
+                [str(self.binary), str(root / 'ontology'), str(root / 'binding.json'),
+                 str(root / 'visibility.json'), str(root / 'ceilings.json'), str(root / out)],
+                capture_output=True, text=True)
+            result = run('result.json')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = json.loads((root / 'result.json').read_text())
+            self.assertEqual(data['effective_oos'], effective)
+            self.assertEqual(data['pack_digest'], compiled['producer']['pack_digest'])
+            evidence = root / 'ontology/evidence/relationships.json'
+            evidence.write_text(evidence.read_text().replace('"inner"', '"left"', 1))
+            self.assertNotEqual(run('tampered.json').returncode, 0)

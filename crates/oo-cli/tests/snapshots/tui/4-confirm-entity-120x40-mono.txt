@@ -1,0 +1,40 @@
+╭ ◆ open ontology ─────────────────────────────────────────────────● connect━━● tables━━● build━━◉ confirm──○ deliver ─╮
+│  graph  │  relations  │  entity                    summary d73614b6… ┊ decisions ··········· ·  ·   by data evidence │
+│                                                                      ┊                                               │
+│ 客户 ·································· ······  ·       lg.customers ┊ ▸ ○ pii  routes.mobile_… visible  ▰▰▰▰▰ 0.91  │
+│                                                                      ┊     format hits 0 · name hit                  │
+│ key       id                                                         ┊     Name looks personal but no value matches… │
+│ display   name                                                       ┊   ◌ pii  customers.phone hidden   ▰▰▰▰▰ 0.98  │
+│ rows      48k (48210)                                                ┊     distinct 0.97 · format hits 0.982         │
+│                                                                      ┊     98% of values match a phone number forma… │
+│ relations                                                            ┊   ◌ pii  drivers.id_num… hidden   ▰▰▰▰▰ 0.99  │
+│   订单 >─1 客户  via orders.customer_id  ✓                           ┊     distinct 1 · format hits 1                │
+│                                                                      ┊     Every value matches an identity document… │
+│ decisions on this table                                              ┊   ✗ rel  司机 → 员工     rejected ▰▰▱▱▱ 0.38  │
+│   ◌ sensitive  customers.phone       98% of values match a phone…    ┊     contain ▕██████···┊▏ 0.64<0.9  distinct … │
+│                                                                      ┊     Only 64% of drivers match an employee; c… │
+│                                                                      ┊   ✗ rel  运单 → 仓库     rejected ▰▰▱▱▱ 0.41  │
+│                                                                      ┊     contain ▕███████··┊▏ 0.71<0.98  distinct… │
+│                                                                      ┊     29% of origin_wh values have no warehous… │
+│                                                                      ┊   ✗ rel  订单 → 线路     rejected ▰▰▰▰▰ 0.99  │
+│                                                                      ┊     contain ▕██████████▏ 0.99≥0.9  distinct … │
+│                                                                      ┊     Parent key repeats; unique only together… │
+│                                                                      ┊   ✗ rel  仓库 → 网点     rejected ▰▰▰▰▰    1  │
+│                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│                                                                      ┊     Parent keys collide after trim/lower-cas… │
+│                                                                      ┊   ↓ met  avg_parcel_wei… demoted  ▰▰▱▱▱ 0.44  │
+│                                                                      ┊     non empty · recompute match · unit consi… │
+│                                                                      ┊     Mixes grams and kilograms; kept as an ex… │
+│                                                                      ┊   ✓ rel  网点 → 员工     adopted  ▰▰▰▰▰  0.9  │
+│                                                                      ┊     contain ▕█████████┊▏ 0.93≥0.9  distinct … │
+│                                                                      ┊     Containment 0.93 plus naming and JOIN ev… │
+│                                                                      ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.93  │
+│                                                                      ┊     contain ▕██████████▏ 0.97≥0.9  distinct … │
+│                                                                      ┊     Containment 0.97 plus naming and JOIN ev… │
+│                                                                      ┊   ✓ rel  订单 → 日历     adopted  ▰▰▰▰▰ 0.94  │
+│                                                                      ┊     contain ▕██████████▏ 1≥0.9  distinct 1 ·… │
+│                                                                      ┊     Every order date is a calendar day.       │
+│                                                                      ┊   ✓ rel  线路 → 网点     adopted  ▰▰▰▰▰ 0.95  │
+│                                                                      ┊     contain ▕██████████▏ 0.988≥0.9  distinct… │
+│                                                                      ┊     Containment 0.988 with a unique parent.   │
+╰ tab view  ←→ entity  j/k decisions  o override  ⏎ confirm publish  q quit  ──────────────────────────────────────────╯

@@ -61,6 +61,9 @@ Credential commands:
   oo share-prompt --grant-file <file> [--role <role>]
                                  Agent setup prompt with a one-time code (admin)
   oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Local delivery: oo profile list | oo use NAME | oo check --json
+Agent setup: oo mcp-config --agent claude|cursor|codex --profile NAME
+MCP runtime: oo mcp --stdio --profile NAME
 Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
 
 Use -h or --help on any command; help never reads credentials or connects.
@@ -70,12 +73,24 @@ The npm distribution also provides configure, config show and time; see its top-
 This native executable has no saved profile; supply explicit connection flags.
 
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -89,10 +104,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -191,12 +209,24 @@ oo agent-skill [--json] - offline business-agent guidance; no credentials are re
 
 ```text
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -210,10 +240,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -370,12 +403,24 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -389,10 +434,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -411,12 +459,24 @@ Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).
 
 ```text
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -430,10 +490,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -543,6 +606,9 @@ Credential commands:
   oo share-prompt --grant-file <file> [--role <role>]
                                  Agent setup prompt with a one-time code (admin)
   oo token issue|list|renew|rotate|revoke|enroll|approve   (oo help token)
+Local delivery: oo profile list | oo use NAME | oo check --json
+Agent setup: oo mcp-config --agent claude|cursor|codex --profile NAME
+MCP runtime: oo mcp --stdio --profile NAME
 Administration: oo init|up|down|status|doctor|build|review|ontology (oo help init)
 
 Use -h or --help on any command; help never reads credentials or connects.
@@ -552,12 +618,24 @@ The npm distribution also provides configure, config show and time; see its top-
 This native executable has no saved profile; supply explicit connection flags.
 
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -571,10 +649,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -667,12 +748,24 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -686,10 +779,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
@@ -845,6 +941,7 @@ Admin issuance requires --client-pem FILE. Credentials are saved as private file
 ```text
 oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
+oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
@@ -858,6 +955,7 @@ Existing outputs are never overwritten. open creates a private temporary file.
 ```text
 oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
+oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
@@ -866,11 +964,25 @@ YAML is not yet available: role Packs do not contain reviewed effective OOS.
 Existing outputs are never overwritten. open creates a private temporary file.
 ```
 
+## `oo ontology graph --help`
+
+```text
+oo ontology graph [--adjudication adjudication.json] [--format ascii|text|mermaid]
+                  [--width N] [--focus ENTITY] [--overrides overrides.json] [--json]
+oo ontology graph --confirm-summary SHA256 --reason TEXT [--overrides overrides.json] [--out PATH]
+Renders the adjudicated ontology (oo.adjudication/v1). On a TTY without --format
+it opens the graph confirm screen: override decisions, then confirm once.
+--confirm-summary must equal the summary recomputed after overrides; it writes
+oo.publish-confirm/v1 (default publish-confirm.json beside the adjudication).
+Existing files are never overwritten.
+```
+
 ## `oo ontology open --help`
 
 ```text
 oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
+oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
@@ -992,10 +1104,74 @@ Exit 4 is authentication or network. Exit 1 is everything else.
 The wire format is JSON. Markdown is rendered locally from that response.
 ```
 
+## `oo quickstart --help`
+
+```text
+Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
+  oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
+  oo up|down|status --target ssh [--config stack.yaml] [--json]
+  oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
+    --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
+  oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
+  oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
+  oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
+init --config validates and atomically normalizes that file as JSON.
+YAML and JSON are accepted. The filename does not select the parser.
+TTY init collects configuration and runs preflight; non-TTY never prompts.
+The wizard can save or run the retained build chain after passing preflight.
+On a local lite deployment, build runs every stage (load, Self-build, publication,
+Gateway, first token, share prompt) inside the pinned runtime image that oo up
+started; only owner review runs here, on the review input copied out of it.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+Developer overrides: --agent-target (private oo-load target JSON) and
+--runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
+--resume --cycle ID starts a data-only cycle against the initial reviewed registry.
+--draft-only explicitly stops at the old bounded, unreviewed draft bridge.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
+up bootstraps private credentials, starts the lite foundations and Gateway, and
+provisions the retained build chain (retained_ready); healthy needs a measured
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
+or OO_LITE_RUNTIME_IMAGE, a content digest).
+down stops this deployment only; database volumes and credentials are retained.
+--target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
+Linux host: pinned host key, Docker/compose/systemd checks, digest images,
+0600 secrets via stdin, a systemd timer for the scheduled cycle. Re-run is a
+no-op; down --target ssh removes everything it created, volumes included.
+doctor probes sources read-only and the model through model-egress.
+PostgreSQL/MySQL require tls_ca.secret_ref and explicit scope.include tables.
+MySQL requires oo-mysql-doctor beside oo.
+Unknown estimates remain null; blocked diagnostics exit nonzero.
+status <query_id> remains the consumer query-status command.
+Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).
+```
+
 ## `oo review --help`
 
 ```text
 oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json] [--json]
+oo review --input INPUT.json --out REVIEWED.json --adjudication ADJ.json [--confirm CONFIRM.json [--overrides O.json]]
+oo review --input PENDING.json --json
+With oo.adjudication/v1 (--adjudication, or adjudication.json beside --out) a TTY
+shows the ontology graph: override any decision, then confirm once (D28). The
+confirmation binds the summary recomputed after overrides and is written beside
+--out (.publish-confirm.json, .overrides.json); non-TTY passes --confirm instead.
+Every candidate then records the adjudicated default with that summary hash.
+Pending tables list their semantic changes; inspection never approves them.
 Input: oo.builder.reviewed-community/v1 command, without review.
 Non-TTY requires explicit hash-bound oo.owner-review/v1 decisions for every item.
 TTY offers accept / edit JSON / reject, then a separate G14 confirmation.
@@ -1317,16 +1493,41 @@ Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
 Admin issuance requires --client-pem FILE. Credentials are saved as private file references.
 ```
 
+## `oo try --help`
+
+```text
+oo try [--role analyst|ops] [--json] <connection flags>
+Run three fixed demo gold queries and one expected column denial.
+This is not model-generated SQL; in real use your Agent writes SQL.
+Requires the local HTTPS demo Gateway and an external token file (or npm profile).
+Prints SQL, rows, freshness, query ID and available publication metadata.
+Missing audit_id or published_generation stays null, not inferred from query_id.
+A query receipt is not proof that a durable audit record was collected.
+Exit 0 means the gold query checks passed, not QS-03 audit acceptance.
+```
+
 ## `oo up --help`
 
 ```text
 Admin commands (source connections remain read-only):
+  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart --down [--state evidence/oo-demo] [--json]
+  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
+  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+          [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
+  oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
+          [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
+          [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
+          Screen 1 fields as flags. On a TTY they prefill the form; otherwise
+          They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
+  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
   oo review --input INPUT.json --out REVIEWED.json [--review-file DECISIONS.json]
   oo ontology open|export [--format html|mermaid|yaml] [--config stack.yaml] [--yes] [--json]
+  oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] [--confirm-summary H --reason R]
   oo token issue|list|renew|rotate|revoke|enroll|approve (see oo help token)
 init --config validates and atomically normalizes that file as JSON.
 YAML and JSON are accepted. The filename does not select the parser.
@@ -1340,10 +1541,13 @@ Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
 --draft-only explicitly stops at the old bounded, unreviewed draft bridge.
-status reports saved build state; missing Gateway health fields stay unmeasured.
+status reports saved build state or deployed data_published_at, cycle result/at/reason,
+tables.stale and tables.review_pending, services and credential health.
+Fresh served data is healthy; partial or review-pending tables are degraded.
+Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
-scheduled cycle. up requires the pinned runtime image (oo-lite-image beside oo
+recent publication. up requires the pinned runtime image (oo-lite-image beside oo
 or OO_LITE_RUNTIME_IMAGE, a content digest).
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
