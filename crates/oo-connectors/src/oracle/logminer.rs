@@ -496,6 +496,31 @@ impl OracleLogMiner {
 
     fn read(&mut self, from: u64, budget: &ReadBudget) -> Result<ChangeBatch, SourceError> {
         let deadline = Instant::now() + Duration::from_millis(budget.statement_timeout_ms);
+        let mut attempt = 0;
+        loop {
+            self.engine.last_ora = None;
+            match self.read_once(from, deadline, budget) {
+                // A busy source reused or archived an online redo log between
+                // the inventory and LogMiner's header check. Nothing of the
+                // batch was delivered: inventory again and mine the same span.
+                Err(_)
+                    if redo_reused(self.engine.last_ora)
+                        && attempt < REDO_REUSE_RETRIES
+                        && Instant::now() < deadline =>
+                {
+                    attempt += 1;
+                }
+                result => return result,
+            }
+        }
+    }
+
+    fn read_once(
+        &mut self,
+        from: u64,
+        deadline: Instant,
+        budget: &ReadBudget,
+    ) -> Result<ChangeBatch, SourceError> {
         self.engine
             .set_timeout(Duration::from_millis(budget.statement_timeout_ms))?;
         self.check_logging()?;
@@ -658,6 +683,17 @@ impl ChangeSource for OracleLogMiner {
     }
 }
 
+/// Re-inventories after a redo log switch races one batch.
+const REDO_REUSE_RETRIES: u32 = 3;
+
+/// ORA-01368 (online log header no longer matches the registered sequence)
+/// and ORA-00310 (the registered online log was archived and reused) mean
+/// the log list went stale, not that redo is missing. ORA-01291 (a missing
+/// archived log) is a real gap and is never retried.
+fn redo_reused(code: Option<usize>) -> bool {
+    matches!(code, Some(1368 | 310))
+}
+
 /// End of the next mined span: the whole backlog, or the learned window.
 fn window_end(from: u64, high: u64, window: Option<u64>) -> u64 {
     window.map_or(high, |w| high.min(from.saturating_add(w.max(1))))
@@ -695,6 +731,15 @@ fn validate_resume_floor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_stale_online_log_lists_are_mined_again() {
+        assert!(redo_reused(Some(1368)));
+        assert!(redo_reused(Some(310)));
+        for code in [None, Some(1291), Some(1555), Some(942)] {
+            assert!(!redo_reused(code), "{code:?}");
+        }
+    }
 
     #[test]
     fn over_budget_backlog_is_mined_in_shrinking_commit_spans() {
