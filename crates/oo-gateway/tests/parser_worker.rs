@@ -56,19 +56,19 @@ fn main() {
         }
         "echo" => echo(),
         "trailer" => {
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1, 0xff]).unwrap();
             out.flush().unwrap();
         }
         "delayed" => {
             thread::sleep(Duration::from_millis(250));
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
         }
-        "kind" => write_header(2, 99, 0),
+        "kind" => write_header(WIRE_VERSION, 99, 0),
         "partial" => {
             let mut out = std::io::stdout().lock();
             out.write_all(b"OOSW").unwrap();
@@ -76,7 +76,7 @@ fn main() {
             thread::sleep(Duration::from_secs(30));
         }
         "hold-stdout" => {
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -84,7 +84,7 @@ fn main() {
         }
         "late" => {
             thread::sleep(Duration::from_millis(700));
-            write_header(2, 3, 1);
+            write_header(WIRE_VERSION, 3, 1);
             let mut out = std::io::stdout().lock();
             out.write_all(&[1]).unwrap();
             out.flush().unwrap();
@@ -135,7 +135,7 @@ fn setsid_stdout() {
 }
 
 fn oversize() {
-    write_header(2, 2, u32::MAX);
+    write_header(WIRE_VERSION, 2, u32::MAX);
     thread::sleep(Duration::from_secs(30));
 }
 
@@ -217,7 +217,11 @@ fn compile_faults() -> Vec<(String, PathBuf)> {
         .join("a187-fault");
     fs::create_dir_all(&dir).unwrap();
     let src = dir.join("fault.rs");
-    fs::write(&src, FAULT_SRC).unwrap();
+    fs::write(
+        &src,
+        FAULT_SRC.replace("WIRE_VERSION", &PROTOCOL_VERSION.to_string()),
+    )
+    .unwrap();
     let mut built = Vec::new();
     for mode in FAULT_MODES {
         let bin = dir.join(format!("fault-{mode}"));
