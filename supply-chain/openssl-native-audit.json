@@ -1,0 +1,53 @@
+{
+ "schema_version": 1,
+ "template": false,
+ "audited": true,
+ "record_status": "coordinator-audit for the Linux oo-mysql-doctor release build (plan S6-B-01)",
+ "package": {
+  "name": "openssl",
+  "version": "3.5.9",
+  "ecosystem": "native C library (source tarball, not a Rust crate)",
+  "official_source": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+  "repository": "https://github.com/openssl/openssl",
+  "manifests": [
+   "ci/cli.Dockerfile (native build: static libssl/libcrypto, zig cc -target <arch>-linux-gnu.2.31)",
+   "deploy/lite/mysql-doctor/Cargo.toml (openssl-sys 0.9.117 via oo-connectors feature mysql -> mysql_async native-tls-tls; OPENSSL_DIR/OPENSSL_STATIC=1 on Linux only)"
+  ],
+  "publication_date": "2026-09-29T14:10:08Z",
+  "adoption_date": "2026-11-13T00:00:00Z",
+  "age_days_at_adoption": 44,
+  "license_spdx": "Apache-2.0",
+  "dual_license_choice": null,
+  "license_evidence": [
+   {
+    "spdx": "Apache-2.0",
+    "source": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.5.9/LICENSE.txt",
+    "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"
+   }
+  ],
+  "license_obligations": [
+   {
+    "spdx": "Apache-2.0",
+    "obligations": [
+     "Ship the Apache-2.0 license text with the Linux npm binaries (packages/cli/licenses/native/openssl-3.5.9-LICENSE.txt, emitted into THIRD_PARTY_NOTICES.txt by packages/cli/scripts/licenses.py)."
+    ]
+   }
+  ],
+  "weak_copyleft_review": null,
+  "digest": "sha256:603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+  "features_enabled": [
+   "Configure linux-<arch> no-shared no-dso no-engine no-tests no-docs"
+  ],
+  "default_features_disabled": false,
+  "native_build": true,
+  "msrv": "not a Rust crate; no MSRV impact"
+ },
+ "reason": "The Linux npm release cross-builds with cargo-zigbuild against a glibc 2.31 floor. oo-mysql-doctor reaches OpenSSL through mysql_async native-tls-tls (the MySQL TLS backend of oo-connectors, unchanged). Linking the build image's system libssl would break the ABI floor and add a runtime libssl3 dependency, so the doctor links a pinned static OpenSSL built with the same zig sysroot. Scope: Linux oo-mysql-doctor in the npm tarball only; macOS uses Security.framework, and the lite image build (deploy/lite/Dockerfile) is unchanged.",
+ "advisory": {
+  "scan_recorded": true,
+  "scanner": "manual review of the OpenSSL vulnerability list and secadv/20261110.txt on 2026-11-13",
+  "evidence": "3.5.9 fixes the 2026-09-29 advisory set. secadv/20261110.txt lists five Low issues (CVE-2026-88822, CVE-2026-88823, CVE-2026-95691, CVE-2026-95692, CVE-2026-107496) fixed in 3.5.10, which is not yet published on the source page or as a GitHub tag. None is on the doctor's path: QUIC and CMS are unused and AES-GCM-SIV is not a TLS cipher suite. Move to 3.5.10 once it clears the seven-day floor.",
+  "disposition": "known-low-severity-not-reachable",
+  "known_exploitable_high_severity": false
+ }
+}

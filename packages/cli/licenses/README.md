@@ -32,3 +32,16 @@ commits. The supplement pins the published VCS record and packaged
 Cargo.toml.orig hashes, explicitly including `vcs_dirty: true`; dirty records
 remain rejected for every other entry. This is license-text provenance,
 not a claim that the published source tree exactly matches a clean Git tag.
+
+## Statically linked native libraries
+
+`native/` holds license texts for C libraries that are not Cargo packages but are
+statically linked into a shipped binary. `NATIVE_LIBRARIES` in
+`scripts/licenses.py` pins each text's SHA256 together with the source tarball
+URL and digest that `ci/cli.Dockerfile` builds; change them together.
+
+| Library | Linked into | Targets | License file |
+| --- | --- | --- | --- |
+| OpenSSL 3.5.9 | oo-mysql-doctor | aarch64/x86_64-unknown-linux-gnu | LICENSE.txt (Apache-2.0) |
+
+The audit record is `supply-chain/openssl-native-audit.json`.
