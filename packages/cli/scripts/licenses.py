@@ -23,6 +23,17 @@ TARGETS = (
 )
 NOTICE_NAME = re.compile(r"^(?:licen[cs]e|copying|notice|copyright)", re.I)
 LOCAL_PATH = re.compile(r"(?<![A-Za-z0-9:/])(?:/[^\s)]+|[A-Za-z]:[\\/][^\s)]+)")
+# Non-Cargo C libraries statically linked by ci/cli.Dockerfile; the tarball digest
+# there and the notice digest here must change together.
+NATIVE_LIBRARIES = (
+    {"name": "OpenSSL", "version": "3.5.9", "source": "upstream-tarball", "license": "Apache-2.0",
+     "linked_into": "oo-mysql-doctor",
+     "targets": ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
+     "upstream_url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+     "tarball_sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+     "file": "openssl-3.5.9-LICENSE.txt", "upstream_path": "LICENSE.txt",
+     "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"},
+)
 
 
 def sha256(data):
@@ -265,6 +276,25 @@ def package_inventory(package, targets, workspace, members, supplements=None):
     return record, body
 
 
+def native_inventory(entry, targets, directory=None):
+    directory = directory or Path(__file__).resolve().parents[1] / "licenses" / "native"
+    files, body, gaps = read_notices([(f"native/{entry['file']}", directory / entry["file"], directory)])
+    if files and files[0]["sha256"] != entry["sha256"]:
+        files, body, gaps = [], "", ["native_notice_digest_mismatch"]
+    for item in files:
+        item["provenance"] = {"kind": "pinned_upstream_tarball", "upstream_url": entry["upstream_url"],
+                              "tarball_sha256": entry["tarball_sha256"], "upstream_path": entry["upstream_path"]}
+    if not files and not gaps:
+        gaps.append("license_text_missing")
+    record = {
+        "name": entry["name"], "version": entry["version"], "source": entry["source"],
+        "license": entry["license"], "linked_into": entry["linked_into"], "static": True,
+        "targets": sorted(set(entry["targets"]) & set(targets)), "license_files": files,
+        "text_sha256": sha256(body.encode()) if body else None, "unresolved": sorted(set(gaps)),
+    }
+    return record, body
+
+
 def toolchain_inventory(targets):
     try:
         sysroot = Path(command(["rustc", "--print", "sysroot"]))
@@ -348,6 +378,19 @@ def generate(manifest, output, targets):
             unresolved.append({"component": f"{record['name']}@{record['version']}",
                                "fields": record["unresolved"]})
         sections.append(f"=== {heading} ===\nUnresolved: {', '.join(record['unresolved']) or 'none detected by file collection'}\n\n{body}")
+    for entry in NATIVE_LIBRARIES:
+        if not set(entry["targets"]) & set(targets):
+            continue
+        record, body = native_inventory(entry, targets)
+        dependencies.append(record)
+        if record["unresolved"]:
+            unresolved.append({"component": f"{record['name']}@{record['version']}",
+                               "fields": record["unresolved"]})
+        sections.append(f"=== {record['name']} {record['version']} | {record['source']} "
+                        f"(statically linked into {record['linked_into']} on {', '.join(record['targets'])})\n"
+                        f"Declared license: {record['license']}\nPinned upstream: {entry['upstream_url']} "
+                        f"(SHA256 {entry['tarball_sha256']})\n"
+                        f"Unresolved: {', '.join(record['unresolved']) or 'none detected by file collection'}\n\n{body}")
     toolchain, body = toolchain_inventory(targets)
     if toolchain["unresolved"]:
         unresolved.append({"component": "rust-toolchain", "fields": toolchain["unresolved"]})
