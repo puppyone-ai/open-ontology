@@ -73,7 +73,7 @@ The npm distribution also provides configure, config show and time; see its top-
 This native executable has no saved profile; supply explicit connection flags.
 
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -111,7 +111,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -209,7 +212,7 @@ oo agent-skill [--json] - offline business-agent guidance; no credentials are re
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -247,7 +250,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -403,7 +409,7 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -441,7 +447,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -459,7 +468,7 @@ Other admin operations are not yet implemented (ADMIN_NOT_IMPLEMENTED).
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -497,7 +506,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -618,7 +630,7 @@ The npm distribution also provides configure, config show and time; see its top-
 This native executable has no saved profile; supply explicit connection flags.
 
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -656,7 +668,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -748,7 +763,7 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -786,7 +801,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -1108,7 +1126,7 @@ The wire format is JSON. Markdown is rendered locally from that response.
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -1146,7 +1164,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -1510,7 +1531,7 @@ Exit 0 means the gold query checks passed, not QS-03 audit acceptance.
 
 ```text
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -1548,7 +1569,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,

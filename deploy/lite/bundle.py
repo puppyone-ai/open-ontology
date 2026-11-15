@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Single-architecture, content-addressed lite bundles. Never pull or build."""
 import argparse
+import gzip
 import hashlib
 import io
 import json
@@ -37,8 +38,13 @@ SERVICES = ('gateway', 'worker', 'builder', 'scheduler', 'model-egress', 'operat
 
 
 def sha256(path):
+    # Chunked rather than hashlib.file_digest: the npm CLI runs the runtime
+    # verifier on the host python3, which may predate 3.11.
+    digest = hashlib.sha256()
     with path.open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
+        for chunk in iter(lambda: stream.read(1 << 20), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def require(condition, code):
@@ -116,6 +122,19 @@ def archive_identity(path, expected):
                 (expected['os'], expected['arch'], expected['layers']), 'BUNDLE_ARCHIVE_PLATFORM')
 
 
+def save_image(path, platform, info):
+    subprocess.run(['docker', 'save', '--platform', platform, '--output', str(path), info['source_id']],
+                   check=True, capture_output=True)
+    single_image_index(path, info)
+    # Containerd's image ID can be an OCI index; classic dockerd uses config IDs.
+    with tarfile.open(path, 'r') as archive:
+        rows = json.load(archive.extractfile('manifest.json'))
+        require(len(rows) == 1, 'BUNDLE_ARCHIVE_MANIFEST')
+        config = archive.extractfile(rows[0]['Config']).read()
+        info['config_id'] = 'sha256:' + hashlib.sha256(config).hexdigest()
+    archive_identity(path, info)
+
+
 def create(output, platform, runtime, postgres):
     require(platform in ('linux/amd64', 'linux/arm64'), 'BUNDLE_PLATFORM')
     require(immutable(runtime) and immutable(postgres), 'BUNDLE_IMMUTABLE_REFERENCE')
@@ -149,17 +168,7 @@ def create(output, platform, runtime, postgres):
         if cid:
             subprocess.run(['docker', 'rm', cid], check=True, capture_output=True)
     for info in images.values():
-        path = output / info['archive']
-        subprocess.run(['docker', 'save', '--platform', platform, '--output', str(path), info['source_id']],
-                       check=True, capture_output=True)
-        single_image_index(path, info)
-        # Containerd's image ID can be an OCI index; classic dockerd uses config IDs.
-        with tarfile.open(path, 'r') as archive:
-            rows = json.load(archive.extractfile('manifest.json'))
-            require(len(rows) == 1, 'BUNDLE_ARCHIVE_MANIFEST')
-            config = archive.extractfile(rows[0]['Config']).read()
-            info['config_id'] = 'sha256:' + hashlib.sha256(config).hexdigest()
-        archive_identity(path, info)
+        save_image(output / info['archive'], platform, info)
     files = {name: sha256(output / name) for name in sorted(PAYLOAD)}
     manifest = {'protocol': PROTOCOL, 'platform': platform, 'images': images,
                 'runtime_services': list(SERVICES), 'files': files,
@@ -212,6 +221,108 @@ def install(root, expected, emulated=False):
     return manifest
 
 
+# Runtime-only release asset for the npm CLI: one gzip-compressed tar holding
+# exactly RUNTIME_MEMBERS. PostgreSQL stays a public digest-pinned pull, and
+# the CLI binaries come from the npm package, so nothing here is executed.
+RUNTIME_PROTOCOL = 'oo.lite-runtime-bundle/v1'
+RUNTIME_MEMBERS = ('SHA256SUMS', 'manifest.json', 'runtime.tar')
+RUNTIME_LIMIT = 8 * 1024 ** 3
+
+
+def compose_postgres():
+    text = (HERE / 'compose.yaml').read_text()
+    found = re.findall(r'image: (docker\.io/library/postgres@sha256:[0-9a-f]{64})', text)
+    require(len(found) == 1, 'BUNDLE_POSTGRES_PIN')
+    return found[0]
+
+
+def create_runtime(output, asset, platform, runtime):
+    require(platform in ('linux/amd64', 'linux/arm64'), 'BUNDLE_PLATFORM')
+    require(immutable(runtime), 'BUNDLE_IMMUTABLE_REFERENCE')
+    require(not output.exists() and not asset.exists(), 'BUNDLE_OUTPUT_EXISTS')
+    info = remote.image_info(runtime, platform)
+    require(info and info['os'] + '/' + info['arch'] == platform, 'BUNDLE_IMAGE_PLATFORM')
+    image = dict(info, source=runtime, source_id=remote.image_info(runtime)['id'], archive='runtime.tar')
+    output.mkdir(mode=0o700)
+    save_image(output / 'runtime.tar', platform, image)
+    files = {'runtime.tar': sha256(output / 'runtime.tar')}
+    manifest = {'protocol': RUNTIME_PROTOCOL, 'platform': platform, 'images': {'runtime': image},
+                'postgres': {'pull': compose_postgres()}, 'files': files,
+                'signing': 'unsigned; authenticate manifest_sha256 from the signed release pin'}
+    (output / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+    (output / 'SHA256SUMS').write_text(''.join(f'{d}  {n}\n' for n, d in files.items()))
+    # Deterministic member metadata; the stream is the asset that gets hashed.
+    with asset.open('xb') as raw, gzip.GzipFile(fileobj=raw, mode='wb', mtime=0, compresslevel=6) as gz, \
+            tarfile.open(fileobj=gz, mode='w|', format=tarfile.PAX_FORMAT) as out:
+        for name in RUNTIME_MEMBERS:
+            path = output / name
+            member = tarfile.TarInfo(name)
+            member.size, member.mode, member.mtime = path.stat().st_size, 0o644, 0
+            with path.open('rb') as stream:
+                out.addfile(member, stream)
+    return {'platform': platform, 'manifest_sha256': sha256(output / 'manifest.json'),
+            'asset': asset.name, 'size': asset.stat().st_size, 'sha256': sha256(asset),
+            'image_id': image['id'], 'config_id': image['config_id'], 'source_id': image['source_id']}
+
+
+def verify_runtime(root, expected):
+    require(re.fullmatch('[0-9a-f]{64}', expected or ''), 'BUNDLE_TRUST_REQUIRED')
+    for name in RUNTIME_MEMBERS:
+        require(not (root / name).is_symlink() and (root / name).is_file(), 'BUNDLE_FILE_SET')
+    require(sha256(root / 'manifest.json') == expected, 'BUNDLE_MANIFEST_CHECKSUM')
+    manifest = json.loads((root / 'manifest.json').read_text())
+    require(manifest['protocol'] == RUNTIME_PROTOCOL, 'BUNDLE_PROTOCOL')
+    require(manifest['platform'] in ('linux/amd64', 'linux/arm64'), 'BUNDLE_PLATFORM')
+    require(set(manifest['files']) == {'runtime.tar'} and set(manifest['images']) == {'runtime'},
+            'BUNDLE_FILE_SET')
+    sums = ''.join(f'{d}  {n}\n' for n, d in sorted(manifest['files'].items()))
+    require((root / 'SHA256SUMS').read_text() == sums, 'BUNDLE_FILE_CHECKSUM')
+    require(sha256(root / 'runtime.tar') == manifest['files']['runtime.tar'], 'BUNDLE_FILE_CHECKSUM')
+    info = manifest['images']['runtime']
+    require(info['archive'] == 'runtime.tar' and DIGEST.fullmatch(info['id'])
+            and DIGEST.fullmatch(info['config_id'])
+            and info['os'] + '/' + info['arch'] == manifest['platform'], 'BUNDLE_IMAGE_ID')
+    archive_identity(root / 'runtime.tar', info)
+    return manifest
+
+
+def extract_runtime(asset, work):
+    """Copy exactly the expected regular members; never extractall or execute."""
+    work.mkdir(mode=0o700)
+    seen = set()
+    with tarfile.open(asset, 'r:gz') as archive:
+        for member in archive:
+            require(member.name in RUNTIME_MEMBERS and member.name not in seen and member.isfile()
+                    and 0 <= member.size <= RUNTIME_LIMIT, 'BUNDLE_ARCHIVE_PATH')
+            seen.add(member.name)
+            fd = os.open(work / member.name, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as target:
+                shutil.copyfileobj(archive.extractfile(member), target, 1 << 20)
+    require(seen == set(RUNTIME_MEMBERS), 'BUNDLE_FILE_SET')
+
+
+def load_runtime(asset, expected, work, platform_name):
+    """Verify a runtime asset and load it into the daemon; returns the loaded ID."""
+    require(re.fullmatch('[0-9a-f]{64}', expected or ''), 'BUNDLE_TRUST_REQUIRED')
+    extract_runtime(asset, work)
+    manifest = verify_runtime(work, expected)
+    require(manifest['platform'] == platform_name, 'BUNDLE_TARGET_PLATFORM')
+    daemon = subprocess.check_output(['docker', 'version', '--format',
+        '{{.Server.Os}}/{{.Server.Arch}}'], text=True).strip()
+    require(daemon == manifest['platform'], 'BUNDLE_TARGET_PLATFORM')
+    info = manifest['images']['runtime']
+    current = remote.image_info(info['id']) or remote.image_info(info['config_id'])
+    if not current or any(current[key] != info[key] for key in ('os', 'arch', 'layers')):
+        with (work / 'runtime.tar').open('rb') as stream:
+            current, _ = remote.load_verified(stream, info)
+    require(current['id'] in (info['id'], info['config_id']), 'BUNDLE_ARCHIVE_ID')
+    # A name keeps the loaded image out of dangling-image prunes; it is ours.
+    tag = 'open-ontology/lite-runtime:{}-{}'.format(info['config_id'][7:19], info['arch'])
+    subprocess.run(['docker', 'image', 'tag', current['id'], tag], check=True, capture_output=True)
+    return {'id': current['id'], 'config_id': info['config_id'], 'platform': manifest['platform'],
+            'tag': tag, 'manifest_sha256': expected}
+
+
 def launch(argv):
     parser = argparse.ArgumentParser(description='Offline lite CLI launcher')
     parser.add_argument('action', choices=['up', 'status', 'down'])
@@ -245,9 +356,23 @@ def main(argv=None):
         p = sub.add_parser(command)
         p.add_argument('--bundle', type=Path, required=True)
         p.add_argument('--manifest-sha256', required=True)
+    p = sub.add_parser('create-runtime')
+    p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--asset', type=Path, required=True)
+    p.add_argument('--platform', choices=['linux/amd64', 'linux/arm64'], required=True)
+    p.add_argument('--runtime', required=True)
+    p = sub.add_parser('load-runtime')
+    p.add_argument('--asset', type=Path, required=True)
+    p.add_argument('--manifest-sha256', required=True)
+    p.add_argument('--work', type=Path, required=True)
+    p.add_argument('--platform', choices=['linux/amd64', 'linux/arm64'], required=True)
     args = parser.parse_args(argv)
     if args.command == 'create':
         report = create(args.output, args.platform, args.runtime, args.postgres)
+    elif args.command == 'create-runtime':
+        report = create_runtime(args.output, args.asset, args.platform, args.runtime)
+    elif args.command == 'load-runtime':
+        report = load_runtime(args.asset, args.manifest_sha256, args.work, args.platform)
     else:
         report = (install if args.command == 'load' else verify)(
             args.bundle.resolve(), args.manifest_sha256)
@@ -258,7 +383,8 @@ def main(argv=None):
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
-    except (ValueError, OSError, KeyError, subprocess.SubprocessError, tarfile.TarError, remote.Refused) as error:
+    except (ValueError, OSError, EOFError, KeyError, subprocess.SubprocessError, tarfile.TarError,
+            remote.Refused) as error:
         code = str(error) if re.fullmatch(r'(BUNDLE|REMOTE)_[A-Z_]+', str(error)) else 'BUNDLE_FAILED'
         print(code + '; no installation success claimed', file=sys.stderr)
         raise SystemExit(1)

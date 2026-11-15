@@ -89,7 +89,7 @@ fn mysql(source: &Source, tables: &[TableRef]) -> Value {
 /// One-shot `oo-mysql-doctor` from the pinned lite runtime image. It sees only
 /// the owner's secret store, read-only; a loopback source is this host.
 fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
-    let image = super::lite::pinned_image();
+    let image = super::lite::runtime_image();
     if !super::lite::digest(&image) {
         return Err("MYSQL_DOCTOR_INSTALL");
     }

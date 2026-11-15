@@ -19,6 +19,7 @@
     "native/*/oo",
     "native/*/oo.exe",
     "native/*/oo-lite-image",
+    "native/*/oo-lite-bundle.json",
     "native/*/oo-mysql-doctor",
     "native/*/oo-mysql-doctor.exe",
     "native/*/mcp-gateway",

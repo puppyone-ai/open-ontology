@@ -26,11 +26,18 @@ oo try
 
 **Pending integration, not a released three-command experience.** The demo
 fixture and curated no-model Packs are available locally; the `oo init --demo`
-TUI handoff, publication and enrollment still need integration. GHCR remains
-private: the public image-pull step is pending publication. Use the matching
-locally built lite image for development; do not assume npm installs this lane.
+TUI handoff, publication and enrollment still need integration.
 See [verified scope and local commands](deploy/lite/demo/README.md). No
 install-to-first-answer p50/p95 is claimed.
+
+The npm package carries only the runtime image pin, not the images. `oo up` and
+`oo quickstart` pull the signed runtime from GHCR by digest. If that pull fails
+(network, registry access), they download the matching runtime bundle from the
+[GitHub Release](https://github.com/puppyone-ai/open-ontology/releases), check
+its size and SHA-256 against `oo-lite-bundle.json` shipped in the package,
+verify and load it. Offline, download the asset for your Docker daemon's
+architecture and run `oo quickstart --offline-bundle FILE`; `OO_LITE_OFFLINE=1`
+disables every pull and download. See [Quickstart](docs/guide/quickstart.md).
 
 For a working bring-your-own-database flow, see
 [Connect your database](docs/guide/connect-your-database.md).

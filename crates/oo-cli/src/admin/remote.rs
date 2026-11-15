@@ -535,7 +535,7 @@ pub(super) fn run(action: &str, path: &Path, stack: &Stack) -> Result<Invocation
     // Credentials are created and inspected here; without an Ed25519-capable
     // host OpenSSL, use the local pinned runtime image (requires local Docker).
     let _openssl = (action == "up" || state.join("pki").exists()).then(|| {
-        super::lite::OpensslHelper::start(&state.join("pki"), &super::lite::pinned_image())
+        super::lite::OpensslHelper::start(&state.join("pki"), &super::lite::runtime_image())
     });
     let mut summary = json!({"host":ssh.host,"port":ssh.port,"user":ssh.user,
         "host_key_sha256":ssh.host_key_sha256,"host_key":"pinned"});

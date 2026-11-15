@@ -83,6 +83,36 @@ review, install control/job bindings, or claim Gateway publication.
 `healthy:false` and the CLI's nonzero exit are preserved. Follow `RETAINED.md`
 for the existing operator prerequisites; packaging is not automatic onboarding.
 
+## Runtime-only release assets (npm CLI fallback)
+
+`lite-bundle-release.yml` (manual, master) verifies the signed runtime index
+and both platform signatures with cosign, pulls each platform on a native
+runner using the containerd image store, and runs
+
+```sh
+python3 deploy/lite/bundle.py create-runtime --platform linux/arm64 \
+  --runtime ghcr.io/puppyone-ai/open-ontology/lite@sha256:INDEX \
+  --output DIR --asset oo-lite-runtime-vX.Y.Z-linux-arm64.tar.gz
+```
+
+The asset is a gzip tar of exactly `SHA256SUMS`, `manifest.json`
+(`oo.lite-runtime-bundle/v1`) and `runtime.tar`. It holds no executables and no
+PostgreSQL image (that stays a public digest pull). The workflow round-trips
+each asset through `load-runtime` on a clean store, then publishes both assets,
+`SHA256SUMS` and `lite-bundles.json` (per platform: asset, URL, size, SHA-256,
+manifest SHA-256, image and config IDs) to the release, never overwriting an
+existing asset. `cli-binaries.yml` with `lite_bundle_manifest=TAG` ships that
+file as `native/*/oo-lite-bundle.json`.
+
+`oo up` uses it only when the pinned runtime is not local and the registry pull
+fails (or with `--offline-bundle FILE`): it checks size and SHA-256, stages
+this `bundle.py` and `remote.py` from the CLI into a private directory apart
+from the download, and runs `load-runtime`, which extracts only those three
+regular files, checks the manifest against the pinned SHA-256, the archive
+identity and the daemon platform, loads, and tags the image
+`open-ontology/lite-runtime:CONFIG12-ARCH`. The CLI then confirms the loaded ID
+is the pinned image or config ID and deploys by that ID.
+
 ## Verification and cleanup
 
 `test_bundle.py` exercises corruption, trust, archive paths/tags, architecture,

@@ -1,0 +1,208 @@
+name: lite-bundle-release
+
+# Publish the signed lite runtime as per-architecture offline bundles on a
+# public GitHub Release, so `oo up` works when the registry pull fails.
+# Manual only; runs on master. Never pushes images or changes the registry.
+on:
+  workflow_dispatch:
+    inputs:
+      lite_image:
+        description: "Signed multi-architecture lite index: ghcr.io/puppyone-ai/open-ontology/lite@sha256:..."
+        required: true
+      tag:
+        description: "Release tag to create or extend, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lite-bundle-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  # The signer: lite-images.yml on the integration branch (keyless, GitHub OIDC).
+  SIGNER: https://github.com/puppyone-ai/open-ontology/.github/workflows/lite-images.yml@refs/heads/v0.2/product-loops
+  ISSUER: https://token.actions.githubusercontent.com
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    timeout-minutes: 15
+    outputs:
+      amd64: ${{ steps.index.outputs.amd64 }}
+      arm64: ${{ steps.index.outputs.arm64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate inputs
+        env:
+          LITE_IMAGE: ${{ inputs.lite_image }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$LITE_IMAGE" =~ ^ghcr\.io/puppyone-ai/open-ontology/lite@sha256:[0-9a-f]{64}$ ]]
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+      - name: Verify the index and both platform signatures
+        id: index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LITE_IMAGE: ${{ inputs.lite_image }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          bash ci/lite-cosign.sh "$RUNNER_TEMP"
+          repository="${LITE_IMAGE%@*}"
+          "$RUNNER_TEMP/cosign" verify "$LITE_IMAGE" --certificate-identity "$SIGNER" \
+            --certificate-oidc-issuer "$ISSUER" > /dev/null
+          docker buildx imagetools inspect --raw "$LITE_IMAGE" > "$RUNNER_TEMP/index.json"
+          python3 - "$RUNNER_TEMP/index.json" "$LITE_IMAGE" >> "$GITHUB_OUTPUT" <<'PY'
+          import hashlib, json, re, sys
+          raw = open(sys.argv[1], 'rb').read()
+          assert 'sha256:' + hashlib.sha256(raw).hexdigest() == sys.argv[2].rsplit('@', 1)[1], 'index digest'
+          rows = [m for m in json.loads(raw)['manifests'] if m.get('platform', {}).get('os') == 'linux']
+          for arch in ('amd64', 'arm64'):
+              (digest,) = [m['digest'] for m in rows if m['platform']['architecture'] == arch]
+              assert re.fullmatch(r'sha256:[0-9a-f]{64}', digest)
+              print(f'{arch}={digest}')
+          PY
+          for arch in amd64 arm64; do
+            digest=$(grep "^$arch=" "$GITHUB_OUTPUT" | cut -d= -f2)
+            "$RUNNER_TEMP/cosign" verify "$repository@$digest" --certificate-identity "$SIGNER" \
+              --certificate-oidc-issuer "$ISSUER" > /dev/null
+          done
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io
+
+  bundle:
+    needs: verify
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Use the containerd image store (as Docker Desktop does)
+        run: |
+          set -euo pipefail
+          config=/etc/docker/daemon.json
+          current=$(sudo cat "$config" 2>/dev/null || echo '{}')
+          echo "$current" | jq '. + {"features": ((.features // {}) + {"containerd-snapshotter": true})}' |
+            sudo tee "$config"
+          sudo systemctl restart docker
+          docker info --format '{{json .DriverStatus}}' | grep -q io.containerd.snapshotter
+      - name: Pull the verified runtime and create the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LITE_IMAGE: ${{ inputs.lite_image }}
+          TAG: ${{ inputs.tag }}
+          ARCH: ${{ matrix.arch }}
+          PLATFORM_DIGEST: ${{ needs.verify.outputs[matrix.arch] }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker pull --platform "linux/$ARCH" "$LITE_IMAGE"
+          docker logout ghcr.io
+          mkdir -m 700 "$RUNNER_TEMP/out"
+          asset="oo-lite-runtime-$TAG-linux-$ARCH.tar.gz"
+          python3 deploy/lite/bundle.py create-runtime --platform "linux/$ARCH" --runtime "$LITE_IMAGE" \
+            --output "$RUNNER_TEMP/bundle" --asset "$RUNNER_TEMP/out/$asset" > "$RUNNER_TEMP/out/report-$ARCH.json"
+          cat "$RUNNER_TEMP/out/report-$ARCH.json"
+          python3 - "$RUNNER_TEMP/out/report-$ARCH.json" "$PLATFORM_DIGEST" <<'PY'
+          import json, sys
+          report = json.load(open(sys.argv[1]))
+          # The saved image is the signature-verified platform manifest.
+          assert report['image_id'] == sys.argv[2], (report['image_id'], sys.argv[2])
+          assert 0 < report['size'] < 2 * 1024 ** 3
+          PY
+          # Round trip on a clean store: remove our pull, load the asset back.
+          docker rmi "$LITE_IMAGE"
+          python3 deploy/lite/bundle.py load-runtime --asset "$RUNNER_TEMP/out/$asset" \
+            --manifest-sha256 "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["manifest_sha256"])' "$RUNNER_TEMP/out/report-$ARCH.json")" \
+            --work "$RUNNER_TEMP/roundtrip" --platform "linux/$ARCH"
+          rm -rf "$RUNNER_TEMP/bundle" "$RUNNER_TEMP/roundtrip"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lite-bundle-${{ matrix.arch }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    needs: bundle
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    timeout-minutes: 30
+    steps:
+      - name: Assemble lite-bundles.json and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LITE_IMAGE: ${{ inputs.lite_image }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'lite-bundle-*' --dir "$RUNNER_TEMP/in"
+          mkdir "$RUNNER_TEMP/assets"
+          mv "$RUNNER_TEMP"/in/lite-bundle-*/oo-lite-runtime-*.tar.gz "$RUNNER_TEMP/assets/"
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import glob, hashlib, json, os, pathlib, sys
+          temp = pathlib.Path(sys.argv[1])
+          base = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{os.environ['TAG']}"
+          platforms = {}
+          for path in sorted(glob.glob(str(temp / 'in/lite-bundle-*/report-*.json'))):
+              report = json.load(open(path))
+              asset = temp / 'assets' / report['asset']
+              digest = hashlib.sha256()
+              with asset.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1 << 20), b''):
+                      digest.update(chunk)
+              assert digest.hexdigest() == report['sha256'] and asset.stat().st_size == report['size']
+              platforms[report['platform']] = {
+                  'asset': report['asset'], 'url': f"{base}/{report['asset']}", 'size': report['size'],
+                  'sha256': report['sha256'], 'manifest_sha256': report['manifest_sha256'],
+                  'image_id': report['image_id'], 'config_id': report['config_id']}
+          assert sorted(platforms) == ['linux/amd64', 'linux/arm64'], sorted(platforms)
+          pin = {'schema': 'oo.lite-bundles/v1', 'runtime': os.environ['LITE_IMAGE'],
+                 'tag': os.environ['TAG'], 'platforms': platforms}
+          (temp / 'assets/lite-bundles.json').write_text(json.dumps(pin, indent=2, sort_keys=True) + '\n')
+          (temp / 'assets/SHA256SUMS').write_text(''.join(
+              f"{e['sha256']}  {e['asset']}\n" for e in platforms.values()))
+          PY
+          cat "$RUNNER_TEMP/assets/lite-bundles.json"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Open Ontology ${TAG#v}" --notes-file - <<'NOTES'
+          Open Ontology release.
+
+          Install the CLI from npm. `oo up` and `oo quickstart` pull the signed lite
+          runtime by digest; when that pull fails, they download the matching
+          `oo-lite-runtime-*-linux-<arch>.tar.gz` below, check its size and SHA-256
+          against the pin shipped in the npm package (`oo-lite-bundle.json`), verify
+          and load it. To install offline, download the asset for your Docker
+          daemon's architecture and run `oo quickstart --offline-bundle FILE`.
+
+          `lite-bundles.json` lists each asset's size, SHA-256, manifest SHA-256 and
+          image identities. PostgreSQL is pulled from Docker Hub by digest.
+          NOTES
+          fi
+          # Never overwrite an existing asset: a changed bundle needs a new tag.
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$RUNNER_TEMP"/assets/*
