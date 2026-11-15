@@ -345,7 +345,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUNDLE_IMAGE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:145`](../../deploy/lite/bundle.py#L145) |
 | `BUNDLE_IMAGE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:189`](../../deploy/lite/bundle.py#L189) |
 | `BUNDLE_IMMUTABLE_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:140`](../../deploy/lite/bundle.py#L140) |
-| `BUNDLE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:335`](../../deploy/lite/bundle.py#L335) |
+| `BUNDLE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:337`](../../deploy/lite/bundle.py#L337) |
 | `BUNDLE_MANIFEST_CHECKSUM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:184`](../../deploy/lite/bundle.py#L184) |
 | `BUNDLE_OUTPUT_EXISTS` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:141`](../../deploy/lite/bundle.py#L141) |
 | `BUNDLE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:139`](../../deploy/lite/bundle.py#L139) |
