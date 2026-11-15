@@ -60,6 +60,10 @@ FAST_PAIRS = {"sigkill_mid_cycle": "failpoint", "network_drop_mid_c1": "toxiprox
               "network_drop_mid_c5": "toxiproxy"}
 
 
+SOURCE_ALIAS = "oo-source"
+SOURCE_PORTS = {"postgres": 5432, "mysql": 3306, "oracle": 1521}
+
+
 class Toxiproxy:
     """An owned toxiproxy in front of the source; the product connects through it."""
     def __init__(self, run):
@@ -81,14 +85,19 @@ class Toxiproxy:
 
     def start(self):
         self.created = True
+        # Reach the source by a link alias on the default bridge (Docker keeps
+        # it current across source restarts). host.docker.internal only
+        # resolves on Docker Desktop, and the source's published port is
+        # bound to the host's loopback, which a Linux container cannot reach.
         self.run.command(["docker", "run", "-d", "--name", self.name,
                           "--label", "oo.lane=" + t1.LANE, "--label", "oo.run_id=" + self.run.id,
+                          "--link", f"{self.run.name}:{SOURCE_ALIAS}",
                           "-p", f"127.0.0.1:{self.api}:8474", "-p", f"127.0.0.1:{self.port}:20000",
                           self.image], timeout=120)
         if not wait_until(lambda: self._ready(), 30, 0.5):
             raise RuntimeError("toxiproxy_not_ready")
         self.call("POST", "/proxies", {"name": "source", "listen": "0.0.0.0:20000",
-                                       "upstream": f"host.docker.internal:{self.run.host_port}",
+                                       "upstream": f"{SOURCE_ALIAS}:{SOURCE_PORTS[self.run.engine]}",
                                        "enabled": True})
 
     def _ready(self):
@@ -151,7 +160,7 @@ class Source(LaneRun):
     def command(self, command, **kwargs):
         if command[:2] == ["docker", "create"] and self.name in command:
             command = ["oo.lane=" + t1.LANE if x == "oo.lane=h" else x for x in command]
-            inner = {"postgres": 5432, "mysql": 3306, "oracle": 1521}[self.engine]
+            inner = SOURCE_PORTS[self.engine]
             command[2:2] = ["-p", f"127.0.0.1:{self.host_port}:{inner}"]
             if self.engine == "mysql":
                 command += ["--server-id=41", "--log-bin=oo-bin", "--binlog-format=ROW",

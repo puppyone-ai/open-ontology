@@ -6,8 +6,8 @@ it is not silently changed into an authority for caller-supplied JSON.
 
 ## Required jobs
 
-The nine foundation jobs remain required. This product change activates four
-additional jobs without moving their phase deadlines or changing acceptance IDs:
+The nine foundation jobs remain required. Five additional jobs are active
+without moving any phase deadline or changing acceptance IDs:
 
 | Job / suite | Actual scope |
 | --- | --- |
@@ -15,6 +15,15 @@ additional jobs without moving their phase deadlines or changing acceptance IDs:
 | gate-nightly-a-m / nightly-a-m | The integration scenarios plus empty-baseline proof and fresh/upgrade migration lifecycle. Runs on PRs as well as nightly. |
 | gate-security-b / security-b | Fresh owned PG17 column/role denial, read-only write refusal, real Gateway/CLI authentication and publication mismatch. |
 | gate-ontology-d / ontology-d | Real Rust builder and synthetic library Self-build, YAML, role Pack, visibility, review and dependency-cache regressions. |
+| gate-ab-replay / ab-replay | `cargo test -p oo-eval`, the `benchmarks/ab` Python tests and a recorded-response replay of the demo subset that must equal `benchmarks/ab/fixtures/replay-report.linux-amd64.json` byte for byte. No model call, endpoint or key; no network. |
+
+`gate-ab-replay` owns changes under `crates/oo-eval/` for the dormant
+`gate-public-e` and `gate-nightly-e` through `path_owner_for`. That ownership is
+explicit, only valid on a required job gate with another capability whose prefix
+lies inside theirs, and frozen once it is base policy. It does not satisfy their
+SP12 deadlines, does not make them required and does not close REQ-EVAL-04 or
+AT-EVAL-04. Without the owner, an `oo-eval` change still fails as
+`policy_capability_inactive`.
 
 Commands are `cargo xtask test --suite NAME --format json`. These commands
 supervise real child processes through the existing pinned Linux subreaper.

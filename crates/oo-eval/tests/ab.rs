@@ -32,6 +32,8 @@ fn ab_help_and_invalid_arms() {
         String::from_utf8_lossy(&missing.stderr)
             .contains("bird_assets_not_supplied_use_local_manifest")
     );
+    // A refused dataset is a configuration failure before any output exists.
+    assert!(!std::path::Path::new("evidence/must-not-be-created").exists());
 }
 
 #[test]

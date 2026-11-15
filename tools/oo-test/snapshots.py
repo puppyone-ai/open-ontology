@@ -2,6 +2,7 @@
 import argparse
 from contextlib import contextmanager
 import ctypes
+import errno
 import fcntl
 import hashlib
 import json
@@ -10,6 +11,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 
@@ -19,40 +21,180 @@ import t1
 CACHE = runner.ROOT / "evidence" / "ta-fixture-cache"
 
 
-def clone_file(source, destination):
+# errno values meaning "this filesystem cannot share extents", not a fault.
+NO_COW = {getattr(errno, name) for name in
+          ("EOPNOTSUPP", "ENOTSUP", "EXDEV", "EINVAL", "ENOTTY", "ENOSYS")
+          if hasattr(errno, name)}
+FICLONE = 0x40049409
+
+
+def clone_file(source, destination, method=None):
+    """Copy one regular file; ``method`` is a probed clone_method() result."""
     source, destination = Path(source), Path(destination)
     if source.is_symlink() or not source.is_file():
         raise ValueError("snapshot requires regular files")
-    if sys.platform == "darwin":
+    method = method or ("clonefile" if sys.platform == "darwin" else "reflink")
+    if method == "clonefile":
         libc = ctypes.CDLL(None, use_errno=True)
         if libc.clonefile(os.fsencode(source), os.fsencode(destination), 0):
             error = ctypes.get_errno()
             raise OSError(error, os.strerror(error))
-    else:
+    elif method == "reflink":
         with source.open("rb") as src, destination.open("xb") as dst:
-            fcntl.ioctl(dst.fileno(), 0x40049409, src.fileno())  # FICLONE
+            fcntl.ioctl(dst.fileno(), FICLONE, src.fileno())
+    elif method == "copy":
+        with source.open("rb") as src, destination.open("xb") as dst:
+            shutil.copyfileobj(src, dst, 1024 * 1024)
+    else:
+        raise ValueError("unknown clone method")
     shutil.copystat(source, destination)
     return str(destination)
 
 
-def clone_tree(source, destination):
-    if Path(source).is_symlink():
+def clone_method(source_dir, destination_dir):
+    """Probe copy-on-write between two host directories at runtime.
+
+    APFS clonefile on macOS, FICLONE (btrfs, xfs, ...) on Linux; a filesystem
+    that cannot share extents (ext4 on the hosted runner) gets a plain copy.
+    Any other probe error is a fault and is raised.
+    """
+    cow = "clonefile" if sys.platform == "darwin" else "reflink"
+    fd, probe = tempfile.mkstemp(prefix=".oo-cow-probe-", dir=source_dir)
+    target = Path(destination_dir) / (Path(probe).name + ".clone")
+    try:
+        os.write(fd, b"oo")
+        os.close(fd)
+        fd = None
+        clone_file(probe, target, cow)
+        return cow
+    except OSError as error:
+        if error.errno in NO_COW:
+            return "copy"
+        raise
+    finally:
+        if fd is not None:
+            os.close(fd)
+        for path in (Path(probe), target):
+            path.unlink(missing_ok=True)
+
+
+def host_owned(tree):
+    """True when this process owns and can read every entry under ``tree``.
+
+    Docker Desktop maps bind mounts to the host user; Linux Docker keeps the
+    database uid, so those trees are only handled by a root helper container.
+    """
+    uid = os.getuid()
+    def fail(error):
+        raise error
+    try:
+        for root, directories, files in os.walk(tree, onerror=fail):
+            for name in [root] + [os.path.join(root, n) for n in directories + files]:
+                if os.lstat(name).st_uid != uid or not os.access(name, os.R_OK):
+                    return False
+    except PermissionError:
+        return False
+    return True
+
+
+def helper(image, mounts, script):
+    """Short-lived root container on the given bind mounts, removed on exit."""
+    command = ["docker", "run", "--rm", "--network", "none", "--user", "0",
+               "--label", "oo.lane=" + t1.LANE, "--label", "oo.role=snapshot-files",
+               "--entrypoint", "sh"]
+    for source, destination, mode in mounts:
+        command += ["--mount", f"type=bind,src={source},dst={destination}"
+                    + (",readonly" if mode == "ro" else "")]
+    result = subprocess.run(command + [image, "-c", script], capture_output=True,
+                            text=True, timeout=1800)
+    return result.returncode, result.stdout + result.stderr
+
+
+def clone_tree(source, destination, image=None):
+    """Clone a data tree; returns (seconds, method).
+
+    The method is probed, never guessed: a copy only happens when the probe
+    says the filesystem has no copy-on-write, and a failed clone is an error.
+    """
+    source, destination = Path(source), Path(destination)
+    if source.is_symlink():
         raise ValueError("snapshot root cannot be a symlink")
-    for root, directories, files in os.walk(source):
-        if any((Path(root) / name).is_symlink() for name in directories + files):
-            raise ValueError("snapshot cannot reference external files")
     started = time.monotonic()
-    shutil.copytree(source, destination, copy_function=clone_file)
-    return time.monotonic() - started
+    method = clone_method(source.parent, destination.parent)
+    if host_owned(source):
+        for root, directories, files in os.walk(source):
+            if any((Path(root) / name).is_symlink() for name in directories + files):
+                raise ValueError("snapshot cannot reference external files")
+        shutil.copytree(source, destination,
+                        copy_function=lambda a, b: clone_file(a, b, method))
+        return time.monotonic() - started, method
+    if image is None:
+        raise RuntimeError("snapshot_tree_not_host_owned")
+    destination.mkdir(mode=0o700)
+    flag = "--reflink=always " if method == "reflink" else ""
+    code, output = helper(image, [(source, "/src", "ro"), (destination, "/dst", "rw")],
+                          'set -eu; if [ -n "$(find /src -type l -print)" ]; then '
+                          'echo oo_symlink >&2; exit 3; fi; '
+                          f'cp -a {flag}/src/. /dst/')
+    if code:
+        remove_tree(destination, image)
+        if "oo_symlink" in output:
+            raise ValueError("snapshot cannot reference external files")
+        raise RuntimeError("snapshot_helper_clone_failed")
+    return time.monotonic() - started, method + "+root-helper"
 
 
-def remove_runtime_socket(data, engine):
+def remove_tree(path, image=None):
+    """Remove a data tree, including files the database container's uid owns.
+
+    Never sudo on the host: when Python cannot unlink an entry, a root
+    container on the same bind mount empties it, then the host removes it.
+    Returns "host" or "root-helper"; anything left behind is an error.
+    """
+    path = Path(path)
+    if path.is_symlink():
+        raise ValueError("refusing to remove a symlinked data tree")
+    if not path.exists():
+        return "absent"
+    try:
+        shutil.rmtree(path)
+        return "host"
+    except PermissionError:
+        if image is None:
+            raise
+    code, _ = helper(image, [(path, "/t", "rw")], "find /t -mindepth 1 -delete")
+    if code:
+        raise RuntimeError("snapshot_helper_remove_failed")
+    path.rmdir()
+    if path.exists():
+        raise RuntimeError("snapshot_tree_left_behind")
+    return "root-helper"
+
+
+RUNTIME_SOCKET = "/var/run/mysqld/mysqld.sock"
+
+
+def remove_runtime_socket(data, engine, image=None):
     # The official MySQL entrypoint recreates this link. Never follow it into
     # the host or exclude another symlink (which could be a real tablespace).
+    if engine != "mysql":
+        return "not_applicable"
     socket = data / "mysql.sock"
-    if (engine == "mysql" and socket.is_symlink()
-            and os.readlink(socket) == "/var/run/mysqld/mysqld.sock"):
-        socket.unlink()
+    try:
+        if socket.is_symlink() and os.readlink(socket) == RUNTIME_SOCKET:
+            socket.unlink()
+        return "host"
+    except PermissionError:
+        # Linux Docker: the datadir belongs to the database uid (mode 0750).
+        if image is None:
+            raise
+    code, _ = helper(image, [(data, "/d", "rw")],
+                     'set -eu; if [ -L /d/mysql.sock ] && '
+                     f'[ "$(readlink /d/mysql.sock)" = {RUNTIME_SOCKET} ]; '
+                     'then rm /d/mysql.sock; fi')
+    if code:
+        raise RuntimeError("snapshot_helper_socket_failed")
+    return "root-helper"
 
 
 def identity(engine, version, scale, tables, platform):
@@ -165,6 +307,7 @@ class SnapshotRun(t1.LaneRun):
         self.data = path / ".snapshot-data"
         self.cached = (cache / "snapshot.json").exists()
         self.clone_seconds = None
+        self.clone_method = None
         self.snapshot_image = None
         if self.cached:
             metadata = json.loads((cache / "snapshot.json").read_text())
@@ -180,10 +323,24 @@ class SnapshotRun(t1.LaneRun):
             self.secret = (cache / ".private/password").read_text()
             self.reader_secret = (cache / ".private/reader-password").read_text()
             shutil.copytree(cache / ".private", self.private, dirs_exist_ok=True)
-            self.clone_seconds = clone_tree(cache / "data", self.data)
+            self.clone_seconds, self.clone_method = clone_tree(
+                cache / "data", self.data, self.helper_image())
         else:
             self.data.mkdir(mode=0o777)
             self.data.chmod(0o777)  # Oracle starts as its database uid, not root.
+
+    def helper_image(self):
+        # The engine image is already local and runs cp/find/rm as root.
+        return self.snapshot_image or self.manifest["image"]
+
+    def record_clone(self, field, seconds, method):
+        snapshot = self.receipt.setdefault("snapshot", {})
+        snapshot[field] = {"seconds": seconds, "method": method}
+        timer = getattr(self, "timing", None)
+        if timer is not None:
+            timer.attributes[field] = {"seconds": seconds, "method": method}
+            timer.persist()
+        runner.write_json(self.path / "resource-receipt.json", self.receipt)
 
     def command(self, command, **kwargs):
         if command[:3] == ["docker", "volume", "create"]:
@@ -215,6 +372,8 @@ class SnapshotRun(t1.LaneRun):
             "host_capacity": self.host_capacity,
         }
         runner.write_json(self.path / "resource-receipt.json", self.receipt)
+        if self.cached:
+            self.record_clone("restore_clone", self.clone_seconds, self.clone_method)
 
     def seed(self):
         if self.cached:
@@ -232,13 +391,14 @@ class SnapshotRun(t1.LaneRun):
         state = json.loads(raw)
         if state["Running"] or state["OOMKilled"] or state["ExitCode"] == 137:
             raise RuntimeError("snapshot_requires_clean_shutdown")
-        remove_runtime_socket(self.data, self.engine)
+        remove_runtime_socket(self.data, self.engine, self.helper_image())
         # Publish metadata last: an interrupted build is never a cache hit.
         staging = self.cache.with_name(self.cache.name + ".building-" + self.id)
         staging.mkdir(mode=0o700)
         image = "oo-ta-fixture:" + self.key
         try:
-            clone_tree(self.data, staging / "data")
+            seconds, method = clone_tree(self.data, staging / "data", self.helper_image())
+            self.record_clone("snapshot_clone", seconds, method)
             shutil.copytree(self.private, staging / ".private")
             self.command(["docker", "commit", "--change", "LABEL oo.lane=ta",
                           "--change", "LABEL oo.snapshot=" + self.key,
@@ -251,6 +411,7 @@ class SnapshotRun(t1.LaneRun):
             staging.rename(self.cache)
         finally:
             if staging.exists():
+                remove_tree(staging / "data", self.helper_image())
                 shutil.rmtree(staging)
         self.command(["docker", "start", self.name])
         self.wait_ready()
@@ -270,7 +431,15 @@ class SnapshotRun(t1.LaneRun):
     def cleanup(self):
         failures = super().cleanup()
         if not failures and self.data.exists():
-            shutil.rmtree(self.data)
+            receipt = getattr(self, "receipt", None)
+            try:
+                removal = remove_tree(self.data, self.helper_image())
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+                removal = "failed:" + type(error).__name__
+                failures.append(str(self.data.name))
+            if isinstance(receipt, dict):
+                receipt.setdefault("snapshot", {})["data_removal"] = removal
+                runner.write_json(self.path / "resource-receipt.json", receipt)
         return failures
 
 

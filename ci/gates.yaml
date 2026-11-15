@@ -360,3 +360,18 @@ gates:
     success_forbidden: false
     echo_forbidden: true
     closes_acceptance: false
+  - id: gate-ab-replay
+    status: required
+    reason: "Owned A/B harness replay (oo-eval and benchmarks/ab): Rust and Python tests plus a recorded-response replay that must reproduce the committed report byte for byte. No model call, no network. Not the public benchmark E (gate-public-e) and no REQ-EVAL-04 or AT-EVAL-04 claim."
+    requirements: [REQ-EVAL-05]
+    acceptance: []
+    effective_phase: null
+    latest_phase: null
+    capability: ab-replay
+    path_prefix: "crates/oo-eval/"
+    job: gate-ab-replay
+    evaluated_by: job
+    success_forbidden: false
+    echo_forbidden: true
+    closes_acceptance: false
+    path_owner_for: [gate-public-e, gate-nightly-e]

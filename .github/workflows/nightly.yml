@@ -847,6 +847,69 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  gate-ab-replay:
+    name: gate-ab-replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      exit_code: ${{ steps.record.outputs.exit_code }}
+      log_sha256: ${{ steps.record.outputs.log_sha256 }}
+      step_script_sha256: ${{ steps.record.outputs.step_script_sha256 }}
+      started_at: ${{ steps.record.outputs.started_at }}
+      finished_at: ${{ steps.record.outputs.finished_at }}
+      run_id: ${{ steps.record.outputs.run_id }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: Prepare owned fixture prerequisites
+        run: |
+          cargo fetch --locked
+          for tool in query-result-adapter question-bank result-comparator sql-runner trial-statistics; do
+            cargo fetch --locked --manifest-path "benchmarks/${tool}/Cargo.toml"
+          done
+      - name: capability
+        id: record
+        shell: bash
+        run: |
+          set -o pipefail
+          rustc --version | tee "${RUNNER_TEMP}/rustc.txt"
+          grep -q '^rustc 1.98.1 ' "${RUNNER_TEMP}/rustc.txt"
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          set +e
+          cargo xtask test --suite ab-replay --format json | tee "${RUNNER_TEMP}/gate-ab-replay.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          finished=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          sha=$(sha256sum "${RUNNER_TEMP}/gate-ab-replay.log" | awk '{print $1}')
+          script=$(printf '%s' 'cargo xtask test --suite ab-replay --format json' | sha256sum | awk '{print $1}')
+          {
+            echo "exit_code=${code}"
+            echo "log_sha256=${sha}"
+            echo "step_script_sha256=${script}"
+            echo "started_at=${started}"
+            echo "finished_at=${finished}"
+            echo "run_id=${GITHUB_RUN_ID}"
+          } >> "${GITHUB_OUTPUT}"
+          python3 ci/gate_receipts.py record --gate gate-ab-replay --log "${RUNNER_TEMP}/gate-ab-replay.log" --output "${RUNNER_TEMP}/gate-ab-replay-receipt.json" --exit-code "${code}" --started "${started}" --finished "${finished}"
+          exit "${code}"
+      - name: preserve failure log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gate-ab-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/gate-ab-replay.log
+            ${{ runner.temp }}/gate-ab-replay-receipt.json
+          retention-days: 14
+          if-no-files-found: ignore
+
   aggregate:
     name: aggregate
     needs:
@@ -863,6 +926,7 @@ jobs:
       - gate-security-b
       - gate-ontology-d
       - gate-nightly-a-m
+      - gate-ab-replay
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 20
