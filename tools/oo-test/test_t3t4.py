@@ -9,6 +9,25 @@ import t3t4
 
 
 class T3T4(unittest.TestCase):
+    def test_toxiproxy_reaches_the_source_by_name_on_any_engine(self):
+        calls, posted = [], []
+        def command(argv, **kwargs):
+            calls.append(argv)
+            return 0, '{"oo.lane": "ta", "oo.run_id": "r1"}' if argv[:2] == ["docker", "inspect"] else ""
+        run = types.SimpleNamespace(id="r1", name="oo-h-r1", engine="mysql", command=command)
+        with mock.patch.object(t3t4.t1, "LANE", "ta"):
+            proxy = t3t4.Toxiproxy(run)
+            with mock.patch.object(proxy, "_ready", return_value=True), \
+                 mock.patch.object(proxy, "call", side_effect=lambda *a: posted.append(a)):
+                proxy.start()
+            proxy.close()
+        started = calls[0]
+        self.assertEqual(started[started.index("--link") + 1], "oo-h-r1:oo-source")
+        self.assertIn("oo.lane=ta", started)
+        # Not host.docker.internal: that name only exists on Docker Desktop.
+        self.assertEqual(posted[0][2]["upstream"], "oo-source:3306")
+        self.assertEqual(calls[-1], ["docker", "rm", "-f", proxy.name])
+
     def test_type_classes_keep_widening_visible(self):
         self.assertEqual(t3t4.type_class("int"), "int4")
         self.assertEqual(t3t4.type_class("integer"), "int4")
