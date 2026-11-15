@@ -7,6 +7,10 @@ on:
       lite_image:
         description: "Signed multi-architecture lite registry reference with @sha256 digest"
         required: true
+      lite_bundle_manifest:
+        description: "Release tag whose lite-bundles.json pins the offline runtime bundles (e.g. v0.2.0); empty ships no bundle pin"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -92,9 +96,17 @@ jobs:
       - name: Assemble every declared platform
         env:
           GH_TOKEN: ${{ github.token }}
+          LITE_BUNDLE_MANIFEST: ${{ inputs.lite_bundle_manifest }}
         run: |
           set -euo pipefail
           gh run download "$GITHUB_RUN_ID" --pattern 'cli-*' --dir "$RUNNER_TEMP/binaries"
+          bundles=()
+          if [[ -n "$LITE_BUNDLE_MANIFEST" ]]; then
+            [[ "$LITE_BUNDLE_MANIFEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            gh release download "$LITE_BUNDLE_MANIFEST" --repo "$GITHUB_REPOSITORY" \
+              --pattern lite-bundles.json --dir "$RUNNER_TEMP/lite-bundles"
+            bundles=(--lite-bundles "$RUNNER_TEMP/lite-bundles/lite-bundles.json")
+          fi
           cargo fetch --locked
           cargo fetch --locked --manifest-path tools/mcp-gateway/Cargo.toml
           cargo fetch --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml
@@ -104,10 +116,12 @@ jobs:
             args+=(--binary "$platform=$RUNNER_TEMP/binaries/cli-$platform/oo")
           done
           node packages/cli/scripts/stage.mjs --output "$RUNNER_TEMP/package" \
-            --notices "$RUNNER_TEMP/notices" "${args[@]}"
+            --notices "$RUNNER_TEMP/notices" "${bundles[@]}" "${args[@]}"
           # The package tests run the native CLI from target/debug/oo.
           cargo build --locked -p oo-cli --bin oo
           node --test packages/cli/scripts/stage.test.mjs packages/cli/test/*.test.mjs
+          (cd deploy/lite && python3 -m unittest test_bundle)
+          python3 crates/oo-cli/src/admin/test_bundle_fetch.py
           mkdir "$RUNNER_TEMP/packed"
           cd "$RUNNER_TEMP/package"
           npm pack --ignore-scripts --json --pack-destination "$RUNNER_TEMP/packed"

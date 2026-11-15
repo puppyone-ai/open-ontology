@@ -290,5 +290,88 @@ class Bundle(unittest.TestCase):
                 worker.join(timeout=5)
 
 
+class RuntimeBundle(unittest.TestCase):
+    """Runtime-only release asset: extraction, trust and platform before load."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        config = json.dumps({'os': 'linux', 'architecture': 'arm64', 'rootfs': {'diff_ids': []}}).encode()
+        self.info = {'id': 'sha256:' + hashlib.sha256(config).hexdigest(), 'os': 'linux',
+                     'arch': 'arm64', 'layers': [], 'archive': 'runtime.tar'}
+        self.info['config_id'] = self.info['id']
+        runtime = io.BytesIO()
+        with tarfile.open(fileobj=runtime, mode='w') as out:
+            self.add(out, 'manifest.json', json.dumps([{'Config': 'c.json', 'RepoTags': None,
+                                                        'Layers': []}]).encode())
+            self.add(out, 'c.json', config)
+        self.runtime = runtime.getvalue()
+        files = {'runtime.tar': hashlib.sha256(self.runtime).hexdigest()}
+        self.manifest = json.dumps({'protocol': bundle.RUNTIME_PROTOCOL, 'platform': 'linux/arm64',
+                                    'images': {'runtime': self.info}, 'files': files}).encode()
+        self.trust = hashlib.sha256(self.manifest).hexdigest()
+        self.sums = ''.join(f'{d}  {n}\n' for n, d in files.items()).encode()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    @staticmethod
+    def add(out, name, raw, kind=tarfile.REGTYPE):
+        item = tarfile.TarInfo(name)
+        item.type = kind
+        item.size = len(raw) if kind == tarfile.REGTYPE else 0
+        out.addfile(item, io.BytesIO(raw) if kind == tarfile.REGTYPE else None)
+
+    def asset(self, members=None):
+        path = self.root / 'asset.tar.gz'
+        with tarfile.open(path, 'w:gz') as out:
+            for name, raw, *kind in members or [('SHA256SUMS', self.sums), ('manifest.json', self.manifest),
+                                                 ('runtime.tar', self.runtime)]:
+                self.add(out, name, raw, *kind)
+        return path
+
+    def work(self, name='w'):
+        return self.root / name
+
+    def test_roundtrip_loads_once_and_tags(self):
+        with patch.object(subprocess, 'check_output', return_value='linux/arm64\n'), \
+                patch.object(subprocess, 'run') as tag, \
+                patch.object(remote, 'image_info', return_value=None), \
+                patch.object(remote, 'load_verified', return_value=(self.info, self.info['id'])) as loader:
+            report = bundle.load_runtime(self.asset(), self.trust, self.work(), 'linux/arm64')
+        loader.assert_called_once()
+        self.assertEqual(report['id'], self.info['id'])
+        self.assertIn('open-ontology/lite-runtime:', tag.call_args[0][0][-1])
+
+    def test_extraction_accepts_only_the_three_regular_members(self):
+        good = [('SHA256SUMS', self.sums), ('manifest.json', self.manifest), ('runtime.tar', self.runtime)]
+        for members in (good + [('extra', b'x')], good[:2], good + [good[0]],
+                        good[:2] + [('runtime.tar', b'', tarfile.SYMTYPE)],
+                        good[:2] + [('../runtime.tar', self.runtime)]):
+            with self.assertRaises(ValueError):
+                bundle.extract_runtime(self.asset(members), self.work(str(len(list(self.root.iterdir())))))
+
+    def test_untrusted_manifest_or_sums_never_load(self):
+        for members, trust in [(None, '0' * 64),
+                               ([('SHA256SUMS', b'0' * 64 + b'  runtime.tar\n'), ('manifest.json', self.manifest),
+                                 ('runtime.tar', self.runtime)], self.trust),
+                               ([('SHA256SUMS', self.sums), ('manifest.json', self.manifest),
+                                 ('runtime.tar', self.runtime + b'x')], self.trust)]:
+            with patch.object(remote, 'load_verified') as loader:
+                with self.assertRaises(ValueError):
+                    bundle.load_runtime(self.asset(members), trust,
+                                        self.work(str(len(list(self.root.iterdir())))), 'linux/arm64')
+                loader.assert_not_called()
+
+    def test_wrong_platform_never_loads(self):
+        with patch.object(remote, 'load_verified') as loader:
+            with self.assertRaisesRegex(ValueError, 'TARGET_PLATFORM'):
+                bundle.load_runtime(self.asset(), self.trust, self.work('a'), 'linux/amd64')
+            with patch.object(subprocess, 'check_output', return_value='linux/amd64\n'), \
+                    self.assertRaisesRegex(ValueError, 'TARGET_PLATFORM'):
+                bundle.load_runtime(self.asset(), self.trust, self.work('b'), 'linux/arm64')
+            loader.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

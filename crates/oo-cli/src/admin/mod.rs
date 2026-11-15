@@ -8,6 +8,7 @@ mod demo;
 mod demo_try;
 mod doctor;
 mod lite;
+mod lite_bundle;
 mod ontology;
 mod ontology_graph;
 mod progress;
@@ -25,7 +26,7 @@ use std::path::Path;
 
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json]   Alias for oo init --demo
+  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
   oo quickstart --down [--state evidence/oo-demo] [--json]
   oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -63,7 +64,10 @@ Publication age, not a failed cycle alone, drives the data freshness alert.
 up bootstraps private credentials, starts the lite foundations and Gateway, and
 provisions the retained build chain (retained_ready); healthy needs a measured
 recent publication. up requires the pinned runtime image (oo-lite-image beside oo
-or OO_LITE_RUNTIME_IMAGE, a content digest).
+or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
+fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
+checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
+quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -83,6 +87,16 @@ pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
 
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
+    // `--offline-bundle PATH` applies to whichever lite `up` this runs.
+    if matches!(command.as_str(), "up" | "quickstart" | "init")
+        && rest
+            .iter()
+            .any(|a| a == "--offline-bundle" || a.starts_with("--offline-bundle="))
+    {
+        return Some(offline_bundle(command, rest).and_then(|args| {
+            dispatch(&args).unwrap_or_else(|| Err(Failure::usage("ADMIN_ARGUMENT: unknown option")))
+        }));
+    }
     if command == "try" {
         return Some(demo_try::run(rest));
     }
@@ -151,6 +165,40 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         );
     }
     Some(execute(command, rest))
+}
+
+fn offline_bundle(command: &str, rest: &[String]) -> Result<Vec<String>, Failure> {
+    let mut args = vec![command.to_owned()];
+    let mut path = None;
+    let mut index = 0;
+    while index < rest.len() {
+        let arg = &rest[index];
+        let value = if arg == "--offline-bundle" {
+            index += 1;
+            rest.get(index).cloned()
+        } else if let Some(value) = arg.strip_prefix("--offline-bundle=") {
+            Some(value.to_owned())
+        } else {
+            args.push(arg.clone());
+            index += 1;
+            continue;
+        };
+        let value = value
+            .filter(|v| !v.is_empty() && !v.starts_with('-'))
+            .ok_or_else(|| Failure::usage("ADMIN_ARGUMENT: --offline-bundle needs a file path"))?;
+        if path.replace(value).is_some() {
+            return Err(Failure::usage("ADMIN_ARGUMENT: duplicate option"));
+        }
+        index += 1;
+    }
+    let path = std::path::PathBuf::from(path.unwrap_or_default());
+    if !path.is_file() {
+        return Err(Failure::usage(
+            "LITE_BUNDLE_DOWNLOAD: --offline-bundle must name the downloaded oo-lite-runtime .tar.gz file",
+        ));
+    }
+    lite_bundle::set_offline_bundle(std::fs::canonicalize(&path).unwrap_or(path));
+    Ok(args)
 }
 
 fn is_admin(command: &str) -> bool {

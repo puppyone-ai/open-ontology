@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { checkBinary, checkImage, stage } from './stage.mjs';
+import { checkBinary, checkImage, checkLiteBundles, stage } from './stage.mjs';
 
 test('lite image sidecar only accepts pinned references', () => {
   for (const ref of [`sha256:${'a'.repeat(64)}`, `registry.example/oo@sha256:${'b'.repeat(64)}`]) {
@@ -13,6 +13,32 @@ test('lite image sidecar only accepts pinned references', () => {
   for (const ref of ['', 'latest', 'repo:tag', 'sha256:abc', `repo;command@sha256:${'a'.repeat(64)}`]) {
     assert.throws(() => checkImage(ref), /pinned content digest/);
   }
+});
+
+const RUNTIME = `ghcr.io/example/lite@sha256:${'c'.repeat(64)}`;
+function bundles(override = {}) {
+  const entry = { asset: 'oo-lite-runtime-v0.2.0-linux-arm64.tar.gz',
+    url: 'https://github.com/o/r/releases/download/v0.2.0/oo-lite-runtime-v0.2.0-linux-arm64.tar.gz',
+    size: 145000000, sha256: 'd'.repeat(64), manifest_sha256: 'e'.repeat(64),
+    image_id: `sha256:${'f'.repeat(64)}`, config_id: `sha256:${'1'.repeat(64)}`, ...override };
+  return JSON.stringify({ schema: 'oo.lite-bundles/v1', runtime: RUNTIME, tag: 'v0.2.0',
+    platforms: { 'linux/arm64': entry } });
+}
+
+test('lite bundle pin must match the runtime and carry verifiable entries', () => {
+  const pin = JSON.parse(checkLiteBundles(bundles(), RUNTIME + '\n'));
+  assert.equal(pin.platforms['linux/arm64'].size, 145000000);
+  assert.throws(() => checkLiteBundles(bundles(), `ghcr.io/example/lite@sha256:${'0'.repeat(64)}`), /different runtime/);
+  assert.throws(() => checkLiteBundles(bundles(), `sha256:${'c'.repeat(64)}`), /different runtime/);
+  for (const bad of [{ url: 'http://github.com/x/oo-lite-runtime-v0.2.0-linux-arm64.tar.gz' },
+    { url: 'https://github.com/x/other.tar.gz' }, { size: 2 ** 31 }, { size: 0 }, { sha256: 'abc' },
+    { config_id: 'latest' }, { asset: '../x' }]) {
+    assert.throws(() => checkLiteBundles(bundles(bad), RUNTIME), /invalid/);
+  }
+  const extra = JSON.parse(bundles());
+  extra.platforms['windows/amd64'] = extra.platforms['linux/arm64'];
+  assert.throws(() => checkLiteBundles(JSON.stringify(extra), RUNTIME), /unsupported platform/);
+  assert.throws(() => checkLiteBundles('nope', RUNTIME), /not JSON/);
 });
 
 function binary(target) {
@@ -119,7 +145,7 @@ test('release tarball contains every declared native binary and sidecar', async 
       await writeFile(join(parent, 'oo'), binary(target));
       await writeFile(join(parent, 'mcp-gateway'), binary(target));
       await writeFile(join(parent, 'oo-mysql-doctor'), binary(target));
-      await writeFile(join(parent, 'oo-lite-image'), `sha256:${'a'.repeat(64)}\n`);
+      await writeFile(join(parent, 'oo-lite-image'), RUNTIME + '\n');
       binaries.set(target, join(parent, 'oo'));
     }
     const output = join(dir, 'stage');
@@ -130,7 +156,8 @@ test('release tarball contains every declared native binary and sidecar', async 
     await rm(join(dir, lastTarget, 'oo-mysql-doctor'));
     await assert.rejects(stage({ output, notices, binaries }), /oo-mysql-doctor for every target/);
     await writeFile(join(dir, lastTarget, 'oo-mysql-doctor'), binary(lastTarget));
-    await stage({ output, notices, binaries });
+    await writeFile(join(dir, 'lite-bundles.json'), bundles());
+    await stage({ output, notices, binaries, liteBundles: join(dir, 'lite-bundles.json') });
     const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts',
       '--pack-destination', dir], { cwd: output, encoding: 'utf8',
       env: { ...process.env, npm_config_cache: join(dir, 'npm-cache') } }))[0];
@@ -140,6 +167,9 @@ test('release tarball contains every declared native binary and sidecar', async 
       assert.ok(paths.has(`native/${target}/mcp-gateway`));
       assert.ok(paths.has(`native/${target}/oo-mysql-doctor`));
       assert.ok(paths.has(`native/${target}/oo-lite-image`));
+      assert.ok(paths.has(`native/${target}/oo-lite-bundle.json`));
+      const pin = JSON.parse(await readFile(join(output, `native/${target}/oo-lite-bundle.json`), 'utf8'));
+      assert.equal(pin.runtime, RUNTIME);
     }
     assert.ok(!JSON.parse(await readFile(join(output, 'package.json'))).private);
   } finally {

@@ -38,14 +38,16 @@ fn run_mode(
         .ok_or_else(|| Failure::local("ADMIN_CONFIG_IO"))?
         .join(".oo");
     let root = state.join("lite");
-    let image = pinned_image();
+    let mut image = pinned_image();
     if action == "up" && !digest(&image) {
         return Err(Failure::local(
             "LITE_IMAGE_DIGEST_REQUIRED: install the repository-built image and set OO_LITE_RUNTIME_IMAGE",
         ));
     }
     if action == "up" {
-        require_images(&image)?;
+        // A runtime loaded from the release bundle has no registry name; the
+        // deployment then uses its verified local image ID.
+        image = require_images(&image)?;
         if !demo {
             let store = super::wizard::owner_secret_store()?;
             store
@@ -162,6 +164,46 @@ pub(super) fn pinned_image() -> String {
             .trim()
             .to_owned()
     })
+}
+
+/// The pinned runtime as this host can run it: the registry reference when it
+/// is local, otherwise an already loaded release-bundle image, otherwise the
+/// reference unchanged (callers then report the missing image themselves).
+pub(super) fn runtime_image() -> String {
+    let image = pinned_image();
+    if !digest(&image) || present(&image) {
+        return image;
+    }
+    let platform = daemon_platform();
+    super::lite_bundle::installed_pin(&image)
+        .ok()
+        .flatten()
+        .and_then(|pin| {
+            pin.entry(platform.as_deref())
+                .ok()
+                .and_then(super::lite_bundle::local_image)
+        })
+        .unwrap_or(image)
+}
+
+fn present(image: &str) -> bool {
+    Command::new("docker")
+        .args(["image", "inspect", "--format", "{{.Id}}", image])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+fn daemon_platform() -> Option<String> {
+    let out = Command::new("docker")
+        .args(["info", "--format", "{{.OSType}}/{{.Architecture}}"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    super::lite_bundle::docker_platform(&String::from_utf8_lossy(&out.stdout))
 }
 
 fn saved_image(root: &Path) -> Option<String> {
@@ -352,7 +394,11 @@ fn pull(image: &str) -> Result<bool, Failure> {
     Ok(exit == 0)
 }
 
-fn require_images(runtime: &str) -> Result<(), Failure> {
+/// Ensure both images are local and return the runtime image to deploy.
+/// Order: local reference; a bundle image loaded earlier; `--offline-bundle`;
+/// `docker pull` by digest; the pinned release bundle. `OO_LITE_OFFLINE=1`
+/// skips the two network steps.
+fn require_images(runtime: &str) -> Result<String, Failure> {
     let postgres = include_str!("../../../../deploy/lite/compose.yaml")
         .lines()
         .filter_map(|line| line.trim().strip_prefix("image: "))
@@ -365,22 +411,53 @@ fn require_images(runtime: &str) -> Result<(), Failure> {
         return Err(Failure::local("LITE_IMAGE_DIGEST_REQUIRED"));
     }
     let mut info = Command::new("docker");
-    info.args(["info", "--format", "{{.OSType}}"]);
-    let (exit, _, _) = super::build_retained::invoke(info, vec![], 30)
+    info.args(["info", "--format", "{{.OSType}}/{{.Architecture}}"]);
+    let (exit, out, _) = super::build_retained::invoke(info, vec![], 30)
         .map_err(|_| Failure::local("LITE_DOCKER_UNAVAILABLE: start Docker and retry oo up"))?;
     if exit != 0 {
         return Err(Failure::local(
             "LITE_DOCKER_UNAVAILABLE: start Docker and retry oo up",
         ));
     }
-    let mut missing = Vec::new();
-    for image in [runtime, postgres] {
+    let platform = super::lite_bundle::docker_platform(&String::from_utf8_lossy(&out));
+    let offline = super::lite_bundle::offline();
+    let inspect = |image: &str| -> Result<bool, Failure> {
         let mut inspect = Command::new("docker");
         inspect.args(["image", "inspect", image]);
-        let (exit, _, _) = super::build_retained::invoke(inspect, vec![], 30)?;
-        if exit != 0 && !(image.contains('@') && pull(image)?) {
-            missing.push(image_help(image));
+        Ok(super::build_retained::invoke(inspect, vec![], 30)?.0 == 0)
+    };
+    let mut missing = Vec::new();
+    let mut effective = runtime.to_owned();
+    let explicit = super::lite_bundle::offline_bundle();
+    if explicit.is_some() || !inspect(runtime)? {
+        let pin = super::lite_bundle::installed_pin(runtime)?;
+        let loaded = pin
+            .as_ref()
+            .and_then(|pin| pin.entry(platform.as_deref()).ok())
+            .and_then(super::lite_bundle::local_image);
+        if let Some(id) = loaded {
+            effective = id;
+        } else if let Some(path) = explicit {
+            let pin = pin.ok_or_else(|| {
+                Failure::local("LITE_BUNDLE_PIN: this CLI has no oo-lite-bundle.json to verify --offline-bundle against")
+            })?;
+            effective = super::lite_bundle::install_file(path, &pin, platform.as_deref())?;
+        } else if !offline && runtime.contains('@') && pull(runtime)? {
+            // Pulled: the default path; deploy by the registry reference.
+        } else if let (false, Some(pin)) = (offline, &pin) {
+            eprintln!("oo up: the runtime pull failed; using the pinned release bundle instead");
+            effective = super::lite_bundle::install_release(pin, platform.as_deref())?;
+        } else if offline {
+            missing.push(format!(
+                "{} (OO_LITE_OFFLINE=1: pass --offline-bundle PATH with the downloaded runtime bundle)",
+                image_help(runtime)
+            ));
+        } else {
+            missing.push(image_help(runtime));
         }
+    }
+    if !inspect(postgres)? && (offline || !(postgres.contains('@') && pull(postgres)?)) {
+        missing.push(image_help(postgres));
     }
     if !missing.is_empty() {
         return Err(Failure::local(format!(
@@ -388,7 +465,7 @@ fn require_images(runtime: &str) -> Result<(), Failure> {
             missing.join("; ")
         )));
     }
-    Ok(())
+    Ok(effective)
 }
 
 #[cfg(test)]

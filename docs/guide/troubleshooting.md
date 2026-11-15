@@ -15,7 +15,13 @@ match the requested operation.
 | npm `ETARGET` / `E404` for 0.2.0 | The release is unavailable from that registry. Stop; do not silently install 0.1.x and claim L1. Ask the release owner for a verified 0.2.0 package and runtime image. |
 | `NATIVE_MANIFEST_INVALID`, `NATIVE_BINARY_MISSING`, `NATIVE_DIGEST_MISMATCH`, `NATIVE_NOT_EXECUTABLE`, `UNSUPPORTED_PLATFORM` | Reinstall the verified package for the host architecture. Never bypass the digest check or fall back to an unrelated global binary. |
 | `LITE_IMAGE_DIGEST_REQUIRED` | The CLI needs its release's immutable runtime pin. Install the matching package/image, not an arbitrary tag. |
-| `LITE_IMAGES_MISSING` | `oo up` pulls digest-pinned registry images itself; this error means the pull failed (network, registry access) or the pin is a local image ID. Follow the exact pull/load instruction in the error. A local image ID must be loaded, not pulled. No services were started. |
+| `LITE_IMAGES_MISSING` | `oo up` pulls digest-pinned registry images itself and, for the runtime, falls back to the pinned release bundle; this error means the pull failed with no bundle pin installed, `OO_LITE_OFFLINE=1` is set without `--offline-bundle`, or the pin is a local image ID. Follow the exact pull/load instruction in the error. A local image ID must be loaded, not pulled. No services were started. |
+| `LITE_BUNDLE_DOWNLOAD` | The release bundle download failed or was interrupted (network, proxy, HTTP status). Retry `oo up`: it resumes the partial file. Offline, download the asset yourself and pass `--offline-bundle FILE`. No services were started. |
+| `LITE_BUNDLE_SHA256` | The downloaded or supplied bundle does not have the pinned size or SHA-256. The partial download was removed; retry. For `--offline-bundle`, re-download the exact release asset. Never edit the pin to match a file. |
+| `LITE_BUNDLE_PLATFORM` | No bundle for the Docker daemon's architecture, or the supplied file is the other architecture's bundle. Use the asset named in the message (linux/amd64 or linux/arm64). |
+| `LITE_BUNDLE_PIN` | The packaged `oo-lite-bundle.json` is missing, invalid, or names another runtime than `oo-lite-image`. Reinstall the verified package. |
+| `LITE_BUNDLE_VERIFY` | The bundle failed the packaged verifier (the `BUNDLE_*` code follows: manifest checksum, file set, archive identity, daemon platform). Nothing was loaded; re-download the asset. |
+| `LITE_BUNDLE_IDENTITY` | The image Docker reports after loading is not the pinned runtime. No services were started; report it with the message. |
 | `LITE_DOCKER_UNAVAILABLE` | Start Docker and check access using the same user/context. |
 | `BUILD_LITE_NOT_PROVISIONED`, `BUILD_LITE_SERVICE_NOT_RUNNING` | Run `oo up --config stack.yaml` before build. |
 | `BUILD_LITE_STACK_CHANGED` | Re-run up with the changed configuration, then resume build; do not edit checkpoints. |
@@ -221,10 +227,10 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `ADJUDICATION_SUMMARY_MISMATCH` | [configuration-and-source](#configuration-and-source) | [`adjudication.rs:235`](../../crates/oo-cli/src/tui/adjudication.rs#L235) |
 | `ADMIN_ARGUMENT` | [configuration-and-source](#configuration-and-source) | [`build.rs:141`](../../crates/oo-cli/src/admin/build.rs#L141) |
 | `ADMIN_CONFIG_IO` | [configuration-and-source](#configuration-and-source) | [`lite.rs:35`](../../crates/oo-cli/src/admin/lite.rs#L35) |
-| `ADMIN_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:428`](../../crates/oo-cli/src/admin/mod.rs#L428) |
+| `ADMIN_CONFIG_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:476`](../../crates/oo-cli/src/admin/mod.rs#L476) |
 | `ADMIN_IDENTITY_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`auth.mjs:47`](../../packages/cli/bin/auth.mjs#L47) |
-| `ADMIN_NOT_IMPLEMENTED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:420`](../../crates/oo-cli/src/admin/mod.rs#L420) |
-| `ADMIN_STATUS_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`mod.rs:138`](../../crates/oo-cli/src/admin/mod.rs#L138) |
+| `ADMIN_NOT_IMPLEMENTED` | [configuration-and-source](#configuration-and-source) | [`mod.rs:468`](../../crates/oo-cli/src/admin/mod.rs#L468) |
+| `ADMIN_STATUS_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`mod.rs:152`](../../crates/oo-cli/src/admin/mod.rs#L152) |
 | `ALL_IN_ONE_CLI` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2680`](../../tools/release-coordinator/src/w73.rs#L2680) |
 | `ALL_IN_ONE_FAILURE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2745`](../../tools/release-coordinator/src/w73.rs#L2745) |
 | `ALL_IN_ONE_MAPPING` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2719`](../../tools/release-coordinator/src/w73.rs#L2719) |
@@ -245,7 +251,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_BUILDER_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:303`](../../crates/oo-cli/src/admin/build.rs#L303) |
 | `BUILD_CANDIDATE_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:233`](../../crates/oo-cli/src/admin/build_retained.rs#L233) |
 | `BUILD_CANDIDATE_REFUSED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:237`](../../crates/oo-cli/src/admin/build_retained.rs#L237) |
-| `BUILD_CHAIN_EXISTS` | [configuration-and-source](#configuration-and-source) | [`mod.rs:357`](../../crates/oo-cli/src/admin/mod.rs#L357) |
+| `BUILD_CHAIN_EXISTS` | [configuration-and-source](#configuration-and-source) | [`mod.rs:405`](../../crates/oo-cli/src/admin/mod.rs#L405) |
 | `BUILD_CLIENT_DIRECTORY` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:90`](../../crates/oo-cli/src/admin/build_tail.rs#L90) |
 | `BUILD_COMMAND_OUTPUT_LIMIT` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:153`](../../crates/oo-cli/src/admin/build_retained.rs#L153) |
 | `BUILD_COMMAND_PIPE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:119`](../../crates/oo-cli/src/admin/build_retained.rs#L119) |
@@ -324,30 +330,31 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_TOKEN_TLS` | [credentials](#credentials) | [`build_token.rs:70`](../../crates/oo-cli/src/admin/build_token.rs#L70) |
 | `BUILD_TOKEN_WRITE` | [credentials](#credentials) | [`build_token.rs:22`](../../crates/oo-cli/src/admin/build_token.rs#L22) |
 | `BUILD_WAIT` | [configuration-and-source](#configuration-and-source) | [`progress.rs:273`](../../crates/oo-cli/src/admin/progress.rs#L273) |
-| `BUNDLE_ARCHIVE_CONFIG` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:109`](../../deploy/lite/bundle.py#L109) |
-| `BUNDLE_ARCHIVE_CONFIG_SIZE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:111`](../../deploy/lite/bundle.py#L111) |
-| `BUNDLE_ARCHIVE_DUPLICATE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:91`](../../deploy/lite/bundle.py#L91) |
-| `BUNDLE_ARCHIVE_ID` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:103`](../../deploy/lite/bundle.py#L103) |
-| `BUNDLE_ARCHIVE_MANIFEST` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:63`](../../deploy/lite/bundle.py#L63) |
-| `BUNDLE_ARCHIVE_PATH` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:94`](../../deploy/lite/bundle.py#L94) |
-| `BUNDLE_ARCHIVE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:116`](../../deploy/lite/bundle.py#L116) |
-| `BUNDLE_ARCHIVE_TAGS` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:101`](../../deploy/lite/bundle.py#L101) |
-| `BUNDLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:262`](../../deploy/lite/bundle.py#L262) |
-| `BUNDLE_FILE_CHECKSUM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:185`](../../deploy/lite/bundle.py#L185) |
-| `BUNDLE_FILE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:179`](../../deploy/lite/bundle.py#L179) |
-| `BUNDLE_IMAGE_ID` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:189`](../../deploy/lite/bundle.py#L189) |
-| `BUNDLE_IMAGE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:126`](../../deploy/lite/bundle.py#L126) |
-| `BUNDLE_IMAGE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:180`](../../deploy/lite/bundle.py#L180) |
-| `BUNDLE_IMMUTABLE_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:121`](../../deploy/lite/bundle.py#L121) |
-| `BUNDLE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:224`](../../deploy/lite/bundle.py#L224) |
-| `BUNDLE_MANIFEST_CHECKSUM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:175`](../../deploy/lite/bundle.py#L175) |
-| `BUNDLE_OUTPUT_EXISTS` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:122`](../../deploy/lite/bundle.py#L122) |
-| `BUNDLE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:120`](../../deploy/lite/bundle.py#L120) |
-| `BUNDLE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:177`](../../deploy/lite/bundle.py#L177) |
-| `BUNDLE_SERVICE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:181`](../../deploy/lite/bundle.py#L181) |
-| `BUNDLE_SYMLINK` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:174`](../../deploy/lite/bundle.py#L174) |
-| `BUNDLE_TARGET_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:203`](../../deploy/lite/bundle.py#L203) |
-| `BUNDLE_TRUST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:173`](../../deploy/lite/bundle.py#L173) |
+| `BUNDLE_ARCHIVE_CONFIG` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:115`](../../deploy/lite/bundle.py#L115) |
+| `BUNDLE_ARCHIVE_CONFIG_SIZE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:117`](../../deploy/lite/bundle.py#L117) |
+| `BUNDLE_ARCHIVE_DUPLICATE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:97`](../../deploy/lite/bundle.py#L97) |
+| `BUNDLE_ARCHIVE_ID` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:109`](../../deploy/lite/bundle.py#L109) |
+| `BUNDLE_ARCHIVE_MANIFEST` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:69`](../../deploy/lite/bundle.py#L69) |
+| `BUNDLE_ARCHIVE_PATH` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:100`](../../deploy/lite/bundle.py#L100) |
+| `BUNDLE_ARCHIVE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:122`](../../deploy/lite/bundle.py#L122) |
+| `BUNDLE_ARCHIVE_TAGS` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:107`](../../deploy/lite/bundle.py#L107) |
+| `BUNDLE_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:530`](../../crates/oo-cli/src/admin/lite_bundle.rs#L530) |
+| `BUNDLE_FILE_CHECKSUM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:194`](../../deploy/lite/bundle.py#L194) |
+| `BUNDLE_FILE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:188`](../../deploy/lite/bundle.py#L188) |
+| `BUNDLE_IMAGE_ID` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:198`](../../deploy/lite/bundle.py#L198) |
+| `BUNDLE_IMAGE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:145`](../../deploy/lite/bundle.py#L145) |
+| `BUNDLE_IMAGE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:189`](../../deploy/lite/bundle.py#L189) |
+| `BUNDLE_IMMUTABLE_REFERENCE` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:140`](../../deploy/lite/bundle.py#L140) |
+| `BUNDLE_LOCAL_ONLY` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:335`](../../deploy/lite/bundle.py#L335) |
+| `BUNDLE_MANIFEST_CHECKSUM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:184`](../../deploy/lite/bundle.py#L184) |
+| `BUNDLE_OUTPUT_EXISTS` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:141`](../../deploy/lite/bundle.py#L141) |
+| `BUNDLE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:139`](../../deploy/lite/bundle.py#L139) |
+| `BUNDLE_POSTGRES_PIN` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:235`](../../deploy/lite/bundle.py#L235) |
+| `BUNDLE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:186`](../../deploy/lite/bundle.py#L186) |
+| `BUNDLE_SERVICE_SET` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:190`](../../deploy/lite/bundle.py#L190) |
+| `BUNDLE_SYMLINK` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:183`](../../deploy/lite/bundle.py#L183) |
+| `BUNDLE_TARGET_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:212`](../../deploy/lite/bundle.py#L212) |
+| `BUNDLE_TRUST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`bundle.py:182`](../../deploy/lite/bundle.py#L182) |
 | `CARGO_MANIFEST_DIR` | [configuration-and-source](#configuration-and-source) | [`mod.rs:333`](../../crates/oo-cli/src/tui/screens/mod.rs#L333) |
 | `CARGO_PKG_VERSION` | [configuration-and-source](#configuration-and-source) | [`args.rs:203`](../../crates/oo-cli/src/args.rs#L203) |
 | `CARGO_TARGET_DIR` | [configuration-and-source](#configuration-and-source) | [`live_thousand_acceptance.py:125`](../../tools/pg-builder/scripts/live_thousand_acceptance.py#L125) |
@@ -485,15 +492,21 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_ACTION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:764`](../../deploy/lite/lifecycle.py#L764) |
 | `LITE_AGENT_DB_INSTALL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:478`](../../deploy/lite/lifecycle.py#L478) |
 | `LITE_BUILD_ONE_SOURCE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:466`](../../deploy/lite/lifecycle.py#L466) |
+| `LITE_BUNDLE_DOWNLOAD` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:235`](../../crates/oo-cli/src/admin/lite_bundle.rs#L235) |
+| `LITE_BUNDLE_IDENTITY` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:544`](../../crates/oo-cli/src/admin/lite_bundle.rs#L544) |
+| `LITE_BUNDLE_PIN` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:442`](../../crates/oo-cli/src/admin/lite.rs#L442) |
+| `LITE_BUNDLE_PLATFORM` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:182`](../../crates/oo-cli/src/admin/lite_bundle.rs#L182) |
+| `LITE_BUNDLE_SHA256` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:292`](../../crates/oo-cli/src/admin/lite_bundle.rs#L292) |
+| `LITE_BUNDLE_VERIFY` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:485`](../../crates/oo-cli/src/admin/lite_bundle.rs#L485) |
 | `LITE_CERTIFICATE` | [connectivity](#connectivity) | [`credentials.rs:191`](../../crates/oo-stack/src/credentials.rs#L191) |
 | `LITE_CERTIFICATE_DATE` | [connectivity](#connectivity) | [`credentials.rs:149`](../../crates/oo-stack/src/credentials.rs#L149) |
 | `LITE_CERTIFICATE_KEY_MISMATCH` | [connectivity](#connectivity) | [`credentials.rs:203`](../../crates/oo-stack/src/credentials.rs#L203) |
-| `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:361`](../../crates/oo-cli/src/admin/lite.rs#L361) |
+| `LITE_COMPOSE_TEMPLATE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:407`](../../crates/oo-cli/src/admin/lite.rs#L407) |
 | `LITE_CONTROL_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:138`](../../deploy/lite/lifecycle.py#L138) |
 | `LITE_CREDENTIAL_MARKER` | [credentials](#credentials) | [`credentials.rs:169`](../../crates/oo-stack/src/credentials.rs#L169) |
 | `LITE_CYCLE_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:619`](../../deploy/lite/lifecycle.py#L619) |
 | `LITE_DOCKER_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:247`](../../deploy/lite/lifecycle.py#L247) |
-| `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:370`](../../crates/oo-cli/src/admin/lite.rs#L370) |
+| `LITE_DOCKER_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:416`](../../crates/oo-cli/src/admin/lite.rs#L416) |
 | `LITE_GATEWAY_DATA_LOGIN` | [credentials](#credentials) | [`lifecycle.py:347`](../../deploy/lite/lifecycle.py#L347) |
 | `LITE_GATEWAY_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:363`](../../deploy/lite/lifecycle.py#L363) |
 | `LITE_HEALTH_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:337`](../../deploy/lite/lifecycle.py#L337) |
@@ -502,7 +515,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:289`](../../deploy/lite/lifecycle.py#L289) |
 | `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:313`](../../deploy/lite/lifecycle.py#L313) |
 | `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:302`](../../deploy/lite/lifecycle.py#L302) |
-| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:387`](../../crates/oo-cli/src/admin/lite.rs#L387) |
+| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:463`](../../crates/oo-cli/src/admin/lite.rs#L463) |
 | `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:713`](../../deploy/lite/lifecycle.py#L713) |
 | `LITE_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:44`](../../crates/oo-cli/src/admin/lite.rs#L44) |
 | `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:602`](../../deploy/lite/lifecycle.py#L602) |
@@ -515,7 +528,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_MODEL_SOURCE` | [model](#model) | [`lifecycle.py:195`](../../deploy/lite/lifecycle.py#L195) |
 | `LITE_MODEL_STATE_IN_GIT` | [model](#model) | [`lifecycle.py:159`](../../deploy/lite/lifecycle.py#L159) |
 | `LITE_OPENSSL_FAILED` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:76`](../../crates/oo-stack/src/credentials.rs#L76) |
-| `LITE_OPENSSL_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:275`](../../crates/oo-cli/src/admin/lite.rs#L275) |
+| `LITE_OPENSSL_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:317`](../../crates/oo-cli/src/admin/lite.rs#L317) |
 | `LITE_OPENSSL_START` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:95`](../../crates/oo-stack/src/credentials.rs#L95) |
 | `LITE_OPENSSL_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:99`](../../crates/oo-stack/src/credentials.rs#L99) |
 | `LITE_OPENSSL_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:108`](../../crates/oo-stack/src/credentials.rs#L108) |
@@ -526,7 +539,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_OWNERSHIP` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:705`](../../deploy/lite/lifecycle.py#L705) |
 | `LITE_PRIVATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:154`](../../deploy/lite/lifecycle.py#L154) |
 | `LITE_PRIVATE_FILE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:219`](../../deploy/lite/lifecycle.py#L219) |
-| `LITE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:132`](../../crates/oo-cli/src/admin/lite.rs#L132) |
+| `LITE_PROTOCOL` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:134`](../../crates/oo-cli/src/admin/lite.rs#L134) |
 | `LITE_PROVISION_CHANGED` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:438`](../../deploy/lite/lifecycle.py#L438) |
 | `LITE_PROVISION_PASSWORD` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:482`](../../deploy/lite/lifecycle.py#L482) |
 | `LITE_PUBLIC_URL_LOCAL_HTTPS` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:371`](../../deploy/lite/lifecycle.py#L371) |
@@ -537,13 +550,13 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_SECRET_CHANGE_REQUIRES_EXPLICIT_ROTATION` | [credentials](#credentials) | [`lifecycle.py:203`](../../deploy/lite/lifecycle.py#L203) |
 | `LITE_SECRET_MOUNT_SHADOW` | [credentials](#credentials) | [`lifecycle.py:729`](../../deploy/lite/lifecycle.py#L729) |
 | `LITE_SECRET_PATH` | [credentials](#credentials) | [`credentials.rs:127`](../../crates/oo-stack/src/credentials.rs#L127) |
-| `LITE_START` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:117`](../../crates/oo-cli/src/admin/lite.rs#L117) |
-| `LITE_STATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:70`](../../crates/oo-cli/src/admin/lite.rs#L70) |
-| `LITE_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:121`](../../crates/oo-cli/src/admin/lite.rs#L121) |
+| `LITE_START` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:119`](../../crates/oo-cli/src/admin/lite.rs#L119) |
+| `LITE_STATE_DIRECTORY` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:72`](../../crates/oo-cli/src/admin/lite.rs#L72) |
+| `LITE_STDIN` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:123`](../../crates/oo-cli/src/admin/lite.rs#L123) |
 | `LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:689`](../../deploy/lite/lifecycle.py#L689) |
 | `LITE_SUBNET_UNAVAILABLE` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:265`](../../deploy/lite/lifecycle.py#L265) |
 | `LITE_SYNC_INTERVAL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:579`](../../deploy/lite/lifecycle.py#L579) |
-| `LITE_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:130`](../../crates/oo-cli/src/admin/lite.rs#L130) |
+| `LITE_WAIT` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:132`](../../crates/oo-cli/src/admin/lite.rs#L132) |
 | `LITE_WORKLOAD_NAME` | [installation-and-runtime](#installation-and-runtime) | [`credentials.rs:304`](../../crates/oo-stack/src/credentials.rs#L304) |
 | `LIVE_COMPLETION_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:46`](../../tools/model-egress/live_check.py#L46) |
 | `LIVE_HTTP_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:41`](../../tools/model-egress/live_check.py#L41) |
@@ -646,10 +659,12 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO_F22_OWNED_FIXTURE` | [configuration-and-source](#configuration-and-source) | [`f22_owned_pg_tests.rs:36`](../../crates/oo-gateway/src/f22_owned_pg_tests.rs#L36) |
 | `OO_GATE_PREFLIGHT_LIVE` | [configuration-and-source](#configuration-and-source) | [`w73.rs:2439`](../../tools/release-coordinator/src/w73.rs#L2439) |
 | `OO_LANG` | [configuration-and-source](#configuration-and-source) | [`theme.rs:68`](../../crates/oo-cli/src/tui/theme.rs#L68) |
-| `OO_LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:178`](../../crates/oo-cli/src/admin/lite.rs#L178) |
-| `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:362`](../../crates/oo-cli/src/admin/lite.rs#L362) |
+| `OO_LITE_BUNDLE_PIN` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:150`](../../crates/oo-cli/src/admin/lite_bundle.rs#L150) |
+| `OO_LITE_LANE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:220`](../../crates/oo-cli/src/admin/lite.rs#L220) |
+| `OO_LITE_OFFLINE` | [installation-and-runtime](#installation-and-runtime) | [`lite_bundle.rs:38`](../../crates/oo-cli/src/admin/lite_bundle.rs#L38) |
+| `OO_LITE_POSTGRES_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:408`](../../crates/oo-cli/src/admin/lite.rs#L408) |
 | `OO_LITE_PULL_POLICY` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:686`](../../deploy/lite/lifecycle.py#L686) |
-| `OO_LITE_RUNTIME_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:157`](../../crates/oo-cli/src/admin/lite.rs#L157) |
+| `OO_LITE_RUNTIME_IMAGE` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:159`](../../crates/oo-cli/src/admin/lite.rs#L159) |
 | `OO_LITE_SUBNET` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:690`](../../deploy/lite/lifecycle.py#L690) |
 | `OO_MCP_CLI` | [configuration-and-source](#configuration-and-source) | [`profile.rs:182`](../../crates/oo-cli/src/profile.rs#L182) |
 | `OO_MCP_GATEWAY_URL` | [configuration-and-source](#configuration-and-source) | [`profile.rs:183`](../../crates/oo-cli/src/profile.rs#L183) |
@@ -671,7 +686,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `OO_REDUCED_MOTION` | [configuration-and-source](#configuration-and-source) | [`theme.rs:97`](../../crates/oo-cli/src/tui/theme.rs#L97) |
 | `OO_SEARCH_INDEX_CONFIG` | [configuration-and-source](#configuration-and-source) | [`documents.rs:75`](../../tools/oo-load/src/documents.rs#L75) |
 | `OO_SELFBUILD_BUDGET_BIN` | [model](#model) | [`build_retained.rs:300`](../../crates/oo-cli/src/admin/build_retained.rs#L300) |
-| `OO_SHARE_NPM_REGISTRY` | [review-and-publication](#review-and-publication) | [`lite.rs:101`](../../crates/oo-cli/src/admin/lite.rs#L101) |
+| `OO_SHARE_NPM_REGISTRY` | [review-and-publication](#review-and-publication) | [`lite.rs:103`](../../crates/oo-cli/src/admin/lite.rs#L103) |
 | `OO_SQL_CAPABILITIES_PG_CONFIG` | [configuration-and-source](#configuration-and-source) | [`policy_catalog_capabilities_pg_tests.rs:83`](../../crates/oo-gateway/src/policy_catalog_capabilities_pg_tests.rs#L83) |
 | `OO_SQL_CAST_MUTATION` | [configuration-and-source](#configuration-and-source) | [`policy_catalog_capabilities_pg_tests.rs:1188`](../../crates/oo-gateway/src/policy_catalog_capabilities_pg_tests.rs#L1188) |
 | `OO_SSH_ASKPASS_SECRET` | [credentials](#credentials) | [`remote.rs:28`](../../crates/oo-cli/src/admin/remote.rs#L28) |
@@ -958,6 +973,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `USER_EMPTY` | [configuration-and-source](#configuration-and-source) | [`connect.rs:554`](../../crates/oo-cli/src/tui/screens/connect.rs#L554) |
 | `VERSION_UNSUPPORTED` | [configuration-and-source](#configuration-and-source) | [`outcome.rs:412`](../../crates/oo-cli/src/outcome.rs#L412) |
 | `W73_RAW` | [configuration-and-source](#configuration-and-source) | [`w73.rs:509`](../../tools/release-coordinator/src/w73.rs#L509) |
+| `XDG_CACHE_HOME` | [configuration-and-source](#configuration-and-source) | [`lite_bundle.rs:236`](../../crates/oo-cli/src/admin/lite_bundle.rs#L236) |
 | `access_denied` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:97`](../../crates/oo-gateway/src/auth_device.rs#L97) |
 | `budget_unmeasured` | [model](#model) | [`library_selfbuild.py:593`](../../tools/pg-builder/scripts/library_selfbuild.py#L593) |
 | `expired_token` | [configuration-and-source](#configuration-and-source) | [`auth_device.rs:230`](../../crates/oo-gateway/src/auth_device.rs#L230) |
