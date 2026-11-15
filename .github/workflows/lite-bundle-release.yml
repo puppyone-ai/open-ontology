@@ -104,6 +104,7 @@ jobs:
             sudo tee "$config"
           sudo systemctl restart docker
           docker info --format '{{json .DriverStatus}}' | grep -q io.containerd.snapshotter
+          docker version --format 'client {{.Client.Version}} server {{.Server.Version}} api {{.Server.APIVersion}}'
       - name: Pull the verified runtime and create the bundle
         env:
           GH_TOKEN: ${{ github.token }}
@@ -116,6 +117,7 @@ jobs:
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker pull --platform "linux/$ARCH" "$LITE_IMAGE"
           docker logout ghcr.io
+          docker image inspect --platform "linux/$ARCH" --format '{{.Id}} {{.Os}}/{{.Architecture}}' "$LITE_IMAGE"
           mkdir -m 700 "$RUNNER_TEMP/out"
           asset="oo-lite-runtime-$TAG-linux-$ARCH.tar.gz"
           python3 deploy/lite/bundle.py create-runtime --platform "linux/$ARCH" --runtime "$LITE_IMAGE" \
