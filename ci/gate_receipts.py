@@ -35,7 +35,7 @@ BASE_COMMANDS = {
     "gate-dependencies": "cargo xtask supply --run-tools --format json",
     "gate-evidence": "cargo xtask evidence --self-test --format json",
 }
-SUITES = ("integration-a", "security-b", "ontology-d", "nightly-a-m")
+SUITES = ("integration-a", "security-b", "ontology-d", "nightly-a-m", "ab-replay")
 COMMANDS = BASE_COMMANDS | {
     "gate-" + suite: f"cargo xtask test --suite {suite} --format json" for suite in SUITES
 }
@@ -137,19 +137,50 @@ def phase(value):
     return int(value[2:])
 
 
+def under(path, prefix):
+    return path == prefix.rstrip("/") or path.startswith(prefix.rstrip("/") + "/")
+
+
+def path_owners(gates):
+    """{dormant gate: [owned prefixes]} from required gates' path_owner_for.
+
+    A required job gate may own the paths of named dormant gates with another
+    capability whose prefix contains its own. It never satisfies their deadlines.
+    """
+    owners = {}
+    for name, gate in gates.items():
+        owned = gate.get("path_owner_for", [])
+        require(isinstance(owned, list), "policy_path_owner")
+        if not owned:
+            continue
+        own = gate.get("path_prefix")
+        require(gate["status"] == "required" and gate.get("evaluated_by") == "job" and
+                isinstance(own, str) and own, "policy_path_owner")
+        for target in owned:
+            other = gates.get(target)
+            require(other is not None and target != name and other["status"] != "required" and
+                    other.get("capability") and other.get("capability") != gate.get("capability") and
+                    isinstance(other.get("path_prefix"), str) and other["path_prefix"] and
+                    under(own, other["path_prefix"]), "policy_path_owner")
+            owners.setdefault(target, []).append(own)
+    return owners
+
+
 def policy_jobs(baseline, candidate, changed):
     old, new = gate_map(baseline), gate_map(candidate)
     require(old.keys() <= new.keys(), "policy_gate_removed")
     require(phase(candidate["current_phase"]) >= phase(baseline["current_phase"]), "policy_phase_reversed")
     rank = {"optional": 0, "not_applicable_until_phase": 1, "pending": 2, "required": 3}
     expected = set()
+    owners = path_owners(new)
     for name, gate in new.items():
         prior = old.get(name)
         require(gate.get("status") in rank, "policy_status")
         require(gate.get("closes_acceptance") is False, "policy_acceptance_claim")
         if prior:
             require(rank[gate["status"]] >= rank[prior["status"]], "policy_gate_weakened")
-            for key in ("job", "evaluated_by", "capability", "path_prefix", "success_forbidden", "echo_forbidden"):
+            for key in ("job", "evaluated_by", "capability", "path_prefix", "success_forbidden",
+                        "echo_forbidden", "path_owner_for"):
                 require(gate.get(key) == prior.get(key), "policy_boundary_changed")
             for key in ("requirements", "acceptance"):
                 require(set(prior.get(key, [])) <= set(gate.get(key, [])), "policy_requirement_removed")
@@ -157,7 +188,8 @@ def policy_jobs(baseline, candidate, changed):
                 if prior.get(key) is not None:
                     require(gate.get(key) is not None and phase(gate[key]) <= phase(prior[key]), "policy_deadline_extended")
         prefix = gate.get("path_prefix")
-        introduced = prefix and any(p == prefix.rstrip("/") or p.startswith(prefix.rstrip("/") + "/") for p in changed)
+        introduced = prefix and any(under(p, prefix) and not any(under(p, own) for own in owners.get(name, []))
+                                    for p in changed)
         due = any(gate.get(key) and phase(candidate["current_phase"]) >= phase(gate[key])
                   for key in ("effective_phase", "latest_phase"))
         if introduced or due:
