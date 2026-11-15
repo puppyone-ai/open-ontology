@@ -4024,4 +4024,55 @@ mod workflow_tests {
             "name: x\npermissions:\n  contents: read\n"
         ));
     }
+
+    /// S6-B-01: `contents: write` stays refused everywhere except one job of
+    /// the hand-dispatched lite-bundle-release.yml.
+    #[test]
+    fn contents_write_is_refused_outside_the_bundle_release_job() {
+        let workflow = |trigger: &str, writers: usize| {
+            let mut text =
+                format!("name: x\non:\n  {trigger}:\npermissions:\n  contents: read\njobs:\n");
+            for job in 0..writers.max(1) {
+                text.push_str(&format!(
+                    "  job{job}:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 5\n"
+                ));
+                if job < writers {
+                    text.push_str("    permissions:\n      contents: write\n");
+                }
+                text.push_str("    steps:\n      - run: echo ok\n");
+            }
+            text
+        };
+        let cases = [
+            (
+                "lite-bundle-release.yml",
+                workflow("workflow_dispatch", 1),
+                false,
+            ),
+            ("lite-bundle-release.yml", workflow("push", 1), true),
+            (
+                "lite-bundle-release.yml",
+                workflow("workflow_dispatch", 2),
+                true,
+            ),
+            ("release.yml", workflow("workflow_dispatch", 1), true),
+            ("lite-images.yml", workflow("workflow_dispatch", 1), true),
+            ("cli-binaries.yml", workflow("workflow_dispatch", 0), false),
+        ];
+        for (index, (name, text, refused)) in cases.into_iter().enumerate() {
+            let repo = std::env::temp_dir().join(format!(
+                "oo-gates-contents-write-{}-{index}",
+                std::process::id()
+            ));
+            let dir = repo.join(".github/workflows");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join(name), text).unwrap();
+            let (issues, _) = super::scan_workflows(&repo);
+            std::fs::remove_dir_all(&repo).unwrap();
+            let found = issues
+                .iter()
+                .any(|i| i.path == name && i.message == "forbidden workflow text contents: write");
+            assert_eq!(found, refused, "{name} case {index}");
+        }
+    }
 }
