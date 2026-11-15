@@ -8,7 +8,13 @@ use serde_json::{Value, json};
 
 use crate::report::{Issue, Report};
 
-pub const SUITES: &[&str] = &["integration-a", "security-b", "ontology-d", "nightly-a-m"];
+pub const SUITES: &[&str] = &[
+    "integration-a",
+    "security-b",
+    "ontology-d",
+    "nightly-a-m",
+    "ab-replay",
+];
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
 pub fn receipt_valid(value: &Value, suite: &str) -> bool {
@@ -38,10 +44,10 @@ pub fn run(suite: &str) -> Report {
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
     let output = root.join("receipt.json");
-    let script = if matches!(suite, "integration-a" | "nightly-a-m") {
-        "ci/run_pipeline_suite.py"
-    } else {
-        "ci/run_gateway_builder_suite.py"
+    let script = match suite {
+        "integration-a" | "nightly-a-m" => "ci/run_pipeline_suite.py",
+        "ab-replay" => "ci/run_ab_replay_suite.py",
+        _ => "ci/run_gateway_builder_suite.py",
     };
     if fs::create_dir(&root).is_err() {
         return Report::fail(

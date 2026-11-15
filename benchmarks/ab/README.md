@@ -84,6 +84,13 @@ cargo run --locked -p oo-eval -- ab --arms c0,c3 --dataset demo \
 cargo test --locked -p oo-eval
 ```
 
+The required CI gate `gate-ab-replay` (`cargo xtask test --suite ab-replay`)
+runs these tests and replays `--dataset demo`; its `report.json` must equal
+`fixtures/replay-report.linux-amd64.json` byte for byte. The report binds the
+SHA-256 of each benchmark binary, so that file is the hosted ubuntu-24.04 /
+rustc 1.98.1 build's report; a harness, fixture or tool change must update it
+with the reviewed replay output. It is a replay, not a model measurement.
+
 The integration test `scorer_health_and_p2_t_replay` runs the Python unit suite
 and `test_p2_t_reproducible_replay`. Build the five benchmark binaries first;
 missing binaries are failures, not skipped tests. The CLI currently requires

@@ -69,6 +69,11 @@ struct Gate {
     success_forbidden: bool,
     echo_forbidden: bool,
     closes_acceptance: bool,
+    /// Dormant gates whose `path_prefix` this required gate owns: a change
+    /// under this gate's own prefix is its capability, not theirs. It never
+    /// satisfies their phase deadlines.
+    #[serde(default)]
+    path_owner_for: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -841,6 +846,7 @@ fn evaluate(manifest: &GateFile, baseline: &GateFile, args: EvalArgs<'_>) -> Rep
             issues.push(Issue::new("gate.duplicate", &gate.id, "duplicate gate id"));
         }
         issues.extend(gate_shape(gate, &manifest.current_phase));
+        issues.extend(path_owner_issues(gate, &manifest.gates));
         if FOUNDATION.contains(&gate.id.as_str()) && gate.status != "required" {
             issues.push(Issue::new(
                 "gate.foundation",
@@ -879,7 +885,10 @@ fn evaluate(manifest: &GateFile, baseline: &GateFile, args: EvalArgs<'_>) -> Rep
                 "effective_phase moved later or was removed",
             ));
         }
-        if gate.path_prefix != base.path_prefix || gate.capability != base.capability {
+        if gate.path_prefix != base.path_prefix
+            || gate.capability != base.capability
+            || gate.path_owner_for != base.path_owner_for
+        {
             issues.push(Issue::new(
                 "gate.scope",
                 &gate.id,
@@ -994,7 +1003,7 @@ fn evaluate(manifest: &GateFile, baseline: &GateFile, args: EvalArgs<'_>) -> Rep
                 }
                 continue;
             }
-            let introduced = capability_activated(gate, changed);
+            let introduced = capability_activated(gate, changed, &manifest.gates);
             let job = jobs
                 .jobs
                 .iter()
@@ -1336,20 +1345,79 @@ fn changed_path_issues(repo: &Path, changed: &[String]) -> Vec<Issue> {
     issues
 }
 
-fn capability_activated(gate: &Gate, changed: &[String]) -> bool {
+fn under_prefix(path: &str, prefix: &str) -> bool {
+    path == prefix.trim_end_matches('/') || path.starts_with(prefix)
+}
+
+fn capability_activated(gate: &Gate, changed: &[String], gates: &[Gate]) -> bool {
     let Some(prefix) = gate.path_prefix.as_deref() else {
         return false;
     };
     if prefix.is_empty() {
         return false;
     }
+    // A required gate that explicitly names this gate in path_owner_for owns
+    // the changes under its own (equal or nested) prefix.
+    let owners: Vec<&str> = gates
+        .iter()
+        .filter(|owner| {
+            owner.id != gate.id
+                && owner.status == "required"
+                && owner.path_owner_for.contains(&gate.id)
+        })
+        .filter_map(|owner| owner.path_prefix.as_deref())
+        .filter(|owned| !owned.is_empty() && under_prefix(owned, prefix))
+        .collect();
     changed.iter().any(|path| {
         let name = path.rsplit(['/', '\\']).next().unwrap_or(path.as_str());
         if name == "CAPABILITY_INTRODUCED" {
             return false;
         }
-        path == prefix.trim_end_matches('/') || path.starts_with(prefix)
+        under_prefix(path, prefix) && !owners.iter().any(|owned| under_prefix(path, owned))
     })
+}
+
+fn path_owner_issues(gate: &Gate, gates: &[Gate]) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    if gate.path_owner_for.is_empty() {
+        return issues;
+    }
+    if gate.status != "required" || gate.evaluated_by != "job" {
+        issues.push(Issue::new(
+            "gate.path_owner",
+            &gate.id,
+            "only a required job gate can own another gate's paths",
+        ));
+    }
+    let Some(own) = gate.path_prefix.as_deref().filter(|own| !own.is_empty()) else {
+        issues.push(Issue::new(
+            "gate.path_owner",
+            &gate.id,
+            "a path owner needs its own path_prefix",
+        ));
+        return issues;
+    };
+    for id in &gate.path_owner_for {
+        match gates.iter().find(|other| &other.id == id) {
+            Some(other)
+                if other.id != gate.id
+                    && other.status != "required"
+                    && other.capability.is_some()
+                    && other.capability != gate.capability
+                    && other
+                        .path_prefix
+                        .as_deref()
+                        .is_some_and(|prefix| !prefix.is_empty() && under_prefix(own, prefix)) => {}
+            _ => issues.push(Issue::new(
+                "gate.path_owner",
+                &gate.id,
+                format!(
+                    "{id} must be another dormant gate with a different capability whose path_prefix contains {own}"
+                ),
+            )),
+        }
+    }
+    issues
 }
 
 fn shell_failure(command: &[String]) -> Option<&'static str> {
@@ -1454,6 +1522,15 @@ fn allowed_command(gate_id: &str) -> Option<&'static [&'static str]> {
             "test",
             "--suite",
             "nightly-a-m",
+            "--format",
+            "json",
+        ],
+        "gate-ab-replay" => &[
+            "cargo",
+            "xtask",
+            "test",
+            "--suite",
+            "ab-replay",
             "--format",
             "json",
         ],
@@ -2172,6 +2249,126 @@ pub fn self_test_at(repo: &Path) -> Report {
         &introduced,
         "gate.capability_inactive",
         "capability",
+        &mut issues,
+    );
+    // S6-H-01: the required A/B replay gate owns crates/oo-eval/ changes for
+    // the dormant benchmark gates it names; nothing else changes ownership.
+    let eval_args = |changed: &'static [&'static str]| -> Vec<String> {
+        changed.iter().map(|path| (*path).to_owned()).collect()
+    };
+    let eval_change = eval_args(&["crates/oo-eval/src/lib.rs"]);
+    let owner_eval = |candidate: &GateFile, base: &GateFile, changed: &[String]| {
+        evaluate(
+            candidate,
+            base,
+            EvalArgs {
+                jobs: Some(&jobs),
+                changed,
+                phase: Some("SP00"),
+                source: "bootstrap",
+                manifest_only: false,
+                repo,
+                baseline_sha256: BASELINE_PLACEHOLDER,
+                trust: "pending_external",
+                require_protected: false,
+            },
+        )
+    };
+    let owned = owner_eval(&manifest, &baseline, &eval_change);
+    if owned
+        .issues
+        .iter()
+        .any(|issue| matches!(issue.code, "gate.capability_inactive" | "gate.path_owner"))
+    {
+        issues.push(Issue::new(
+            "gate.self_test",
+            "path-owner",
+            format!(
+                "an owned oo-eval change was refused: {}",
+                owned.render("json")
+            ),
+        ));
+    }
+    let mut unowned = manifest.clone();
+    for gate in &mut unowned.gates {
+        if gate.id == "gate-ab-replay" {
+            gate.status = "pending".to_owned();
+            gate.path_owner_for.clear();
+        }
+    }
+    let unowned_report = owner_eval(&unowned, &baseline, &eval_change);
+    if !unowned_report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "gate.capability_inactive" && issue.path == "gate-public-e")
+    {
+        issues.push(Issue::new(
+            "gate.self_test",
+            "path-owner-removed",
+            format!(
+                "an unowned oo-eval change did not activate gate-public-e: {}",
+                unowned_report.render("json")
+            ),
+        ));
+    }
+    let mut dormant_owner = manifest.clone();
+    for gate in &mut dormant_owner.gates {
+        if gate.id == "gate-ab-replay" {
+            gate.status = "pending".to_owned();
+        }
+    }
+    expect_code(
+        &owner_eval(&dormant_owner, &baseline, &eval_change),
+        "gate.capability_inactive",
+        "path-owner-dormant",
+        &mut issues,
+    );
+    expect_code(
+        &owner_eval(&dormant_owner, &baseline, &[]),
+        "gate.path_owner",
+        "path-owner-dormant-shape",
+        &mut issues,
+    );
+    for (label, target) in [
+        ("path-owner-foreign", "gate-integration-a"),
+        ("path-owner-self", "gate-ab-replay"),
+        ("path-owner-unknown", "gate-missing"),
+    ] {
+        let mut wrong = manifest.clone();
+        for gate in &mut wrong.gates {
+            if gate.id == "gate-ab-replay" {
+                gate.path_owner_for = vec![target.to_owned()];
+            }
+        }
+        expect_code(
+            &owner_eval(&wrong, &baseline, &[]),
+            "gate.path_owner",
+            label,
+            &mut issues,
+        );
+    }
+    let mut outside = manifest.clone();
+    for gate in &mut outside.gates {
+        if gate.id == "gate-ab-replay" {
+            gate.path_prefix = Some("crates/".to_owned());
+        }
+    }
+    expect_code(
+        &owner_eval(&outside, &baseline, &[]),
+        "gate.path_owner",
+        "path-owner-wider",
+        &mut issues,
+    );
+    let mut rebound = manifest.clone();
+    for gate in &mut rebound.gates {
+        if gate.id == "gate-ab-replay" {
+            gate.path_owner_for.pop();
+        }
+    }
+    expect_code(
+        &owner_eval(&rebound, &manifest, &[]),
+        "gate.scope",
+        "path-owner-rebound",
         &mut issues,
     );
     let missing_path = evaluate(

@@ -17,6 +17,8 @@ class Timing:
         self.clock = clock
         self.started = clock()
         self.events = []
+        # Facts about how a stage ran (e.g. the probed snapshot clone method).
+        self.attributes = {}
         self.stack = ContextVar("timing_stack", default=())
         self.lock = threading.RLock()
 
@@ -62,7 +64,8 @@ class Timing:
                 self.persist()
 
     def snapshot(self):
-        return {
+        extra = {"attributes": dict(self.attributes)} if self.attributes else {}
+        return extra | {
             "format": "oo-test-timing/v1",
             "wall_seconds": self.clock() - self.started,
             "stages": {

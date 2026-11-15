@@ -212,6 +212,43 @@ class Policy(unittest.TestCase):
             with self.subTest(kind=kind), self.assertRaises(gates.GateFailure):
                 gates.policy_jobs(self.baseline, value, ["crates/oo-pipeline/src/lib.rs"])
 
+    def test_ab_replay_owns_oo_eval_changes_only_while_required(self):
+        changed = ["crates/oo-eval/src/lib.rs", "benchmarks/ab/run.py"]
+        expected = gates.policy_jobs(self.baseline, self.current, changed)
+        self.assertIn("gate-ab-replay", expected)
+        self.assertNotIn("gate-public-e", expected)
+        self.assertNotIn("gate-nightly-e", expected)
+        # Without the owner, the same change still activates the dormant benchmark gates.
+        for kind, code in (("dormant", "policy_path_owner"), ("unowned", "policy_capability_inactive")):
+            value = copy.deepcopy(self.current)
+            target = next(g for g in value["gates"] if g["id"] == "gate-ab-replay")
+            if kind == "dormant":
+                target["status"] = "pending"
+            else:
+                del target["path_owner_for"]
+            with self.subTest(kind=kind), self.assertRaisesRegex(gates.GateFailure, code):
+                gates.policy_jobs(self.baseline, value, changed)
+        # Ownership is explicit, narrow and frozen once it is the base policy.
+        for owned, prefix in ((["gate-integration-a"], None), (["gate-ab-replay"], None),
+                              (["gate-missing"], None), (["gate-public-e"], "crates/")):
+            value = copy.deepcopy(self.current)
+            target = next(g for g in value["gates"] if g["id"] == "gate-ab-replay")
+            target["path_owner_for"] = owned
+            if prefix:
+                target["path_prefix"] = prefix
+            with self.subTest(owned=owned, prefix=prefix), \
+                 self.assertRaisesRegex(gates.GateFailure, "policy_path_owner"):
+                gates.policy_jobs(self.baseline, value, [])
+        rebound = copy.deepcopy(self.current)
+        next(g for g in rebound["gates"] if g["id"] == "gate-ab-replay")["path_owner_for"].pop()
+        with self.assertRaisesRegex(gates.GateFailure, "policy_boundary_changed"):
+            gates.policy_jobs(self.current, rebound, [])
+        # The owner never satisfies a dormant gate's own phase deadline.
+        late = copy.deepcopy(self.current)
+        late["current_phase"] = "SP12"
+        with self.assertRaisesRegex(gates.GateFailure, "policy_capability_inactive"):
+            gates.policy_jobs(self.baseline, late, [])
+
     def test_unchanged_dormant_manifest_cannot_cover_new_capability(self):
         with self.assertRaises(gates.GateFailure):
             gates.policy_jobs(self.baseline, self.baseline, ["crates/oo-pipeline/src/lib.rs"])
@@ -313,7 +350,7 @@ class FullVerification(unittest.TestCase):
             with patch.dict(gates.os.environ, env), patch.object(gates, "git", side_effect=lambda *args: calls[args]), patch.object(gates, "Github", return_value=api):
                 api.pages.side_effect = [jobs, artifacts]
                 result = gates.verify(self.base)
-                self.assertEqual(len(result["proofs"]), 13)
+                self.assertEqual(len(result["proofs"]), 14)
                 self.assertFalse(result["release_authority"])
                 for broken_jobs, broken_artifacts in [
                     (jobs[:-1], artifacts), (jobs + jobs[:1], artifacts),

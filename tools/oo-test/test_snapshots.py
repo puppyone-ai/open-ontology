@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch, Mock
@@ -95,15 +96,172 @@ class SnapshotTests(unittest.TestCase):
             snapshots.remove_runtime_socket(root, "mysql")
             self.assertTrue(socket.is_symlink())
 
+    def test_unreadable_datadir_socket_goes_through_the_helper(self):
+        calls = []
+        denied = PermissionError(13, "Permission denied", "mysql.sock")
+        with patch.object(snapshots.Path, "is_symlink", side_effect=denied), \
+             patch.object(snapshots, "helper",
+                          side_effect=lambda *a: calls.append(a) or (0, "")):
+            self.assertEqual(snapshots.remove_runtime_socket(Path("/x/d"), "mysql", "img"),
+                             "root-helper")
+            with self.assertRaises(PermissionError):
+                snapshots.remove_runtime_socket(Path("/x/d"), "mysql")
+        self.assertEqual(calls[0][1], [(Path("/x/d"), "/d", "rw")])
+        # Only the entrypoint's own link is removed, never another symlink.
+        self.assertIn('"$(readlink /d/mysql.sock)" = /var/run/mysqld/mysqld.sock', calls[0][2])
+        with patch.object(snapshots.Path, "is_symlink", side_effect=denied), \
+             patch.object(snapshots, "helper", return_value=(1, "")):
+            with self.assertRaisesRegex(RuntimeError, "socket_failed"):
+                snapshots.remove_runtime_socket(Path("/x/d"), "mysql", "img")
+
     def test_clone_failure_is_not_a_full_copy_fallback(self):
         with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
             root = Path(directory)
             (root / "source").mkdir()
             (root / "source/data").write_bytes(b"fixture")
-            with patch.object(snapshots, "clone_file", side_effect=OSError("no COW")):
+            cow = "clonefile" if snapshots.sys.platform == "darwin" else "reflink"
+            with patch.object(snapshots, "clone_method", return_value=cow), \
+                 patch.object(snapshots, "clone_file", side_effect=OSError("no COW")):
                 with self.assertRaises(OSError):
                     snapshots.clone_tree(root / "source", root / "clone")
             self.assertFalse((root / "clone/data").exists())
+
+    def test_reflink_unsupported_falls_back_to_a_recorded_plain_copy(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            root = Path(directory)
+            (root / "source/sub").mkdir(parents=True)
+            (root / "source/sub/data").write_bytes(b"fixture" * 1000)
+            (root / "source/sub/data").chmod(0o640)
+            unsupported = OSError(snapshots.errno.EOPNOTSUPP, "Operation not supported")
+            with patch.object(snapshots.fcntl, "ioctl", side_effect=unsupported), \
+                 patch.object(snapshots.sys, "platform", "linux"):
+                self.assertEqual(snapshots.clone_method(root, root), "copy")
+                seconds, method = snapshots.clone_tree(root / "source", root / "clone")
+            self.assertEqual(method, "copy")
+            self.assertGreaterEqual(seconds, 0)
+            copied = root / "clone/sub/data"
+            self.assertEqual(copied.read_bytes(), b"fixture" * 1000)
+            self.assertEqual(copied.stat().st_mode & 0o777, 0o640)
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ["clone", "source"])
+            # Only "cannot share extents" selects the copy; other faults raise.
+            with patch.object(snapshots.fcntl, "ioctl", side_effect=OSError(snapshots.errno.EIO, "io")), \
+                 patch.object(snapshots.sys, "platform", "linux"):
+                with self.assertRaises(OSError):
+                    snapshots.clone_method(root, root)
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ["clone", "source"])
+
+    @unittest.skipUnless(sys.platform == "darwin", "APFS clonefile")
+    def test_macos_keeps_clonefile(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            root = Path(directory)
+            (root / "source").mkdir()
+            (root / "source/data").write_bytes(b"fixture")
+            self.assertEqual(snapshots.clone_method(root, root), "clonefile")
+            self.assertEqual(snapshots.clone_tree(root / "source", root / "clone")[1], "clonefile")
+
+    def test_container_owned_tree_is_removed_by_a_root_helper(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            data = Path(directory) / ".snapshot-data"
+            (data / "mysql").mkdir(parents=True)
+            (data / "mysql/x.frm").write_bytes(b"frm")
+            calls = []
+            def helper(image, mounts, script):
+                calls.append((image, mounts, script))
+                (data / "mysql/x.frm").unlink()  # rmtree itself is patched here
+                (data / "mysql").rmdir()
+                return 0, ""
+            denied = PermissionError(13, "Permission denied", "x.frm")
+            with patch.object(snapshots.shutil, "rmtree", side_effect=denied), \
+                 patch.object(snapshots, "helper", side_effect=helper):
+                self.assertEqual(snapshots.remove_tree(data, "mysql@sha256:a"), "root-helper")
+            self.assertFalse(data.exists())
+            self.assertEqual(calls, [("mysql@sha256:a", [(data, "/t", "rw")],
+                                      "find /t -mindepth 1 -delete")])
+            # Without an image the permission error is not swallowed; a failed
+            # helper is an error, never files silently left behind.
+            data.mkdir()
+            with patch.object(snapshots.shutil, "rmtree", side_effect=denied):
+                with self.assertRaises(PermissionError):
+                    snapshots.remove_tree(data)
+                with patch.object(snapshots, "helper", return_value=(1, "")):
+                    with self.assertRaisesRegex(RuntimeError, "helper_remove_failed"):
+                        snapshots.remove_tree(data, "mysql@sha256:a")
+            self.assertEqual(snapshots.remove_tree(Path(directory) / "absent"), "absent")
+
+    def test_root_helper_is_short_lived_owned_and_offline(self):
+        with patch.object(snapshots.t1, "LANE", "ta"), \
+             patch.object(snapshots.subprocess, "run",
+                          return_value=SimpleNamespace(returncode=0, stdout="", stderr="")) as run:
+            snapshots.helper("img@sha256:a", [(Path("/x/src"), "/src", "ro"),
+                                              (Path("/x/dst"), "/dst", "rw")], "true")
+        command = run.call_args.args[0]
+        for part in (["--rm"], ["--network", "none"], ["--user", "0"],
+                     ["--label", "oo.lane=ta"], ["--entrypoint", "sh"]):
+            self.assertTrue(any(command[i:i + len(part)] == part for i in range(len(command))))
+        self.assertIn("type=bind,src=/x/src,dst=/src,readonly", command)
+        self.assertIn("type=bind,src=/x/dst,dst=/dst", command)
+        self.assertEqual(command[-3:], ["img@sha256:a", "-c", "true"])
+        self.assertNotIn("sudo", command)
+
+    def test_container_owned_clone_goes_through_the_helper(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            root = Path(directory)
+            (root / "source").mkdir()
+            for method, flag in (("reflink", "--reflink=always "), ("copy", "")):
+                calls = []
+                with patch.object(snapshots, "host_owned", return_value=False), \
+                     patch.object(snapshots, "clone_method", return_value=method), \
+                     patch.object(snapshots, "helper",
+                                  side_effect=lambda *a: calls.append(a) or (0, "")):
+                    _, recorded = snapshots.clone_tree(root / "source", root / method, "img")
+                self.assertEqual(recorded, method + "+root-helper")
+                self.assertTrue(calls[0][2].endswith(f"cp -a {flag}/src/. /dst/"))
+                self.assertIn((root / "source", "/src", "ro"), calls[0][1])
+            # A symlink seen inside the container is refused and the partial clone removed.
+            with patch.object(snapshots, "host_owned", return_value=False), \
+                 patch.object(snapshots, "clone_method", return_value="copy"), \
+                 patch.object(snapshots, "helper", return_value=(3, "oo_symlink\n")):
+                with self.assertRaisesRegex(ValueError, "external"):
+                    snapshots.clone_tree(root / "source", root / "linked", "img")
+            self.assertFalse((root / "linked").exists())
+            with patch.object(snapshots, "host_owned", return_value=False):
+                with self.assertRaisesRegex(RuntimeError, "not_host_owned"):
+                    snapshots.clone_tree(root / "source", root / "noimage")
+
+    def test_clone_method_is_recorded_in_the_timing_receipt(self):
+        import json, timing
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            run = object.__new__(snapshots.SnapshotRun)
+            run.path = Path(directory)
+            run.receipt = {"run_id": "test"}
+            run.timing = timing.Timing(run, clock=lambda: 0.0)
+            run.record_clone("restore_clone", 1.5, "copy+root-helper")
+            saved = json.loads((run.path / "timing.json").read_text())
+            self.assertEqual(saved["attributes"]["restore_clone"],
+                             {"seconds": 1.5, "method": "copy+root-helper"})
+            self.assertEqual(saved["format"], "oo-test-timing/v1")
+            receipt = json.loads((run.path / "resource-receipt.json").read_text())
+            self.assertEqual(receipt["snapshot"]["restore_clone"]["method"], "copy+root-helper")
+            self.assertEqual(receipt["timing"]["attributes"]["restore_clone"]["seconds"], 1.5)
+
+    def test_cleanup_reports_a_tree_it_could_not_remove(self):
+        with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
+            run = object.__new__(snapshots.SnapshotRun)
+            run.path = Path(directory)
+            run.data = run.path / ".snapshot-data"
+            run.data.mkdir()
+            run.snapshot_image, run.manifest = None, {"image": "img@sha256:a"}
+            run.receipt = {}
+            with patch.object(snapshots.t1.LaneRun, "cleanup", return_value=[]), \
+                 patch.object(snapshots, "remove_tree",
+                              side_effect=RuntimeError("snapshot_helper_remove_failed")) as remove:
+                self.assertEqual(run.cleanup(), [".snapshot-data"])
+            remove.assert_called_once_with(run.data, "img@sha256:a")
+            self.assertEqual(run.receipt["snapshot"]["data_removal"], "failed:RuntimeError")
+            with patch.object(snapshots.t1.LaneRun, "cleanup", return_value=[]), \
+                 patch.object(snapshots, "remove_tree", return_value="root-helper"):
+                self.assertEqual(run.cleanup(), [])
+            self.assertEqual(run.receipt["snapshot"]["data_removal"], "root-helper")
 
     def test_host_caps_default_and_explicit(self):
         names = ("OO_TEST_MAX_ORACLE", "OO_TEST_MAX_OTHER_CONTAINERS", "OO_TEST_DOCKER_CAP_GB")
