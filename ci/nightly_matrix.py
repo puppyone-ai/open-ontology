@@ -24,6 +24,8 @@ import sys
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+# tools/oo-test has no __pycache__ ignore rule; never dirty the checkout.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "tools/oo-test"))
 import layers  # noqa: E402
 import runner  # noqa: E402
