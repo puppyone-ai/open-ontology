@@ -1658,6 +1658,12 @@ fn scan_workflows(repo: &Path) -> (Vec<Issue>, BTreeMap<String, String>) {
             && dispatch_only(&text)
             && text.matches("id-token:").count() == 1
             && text.contains("id-token: write");
+        // S6-B-01: publishing the offline runtime bundles to a GitHub Release
+        // needs contents: write. Only lite-bundle-release.yml, only when
+        // dispatched by hand, and in exactly one job.
+        let release_exception = name == "lite-bundle-release.yml"
+            && dispatch_only(&text)
+            && text.matches("contents: write").count() == 1;
         for token in [
             "pull_request_target",
             "self-hosted",
@@ -1665,7 +1671,9 @@ fn scan_workflows(repo: &Path) -> (Vec<Issue>, BTreeMap<String, String>) {
             "contents: write",
             "secrets.",
         ] {
-            if token == "id-token:" && signing_exception {
+            if (token == "id-token:" && signing_exception)
+                || (token == "contents: write" && release_exception)
+            {
                 continue;
             }
             if text.contains(token) {
