@@ -85,8 +85,9 @@ for the existing operator prerequisites; packaging is not automatic onboarding.
 
 ## Runtime-only release assets (npm CLI fallback)
 
-`lite-bundle-release.yml` (manual, master) verifies the signed runtime index
-and both platform signatures with cosign, pulls each platform on a native
+`lite-bundle-release.yml` (manual; publishes only from master) verifies the
+signed runtime index with cosign, takes each platform manifest digest from the
+index bytes that hash to that signed digest, pulls each platform on a native
 runner using the containerd image store, and runs
 
 ```sh

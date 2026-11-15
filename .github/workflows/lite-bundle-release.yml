@@ -2,7 +2,7 @@ name: lite-bundle-release
 
 # Publish the signed lite runtime as per-architecture offline bundles on a
 # public GitHub Release, so `oo up` works when the registry pull fails.
-# Manual only; runs on master. Never pushes images or changes the registry.
+# Manual only; publishes only from master. Never pushes images or changes the registry.
 on:
   workflow_dispatch:
     inputs:
@@ -27,7 +27,6 @@ env:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -48,7 +47,7 @@ jobs:
           set -euo pipefail
           [[ "$LITE_IMAGE" =~ ^ghcr\.io/puppyone-ai/open-ontology/lite@sha256:[0-9a-f]{64}$ ]]
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-      - name: Verify the index and both platform signatures
+      - name: Verify the index signature and resolve both platform manifests
         id: index
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,9 +56,11 @@ jobs:
           set -euo pipefail
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           bash ci/lite-cosign.sh "$RUNNER_TEMP"
-          repository="${LITE_IMAGE%@*}"
           "$RUNNER_TEMP/cosign" verify "$LITE_IMAGE" --certificate-identity "$SIGNER" \
             --certificate-oidc-issuer "$ISSUER" > /dev/null
+          # The platform manifests are bound by content: the raw index must hash
+          # to the signed digest, and it names each platform manifest digest.
+          # (lite-images.yml signs per-architecture build indexes, not these.)
           docker buildx imagetools inspect --raw "$LITE_IMAGE" > "$RUNNER_TEMP/index.json"
           python3 - "$RUNNER_TEMP/index.json" "$LITE_IMAGE" >> "$GITHUB_OUTPUT" <<'PY'
           import hashlib, json, re, sys
@@ -71,11 +72,6 @@ jobs:
               assert re.fullmatch(r'sha256:[0-9a-f]{64}', digest)
               print(f'{arch}={digest}')
           PY
-          for arch in amd64 arm64; do
-            digest=$(grep "^$arch=" "$GITHUB_OUTPUT" | cut -d= -f2)
-            "$RUNNER_TEMP/cosign" verify "$repository@$digest" --certificate-identity "$SIGNER" \
-              --certificate-oidc-issuer "$ISSUER" > /dev/null
-          done
       - name: Logout
         if: always()
         run: docker logout ghcr.io
@@ -146,6 +142,8 @@ jobs:
           compression-level: 0
 
   release:
+    # Building and checking bundles may run from any ref; publishing only from master.
+    if: github.ref == 'refs/heads/master'
     needs: bundle
     runs-on: ubuntu-24.04
     permissions:
