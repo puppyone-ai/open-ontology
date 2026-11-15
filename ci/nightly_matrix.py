@@ -114,7 +114,37 @@ def fast(arguments, run_id, output, name):
             "status": data.get("status") if data else None}, data
 
 
-def rows_from(report, layer, run_id, sha):
+# Harness-declared cases that cannot run against a pinned image. Any other
+# not_run (or a changed reason) is a failure.
+CASE_SKIPS = {
+    ("oracle", "retention_expiry"):
+        "pinned slim image has no RMAN; physical archive expiry not injected",
+}
+
+
+def case_rows(entry, base, skipped):
+    """Per-case L2 rows from the t3t4 matrix; None when the matrix is absent."""
+    matrix = ROOT / entry.get("evidence", "") / "matrix.json"
+    if not entry.get("evidence") or not matrix.is_file():
+        return None
+    rows = []
+    for result in json.loads(matrix.read_text()).values():
+        cases = result.get("cases") or {}
+        if not cases or result.get("error"):
+            rows.append(dict(base, suite="T3-fast", result="fail", error=result.get("error") or "no_cases"))
+        for case, outcome in sorted(cases.items()):
+            status, reason = outcome.get("status"), outcome.get("reason")
+            if status == "not_run" and CASE_SKIPS.get((entry["engine"], case)) == reason:
+                skipped.append({"engine": entry["engine"], "version": entry["version"], "layer": "L2",
+                                "case": case, "result": "skip", "reasons": [reason]})
+                continue
+            rows.append(dict(base, suite="T3:" + case,
+                             result="pass" if status in ("passed", "not_applicable") else "fail",
+                             **({"note": reason} if reason else {})))
+    return rows
+
+
+def rows_from(report, layer, run_id, sha, skipped=None):
     rows = []
     for entry in (report or {}).get("layers", {}).get(layer, {}).get("results", []):
         base = {"target": entry["engine"], "version": entry["version"], "run_id": run_id,
@@ -128,7 +158,11 @@ def rows_from(report, layer, run_id, sha):
                 rows.append(dict(base, suite="cell", result="fail",
                                  error=suites.get("error") or entry.get("reason")))
         else:
-            rows.append(dict(base, suite="T3-fast", result="pass" if entry.get("status") == "passed" else "fail"))
+            cases = case_rows(entry, base, skipped if skipped is not None else [])
+            if cases is None:
+                rows.append(dict(base, suite="T3-fast", result="fail", error="no_matrix"))
+            else:
+                rows += cases
     return rows
 
 
@@ -174,7 +208,10 @@ def main(argv=None):
                                    rid, output, f"attempt-{attempt}-l2")
                 commands.append(ran)
                 exits.append(ran["exit"])
-                rows += rows_from(report, "L2", rid, ran["report_sha256"])
+                case_skips = []
+                rows += rows_from(report, "L2", rid, ran["report_sha256"], case_skips)
+                if attempt == 1:
+                    skipped += case_skips
             # Every planned runnable cell must appear; a missing row is a failure.
             seen = {(r["target"], r["version"], r["layer"]) for r in rows}
             for cell in cells + l2:
@@ -182,7 +219,10 @@ def main(argv=None):
                 if key not in seen:
                     rows.append({"target": key[0], "version": key[1], "layer": key[2],
                                  "suite": "cell", "result": "fail", "error": "no_result"})
-            runs.append({"exit": max(exits) if exits else 1, "attempt": attempt, "rows": rows})
+            # The verdict is the rows: a declared case skip is not a failure, and
+            # every executed suite or case must pass. Raw exits stay in commands.
+            runs.append({"exit": 0 if rows and all(r["result"] == "pass" for r in rows) else 1,
+                         "fast_exits": exits, "attempt": attempt, "rows": rows})
         summary = summarize(runs)
         receipt = {
             "schema": "oo-nightly-matrix/v2", "run_id": run_id, "day": str(day),
@@ -202,7 +242,8 @@ def main(argv=None):
         (output / "stability.json").write_text(json.dumps(summary, indent=2) + "\n")
         print(json.dumps({"run_id": run_id, "status": receipt["status"],
                           "executed": len(cells) + len(l2), "skipped": [
-                              f"{s['layer']} {s['engine']}-{s['version']}: {'; '.join(s['reasons'])}"
+                              f"{s['layer']} {s['engine']}-{s['version']}"
+                              + (f" {s['case']}" if s.get("case") else "") + f": {'; '.join(s['reasons'])}"
                               for s in skipped],
                           "stability": {k: summary[k] for k in ("stable", "attempts")}}), flush=True)
         return 0 if receipt["status"] == "passed" else 1

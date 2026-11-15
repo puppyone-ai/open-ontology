@@ -61,8 +61,12 @@ build for the host or amd64; an Oracle-registry image that needs a sign-in and
 is not already present; Oracle 11g without `OO_TEST_ORACLE_WORKER_IMAGE` (the
 thick worker contains Oracle Instant Client, is built only locally and is
 never published). On the hosted runner that is Oracle 11g and 19c, plus the
-Oracle L2 cell on days whose representative is one of them. Every other cell
-must execute and pass; a failed, pending or missing cell fails the job.
+Oracle L2 cell on days whose representative is one of them. Within an executed L2
+cell, a fault case is a recorded skip only when the harness declares it
+cannot run against the pinned image and the reason matches `CASE_SKIPS`
+exactly (today: Oracle `retention_expiry`, the slim images have no RMAN).
+Every other cell and case must execute and pass; a failed, pending or missing
+cell fails the job.
 The GitHub job failure and step summary are owner-visible notifications;
 no external messaging recipient or service is configured.
 

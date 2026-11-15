@@ -356,9 +356,12 @@ def run_cycles(run, binary, worker_image):
                 writer_run = copy.copy(run)
                 writer_run.seq = 6000000
                 writer_errors = []
-                # 19c's first post-restart catalog load exceeds eight seconds.
-                # Keep the absence assertion below: a missed overlap still fails.
-                hold_seconds = 60 if run.version == "19" else 8
+                # The transaction must stay open for the whole baseline load:
+                # consistency B reads each table at its own SCN, so a commit
+                # mid-load is legitimately visible in a later table. 19c's
+                # first post-restart catalog load and a slower hosted runner
+                # both exceed eight seconds; the overlap is asserted below.
+                hold_seconds = 60
                 def long_transaction():
                     try:
                         writer_run.sql("INSERT INTO FIXTURE.ITEMS VALUES(7000,'long-tx');\n"
@@ -386,12 +389,14 @@ def run_cycles(run, binary, worker_image):
                               mining={"service": "FREE", "user": "C##OO_MINER", "password": {"secret_ref": "source-password"}})
                 runner.write_json(store / "cycle.json", policy)
                 _, loaded = run.command(command, timeout=300)
+                if not writer.is_alive():
+                    raise RuntimeError("long transaction ended before the baseline load finished")
                 c1_relations = {r["table"]["name"]: r["target"] for r in rows(loaded)}
                 # Verify the uncommitted transaction is absent from this baseline.
                 for relation in c1_relations.values():
                     if target.sql(f'SELECT count(*) FROM {relation} WHERE "ID"::numeric=7000;').strip() != "0":
                         raise RuntimeError("long transaction committed before baseline")
-                writer.join(timeout=60)
+                writer.join(timeout=hold_seconds + 60)
                 if writer.is_alive() or writer_errors:
                     raise RuntimeError("long transaction writer failed")
                 report["long_transaction"] = {"floor": floor, "initial_scn": initial, "absent_from_baseline": True}

@@ -64,6 +64,38 @@ class StabilityTests(unittest.TestCase):
         self.assertFalse(summarize([{"exit": 1, "rows": rows}])["stable"])
         self.assertEqual(nightly_matrix.rows_from(None, "L2", "r", None), [])
 
+    def test_only_declared_case_skips_are_skips(self):
+        import json, tempfile
+        from pathlib import Path
+        root = nightly_matrix.ROOT / "evidence"
+        root.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=root) as directory:
+            evidence = Path(directory)
+            def report(cases):
+                (evidence / "matrix.json").write_text(json.dumps({"23": {"cases": cases}}))
+                rel = str(evidence.relative_to(nightly_matrix.ROOT))
+                return {"layers": {"L2": {"results": [
+                    {"engine": "oracle", "version": "23", "status": "failed", "evidence": rel}]}}}
+            rmans = {"status": "not_run",
+                     "reason": "pinned slim image has no RMAN; physical archive expiry not injected"}
+            skipped = []
+            rows = nightly_matrix.rows_from(report({
+                "sigkill_mid_cycle": {"status": "passed"}, "retention_expiry": rmans,
+                "slot_invalidation": {"status": "not_applicable", "reason": "PostgreSQL replication slots only"},
+            }), "L2", "r", "0" * 64, skipped)
+            self.assertTrue(all(r["result"] == "pass" for r in rows))
+            self.assertEqual([(s["case"], s["result"]) for s in skipped], [("retention_expiry", "skip")])
+            # Another reason, another case or a failure is never a skip.
+            for cases in ({"retention_expiry": dict(rmans, reason="no time")},
+                          {"network_drop_mid_c1": rmans},
+                          {"sigkill_mid_cycle": {"status": "failed"}}, {}):
+                skipped = []
+                rows = nightly_matrix.rows_from(report(cases), "L2", "r", "0" * 64, skipped)
+                self.assertEqual(skipped, [])
+                self.assertTrue(any(r["result"] == "fail" for r in rows), cases)
+        missing = {"layers": {"L2": {"results": [{"engine": "mysql", "version": "9", "status": "failed"}]}}}
+        self.assertEqual(nightly_matrix.rows_from(missing, "L2", "r", None)[0]["error"], "no_matrix")
+
 
 if __name__ == "__main__":
     unittest.main()
