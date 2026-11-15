@@ -515,7 +515,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LITE_HEALTH_RUNTIME` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:289`](../../deploy/lite/lifecycle.py#L289) |
 | `LITE_HEALTH_TOKEN` | [credentials](#credentials) | [`lifecycle.py:313`](../../deploy/lite/lifecycle.py#L313) |
 | `LITE_HEALTH_URL` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:302`](../../deploy/lite/lifecycle.py#L302) |
-| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:463`](../../crates/oo-cli/src/admin/lite.rs#L463) |
+| `LITE_IMAGES_MISSING` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:464`](../../crates/oo-cli/src/admin/lite.rs#L464) |
 | `LITE_IMAGE_CHANGE_REQUIRES_EXPLICIT_MIGRATION` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:713`](../../deploy/lite/lifecycle.py#L713) |
 | `LITE_IMAGE_DIGEST_REQUIRED` | [installation-and-runtime](#installation-and-runtime) | [`lite.rs:44`](../../crates/oo-cli/src/admin/lite.rs#L44) |
 | `LITE_JOBS_SCHEMA` | [installation-and-runtime](#installation-and-runtime) | [`lifecycle.py:602`](../../deploy/lite/lifecycle.py#L602) |
