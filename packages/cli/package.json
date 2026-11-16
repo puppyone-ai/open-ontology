@@ -32,7 +32,6 @@
     "SKILL.md"
   ],
   "scripts": {
-    "postinstall": "node bin/oo.mjs install-check --json",
     "test": "node --test test/*.test.mjs"
   }
 }
