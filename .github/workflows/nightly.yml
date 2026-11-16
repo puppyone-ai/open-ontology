@@ -39,7 +39,19 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
-      - name: P0 source audit and regression matrix
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: build product binaries (plain and failpoints)
+        shell: bash
+        run: |
+          export CARGO_BUILD_JOBS=4 CARGO_INCREMENTAL=0
+          cargo build --locked -p oo-cli --bin oo
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path deploy/lite/mysql-doctor/Cargo.toml
+          CARGO_TARGET_DIR="$PWD/target" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog
+          CARGO_TARGET_DIR="$PWD/target/ta-fp" cargo build --locked --manifest-path tools/oo-load/Cargo.toml --features mysql-binlog,failpoints
+      - name: P0 fast L1 classes and L2 fault pairs
         shell: bash
         run: |
           set -o pipefail
@@ -51,7 +63,7 @@ jobs:
         run: |
           {
             echo '## Engine matrix'
-            echo 'Missing hooks/images fail closed. This job is not product sign-off.'
+            echo 'Fast L1/L2 layers on real binaries and pinned images. Cells this runner cannot run are listed as explicit skips with their reason; every other cell must pass. This job is not product sign-off.'
             cat "${RUNNER_TEMP}/engine-matrix.log"
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: preserve engine evidence
@@ -60,10 +72,7 @@ jobs:
         with:
           name: engine-matrix-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            evidence/h-s5-*/**/*.json
-            evidence/h-s5-*/**/*.stdout
-            evidence/h-s5-*/**/*.stderr
-            evidence/h-s5-*/**/SHA256SUMS
+            evidence/nightly-*
             ${{ runner.temp }}/engine-matrix.log
           retention-days: 14
           if-no-files-found: error
