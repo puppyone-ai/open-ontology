@@ -879,7 +879,7 @@ fn corpus_catalog(schema: &str, role: &str, tables: &serde_json::Value) -> Polic
 }
 
 #[test]
-fn frozen_erp_t6_and_demo_gold_admission_corpus() {
+fn frozen_erp_and_t6_gold_admission_corpus() {
     use sha2::{Digest, Sha256};
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let schema: serde_json::Value =
@@ -929,55 +929,6 @@ fn frozen_erp_t6_and_demo_gold_admission_corpus() {
             .unwrap_or_else(|e| panic!("T6 Q{count:02}: {sql}: {e:?}"));
     }
     assert_eq!(count, 20);
-    let demo: serde_json::Value =
-        serde_json::from_str(include_str!("../../../deploy/lite/demo/gold.json")).unwrap();
-    for role in ["analyst", "ops"] {
-        let reviewed: serde_json::Value = serde_json::from_slice(
-            &std::fs::read(root.join(format!("deploy/lite/demo/reviewed-{role}.json"))).unwrap(),
-        )
-        .unwrap();
-        let mut tables = serde_json::Map::new();
-        for visible in reviewed["visibility"]["datasets"].as_array().unwrap() {
-            let name = visible["dataset"].as_str().unwrap();
-            let dataset = reviewed["effective"]["datasets"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|d| d["dataset"] == name)
-                .unwrap();
-            let mut columns = serde_json::Map::new();
-            for column in dataset["columns"].as_array().unwrap() {
-                if !visible["columns"]
-                    .as_array()
-                    .unwrap()
-                    .contains(&column["name"])
-                {
-                    continue;
-                }
-                let kind = column["data_type"].as_str().unwrap();
-                let ty = if kind == "bigint" {
-                    "int8"
-                } else if kind == "timestamp without time zone" {
-                    "timestamp"
-                } else if kind.starts_with("numeric") {
-                    "numeric"
-                } else {
-                    kind
-                };
-                columns.insert(column["name"].as_str().unwrap().into(), ty.into());
-            }
-            tables.insert(name.strip_prefix("demo.").unwrap().into(), columns.into());
-        }
-        let cat = corpus_catalog("demo", role, &tables.into());
-        for q in demo.as_array().unwrap() {
-            let result = guard_select(&cat.identity, &cat, q["sql"].as_str().unwrap());
-            if q["denied"] == true {
-                assert!(result.is_err(), "{role}: {}", q["id"]);
-            } else {
-                result.unwrap_or_else(|e| panic!("demo {role} {}: {e:?}", q["id"]));
-            }
-        }
-    }
 }
 
 #[test]

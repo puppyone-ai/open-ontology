@@ -304,7 +304,7 @@ included by release staging. It uses the named profile, not whichever profile
 is later selected with `oo use`.
 
 After installation, run `oo` with no arguments for a short welcome (it points at
-`oo --help` and `oo quickstart`), and `oo install-check --json` to verify the
+`oo --help` and `oo init`), and `oo install-check --json` to verify the
 native binaries. The package has no install scripts, so npm prints no
 `install-scripts` warning. This offline check verifies
 packaged executable hashes and distinguishes an optional packaged MySQL doctor

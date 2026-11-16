@@ -643,20 +643,6 @@ pub(crate) mod tests {
         );
     }
 
-    #[test]
-    fn curated_demo_uses_the_same_confirmation_contract() {
-        let document = super::parse(
-            serde_json::from_str(include_str!(
-                "../../../../deploy/lite/demo/adjudication.json"
-            ))
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(document.graph.entities.len(), 10);
-        assert_eq!(document.graph.edges.len(), 10);
-        assert_eq!(super::summary_sha256(&document), document.summary_sha256);
-    }
-
     use super::*;
 
     #[test]

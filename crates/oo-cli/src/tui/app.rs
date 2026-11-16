@@ -2,7 +2,7 @@
 //! key polling and the per-screen loops. Callers check for a TTY first; none
 //! of this runs for non-TTY or `--json` paths.
 use std::io::{self, Write};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crossterm::event::{
     self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEvent, KeyEventKind,
@@ -169,7 +169,7 @@ fn run_job(live: &dyn Live, job: screens::connect::Job) -> screens::connect::Out
 }
 
 /// Screen 1. Live checks run on background threads; ⏎ signs in through
-/// `live.verify`. Returns the final state (demo chosen, or a source that
+/// `live.verify`. Returns the final state (a source that
 /// signed in), or `None` on quit.
 pub fn connect(
     term: &mut Term,
@@ -235,58 +235,6 @@ pub fn select(term: &mut Term, tables: &[TableMeta]) -> Result<Option<Vec<String
                 Action::Quit => return Ok(None),
                 Action::Next => return Ok(Some(state.selection())),
                 Action::None => (),
-            }
-        }
-    }
-}
-
-/// Screen 3. `poll` returns the latest chain state (or `None` when unchanged)
-/// and whether the build has finished. Returns false if the user stopped
-/// watching.
-pub fn build(term: &mut Term, poll: &mut dyn FnMut() -> (Option<Value>, bool)) -> Result<bool> {
-    let mut state = screens::build::Build::new();
-    let started = Instant::now();
-    let mut sampled = Instant::now();
-    loop {
-        let (latest, finished) = poll();
-        if let Some(latest) = latest {
-            let (frame, history) = (state.frame, std::mem::take(&mut state.history));
-            state = screens::build::from_chain(&latest);
-            state.frame = frame;
-            state.history = history;
-        }
-        state.frame += 1;
-        // One throughput sample a second, the last minute kept.
-        if sampled.elapsed() >= Duration::from_secs(1) {
-            sampled = Instant::now();
-            state.history.push(state.completed());
-            if state.history.len() > 61 {
-                state.history.remove(0);
-            }
-        }
-        if finished {
-            let secs = started.elapsed().as_secs();
-            state.note = if !state.done() {
-                term.theme
-                    .t(
-                        "pipeline not complete · ⏎ continue",
-                        "构建链未完成 · ⏎ 继续",
-                    )
-                    .into()
-            } else if term.theme.zh {
-                format!("用时 {secs} 秒 · ⏎ 继续")
-            } else {
-                format!("finished in {secs}s · ⏎ continue")
-            };
-        }
-        term.draw(|area, buf, theme| screens::build::render(&state, area, buf, theme))?;
-        if let Some(key) = term.key(TICK)? {
-            match key.code {
-                crossterm::event::KeyCode::Char('q') | crossterm::event::KeyCode::Esc => {
-                    return Ok(false);
-                }
-                crossterm::event::KeyCode::Enter if finished => return Ok(true),
-                _ => (),
             }
         }
     }

@@ -4,8 +4,6 @@ mod build_lite;
 mod build_retained;
 mod build_tail;
 mod build_token;
-mod demo;
-mod demo_try;
 mod doctor;
 mod lite;
 mod lite_bundle;
@@ -26,18 +24,14 @@ use std::path::Path;
 
 pub const HELP: &str = "\
 Admin commands (source connections remain read-only):
-  oo quickstart [--yes] [--json] [--offline-bundle FILE]   Alias for oo init --demo
-  oo quickstart --down [--state evidence/oo-demo] [--json]
-  oo try [--role analyst|ops] [--json] <connection flags>
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
-  oo init [--demo] [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
+  oo init [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
           [--config stack.yaml] [--profile NAME] [--no-anim] [--json]
   oo init [--dsn URL|JDBC|host:port] [--engine postgres|mysql|oracle] [--version V]
           [--host H] [--port P] [--database D | --service S | --sid S] [--user U]
           [--password-env VAR | --password-file PATH] [--ca-file PEM] [--json]
           Screen 1 fields as flags. On a TTY they prefill the form; otherwise
           They are checked (resolve, port, TLS certificate, sign-in); nothing is written.
-  oo quickstart [--no-anim]   (= oo init --demo)
   oo up|down|status --target ssh [--config stack.yaml] [--json]
   oo build [--resume] [--config stack.yaml] [--agent-target target.json] [--json]
     --runtime-config RUNTIME.json [--cycle ID] [--review-input INPUT.json] [--review-file DECISIONS.json] [--draft-only]
@@ -67,7 +61,7 @@ recent publication. up requires the pinned runtime image (oo-lite-image beside o
 or OO_LITE_RUNTIME_IMAGE, a content digest). It is pulled by digest; if the pull
 fails, up downloads the release runtime bundle pinned in oo-lite-bundle.json,
 checks its size and SHA-256, verifies and loads it. --offline-bundle PATH (up,
-quickstart) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
+init) uses a downloaded bundle file; OO_LITE_OFFLINE=1 never pulls or downloads.
 down stops this deployment only; database volumes and credentials are retained.
 --target ssh (or deploy.target: ssh) installs the same lite stack on deploy.ssh's
 Linux host: pinned host key, Docker/compose/systemd checks, digest images,
@@ -88,7 +82,7 @@ pub fn askpass(args: &[String]) -> Option<Result<Invocation, Failure>> {
 pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
     let (command, rest) = args.split_first()?;
     // `--offline-bundle PATH` applies to whichever lite `up` this runs.
-    if matches!(command.as_str(), "up" | "quickstart" | "init")
+    if matches!(command.as_str(), "up" | "init")
         && rest
             .iter()
             .any(|a| a == "--offline-bundle" || a.starts_with("--offline-bundle="))
@@ -96,29 +90,6 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         return Some(offline_bundle(command, rest).and_then(|args| {
             dispatch(&args).unwrap_or_else(|| Err(Failure::usage("ADMIN_ARGUMENT: unknown option")))
         }));
-    }
-    if command == "try" {
-        return Some(demo_try::run(rest));
-    }
-    if command == "help" && rest.first().is_some_and(|c| c == "try") {
-        return Some(Ok(Invocation::Help(demo_try::HELP.into())));
-    }
-    if command == "help" && rest.first().is_some_and(|c| c == "quickstart") {
-        return Some(Ok(Invocation::Help(HELP.into())));
-    }
-    if command == "quickstart" {
-        if rest.iter().any(|a| a == "--help" || a == "-h") {
-            return Some(Ok(Invocation::Help(HELP.into())));
-        }
-        if rest.iter().any(|a| a == "--down") {
-            return Some(demo::run(rest));
-        }
-        // Demo deployment does not require the own-database selection screens.
-        let demo_args: Vec<_> = ["init".to_owned(), "--demo".to_owned()]
-            .into_iter()
-            .chain(rest.iter().cloned())
-            .collect();
-        return dispatch(&demo_args);
     }
     // Internal runtime entry point; deliberately absent from public help.
     if command == "admin" && rest.first().is_some_and(|s| s == "source-catalog") {
@@ -214,7 +185,6 @@ fn is_admin(command: &str) -> bool {
             | "ontology"
             | "token"
             | "share-prompt"
-            | "quickstart"
     )
 }
 
@@ -234,8 +204,7 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
     let v03_init = rest.iter().any(|a| {
         matches!(
             a.split('=').next().unwrap_or(a),
-            "--demo"
-                | "--catalog"
+            "--catalog"
                 | "--tables"
                 | "--tables-recommended"
                 | "--no-anim"
@@ -254,14 +223,11 @@ fn execute(command: &str, rest: &[String]) -> Result<Invocation, Failure> {
                 | "--ca-file"
         )
     });
-    if command == "quickstart" || (command == "init" && v03_init) {
+    if command == "init" && v03_init {
         if rest.iter().any(|s| s == "--help" || s == "-h") {
             return Ok(Invocation::Help(HELP.into()));
         }
-        if rest.iter().any(|s| s == "--demo") {
-            return demo::run(rest);
-        }
-        return wizard::init(&wizard::parse_init(rest, command == "quickstart")?);
+        return wizard::init(&wizard::parse_init(rest)?);
     }
     if command == "review" {
         return review::run(rest);

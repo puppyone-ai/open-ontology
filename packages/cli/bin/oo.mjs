@@ -19,7 +19,7 @@ const fields = {
 };
 const connectedCommands = new Set([
   'query', 'tables', 'describe', 'validate', 'sql', 'freshness',
-  'knowledge', 'cancel', 'status', 'operations', 'try',
+  'knowledge', 'cancel', 'status', 'operations',
 ]);
 class CliError extends Error {}
 function fail(code, message) { throw new CliError(`${code}: ${message}`); }
@@ -373,7 +373,6 @@ function welcome() {
   return `Open Ontology CLI ${version}
 
   oo --help            list every command
-  oo quickstart        try it end to end on a demo database (Docker required)
   oo init              connect your own database
   oo install-check     verify the native binaries for this platform
 `;
