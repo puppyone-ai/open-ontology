@@ -3,7 +3,7 @@
 //! The first view is one list: connections this machine already knows
 //! (recent ones, `~/.pgpass`, `~/.my.cnf`, `tnsnames.ora`, `PG*` / `MYSQL_*`
 //! variables), then the supported engines with their version range and
-//! support level, then the demo. Anything typed or pasted (URL, JDBC URL,
+//! support level. Anything typed or pasted (URL, JDBC URL,
 //! `.env` lines, `host:port`, a TNS descriptor) is parsed as it arrives and
 //! fills the form.
 //!
@@ -31,7 +31,7 @@ use crate::tui::theme::{self, Hint, Theme, Tone, fit, heading, width};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stage {
-    /// One list: known connections, engines, demo; plus the paste line.
+    /// One list: known connections and engines; plus the paste line.
     Pick,
     /// Prefilled fields with live checks.
     Form,
@@ -80,7 +80,6 @@ pub enum TlsMode {
 pub enum Choice {
     Found(usize),
     Engine(Engine),
-    Demo,
 }
 
 /// The secret part of a sign-in request.
@@ -194,8 +193,6 @@ pub struct Connect {
     /// Pasted / typed text on the pick view. May hold a password: rendered
     /// only through `source::mask`.
     pub paste: String,
-    /// The user chose the demo.
-    pub demo: bool,
     pub engine: Engine,
     /// Picked version (index into `versions_of(engine)`); `None` = detect.
     pub version: Option<usize>,
@@ -257,7 +254,6 @@ impl Connect {
             found,
             cursor: 0,
             paste: String::new(),
-            demo: false,
             engine: Engine::Postgres,
             version: None,
             host: String::new(),
@@ -296,7 +292,6 @@ impl Connect {
         (0..self.found.len())
             .map(Choice::Found)
             .chain(Engine::ALL.into_iter().map(Choice::Engine))
-            .chain([Choice::Demo])
             .collect()
     }
 
@@ -868,10 +863,6 @@ fn pick_key(state: &mut Connect, key: KeyEvent) -> Action {
                 state.open(&f.prefill, &f.version);
             }
             Some(Choice::Engine(e)) => state.open_engine(*e),
-            Some(Choice::Demo) => {
-                state.demo = true;
-                return Action::Next;
-            }
             None => (),
         },
         KeyCode::Char(c)
@@ -1172,7 +1163,6 @@ fn render_pick(state: &Connect, inner: Rect, buf: &mut Buffer, theme: &Theme) {
         let name = match choice {
             Choice::Found(_) => theme.t("found on this machine", "本机已有"),
             Choice::Engine(_) => theme.t("engines", "数据库引擎"),
-            Choice::Demo => "",
         };
         if name != section && !name.is_empty() {
             if y + 2 >= inner.bottom() {
@@ -1240,20 +1230,6 @@ fn render_pick(state: &Connect, inner: Rect, buf: &mut Buffer, theme: &Theme) {
                 if wide {
                     spans.push(theme.span(format!("   :{}", e.port()), Tone::Faint));
                 }
-            }
-            Choice::Demo => {
-                if y + 1 < inner.bottom() {
-                    y += 1;
-                }
-                spans.push(theme.span("◇ ", Tone::Accent));
-                let text = theme
-                    .t("no database? try the demo", "没有数据库？用示例库")
-                    .to_owned();
-                spans.push(if on {
-                    Span::styled(text, theme.selected())
-                } else {
-                    theme.span(text, Tone::Ink)
-                });
             }
         }
         put(buf, inner.x, y, inner.width, spans);
@@ -2005,7 +1981,7 @@ mod tests {
     #[test]
     fn pick_engine_then_form_has_defaults() {
         let mut s = Connect::new(Vec::new());
-        assert_eq!(s.choices().len(), 4);
+        assert_eq!(s.choices().len(), 3);
         press(&mut s, &[KeyCode::Down, KeyCode::Down, KeyCode::Enter]);
         assert_eq!((s.stage, s.engine), (Stage::Form, Engine::Oracle));
         assert_eq!(s.port_number(), Some(1521));

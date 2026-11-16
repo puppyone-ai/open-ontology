@@ -288,8 +288,12 @@ fn confirm_summary_binds_overrides_and_never_overwrites() {
 }
 
 #[test]
-fn curated_demo_rejects_selection_instead_of_returning_a_preview() {
-    for flags in [vec!["--tables-recommended"], vec!["--tables", "lg.nope"]] {
+fn removed_demo_flag_is_a_usage_error() {
+    for flags in [
+        vec![],
+        vec!["--tables-recommended"],
+        vec!["--tables", "lg.nope"],
+    ] {
         let mut args = vec!["init", "--demo", "--json"];
         args.extend(flags);
         let result = oo(&args);

@@ -204,8 +204,7 @@ integration('all existing commands and arbitrary SQL arguments pass through with
     ['freshness', '--summary'], ['knowledge', 'cat', 'README.md'],
     ['knowledge', 'search', '--offset', '20', '--limit', '10', 'order'],
     ['cancel', 'q_actual001'], ['status', 'q_actual001'], ['operations'],
-    ['agent-skill', '--json'], ['query', '--help'], ['try', '--role', 'ops'],
-    ['quickstart', '--yes'], ['quickstart', '--down', '--json'],
+    ['agent-skill', '--json'], ['query', '--help'],
   ]) assert.deepEqual(output(f.run(args)).argv, args);
   const marker = join(f.root, 'shell-must-not-run');
   const sql = `SELECT '--gateway https://evil.example', '$(touch ${marker})';\n-- " \`touch ${marker}\` ; & |`;
@@ -221,17 +220,6 @@ integration('native stdout, stderr and exit code pass through', t => {
   assert.equal(result.status, 23);
   assert.equal(result.stderr, 'fixture stderr');
   assert.deepEqual(JSON.parse(result.stdout).argv, ['tables']);
-});
-
-integration('demo try uses the saved profile while quickstart cleanup does not', t => {
-  const f = fixture(t);
-  const profile = f.configure();
-  const args = output(f.run(['try', '--role', 'ops', '--json'])).argv;
-  assert(args.includes(profile.token_file));
-  assert.deepEqual(args.slice(-4), ['--transport', 'production', '--auth', 'external']);
-  assert.deepEqual(output(f.run(['try', '--help'])).argv, ['try', '--help']);
-  assert.deepEqual(output(f.run(['quickstart', '--down', '--json'])).argv,
-    ['quickstart', '--down', '--json']);
 });
 
 integration('stdin token stays private, off argv, off display and out of the package', t => {
@@ -548,8 +536,9 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   assert.equal(pkg.version, '0.2.0');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
-  assert.deepEqual(Object.keys(pkg.scripts), ['postinstall', 'test']);
-  assert.equal(pkg.scripts.postinstall, 'node bin/oo.mjs install-check --json');
+  // No install scripts: npm 11.19+ blocks them by default and warns, and
+  // npm 7+ hides their output, so the native check runs via `oo install-check`.
+  assert.deepEqual(Object.keys(pkg.scripts), ['test']);
   for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) assert(!pkg[key]);
   for (const name of ['LICENSE', 'NOTICE', 'SKILL.md', 'THIRD_PARTY_NOTICES.txt', 'dependencies.json']) {
     writeFileSync(join(f.pkg, name), 'fixture release asset');
@@ -568,3 +557,13 @@ test('package has no dependencies or network lifecycle and npm packs only releas
     'THIRD_PARTY_NOTICES.txt', 'dependencies.json', 'bin/oo.mjs', 'bin/auth.mjs',
     `native/${target}/${process.platform === 'win32' ? 'oo.exe' : 'oo'}`, 'native/manifest.json', 'package.json'].sort());
 });
+
+test('bare oo prints a welcome that points at --help and exits 0', () => {
+  const run = spawnSync(process.execPath, [join(source, 'bin', 'oo.mjs')], { encoding: 'utf8' });
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /^Open Ontology CLI \d+\.\d+\.\d+/);
+  assert.match(run.stdout, /oo --help/);
+  assert.match(run.stdout, /oo init/);
+  assert.doesNotMatch(run.stdout, /quickstart/);
+});
+
