@@ -60,6 +60,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: l3-rotation-${{ github.run_id }}
-          path: evidence/
+          # Only this run's evidence. evidence/ta-fixture-cache holds snapshot
+          # data owned by the database containers' uids, which the uploader
+          # cannot read; it is a reusable cache, not evidence.
+          path: |
+            evidence/l3-*
+            evidence/gate-*
           retention-days: 30
           if-no-files-found: ignore
