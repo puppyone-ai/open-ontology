@@ -9,7 +9,7 @@
 │   ▐My▌ MySQL        5.7–9.5   ● verified                                     │
 │   ▐Or▌ Oracle       11g–23ai  ● verified                                     │
 │                                                                              │
-│   ◇ no database? try the demo                                                │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

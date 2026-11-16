@@ -327,10 +327,9 @@ fn build_saved(path: &str, preflight_exit: u8) -> Result<Invocation, Failure> {
     Ok(result)
 }
 
-/// Options for `oo init` / `oo quickstart` beyond `--config`.
+/// Options for `oo init` beyond `--config`.
 #[derive(Default)]
 pub(super) struct InitOptions {
-    pub demo: bool,
     pub catalog: Option<std::path::PathBuf>,
     pub tables: Option<Vec<String>>,
     pub tables_recommended: bool,
@@ -406,12 +405,9 @@ impl ConnectFlags {
     }
 }
 
-pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Failure> {
+pub(super) fn parse_init(args: &[String]) -> Result<InitOptions, Failure> {
     let bad = || Failure::usage("ADMIN_ARGUMENT: invalid init option");
-    let mut opts = InitOptions {
-        demo,
-        ..InitOptions::default()
-    };
+    let mut opts = InitOptions::default();
     let mut seen = std::collections::HashSet::new();
     let mut index = 0;
     while index < args.len() {
@@ -433,7 +429,6 @@ pub(super) fn parse_init(args: &[String], demo: bool) -> Result<InitOptions, Fai
                 .ok_or_else(bad)
         };
         match key {
-            "--demo" => opts.demo = true,
             "--yes" => (),
             "--json" => opts.json = true,
             "--no-anim" => opts.no_anim = true,
@@ -518,13 +513,13 @@ fn catalog_tables(
             .map(Some)
             .map_err(Failure::usage);
     }
-    Ok(opts.demo.then(crate::tui::screens::select::demo_tables))
+    Ok(None)
 }
 
-/// Entry for every `oo init` / `oo quickstart` form except plain `--config`.
+/// Entry for every `oo init` form except plain `--config`.
 pub(super) fn init(opts: &InitOptions) -> Result<Invocation, Failure> {
     let tty = std::io::stdin().is_terminal() && std::io::stdout().is_terminal() && !opts.json;
-    if opts.tables.is_some() || opts.tables_recommended || (!tty && opts.demo) {
+    if opts.tables.is_some() || opts.tables_recommended {
         return select_tables(opts);
     }
     if !tty && opts.connect.any() {
@@ -559,7 +554,7 @@ fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
         tables = discover(&store, &request).map_err(Failure::local)?;
     }
     let tables = tables.ok_or_else(|| {
-        Failure::usage("TABLE_CATALOG_REQUIRED: pass --catalog CATALOG.json or --demo")
+        Failure::usage("TABLE_CATALOG_REQUIRED: pass --catalog CATALOG.json or connection flags")
     })?;
     let scored = score(&tables);
     let chosen = match &opts.tables {
@@ -601,7 +596,7 @@ fn select_tables(opts: &InitOptions) -> Result<Invocation, Failure> {
     let zh = zh();
     Ok(Invocation::AdminReport(
         if opts.json {
-            json!({"protocol":"oo.init-tables/v1","demo":opts.demo,
+            json!({"protocol":"oo.init-tables/v1",
                 "tables":scored.iter().map(|s| json!({"table":s.table,"verdict":s.verdict,
                     "reason":s.reason,"text":s.reason.text(zh),"referenced_by":s.referenced_by,"rows":s.rows})).collect::<Vec<_>>(),
                 "selected":chosen,"saved":saved})
@@ -1271,65 +1266,8 @@ fn show_checks(screen: &mut Screen, endpoint: &str, checks: Vec<Check>) -> Resul
     }
 }
 
-/// `oo quickstart` / `oo init --demo` on a TTY: every screen on the bundled
-/// demo catalog and adjudication. The demo runtime and pack are V3-M-01; this
-/// preview starts nothing and writes nothing.
-fn demo(opts: &InitOptions, theme: Theme, splash: bool) -> Result<Invocation, Failure> {
-    let mut term = Term::open(theme).map_err(Failure::local)?;
-    if splash {
-        app::splash(&mut term).map_err(Failure::local)?;
-    }
-    // The demo needs no connection details: screen 1 is skipped.
-    let tables = catalog_tables(&InitOptions {
-        demo: true,
-        catalog: opts.catalog.clone(),
-        ..InitOptions::default()
-    })?
-    .unwrap_or_default();
-    let Some(selected) = app::select(&mut term, &tables).map_err(Failure::local)? else {
-        return Err(Failure::local("TUI_CANCELLED"));
-    };
-    // This path still previews shipped assets. Do not invent successful build stages.
-    let done = json!({"stages":[]});
-    let mut first = true;
-    app::build(&mut term, &mut || {
-        (std::mem::take(&mut first).then(|| done.clone()), true)
-    })
-    .map_err(Failure::local)?;
-    let adj = crate::tui::adjudication::parse(
-        serde_json::from_str(include_str!(
-            "../../../../deploy/lite/demo/adjudication.json"
-        ))
-        .map_err(|_| Failure::local("DEMO_ADJUDICATION"))?,
-    )
-    .map_err(Failure::local)?;
-    let Some((confirm, overrides)) =
-        app::confirm(&mut term, adj, &crate::tui::adjudication::now_rfc3339())
-            .map_err(Failure::local)?
-    else {
-        return Err(Failure::local("TUI_CANCELLED"));
-    };
-    let profile = opts.profile.clone().unwrap_or_else(|| "demo".into());
-    let delivery = crate::tui::backend::Local {
-        root: crate::lifecycle::directory().map_err(|_| Failure::local("PROFILE_DIRECTORY"))?,
-        issued_profile: None,
-        zh: zh(),
-    };
-    app::deliver(&mut term, &delivery, &profile).map_err(Failure::local)?;
-    drop(term);
-    Ok(Invocation::Help(
-        json!({"protocol":"oo.quickstart-preview/v1","selected":selected,
-            "publish_confirm":confirm,"overrides":overrides.items.len(),"written":false,
-            "note":"preview only: the demo runtime and pack are started by V3-M-01"})
-        .to_string(),
-    ))
-}
-
 pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     let theme = Theme::from_env(opts.no_anim);
-    if opts.demo {
-        return demo(opts, theme, true);
-    }
     if Path::new("stack.yaml").symlink_metadata().is_ok() {
         return Err(Failure::local("TUI_CONFIG_EXISTS_OR_IO"));
     }
@@ -1371,10 +1309,6 @@ pub(super) fn run(opts: &InitOptions) -> Result<Invocation, Failure> {
     let Some(mut conn) = app::connect(screen.term(), start, &live).map_err(Failure::local)? else {
         return Err(Failure::local("TUI_CANCELLED"));
     };
-    if conn.demo {
-        drop(screen);
-        return demo(opts, theme, false);
-    }
     let masked = connect::endpoint(&conn);
     // Screen 2's list comes from the server unless --catalog supplied one.
     let mut discovery_note = None;

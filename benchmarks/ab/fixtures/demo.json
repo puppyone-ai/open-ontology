@@ -149,7 +149,7 @@
       "sha256": "b8bb5edbcf0586b723dca2155a6edbee27fed0ed55c5f9375060c6ed227f96c0"
     },
     "demo_gold": {
-      "path": "../../../deploy/lite/demo/gold.json",
+      "path": "demo-gold.json",
       "sha256": "4046377cce95d76df6dba85318f62a73a95e1d02c27d4a733e08c98a8f728335"
     }
   },
