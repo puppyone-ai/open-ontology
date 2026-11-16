@@ -438,7 +438,9 @@ pub(super) fn run(
             }
             deployment.service("gateway")?;
             let mut result = build::completion(&current, &state, json_output)?;
-            if json_output && cycle.is_none() {
+            // Save the issued Gateway profile in TTY and --json runs alike, so a
+            // human build leaves the CLI configured for an Agent too.
+            if cycle.is_none() {
                 let profile = issued_profile(config)?;
                 let name = &stack.sources[0].id;
                 let directory = crate::lifecycle::directory()?;
@@ -454,13 +456,17 @@ pub(super) fn run(
                     .block_on(crate::check::readiness(&profile))
                     .map_err(Failure::local)?;
                 if let Invocation::AdminReport(body, _) = &mut result {
-                    let mut report: Value = serde_json::from_str(body)
-                        .map_err(|_| Failure::local("BUILD_COMPLETION_PROTOCOL"))?;
-                    report["profile"] = json!(name);
-                    report["readiness"] = readiness;
-                    report["share_prompt"] =
-                        json!(crate::share_prompt::render(name).map_err(Failure::local)?);
-                    *body = report.to_string();
+                    if json_output {
+                        let mut report: Value = serde_json::from_str(body)
+                            .map_err(|_| Failure::local("BUILD_COMPLETION_PROTOCOL"))?;
+                        report["profile"] = json!(name);
+                        report["readiness"] = readiness;
+                        report["share_prompt"] =
+                            json!(crate::share_prompt::render(name).map_err(Failure::local)?);
+                        *body = report.to_string();
+                    } else {
+                        body.push_str(&profile_note(name, &readiness));
+                    }
                 }
             }
             return Ok(result);
@@ -478,6 +484,20 @@ pub(super) fn run(
         owner_review(&deployment, &base, &state, review_file)?;
     }
     Err(Failure::local("BUILD_LITE_NO_PROGRESS"))
+}
+
+/// Text-mode footer naming the saved profile and the next commands.
+fn profile_note(name: &str, readiness: &Value) -> String {
+    let ready = if readiness["ready"] == true {
+        "ready"
+    } else {
+        "not ready yet"
+    };
+    format!(
+        "\n\nSaved CLI profile {name} (selected; Gateway {ready}).\n\
+         Agents can now run: oo whoami, oo tables, oo query \"SELECT ...\"\n\
+         MCP: oo mcp-config --agent claude|cursor|codex --profile {name}\n"
+    )
 }
 
 /// Host-local references to the credential actually issued by this completed build.
@@ -659,5 +679,19 @@ mod tests {
                 .contains("BUILD_LITE_NOT_PROVISIONED")
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod profile_note_tests {
+    use super::*;
+
+    #[test]
+    fn text_footer_names_profile_and_next_commands() {
+        let ready = profile_note("erp", &json!({"ready": true}));
+        assert!(ready.contains("Saved CLI profile erp (selected; Gateway ready)"));
+        assert!(ready.contains("oo mcp-config --agent claude|cursor|codex --profile erp"));
+        let pending = profile_note("erp", &json!({"ready": false}));
+        assert!(pending.contains("Gateway not ready yet"));
     }
 }
