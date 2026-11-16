@@ -55,12 +55,16 @@ class StabilityTests(unittest.TestCase):
              "reason": "oracle_slot_occupied"},
             {"engine": "mysql", "version": "9", "status": "failed",
              "suites": {"T0": "passed", "error": "boom"}},
+            {"engine": "oracle", "version": "21", "status": "passed",
+             "suites": {"T0": "passed", "cleanup_failed": True}},
         ]}}}
         rows = nightly_matrix.rows_from(report, "L1", "r", "0" * 64)
         results = {(r["target"], r["suite"]): r["result"] for r in rows}
         self.assertEqual(results[("postgres", "T2")], "pass")
         self.assertEqual(results[("oracle", "cell")], "fail")
         self.assertEqual(results[("mysql", "cell")], "fail")
+        cleanup = next(r for r in rows if r["version"] == "21" and r["suite"] == "cell")
+        self.assertEqual((cleanup["result"], cleanup["error"]), ("fail", "cleanup_failed"))
         self.assertFalse(summarize([{"exit": 1, "rows": rows}])["stable"])
         self.assertEqual(nightly_matrix.rows_from(None, "L2", "r", None), [])
 

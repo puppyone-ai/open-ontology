@@ -26,6 +26,18 @@ class SnapshotTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "restart_health_timeout"):
                 run.wait_ready()
 
+    def test_oracle_restart_waits_for_the_pdb_not_only_the_cdb(self):
+        for version, check in (("23", "healthcheck.sh"), ("19", "/opt/oracle/checkDBStatus.sh")):
+            run = object.__new__(snapshots.SnapshotRun)
+            run.engine, run.version, run.name = "oracle", version, "oo-h-x"
+            run.args = SimpleNamespace(health_timeout=10)
+            run.command = Mock(side_effect=[(1, ""), (0, "")])
+            run.sql = Mock(return_value=(0, "1"))
+            with patch.object(snapshots.time, "sleep"):
+                run.wait_ready()
+            self.assertEqual(run.command.call_args_list[0].args[0], ["docker", "exec", "oo-h-x", check])
+            run.sql.assert_called_once()  # never queried while the image check fails
+
     def test_oracle_wait_polls_at_two_minutes_and_keeps_pending_evidence(self):
         with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
             receipt = Path(directory) / "polls.json"
@@ -176,7 +188,7 @@ class SnapshotTests(unittest.TestCase):
                 self.assertEqual(snapshots.remove_tree(data, "mysql@sha256:a"), "root-helper")
             self.assertFalse(data.exists())
             self.assertEqual(calls, [("mysql@sha256:a", [(data, "/t", "rw")],
-                                      "find /t -mindepth 1 -delete")])
+                                      snapshots.REMOVE_ALL)])
             # Without an image the permission error is not swallowed; a failed
             # helper is an error, never files silently left behind.
             data.mkdir()

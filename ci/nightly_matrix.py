@@ -154,9 +154,10 @@ def rows_from(report, layer, run_id, sha, skipped=None):
             verdicts = {k: v for k, v in suites.items() if re.fullmatch(r"T\d", k)}
             for suite, verdict in sorted(verdicts.items()):
                 rows.append(dict(base, suite=suite, result="pass" if verdict == "passed" else "fail"))
-            if not verdicts or entry.get("status") != "passed":
+            if not verdicts or entry.get("status") != "passed" or suites.get("cleanup_failed"):
                 rows.append(dict(base, suite="cell", result="fail",
-                                 error=suites.get("error") or entry.get("reason")))
+                                 error=suites.get("error") or entry.get("reason")
+                                 or ("cleanup_failed" if suites.get("cleanup_failed") else None)))
         else:
             cases = case_rows(entry, base, skipped if skipped is not None else [])
             if cases is None:
