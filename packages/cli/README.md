@@ -303,7 +303,10 @@ containing only `oo mcp --stdio --profile NAME`. The prebuilt bridge must be
 included by release staging. It uses the named profile, not whichever profile
 is later selected with `oo use`.
 
-After installation, run `oo install-check --json`. This offline check verifies
+After installation, run `oo` with no arguments for a short welcome (it points at
+`oo --help` and `oo quickstart`), and `oo install-check --json` to verify the
+native binaries. The package has no install scripts, so npm prints no
+`install-scripts` warning. This offline check verifies
 packaged executable hashes and distinguishes an optional packaged MySQL doctor
 from the pinned Docker runtime fallback. `runtime_tested: false` is intentional:
 it does not contact Docker or a database and is not an engine-support claim.

@@ -368,8 +368,23 @@ function delegate(binary, args, businessTimezone = null) {
   });
 }
 
+function welcome() {
+  const { version } = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  return `Open Ontology CLI ${version}
+
+  oo --help            list every command
+  oo quickstart        try it end to end on a demo database (Docker required)
+  oo init              connect your own database
+  oo install-check     verify the native binaries for this platform
+`;
+}
+
 async function main(args) {
   args = expandLongOptions(args);
+  if (args.length === 0) {
+    process.stdout.write(welcome());
+    return 0;
+  }
   if (args[0] === 'install-check') {
     if (args.length > 2 || (args.length === 2 && args[1] !== '--json')) fail('CONFIG_ARGUMENTS', 'Use oo install-check [--json].');
     process.stdout.write(`${JSON.stringify(installationReport())}\n`);

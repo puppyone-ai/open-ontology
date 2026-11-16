@@ -548,8 +548,9 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   assert.equal(pkg.version, '0.2.0');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
-  assert.deepEqual(Object.keys(pkg.scripts), ['postinstall', 'test']);
-  assert.equal(pkg.scripts.postinstall, 'node bin/oo.mjs install-check --json');
+  // No install scripts: npm 11.19+ blocks them by default and warns, and
+  // npm 7+ hides their output, so the native check runs via `oo install-check`.
+  assert.deepEqual(Object.keys(pkg.scripts), ['test']);
   for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) assert(!pkg[key]);
   for (const name of ['LICENSE', 'NOTICE', 'SKILL.md', 'THIRD_PARTY_NOTICES.txt', 'dependencies.json']) {
     writeFileSync(join(f.pkg, name), 'fixture release asset');
@@ -568,3 +569,12 @@ test('package has no dependencies or network lifecycle and npm packs only releas
     'THIRD_PARTY_NOTICES.txt', 'dependencies.json', 'bin/oo.mjs', 'bin/auth.mjs',
     `native/${target}/${process.platform === 'win32' ? 'oo.exe' : 'oo'}`, 'native/manifest.json', 'package.json'].sort());
 });
+
+test('bare oo prints a welcome that points at --help and exits 0', () => {
+  const run = spawnSync(process.execPath, [join(source, 'bin', 'oo.mjs')], { encoding: 'utf8' });
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /^Open Ontology CLI \d+\.\d+\.\d+/);
+  assert.match(run.stdout, /oo --help/);
+  assert.match(run.stdout, /oo quickstart/);
+});
+
