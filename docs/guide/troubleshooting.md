@@ -562,7 +562,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `LIVE_HTTP_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:41`](../../tools/model-egress/live_check.py#L41) |
 | `LIVE_STREAM_FAILURE` | [configuration-and-source](#configuration-and-source) | [`live_check.py:44`](../../tools/model-egress/live_check.py#L44) |
 | `LIVE_TRANSPORT` | [configuration-and-source](#configuration-and-source) | [`live_check.py:55`](../../tools/model-egress/live_check.py#L55) |
-| `LOCAL_FAILURE` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:534`](../../packages/cli/bin/oo.mjs#L534) |
+| `LOCAL_FAILURE` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:549`](../../packages/cli/bin/oo.mjs#L549) |
 | `LOGIN_CODE_ARGV` | [credentials](#credentials) | [`lifecycle.rs:256`](../../crates/oo-cli/src/lifecycle.rs#L256) |
 | `LOGIN_PROFILE_SAVE_FAILED` | [credentials](#credentials) | [`lifecycle.rs:746`](../../crates/oo-cli/src/lifecycle.rs#L746) |
 | `LOGIN_VERIFICATION_FAILED` | [credentials](#credentials) | [`lifecycle.rs:738`](../../crates/oo-cli/src/lifecycle.rs#L738) |
@@ -928,7 +928,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `TEST_UNREACHABLE` | [configuration-and-source](#configuration-and-source) | [`build_token_tests.rs:159`](../../crates/oo-cli/src/admin/build_token_tests.rs#L159) |
 | `TIMEZONE_INVALID` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:51`](../../packages/cli/bin/oo.mjs#L51) |
 | `TIMEZONE_REQUIRED` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:34`](../../packages/cli/bin/oo.mjs#L34) |
-| `TIME_ARGUMENTS` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:429`](../../packages/cli/bin/oo.mjs#L429) |
+| `TIME_ARGUMENTS` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:444`](../../packages/cli/bin/oo.mjs#L444) |
 | `TIME_INVALID` | [configuration-and-source](#configuration-and-source) | [`oo.mjs:37`](../../packages/cli/bin/oo.mjs#L37) |
 | `TLS_13_ONLY` | [connectivity](#connectivity) | [`netprobe.rs:282`](../../crates/oo-cli/src/tui/netprobe.rs#L282) |
 | `TLS_CERTIFICATE` | [connectivity](#connectivity) | [`netprobe.rs:176`](../../crates/oo-cli/src/tui/netprobe.rs#L176) |
