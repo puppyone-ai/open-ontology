@@ -482,6 +482,7 @@ Model output enters review before publication. Unclassified fields stay hidden. 
 Contributions are welcome across connectors, source-type fidelity, synchronization/recovery, semantic modeling, query safety, interfaces, deployment, documentation, and evaluation.
 
 - Start with the [design reading guide](docs/README.md), [product Spec](specs/open-ontology-v0.1-spec.md), and [implementation Plan](specs/open-ontology-v0.1-plan.md).
+- Follow the [engineering guide](docs/engineering/README.md) for collaboration, layered testing, CI gates, and the release runbook.
 - Choose a bounded capability with explicit input, interface, write scope, tests, and exit conditions.
 - Reuse existing implementation and fixtures. Keep fixes small and complete; preserve refusal and cleanup behavior.
 - Use synthetic data, scoped identities, and private secret references. Never publish customer data or runtime credentials.
