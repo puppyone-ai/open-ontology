@@ -678,7 +678,7 @@ def main(request):
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
     saved=json.loads(read_private(owner)) if owner.exists() else {}
-    lane=saved.get('lane','v03' if request.get('demo') else os.environ.get('OO_LITE_LANE','a'))
+    lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
     if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
@@ -717,18 +717,17 @@ def main(request):
         input_stack_sha256=hashlib.sha256(json.dumps(request['stack'],sort_keys=True,
             separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
         mounts=[]
-        if not request.get('demo'):
-            request=dict(request)
-            request['stack'],mounts=model_sources(root,request['stack'])
-            # Nested file mounts under the read-only home need empty targets.
-            # These placeholders contain no credential bytes.
-            for mount in mounts:
-                target=root/'home/.config/open-ontology/secrets'/Path(mount['target']).name
-                if target.exists():
-                    if read_private(target):
-                        raise ValueError('LITE_SECRET_MOUNT_SHADOW')
-                else:
-                    write(target,b'')
+        request=dict(request)
+        request['stack'],mounts=model_sources(root,request['stack'])
+        # Nested file mounts under the read-only home need empty targets.
+        # These placeholders contain no credential bytes.
+        for mount in mounts:
+            target=root/'home/.config/open-ontology/secrets'/Path(mount['target']).name
+            if target.exists():
+                if read_private(target):
+                    raise ValueError('LITE_SECRET_MOUNT_SHADOW')
+            else:
+                write(target,b'')
         for name in ('compose.yaml','postgres.sh','scheduler.py'):
             dest=root/('work' if name=='scheduler.py' else '')/name
             template=request['templates'][name]
@@ -751,8 +750,7 @@ def main(request):
                                 'gateway_port':port,'input_secret_mounts':mounts,
                                 'input_stack_sha256':input_stack_sha256}).encode())
         offline=['--pull','never','--no-build'] if os.environ.get('OO_LITE_POSTGRES_IMAGE') else []
-        services=['agent-db','control-db'] if request.get('demo') else []
-        docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120',*services],env)
+        docker(argv+['up',*offline,'--detach','--wait','--wait-timeout','120'],env)
         operator_bootstrap(root,argv,env,request['stack'],port)
         if request.get('retained'):
             provision_retained(root,argv,env,request,port)
@@ -799,7 +797,7 @@ def main(request):
         status='retained_ready'
         pending=['oo build' if build!='complete' else 'scheduled retained cycle']
     return {**health_report,'status':status,'services':services,'gateway_health':gateway,**history,
-            'model_source_configured':bool(request['stack'].get('model')) and not request.get('demo',False),
+            'model_source_configured':bool(request['stack'].get('model')),
             'pending':pending,'build':build,'gateway_url':f'https://localhost:{port}' if build else None,
             'publication':'live' if services_up and history.get('data_published_at') else 'unmeasured','healthy':healthy}
 

@@ -14,7 +14,7 @@
 │   ▐My▌ MySQL        5.7–9.5   ● verified   :3306                                                                     │
 │   ▐Or▌ Oracle       11g–23ai  ● verified   :1521                                                                     │
 │                                                                                                                      │
-│   ◇ no database? try the demo                                                                                        │
+│                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

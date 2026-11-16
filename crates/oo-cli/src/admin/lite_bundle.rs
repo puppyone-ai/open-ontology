@@ -23,7 +23,7 @@ const PLATFORMS: [&str; 2] = ["linux/amd64", "linux/arm64"];
 
 static OFFLINE_BUNDLE: OnceLock<PathBuf> = OnceLock::new();
 
-/// `--offline-bundle PATH` for this process (`oo up` / `oo quickstart`).
+/// `--offline-bundle PATH` for this process (`oo up` / `oo init`).
 pub(super) fn set_offline_bundle(path: PathBuf) {
     let _ = OFFLINE_BUNDLE.set(path);
 }

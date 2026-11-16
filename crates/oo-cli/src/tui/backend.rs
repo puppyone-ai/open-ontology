@@ -50,7 +50,7 @@ pub fn mcp_config(client: McpClient, profile: &str) -> String {
 }
 
 /// The caller supplies a credential reference only after issuance succeeds.
-/// An unprovisioned demo must never fall back to an existing user's profile.
+/// An unprovisioned deployment must never fall back to an existing user's profile.
 pub struct Local {
     pub root: std::path::PathBuf,
     pub issued_profile: Option<serde_json::Value>,
