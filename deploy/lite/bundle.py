@@ -240,7 +240,9 @@ def create_runtime(output, asset, platform, runtime):
     require(platform in ('linux/amd64', 'linux/arm64'), 'BUNDLE_PLATFORM')
     require(immutable(runtime), 'BUNDLE_IMMUTABLE_REFERENCE')
     require(not output.exists() and not asset.exists(), 'BUNDLE_OUTPUT_EXISTS')
-    info = remote.image_info(runtime, platform)
+    # Docker < 28.1 has no `image inspect --platform`; there, pass the
+    # platform manifest reference (repo@sha256:PLATFORM) so plain inspect is exact.
+    info = remote.image_info(runtime, platform) or remote.image_info(runtime)
     require(info and info['os'] + '/' + info['arch'] == platform, 'BUNDLE_IMAGE_PLATFORM')
     image = dict(info, source=runtime, source_id=remote.image_info(runtime)['id'], archive='runtime.tar')
     output.mkdir(mode=0o700)

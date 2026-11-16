@@ -2,7 +2,7 @@ name: lite-bundle-release
 
 # Publish the signed lite runtime as per-architecture offline bundles on a
 # public GitHub Release, so `oo up` works when the registry pull fails.
-# Manual only; runs on master. Never pushes images or changes the registry.
+# Manual only; publishes only from master. Never pushes images or changes the registry.
 on:
   workflow_dispatch:
     inputs:
@@ -27,7 +27,6 @@ env:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -48,7 +47,7 @@ jobs:
           set -euo pipefail
           [[ "$LITE_IMAGE" =~ ^ghcr\.io/puppyone-ai/open-ontology/lite@sha256:[0-9a-f]{64}$ ]]
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-      - name: Verify the index and both platform signatures
+      - name: Verify the index signature and resolve both platform manifests
         id: index
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,9 +56,11 @@ jobs:
           set -euo pipefail
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           bash ci/lite-cosign.sh "$RUNNER_TEMP"
-          repository="${LITE_IMAGE%@*}"
           "$RUNNER_TEMP/cosign" verify "$LITE_IMAGE" --certificate-identity "$SIGNER" \
             --certificate-oidc-issuer "$ISSUER" > /dev/null
+          # The platform manifests are bound by content: the raw index must hash
+          # to the signed digest, and it names each platform manifest digest.
+          # (lite-images.yml signs per-architecture build indexes, not these.)
           docker buildx imagetools inspect --raw "$LITE_IMAGE" > "$RUNNER_TEMP/index.json"
           python3 - "$RUNNER_TEMP/index.json" "$LITE_IMAGE" >> "$GITHUB_OUTPUT" <<'PY'
           import hashlib, json, re, sys
@@ -71,11 +72,6 @@ jobs:
               assert re.fullmatch(r'sha256:[0-9a-f]{64}', digest)
               print(f'{arch}={digest}')
           PY
-          for arch in amd64 arm64; do
-            digest=$(grep "^$arch=" "$GITHUB_OUTPUT" | cut -d= -f2)
-            "$RUNNER_TEMP/cosign" verify "$repository@$digest" --certificate-identity "$SIGNER" \
-              --certificate-oidc-issuer "$ISSUER" > /dev/null
-          done
       - name: Logout
         if: always()
         run: docker logout ghcr.io
@@ -108,6 +104,7 @@ jobs:
             sudo tee "$config"
           sudo systemctl restart docker
           docker info --format '{{json .DriverStatus}}' | grep -q io.containerd.snapshotter
+          docker version --format 'client {{.Client.Version}} server {{.Server.Version}} api {{.Server.APIVersion}}'
       - name: Pull the verified runtime and create the bundle
         env:
           GH_TOKEN: ${{ github.token }}
@@ -117,12 +114,15 @@ jobs:
           PLATFORM_DIGEST: ${{ needs.verify.outputs[matrix.arch] }}
         run: |
           set -euo pipefail
+          # Pull the platform manifest the signed index names (runner Docker
+          # 28.0 cannot inspect one platform of a multi-platform image).
+          platform_ref="${LITE_IMAGE%@*}@$PLATFORM_DIGEST"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker pull --platform "linux/$ARCH" "$LITE_IMAGE"
+          docker pull "$platform_ref"
           docker logout ghcr.io
           mkdir -m 700 "$RUNNER_TEMP/out"
           asset="oo-lite-runtime-$TAG-linux-$ARCH.tar.gz"
-          python3 deploy/lite/bundle.py create-runtime --platform "linux/$ARCH" --runtime "$LITE_IMAGE" \
+          python3 deploy/lite/bundle.py create-runtime --platform "linux/$ARCH" --runtime "$platform_ref" \
             --output "$RUNNER_TEMP/bundle" --asset "$RUNNER_TEMP/out/$asset" > "$RUNNER_TEMP/out/report-$ARCH.json"
           cat "$RUNNER_TEMP/out/report-$ARCH.json"
           python3 - "$RUNNER_TEMP/out/report-$ARCH.json" "$PLATFORM_DIGEST" <<'PY'
@@ -133,7 +133,7 @@ jobs:
           assert 0 < report['size'] < 2 * 1024 ** 3
           PY
           # Round trip on a clean store: remove our pull, load the asset back.
-          docker rmi "$LITE_IMAGE"
+          docker rmi "$platform_ref"
           python3 deploy/lite/bundle.py load-runtime --asset "$RUNNER_TEMP/out/$asset" \
             --manifest-sha256 "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["manifest_sha256"])' "$RUNNER_TEMP/out/report-$ARCH.json")" \
             --work "$RUNNER_TEMP/roundtrip" --platform "linux/$ARCH"
@@ -146,6 +146,8 @@ jobs:
           compression-level: 0
 
   release:
+    # Building and checking bundles may run from any ref; publishing only from master.
+    if: github.ref == 'refs/heads/master'
     needs: bundle
     runs-on: ubuntu-24.04
     permissions:
