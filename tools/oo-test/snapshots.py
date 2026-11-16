@@ -133,7 +133,9 @@ def clone_tree(source, destination, image=None):
     destination.mkdir(mode=0o700)
     flag = "--reflink=always " if method == "reflink" else ""
     code, output = helper(image, [(source, "/src", "ro"), (destination, "/dst", "rw")],
-                          'set -eu; if [ -n "$(find /src -type l -print)" ]; then '
+                          # Oracle's slim images have no find(1); ls/grep/cp
+                          # exist in every pinned engine image.
+                          'set -eu; if ls -laR /src | grep -q "^l"; then '
                           'echo oo_symlink >&2; exit 3; fi; '
                           f'cp -a {flag}/src/. /dst/')
     if code:
@@ -162,7 +164,8 @@ def remove_tree(path, image=None):
     except PermissionError:
         if image is None:
             raise
-    code, _ = helper(image, [(path, "/t", "rw")], "find /t -mindepth 1 -delete")
+    # Every entry, dotfiles included; unmatched globs stay literal for rm -f.
+    code, _ = helper(image, [(path, "/t", "rw")], REMOVE_ALL)
     if code:
         raise RuntimeError("snapshot_helper_remove_failed")
     path.rmdir()
@@ -172,6 +175,7 @@ def remove_tree(path, image=None):
 
 
 RUNTIME_SOCKET = "/var/run/mysqld/mysqld.sock"
+REMOVE_ALL = "rm -rf /t/* /t/.[!.]* /t/..?*"
 
 
 def remove_runtime_socket(data, engine, image=None):
@@ -422,6 +426,16 @@ class SnapshotRun(t1.LaneRun):
         deadline = time.monotonic() + (self.args.health_timeout or 1200)
         query = "SELECT 1 FROM dual;" if self.engine == "oracle" else "SELECT 1;"
         while time.monotonic() < deadline:
+            if self.engine == "oracle":
+                # The CDB answers before the PDB is open (ORA-01109 follows);
+                # the image's own check covers the PDB, as at first start.
+                check = ("/opt/oracle/checkDBStatus.sh" if self.version.startswith("19")
+                         else "healthcheck.sh")
+                code, _ = self.command(["docker", "exec", self.name, check],
+                                       required=False, timeout=30)
+                if code:
+                    time.sleep(1)
+                    continue
             code, _ = self.sql(query, admin=True, required=False, timeout=30)
             if code == 0:
                 return

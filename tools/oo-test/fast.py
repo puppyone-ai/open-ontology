@@ -214,7 +214,9 @@ def run_l1(root, args):
                         entry["commands"].append(command)
                         entry["suites"][suite] = command["status"]
                 verdicts = [v for k, v in entry["suites"].items() if re.fullmatch(r"T\d", k)]
+                # A cell that could not remove what it created has not passed.
                 entry["status"] = ("passed" if verdicts and "error" not in entry["suites"]
+                                   and not entry["suites"].get("cleanup_failed")
                                    and all(v == "passed" for v in verdicts) else "failed")
             entry["seconds"] = round(time.monotonic() - started, 3)
             results.append(entry)
