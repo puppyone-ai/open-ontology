@@ -192,6 +192,7 @@ pub async fn get(app: &AppState, id: &str) -> Result<Response<Body>, ApiError> {
 
 struct Create {
     name: String,
+    backend: String,
     config: Value,
     model_enabled: bool,
     llm_daily_calls: i64,
@@ -296,6 +297,62 @@ fn review_field(obj: &Map<String, Value>) -> Result<(), ApiError> {
     Ok(())
 }
 
+fn fs_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
+    only_keys(cfg, &["root", "exclude"], "/config")?;
+    let root = str_field(cfg, "root", "/config", 1, 4096)?
+        .ok_or_else(|| ApiError::bad("/config/root", "required"))?;
+    if !root.starts_with('/') {
+        return Err(ApiError::bad("/config/root", "must be an absolute path"));
+    }
+    let mut config = json!({ "root": root });
+    if let Some(e) = cfg.get("exclude") {
+        config["exclude"] = json!(exclude_field(e, "/config/exclude")?);
+    }
+    Ok(config)
+}
+
+/// `s3` Drives: bucket, prefix, endpoint, region, path_style, exclude and a
+/// `secret_ref`. Keys and secrets are never accepted inline (10 section 9).
+#[cfg(feature = "objectstore-s3")]
+fn s3_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
+    only_keys(
+        cfg,
+        &[
+            "bucket",
+            "prefix",
+            "endpoint",
+            "region",
+            "path_style",
+            "secret_ref",
+            "exclude",
+        ],
+        "/config",
+    )?;
+    let bucket = str_field(cfg, "bucket", "/config", 1, 255)?
+        .ok_or_else(|| ApiError::bad("/config/bucket", "required"))?;
+    let reference = str_field(cfg, "secret_ref", "/config", 1, 2048)?
+        .ok_or_else(|| ApiError::bad("/config/secret_ref", "required"))?;
+    if !oo_connectors::objectstore_s3::opendal::is_secret_ref(reference) {
+        return Err(ApiError::bad(
+            "/config/secret_ref",
+            "not a valid secret reference",
+        ));
+    }
+    let mut config = json!({ "bucket": bucket, "secret_ref": reference });
+    for key in ["prefix", "endpoint", "region"] {
+        if let Some(v) = str_field(cfg, key, "/config", 0, 1024)? {
+            config[key] = json!(v);
+        }
+    }
+    if let Some(v) = bool_field(cfg, "path_style", "/config")? {
+        config["path_style"] = json!(v);
+    }
+    if let Some(e) = cfg.get("exclude") {
+        config["exclude"] = json!(exclude_field(e, "/config/exclude")?);
+    }
+    Ok(config)
+}
+
 fn parse_create(body: &Value) -> Result<Create, ApiError> {
     let obj = body
         .as_object()
@@ -324,26 +381,22 @@ fn parse_create(body: &Value) -> Result<Create, ApiError> {
         .get("config")
         .and_then(Value::as_object)
         .ok_or_else(|| ApiError::bad("/config", "required object"))?;
-    if backend != "fs" {
-        return Err(ApiError::new(
-            code::INVALID_CONFIG,
-            "this engine build only serves fs drives",
-        )
-        .details(json!({ "pointer": "/backend" })));
-    }
-    only_keys(cfg, &["root", "exclude"], "/config")?;
-    let root = str_field(cfg, "root", "/config", 1, 4096)?
-        .ok_or_else(|| ApiError::bad("/config/root", "required"))?;
-    if !root.starts_with('/') {
-        return Err(ApiError::bad("/config/root", "must be an absolute path"));
-    }
-    let mut config = json!({ "root": root });
-    if let Some(e) = cfg.get("exclude") {
-        config["exclude"] = json!(exclude_field(e, "/config/exclude")?);
-    }
+    let config = match backend {
+        "fs" => fs_config(cfg)?,
+        #[cfg(feature = "objectstore-s3")]
+        "s3" => s3_config(cfg)?,
+        _ => {
+            return Err(ApiError::new(
+                code::INVALID_CONFIG,
+                "this engine build does not serve that backend",
+            )
+            .details(json!({ "pointer": "/backend" })));
+        }
+    };
     review_field(obj)?;
     Ok(Create {
         name,
+        backend: backend.to_owned(),
         config,
         model_enabled: bool_field(obj, "model_enabled", "")?.unwrap_or(false),
         llm_daily_calls: int_field(obj, "llm_daily_calls", "", 0, 1_000_000)?.unwrap_or(2000),
@@ -361,7 +414,7 @@ pub async fn create(app: &AppState, req: &Req) -> Result<Response<Body>, ApiErro
         return Ok(replayed(stored, "/v1/docs/drives"));
     }
     let c = parse_create(&body)?;
-    app.sync.probe(&c.config).map_err(|e| {
+    app.sync.probe(&c.backend, &c.config).map_err(|e| {
         let (c, msg) = match e.code() {
             "DOCS_SOURCE_AUTH_FAILED" => (code::ROOT_MISSING, "source refused access"),
             _ => (
@@ -373,12 +426,13 @@ pub async fn create(app: &AppState, req: &Req) -> Result<Response<Body>, ApiErro
     })?;
     let id: Result<String, sqlx::Error> = sqlx::query_scalar(
         "INSERT INTO _oo_docs.drive (id, name, backend, config, model_enabled, llm_daily_calls) \
-         VALUES (gen_random_uuid(), $1, 'fs', $2::jsonb, $3, $4::integer) RETURNING id::text",
+         VALUES (gen_random_uuid(), $1, $5, $2::jsonb, $3, $4::integer) RETURNING id::text",
     )
     .bind(&c.name)
     .bind(c.config.to_string())
     .bind(c.model_enabled)
     .bind(c.llm_daily_calls)
+    .bind(&c.backend)
     .fetch_one(&mut *tx)
     .await;
     let id = match id {
@@ -841,7 +895,10 @@ mod tests {
         let e = parse_create(&json!({"name":"x","backend":"s3","config":{}}))
             .err()
             .unwrap();
+        #[cfg(not(feature = "objectstore-s3"))]
         assert_eq!(e.code, code::INVALID_CONFIG);
+        #[cfg(feature = "objectstore-s3")]
+        assert_eq!(e.details["pointer"], "/config/bucket");
     }
 
     #[test]

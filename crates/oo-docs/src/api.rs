@@ -85,7 +85,7 @@ pub trait SyncPort: Send + Sync + 'static {
     /// Targeted sync of `paths` in a Drive (G11).
     fn targeted(&self, drive_id: &str, paths: Vec<String>) -> SyncFuture<'_>;
     /// Registration probe: can this config be opened read only?
-    fn probe(&self, config: &Value) -> Result<(), DocSourceError>;
+    fn probe(&self, backend: &str, config: &Value) -> Result<(), DocSourceError>;
     /// Bytes `[offset, offset + len)` of an object of a Drive (the original
     /// behind `GET /files/{fid}/content`). Sources that cannot serve this say
     /// so with `Unavailable`.
@@ -136,10 +136,10 @@ impl<F: SourceFactory> SyncPort for FactorySyncPort<F> {
         })
     }
 
-    fn probe(&self, config: &Value) -> Result<(), DocSourceError> {
+    fn probe(&self, backend: &str, config: &Value) -> Result<(), DocSourceError> {
         let drive = DriveRef {
             id: String::new(),
-            backend: "fs".to_owned(),
+            backend: backend.to_owned(),
             config: config.clone(),
             status: "active".to_owned(),
             sync_generation: 0,

@@ -14,6 +14,8 @@ workspace = true
 default = []
 # Test-only fault injection (spec 10 §12.5). Never enabled in release builds.
 failpoints = []
+# B-S4-01: Drives on S3 compatible buckets (OpenDAL, through oo-connectors).
+objectstore-s3 = ["oo-connectors/objectstore-s3"]
 
 # B-S1-07: blake3, pulldown-cmark, calamine and proptest passed the supply-chain
 # admission (supply-chain/policy.md §1, §4). OpenDAL stays behind the
