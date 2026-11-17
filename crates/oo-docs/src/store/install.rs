@@ -47,8 +47,12 @@ pub const VERSION_SOURCES_JOBS: &str = "docs-sources-jobs/1";
 pub const VERSION_INDEX: &str = "docs-index/1";
 /// `docs-packs-shares/1`.
 pub const VERSION_PACKS_SHARES: &str = "docs-packs-shares/1";
+/// `docs-llm/1`.
+pub const VERSION_LLM: &str = "docs-llm/1";
+/// `docs-consistency/1`.
+pub const VERSION_CONSISTENCY: &str = "docs-consistency/1";
 
-const MIGRATIONS: [Migration; 4] = [
+const MIGRATIONS: [Migration; 6] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -69,14 +73,26 @@ const MIGRATIONS: [Migration; 4] = [
         file: "0140_docs_packs_shares.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0140_docs_packs_shares.sql"),
     },
+    Migration {
+        version: VERSION_LLM,
+        file: "0141_docs_llm.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0141_docs_llm.sql"),
+    },
+    Migration {
+        version: VERSION_CONSISTENCY,
+        file: "0142_docs_consistency.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0142_docs_consistency.sql"),
+    },
 ];
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 4] = [
+pub const SCHEMA_MIN: [&str; 6] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
     VERSION_PACKS_SHARES,
+    VERSION_LLM,
+    VERSION_CONSISTENCY,
 ];
 
 /// Migrations compiled into this binary, in install order.
