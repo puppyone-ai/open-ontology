@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# CI job `formal-verify-deep` (80 section 6, nightly, own machine): the FAST loop at the larger
+# `deep-steps` bound of each model. Usage: formal-verify-deep [model-file-substring] [invariant]
+exec env FORMAL_BOUND=deep "$(dirname "$0")/formal-verify-fast" "$@"
