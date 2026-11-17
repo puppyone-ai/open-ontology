@@ -1,6 +1,6 @@
 # Open Ontology CLI
 
-Standalone package `@reduxxx888/ontology-cli`, version `0.2.0`. Requires Node.js
+Standalone package `@reduxxx888/ontology-cli`, version `0.2.1`. Requires Node.js
 22 or newer. The Node launcher verifies and executes the packaged Rust `oo`;
 it does not download executables, install dependencies, or require a repository,
 Rust toolchain, model API key, or direct database access.
@@ -23,7 +23,7 @@ source-notice collection is not legal clearance or a per-binary linkage audit.
 After the package has been published:
 
 ```sh
-npm install --global @reduxxx888/ontology-cli@0.2.0
+npm install --global @reduxxx888/ontology-cli@0.2.1
 ontology --version
 ontology configure --gateway https://gateway.example --token-stdin \
   --business-timezone Asia/Shanghai < /secure/gateway-token
@@ -231,7 +231,7 @@ Repeated `--gateway` options are rejected before a configured credential is atta
 
 ## Packaged platforms and release boundary
 
-The 0.2.0 release workflow builds `darwin-arm64`, `darwin-x64`, `linux-arm64`
+The 0.2.1 release workflow builds `darwin-arm64`, `darwin-x64`, `linux-arm64`
 and `linux-x64`. Linux uses a glibc 2.31 sysroot and runs smoke checks on
 Debian 11 and Ubuntu 22.04; Darwin targets macOS 11 or newer. Darwin x64 is
 cross-built in CI. Windows and musl/Alpine are not declared. Node.js 22 or

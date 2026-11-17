@@ -1,6 +1,6 @@
 {
   "name": "@reduxxx888/ontology-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Standalone Open Ontology CLI with a verified packaged native executable.",
   "type": "module",
   "license": "Apache-2.0",

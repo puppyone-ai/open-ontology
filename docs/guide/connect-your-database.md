@@ -37,7 +37,7 @@ review all affect elapsed time.
 ## 1. Install
 
 ```sh
-npm install --global @reduxxx888/ontology-cli@0.2.0
+npm install --global @reduxxx888/ontology-cli@0.2.1
 ```
 
 This registry command requires the release to have been published. For an
@@ -45,7 +45,7 @@ unpublished release candidate, obtain the staged npm tarball from the release
 owner and install that exact artifact instead:
 
 ```sh
-npm install --global /path/to/reduxxx888-ontology-cli-0.2.0.tgz
+npm install --global /path/to/reduxxx888-ontology-cli-0.2.1.tgz
 ```
 
 Replace the placeholder with the supplied local tarball path. Do not pack the

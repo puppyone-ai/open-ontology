@@ -533,7 +533,7 @@ test('package has no dependencies or network lifecycle and npm packs only releas
   const f = fixture(t);
   const pkg = JSON.parse(readFileSync(join(source, 'package.json')));
   assert.equal(pkg.name, '@reduxxx888/ontology-cli');
-  assert.equal(pkg.version, '0.2.0');
+  assert.equal(pkg.version, '0.2.1');
   assert.equal(pkg.engines.node, '>=22');
   assert.deepEqual(pkg.bin, { oo: 'bin/oo.mjs', ontology: 'bin/oo.mjs' });
   // No install scripts: npm 11.19+ blocks them by default and warns, and
