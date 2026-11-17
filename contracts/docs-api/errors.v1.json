@@ -1,0 +1,1069 @@
+{
+  "protocol": "oo.docs-api.errors/v1",
+  "api_version": "1.0-draft",
+  "codes": [
+    {
+      "code": "DOCS_ENGINE_BAD_HOST",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "Host 头非法",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_BAD_HOST"
+    },
+    {
+      "code": "DOCS_ENGINE_BAD_REQUEST",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "请求不合 schema",
+      "details": [
+        "pointer`（JSON Pointer）"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_BAD_REQUEST"
+    },
+    {
+      "code": "DOCS_ENGINE_CAS_CORRUPT",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "CAS 对象哈希不符，已重排",
+      "details": [
+        "count"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_CAS_CORRUPT"
+    },
+    {
+      "code": "DOCS_ENGINE_CURSOR_EXPIRED",
+      "http": 410,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "`since` 早于保留下限，需全量重拉",
+      "details": [
+        "oldest_seq",
+        "head_seq"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_CURSOR_EXPIRED"
+    },
+    {
+      "code": "DOCS_ENGINE_CURSOR_INVALID",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_CURSOR_INVALID"
+    },
+    {
+      "code": "DOCS_ENGINE_DB_UNAVAILABLE",
+      "http": 503,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "PG 不可用",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_DB_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_ENGINE_DISK_FULL",
+      "http": 507,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "只读模式",
+      "details": [
+        "free_bytes"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_DISK_FULL"
+    },
+    {
+      "code": "DOCS_ENGINE_DISK_LOW",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "低于暂停阈值",
+      "details": [
+        "free_bytes"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_DISK_LOW"
+    },
+    {
+      "code": "DOCS_ENGINE_DOCKER_UNAVAILABLE",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "Docker 不可用",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_DOCKER_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_ENGINE_FORBIDDEN_ORIGIN",
+      "http": 403,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "浏览器来源请求",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_FORBIDDEN_ORIGIN"
+    },
+    {
+      "code": "DOCS_ENGINE_IDEMPOTENCY_CONFLICT",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "同键不同体",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "code": "DOCS_ENGINE_IDEMPOTENCY_KEY_REQUIRED",
+      "http": 428,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_IDEMPOTENCY_KEY_REQUIRED"
+    },
+    {
+      "code": "DOCS_ENGINE_INTERNAL",
+      "http": 500,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "未分类内部错误（日志有 request id）",
+      "details": [
+        "request_id"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_INTERNAL"
+    },
+    {
+      "code": "DOCS_ENGINE_METHOD_NOT_ALLOWED",
+      "http": 405,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_METHOD_NOT_ALLOWED"
+    },
+    {
+      "code": "DOCS_ENGINE_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "资源或路由不存在",
+      "details": [
+        "resource"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_ENGINE_PAYLOAD_TOO_LARGE",
+      "http": 413,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [
+        "max_bytes"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_PAYLOAD_TOO_LARGE"
+    },
+    {
+      "code": "DOCS_ENGINE_PRECONDITION_FAILED",
+      "http": 412,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "revision 不符",
+      "details": [
+        "current_revision"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_PRECONDITION_FAILED"
+    },
+    {
+      "code": "DOCS_ENGINE_PRECONDITION_REQUIRED",
+      "http": 428,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "缺 If-Match",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_PRECONDITION_REQUIRED"
+    },
+    {
+      "code": "DOCS_ENGINE_RATE_LIMITED",
+      "http": 429,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "—",
+      "details": [
+        "retry_after_ms"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_RATE_LIMITED"
+    },
+    {
+      "code": "DOCS_ENGINE_SCHEMA_MISMATCH",
+      "http": 503,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "数据库迁移版本与引擎不兼容",
+      "details": [
+        "missing",
+        "unknown"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_SCHEMA_MISMATCH"
+    },
+    {
+      "code": "DOCS_ENGINE_STARTING",
+      "http": 503,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "引擎启动或迁移中",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_STARTING"
+    },
+    {
+      "code": "DOCS_ENGINE_UNAUTHENTICATED",
+      "http": 401,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "缺少或错误 token",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_UNAUTHENTICATED"
+    },
+    {
+      "code": "DOCS_ENGINE_UNAVAILABLE",
+      "http": 503,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "守护进程连不上引擎",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_ENGINE_VERSION_UNSUPPORTED",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "客户端要求的 API 版本更高",
+      "details": [
+        "server"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_VERSION_UNSUPPORTED"
+    },
+    {
+      "code": "DOCS_EXTRACT_LLM_QUOTE_MISMATCH",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "引文不在原文中，丢弃",
+      "details": [
+        "dropped"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_LLM_QUOTE_MISMATCH"
+    },
+    {
+      "code": "DOCS_EXTRACT_LLM_RATE_LIMITED",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "限流",
+      "details": [
+        "retry_after_ms"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_LLM_RATE_LIMITED"
+    },
+    {
+      "code": "DOCS_EXTRACT_LLM_SCHEMA_INVALID",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "输出不合 schema",
+      "details": [
+        "batches"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_LLM_SCHEMA_INVALID"
+    },
+    {
+      "code": "DOCS_EXTRACT_LLM_UNAVAILABLE",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "模型不可达",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_LLM_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_EXTRACT_MODEL_NOT_CONFIGURED",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "未配置模型，只跑规则",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_MODEL_NOT_CONFIGURED"
+    },
+    {
+      "code": "DOCS_EXTRACT_PARTIAL",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "部分批次失败（`extract_partial`）",
+      "details": [
+        "failed_batches"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_PARTIAL"
+    },
+    {
+      "code": "DOCS_EXTRACT_RULES_FAILED",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "规则引擎内部错误",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_EXTRACT_RULES_FAILED"
+    },
+    {
+      "code": "DOCS_PACK_BUDGET_TOO_SMALL",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "预算放不下固定章节",
+      "details": [
+        "min_budget"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PACK_BUDGET_TOO_SMALL"
+    },
+    {
+      "code": "DOCS_PACK_COVERAGE_INCOMPLETE",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "要求完整覆盖但超时仍未覆盖",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_COVERAGE_INCOMPLETE",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_PACK_LEAK_GUARD",
+      "http": 500,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "出口扫描命中（缺陷，需报告）",
+      "details": [
+        "hits`（只有数量）"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PACK_LEAK_GUARD"
+    },
+    {
+      "code": "DOCS_PACK_NOTHING_VISIBLE",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "范围内没有已发布内容",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_NOTHING_VISIBLE"
+    },
+    {
+      "code": "DOCS_PACK_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_PACK_PROVENANCE_GAP",
+      "http": 500,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "有内容行缺出处（缺陷）",
+      "details": [
+        "lines"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PACK_PROVENANCE_GAP"
+    },
+    {
+      "code": "DOCS_PACK_SCOPE_INVALID",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "范围路径不存在于快照",
+      "details": [
+        "paths"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PACK_SCOPE_INVALID"
+    },
+    {
+      "code": "DOCS_PACK_SEED_NOT_VISIBLE",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "种子在范围内不可见",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_SEED_NOT_VISIBLE"
+    },
+    {
+      "code": "DOCS_PACK_TASK_TOO_LONG",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "任务描述超限",
+      "details": [
+        "max_chars"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PACK_TASK_TOO_LONG"
+    },
+    {
+      "code": "DOCS_PACK_TOO_LARGE",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "Pack 超 8 MiB",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_TOO_LARGE"
+    },
+    {
+      "code": "DOCS_PACK_VERSION_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "本体版本不存在",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PACK_VERSION_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_PARSE_CODEC_UNAVAILABLE",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "无可用解码器（D65）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_CODEC_UNAVAILABLE",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_PARSE_CORRUPT",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "文件损坏",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_CORRUPT"
+    },
+    {
+      "code": "DOCS_PARSE_CRASH",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "解析进程崩溃",
+      "details": [
+        "attempt"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_CRASH"
+    },
+    {
+      "code": "DOCS_PARSE_EMPTY",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "空文件",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_EMPTY"
+    },
+    {
+      "code": "DOCS_PARSE_ENCODING",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "文本编码无法严格解码",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_ENCODING"
+    },
+    {
+      "code": "DOCS_PARSE_ENCRYPTED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "加密（`encrypted`）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_ENCRYPTED"
+    },
+    {
+      "code": "DOCS_PARSE_IMAGE_OCR_M2",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "图片，OCR 在 M2",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_IMAGE_OCR_M2"
+    },
+    {
+      "code": "DOCS_PARSE_IR_INVALID",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "解析器输出不合规",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_IR_INVALID"
+    },
+    {
+      "code": "DOCS_PARSE_LEGACY_OFFICE",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": ".doc/.xls/.ppt",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_LEGACY_OFFICE"
+    },
+    {
+      "code": "DOCS_PARSE_MACRO_PRESENT",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "含宏，只读数据",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_MACRO_PRESENT"
+    },
+    {
+      "code": "DOCS_PARSE_NOT_READY",
+      "http": 409,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "尚未解析完成",
+      "details": [
+        "state"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_NOT_READY"
+    },
+    {
+      "code": "DOCS_PARSE_OOM",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "解析内存超限",
+      "details": [
+        "attempt"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_OOM"
+    },
+    {
+      "code": "DOCS_PARSE_QUARANTINED",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "manual_only": true,
+      "meaning_zh": "反复崩溃被隔离",
+      "details": [
+        "crash_count"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_QUARANTINED"
+    },
+    {
+      "code": "DOCS_PARSE_SCANNED_PDF",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "扫描件，OCR 在 M2",
+      "details": [
+        "text_layer_pages",
+        "page_count"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_SCANNED_PDF"
+    },
+    {
+      "code": "DOCS_PARSE_TIMEOUT",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "解析超时",
+      "details": [
+        "attempt"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_TIMEOUT"
+    },
+    {
+      "code": "DOCS_PARSE_UNSUPPORTED_FORMAT",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "不支持的格式",
+      "details": [
+        "detected"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_UNSUPPORTED_FORMAT"
+    },
+    {
+      "code": "DOCS_PARSE_ZIP_BOMB",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "压缩比或体量超限",
+      "details": [
+        "ratio",
+        "declared_bytes"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_ZIP_BOMB"
+    },
+    {
+      "code": "DOCS_REVIEW_ALREADY_DECIDED",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "已被决定",
+      "details": [
+        "status"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_ALREADY_DECIDED"
+    },
+    {
+      "code": "DOCS_REVIEW_BATCH_TOO_LARGE",
+      "http": 413,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "单批 > 500",
+      "details": [
+        "max"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_BATCH_TOO_LARGE"
+    },
+    {
+      "code": "DOCS_REVIEW_CONSTRAINT_CONFLICT",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "完整性约束冲突未决",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_CONSTRAINT_CONFLICT",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_REVIEW_INVALID_DECISION",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "决定与种类不匹配",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_INVALID_DECISION"
+    },
+    {
+      "code": "DOCS_REVIEW_ITEM_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "审核项不存在",
+      "details": [
+        "id"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_ITEM_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_REVIEW_MERGE_CONFLICT",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "合并目标已合并或身份冲突",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_MERGE_CONFLICT"
+    },
+    {
+      "code": "DOCS_REVIEW_STALE_REVISION",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "revision 过期，需刷新",
+      "details": [
+        "current_revision"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_STALE_REVISION"
+    },
+    {
+      "code": "DOCS_SHARE_EXPIRY_INVALID",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "有效期超范围",
+      "details": [
+        "max_seconds"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_EXPIRY_INVALID"
+    },
+    {
+      "code": "DOCS_SHARE_GROUP_MEMBER",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "任务组成员不能单独刷新",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_GROUP_MEMBER",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SHARE_INVALID_TRANSITION",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "状态不允许该操作",
+      "details": [
+        "state"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_INVALID_TRANSITION"
+    },
+    {
+      "code": "DOCS_SHARE_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "—",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_SHARE_PINNED",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "pinned 的 Share 不接受刷新",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_PINNED",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "撤销提示文案键",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_READ_CONTENT_IRREVOCABLE"
+    },
+    {
+      "code": "DOCS_SHARE_REFS_CREDENTIAL_INVALID",
+      "http": 401,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "refs 凭证无效",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_REFS_CREDENTIAL_INVALID"
+    },
+    {
+      "code": "DOCS_SHARE_REFS_OUT_OF_SCOPE",
+      "http": 403,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "请求的原件不在该 Share 范围",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_REFS_OUT_OF_SCOPE"
+    },
+    {
+      "code": "DOCS_SHARE_ROLE_UNAVAILABLE",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "`editor` 在 M2 前不可用",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_ROLE_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_SHARE_TARGET_INVALID",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "目标目录非法",
+      "details": [
+        "reason"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_TARGET_INVALID"
+    },
+    {
+      "code": "DOCS_SHARE_TARGET_OCCUPIED",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "已有非本引擎的 `.context`",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_TARGET_OCCUPIED"
+    },
+    {
+      "code": "DOCS_SHARE_TARGET_WRITE_FAILED",
+      "http": 500,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "写入失败（已回滚）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SHARE_TARGET_WRITE_FAILED"
+    },
+    {
+      "code": "DOCS_SOURCE_AUTH_FAILED",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "凭证被拒",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_AUTH_FAILED"
+    },
+    {
+      "code": "DOCS_SOURCE_BUCKET_NOT_FOUND",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "桶不存在",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_BUCKET_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_SOURCE_CHANGED_DURING_READ",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "读取期间内容变化",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_CHANGED_DURING_READ"
+    },
+    {
+      "code": "DOCS_SOURCE_CHECKSUM_MISMATCH",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "CRC64 不符",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_CHECKSUM_MISMATCH"
+    },
+    {
+      "code": "DOCS_SOURCE_CLOCK_SKEW",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "本机与源时钟差过大",
+      "details": [
+        "skew_seconds"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_CLOCK_SKEW"
+    },
+    {
+      "code": "DOCS_SOURCE_CREDENTIAL_MISSING",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "`secret_ref` 无法解析",
+      "details": [
+        "field"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_CREDENTIAL_MISSING"
+    },
+    {
+      "code": "DOCS_SOURCE_DRIVE_EXISTS",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "同名或同根已登记",
+      "details": [
+        "drive_id"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_DRIVE_EXISTS"
+    },
+    {
+      "code": "DOCS_SOURCE_DRIVE_FILE_LIMIT",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "超单 Drive 文件数",
+      "details": [
+        "limit"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_DRIVE_FILE_LIMIT"
+    },
+    {
+      "code": "DOCS_SOURCE_DRIVE_HAS_ACTIVE_SHARES",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "删除前需撤销 Share",
+      "details": [
+        "share_ids"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_DRIVE_HAS_ACTIVE_SHARES"
+    },
+    {
+      "code": "DOCS_SOURCE_DRIVE_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "Drive 不存在",
+      "details": [
+        "drive_id"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_DRIVE_NOT_FOUND"
+    },
+    {
+      "code": "DOCS_SOURCE_ENDPOINT_INVALID",
+      "http": 400,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "endpoint 非 https 且非 loopback",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_ENDPOINT_INVALID"
+    },
+    {
+      "code": "DOCS_SOURCE_INVALID_CONFIG",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "Drive 配置无效（DocumentSource）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_INVALID_CONFIG",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SOURCE_IO",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "读取源时的 I/O 错误（DocumentSource）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_IO",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SOURCE_LIST_INCOMPLETE",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "列举未完成，未清扫",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_LIST_INCOMPLETE"
+    },
+    {
+      "code": "DOCS_SOURCE_MASS_DELETE_HELD",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "大规模删除被挂起，待确认",
+      "details": [
+        "generation",
+        "would_delete"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_MASS_DELETE_HELD"
+    },
+    {
+      "code": "DOCS_SOURCE_NOT_FOUND",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "对象在读取时已不存在（DocumentSource）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_NOT_FOUND",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SOURCE_PATH_COLLISION",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "NFC 后路径冲突",
+      "details": [
+        "other_file_id"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_PATH_COLLISION"
+    },
+    {
+      "code": "DOCS_SOURCE_PATH_INVALID",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "路径不可规范化",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_PATH_INVALID"
+    },
+    {
+      "code": "DOCS_SOURCE_PERMISSION_DENIED",
+      "http": 422,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "无读权限",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_PERMISSION_DENIED"
+    },
+    {
+      "code": "DOCS_SOURCE_PROTOCOL",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "对象存储返回了无法理解的应答（DocumentSource）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_PROTOCOL",
+      "added_by": "10 §8.8/§16.10, 00 D65"
+    },
+    {
+      "code": "DOCS_SOURCE_ROOT_MISSING",
+      "http": 422,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "本地根不存在或不是目录",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_ROOT_MISSING"
+    },
+    {
+      "code": "DOCS_SOURCE_SYMLINK_SKIPPED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "符号链接不跟随",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_SYMLINK_SKIPPED"
+    },
+    {
+      "code": "DOCS_SOURCE_SYNC_RUNNING",
+      "http": 409,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "已有同步在跑",
+      "details": [
+        "generation"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_SYNC_RUNNING"
+    },
+    {
+      "code": "DOCS_SOURCE_THROTTLED",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "源限流",
+      "details": [
+        "retry_after_ms"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_THROTTLED"
+    },
+    {
+      "code": "DOCS_SOURCE_TIMEOUT",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "源超时",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_TIMEOUT"
+    },
+    {
+      "code": "DOCS_SOURCE_TOO_LARGE",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "超单文件上限（`too_large`）",
+      "details": [
+        "limit_bytes"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_TOO_LARGE"
+    },
+    {
+      "code": "DOCS_SOURCE_UNAVAILABLE",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "源 5xx 或网络错误",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_UNAVAILABLE"
+    },
+    {
+      "code": "DOCS_SOURCE_UNSTABLE",
+      "http": null,
+      "state_code": true,
+      "retryable": true,
+      "meaning_zh": "文件仍在写入",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_UNSTABLE"
+    }
+  ]
+}

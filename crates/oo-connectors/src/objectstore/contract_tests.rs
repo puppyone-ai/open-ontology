@@ -131,3 +131,35 @@ async fn objectstore_trait_is_usable_in_memory() {
     assert_eq!(src.stat(b"missing").await.unwrap(), None);
     assert_eq!(src.changes(None).await.unwrap(), None);
 }
+
+#[test]
+fn objectstore_error_codes_exist_in_docs_api_errors() {
+    let table: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../contracts/docs-api/errors.v1.json"
+    ))
+    .unwrap();
+    let known: BTreeSet<&str> = table["codes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["code"].as_str().unwrap())
+        .collect();
+    for err in [
+        DocSourceError::NotFound,
+        DocSourceError::PermissionDenied,
+        DocSourceError::AuthFailed,
+        DocSourceError::Throttled { retry_after_ms: 0 },
+        DocSourceError::Unavailable,
+        DocSourceError::Timeout,
+        DocSourceError::Changed,
+        DocSourceError::InvalidConfig(""),
+        DocSourceError::Protocol(""),
+        DocSourceError::Io(""),
+    ] {
+        assert!(
+            known.contains(err.code()),
+            "{} missing from errors.v1.json",
+            err.code()
+        );
+    }
+}

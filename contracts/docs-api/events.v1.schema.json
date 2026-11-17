@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:docs-api:events:1.0",
+  "x-docs-api-version": "1.0-draft",
+  "description": "SSE events of docs-api/1.0-draft (10 §8.5 + G12, G19, G20). Persistent events carry seq and replay with since; transient ones do not.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "data"
+  ],
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "enum": [
+        "engine.health_changed",
+        "drive.created",
+        "drive.updated",
+        "drive.deleted",
+        "drive.sync_started",
+        "drive.sync_completed",
+        "drive.sync_failed",
+        "drive.sync_held",
+        "file.state_changed",
+        "file.renamed",
+        "file.removed",
+        "files.bulk_changed",
+        "review.changed",
+        "review.decided",
+        "ontology.version_published",
+        "share.created",
+        "share.state_changed",
+        "share.mount_removed",
+        "pack.compiled",
+        "pack.leak_blocked",
+        "usage.changed",
+        "refs.accessed",
+        "drive.freshness_changed",
+        "share.update_appended",
+        "ontology.constraint_violated",
+        "file.progress",
+        "stream.lagging"
+      ]
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "drive_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "engine.health_changed",
+              "drive.created",
+              "drive.updated",
+              "drive.deleted",
+              "drive.sync_started",
+              "drive.sync_completed",
+              "drive.sync_failed",
+              "drive.sync_held",
+              "file.state_changed",
+              "file.renamed",
+              "file.removed",
+              "files.bulk_changed",
+              "review.changed",
+              "review.decided",
+              "ontology.version_published",
+              "share.created",
+              "share.state_changed",
+              "share.mount_removed",
+              "pack.compiled",
+              "pack.leak_blocked",
+              "usage.changed",
+              "refs.accessed",
+              "drive.freshness_changed",
+              "share.update_appended",
+              "ontology.constraint_violated"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "seq"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "file.progress",
+              "stream.lagging"
+            ]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "seq"
+          ]
+        }
+      }
+    }
+  ],
+  "x-persistent": [
+    "engine.health_changed",
+    "drive.created",
+    "drive.updated",
+    "drive.deleted",
+    "drive.sync_started",
+    "drive.sync_completed",
+    "drive.sync_failed",
+    "drive.sync_held",
+    "file.state_changed",
+    "file.renamed",
+    "file.removed",
+    "files.bulk_changed",
+    "review.changed",
+    "review.decided",
+    "ontology.version_published",
+    "share.created",
+    "share.state_changed",
+    "share.mount_removed",
+    "pack.compiled",
+    "pack.leak_blocked",
+    "usage.changed",
+    "refs.accessed",
+    "drive.freshness_changed",
+    "share.update_appended",
+    "ontology.constraint_violated"
+  ],
+  "x-transient": [
+    "file.progress",
+    "stream.lagging"
+  ],
+  "examples": [
+    {
+      "seq": 1,
+      "type": "file.state_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "file": {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "a.md",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      }
+    },
+    {
+      "type": "file.progress",
+      "at": "2026-11-17T00:00:00Z",
+      "data": {
+        "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+        "unit": "page",
+        "done": 1,
+        "total": 2
+      }
+    }
+  ]
+}

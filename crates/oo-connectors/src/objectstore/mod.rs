@@ -234,7 +234,7 @@ impl DocSourceError {
             DocSourceError::Throttled { .. } => "DOCS_SOURCE_THROTTLED",
             DocSourceError::Unavailable => "DOCS_SOURCE_UNAVAILABLE",
             DocSourceError::Timeout => "DOCS_SOURCE_TIMEOUT",
-            DocSourceError::Changed => "DOCS_SOURCE_CHANGED",
+            DocSourceError::Changed => "DOCS_SOURCE_CHANGED_DURING_READ",
             DocSourceError::InvalidConfig(_) => "DOCS_SOURCE_INVALID_CONFIG",
             DocSourceError::Protocol(_) => "DOCS_SOURCE_PROTOCOL",
             DocSourceError::Io(_) => "DOCS_SOURCE_IO",

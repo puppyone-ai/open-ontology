@@ -1,0 +1,3304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:docs-api:1.0",
+  "x-docs-api-version": "1.0-draft",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "examples": [
+        "0f8fad5b-d9cb-469f-a165-70867728950e"
+      ]
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "examples": [
+        "2026-11-17T00:00:00Z"
+      ]
+    },
+    "Date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "examples": [
+        "2026-11-17"
+      ]
+    },
+    "Hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "examples": [
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    "SecretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_ref"
+      ],
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9_-]{0,63}|env:[A-Za-z_][A-Za-z0-9_]{0,127}|file:/[^\\u0000-\\u001f\\u007f]+)$"
+        }
+      },
+      "examples": [
+        {
+          "secret_ref": "env:OO_S3_KEY"
+        }
+      ]
+    },
+    "DrivePath": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*//)(?!.*(^|/)\\.\\.?(/|$)).*$",
+      "examples": [
+        "Projects/a/plan.md"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "retryable",
+        "details"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^DOCS_(SOURCE|PARSE|EXTRACT|REVIEW|PACK|SHARE|ENGINE)_[A-Z0-9_]+$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "code": "DOCS_ENGINE_NOT_FOUND",
+          "message": "not found",
+          "retryable": false,
+          "details": {}
+        }
+      ]
+    },
+    "Page": {
+      "type": "object",
+      "required": [
+        "items",
+        "next_cursor",
+        "as_of_seq"
+      ],
+      "properties": {
+        "items": {
+          "type": "array"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "as_of_seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "items": [],
+          "next_cursor": null,
+          "as_of_seq": 0
+        }
+      ]
+    },
+    "FileState": {
+      "enum": [
+        "stored",
+        "queued",
+        "parsing",
+        "parsed",
+        "extracting",
+        "indexed",
+        "published",
+        "parse_failed",
+        "extract_partial",
+        "unsupported",
+        "too_large",
+        "encrypted",
+        "duplicate",
+        "superseded",
+        "deleted",
+        "outdated"
+      ],
+      "examples": [
+        "published"
+      ]
+    },
+    "BlockedReason": {
+      "enum": [
+        "parser_unavailable",
+        "disk_low",
+        "db_degraded",
+        "llm_limit",
+        "drive_paused"
+      ],
+      "examples": [
+        "disk_low"
+      ]
+    },
+    "ShareState": {
+      "enum": [
+        "active",
+        "drifted",
+        "refreshed",
+        "expired",
+        "revoked"
+      ],
+      "examples": [
+        "active"
+      ]
+    },
+    "ShareRole": {
+      "enum": [
+        "viewer",
+        "suggester",
+        "editor"
+      ],
+      "examples": [
+        "suggester"
+      ]
+    },
+    "ReviewKind": {
+      "enum": [
+        "low_confidence_fact",
+        "entity_merge",
+        "alias_conflict",
+        "orphaned_overlay",
+        "type_promotion",
+        "suggestion",
+        "reprocess_diff",
+        "constraint_conflict",
+        "speaker_identity"
+      ],
+      "examples": [
+        "low_confidence_fact"
+      ]
+    },
+    "EntityType": {
+      "enum": [
+        "Person",
+        "Organization",
+        "Project",
+        "Decision",
+        "Document",
+        "Topic",
+        "Event",
+        "Term",
+        "Thing"
+      ],
+      "examples": [
+        "Person"
+      ]
+    },
+    "Backend": {
+      "enum": [
+        "fs",
+        "s3",
+        "oss",
+        "cos",
+        "r2"
+      ],
+      "examples": [
+        "fs"
+      ]
+    },
+    "ComponentStatus": {
+      "enum": [
+        "ok",
+        "degraded",
+        "unavailable",
+        "starting",
+        "not_configured",
+        "limited",
+        "blocked"
+      ],
+      "examples": [
+        "ok"
+      ]
+    },
+    "Health": {
+      "type": "object",
+      "required": [
+        "api_version",
+        "engine_version",
+        "status",
+        "components",
+        "queue",
+        "events_head"
+      ],
+      "properties": {
+        "api_version": {
+          "const": "1.0"
+        },
+        "engine_version": {
+          "type": "string"
+        },
+        "schema_versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "starting",
+            "unavailable"
+          ]
+        },
+        "components": {
+          "type": "object",
+          "required": [
+            "db",
+            "parser",
+            "model",
+            "cas"
+          ],
+          "properties": {
+            "db": {
+              "$ref": "#/$defs/Component"
+            },
+            "parser": {
+              "$ref": "#/$defs/Component"
+            },
+            "model": {
+              "$ref": "#/$defs/Component"
+            },
+            "cas": {
+              "$ref": "#/$defs/Component"
+            },
+            "engine": {
+              "$ref": "#/$defs/Component"
+            }
+          }
+        },
+        "queue": {
+          "type": "object",
+          "properties": {
+            "queued": {
+              "type": "integer"
+            },
+            "running": {
+              "type": "integer"
+            },
+            "failed_manual": {
+              "type": "integer"
+            },
+            "quarantined": {
+              "type": "integer"
+            },
+            "blocked": {
+              "type": "integer"
+            }
+          }
+        },
+        "disk": {
+          "type": "object",
+          "properties": {
+            "cas_used_bytes": {
+              "type": "integer"
+            },
+            "free_bytes": {
+              "type": "integer"
+            },
+            "original_cache_bytes": {
+              "type": "integer"
+            }
+          }
+        },
+        "events_head": {
+          "type": "integer"
+        },
+        "freshness": {
+          "$ref": "#/$defs/FreshnessState"
+        }
+      },
+      "examples": [
+        {
+          "api_version": "1.0",
+          "engine_version": "x",
+          "status": "ok",
+          "components": {
+            "db": {
+              "status": "ok"
+            },
+            "parser": {
+              "status": "ok"
+            },
+            "model": {
+              "status": "ok"
+            },
+            "cas": {
+              "status": "ok"
+            }
+          },
+          "queue": {},
+          "events_head": 0
+        }
+      ]
+    },
+    "Component": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/ComponentStatus"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "latency_ms": {
+          "type": "integer"
+        },
+        "detail": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "status": "ok"
+        }
+      ]
+    },
+    "DriveConfigFs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root"
+      ],
+      "properties": {
+        "root": {
+          "type": "string",
+          "pattern": "^/",
+          "maxLength": 4096
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "examples": [
+        {
+          "root": "/Users/example/Drive"
+        }
+      ]
+    },
+    "DriveConfigS3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "bucket",
+        "access_key_id",
+        "secret_access_key"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https://|^http://(127\\.0\\.0\\.1|localhost)(:|/)",
+          "maxLength": 2048
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 63
+        },
+        "prefix": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "path_style": {
+          "type": "boolean"
+        },
+        "access_key_id": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "secret_access_key": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "session_token": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "examples": [
+        {
+          "endpoint": "https://s3.example.com",
+          "bucket": "team-drive",
+          "access_key_id": {
+            "secret_ref": "env:OO_S3_KEY_ID"
+          },
+          "secret_access_key": {
+            "secret_ref": "file:/home/example/.config/oo/s3-secret"
+          }
+        }
+      ]
+    },
+    "DriveCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "backend",
+        "config"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "backend": {
+          "$ref": "#/$defs/Backend"
+        },
+        "config": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DriveConfigFs"
+            },
+            {
+              "$ref": "#/$defs/DriveConfigS3"
+            }
+          ]
+        },
+        "model_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "llm_daily_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_publish_bp": {
+              "type": "integer",
+              "minimum": 5000,
+              "maximum": 10000
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "团队资料",
+          "backend": "fs",
+          "config": {
+            "root": "/Users/example/Drive"
+          }
+        }
+      ]
+    },
+    "DrivePatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_enabled": {
+          "type": "boolean"
+        },
+        "llm_daily_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_publish_bp": {
+              "type": "integer",
+              "minimum": 5000,
+              "maximum": 10000
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "paused": true
+        }
+      ]
+    },
+    "Drive": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "backend",
+        "config",
+        "status",
+        "revision",
+        "counts",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "backend": {
+          "$ref": "#/$defs/Backend"
+        },
+        "config": {
+          "type": "object",
+          "description": "与 DriveCreate.config 同形；secret_ref 原样返回，从不返回密钥值"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "paused",
+            "deleting",
+            "deleted"
+          ]
+        },
+        "status_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_enabled": {
+          "type": "boolean"
+        },
+        "llm_daily_calls": {
+          "type": "integer"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "counts": {
+          "type": "object",
+          "description": "FileState → 数量",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "pending_review": {
+          "type": "integer"
+        },
+        "files_total": {
+          "type": "integer"
+        },
+        "bytes_total": {
+          "type": "integer"
+        },
+        "last_sync": {
+          "$ref": "#/$defs/SyncInfo"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "name": "x",
+          "backend": "fs",
+          "config": {},
+          "status": "active",
+          "revision": 0,
+          "counts": {},
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "SyncInfo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "complete",
+            "failed",
+            "held"
+          ]
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "removed": {
+          "type": "integer"
+        },
+        "renamed": {
+          "type": "integer"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "SyncRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confirm_mass_delete": {
+          "type": "integer",
+          "description": "确认被 held 的代际"
+        },
+        "deep": {
+          "type": "boolean",
+          "description": "忽略指纹、全量重哈希"
+        },
+        "paths": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/DrivePath"
+          },
+          "description": "G11/D47 targeted sync: stat only these paths and parents; never advances the generation or sweeps."
+        }
+      },
+      "examples": [
+        {
+          "paths": [
+            "Projects/a/plan.md"
+          ]
+        }
+      ]
+    },
+    "FileSummary": {
+      "type": "object",
+      "required": [
+        "id",
+        "drive_id",
+        "path",
+        "state",
+        "state_since",
+        "retryable",
+        "pending_review"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "format": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/FileState"
+        },
+        "state_since": {
+          "$ref": "#/$defs/Time"
+        },
+        "state_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "blocked_reason": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/BlockedReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "progress": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "unit": {
+              "enum": [
+                "page",
+                "sheet",
+                "line",
+                "batch"
+              ]
+            },
+            "done": {
+              "type": "integer"
+            },
+            "total": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "pending_review": {
+          "type": "integer"
+        },
+        "duplicate_of": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "b3": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "modified_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latency_ms": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "G13 per-stage durations; llm_wait_ms separate",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "x",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      ]
+    },
+    "StateEntry": {
+      "type": "object",
+      "required": [
+        "seq",
+        "to",
+        "at"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer"
+        },
+        "from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "to": {
+          "$ref": "#/$defs/FileState"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attempt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "seq": 0,
+          "to": "published",
+          "at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "FileDetail": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/FileSummary"
+        }
+      ],
+      "properties": {
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StateEntry"
+          },
+          "maxItems": 200
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "b3": {
+                "type": "string"
+              },
+              "created_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "superseded_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "parse": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "parser_id": {
+              "type": "string"
+            },
+            "parser_version": {
+              "type": "string"
+            },
+            "block_count": {
+              "type": "integer"
+            },
+            "page_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "maxItems": 500
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "maxItems": 500
+        },
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "state": {
+                "$ref": "#/$defs/ShareState"
+              },
+              "facts_used": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "llm": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "done",
+                "skipped_not_configured",
+                "skipped_limit",
+                "partial",
+                "pending"
+              ]
+            },
+            "calls": {
+              "type": "integer"
+            },
+            "cache_hits": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "a.md",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      ]
+    },
+    "Block": {
+      "type": "object",
+      "description": "oo.doc-ir/v1 block，见 contracts/docs-ir/doc-ir.v1.schema.json#/$defs/block；另加 src 字段（出处片段）",
+      "properties": {
+        "src": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "RetryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_ids"
+      ],
+      "properties": {
+        "file_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          }
+        },
+        "mode": {
+          "enum": [
+            "normal",
+            "safe"
+          ],
+          "default": "normal"
+        }
+      },
+      "examples": [
+        {
+          "file_ids": [
+            "0f8fad5b-d9cb-469f-a165-70867728950e"
+          ]
+        }
+      ]
+    },
+    "EntityRef": {
+      "type": "object",
+      "required": [
+        "id",
+        "key",
+        "type",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "key": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/EntityType"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subkind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "key": "x",
+          "type": "Person",
+          "name": "x"
+        }
+      ]
+    },
+    "Evidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "file_id",
+        "path",
+        "block_id",
+        "anchor",
+        "src",
+        "origin"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "file_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "path": {
+          "type": "string"
+        },
+        "block_id": {
+          "type": "string"
+        },
+        "anchor": {
+          "type": "object"
+        },
+        "src": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "origin": {
+          "enum": [
+            "rule",
+            "llm",
+            "human",
+            "suggest"
+          ]
+        },
+        "withdrawn_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "x",
+          "block_id": "x",
+          "anchor": {},
+          "src": "x",
+          "origin": "rule"
+        }
+      ]
+    },
+    "Fact": {
+      "type": "object",
+      "required": [
+        "id",
+        "fact_key",
+        "subject",
+        "predicate",
+        "confidence_bp",
+        "origin",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "fact_key": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "subject": {
+          "$ref": "#/$defs/EntityRef"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "object": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "valid_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valid_to": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valid_precision": {
+          "type": "string"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "retracted_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence_bp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "origin": {
+          "enum": [
+            "rule",
+            "llm",
+            "human",
+            "suggest"
+          ]
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "retracted",
+            "rejected"
+          ]
+        },
+        "published_in": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "superseded_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 50
+        },
+        "evidence_total": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "fact_key": "0000000000000000000000000000000000000000000000000000000000000000",
+          "subject": {
+            "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+            "key": "x",
+            "type": "Person",
+            "name": "x"
+          },
+          "predicate": "x",
+          "confidence_bp": 0,
+          "origin": "rule",
+          "status": "draft"
+        }
+      ]
+    },
+    "Alias": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "Entity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/EntityRef"
+        }
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "active",
+            "merged",
+            "withdrawn"
+          ]
+        },
+        "merged_into": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identity": {
+          "type": "object"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Alias"
+          }
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "redirect_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "key": "person:000000000000000000000000",
+          "type": "Person",
+          "name": "示例甲"
+        }
+      ]
+    },
+    "ResolveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityType"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      },
+      "examples": [
+        {
+          "text": "x"
+        }
+      ]
+    },
+    "ResolveResult": {
+      "type": "object",
+      "properties": {
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "span": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "surface": {
+                "type": "string"
+              },
+              "candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "entity": {
+                      "$ref": "#/$defs/EntityRef"
+                    },
+                    "score_bp": {
+                      "type": "integer"
+                    },
+                    "via": {
+                      "enum": [
+                        "name",
+                        "alias",
+                        "alias_draft",
+                        "honorific",
+                        "identity"
+                      ]
+                    }
+                  }
+                }
+              },
+              "ambiguous": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "ReviewItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "reason_code",
+        "created_at",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "$ref": "#/$defs/ReviewKind"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "accepted",
+            "rejected",
+            "superseded"
+          ]
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "file_id": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "subject": {
+          "type": "object",
+          "description": "按 kind：{fact}|{entities:[EntityRef…],shared_aliases:[…]}|{alias,entities}|{overlay,missing_evidence}|{label,instances,files}|{suggestion}"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 20
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "decided_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "low_confidence_fact",
+          "status": "pending",
+          "reason_code": "x",
+          "created_at": "2026-11-17T00:00:00Z",
+          "revision": 0
+        }
+      ]
+    },
+    "ReviewGroup": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/ReviewKind"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "ReviewDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "revision",
+              "decision"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "decision": {
+                "enum": [
+                  "accept",
+                  "reject",
+                  "edit"
+                ]
+              },
+              "edit": {
+                "type": "object",
+                "description": "decision=edit 时：fact 的 value/valid_from/valid_to，或 merge 的目标实体，或 alias 的归属实体"
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "by_source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file_id",
+            "decision"
+          ],
+          "properties": {
+            "file_id": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "kinds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ReviewKind"
+              }
+            },
+            "decision": {
+              "enum": [
+                "accept",
+                "reject"
+              ]
+            },
+            "as_of_seq": {
+              "type": "integer",
+              "description": "只处理该序号前入队的项，避免误收新项"
+            }
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "items"
+          ]
+        },
+        {
+          "required": [
+            "by_source"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "items": [
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "revision": 1,
+              "decision": "accept"
+            }
+          ]
+        }
+      ]
+    },
+    "ReviewDecideResult": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "conflict",
+                  "not_found",
+                  "invalid",
+                  "already_decided"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "accepted": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "publish_pending": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "CompileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id"
+      ],
+      "properties": {
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/DrivePath"
+          }
+        },
+        "task": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "seeds": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string"
+          }
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 20000,
+          "default": 800
+        },
+        "role": {
+          "$ref": "#/$defs/ShareRole"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120000,
+          "default": 20000
+        },
+        "require_complete": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        }
+      ]
+    },
+    "ContextPack": {
+      "type": "object",
+      "required": [
+        "id",
+        "pack_digest",
+        "version",
+        "drive_id",
+        "scope",
+        "manifest",
+        "tokens",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_digest": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "manifest": {
+          "type": "object",
+          "description": "oo.context-pack.manifest/v1"
+        },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "brief": {
+              "type": "integer"
+            },
+            "budget": {
+              "type": "integer"
+            },
+            "total": {
+              "type": "integer"
+            }
+          }
+        },
+        "trimmed": {
+          "type": "object"
+        },
+        "blocked": {
+          "type": "object",
+          "properties": {
+            "facts": {
+              "type": "integer"
+            },
+            "entities": {
+              "type": "integer"
+            }
+          }
+        },
+        "maybe": {
+          "type": "array",
+          "description": "“可能指的是”"
+        },
+        "brief_preview": {
+          "type": "string",
+          "description": "BRIEF.md 全文（预览用）"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "version": 0,
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "scope": [],
+          "manifest": {},
+          "tokens": {},
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "ShareCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compile",
+        "mount"
+      ],
+      "properties": {
+        "compile": {
+          "$ref": "#/$defs/CompileRequest"
+        },
+        "mount": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_dir"
+          ],
+          "properties": {
+            "target_dir": {
+              "type": "string",
+              "pattern": "^/",
+              "maxLength": 4096
+            }
+          }
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 3600,
+          "maximum": 2592000,
+          "default": 604800
+        },
+        "grantor": {
+          "type": "string",
+          "maxLength": 128,
+          "default": "owner"
+        },
+        "group": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._#:-]{1,128}$"
+        },
+        "refresh_policy": {
+          "$ref": "#/$defs/RefreshPolicy"
+        }
+      },
+      "examples": [
+        {
+          "compile": {
+            "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+            "scope": [
+              "Projects/a"
+            ],
+            "budget": 800
+          },
+          "mount": {
+            "target_dir": "/tmp/t1"
+          }
+        }
+      ]
+    },
+    "Share": {
+      "type": "object",
+      "required": [
+        "id",
+        "pack_id",
+        "pack_digest",
+        "drive_id",
+        "scope",
+        "role",
+        "state",
+        "created_at",
+        "expires_at",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_digest": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "role": {
+          "$ref": "#/$defs/ShareRole"
+        },
+        "task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "budget": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/ShareState"
+        },
+        "drift": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "facts_changed": {
+              "type": "integer"
+            },
+            "files_changed": {
+              "type": "integer"
+            },
+            "since_version": {
+              "type": "integer"
+            }
+          }
+        },
+        "mount": {
+          "type": "object",
+          "properties": {
+            "target_dir": {
+              "type": "string",
+              "description": "仅守护进程填充，来自 mounts.json"
+            },
+            "present": {
+              "type": "boolean"
+            }
+          }
+        },
+        "refreshed_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "command": {
+          "type": "string",
+          "description": "等价的 oo context mount 命令行（不含凭证）"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        },
+        "group_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refresh_policy": {
+          "$ref": "#/$defs/RefreshPolicy"
+        },
+        "guarantees": {
+          "$ref": "#/$defs/Guarantees"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "scope": [],
+          "role": "suggester",
+          "state": "active",
+          "created_at": "2026-11-17T00:00:00Z",
+          "expires_at": "2026-11-17T00:00:00Z",
+          "revision": 0
+        }
+      ]
+    },
+    "RevokeResult": {
+      "type": "object",
+      "properties": {
+        "share": {
+          "$ref": "#/$defs/Share"
+        },
+        "local_removed": {
+          "type": "boolean"
+        },
+        "notice_code": {
+          "const": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "Usage": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/Component"
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "day": {
+                "$ref": "#/$defs/Date"
+              },
+              "calls": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "cache_hits": {
+                "type": "integer"
+              },
+              "tokens_in": {
+                "type": "integer"
+              },
+              "tokens_out": {
+                "type": "integer"
+              },
+              "files_limited": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "per_file_limit": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "Event": {
+      "type": "object",
+      "required": [
+        "seq",
+        "type",
+        "at",
+        "data"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer"
+        },
+        "type": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Time"
+        },
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "seq": 0,
+          "type": "x",
+          "at": "2026-11-17T00:00:00Z",
+          "data": {}
+        }
+      ]
+    },
+    "Freshness": {
+      "type": "object",
+      "required": [
+        "state",
+        "ontology_version",
+        "as_of"
+      ],
+      "description": "G12/G16, 00 §5.5. Priority held > degraded > syncing > processing > publishing > waiting_review > up_to_date.",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/FreshnessState"
+        },
+        "ontology_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "as_of": {
+          "$ref": "#/$defs/Time"
+        },
+        "processing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_review": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "covers_drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "state": "up_to_date",
+          "ontology_version": 42,
+          "as_of": "2026-11-17T00:00:00Z",
+          "processing": 0,
+          "pending_review": 0,
+          "reason_code": null
+        }
+      ]
+    },
+    "FreshnessState": {
+      "enum": [
+        "up_to_date",
+        "syncing",
+        "processing",
+        "publishing",
+        "waiting_review",
+        "degraded",
+        "held"
+      ],
+      "examples": [
+        "up_to_date"
+      ]
+    },
+    "TreeDir": {
+      "type": "object",
+      "required": [
+        "path",
+        "files",
+        "counts"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "files": {
+          "type": "integer"
+        },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "failed": {
+              "type": "integer"
+            },
+            "pending_review": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      },
+      "examples": [
+        {
+          "path": "x",
+          "files": 0,
+          "counts": {}
+        }
+      ]
+    },
+    "Tree": {
+      "type": "object",
+      "required": [
+        "dirs",
+        "files"
+      ],
+      "properties": {
+        "dirs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TreeDir"
+          }
+        },
+        "files": {
+          "$ref": "#/$defs/Page"
+        }
+      },
+      "examples": [
+        {
+          "dirs": [],
+          "files": {
+            "items": [],
+            "next_cursor": null,
+            "as_of_seq": 0
+          }
+        }
+      ]
+    },
+    "ModelConfig": {
+      "type": "object",
+      "required": [
+        "configured"
+      ],
+      "description": "G3: the key value is never returned.",
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        },
+        "provider": {
+          "enum": [
+            "openai-compatible",
+            "anthropic"
+          ]
+        },
+        "base_url": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "key_ref": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "configured": false
+        }
+      ]
+    },
+    "ModelConfigPut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "base_url",
+        "model",
+        "key_ref"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "openai-compatible",
+            "anthropic"
+          ]
+        },
+        "base_url": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "key_ref": {
+          "type": "string",
+          "pattern": "^(env:[A-Za-z_][A-Za-z0-9_]{0,127}|file:/[^\\u0000-\\u001f\\u007f]+)$"
+        }
+      },
+      "examples": [
+        {
+          "provider": "openai-compatible",
+          "base_url": "https://models.example.com/v1",
+          "model": "example-model",
+          "key_ref": "file:/Users/example/.config/oo/model-key"
+        }
+      ]
+    },
+    "SharePatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at"
+      ],
+      "description": "G6: only expiry, ≤30 days.",
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "expires_at": "2026-11-24T00:00:00Z"
+        }
+      ]
+    },
+    "RefreshPolicy": {
+      "enum": [
+        "manual",
+        "at-checkpoint",
+        "pinned"
+      ],
+      "examples": [
+        "manual"
+      ]
+    },
+    "ShareUpdateLevel": {
+      "enum": [
+        "info",
+        "warn",
+        "block"
+      ],
+      "examples": [
+        "warn"
+      ]
+    },
+    "Coverage": {
+      "type": "object",
+      "required": [
+        "drive_rev",
+        "covered_rev",
+        "in_scope",
+        "processed"
+      ],
+      "properties": {
+        "drive_rev": {
+          "type": "integer"
+        },
+        "covered_rev": {
+          "type": "integer"
+        },
+        "in_scope": {
+          "type": "integer"
+        },
+        "processed": {
+          "type": "integer"
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/$defs/FileState"
+              }
+            }
+          }
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state_code"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "state_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "drive_rev": 0,
+          "covered_rev": 0,
+          "in_scope": 0,
+          "processed": 0
+        }
+      ]
+    },
+    "Guarantees": {
+      "type": "object",
+      "description": "00 §5.6.1 five promises",
+      "properties": {
+        "pack_consistent": {
+          "type": "boolean"
+        },
+        "freshness_floor": {
+          "type": "boolean"
+        },
+        "change_delivery": {
+          "type": "boolean"
+        },
+        "group_same_version": {
+          "type": "boolean"
+        },
+        "constraint_free": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "pack_consistent": true,
+          "freshness_floor": true,
+          "change_delivery": true,
+          "group_same_version": true,
+          "constraint_free": true
+        }
+      ]
+    },
+    "ShareUpdate": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "seq",
+        "from_version",
+        "to_version",
+        "level",
+        "created_at"
+      ],
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "from_version": {
+          "type": "integer"
+        },
+        "to_version": {
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/ShareUpdateLevel"
+        },
+        "section": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fact_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary_key": {
+          "type": "string"
+        },
+        "summary_args": {
+          "type": "object"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "seq": 1,
+          "from_version": 0,
+          "to_version": 0,
+          "level": "warn",
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "ContextCheckResult": {
+      "type": "object",
+      "required": [
+        "exit_code",
+        "level",
+        "items"
+      ],
+      "description": "G19; exit codes 00 §5.6.3",
+      "properties": {
+        "exit_code": {
+          "enum": [
+            0,
+            10,
+            20,
+            30,
+            40
+          ]
+        },
+        "level": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ShareUpdateLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ShareUpdate"
+          }
+        },
+        "refreshed_to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action": {
+          "enum": [
+            "continue",
+            "refresh_recommended",
+            "stop",
+            "stop_share_ended"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "exit_code": 0,
+          "level": null,
+          "items": [],
+          "action": "continue"
+        }
+      ]
+    },
+    "Constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "core"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "core": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "violations": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "x",
+          "core": false
+        }
+      ]
+    },
+    "FactCorrectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "mark_wrong",
+            "set_value"
+          ]
+        },
+        "value": {},
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "examples": [
+        {
+          "action": "mark_wrong",
+          "reason": "wrong owner"
+        }
+      ]
+    },
+    "EntityMergeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "into",
+        "from"
+      ],
+      "properties": {
+        "into": {
+          "type": "string"
+        },
+        "from": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "into": "person:abc",
+          "from": [
+            "person:def"
+          ]
+        }
+      ]
+    },
+    "EntitySplitRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "groups"
+      ],
+      "properties": {
+        "groups": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "facts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "groups": [
+            {},
+            {}
+          ]
+        }
+      ]
+    },
+    "OntologyVersion": {
+      "type": "object",
+      "required": [
+        "n",
+        "as_of",
+        "published_at"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer"
+        },
+        "as_of": {
+          "$ref": "#/$defs/Time"
+        },
+        "facts_added": {
+          "type": "integer"
+        },
+        "facts_retracted": {
+          "type": "integer"
+        },
+        "gates": {
+          "type": "object"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "covers_drive_rev": {
+          "type": "integer"
+        },
+        "pinned_by": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "n": 0,
+          "as_of": "2026-11-17T00:00:00Z",
+          "published_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "StaleVsPack": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "G22",
+      "properties": {
+        "pack_version": {
+          "type": "integer"
+        },
+        "latest_version": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "BatchResult": {
+      "type": "object",
+      "required": [
+        "results"
+      ],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "conflict",
+                  "not_found",
+                  "invalid",
+                  "not_retryable"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "results": [
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "status": "ok"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "title": "Super Ontology Docs Control API",
+  "description": "docs-api/1.0-draft: spec 10 §8.2 with the §8.8 (G1-G3, G5-G15) and §16.10 (G16-G24) additions. Request objects are closed; response objects stay open so minor versions can add fields. Owned by the integration thread; every change carries a Contract-Version trailer (50 §6).",
+  "x-endpoints": [
+    {
+      "method": "GET",
+      "path": "/livez",
+      "request": null,
+      "response": "204",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/health",
+      "request": null,
+      "response": "Health",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives",
+      "request": null,
+      "response": "Page<Drive>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives",
+      "request": "DriveCreate",
+      "response": "Drive",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}",
+      "request": null,
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/docs/drives/{id}",
+      "request": "DrivePatch",
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/drives/{id}",
+      "request": null,
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:sync",
+      "request": "SyncRequest",
+      "response": "SyncInfo",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/files",
+      "request": null,
+      "response": "Page<FileSummary>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/tree",
+      "request": null,
+      "response": "Tree",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}",
+      "request": null,
+      "response": "FileDetail",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}/blocks",
+      "request": null,
+      "response": "Page<Block>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}/content",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/files:retry",
+      "request": "RetryRequest",
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/entities",
+      "request": null,
+      "response": "Page<EntityRef>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/entities/{eid}",
+      "request": null,
+      "response": "Entity",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/resolve",
+      "request": "ResolveRequest",
+      "response": "ResolveResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/review",
+      "request": null,
+      "response": "Page<ReviewItem>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/review:decide",
+      "request": "ReviewDecideRequest",
+      "response": "ReviewDecideResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/context-packs:compile",
+      "request": "CompileRequest",
+      "response": "ContextPack",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/context-packs/{pid}",
+      "request": null,
+      "response": "ContextPack",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/context-packs/{pid}/files/{path}",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares",
+      "request": "ShareCreate",
+      "response": "Share",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares",
+      "request": null,
+      "response": "Page<Share>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares/{sid}",
+      "request": null,
+      "response": "Share",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/docs/shares/{sid}",
+      "request": "SharePatch",
+      "response": "Share",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:refresh",
+      "request": null,
+      "response": "Share",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:revoke",
+      "request": null,
+      "response": "RevokeResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:check",
+      "request": null,
+      "response": "ContextCheckResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares/{sid}/updates",
+      "request": null,
+      "response": "Page<ShareUpdate>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/share-groups/{gid}:refresh",
+      "request": null,
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/constraints",
+      "request": null,
+      "response": "Page<Constraint>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/facts/{id}:correct",
+      "request": "FactCorrectRequest",
+      "response": "Fact",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/entities:merge",
+      "request": "EntityMergeRequest",
+      "response": "Entity",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/entities/{eid}:split",
+      "request": "EntitySplitRequest",
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/events",
+      "request": null,
+      "response": "text/event-stream",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/usage",
+      "request": null,
+      "response": "Usage",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/ontology/versions",
+      "request": null,
+      "response": "Page<OntologyVersion>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/metrics",
+      "request": null,
+      "response": "text/plain",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/refs/{b3}",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/config/model",
+      "request": null,
+      "response": "ModelConfig",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/config/model",
+      "request": "ModelConfigPut",
+      "response": "ModelConfig",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/changes",
+      "request": null,
+      "response": "Page<object>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/review:undo",
+      "request": null,
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.1"
+    }
+  ]
+}
