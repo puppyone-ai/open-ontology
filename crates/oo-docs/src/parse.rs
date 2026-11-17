@@ -17,6 +17,7 @@ pub mod frontmatter;
 pub mod lines;
 pub mod local;
 pub mod markdown;
+pub mod sidecar;
 pub mod table;
 pub mod text;
 pub mod xlsx;

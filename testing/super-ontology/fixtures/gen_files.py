@@ -187,6 +187,37 @@ def tiny_pdf(encrypted):
     return b"".join(body) + trailer
 
 
+def long_pdf(pages, lines=46):
+    """`pages` pages of Helvetica text (standard font, not embedded), real xref."""
+    objs = {}
+    kids = []
+    objs[1] = b"<< /Type /Catalog /Pages 2 0 R >>"
+    objs[3] = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+    for p in range(pages):
+        pid, cid = 4 + 2 * p, 5 + 2 * p
+        kids.append(f"{pid} 0 R")
+        text = ["BT /F1 10 Tf 12 TL 50 800 Td"]
+        for i in range(lines):
+            text.append(f"(Synthetic page {p + 1} line {i + 1}: the quick brown fox jumps over the lazy dog.) Tj T*")
+        text.append("ET")
+        stream = "\n".join(text).encode()
+        objs[pid] = (f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents {cid} 0 R "
+                     "/Resources << /Font << /F1 3 0 R >> >> >>").encode()
+        objs[cid] = b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream"
+    objs[2] = f"<< /Type /Pages /Kids [{' '.join(kids)}] /Count {pages} >>".encode()
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = {}
+    for n in sorted(objs):
+        offsets[n] = len(out)
+        out += f"{n} 0 obj\n".encode() + objs[n] + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n".encode() + b"0000000000 65535 f \n"
+    for n in sorted(objs):
+        out += f"{offsets[n]:010d} 00000 n \n".encode()
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return bytes(out)
+
+
 def zeros_entry(name, size):
     """A deflated entry of `size` zero bytes written in chunks."""
     buf = io.BytesIO()
@@ -237,6 +268,7 @@ def build():
     f["legacy.doc"] = cfb([("WordDocument", b"\xec\xa5\xc1\x00synthetic")])
     f["pdf-encrypted.pdf"] = tiny_pdf(True)
     f["pdf-plain.pdf"] = tiny_pdf(False)
+    f["pdf-60pages.pdf"] = long_pdf(60)
     # --- text ----------------------------------------------------------------
     f["gb18030.txt"] = "你好，世界。这是一份 GB18030 编码的文本。\n".encode("gb18030")
     f["gb18030.csv"] = "姓名,部门\n林远舟,管理\n".encode("gb18030")

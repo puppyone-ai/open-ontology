@@ -1,0 +1,65 @@
+# Runtime containers of the document pipeline (10 §2.7). This file carries the
+# parser sidecar and the two networks; `docs-db` and `docs-engine` are added by
+# the engine lanes and join the same networks.
+#
+# Hardening is the lite x-runtime baseline. The sidecar sits on `docs-internal`
+# only, which is `internal: true`: no route out, so a hostile document cannot
+# phone home (proved by deploy/docs/test_no_egress.py).
+#
+# Project name: oo-docs-<first 12 hex of sha256(canonical state dir)>, set by
+# the daemon with `-p`, so it never collides with a lite project.
+name: ${OO_DOCS_PROJECT:-oo-docs}
+
+x-labels: &labels
+  oo.lane: "${OO_DOCS_LANE:-docs}"
+
+services:
+  doc-parser:
+    image: ${OO_DOCS_PARSER_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    memswap_limit: 3g
+    cpus: 2
+    pids_limit: 128
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "2"
+      HOME: /tmp
+    volumes:
+      # Written by the daemon, mounted read-only into this container and into
+      # docs-engine (same file, two readers).
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      # A named volume, not tmpfs: 200 MB uploads must not eat memory. The
+      # sidecar keeps it below 2 GiB (LRU).
+      - docs-parser-scratch:/scratch
+    networks: [docs-internal]
+    expose: ["7481"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7481/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+networks:
+  docs-internal:
+    internal: true
+    labels: *labels
+  docs-egress:
+    labels: *labels
+
+volumes:
+  docs-parser-scratch:
+    labels: *labels

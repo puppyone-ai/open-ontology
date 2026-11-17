@@ -1,0 +1,5 @@
+*
+!requirements.lock
+!models.lock.json
+!fetch_models.py
+!doc_parser
