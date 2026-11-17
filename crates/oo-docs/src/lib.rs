@@ -15,6 +15,8 @@
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Control API contract version served by the engine (10 §8).
 pub const API_VERSION: &str = "docs-api/1.0";
+/// Value of the `OO-Docs-Api` response header (10 §8.1).
+pub const API_VERSION_NUMBER: &str = "1.0";
 /// Context Pack protocol (D25).
 pub const CONTEXT_PACK_PROTOCOL: &str = "oo.context-pack/v1";
 /// Engine configuration protocol (10 §2.8).

@@ -284,7 +284,7 @@ impl DriveLock {
 // drive_sync bookkeeping
 // ---------------------------------------------------------------------------
 
-const SYNC_JSON: &str = "jsonb_build_object('generation', generation, 'status', status, \
+pub(crate) const SYNC_JSON: &str = "jsonb_build_object('generation', generation, 'status', status, \
     'trigger', trigger, 'added', added, 'changed', changed, 'removed', removed, \
     'renamed', renamed, 'error_code', error_code, \
     'started_at', to_char(started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), \
