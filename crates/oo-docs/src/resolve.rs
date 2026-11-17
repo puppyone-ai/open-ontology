@@ -6,4 +6,7 @@
 //! belong to later cards.
 
 pub mod exact;
+pub mod honorific;
+pub mod merge;
 pub mod normalize;
+pub mod pg;
