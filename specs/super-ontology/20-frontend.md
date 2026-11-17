@@ -1821,6 +1821,18 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 完成定义：flag 或实验开关任一为关时入口不出现；两者都开时，全新用户数据目录启动后两次点击内进入 Super Drive；Windows 构建中实验开关不出现；**A1–A5**。
 - 验证：`npx vitest run tests/component/super-drive/entry`；T2 场景 P3 从全新用户数据目录通过。
 
+**F-S2-13 · local-data-statement** — scope `super-drive`（WS-FE2）
+- 目标：D79。Super Drive 页面底部常驻一行说明：“您的文件和处理结果始终保存在本机，不会上传到 puppyone 云端，除非您选用 puppyone Cloud。”引擎与设置页完整说明一次，并列出当前实际生效的数据去向：
+  - 默认：只有本机；
+  - 登记了用户自己的 S3 桶：“文件保存在您的存储桶【桶名】，处理结果保存在本机”；
+  - 配置了第三方模型：追加“已启用【服务商 · 地区】：补充抽取所需的文档片段会从本机直接发送给该服务商”；
+  - 选用 puppyone Cloud（L7 起，且律师放行后）：改为说明哪些内容存放在 puppyone Cloud。
+- 文案由数据流状态计算得出（`superDriveDataFlow.ts`，纯函数，输入为 Drive 后端、模型配置、Cloud 状态），不允许写死。
+- 文件：`src/features/super-drive/browser/LocalDataStatement.tsx`、`src/features/super-drive/superDriveDataFlow.ts`、i18n `super-drive.dataFlow.*`。
+- 依赖：F-S2-05。
+- 完成定义：每种数据流组合都有单元测试；文字与实际配置不一致时测试失败；不可关闭；**A1–A5**。
+- 验证：`npx vitest run tests/unit/super-drive/dataFlow tests/component/super-drive/browser`；T2 场景 P26。
+
 **F-S2-12 · freshness-basic** — scope `super-drive`
 - 目标：顶栏新鲜度指示的基础版（00 §5.5，D48）：`up_to_date`、`processing`、`publishing` 三种状态，显示本体版本与 `as_of`；点开即队列面板。
 - 文件：`src/features/super-drive/browser/FreshnessIndicator.tsx`、`superDriveStateModel.ts`（新增 `FRESHNESS_PRESENTATION`）、i18n `super-drive.freshness.*`。

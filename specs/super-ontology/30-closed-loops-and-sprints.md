@@ -86,6 +86,7 @@
 5. 修改一个 Markdown，30 秒内状态重新走一遍，BRIEF 内容随之变化。
 
 6. 顶栏新鲜度指示在 `up_to_date`、`processing`、`publishing` 之间正确切换，显示本体版本（D48 基础版）。
+7. Super Drive 底部常驻“数据在本地”说明（D79），默认状态下抓包证明除 loopback 外无出网。
 
 **不在本闭环**：二进制格式、LLM、待确认队列、Share 生命周期。
 

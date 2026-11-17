@@ -158,7 +158,7 @@
 | D65 | FFmpeg 与编解码：我们分发自编的 LGPL 版 FFmpeg，只解码、不含 H.264、HEVC、AAC 解码器；这类文件在 macOS 上由 Desktop 主进程调用系统框架（AVFoundation）解码后交给容器，在 Linux 上由客户自带 FFmpeg；都不满足时为 `unsupported(DOCS_PARSE_CODEC_UNAVAILABLE)`；OpenCV 用不带 FFmpeg 的自编版本 | AVC、AAC 专利对 PC 软件按台收费 |
 | D66 | AI 生成内容标识：生成文件首行显式标注“AI生成”；YAML front matter 写入 `AIGC` 元数据（ContentProducer 为公司主体名称，待提供，暂用占位符）；`SHARE.json`、`manifest.json` 带同结构字段；产品不提供去除标识的选项；标识不含时间戳，不影响逐字节可重放 | 《人工智能生成合成内容标识办法》、GB 45438-2025、EU AI Act 第 50(2) 条 |
 | D67 | 律师门禁：90 §8 的问题有书面结论后，才能对外发布带 Super Drive 的版本、提交 Puppyone 最终 PR；内部开发与 owner 验收不受影响；律师沟通由 owner 负责 | 风险集中、先有结论 |
-| D68 | **用户须知（隐私说明、使用条款等）由官网发布，不在 App 内展示，也不写进本 spec**。许可证要求的开源署名页与 AI 生成内容标识不属于用户须知，仍随产品提供 | owner 2026-11-17 决定 |
+| D68 | **用户须知（隐私说明、使用条款等）由官网发布，不在 App 内展示，也不写进本 spec**。例外只有 D79 的“数据本地”说明。许可证要求的开源署名页与 AI 生成内容标识不属于用户须知，仍随产品提供 | owner 2026-11-17 决定 |
 | D69 | 解析层架构：自研 IR 是唯一契约；三个解析 sidecar 统一使用 `oo.doc-parser/v1`：`doc-parser`（Docling 库模式 + 薄包装，覆盖 PDF、DOCX、PPTX、图片与文档内嵌图片；OCR 显式指定 RapidOCR）、`ocr-parser`（PP-StructureV3，中文扫描件与图片）、`media-parser`（新增：音频、视频、ASR、说话人分离、切镜、帧 OCR）；Excel 仍用 Rust calamine；不使用 docling-serve（无进度、假成功、key 进日志三个已知问题） | 成熟组件做主干，契约自控 |
 | D70 | IR 升到 `oo.doc-ir/v1.1`（向后兼容）：锚点联合类型新增 `media`（起止毫秒、说话人、字序号）、`frame`（pts 毫秒、bbox）、`image`（父锚点、bbox，图内坐标换算回页面坐标），`pdf` 锚点附页面宽高；新增块类型 `utterance`、`scene`、`frame_text`、`image_text`、`image_caption`；出处片段 `#t=00:12:31-00:12:48`；抽取层不变 | 与 Docling 出处模型对齐 |
 | D71 | 算力分档 `cpu`（默认，容器内）、`host-accel`（宿主机原生加速，M3）、`gpu`（Linux 服务器）；档位写入 IR 的 `parser.profile`，换档使文件变为 `outdated` 并重跑。云端档本轮不提供（D63） | 可复现 |
@@ -168,6 +168,8 @@
 | D75 | 视频：PySceneDetect 0.7.3 切镜 + 1 fps 采样 + 感知哈希去重 → RapidOCR 识别帧上文字 → 音轨走 D73；统一按 pts 毫秒对齐时间轴；画面描述（Qwen3-VL）只在 `gpu`、`host-accel` 档且用户开启时运行 | 会议录屏的关键信息在屏幕文字 |
 | D76 | 图片：独立图片用 PP-StructureV3 做 OCR；文档内嵌图片用 Docling 的 picture item，保留父锚点，图内 OCR 坐标换算回页面坐标；DOCX 内嵌图片只记段落路径与图片序号；图片描述默认关闭 | 图表与截图里的文字不丢 |
 | D77 | 排期与上限：L6 改名“多模态与演进”，延长 1 周（S9 OCR 与图片，S10 音频与比测，S10b 视频与原 L6 收尾），总工期约 13 周；媒体文件单个 ≤4 GiB、时长 ≤4 小时，超出为 `too_large`；媒体处理单独并发池，默认 1；D31 的格式与上限按此扩展 | 多模态不挤占文档处理 |
+| D78 | **产品不录音、不录屏**：不调用麦克风、摄像头或屏幕录制，也不以参会者身份加入会议；只处理用户放进 Drive（拖入或已有）的音视频文件 | owner 2026-11-17 澄清；采集与录制同意由文件的提供者负责 |
+| D79 | **App 内明确说明数据在本地**：Super Drive 页面常驻一句说明，引擎与设置页再完整说明一次：“您的文件和处理结果始终保存在本机，不会上传到 puppyone 云端，除非您选用 puppyone Cloud。”配置第三方模型时，同一位置追加一句：“已启用【服务商】：补充抽取所需的文档片段会从本机直接发送给该服务商。”说明文字必须始终与实际数据流一致：开启 puppyone Cloud、配置第三方模型时随之变化；登记的是用户自己的 S3 桶时，文件本身在用户的桶里，说明改为“处理结果保存在本机” | owner 2026-11-17 要求；承诺必须真实 |
 
 ## 5. 核心机制（分册的共同前提）
 
