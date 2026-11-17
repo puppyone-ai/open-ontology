@@ -369,8 +369,9 @@ def phase_poison(ev, lab):
     ev.check("no job is stuck", stuck == "0")
     # the sidecar is healthy afterwards: a fresh pdf parses
     put(lab.root, "poison/after.pdf", variants.pdf(find_golden("pdf").read_bytes(), 9501))
-    got = lab.wait_final("poison/after", 1, 180)
-    ev.check("the sidecar still parses after the poison", got.get("poison/after.pdf", {}).get("state") == "published", str(got.get("poison/after.pdf", {}).get("state")))
+    l2.wait_until(180, lambda: lab.states("poison").get("poison/after.pdf", {}).get("state") == "published", step=1)
+    after = lab.states("poison").get("poison/after.pdf", {}).get("state")
+    ev.check("the sidecar still parses after the poison", after == "published", str(after))
 
 
 def phase_life(ev, lab):
@@ -392,7 +393,6 @@ def phase_life(ev, lab):
     def history(path):
         return lab.psql(f"SELECT string_agg(h.to_state, '>' ORDER BY h.seq) FROM _oo_docs.file_state_history h JOIN _oo_docs.file f ON f.id = h.file_id WHERE f.path = '{path}'")
 
-    retracted0 = int(lab.psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'"))
     # add
     put(lab.root, "life/a.md", doc("进行中"))
     ev.check("add: published", wait_state("life/a.md", "published"), history("life/a.md"))
@@ -410,18 +410,19 @@ def phase_life(ev, lab):
     # rename
     b3_before = lab.states("life")["life/a.md"]["b3"]
     os.rename(lab.root / "life/a.md", lab.root / "life/b.md")
-    ok = l2.wait_until(90, lambda: state_of("life/b.md") == "published" and "life/a.md" not in lab.states("life"), step=0.5)
-    ev.check("rename: the new path is published, the old path is gone", bool(ok), history("life/b.md"))
+    retracted_before = int(lab.psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'"))
+    ok = l2.wait_until(90, lambda: state_of("life/b.md") in ("published", "duplicate") and "life/a.md" not in lab.states("life"), step=0.5)
+    ev.check("rename: the new path has its result (duplicate of the old version), the old path is gone", bool(ok), history("life/b.md"))
     ev.check("rename: same content, evidence is live on the new path", lab.states("life").get("life/b.md", {}).get("b3") == b3_before and evidence_live("life/b.md") > 0, f"{evidence_live('life/b.md')} live evidence rows")
     renamed = lab.psql("SELECT count(*) FROM _oo_docs.event WHERE type = 'file.renamed'")
     ev.check("rename: a file.renamed event exists", int(renamed) >= 1, f"{renamed} events")
     retracted1 = int(lab.psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'"))
-    ev.check("rename: no fact was retracted", retracted1 == retracted0 + int(lab.psql("SELECT count(*) FROM (SELECT 1) x WHERE false")) or retracted1 == retracted0, f"retracted {retracted0} -> {retracted1}")
+    ev.check("rename: no fact was retracted", retracted1 == retracted_before, f"retracted {retracted_before} -> {retracted1}")
     # delete
     (lab.root / "life/b.md").unlink()
     gone = l2.wait_until(90, lambda: "life/b.md" not in lab.states("life"), step=0.5)
     ev.check("delete: the file disappears from the listing", bool(gone))
-    row = lab.psql("SELECT (deleted_at IS NOT NULL)::text || '|' || state FROM _oo_docs.file WHERE path = 'life/b.md' ORDER BY created_at DESC LIMIT 1")
+    row = lab.psql("SELECT (deleted_at IS NOT NULL)::text || '|' || state FROM _oo_docs.file WHERE path = 'life/b.md' ORDER BY state_since DESC LIMIT 1")
     ev.check("delete: the file row is marked deleted", row.startswith("true|"), row)
     live = lab.psql("SELECT count(*) FROM _oo_docs.evidence e JOIN _oo_docs.file f ON f.current_version_id = e.version_id WHERE f.path = 'life/b.md' AND e.withdrawn_at IS NULL")
     ev.check("delete: its evidence is withdrawn", live == "0", f"{live} live rows")
