@@ -40,6 +40,7 @@ use super::{FailureClass, JobKind, JobStatus, NewJob};
 use crate::api::progress::{Bus, Progress};
 use crate::cas::{Cas, CasError, CasKind};
 use crate::extract::rules::RULESET_VERSION;
+use crate::ingest::HashableSource as _;
 use crate::ingest::files::{self, Extra};
 use crate::ingest::{DriveRef, SourceFactory};
 use crate::parse::sidecar::{self, SidecarClient, SidecarError};
@@ -368,13 +369,40 @@ impl<F: SourceFactory> ParseHandler<F> {
         }
         let source = self.open_source(s).await?;
         let len = u64::try_from(s.size).unwrap_or(0);
-        let bytes = match source
-            .read(&s.raw_key, 0, len, &ReadExpect::default())
-            .await
-        {
+        // Remote originals come through the CAS: streamed in ranges with
+        // `If-Match`, verified against the hash of this version, and kept for
+        // the LRU (10 4.3.3). Local files are read in place.
+        let read = match source.any_source().filter(|a| a.is_remote()) {
+            Some(any) => {
+                match crate::ingest::download::fetch_original(
+                    any,
+                    &self.cas,
+                    &s.raw_key,
+                    Some(&s.b3),
+                )
+                .await
+                {
+                    Ok(f) => self.cas.get(CasKind::Orig, &f.put.b3).map_err(|_| {
+                        oo_connectors::objectstore::DocSourceError::Io(
+                            "cached original is unreadable",
+                        )
+                    }),
+                    Err(e) => Err(e),
+                }
+            }
+            None => {
+                source
+                    .read(&s.raw_key, 0, len, &ReadExpect::default())
+                    .await
+            }
+        };
+        let bytes = match read {
             Ok(b) => b,
             // The file went away or moved: a later hash makes a new version.
-            Err(oo_connectors::objectstore::DocSourceError::NotFound) => {
+            Err(
+                oo_connectors::objectstore::DocSourceError::NotFound
+                | oo_connectors::objectstore::DocSourceError::Changed,
+            ) => {
                 return Err(Outcome::Done.into());
             }
             Err(e) => {
