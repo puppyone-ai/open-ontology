@@ -1,0 +1,443 @@
+//! `oo serve` (10 §8.6): single instance, private state, tokens, engine,
+//! loopback proxy, clean shutdown.
+//!
+//! Exit codes: 0 normal, 2 arguments, 3 Docker unavailable (not used while the
+//! engine is a host process), 4 engine binary missing, 5 state directory
+//! permissions, 6 port in use, 7 engine start timeout, 1 anything else.
+
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use tokio::net::TcpListener;
+use tokio::sync::watch;
+
+use super::engine::{self, EngineSpec, Supervisor};
+use super::proxy::{self, EngineLink, ProxyConfig};
+use super::secrets::{self, LockResult};
+
+/// Exit codes of 10 §8.6 point 9.
+pub mod exit {
+    pub const OK: u8 = 0;
+    pub const OTHER: u8 = 1;
+    pub const ARGS: u8 = 2;
+    pub const ENGINE_MISSING: u8 = 4;
+    pub const STATE_DIR: u8 = 5;
+    pub const PORT_IN_USE: u8 = 6;
+    pub const ENGINE_TIMEOUT: u8 = 7;
+}
+
+/// What the invocation asks for.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
+    Run,
+    Status,
+    Stop,
+}
+
+/// Parsed `oo serve` arguments.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ServeArgs {
+    pub action: Action,
+    pub state_dir: Option<PathBuf>,
+    pub port: u16,
+    pub keep_engine: bool,
+    pub json: bool,
+}
+
+/// Parse the arguments after `serve`.
+pub fn parse_args(rest: &[String]) -> Result<ServeArgs, String> {
+    let mut a = ServeArgs {
+        action: Action::Run,
+        state_dir: None,
+        port: 0,
+        keep_engine: false,
+        json: false,
+    };
+    let mut it = rest.iter();
+    while let Some(arg) = it.next() {
+        let (flag, inline) = match arg.split_once('=') {
+            Some((f, v)) if f.starts_with("--") => (f, Some(v.to_owned())),
+            _ => (arg.as_str(), None),
+        };
+        let mut value = |name: &str| -> Result<String, String> {
+            inline
+                .clone()
+                .or_else(|| it.next().cloned())
+                .ok_or_else(|| format!("{name} needs a value"))
+        };
+        match flag {
+            "--state-dir" => a.state_dir = Some(PathBuf::from(value("--state-dir")?)),
+            "--port" => {
+                a.port = value("--port")?
+                    .parse()
+                    .map_err(|_| "--port must be 0..=65535".to_owned())?;
+            }
+            "--keep-engine" => a.keep_engine = true,
+            "--json" => a.json = true,
+            "--status" => a.action = Action::Status,
+            "--stop" => a.action = Action::Stop,
+            other => return Err(format!("unknown option {other}")),
+        }
+    }
+    Ok(a)
+}
+
+fn resolve_state(args: &ServeArgs) -> Result<PathBuf, String> {
+    args.state_dir
+        .clone()
+        .or_else(|| std::env::var_os("OO_DOCS_STATE_DIR").map(PathBuf::from))
+        .or_else(secrets::default_state_dir)
+        .ok_or_else(|| "no state directory: set --state-dir or HOME".to_owned())
+}
+
+fn say(args: &ServeArgs, human: String, machine: &Value) {
+    println!(
+        "{}",
+        if args.json {
+            machine.to_string()
+        } else {
+            human
+        }
+    );
+}
+
+/// Entry point; returns the process exit code.
+pub fn run(rest: &[String]) -> u8 {
+    let args = match parse_args(rest) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("oo serve: {e}");
+            return exit::ARGS;
+        }
+    };
+    let state = match resolve_state(&args) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("oo serve: {e}");
+            return exit::ARGS;
+        }
+    };
+    if let Err(e) = secrets::ensure_state_dir(&state) {
+        eprintln!("oo serve: {}", e.0);
+        return exit::STATE_DIR;
+    }
+    match args.action {
+        Action::Status => status(&args, &state),
+        Action::Stop => stop(&state),
+        Action::Run => start(&args, &state),
+    }
+}
+
+fn status(args: &ServeArgs, state: &Path) -> u8 {
+    if secrets::is_running(state)
+        && let Some(v) = secrets::read_serve_json(state)
+    {
+        say(
+            args,
+            format!("oo serve is running (pid {}, port {})", v["pid"], v["port"]),
+            &v,
+        );
+        return exit::OK;
+    }
+    say(
+        args,
+        "oo serve is not running".to_owned(),
+        &json!({"protocol": secrets::SERVE_PROTOCOL, "running": false}),
+    );
+    exit::OTHER
+}
+
+fn stop(state: &Path) -> u8 {
+    let Some(v) = secrets::read_serve_json(state).filter(|_| secrets::is_running(state)) else {
+        println!("oo serve is not running");
+        return exit::OK;
+    };
+    let Some(pid) = v["pid"].as_u64().and_then(|p| u32::try_from(p).ok()) else {
+        eprintln!("oo serve: serve.json has no pid");
+        return exit::OTHER;
+    };
+    engine::signal(pid, "TERM");
+    for _ in 0..150 {
+        if !secrets::is_running(state) {
+            println!("oo serve stopped");
+            return exit::OK;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    eprintln!("oo serve: did not stop within 15 s");
+    exit::OTHER
+}
+
+fn start(args: &ServeArgs, state: &Path) -> u8 {
+    let _lock = match secrets::acquire_lock(state) {
+        Ok(LockResult::Held(l)) => l,
+        Ok(LockResult::Busy) => {
+            // Already running: print its serve.json so the caller reuses it.
+            return match secrets::read_serve_json(state) {
+                Some(v) => {
+                    println!("{v}");
+                    exit::OK
+                }
+                None => {
+                    eprintln!("oo serve: another instance is starting");
+                    exit::OTHER
+                }
+            };
+        }
+        Err(_) => {
+            eprintln!("oo serve: serve.lock is not usable");
+            return exit::STATE_DIR;
+        }
+    };
+    // A crashed predecessor left files and maybe an engine behind.
+    engine::reap_stale(&state.join("engine.pid"));
+    secrets::clean_runtime_files(state);
+
+    let Some(exe) = engine::find_engine_binary() else {
+        eprintln!(
+            "oo serve: the docs engine binary ({}) was not found; set OO_DOCS_ENGINE_BIN",
+            engine::ENGINE_BIN
+        );
+        return exit::ENGINE_MISSING;
+    };
+    let Ok(database_url) = std::env::var("OO_DOCS_DATABASE_URL") else {
+        eprintln!(
+            "oo serve: OO_DOCS_DATABASE_URL is required (L2: Postgres is external to oo serve)"
+        );
+        return exit::OTHER;
+    };
+    if args.keep_engine {
+        eprintln!("oo serve: --keep-engine has no effect while the engine is a host process");
+    }
+
+    let (control, engine_token) = match (secrets::new_token("oodt_"), secrets::new_token("oodi_")) {
+        (Ok(c), Ok(e)) => (c, e),
+        _ => {
+            eprintln!("oo serve: no randomness source");
+            return exit::OTHER;
+        }
+    };
+    let engine_dir = state.join("engine");
+    let _ = secrets::ensure_state_dir(&engine_dir);
+    let engine_token_file = state.join("engine.token");
+    let token_file = state.join("serve.token");
+    if secrets::write_secret_file(&engine_token_file, &engine_token).is_err()
+        || secrets::write_secret_file(&token_file, &control).is_err()
+    {
+        eprintln!("oo serve: cannot write token files");
+        secrets::clean_runtime_files(state);
+        return exit::STATE_DIR;
+    }
+    let spec = EngineSpec {
+        exe,
+        state_dir: engine_dir,
+        database_url,
+        admin_database_url: std::env::var("OO_DOCS_ADMIN_DATABASE_URL").ok(),
+        token_file: engine_token_file,
+        log_file: state.join("engine.log"),
+    };
+    let first = match engine::start_once(&spec) {
+        Ok(f) => f,
+        Err(why) => {
+            eprintln!("oo serve: {why}");
+            secrets::clean_runtime_files(state);
+            return if why.contains("in time") {
+                exit::ENGINE_TIMEOUT
+            } else {
+                exit::OTHER
+            };
+        }
+    };
+
+    let rt = match tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(_) => return exit::OTHER,
+    };
+    let code = rt.block_on(serve_loop(
+        args,
+        state,
+        &token_file,
+        &control,
+        &engine_token,
+        spec,
+        first,
+    ));
+    secrets::clean_runtime_files(state);
+    code
+}
+
+async fn serve_loop(
+    args: &ServeArgs,
+    state: &Path,
+    token_file: &Path,
+    control: &str,
+    engine_token: &str,
+    spec: EngineSpec,
+    first: (std::process::Child, std::net::SocketAddr),
+) -> u8 {
+    let listener = match TcpListener::bind(("127.0.0.1", args.port)).await {
+        Ok(l) => l,
+        Err(_) => {
+            let mut first = first;
+            let _ = first.0.kill();
+            let _ = first.0.wait();
+            eprintln!("oo serve: port {} is in use", args.port);
+            return exit::PORT_IN_USE;
+        }
+    };
+    let port = match listener.local_addr() {
+        Ok(a) => a.port(),
+        Err(_) => return exit::OTHER,
+    };
+    let link = Arc::new(EngineLink::default());
+    let engine_pid = first.0.id();
+    let supervisor = Supervisor::spawn(spec, first, link.clone(), state.join("engine.pid"));
+    let cfg = Arc::new(ProxyConfig {
+        port,
+        token_sha256: Sha256::digest(control.as_bytes()).into(),
+        engine_token: engine_token.to_owned(),
+        engine: link,
+    });
+    let started = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let doc = secrets::serve_json(
+        std::process::id(),
+        port,
+        token_file,
+        state,
+        &secrets::rfc3339(started),
+        json!({"mode": "host_process", "pid": engine_pid, "project": "host", "images": {}}),
+    );
+    if secrets::write_secret_atomic(&state.join("serve.json"), &doc.to_string()).is_err() {
+        supervisor.stop(Duration::from_secs(5));
+        eprintln!("oo serve: cannot write serve.json");
+        return exit::STATE_DIR;
+    }
+    say(
+        args,
+        format!(
+            "oo serve listening on 127.0.0.1:{port} (state {})",
+            state.display()
+        ),
+        &doc,
+    );
+
+    let (stop_tx, stop_rx) = watch::channel(false);
+    let server = tokio::spawn(proxy::serve(
+        listener,
+        cfg,
+        stop_rx,
+        Duration::from_secs(10),
+    ));
+    wait_for_signal().await;
+    // Stop accepting, drain in-flight requests, then remove the secrets
+    // before the engine goes (10 §8.6 point 7).
+    let _ = stop_tx.send(true);
+    let _ = server.await;
+    secrets::clean_runtime_files(state);
+    let sup = tokio::task::spawn_blocking(move || supervisor.stop(Duration::from_secs(10)));
+    let _ = sup.await;
+    println!("oo serve stopped");
+    exit::OK
+}
+
+async fn wait_for_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    let (Ok(mut term), Ok(mut int)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::interrupt()),
+    ) else {
+        std::future::pending::<()>().await;
+        return;
+    };
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn a(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn arguments_parse() {
+        let p = parse_args(&a(&["--state-dir", "/s", "--port=8123", "--json"])).unwrap();
+        assert_eq!(p.state_dir, Some(PathBuf::from("/s")));
+        assert_eq!((p.port, p.json, p.action), (8123, true, Action::Run));
+        assert_eq!(
+            parse_args(&a(&["--status"])).unwrap().action,
+            Action::Status
+        );
+        assert_eq!(parse_args(&a(&["--stop"])).unwrap().action, Action::Stop);
+        assert!(parse_args(&a(&["--keep-engine"])).unwrap().keep_engine);
+        assert_eq!(parse_args(&a(&[])).unwrap().port, 0);
+    }
+
+    #[test]
+    fn bad_arguments_are_refused() {
+        for bad in [
+            &["--port"][..],
+            &["--port", "70000"],
+            &["--port=x"],
+            &["--state-dir"],
+            &["--nope"],
+            &["stray"],
+        ] {
+            assert!(parse_args(&a(bad)).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn exit_codes_are_the_documented_ones() {
+        assert_eq!(
+            [
+                exit::ARGS,
+                exit::ENGINE_MISSING,
+                exit::STATE_DIR,
+                exit::PORT_IN_USE,
+                exit::ENGINE_TIMEOUT
+            ],
+            [2, 4, 5, 6, 7]
+        );
+    }
+
+    #[test]
+    fn a_loose_state_dir_exits_5() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("oo-serve-loose-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let code = run(&a(&["--state-dir", dir.to_str().unwrap()]));
+        assert_eq!(code, exit::STATE_DIR);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn status_of_a_fresh_state_dir_is_not_running() {
+        let dir = std::env::temp_dir().join(format!("oo-serve-status-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            run(&a(&["--status", "--state-dir", dir.to_str().unwrap()])),
+            exit::OTHER
+        );
+        assert_eq!(
+            run(&a(&["--stop", "--state-dir", dir.to_str().unwrap()])),
+            exit::OK
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
