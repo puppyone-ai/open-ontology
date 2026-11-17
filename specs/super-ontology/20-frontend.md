@@ -1821,6 +1821,13 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 完成定义：flag 或实验开关任一为关时入口不出现；两者都开时，全新用户数据目录启动后两次点击内进入 Super Drive；Windows 构建中实验开关不出现；**A1–A5**。
 - 验证：`npx vitest run tests/component/super-drive/entry`；T2 场景 P3 从全新用户数据目录通过。
 
+**F-S2-12 · freshness-basic** — scope `super-drive`
+- 目标：顶栏新鲜度指示的基础版（00 §5.5，D48）：`up_to_date`、`processing`、`publishing` 三种状态，显示本体版本与 `as_of`；点开即队列面板。
+- 文件：`src/features/super-drive/browser/FreshnessIndicator.tsx`、`superDriveStateModel.ts`（新增 `FRESHNESS_PRESENTATION`）、i18n `super-drive.freshness.*`。
+- 依赖：F-S2-05；**B-S3-09**（L2 期间先用 mock，字段按 10 §8.8 G12）。
+- 完成定义：`role="status"` + `aria-live="polite"`；状态切换不闪烁（最短停留 600 ms）；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/freshness`。
+
 ### 7.3 M1 · L3 读懂文件（S3、S4）
 
 **F-S3-01 · upload-queue** — scope `super-drive-main` + `super-drive`（分提交）
@@ -1892,6 +1899,20 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 完成定义：T1 全绿（含 `--native`：原生拖拽上传、多选与右键菜单、横幅 → 筛选 → 批量重试）；T2 全绿且证据完整；T3 无阻断问题；P16 英文界面无缺失 key、无截断。
 - 验证：`npx electron tests/e2e/super-drive/processing/formats-and-failures.smoke.mjs --native`；`node tests/e2e/super-drive/packaged/run-packaged.mjs --app <…> --scenarios P01,P02,P03,P04,P05,P06,P07,P08,P10,P15,P16`。
 
+**F-S3-07 · fs-watcher** — scope `super-drive-main`（WS-FE1）
+- 目标：D46 文件系统监听。主进程对每个已登记的 fs Drive 起 `fs.watch(root, {recursive: true})`，按 300 ms 去抖合并路径，过滤隐藏与垃圾文件（与 10 §4.3.2 同一规则表），调用 `:sync` 带 `paths`（D47）；监听出错或丢事件（macOS 的 `kFSEventStreamEventFlagMustScanSubDirs` 语义）时退回一次全量 `:sync`。
+- 文件：`electron/main/super-ontology/drive-watcher.mjs`、`tests/integration/super-drive/main/driveWatcher.test.mjs`。
+- 依赖：F-S2-03；**B-S3-09**。
+- 完成定义：访达中放入一个 md，`published` 达到 D49；1 万文件的 Drive 监听不让主进程 CPU 持续高于 5%；App 退出或 Drive 删除时监听释放。
+- 验证：`npx vitest run tests/integration/super-drive/main/driveWatcher.test.mjs`；T2 场景 P19。
+
+**F-S3-08 · freshness-full** — scope `super-drive`
+- 目标：新鲜度七种状态全部呈现，文件夹层级汇总，`degraded`、`held` 带原因与操作。
+- 文件：`FreshnessIndicator.tsx`、`browser/DriveSidebar.tsx`、`superDriveStateModel.ts`。
+- 依赖：F-S2-12、F-S3-02。
+- 完成定义：状态矩阵 4.x 新增“新鲜度”一节逐项截图；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/freshness`。
+
 ### 7.4 M1 · L4 本体与共享（S5、S6）
 
 **F-S5-01 · review-queue** — scope `super-drive`
@@ -1953,6 +1974,36 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 依赖：F-S5-01 至 F-S6-05；**B-S6-07**、**B-S6-08**。
 - 完成定义：T1 `--native` 覆盖“按来源整体接受、选范围、选角色、改预算、一键执行、撤销确认”；红队金丝雀 0 命中；T2 全绿；T4 包内 dmg sha256 与 T2 被测一致。
 - 验证：`npx electron tests/e2e/super-drive/share/mount-and-revoke.smoke.mjs --native`；`node tests/e2e/super-drive/packaged/run-packaged.mjs --app <…> --scenarios P01-P16`。
+
+**F-S6-07 · drift-badge** — scope `super-drive`（WS-FE3）
+- 目标：D50 轻量漂移。共享列表与详情栏中 `drifted` 的 Share 显示“有更新”与受影响事实数，提供“刷新”（调用 `:refresh`，按 refresh 语义生成新 Share）；顶栏新鲜度在有漂移的 Share 时附一个计数。
+- 文件：`src/features/super-drive/share/ShareList.tsx`、`details/DetailsShares.tsx`。
+- 依赖：F-S6-03；**B-S6-10**。
+- 完成定义：发布新版本后 5 秒内列表更新；刷新后旧 Share 显示为 `refreshed` 并链接到新 Share；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/share`；T2 场景 P18（提前到 L4）。
+
+**F-S5-05 · entity-correction** — scope `super-drive`（WS-FE3）
+- 目标：D59 用户纠错最小版。实体详情里每条事实提供“标记为错误”“修改值”；实体级提供“合并到…”“拆分”。提交后显示“已提交，正在进入本体（vN → vN+1）”，发布完成后更新。
+- 文件：`src/features/super-drive/entities/{FactCorrectionMenu.tsx,EntityMergeDialog.tsx,EntitySplitDialog.tsx}`。
+- 依赖：F-S5-02；**B-S5-12**。
+- 完成定义：带 `If-Match`，412 时提示“内容已变化，请刷新后重试”；纠错后被影响的 Share 出现“有更新”；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/entities`。
+
+**F-S5-06 · constraint-conflict** — scope `super-drive`（WS-FE3）
+- 目标：待确认队列新增 `constraint_conflict` 种类：并排展示冲突双方的事实、证据与来源，操作为“采用甲”“采用乙”“两者都不对（去纠错）”；实体详情顶部显示“冲突未决”横幅。
+- 文件：`src/features/super-drive/review/ConstraintConflictCard.tsx`、`superDriveStateModel.ts`。
+- 依赖：F-S5-01；**B-S5-11**。
+- 完成定义：状态矩阵 4.3 增加该种类；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/review`。
+
+**F-S6-08 · consistency-surface** — scope `super-drive`（WS-FE3）
+- 目标：D54–D56、D62 在界面上的呈现：
+  - 分享面板：显示“将覆盖到 drive_rev N”，等待覆盖时的进度（最多 20 秒），超时后提示“3 个文件尚未处理完，包里会写明”；高级选项“要求全部处理完”（`require_complete`）、任务组（ticket id）、刷新策略（手动 / 检查点自动 / 固定）。
+  - 共享列表与详情：每个 Share 显示覆盖情况、最近一条更新的级别（info / warn / block 三种徽标）、`UPDATES.md` 条目预览；任务组以分组形式显示，组内只提供“整组刷新”。
+- 文件：`src/features/super-drive/share/{ShareDialog.tsx,ShareList.tsx,ShareUpdates.tsx,ShareGroupRow.tsx}`。
+- 依赖：F-S6-02、F-S6-03、F-S6-07；**B-S6-11**、**B-S6-12**。
+- 完成定义：block 级更新在共享列表中最醒目（颜色 token 用 danger 语义）；整组刷新失败时显示具体是哪个成员失败；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/share`；T2 场景 P21。
 
 ### 7.5 M2 · L5 Suggest 回流（S7、S8）
 

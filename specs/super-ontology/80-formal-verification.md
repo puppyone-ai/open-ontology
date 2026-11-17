@@ -39,13 +39,15 @@ Super Ontology 有两类东西光靠测试不够：
 |---|---|---|---|---|---|---|
 | **FM1** | 作业租约与续跑 `jobs.qnt` | 10 §4.1，`jobs/`、`store/jobs.rs` | 同一幂等键最多一次提交生效；租约过期后旧 worker 的提交被拒绝；重试次数不超过上限，超限即进入隔离；worker 崩溃不会让作业永远卡在“运行中” | 每个作业最终到达终态（完成、失败可重试、隔离） | 3 worker、4 作业、租约过期与崩溃任意交错 | L1 起草、L2 门禁 |
 | **FM2** | 文件状态机 `file_lifecycle.qnt` | 00 §5.1、10 §4.2，`state.rs` | 只发生转换表里允许的转换；已发布的事实只来自最新、未删除的文件版本；解析进行中出现新版本时，旧版本的结果不会覆盖新版本；`duplicate` 只指向内容哈希相同的版本 | 没有永久停留的中间态 | 3 文件、每文件 3 个版本、删除与重命名 | L2（md 子集）、L3 全量 |
-| **FM3** | 增量同步 `sync_reconcile.qnt` | 10 §4.3，`ingest/` | 事件至少一次投递且乱序时，按 (key, versionId, sequencer) 去重后结果与按真实顺序处理一致；列举期间新写入的对象不会被清扫；部分列举不触发清扫；静止后执行一次对账，索引视图等于桶视图（收敛） | 静止后最终收敛 | 4 个 key、6 次写或删、事件重复与重排、1 次中断的列举 | L3（fs）、L3（s3）、L7（多云事件） |
-| **FM4** | 事件流与断线补齐 `event_stream.qnt` | 10 §8.5，`api/` 的 SSE；20 §1.7 的 store | outbox 序号无间隙、单调；客户端按游标补齐后的视图等于服务端在 head 时的状态，不丢不重；游标过期返回 410 后全量重拉，结果同样一致；瞬时事件（`file.progress`）不影响持久状态 | 客户端最终追上 head | 5 个持久事件、2 个瞬时事件、2 次断线、1 次游标过期 | L2 |
-| **FM5** | 批量审核 `review_decide.qnt` | 10 §4.8、§8 的 `review:decide` | “按来源整体接受”只作用于 `as_of_seq` 之前出现的条目，之后新进的条目不会被连带接受；`If-Match` 防止丢失更新；同一条目不会被决定两次 | 每次决定最终反映到新的本体版本 | 2 个来源、5 个条目、并发新条目与并发决定 | L4 |
-| **FM6** | Share 生命周期 `share_lifecycle.qnt` | 00 §5.4、10 §7.6–7.8 | `revoked`、`expired`、`refreshed` 的 Share 的 refs 凭证永远无效；refresh 原子地把旧 Share 置为终态并生成恰好一个新的 `active` Share；延期（`PATCH expires_at`）不改变内容与版本；撤销后本地挂载最终被删除 | 漂移的 Share 最终被标记 | 2 个 Share、源变化、刷新、撤销、过期、延期任意交错 | L4；L6 扩展漂移与刷新 |
+| **FM3** | 增量同步 `sync_reconcile.qnt` | 10 §4.3，`ingest/` | 事件至少一次投递且乱序时，按 (key, versionId, sequencer) 去重后结果与按真实顺序处理一致；列举期间新写入的对象不会被清扫；部分列举不触发清扫；静止后执行一次对账，索引视图等于桶视图（收敛）；**定向同步（D47）与文件系统监听提示（D46）只能新增或更新、永不清扫**，丢失的监听事件由全量对账兜住 | 静止后最终收敛 | 4 个 key、6 次写或删、事件重复与重排、1 次中断的列举 | L3（fs）、L3（s3）、L7（多云事件） |
+| **FM4** | 事件流与断线补齐 `event_stream.qnt` | 10 §8.5，`api/` 的 SSE；20 §1.7 的 store | outbox 序号无间隙、单调；客户端按游标补齐后的视图等于服务端在 head 时的状态，不丢不重；游标过期返回 410 后全量重拉，结果同样一致；瞬时事件（`file.progress`）不影响持久状态；客户端显示的新鲜度（D48）与服务端在同一 seq 下按 00 §5.5 优先级计算的结果一致 | 客户端最终追上 head | 5 个持久事件、2 个瞬时事件、2 次断线、1 次游标过期 | L2 |
+| **FM5** | 批量审核 `review_decide.qnt` | 10 §4.8、§8 的 `review:decide` | “按来源整体接受”只作用于 `as_of_seq` 之前出现的条目，之后新进的条目不会被连带接受；`If-Match` 防止丢失更新；同一条目不会被决定两次；D51：只有 LLM 候选的合并与取代永不自动执行；被活跃 Share 使用的事实被取代时一定产生一条待确认 | 每次决定最终反映到新的本体版本 | 2 个来源、5 个条目、并发新条目与并发决定 | L4 |
+| **FM6** | Share 生命周期 `share_lifecycle.qnt` | 00 §5.4、10 §7.6–7.8 | `revoked`、`expired`、`refreshed` 的 Share 的 refs 凭证永远无效；refresh 原子地把旧 Share 置为终态并生成恰好一个新的 `active` Share；延期（`PATCH expires_at`）不改变内容与版本；撤销后本地挂载最终被删除；**D50：发布的新版本撤回或取代了某个活跃 Share 用到的事实时，该 Share 最终被标为 `drifted`，且内容不被自动替换**；**D55–D56、D62：包内文件字节不变，`UPDATES.md` 只追加且 seq 无间隙；用过的事实被撤回时一定产生 `block` 条目，`check` 在 block 未处理时永不返回 0；同一任务组内所有活跃 Share 的版本始终相同，组刷新全有或全无；`pinned` 永不刷新，`at-checkpoint` 只在 check 返回 0 或 10 时刷新** | 漂移的 Share 最终被标记 | 2 个 Share、源变化、刷新、撤销、过期、延期任意交错 | L4；L6 扩展漂移与刷新 |
 | **FM7** | Suggest 影响式规则 `suggest_rules.qnt` | 10 §11.1 | 四类规则的判定互斥且完备；取代“已被某个 Share 用过”的事实时一定进入人工确认；修改偏好或类型结构一定人工确认 | — | 3 条事实、2 个 Share、4 条建议 | L5 |
 | **FM8** | 可见性 `visibility.qnt`（纯函数模型） | D26，10 §7.2 `compile/visible.rs` | Pack 中的每条事实至少有一条证据在共享范围内，且只附范围内的证据；只出现在范围外文件里的实体名、别名，不出现在 Pack 的任何字段里；已拦截计数等于被过滤掉的条目数 | — | 4 个文件、6 个实体、10 条事实、别名跨文件 | L4 |
 | **FM9** | 重跑与差异门禁 `reprocess.qnt` | D23，10 §4、B-S10-02 | 重跑期间旧事实持续可用；新结果只在门禁通过后替换；同一时刻不会出现“新旧都缺”的空窗 | 重跑最终完成或回退 | 3 个文件、2 个解析器版本 | L6 |
+| **FM10** | 新鲜度令牌与覆盖率 `freshness_token.qnt` | D54，10 §16.2 | `drive_rev` 单调；`covers_drive_rev` 只在所有 ≤ r 的变更到达终态后前进；`require_complete` 的编译只在覆盖满足时成功；非完整编译的 `coverage.pending ∪ failed` 恰好等于范围内未覆盖的文件，且不含范围外文件；纠错（overlay）与文件变更同样推进 `drive_rev` | 静止后 `covers_drive_rev` 追上 `drive_rev` | 3 文件、2 次纠错、并发编译 | L4 |
+| **FM11** | 完整性约束 `constraints.qnt` | D57，10 §16.7 | 任一已发布版本中，四条核心约束在任意时间点都成立；违反只阻断涉及的实体，其余变更照常发布；违反中的实体在包里只以“冲突未决”出现；规则确定的取代不被误判为违反 | 冲突经人工决定后最终发布 | 2 个项目、3 个人、并发两条负责人事实 | L4 |
 
 ### 3.2 Kani 有界证明（KP）
 
@@ -123,6 +125,7 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | V-S5-02 | FM8 可见性模型 + 评审（安全承诺，必须两名评审） | `formal/quint/visibility.qnt` | B-S6-01 设计 | 无反例 | `quint verify formal/quint/visibility.qnt` |
 | V-S6-01 | KP5、KP6 | `crates/oo-docs/src/compile/proofs.rs` | B-S6-01、B-S6-02 | 证明通过 | `cargo kani -p oo-docs --harness compile` |
 | V-S6-02 | FM6 + 一致性测试；L4 形式化报告 | `formal/quint/share_lifecycle.qnt`、`conformance_share.rs`、`testing/super-ontology/evidence/L4/formal.md` | B-S6-04 | 门禁全绿 | `formal-verify-deep` |
+| V-S6-03 | FM10、FM11 模型与一致性测试；FM6 一致性扩展（UPDATES、check、任务组、刷新策略） | `formal/quint/{freshness_token,constraints,share_lifecycle}.qnt`、`conformance_{freshness,constraints,share}.rs` | B-S5-10、B-S5-11、B-S6-11、B-S6-12 | 无反例；一致 | `quint verify …`；`cargo test -p oo-docs --test conformance_freshness --test conformance_constraints --test conformance_share` |
 | V-S7-01 | FM7 | `formal/quint/suggest_rules.qnt` | B-S7-03 | 互斥完备 | `quint verify formal/quint/suggest_rules.qnt` |
 | V-S9-01 | FM6 扩展漂移与刷新、FM9 | `formal/quint/{share_lifecycle,reprocess}.qnt` | B-S10-01、B-S10-02 | 无反例；一致 | `cargo test -p oo-docs --test conformance_share --test conformance_reprocess` |
 | V-S11-01 | FM3 多云事件语义 | `formal/quint/sync_reconcile.qnt` | B-S11-02 | 无反例 | 同上 |
@@ -135,7 +138,7 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | L1 | 工具链锁定；FM1 草稿评审通过 | — |
 | L2 | FM1、FM2（md）、FM4 无反例；FM1、FM4 一致性测试通过；KP1、KP2、KP8 | `evidence/L2/formal.md` |
 | L3 | FM2 全量、FM3（fs + s3）无反例与一致；KP3、KP4、KP7 | `evidence/L3/formal.md` |
-| L4 | FM5、FM6、FM8 无反例与一致；KP5、KP6；`formal-verify-deep` 全绿 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
+| L4 | FM5、FM6（含一致性扩展）、FM8、FM10、FM11 无反例与一致；KP5、KP6；`formal-verify-deep` 全绿 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
 | L5 | FM7 | `evidence/L5/formal.md` |
 | L6 | FM6（漂移刷新）、FM9 | `evidence/L6/formal.md` |
 | L7 | FM3（多云事件） | `evidence/L7/formal.md` |

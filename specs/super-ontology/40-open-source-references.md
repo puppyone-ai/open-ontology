@@ -77,3 +77,19 @@
 | Google Drive 的三档角色 | 查看者 / 评论者 / 编辑者 → viewer / suggester / editor | — |
 | Nextcloud 全文索引 | **反面教材。** 索引状态只能在管理员命令行里看到 → 我们把处理状态做成文件列表里的一列，失败可以在界面上直接重试 | — |
 | 百度网盘、Google Drive | 右下角的上传与处理队列面板、面包屑、列表与网格切换、右键菜单、多选批量操作 | 凭产品经验，未逐项抓一手文档 |
+
+## 8. 持续一致性（00 §5.6，D52–D62）
+
+调研结论：没有现成工程完整解决“本体持续更新，同时进行中的任务上下文不错乱”。各家只解决一块，我们按块借鉴：
+
+| 要解决的问题 | 借鉴 | 机制 | 落在 |
+|---|---|---|---|
+| 只重算受影响的部分 | [Salsa（rust-analyzer）](https://rust-analyzer.github.io/blog/2023/07/24/durable-incrementality.html)、[Glean](https://glean.software/blog/incremental/)、[Dagster 数据版本](https://docs.dagster.io/guides/dagster/asset-versioning-and-caching)、[Cursor Merkle 同步](https://cursor.com/blog/secure-codebase-indexing)、[Bazel action cache](https://bazel.build/remote/caching) | 逐层内容哈希；结果没变就截断（early cutoff）；新版本 = 遮住受影响单元 + 叠加新数据；易变的全局产物分层处理 | D53 |
+| 读己之写 | [SpiceDB / Zanzibar 一致性](https://authzed.com/docs/spicedb/concepts/consistency)、[Materialize](https://materialize.com/blog/strong-consistency-in-materialize/)、[Spanner 时间戳界](https://cloud.google.com/spanner/docs/timestamp-bounds) | 写入返回令牌，读取要求“至少一样新”或“精确快照” | D54、D61 |
+| 已发出的东西变了怎么告诉下游 | [Go `retract`](https://go.dev/ref/mod)、[MCP 资源通知](https://modelcontextprotocol.io/specification/2025-06-18/schema)、[Kubernetes Warning](https://kubernetes.io/blog/2020/09/03/warnings/)、[TUF 时间戳有效期](https://theupdateframework.github.io/specification/latest/) | 旧版本照常可用但被明确标出；变更通过独立通道送达 | D55 |
+| 并行 Agent 的决定分叉 | [Cognition](https://cognition.com/blog/dont-build-multi-agents)、[Letta 共享记忆](https://docs.letta.com/v1-sdk/memory/shared-memory) | 并行读、单写者；共享状态有明确 owner | D56 |
+| 事实之间的矛盾 | [PG18 时间约束](https://www.postgresql.org/about/featurematrix/detail/temporal-constraints)、[SHACL](https://www.w3.org/TR/shacl/)、OO docs/05 码值有效期不重叠 | 声明式函数依赖，按时间切片检查，而不是让 LLM 判断 | D57 |
+| 明说缺了什么 | LightRAG `doc_status`、[Sourcegraph 精确导航的退回标注](https://sourcegraph.com/docs/code_navigation/explanations/precise_code_navigation)、OO docs/06 的“有 N 列待分类” | 覆盖账本，包里写明未处理完的文件 | D54 |
+| 会话中途有新版本 | OO docs/06 §8：会话继续用开始时的版本 | 版本钉住，变更另行通知 | D52 |
+
+反面参照：mem0、[Supermemory](https://supermemory.ai/docs/concepts/graph-memory)、Letta 等 Agent 记忆系统都是原地更新、取最新值，不保证任务内的快照一致；[Graphiti](https://arxiv.org/abs/2501.13956) 的冲突完全由 LLM 判定。这些是我们刻意不采用的做法。

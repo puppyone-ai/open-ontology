@@ -6,7 +6,7 @@ Super Ontology 是 Open Ontology 本轮的产品形态升级：在现有数据�
 
 | 分册 | 内容 | 读者 |
 |---|---|---|
-| [00 总纲与决策记录](00-overview-and-decisions.md) | 产品形态、边界、架构、决策 D1–D45、状态机、跨仓契约 | 所有人，先读 |
+| [00 总纲与决策记录](00-overview-and-decisions.md) | 产品形态、边界、架构、决策 D1–D62、状态机、新鲜度、持续一致性、跨仓契约 | 所有人，先读 |
 | [10 后端](10-backend.md) | OO 侧：provider、IR、流水线、抽取、可见性、Pack 编译、控制 API、鲁棒性、测试、`B-S*` 任务卡 | OO 工程师 |
 | [20 前端](20-frontend.md) | Puppyone 侧：主进程服务、IPC、页面与交互、状态矩阵、设计规范落地、i18n、测试、`F-S*` 任务卡 | Desktop 工程师、设计 |
 | [30 闭环与 Sprint](30-closed-loops-and-sprints.md) | 4 个里程碑、8 个闭环、14 个 Sprint、每个闭环的验收、横切门禁、时间表 | 所有人 |

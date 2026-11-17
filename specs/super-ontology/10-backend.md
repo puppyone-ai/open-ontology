@@ -328,8 +328,9 @@ lite 运行时镜像用 `--features s3` 构建引擎；`cli-binaries.yml` 何时
 | 0139 | `0139_docs_index.sql` | `docs-index/1` | S2 | entity、entity_redirect、alias、fact、evidence、overlay、review_item、ontology_version、gate_report |
 | 0140 | `0140_docs_packs_shares.sql` | `docs-packs-shares/1` | S2 | context_pack、context_pack_file、share、share_fact_use、refs_credential |
 | 0141 | `0141_docs_llm.sql` | `docs-llm/1` | S5 | llm_cache、llm_usage |
-| 0142 | `0142_docs_suggest.sql` | `docs-suggest/1` | S7 | suggestion、brief_use 摘要视图 |
-| 0143 | `0143_docs_vectors.sql` | `docs-vectors/1` | S13 | 可选，见 §11.3 |
+| 0142 | `0142_docs_consistency.sql` | `docs-consistency/1` | S5 | 依赖链哈希列、drive_rev、constraint 与 constraint_violation、share_group、share_update、share_section_use、ontology_version 的 pinned_by 计数（见 §16.9） |
+| 0143 | `0143_docs_suggest.sql` | `docs-suggest/1` | S7 | suggestion、brief_use 摘要视图 |
+| 0144 | `0144_docs_vectors.sql` | `docs-vectors/1` | S13 | 可选，见 §11.3 |
 
 规则：
 
@@ -2012,6 +2013,11 @@ oo serve --stop
 | G8 | `errors.v1.json` 的 `i18n_key` 统一为 `super-drive.errors.<CODE>` | 1.0 | 与 Puppyone 消息 ID 规则一致 |
 | G9 | `tree` 的 `dirs[].counts` 增加 `failed` 与 `pending_review` 汇总 | 1.0 | 左栏目录徽标 |
 | G10 | `ReviewKind` 加入 `reprocess_diff`（已改 §8.2） | 1.0（枚举预留，M2 启用） | D23 |
+| G11 | `SyncRequest.paths: string[]`（≤500 条）：只 stat 这些路径及父目录，发现的新增或变更照常入队；不推进 `sync_generation`、不清扫；路径不存在时只记一次“可能已删除”的提示，由下一次全量对账确认删除 | 1.0 | D47；FM3 必须同步加入“定向同步不清扫”动作 |
+| G12 | `Drive.freshness`：`{state, ontology_version, as_of, processing, pending_review, reason_code}`，状态枚举与优先级见 00 §5.5；事件 `drive.freshness_changed`（持久）；`Health.freshness` 汇总所有 Drive 的最高优先级状态 | 1.0 | D48 |
+| G13 | 延迟埋点：每个文件记录 `stored_at → published_at` 的各阶段耗时（含 `llm_wait_ms` 单独一项），进 `/v1/docs/metrics` 与文件状态历史 | 1.0 | D49 验收的数据来源 |
+| G14 | 轻量漂移（L4）：发布作业在写入 vN+1 后，用“Share → 用到的 fact_key”使用记录（编译时写入）求交集，命中被撤回或取代的事实则把 Share 置 `drifted`，`drift` 字段给出受影响事实数与第一个原因；发 `share.state_changed` | 1.0 | D50；原 L6 的 B-S10-01 只保留差异摘要部分 |
+| G15 | 合并与取代的自动化规则（D51）：`resolve` 与 `temporal` 对“规则确定”的结果直接写草稿并标 `auto_rule`，进当日变更摘要（`GET /v1/docs/changes?since=`）；只有 LLM 候选的进 `entity_merge` / `low_confidence_fact`；被取代事实在活跃 Share 的使用记录中时，即使规则确定，也额外入队一条 `low_confidence_fact`（`details.reason=used_by_active_share`） | 1.0 | D51、FM5 |
 
 ## 9. 安全
 
@@ -2279,6 +2285,7 @@ JSON 行到 stderr（容器日志）：`{"ts","level","event","request_id"?,"job
 | B-S3-06 | sidecar 监督：健康、熔断、失败归因、守护进程 restart | `crates/oo-docs/src/parse/sidecar.rs`、`crates/oo-cli/src/docs/serve.rs` | B-S3-01、B-S3-04 | §4.4.4 每行有用例 | `cargo test -p oo-docs --test sidecar_supervision -- --ignored` |
 | B-S3-07 | API：文件详情、blocks、批量重试、状态历史、progress 事件 | `crates/oo-docs/src/api/routes_files.rs` | B-S2-09 | 契约测试；`Contract-Version` 不变（已在 1.0-draft 中） | `cargo test -p oo-docs --test contract` |
 | B-S3-08 | 故障注入套件第一部分 + 状态机契约门禁 | `crates/oo-docs/src/failpoints.rs`、`tests/{faults,state_contract}.rs`、`testing/super-ontology/faultproxy/`；（主线程）`ci/gates.yaml` | B-S3-04、B-S3-06 | §12.5 的 sidecar、PG、半写、引擎被杀四类通过 | `tools/oo-test/oo-test l3 run --suite super-ontology --only faults --run-id <id>` |
+| B-S3-09 | 定向同步 `SyncRequest.paths`（G11）、新鲜度状态与事件（G12）、延迟埋点（G13） | `crates/oo-docs/src/{ingest/targeted.rs,api/routes_drives.rs,obs/latency.rs}` | B-S2-05、B-S3-04 | 定向同步不清扫；新鲜度按 00 §5.5 优先级；单文件延迟达到 D49 | `cargo test -p oo-docs ingest::targeted freshness && cargo test -p oo-docs --test latency -- --ignored` |
 | B-S4-01 | OpenDAL s3 后端、secret_ref、兼容层 | `crates/oo-connectors/src/objectstore/{opendal,compat}.rs` | B-S1-07（opendal 准入） | RustFS 与 MinIO 上列举、条件读、412 重下、CRC64 校验 | `cargo test -p oo-connectors --features objectstore-s3 --test s3_rustfs -- --ignored` |
 | B-S4-02 | 代际对账（s3）、重命名、删除与取代的证据撤回（D22）、mass delete 确认 | `crates/oo-docs/src/ingest/mod.rs`、`store/index.rs` | B-S4-01（D22 的撤回逻辑在此卡实现，S5 的发布器复用） | L3-5 的 fs 与 s3 两轮“新增→修改→重命名→删除” | `tools/oo-test/oo-test fast --layer L2 --suite super-ontology --cells s3 --run-id <id>` |
 | B-S4-03 | ranged 下载、`If-Match`、原件缓存 LRU | `crates/oo-docs/src/{ingest/mod.rs,cas.rs}` | B-S4-01 | 200 MiB 文件内存峰值 < 64 MiB（流式）；中途修改对象触发重下 | `cargo test -p oo-docs --test download -- --ignored` |
@@ -2308,12 +2315,13 @@ JSON 行到 stderr（容器日志）：`{"ts","level","event","request_id"?,"job
 | B-S6-07 | 红队门禁、确定性重放门禁、出处门禁、编译 p95 基准 | `tests/{redteam,replay}.rs`、`tools/oo-test/super_ontology_bench.py`；（主线程）`ci/gates.yaml` | B-S6-01…03 | 30 §4 中 L2、L4 的横切门禁全部启用 | `cargo test -p oo-docs --test redteam --test replay -- --ignored && tools/oo-test/oo-test l3 run --suite super-ontology --bench compile --run-id <id>` |
 | B-S6-08 | L4 端到端与签收证据 | `testing/super-ontology/evidence/L4/` | 全部 S5、S6 | 30 §L4 验收 1–8 | `tools/oo-test/oo-test fast --layer L2 --suite super-ontology --run-id <id>` + L3 全量 |
 | B-S6-09 **[主]** | L4 签收后在发布构建中打开 `docs` feature 并标为实验功能（D41）；准备好 npm 包与命令，发布由 owner 操作 | `.github/workflows/cli-binaries.yml`、`packages/cli/package.json` | L4 签收 | 发布构建的 `oo serve --version` 显示 docs 已启用；未启用 feature 的旧行为不变 | `oo serve --status --json`；发布流水线 dry-run |
+| B-S6-10 | 轻量漂移（G14）与合并、取代自动化规则（G15） | `crates/oo-docs/src/{share/drift.rs,resolve/auto.rs,temporal/auto.rs}` | B-S6-04、B-S5-04、B-S5-05 | 发布新版本后 5 秒内受影响 Share 变为 `drifted`；D51 三条规则各有用例 | `cargo test -p oo-docs share::drift resolve::auto temporal::auto` |
 
 ### M2 · L5 Suggest 回流（S7、S8）
 
 | 卡 | 目标 | 涉及文件 | 依赖 | 完成定义 | 验证命令 |
 |---|---|---|---|---|---|
-| B-S7-01 **[主]** | 迁移 0142；控制 API 1.1（suggestions 端点、`suggestion` 审核种类启用） | `crates/oo-pipeline/migrations/0142_docs_suggest.sql`、`contracts/docs-api/*` | L4 签收 | `Contract-Version: docs-api/1.1` | `cargo test -p oo-docs --test install --test contract -- --ignored` |
+| B-S7-01 **[主]** | 迁移 0143；控制 API 1.1（suggestions 端点、`suggestion` 审核种类启用） | `crates/oo-pipeline/migrations/0143_docs_suggest.sql`、`contracts/docs-api/*` | L4 签收 | `Contract-Version: docs-api/1.1` | `cargo test -p oo-docs --test install --test contract -- --ignored` |
 | B-S7-02 | `suggest/` 约定、schema、守护进程收集、`oo context collect` | `crates/oo-docs/src/suggest/**`、`crates/oo-cli/src/docs/{mounts,context}.rs` | B-S7-01 | 上限、不跟随链接、收集幂等 | `cargo test -p oo-docs suggest` |
 | B-S7-03 | 影响式规则四类 + 当日摘要 | `crates/oo-docs/src/suggest/rules.rs` | B-S7-02 | 30 §L5 验收 2 的四类用例 | `cargo test -p oo-docs suggest::rules` |
 | B-S7-04 | MCP `suggest` 工具 | `tools/mcp-gateway/src/**`、`CONTRACT.md` | B-S7-02 | 注解正确；凭证 scope 校验 | `cargo test --manifest-path tools/mcp-gateway/Cargo.toml` |
@@ -2348,7 +2356,7 @@ JSON 行到 stderr（容器日志）：`{"ts","level","event","request_id"?,"job
 
 | 卡 | 目标 | 涉及文件 | 依赖 | 完成定义 | 验证命令 |
 |---|---|---|---|---|---|
-| B-S13-01 **[主]** | 迁移 0143、pgvector 镜像准入 | `crates/oo-pipeline/migrations/0143_docs_vectors.sql`、`supply-chain/` | L7 签收 | — | `cargo test -p oo-docs --test install -- --ignored` |
+| B-S13-01 **[主]** | 迁移 0144、pgvector 镜像准入 | `crates/oo-pipeline/migrations/0143_docs_vectors.sql`、`supply-chain/` | L7 签收 | — | `cargo test -p oo-docs --test install -- --ignored` |
 | B-S13-02 | 本地嵌入、确定性向量排序（只用于“其他相关”与 resolve 召回） | `tools/doc-parser`（嵌入端点）、`crates/oo-docs/src/compile/brief.rs` | B-S13-01 | 确定性重放仍通过 | `cargo test -p oo-docs --test replay -- --ignored` |
 | B-S13-03 | 1 万文件性能 | 全链路 | B-S13-02 | §11.3 的指标 | `tools/oo-test/oo-test l3 run --suite super-ontology --bench scale10k --run-id <id>` |
 | B-S14-01 | 免 Docker 运行时评审与原型 | 新 ADR + 原型分支 | 独立立项 | 评审结论 + 原型在 macOS 上从安装到第一份 BRIEF ≤ 10 min | 由立项评审给出 |
@@ -2402,3 +2410,140 @@ JSON 行到 stderr（容器日志）：`{"ts","level","event","request_id"?,"job
 | Q10 | §6.2 错误码前缀 | `oo doctor` 检查项需要几个不属于 API 的失败码 | 本文用 `DOCS_DOCTOR_*`（只在 doctor 输出中）；如需严格统一，可并入 `DOCS_ENGINE_*` |
 | Q11 | 00 §5.4、D28 | `refreshed` 的含义：00 写作“refreshed(=active, 新版本)” | 本文实现为“旧 share 转 `refreshed` 终态、生成新的 `active` share（`refreshed_from` 链接）”，便于审计与凭证作废；如总纲希望同一 share id 原地更新，需改 §7.6 与 API |
 | Q12 | §6.1 | 本文新增了若干端点（tree、blocks、pack 文件、单个 share、ontology/versions、metrics、refs、livez） | 均为 minor 追加，不改已列端点语义；请确认可以在 `docs-api/1.0` 中一并冻结 |
+
+
+## 16. 持续一致性（00 §5.6，D52–D62）
+
+本节是 00 §5.6 的后端实现。原则：本体层永远最新；任务上下文读快照；两者之间靠 `drive_rev`、`UPDATES.md`、`oo context check` 和安全点刷新衔接。
+
+### 16.1 依赖链与精确失效（D53）
+
+| 层 | 哈希 | 存在哪 | 何时截断 |
+|---|---|---|---|
+| 文件版本 | `b3`（已有） | `file_version.b3` | 内容不变 → 只更新指纹（§4.3.2） |
+| 块 | `block_hash = blake3(canonical(block_ir 去掉锚点坐标中的浮点噪声))` | IR 内 + `parse_result.block_hashes`（数组） | 新版本里块哈希集合与旧版本相同 → 跳过抽取，证据迁到新版本 |
+| 断言集合 | `assertion_set_hash = blake3(sorted(fact_key ‖ value ‖ valid_from ‖ valid_to ‖ anchor_key))` | `file_version.assertion_set_hash` | 抽取结果与旧版本相同 → 不产生可发布变化 |
+| 实体状态 | `entity_state_hash = blake3(sorted(当前有效事实与别名的 fact_key ‖ value))` | `entity_state(entity_id, ontology_version, hash)` | 实体哈希不变 → 不触发 Share 漂移检查 |
+| 包内节 | `section_digest = sha256(节的规范化字节)` | `context_pack_file.section_digests` | 节哈希不变 → 不算漂移 |
+
+- 增量发布：vN+1 = vN 中“来源文件版本已被取代或删除”的断言标 `retracted_in = N+1`，加上新断言 `published_in = N+1`；不重写其余事实（Glean 式遮盖 + 叠加）。
+- 块级抽取：只对新出现的块哈希调用规则与 LLM（LLM 缓存键本来就是块哈希，§5.2），未变化的块直接复用旧断言并把证据指向新版本。
+- 全局性产物（中心度、“其他相关”排序）标为易变，只在编译时惰性计算，不参与漂移判断（Salsa 的 durability 分层）。
+
+### 16.2 新鲜度令牌 `drive_rev`（D54）
+
+- `drive.rev bigint`：每次文件状态进入 `stored`、`superseded`、`deleted`，以及每次 overlay 纠错（§16.8），在同一事务里 `rev = rev + 1`，并把新值写到触发它的 `file_version.drive_rev` 或 `overlay.drive_rev`。
+- `ontology_version.covers_drive_rev`：发布时取“所有 `drive_rev ≤ r` 的变更都已到达终态（`published`、终态失败、`indexed` 且其余全部已发布）”的最大 r。
+- 返回位置：上传与定向同步的响应 `SyncInfo.drive_rev`；`Drive.drive_rev`；`Drive.freshness.covers_drive_rev`。
+- 编译参数：`min_drive_rev`（省略 = 调用时的 `drive.rev`）、`wait_ms`（默认 20000，上限 120000）、`require_complete`（默认 false）。
+- 编译行为：若 `covers_drive_rev ≥ min_drive_rev` 立即编译；否则订阅内部事件等待；超时后：`require_complete=true` → `409 DOCS_PACK_COVERAGE_INCOMPLETE`（details 列出未覆盖文件）；否则以当前最新版本编译，`coverage` 如实填写。
+- `coverage` 结构：`{drive_rev, covered_rev, in_scope, processed, pending:[{path, state}], failed:[{path, state_code}]}`；`pending` 与 `failed` 只列范围内的文件，且受 D26 约束（范围外的一律不出现）。BRIEF 第一行：`覆盖：39/42 个文件已处理；未完成 3 个（x.pdf 解析中 …）`；全部覆盖时写 `覆盖：42/42`。
+
+### 16.3 使用记录与漂移（细化 G14）
+
+- 编译时写 `share_section_use(share_id, section, fact_key, section_digest)`：每个节用到了哪些事实。
+- 发布 vN+1 后，对每个 `active`/`drifted` Share：取它用过、且在 vN+1 中被取代（`superseded_by` 非空）或撤回的事实 → 按节聚合 → 生成更新条目。
+- 级别判定：
+  - `block`：用过的事实被撤回且没有替代；或用过的事实涉及新出现的 `constraint_violation`；
+  - `warn`：用过的事实被取代（有新值）；
+  - `info`：范围内出现了新事实，但不影响任何已用事实（每个 Share 每个版本最多一条汇总）。
+- 有 `warn` 或 `block` 时 Share 置 `drifted`；只有 `info` 不改变状态。
+
+### 16.4 `UPDATES.md` 与更新流（D55）
+
+- 表 `share_update(share_id, seq, from_version, to_version, level, section, fact_keys[], summary_key, summary_args, created_at)`，每个 Share 的 `seq` 从 1 单调递增、无间隙。
+- 守护进程把新条目**只追加**写入挂载目录的 `.context/UPDATES.md`：先写临时文件再追加，不改写已有行；文件头一行写说明“本文件只追加；其余文件内容不变”。每条形如：
+
+```markdown
+## #3 · v42 → v45 · block · 当前状态与决定
+- 「方案二已确认」已被撤回（来源：Projects/project-a/decisions.md#L8 已删除）。[src:Projects/project-a/decisions.md@b3:…]
+- 建议：运行 `oo context check`；刷新前不要提交依赖该决定的改动。
+```
+
+- `GET /v1/docs/shares/{sid}/updates?since=<seq>`：分页返回条目；SSE 事件 `share.update_appended{share_id, seq, level}`（持久）。
+- 挂载目录不可写（只读权限）时，守护进程临时为 `UPDATES.md` 单独打开写权限、追加后恢复；挂载目录已被删除时只写数据库，`check` 照常可用。
+- L5：MCP 资源 `puppyone://share/<sid>/updates`，订阅后在追加时发资源更新通知（随 D42 一并写进 docs/08）。
+
+### 16.5 `oo context check`（提交前闸门）
+
+```
+oo context check [--dir .context] [--json] [--since <seq>]
+```
+
+- 读取 `.context/SHARE.json` 得到 share id 与 refs 凭证，调用 `POST /v1/docs/shares/{sid}:check`；返回当前最高未确认级别、条目列表、建议动作。
+- 退出码见 00 §5.6.3（0 / 10 / 20 / 30 / 40）；`--json` 输出 `oo.context-check/v1`。
+- 引擎不可达返回 40，按 `block` 处理：闸门失败即关闭（fail closed）。
+- `refresh_policy=at-checkpoint` 时，退出码 0 或 10 的 check 会在返回前触发 `:refresh`（新 Share 写到同一目录，`SHARE.json` 指向新 id，旧 Share 转 `refreshed`），输出里写明“已升级到 v45”；退出码 20 不自动刷新，必须人或 Agent 显式处理。
+- 接入配方（随 B-S6-11 交付，放在 `docs/guide/` 子目录，不受哈希锁定）：
+  - Claude Code：`PreToolUse` hook 匹配 `git commit`、`git push`、`gh pr create`，先跑 `oo context check`，非 0/10 时阻止并把输出交给模型；
+  - Codex：AGENTS.md 一段固定指令“提交或开 PR 前运行 `oo context check`，退出码 ≥ 20 时停止”；
+  - 通用 MCP：工具 `context_check`（L5）。
+
+### 16.6 任务组（D56）
+
+- 表 `share_group(id, ticket_id, ontology_version, refresh_policy, created_at, revision)`；`share.group_id`。
+- `oo context mount --group <ticket-id>`：组已存在则继承组的 `ontology_version`（忽略 `min_drive_rev`，并在 coverage 中照实写出与组创建时的差距）；不存在则建组并以本次编译版本为组版本。
+- `POST /v1/docs/share-groups/{gid}:refresh`：在一个事务里为组内每个活跃 Share 生成新 Share（同一新版本），全部成功才提交；任何一个失败则整体回滚，返回失败原因。组内单个 Share 不允许单独 refresh（返回 `409 DOCS_SHARE_GROUP_MEMBER`）。
+- 接受建议前的影响检查（L5）：列出用到相关事实的其他活跃 Share（含其他组），接受后向它们追加 `share_update`。
+
+### 16.7 完整性约束（D57）
+
+- 约束定义在 `crates/oo-docs/schema/constraints.v1.yaml`，核心约束随 schema 发布，用户可经 overlay 增加（不可删除核心约束）：
+
+| 约束 | 形式 | 时间语义 |
+|---|---|---|
+| `project_single_owner` | `(Project, owns⁻¹)` 至多 1 个当前值 | 在任一时间点的有效区间不重叠（类似 PG18 `WITHOUT OVERLAPS`） |
+| `decision_single_status` | `(Decision, status)` 至多 1 个当前值 | 同上 |
+| `identity_unique_person` | 身份属性（email、github、feishu_id）→ 至多 1 个 Person | 不随时间 |
+| `rejected_not_adopted` | 同一方案不能同时被 `rejects` 和当前 `decides`/adopted | 区间不重叠 |
+
+- 检查时机：发布作业在选出候选事实后、写版本前，对受影响实体做区间扫描（只查本次变化涉及的实体，保持增量）。
+- 违反：涉及的事实不进本版本（保持旧值或空值），写 `constraint_violation`，入队 `constraint_conflict`（details 带双方事实、证据、各自来源）；其余实体照常发布（同 docs/06 G3 的局部阻断）。
+- 编译：违反中的实体在 BRIEF 写“冲突未决：甲 vs 乙（来源…）”，使用该实体的 Share 记 `block` 级更新。
+- 规则确定的取代（D51）不算违反：同一事务内旧值的 `valid_to` 被设为新值的 `valid_from`，区间不重叠。
+
+### 16.8 用户纠错（D59）
+
+| 接口 | 作用 | 写入 |
+|---|---|---|
+| `POST /v1/docs/facts/{id}:correct` `{action: "mark_wrong" | "set_value", value?, reason?}` | 标记错误或修改值 | overlay（`origin=human`），原事实 `retracted`；推进 `drive_rev` |
+| `POST /v1/docs/entities:merge` `{into, from[]}` | 合并实体 | overlay + `entity_redirect` |
+| `POST /v1/docs/entities/{eid}:split` `{groups:[{aliases[], facts[]}]}` | 拆分误合并的实体 | overlay；生成新实体 key |
+
+- 全部带 `If-Match`（实体或事实的 revision）与 `Idempotency-Key`；进同一条发布管线（2 秒去抖），触发约束检查、漂移与 `UPDATES.md`。
+- 人工纠错的事实永不被自动撤回（D22）；若之后的文件又抽出与纠错冲突的值，进 `low_confidence_fact` 并标 `details.reason=conflicts_with_human_overlay`。
+
+### 16.9 读接口的 `as_of`（D61）、刷新策略（D62）与版本保留（D58）
+
+- 所有读接口（`entities`、`entities/{eid}`、`resolve`、`knowledge/search`、文件详情中的 facts）接受 `as_of`：`latest` | `v<N>` | `share`。省略时：请求带 Share 的 refs 凭证 → `share`（读该 Share 的版本）；带控制 token → `latest`。
+- 响应头 `OO-Docs-As-Of: v<N>`；当 `as_of=latest` 且请求带 Share 凭证、而最新版本 ≠ Share 版本时，响应体加 `stale_vs_pack: {pack_version, latest_version}`。
+- 历史版本读：事实按 `published_in ≤ N < coalesce(retracted_in, ∞)` 过滤，不需要物化快照。
+- `share.refresh_policy`：`manual` | `at-checkpoint` | `pinned`；`pinned` 的 Share 调 `:refresh` 返回 `409 DOCS_SHARE_PINNED`。
+- 版本保留：`ontology_version.pinned_by` = 引用它的未过期、未撤销 Share 数（由 Share 生命周期事务维护）；回收作业只删除 `pinned_by = 0` 且发布已满 30 天的版本的物化缓存（编译缓存、节哈希表）；事实与证据本身只撤回不删除，所以历史版本永远可以按 §上条重建。
+
+### 16.10 契约增补（并入 `docs-api/1.0`）
+
+| # | 增补 |
+|---|---|
+| G16 | `drive_rev`：`Drive.drive_rev`、`SyncInfo.drive_rev`、`Freshness.covers_drive_rev` |
+| G17 | 编译与 Share 创建参数 `min_drive_rev`、`wait_ms`、`require_complete`；`ContextPack.coverage`、`Share.coverage`；错误 `DOCS_PACK_COVERAGE_INCOMPLETE` |
+| G18 | `Share.group_id`、`Share.refresh_policy`、`Share.guarantees`；`POST /share-groups/{gid}:refresh`；错误 `DOCS_SHARE_GROUP_MEMBER`、`DOCS_SHARE_PINNED` |
+| G19 | `POST /shares/{sid}:check`（`ContextCheckResult`：`exit_code`、`level`、`items[]`、`refreshed_to?`）；`GET /shares/{sid}/updates?since=`；事件 `share.update_appended`；`ShareUpdateLevel` 枚举 `info`/`warn`/`block` |
+| G20 | `GET /constraints`；`ReviewKind` 增加 `constraint_conflict`；事件 `ontology.constraint_violated`；错误 `DOCS_REVIEW_CONSTRAINT_*` |
+| G21 | `POST /facts/{id}:correct`、`POST /entities:merge`、`POST /entities/{eid}:split` |
+| G22 | 读接口 `as_of`；响应头 `OO-Docs-As-Of`；`stale_vs_pack` |
+| G23 | `OntologyVersion.covers_drive_rev`、`pinned_by` |
+| G24 | Pack manifest `section_digests`、`guarantees`；`context-pack.v1.schema.json` 同步 |
+
+### 16.11 任务卡
+
+| 卡 | 目标 | 涉及文件 | 依赖 | 完成定义 | 验证命令 |
+|---|---|---|---|---|---|
+| B-S3-10 | 块哈希与块级复用（D53 前半） | `crates/oo-docs/src/{parse/normalize.rs,extract/reuse.rs}` | B-S3-05 | 只改格式的 DOCX 不触发抽取；证据迁到新版本 | `cargo test -p oo-docs extract::reuse` |
+| B-S5-13 **[主]** | 迁移 0142 `docs-consistency/1` | `crates/oo-pipeline/migrations/0142_docs_consistency.sql` | B-S5-01 | `Migration: 0142`；安装器测试通过 | `cargo test -p oo-docs --test install -- --ignored` |
+| B-S5-10 | `drive_rev`、`covers_drive_rev`、断言集合与实体状态哈希、增量发布（D53、D54） | `crates/oo-docs/src/{store/rev.rs,publish/mod.rs,publish/hashes.rs}` | B-S5-13、B-S5-07 | 覆盖计算符合 FM10；early cutoff 用例 | `cargo test -p oo-docs publish::hashes store::rev` |
+| B-S5-11 | 完整性约束与 `constraint_conflict`（D57） | `crates/oo-docs/src/{publish/constraints.rs,schema/constraints.v1.yaml}` | B-S5-07 | 四条核心约束各有正反用例；局部阻断 | `cargo test -p oo-docs publish::constraints` |
+| B-S5-12 | 用户纠错接口（D59） | `crates/oo-docs/src/api/routes_correct.rs`、`review/overlay.rs` | B-S5-06 | 三个接口带 If-Match；进发布管线 | `cargo test -p oo-docs --test contract correct` |
+| B-S6-11 | coverage、`UPDATES.md`、`share_update`、`:check`、`oo context check`、`at-checkpoint`、接入配方（D54、D55、D62） | `crates/oo-docs/src/share/{updates,check,coverage}.rs`、`crates/oo-cli/src/docs/context.rs`、`docs/guide/super-ontology-agent-recipes.md` | B-S6-04、B-S6-10、B-S5-10 | 退出码与 00 §5.6.3 一致；UPDATES 只追加；fail closed | `cargo test -p oo-docs share::check share::updates && cargo test -p oo-cli context_check` |
+| B-S6-12 | 任务组与组内原子刷新（D56）、`as_of` 读语义（D61）、版本保留（D58） | `crates/oo-docs/src/share/group.rs`、`api/as_of.rs`、`store/retention.rs` | B-S6-11 | 组刷新全有或全无；带 Share 凭证的读默认读 Share 版本 | `cargo test -p oo-docs share::group api::as_of store::retention` |
+| B-S7-07 | MCP 资源 `puppyone://share/<sid>/updates` 订阅通知、MCP 工具 `context_check`；接受建议前的跨 Share 影响检查 | `tools/mcp-gateway/src/**`、`crates/oo-docs/src/suggest/impact.rs` | B-S7-06、B-S6-11 | 追加后 2 秒内发出通知 | `cargo test --manifest-path tools/mcp-gateway/Cargo.toml updates` |

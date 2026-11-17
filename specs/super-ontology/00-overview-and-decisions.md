@@ -135,6 +135,23 @@
 | D43 | Puppyone 侧开发期间零影响：所有工作留在本地 `codex/super-drive` 及其任务分支；闭环签收只打本地标签；功能分支可经授权推送远端备份，但不开 PR。owner 在某次验收包上确认“效果完全 OK”后（最早 L4），集中提**一个** PR 给上级审核，保留逐卡提交，附全部证据与形式化验证报告。OO 侧照常按闭环视情况合并。细则见 50 §2.2 | owner 2026-11-16 要求 |
 | D44 | 开发按 11 个并行板块组织：契约先行、夹具解耦、目录所有权互斥，闭环可以交叠；排期与关键路径见 70 分册 | 开发效率与排期 |
 | D45 | 验证加入形式化验证：Quint（TLA 语义，Apalache 有界验证 + 随机模拟）为并发协议建模，quint-connect 把模型生成的 ITF 轨迹回放到 Rust 实现、渲染层 store 用同一批轨迹做一致性测试，Kani 对 Rust 核心纯函数做有界证明；各闭环有对应的形式化门禁，见 80 分册 | 并发协议与隔离承诺需要比测试更强的保证 |
+| D46 | 本地 Drive 加文件系统监听：Desktop 主进程用 FSEvents（Node `fs.watch` 递归）监听已登记的 fs Drive，把变化路径作为提示交给引擎；30 秒轮询保留为兜底对账。监听放在主进程而不是容器内，因为 macOS bind mount 不能可靠地传递文件变化事件。S3 桶走事件通知 + 轮询（M3） | 用户在访达里直接放文件也要立刻感知 |
+| D47 | 定向同步：`SyncRequest.paths`。带路径时只 stat 这些路径及其父目录，不推进代际、不清扫；删除仍由全量对账确认。App 内上传与 D46 的监听都走定向同步 | 单个文件的同步开销与 Drive 大小无关 |
+| D48 | 本体新鲜度状态 `freshness`，与 Drive 生命周期状态分开：`up_to_date`、`syncing`、`processing`、`publishing`、`waiting_review`、`degraded`、`held`（§5.5）。顶栏常驻新鲜度指示，文件夹层级显示汇总；事件 `drive.freshness_changed`，Health 汇总 | 用户要能看到“本体是不是最新的” |
+| D49 | 单文件延迟目标（拖入 → `published`，不配模型，本机）：md/txt p95 ≤ 5 秒；20 页以内的电子版 PDF、DOCX p95 ≤ 30 秒；1 万单元格以内的 XLSX p95 ≤ 20 秒。配模型时 LLM 排队另计，界面上单独显示为“抽取中（模型）”。估算值，L3 实测后校准 | 可验收的“自动”体验 |
+| D50 | 轻量漂移提示提前到 L4：本体发布新版本时，检查每个活跃 Share 用到的事实是否被撤回或取代，是则标 `drifted`，共享列表显示“有更新”并提供“刷新”；不自动刷新（不违反版本钉住）。差异摘要与 Suggest 联动仍在 L6 | 用户拖入改变决定的文件后，正在跑的 Agent 拿着旧结论这件事第一版就要看得见 |
+| D51 | 新文件引起的实体合并与事实取代：规则确定的（同一身份属性如邮箱、GitHub 账号；frontmatter 明确声明 `supersedes`）自动执行并进当日变更摘要；只有 LLM 候选的一律进待确认队列；被取代的旧事实正被活跃 Share 使用时，即使规则确定也在待确认队列提示一次 | 自动但不越权，与 M2 影响式规则一致 |
+| D52 | **持续一致性的总原则**：本体层（Drive、Index、给人看的界面、Router 解析新指令）永远最新；进行中的任务上下文以执行一致性优先（快照、版本钉住）；两者之间用新鲜度令牌、变更必达、提交前闸门和安全点刷新衔接。对 Agent 做出五条一致性承诺（§5.6.1），写进 BRIEF 头部摘要、SHARE.json，并作为形式化不变式 | 任务中途换上下文会产生无法复现的自相矛盾结果，比“过期”更难发现、危害更大 |
+| D53 | 依赖链与精确失效：文件 BLAKE3 → 块哈希 → 断言集合哈希 → 实体状态哈希 → 包内每节哈希；任一层重算后哈希不变就停止往下传（early cutoff）；vN+1 = vN 遮住受影响文件的断言 + 叠加新断言；漂移判断精确到节。L3 做到块哈希，L4 做到节哈希 | Salsa、Glean、Dagster 的做法 |
+| D54 | 新鲜度令牌 `drive_rev`：Drive 每次变化单调递增，上传与同步响应都返回；创建 Share 默认要求覆盖当前 `drive_rev`，最多等 20 秒，超时照样出包但在 BRIEF 第一行和 manifest `coverage` 写明未覆盖的文件；`--require-complete` 时覆盖不到直接失败。绝不静默缺失 | “读己之写”：刚放进去的文件，下一个任务一定看得到，否则明说 |
+| D55 | 任务内变更通道与提交前闸门：`.context/` 除 `UPDATES.md` 外内容不变；`UPDATES.md` 只追加，记录版本差异、影响的节和严重级别（`info` 新事实、`warn` 用过的事实被取代、`block` 用过的事实被撤回或出现矛盾）；`oo context check` 用退出码做提交前闸门，接入配方要求 Agent 在提交或开 PR 前执行；不自动替换内容。`UPDATES.md` 与 check 在 L4，MCP 资源订阅通知在 L5 | Agent 不会依据已被推翻的决定把代码交出去 |
+| D56 | 任务组 `--group <ticket-id>`：同组 Share 钉同一本体版本，组内刷新原子（全组一起升或都不升）；写回只走 `suggest/`，单写者；接受建议前列出用到相关事实的其他进行中 Share，接受后向其 `UPDATES.md` 广播。任务组在 L4，接受前影响检查在 L5 | 并行 Agent 不分叉 |
+| D57 | 本体完整性约束：schema 中声明式定义函数依赖（同一项目同一时刻至多一个负责人；同一决定同一时刻一个状态；一个身份只属于一个人；被 `rejects` 的方案不能同时是当前采用方案），按时间切片检查；发布时违反只拦截涉及的实体，其余照常发布；新增待确认种类 `constraint_conflict`；包里写“冲突未决：甲 vs 乙”，不替用户二选一 | 矛盾不以当前事实进入任何包 |
+| D58 | 版本保留：被未过期、未撤销 Share 引用的本体版本不回收；其余保留 30 天 | 避免“快照已过期” |
+| D59 | 用户直接纠错走 overlay，进同一条发布管线，推进 `drive_rev`，触发漂移与 `UPDATES.md`。L4 最小版：实体详情里“标记为错误”“修改值”“拆分 / 合并实体”；L5 完整版结合修订模式 | 知识更新不只来自文件 |
+| D60 | 形式化与验收：新增 FM10（新鲜度令牌与覆盖率）、FM11（完整性约束）；FM6 增加“包字节不变、UPDATES 只追加、组内版本一致”；新增 T2 场景 P21（两个并行 Agent，其中一个用到的决定被推翻后，`oo context check` 拦住提交），作为 L4 验收演示 | 承诺要可验证 |
+| D61 | 任务内的拉取式查询也读快照：所有读接口加 `as_of`；带 Share 凭证且省略时读该 Share 钉住的版本，否则读最新；显式 `as_of=latest` 时，响应标注“与你的包版本不一致” | 防止文件是 v42、查询却是 v45 |
+| D62 | 刷新策略 `--refresh-policy`：`manual`（默认，只通知）、`at-checkpoint`（每次 `oo context check` 通过时自动升级到最新版本，适合长任务）、`pinned`（不接受刷新，用于审计复现）。不提供“随时自动替换”这一档 | 刷新只发生在安全点 |
 
 ## 5. 核心机制（分册的共同前提）
 
@@ -184,6 +201,71 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
                        └──撤销──▶ revoked
 ```
 
+### 5.5 本体新鲜度（Drive 级，D48）
+
+```
+           定向同步/对账开始                有文件进入处理               发布作业开始
+ up_to_date ─────────────▶ syncing ─────────────▶ processing ─────────────▶ publishing ──▶ up_to_date（vN+1）
+     ▲                        │                       │                          │
+     │                        └──无变化────────────────┘                          │
+     │                                                                            ▼
+     └────────────────────── 待确认清空或被决定 ◀──── waiting_review（有内容卡在待确认，其余已发布）
+
+ 任何状态 ──依赖不可用──▶ degraded（附原因码，恢复后回到原状态）
+ 任何状态 ──大规模删除挂起──▶ held（等用户确认）
+```
+
+- 同一 Drive 同时满足多个条件时，按 `held > degraded > syncing > processing > publishing > waiting_review > up_to_date` 取最高优先级显示。
+- 每个状态都带：当前本体版本 vN、`as_of` 时间、处理中文件数、待确认数、原因码（`degraded`、`held`）。
+- 界面文案示例：“已是最新 · v42 · 3 秒前”“正在处理 5 个文件”“正在发布新版本”“3 条待确认，确认后进入本体”“解析服务不可用，处理已暂停”。
+
+### 5.6 持续一致性（D52–D62）
+
+#### 5.6.1 分层与五条承诺
+
+| 层 | 策略 |
+|---|---|
+| Drive、Index | 永远最新，自动同步、自动发布 |
+| 给人看的界面、搜索、实体详情 | 读最新版本 |
+| Router 为新指令做 `resolve` | 读最新版本（新任务开工前就该用最新理解） |
+| 进行中的任务：`.context/` 与任务内 MCP 查询 | 读 Share 钉住的快照（D61）；变更必达；只在安全点刷新（D62） |
+| 并行任务组 | 组内同一版本，组内原子升级（D56） |
+
+对 Agent 的五条承诺（BRIEF 头部一行摘要，SHARE.json `guarantees` 字段）：
+
+1. **包内一致**：一个包的全部内容来自同一个本体版本；包发出后，除 `UPDATES.md` 外的文件字节永不改变（`pack_digest` 可校验）。
+2. **新鲜度下界**：包至少覆盖创建时的 `drive_rev`；覆盖不到的在 BRIEF 第一行和 `coverage` 中列明（D54）。
+3. **变更必达**：包里实际用到的事实被取代或撤回时，几秒内写进 `UPDATES.md`（L5 起同时发 MCP 通知），并在 `oo context check` 中体现（D55）。
+4. **并行同源**：同一任务组的 Agent 读同一版本（D56）。
+5. **本体无矛盾**：违反完整性约束的事实不会以当前事实进入任何包（D57）。
+
+#### 5.6.2 一次变更的完整传播
+
+```
+文件变化 / 用户纠错（overlay）
+  → drive_rev +1（返回给上传方或纠错方）
+  → 依赖链按哈希逐层重算，哈希不变处截断（D53）
+  → 约束检查：违反的实体被拦截并入队 constraint_conflict（D57）
+  → 发布 vN+1，覆盖到的 drive_rev 前进
+  → 对每个活跃 Share：用到的事实（按节哈希）是否受影响？
+        否 → 不打扰（新事实只在新任务里出现；若在范围内，记一条 info）
+        是 → Share 标 drifted；UPDATES.md 追加 warn 或 block；L5 起发 MCP 通知
+  → Agent 在安全点：oo context check
+        0  无变化或只有 info → 继续
+        10 有 warn → 建议刷新，可继续
+        20 有 block → 停：刷新（manual / at-checkpoint）或问人；不得提交
+```
+
+#### 5.6.3 `oo context check` 退出码
+
+| 退出码 | 含义 | Agent 应做 |
+|---|---|---|
+| 0 | 包仍是最新，或只有 `info` | 继续 |
+| 10 | 有 `warn`：用过的事实被取代 | 读 `UPDATES.md`，建议刷新后再提交 |
+| 20 | 有 `block`：用过的事实被撤回或出现矛盾 | 不得提交；刷新或问人 |
+| 30 | Share 已过期或已撤销 | 停止使用这个包 |
+| 40 | 无法连接引擎 | 按 `block` 处理（闸门失败即关闭） |
+
 ## 6. 跨仓契约
 
 这是前后端两本分册必须一致的部分。字段的完整 JSON Schema 由后端分册定义，前端分册按此消费；新增字段只能向后兼容。
@@ -198,7 +280,7 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
 |---|---|---|
 | 引擎 | `GET /v1/docs/health` | 版本、依赖（PG、parser sidecar、model-egress）各自状态 |
 | Drive | `GET/POST /v1/docs/drives`、`GET/PATCH/DELETE /v1/docs/drives/{id}` | 登记 Drive（后端 + 根路径或桶）、配额、模型开关 |
-| 同步 | `POST /v1/docs/drives/{id}:sync` | 触发一次列举对账 |
+| 同步 | `POST /v1/docs/drives/{id}:sync` | 触发一次列举对账；带 `paths` 时为定向同步（D47） |
 | 文件 | `GET /v1/docs/drives/{id}/files?path=&state=&cursor=` | 列表含处理状态 |
 | 文件详情 | `GET /v1/docs/files/{fid}` | 状态历史、实体、证据、被哪些 Share 引用 |
 | 重试 | `POST /v1/docs/files:retry`（批量） | 失败重试 |
@@ -207,6 +289,8 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
 | 待确认 | `GET /v1/docs/review?kind=&source=`、`POST /v1/docs/review:decide`（批量，支持按来源整体） | 审核队列 |
 | Context Pack | `POST /v1/docs/context-packs:compile`、`GET /v1/docs/context-packs/{pid}` | 编译与预览 |
 | Share | `POST /v1/docs/shares`（mount）、`GET /v1/docs/shares`、`POST /v1/docs/shares/{sid}:refresh`、`POST /v1/docs/shares/{sid}:revoke` | 生命周期 |
+| 一致性 | `POST /v1/docs/shares/{sid}:check`、`GET /v1/docs/shares/{sid}/updates?since=`、`POST /v1/docs/share-groups/{gid}:refresh`、`GET /v1/docs/constraints` | 提交前闸门、变更通道、组内原子刷新、完整性约束（D55–D57） |
+| 纠错 | `POST /v1/docs/facts/{id}:correct`、`POST /v1/docs/entities:merge`、`POST /v1/docs/entities/{eid}:split` | 用户直接纠错走 overlay（D59） |
 | 事件 | `GET /v1/docs/events?since=`（SSE） | 状态变化、队列变化、Share 漂移 |
 | 用量 | `GET /v1/docs/usage` | LLM 调用次数与上限 |
 
@@ -214,8 +298,10 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
 
 - 文件状态：§5.1 中的全部状态名。
 - Share 状态：`active`、`drifted`、`refreshed`、`expired`、`revoked`。
+- Share 刷新策略：`manual`（默认）、`at-checkpoint`、`pinned`（D62）；变更级别：`info`、`warn`、`block`（D55）。
+- Drive 新鲜度：`up_to_date`、`syncing`、`processing`、`publishing`、`waiting_review`、`degraded`、`held`（D48）。
 - Share 角色：`viewer`（只读）、`suggester`（只读 + 可写 `suggest/`，默认）、`editor`（可直接写回，M2 起才开放）。
-- 待确认种类：`low_confidence_fact`、`entity_merge`、`alias_conflict`、`orphaned_overlay`、`type_promotion`（M2）、`suggestion`（M2）、`reprocess_diff`（M2，D23 重跑差异）。
+- 待确认种类：`constraint_conflict`（D57）、`low_confidence_fact`、`entity_merge`、`alias_conflict`、`orphaned_overlay`、`type_promotion`（M2）、`suggestion`（M2）、`reprocess_diff`（M2，D23 重跑差异）。
 - 错误码前缀：`DOCS_SOURCE_*`、`DOCS_PARSE_*`、`DOCS_EXTRACT_*`、`DOCS_REVIEW_*`、`DOCS_PACK_*`、`DOCS_SHARE_*`、`DOCS_ENGINE_*`；`DOCS_DOCTOR_*` 只出现在 `oo doctor` 输出中，不属于 API。
 
 ### 6.3 Context Pack 目录
@@ -223,10 +309,11 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
 ```
 .context/
 ├── BRIEF.md          ← ≤预算；固定章节；每行带 [src:锚点]
-├── SHARE.json        ← 范围、角色、drive 版本（内容哈希 + 对象 versionId）、有效期、授权人、已拦截数量
+├── SHARE.json        ← 范围、角色、本体版本、drive_rev 与 coverage、任务组、刷新策略、guarantees、有效期、授权人、已拦截数量
 ├── INDEX.md          ← 下一层清单（三级渐进披露）
 ├── people/ projects/ decisions.md terms.md
 ├── refs/             ← 原文片段（锚点前后若干行）；原件按需凭 SHARE.json 中的短期凭证拉取
+├── UPDATES.md        ← 唯一只追加的文件：发出后的变更通知（D55）
 ├── suggest/          ← M2 起启用
 └── manifest.json     ← 每个文件的哈希与 token 数
 ```
