@@ -3,7 +3,9 @@
   "local_only": true,
   "note": "Digests are local image ids of builds on this host; nothing is pushed. amd64 is not built here: the locks resolve for both architectures (the opencv stage compiles natively), but the image build needs an amd64 builder.",
   "base_indexes": {
-    "python": "sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f"
+    "python": "sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f",
+    "postgres": "sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+    "rust": "sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f"
   },
   "python": "3.13",
   "platforms": {
@@ -24,5 +26,20 @@
       "opencv": "5.0.0.93 built from the pinned sdist without FFmpeg (Dockerfile stage opencv); table_structure on"
     },
     "linux/amd64": null
+  },
+  "engine": {
+    "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
+    "platforms": {
+      "linux/arm64": {
+        "image": "sha256:ad577c6a286a6c5eaebeefb97070dc39d553c3846af444fec922d649eb3e13ab",
+        "tag": "oo-docs-engine:dev",
+        "size_bytes": 242680936,
+        "dockerfile_sha256": "30fdc85b0d8509fd83f3b6c9bf3022c2decf1853db286f63bdb59321d443c290",
+        "cargo_lock_sha256": "3a39267b6636fdf1d10435b1c2cf6bd2d14550a4b5563bbd75fc7f0871ebda89",
+        "lane": "super-ontology-be2",
+        "built": "2026-11-17"
+      },
+      "linux/amd64": null
+    }
   }
 }
