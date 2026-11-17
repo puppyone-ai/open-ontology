@@ -4,15 +4,15 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "e8b269be3fdca38a96f01f69c91074aa67d37bdac8885ab6f339b6407c724027/BRIEF.md"
-  ReservedCode1: "e8b269be3fdca38a96f01f69c91074aa67d37bdac8885ab6f339b6407c724027"
+  ProduceID: "087c188e4376e055975d712c168ac9cbff9ace348f8050cf5505be7351d8ece1/BRIEF.md"
+  ReservedCode1: "087c188e4376e055975d712c168ac9cbff9ace348f8050cf5505be7351d8ece1"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
 ---
 
 # BRIEF
-> 本体版本 v1（2026-11-17）· 范围 Projects/a · 预算 451/800 tokens · 角色 suggester
+> 本体版本 v2（2026-11-17）· 范围 Projects/a · 预算 451/800 tokens · 角色 suggester
 > 每行末尾的 [src:路径#位置] 是出处；原文片段见 refs/，清单见 INDEX.md。
 
 ## 你在做什么

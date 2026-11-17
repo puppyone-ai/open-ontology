@@ -3,9 +3,9 @@
     "ContentProducer": "<COMPANY>",
     "ContentPropagator": "",
     "Label": "1",
-    "ProduceID": "e8b269be3fdca38a96f01f69c91074aa67d37bdac8885ab6f339b6407c724027/SHARE.json",
+    "ProduceID": "087c188e4376e055975d712c168ac9cbff9ace348f8050cf5505be7351d8ece1/SHARE.json",
     "PropagateID": "",
-    "ReservedCode1": "a143a25e787052aae368c0714006aaf08d19cf9065416b8b8966fc0c876ce5a4",
+    "ReservedCode1": "92206afe3156b24bd888570df27154ba30ab341bfd761fb996dad818c3e6a29a",
     "ReservedCode2": ""
   },
   "blocked": {
@@ -13,27 +13,27 @@
     "facts": 83
   },
   "budget": 800,
-  "created_at": "2026-11-17T13:36:40.400177Z",
+  "created_at": "2026-11-17T13:47:10.414387Z",
   "drive": {
     "backend": "fs",
-    "id": "6ebe3f1b-91b6-434c-acaa-dee95bed1222",
+    "id": "e937594f-0524-4688-bcb0-869f677cdf60",
     "snapshot_sha256": "f033bf4817b7c3cf2267fd789629f1a73ccdb2bde9ca20705f344f4b7588048f"
   },
-  "expires_at": "2026-11-24T13:36:40.400177Z",
+  "expires_at": "2026-11-24T13:47:10.414387Z",
   "grantor": "owner",
   "notice": "撤销后本目录会被删除；已读取的内容无法收回。",
-  "ontology_version": 1,
-  "pack_digest": "a143a25e787052aae368c0714006aaf08d19cf9065416b8b8966fc0c876ce5a4",
+  "ontology_version": 2,
+  "pack_digest": "92206afe3156b24bd888570df27154ba30ab341bfd761fb996dad818c3e6a29a",
   "protocol": "oo.context-pack.share/v1",
   "refs": {
     "credential": "oodr_REDACTED",
-    "endpoint": "http://127.0.0.1:54689/v1/docs/refs",
-    "expires_at": "2026-11-24T13:36:40.400177Z"
+    "endpoint": "http://127.0.0.1:58112/v1/docs/refs",
+    "expires_at": "2026-11-24T13:47:10.414387Z"
   },
   "role": "suggester",
   "scope": [
     "Projects/a"
   ],
-  "share_id": "3c7c8c6c-6735-479d-b4fb-ff14262e252f",
+  "share_id": "7fc7dfb5-c98b-47cb-ab45-37365b5d351e",
   "task": null
 }

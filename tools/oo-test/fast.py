@@ -246,10 +246,24 @@ def run_l2(root, args):
     return results
 
 
+def run_super_ontology_l2(root, args):
+    """Super Ontology L2 walking skeleton (real oo serve + engine + container PG)."""
+    evidence = ROOT / "testing/super-ontology/evidence/L2"
+    command = ["python3", "-B", str(HERE / "super_ontology_l2.py"), "--run-id", args.run_id,
+               "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-l2", command, root, 1800, lane=False)
+    entry = dict(suite="super-ontology", **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l2-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--layer", action="append", choices=("L0", "L1", "L2"), required=True)
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--suite", choices=("super-ontology",),
+                        help="run one named suite instead of the engine cells (L2 only)")
     parser.add_argument("--engines", default="postgres,mysql,oracle")
     parser.add_argument("--base", help="select L1/L2 engines by impact of BASE...HEAD")
     parser.add_argument("--coverage-export", action="append", default=[], metavar="ENGINE=PATH")
@@ -268,6 +282,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", args.run_id):
         parser.error("invalid run id")
+    if args.suite and args.layer != ["L2"]:
+        parser.error("--suite super-ontology runs on --layer L2 only")
     args.day = (datetime.date.fromisoformat(args.day) if args.day else layers.today())
     args.engines = [e for e in args.engines.split(",") if e]
     if set(args.engines) - set(layers.P0):
@@ -299,7 +315,8 @@ def main(argv=None):
         layer_root = root / layer
         layer_root.mkdir(exist_ok=True, mode=0o700)
         layer_started = time.monotonic()
-        rows = {"L0": run_l0, "L1": run_l1, "L2": run_l2}[layer](layer_root, args)
+        l2 = run_super_ontology_l2 if args.suite else run_l2
+        rows = {"L0": run_l0, "L1": run_l1, "L2": l2}[layer](layer_root, args)
         report["layers"][layer] = {"seconds": round(time.monotonic() - layer_started, 3),
                                    "results": rows}
         runner.write_json(root / "fast-report.json", report)

@@ -1,15 +1,15 @@
 {
-  "run_id": "l2-20261117",
+  "run_id": "so-l2-close",
   "status": "pass",
-  "git_head": "4c4ca396613cd688bb832f84a793267b1f311bf2",
+  "git_head": "eb1350af4f795a8b049563a883f72e14ff555a6c",
   "binaries_sha256": {
-    "oo": "7957811f79f442a6b34bbea076e28ca222d342188688a7b631d729f8d7de1668",
-    "oo-docs-engine": "073e86eeab8d4c75ac02fa2c16cf18f2038256e835d616de71ece7fd5893e452"
+    "oo": "bba80fffc3d0146cc39fbce9313ded0054a2ba977d4b010d3857be6c40a9f7e7",
+    "oo-docs-engine": "7e0f0035b80ffecd7b92cd9922e6c4dc1d846615e20ef79d05ce7efb1bd46b8b"
   },
   "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
   "timings": {
-    "acceptance1_all_published_seconds": 5.23,
-    "acceptance5_edit_to_brief_seconds": 5.88
+    "acceptance1_all_published_seconds": 6.24,
+    "acceptance5_edit_to_brief_seconds": 3.82
   },
   "checks": [
     {
@@ -20,7 +20,7 @@
     {
       "check": "schema installed by the engine installer",
       "ok": true,
-      "detail": "{\"addr\":\"127.0.0.1:54668\",\"event\":\"listening\",\"worker\":\"engine/20445/18e8d897146"
+      "detail": "{\"addr\":\"127.0.0.1:58082\",\"event\":\"listening\",\"worker\":\"engine/40961/18e8d92941f"
     },
     {
       "check": "serve proxies the engine health",
@@ -45,7 +45,17 @@
     {
       "check": "A1 within 60s",
       "ok": true,
-      "detail": "5.2s"
+      "detail": "6.2s"
+    },
+    {
+      "check": "A7 the audit saw the listeners of both processes",
+      "ok": true,
+      "detail": "2 listening sockets"
+    },
+    {
+      "check": "A7 no non-loopback socket after the first sync",
+      "ok": true,
+      "detail": "[]"
     },
     {
       "check": "A2 mount t1 exits 0",
@@ -105,17 +115,17 @@
     {
       "check": "A3 SHARE.json lists the pack digest",
       "ok": true,
-      "detail": "a143a25e787052aa..."
+      "detail": "92206afe3156b24b..."
     },
     {
       "check": "A5 BRIEF changed after the edit",
       "ok": true,
-      "detail": "5.9s"
+      "detail": "3.8s"
     },
     {
       "check": "A5 within 30s",
       "ok": true,
-      "detail": "5.9s"
+      "detail": "3.8s"
     },
     {
       "check": "A5 the file went through the whole state chain again",
@@ -125,7 +135,7 @@
     {
       "check": "A5 every step of the chain was announced as a file.state_changed event",
       "ok": true,
-      "detail": "8 events after cursor 150"
+      "detail": "8 events after cursor 152"
     },
     {
       "check": "A5 a new mount's BRIEF differs and shows the new owner",
@@ -145,7 +155,7 @@
     {
       "check": "A4 the event log has no gap",
       "ok": true,
-      "detail": "1..175"
+      "detail": "1..174"
     },
     {
       "check": "A4 health reports the engine unavailable while it is down",
@@ -180,7 +190,7 @@
     {
       "check": "A4 the replay since the old cursor is gap free",
       "ok": true,
-      "detail": "89..188 (100 events)"
+      "detail": "89..190 (102 events)"
     },
     {
       "check": "A4 the replay ends at the head",
@@ -196,6 +206,11 @@
       "check": "A4 state after the restart equals the replayed state",
       "ok": true,
       "detail": ""
+    },
+    {
+      "check": "A7 no non-loopback socket after the restart either",
+      "ok": true,
+      "detail": "[]"
     }
   ]
 }
