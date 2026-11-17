@@ -4,6 +4,9 @@ sys.dont_write_bytecode = True
 if sys.argv[1:2] == ["gate"]:
     del sys.argv[1]
     from defects import main
+elif sys.argv[1:3] == ["l3", "run"] and "--suite" in sys.argv and sys.argv[sys.argv.index("--suite") + 1:][:1] == ["super-ontology"]:
+    del sys.argv[1]
+    from super_ontology_l3_suite import main
 elif sys.argv[1:2] == ["l3"]:
     del sys.argv[1]
     from l3 import main
