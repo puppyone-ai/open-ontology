@@ -18,7 +18,7 @@
       "retryable": false,
       "meaning_zh": "请求不合 schema",
       "details": [
-        "pointer`（JSON Pointer）"
+        "pointer"
       ],
       "i18n_key": "super-drive.errors.DOCS_ENGINE_BAD_REQUEST"
     },
@@ -343,7 +343,7 @@
       "retryable": false,
       "meaning_zh": "出口扫描命中（缺陷，需报告）",
       "details": [
-        "hits`（只有数量）"
+        "hits"
       ],
       "i18n_key": "super-drive.errors.DOCS_PACK_LEAK_GUARD"
     },

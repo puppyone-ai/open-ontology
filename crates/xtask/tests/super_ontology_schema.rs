@@ -150,3 +150,18 @@ fn super_ontology_schema_errors_and_events_tables() {
         "transient events must not carry seq"
     );
 }
+
+#[test]
+fn super_ontology_schema_error_details_are_plain_field_names() {
+    let errors = load("contracts/docs-api/errors.v1.json");
+    let field = compile(&json!({"type": "string", "pattern": "^[a-z][a-z0-9_.]*(\\[\\])?$"}));
+    for entry in errors["codes"].as_array().unwrap() {
+        for detail in entry["details"].as_array().unwrap() {
+            assert!(
+                field.is_valid(detail),
+                "{}: detail {detail} is not a field name",
+                entry["code"]
+            );
+        }
+    }
+}
