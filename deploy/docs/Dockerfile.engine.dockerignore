@@ -1,0 +1,8 @@
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!crates
+!contracts
+!deploy/docs/install-schema.sh
+**/target

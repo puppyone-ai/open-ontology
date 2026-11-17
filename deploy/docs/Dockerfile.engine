@@ -1,0 +1,30 @@
+# docs-engine runtime image (10 §2.7). Builds the `oo-docs-engine` binary from
+# this repository and runs it on the python base digest pinned in
+# deploy/lite/images.lock.json (the same base the lite runtime uses, so the
+# shell tools the engine and the schema installer use are there).
+#
+#   docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-be2 \
+#     --build-arg OO_LANE=super-ontology-be2 -t oo-docs-engine:dev .
+#
+# This is not the coordinator-owned deploy/lite/Dockerfile: it builds one
+# binary and carries nothing else. Network is needed at build time only.
+FROM docker.io/library/rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f AS build
+RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config clang libclang-dev protobuf-compiler \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY . .
+ENV PROTOC=/usr/bin/protoc CARGO_TARGET_DIR=/build/target CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=8
+RUN cargo build --release --locked -p oo-docs --bin oo-docs-engine \
+ && mkdir /out && cp /build/target/release/oo-docs-engine /out/
+
+FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
+ARG OO_LANE=super-ontology-be2
+LABEL oo.lane=$OO_LANE \
+      org.opencontainers.image.title="oo-docs-engine" \
+      org.opencontainers.image.description="Super Ontology docs engine"
+COPY --from=build /out/oo-docs-engine /usr/local/bin/oo-docs-engine
+COPY deploy/docs/install-schema.sh /usr/local/bin/oo-docs-install-schema
+RUN chmod 0555 /usr/local/bin/oo-docs-engine /usr/local/bin/oo-docs-install-schema
+ENV HOME=/tmp
+EXPOSE 7480
+ENTRYPOINT ["/usr/local/bin/oo-docs-engine"]
