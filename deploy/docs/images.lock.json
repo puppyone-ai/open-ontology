@@ -1,0 +1,25 @@
+{
+  "protocol": "oo.docs-images/v1",
+  "local_only": true,
+  "note": "Digests are local image ids (config digests) of builds on this host; nothing is pushed. amd64 is not built here: the lock resolves for both architectures, the image build needs an amd64 builder.",
+  "base_indexes": {
+    "python": "sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f"
+  },
+  "python": "3.13",
+  "platforms": {
+    "linux/arm64": {
+      "image": "sha256:2d957426e28806f4ce4b1aea2d269cdcc811010238fef4f37e48c4d6cd9e932c",
+      "tag": "oo-docs-parser:dev",
+      "size_bytes": 2445504768,
+      "dockerfile_sha256": "864a3f2e3a9d6eb5bd087e5a7efcdd889abd591efffcd3385bd5dfbd18ef4874",
+      "requirements_lock_sha256": "5c2c12881e5d2dd7f5b3d229adb36652ef09a35724b634c44c33d7175a932bc0",
+      "models_lock_sha256": "9659f286e3fea950a44f0afa1188a63839427957fc96d099f99ba875cb32098d",
+      "sbom": "testing/super-ontology/evidence/L3/sbom-doc-parser.json",
+      "sbom_sha256": "e99b57a64087cce4410b38e06b9b95746ee888fac4ee3a9f38c4eac3798f4d05",
+      "sbom_gate": "fail: 5 components await written weak-copyleft review (see sbom-doc-parser.gate.txt)",
+      "lane": "super-ontology-be2",
+      "built": "2026-11-17"
+    },
+    "linux/amd64": null
+  }
+}
