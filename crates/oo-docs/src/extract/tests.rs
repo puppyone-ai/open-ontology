@@ -413,6 +413,18 @@ fn golden_predictions_are_well_formed_and_can_be_written() {
             line_end,
             ..
         } => format!("#L{line_start}-L{line_end}").replace("-L", "-"),
+        Anchor::Cells {
+            sheet: Some(sheet),
+            range,
+        } => format!("#'{}'!{range}", sheet.replace('\'', "''")),
+        Anchor::Cells { sheet: None, range } => {
+            let digits: String = range
+                .trim_start_matches(|c: char| c.is_ascii_alphabetic())
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect();
+            format!("#R{digits}")
+        }
         _ => "#L1-1".to_owned(),
     };
     let mut ents: BTreeMap<String, Ent> = BTreeMap::new();
@@ -420,7 +432,7 @@ fn golden_predictions_are_well_formed_and_can_be_written() {
     let mut parsed = 0;
     for p in files {
         let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if ext != "md" && ext != "txt" {
+        if !matches!(ext, "md" | "txt" | "csv" | "xlsx") {
             continue;
         }
         let rel = p
@@ -429,10 +441,11 @@ fn golden_predictions_are_well_formed_and_can_be_written() {
             .to_string_lossy()
             .replace('\\', "/");
         let bytes = std::fs::read(&p).unwrap();
-        let ir = if ext == "md" {
-            parse_markdown(&bytes)
-        } else {
-            parse_text(&bytes)
+        let ir = match ext {
+            "md" => parse_markdown(&bytes),
+            "csv" => crate::parse::csv::parse_csv(&bytes),
+            "xlsx" => crate::parse::xlsx::parse_xlsx(&bytes),
+            _ => parse_text(&bytes),
         }
         .expect("parse")
         .ir;
@@ -466,7 +479,10 @@ fn golden_predictions_are_well_formed_and_can_be_written() {
             facts.push((file.clone(), f.clone(), rel.clone()));
         }
     }
-    assert_eq!(parsed, 21, "18 md + 3 txt files in the golden set");
+    assert_eq!(
+        parsed, 28,
+        "18 md + 3 txt + 3 csv + 4 xlsx files in the golden set"
+    );
     let ids: BTreeMap<&String, String> = ents
         .keys()
         .enumerate()

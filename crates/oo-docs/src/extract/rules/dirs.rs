@@ -11,6 +11,7 @@ pub enum Dir {
     Projects,
     Decisions,
     Preferences,
+    Terms,
     None,
 }
 
@@ -18,6 +19,7 @@ const PEOPLE: &[&str] = &["people", "人员", "成员", "团队"];
 const PROJECTS: &[&str] = &["projects", "项目"];
 const DECISIONS: &[&str] = &["decisions", "决策", "adr"];
 const PREFERENCES: &[&str] = &["preferences", "偏好"];
+const TERMS: &[&str] = &["glossary", "术语"];
 
 /// Path pieces the rules work from.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,6 +49,8 @@ pub fn path_info(path: &str) -> PathInfo {
             Dir::Decisions
         } else if PREFERENCES.contains(&first.as_str()) {
             Dir::Preferences
+        } else if TERMS.contains(&first.as_str()) {
+            Dir::Terms
         } else {
             Dir::None
         }
@@ -127,6 +131,7 @@ pub fn classify(info: &PathInfo, fm_type_value: Option<&str>) -> Option<Kind> {
             "dir.preferences",
             9500,
         ),
+        Dir::Terms => None,
         Dir::None if decision_file_name(&info.stem) => {
             kind(EntityType::Decision, None, "dir.decisions", 10000)
         }

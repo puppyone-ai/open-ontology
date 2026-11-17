@@ -19,6 +19,9 @@ pub enum Field {
     Aliases,
     Rejected,
     Tags,
+    Email,
+    Github,
+    EmployeeId,
 }
 
 fn key_norm(key: &str) -> String {
@@ -39,6 +42,9 @@ pub fn field(key: &str) -> Option<Field> {
         "aliases" | "alias" | "别名" => Field::Aliases,
         "被否决方案" | "被否决" | "否决方案" | "rejected" => Field::Rejected,
         "tags" | "tag" | "标签" => Field::Tags,
+        "email" | "e-mail" | "邮箱" | "电子邮箱" | "邮件" => Field::Email,
+        "github" | "github账号" => Field::Github,
+        "employee_id" | "工号" | "员工号" | "员工编号" => Field::EmployeeId,
         _ => return None,
     })
 }

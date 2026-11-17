@@ -37,6 +37,9 @@ fn order(f: Field) -> u8 {
         Field::Rejected => 8,
         Field::Aliases => 9,
         Field::Tags => 10,
+        Field::Email => 11,
+        Field::Github => 12,
+        Field::EmployeeId => 13,
     }
 }
 
