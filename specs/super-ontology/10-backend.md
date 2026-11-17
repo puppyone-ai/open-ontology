@@ -232,7 +232,7 @@ oo-core ◀── oo-connectors(objectstore) ◀── oo-docs ──▶ oo-buil
 oo-eval ──▶ oo-core（只用 docir 类型与标注格式）
 ```
 
-需要在 `crates/oo-arch-check/src/policy.rs` 增加：成员 `oo-docs`；边 `("oo-docs","oo-core")`、`("oo-docs","oo-connectors")`、`("oo-docs","oo-builder")`、`("oo-cli","oo-docs")`。禁止：`oo-gateway → oo-docs`（Gateway 不得依赖流水线，与现有 R-GATEWAY-PIPELINE 一致）、`oo-docs → oo-gateway`、`oo-core` 增加任何依赖（R-CORE-*）。`oo-docs` 用 sqlx（控制面栈），合规。
+需要在 `crates/oo-arch-check/src/policy.rs` 增加：成员 `oo-docs`；边 `("oo-docs","oo-core")`、`("oo-docs","oo-connectors")`、`("oo-docs","oo-builder")`。**实现更正（2026-11-17，S1）**：`oo-cli` 不依赖 `oo-docs`。引擎带 sqlx，而架构门禁 R-CLIENT-DB-DRIVER 禁止 CLI 绕过 `oo-connectors` 触达数据库驱动；`oo serve` 与 `oo context` 只经 loopback HTTP 调引擎、在宿主机写挂载目录，不需要链接引擎。上图中 `oo-cli(feature docs) → oo-docs` 这条边因此不存在，两者之间只有 HTTP 契约（`contracts/docs-api/`）。禁止：`oo-gateway → oo-docs`（Gateway 不得依赖流水线，与现有 R-GATEWAY-PIPELINE 一致）、`oo-docs → oo-gateway`、`oo-core` 增加任何依赖（R-CORE-*）。`oo-docs` 用 sqlx（控制面栈），合规。
 
 ### 2.4 Cargo feature
 
