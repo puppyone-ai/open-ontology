@@ -108,8 +108,10 @@ pub async fn compute(
                      AND j.state IN ('queued', 'running'))) AS syncing, \
          (SELECT count(*) FROM _oo_docs.file f WHERE f.drive_id = d.id AND f.deleted_at IS NULL \
           AND f.state IN ('stored', 'queued', 'parsing', 'parsed', 'extracting')) AS processing, \
-         (SELECT COALESCE(sum(f.pending_review), 0) FROM _oo_docs.file f \
-          WHERE f.drive_id = d.id AND f.deleted_at IS NULL) AS pending \
+         GREATEST((SELECT COALESCE(sum(f.pending_review), 0) FROM _oo_docs.file f \
+                    WHERE f.drive_id = d.id AND f.deleted_at IS NULL), \
+                  (SELECT count(*) FROM _oo_docs.review_item r \
+                    WHERE r.drive_id = d.id AND r.status = 'pending')) AS pending \
          FROM _oo_docs.drive d WHERE d.id = ANY($1::text[]::uuid[])",
     )
     .bind(drive_ids)
