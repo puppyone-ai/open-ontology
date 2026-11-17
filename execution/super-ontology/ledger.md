@@ -26,11 +26,11 @@
 | SO-B-S2-02 | L2 | merged | so/B-S2-02-objectstore-fs | 1fc956757 → 8ccfae090 | — | — | 无 libc，O_NOFOLLOW 以逐级 symlink_metadata + dev/ino 比对代替；残留窄 TOCTOU |
 | SO-B-S2-03 | L2 | merged | so/B-S2-03-cas | 16fd8f50f → 16fd8f50f | — | — | — |
 | SO-B-S2-04 | L2 | merged | so/B-S2-04-job-framework | 03313816c → 9afc868ef | — | — | jobs_live 主线程复跑 10/10；抖动哈希暂用 SHA-256 |
-| SO-B-S2-05 | L2 | in_progress | so/B-S2-05-* | — | — | — | — |
+| SO-B-S2-05 | L2 | merged | so/B-S2-05-ingest-reconcile | — | — | — | ingest_fs 主线程复跑 14/14 |
 | SO-B-S2-06 | L2 | merged | so/B-S2-06-md-txt-ir | 347c4d956 → 3df429b14 | — | — | GB18030 待 encoding_rs 准入；normalize 内有 canonical_json 副本待换 re-export |
 | SO-B-S2-07 | L2 | merged | so/B-S2-07-rules-publish | e100e3d03 → 35c9c4e10 | — | — | 无模型 md/txt 子集：实体 F1 0.609、事实 F1 0.214（基线，非验收） |
 | SO-B-S2-08 | L2 | merged | so/B-S2-08-compile-minimal | 2b580b857 → 761c5ddb5 | — | — | 红队真实 docx 待 L4；AIGC 首行在 front matter 前 |
-| SO-B-S2-09 | L2 | in_progress | so/B-S2-09-* | — | — | — | — |
+| SO-B-S2-09 | L2 | in_progress | so/B-S2-09-control-api + 续作 | — | — | — | API 已合入（api_live 11/11）；流水线接线续作中 |
 | SO-B-S2-10 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-11 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-12 | L2 | todo | — | — | — | — | — |
