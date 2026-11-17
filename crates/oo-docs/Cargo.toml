@@ -25,3 +25,20 @@ oo-builder = { path = "../oo-builder" }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 thiserror = "=2.0.21"
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+# Control-plane database stack, same pins as oo-pipeline. Default features
+# stay off; TLS is the patched sqlx-core `_tls-rustls-ring-no-roots` (caller
+# CA only). The facade pulls sqlx-core `migrate`; this crate does not call it,
+# it installs `_oo_docs` with its own checksummed installer (10 §3.1).
+sqlx = { version = "=0.9.0", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = [
+    "_rt-tokio",
+    "_tls-rustls-ring-no-roots",
+] }
+tokio = { version = "=1.53.3", default-features = false, features = ["macros", "rt", "time", "sync"] }
+
+[dev-dependencies]
+tokio = { version = "=1.53.3", default-features = false, features = ["macros", "rt-multi-thread", "time", "sync"] }
