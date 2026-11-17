@@ -14,6 +14,8 @@ on:
     paths:
       - "formal/**"
       - "crates/oo-docs/**"
+      - "crates/oo-core/src/docir/**"
+      - "crates/oo-connectors/src/objectstore/**"
       - "crates/oo-pipeline/migrations/**"
       - ".github/workflows/formal.yml"
   schedule:
@@ -64,8 +66,9 @@ jobs:
         run: formal/scripts/formal-simulate
 
   formal-verify-fast:
-    # One (model, invariant) per job: run sequentially the set takes ~95 minutes,
-    # the 80 section 6 budget is 15 minutes per check.
+    # One (model, invariant) per job, at the FAST bound (`verify-steps` in the model header, chosen so
+    # that every pair fits 12 minutes; formal/reviews/FM*.md have the measured times). The 80
+    # section 6 budget is 15 minutes per job.
     name: formal-verify-fast (${{ matrix.model }} ${{ matrix.invariant }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -79,11 +82,27 @@ jobs:
           - { model: jobs, invariant: invStaleRejected }
           - { model: jobs, invariant: invTerminalAbsorbing }
           - { model: jobs, invariant: invCancelTerminal }
+          - { model: jobs, invariant: invCancelProvenance }
           - { model: jobs, invariant: invQuarantineAfterCrashes }
           - { model: jobs, invariant: invNoLostJob }
           - { model: jobs, invariant: invAtMostOnceSuccess }
-          - { model: file_lifecycle, invariant: inv }
-          - { model: event_stream, invariant: inv }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: sync_reconcile, invariant: invOnlySweepKills }
+          - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invGenerationMonotone }
+          - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
+          - { model: sync_reconcile, invariant: invRenameCarries }
+          - { model: sync_reconcile, invariant: invConverged }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -92,7 +111,7 @@ jobs:
           fetch-depth: 1
       - name: quint
         run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
-      - name: apalache bounded check at default bounds
+      - name: apalache bounded check at the fast bound
         run: formal/scripts/formal-verify-fast "${{ matrix.model }}" "${{ matrix.invariant }}"
       - name: apalache jar digest
         run: |
@@ -118,12 +137,87 @@ jobs:
             -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_PASSWORD=unused \
             -p 127.0.0.1:55432:5432 \
             postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 \
-            -c track_commit_timestamp=on -c max_connections=200
+            -c track_commit_timestamp=on -c fsync=off -c max_connections=200
           for i in $(seq 1 30); do docker exec oo-fv-pg pg_isready -U postgres && break; sleep 1; done
-      - name: replay committed ITF traces against the SQL functions
+      - name: replay committed ITF traces (FM1 SQL functions, FM2 state machine, FM3 reconcile, FM4 event log and SSE)
         env:
           OO_DOCS_TEST_PG_PORT: "55432"
-        run: cargo test -p oo-docs --locked --test conformance_jobs -- --ignored --nocapture
+        run: |
+          cargo test -p oo-docs --locked --test conformance_state
+          cargo test -p oo-docs --locked --test conformance_jobs --test conformance_state --test conformance_sync --test conformance_events -- --ignored --nocapture
       - name: remove postgres
         if: always()
         run: docker rm -f oo-fv-pg
+
+  formal-verify-deep:
+    # Nightly only (80 section 6): the same pairs at the larger `deep-steps` bound of each model header.
+    # invNoLostJob alone needs 40 minutes at 10 steps. Own runners, no PR trigger.
+    if: github.event_name == 'schedule'
+    name: formal-verify-deep (${{ matrix.model }} ${{ matrix.invariant }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: jobs, invariant: invLeaseShape }
+          - { model: jobs, invariant: invSingleLiveLease }
+          - { model: jobs, invariant: invGenerationMonotone }
+          - { model: jobs, invariant: invStaleRejected }
+          - { model: jobs, invariant: invTerminalAbsorbing }
+          - { model: jobs, invariant: invCancelTerminal }
+          - { model: jobs, invariant: invCancelProvenance }
+          - { model: jobs, invariant: invQuarantineAfterCrashes }
+          - { model: jobs, invariant: invNoLostJob }
+          - { model: jobs, invariant: invAtMostOnceSuccess }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: sync_reconcile, invariant: invOnlySweepKills }
+          - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invGenerationMonotone }
+          - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
+          - { model: sync_reconcile, invariant: invRenameCarries }
+          - { model: sync_reconcile, invariant: invConverged }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: apalache bounded check at the deep bound
+        run: formal/scripts/formal-verify-deep "${{ matrix.model }}" "${{ matrix.invariant }}"
+
+  kani-fast:
+    # KP harnesses of the changed crates (80 section 6, budget 20 minutes). Kani 0.68.0, formal/TOOLCHAIN.md.
+    name: kani-fast
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: kani
+        run: |
+          cargo install --locked kani-verifier --version 0.68.0
+          cargo kani setup
+      - name: KP1 KP7 KP8 (oo-docs)
+        run: cargo kani -p oo-docs
+      - name: KP2 (oo-core)
+        run: cargo kani -p oo-core
