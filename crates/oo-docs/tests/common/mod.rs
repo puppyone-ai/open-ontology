@@ -7,6 +7,7 @@
 use std::env;
 
 pub mod engine;
+pub mod fx;
 pub mod http;
 
 use oo_docs::store::install::{self, InstallOutcome};
