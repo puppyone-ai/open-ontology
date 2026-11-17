@@ -578,3 +578,82 @@ async fn resolve_binds_published_aliases_and_queues_ties() {
     );
     fx.finish(db).await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn compile_from_the_store_matches_the_memory_reader_and_respects_scope() {
+    use oo_docs::compile::{CompileRequest, PackError, compile_from_store};
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_pub_compile";
+    let mut fx = Fx::new(db).await;
+    for (path, bytes) in &md_files() {
+        fx.index(path, bytes).await;
+    }
+    let PublishOutcome::Published(_) = fx.publish().await else {
+        panic!("v1")
+    };
+    // An out-of-scope file that must never appear in a Projects-only pack.
+    fx.index(
+        "Secret/账本.md",
+        "---\ntype: project\n---\n# 隐藏项目\n\n负责人：秘密人物\n".as_bytes(),
+    )
+    .await;
+    let PublishOutcome::Published(v2) = fx.publish().await else {
+        panic!("v2")
+    };
+    assert_eq!(v2.n, 2);
+    let rq = |scope: &[&str]| CompileRequest {
+        scope: scope.iter().map(|s| (*s).to_owned()).collect(),
+        task: "星图看板".into(),
+        ..CompileRequest::default()
+    };
+    let a = compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &rq(&["Projects"]))
+        .await
+        .expect("compile");
+    let b = compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &rq(&["Projects"]))
+        .await
+        .expect("compile");
+    assert_eq!(a.pack_digest, b.pack_digest);
+    assert_eq!(a.version.n, 2);
+    for f in &a.files {
+        let t = f.as_str();
+        assert!(
+            !t.contains("隐藏项目") && !t.contains("秘密人物") && !t.contains("Secret/"),
+            "{} leaks",
+            f.path
+        );
+    }
+    assert!(a.blocked.facts > 0 && a.blocked.entities > 0);
+    let brief = a.file("BRIEF.md").unwrap().as_str();
+    assert!(brief.contains("- 解析出的对象：星图看板（Project）"));
+    // Widening the scope reveals it.
+    let all = compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &rq(&[]))
+        .await
+        .expect("compile");
+    assert!(all.files.iter().any(|f| f.as_str().contains("隐藏项目")));
+    // Pinning version 1 hides the later file even for the whole drive.
+    let mut v1 = rq(&[]);
+    v1.version = Some(1);
+    let p1 = compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &v1)
+        .await
+        .expect("compile");
+    assert!(p1.files.iter().all(|f| !f.as_str().contains("隐藏项目")));
+    // Errors keep their codes.
+    assert_eq!(
+        compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &rq(&["Nope"]))
+            .await
+            .unwrap_err(),
+        PackError::ScopeInvalid {
+            paths: vec!["Nope".into()]
+        }
+    );
+    let mut v9 = rq(&[]);
+    v9.version = Some(9);
+    assert_eq!(
+        compile_from_store(&mut fx.rt, &fx.cas, DRIVE, &v9)
+            .await
+            .unwrap_err(),
+        PackError::VersionNotFound
+    );
+    fx.finish(db).await;
+}
