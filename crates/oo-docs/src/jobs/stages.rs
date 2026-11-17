@@ -73,13 +73,22 @@ fn is_contention(text: &str) -> bool {
 }
 
 fn db_fail(e: impl std::fmt::Display) -> Outcome {
-    // Driver and server messages carry no row values; cap the length anyway.
+    // The driver text can echo values (a unique violation names the key), so
+    // only the SQLSTATE, a fixed vocabulary, goes to the log.
     let text = e.to_string();
-    let why: String = text.chars().take(240).collect();
-    crate::obs::log(
+    let state = text
+        .split("sqlstate=")
+        .nth(1)
+        .map(|r| r.chars().take(5).collect::<String>())
+        .filter(|s| s.len() == 5 && s.bytes().all(|b| b.is_ascii_alphanumeric()));
+    let code = state.map_or_else(|| "DB".to_owned(), |s| format!("sqlstate={s}"));
+    crate::obs::emit(
         "warn",
         "stage.db_failed",
-        serde_json::json!({ "reason": why }),
+        &crate::obs::Fields {
+            code: Some(&code),
+            ..crate::obs::Fields::default()
+        },
     );
     if is_contention(&text) {
         return Outcome::failed(FailureClass::Transient, CONTENDED);
@@ -749,7 +758,17 @@ impl JobHandler for PublishHandler {
             let outcome = publish(&mut conn, &self.cas, &PublishConfig::default()).await;
             drop(conn);
             let n = match outcome {
-                Ok(PublishOutcome::Published(v)) => Some(v.n),
+                Ok(PublishOutcome::Published(v)) => {
+                    crate::obs::emit(
+                        "info",
+                        "publish.version",
+                        &crate::obs::Fields {
+                            count: Some(("ontology_version", v.n)),
+                            ..crate::obs::Fields::default()
+                        },
+                    );
+                    Some(v.n)
+                }
                 Ok(PublishOutcome::NoChange { .. }) => None,
                 Ok(PublishOutcome::Busy) => {
                     return Outcome::failed(FailureClass::Busy, "DOCS_ENGINE_BUSY");
@@ -875,8 +894,16 @@ async fn enqueue_stage(
 
 /// One pump pass: enqueue what is due. Returns the number of jobs enqueued.
 pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
+    pump_once_with(pool, false).await
+}
+
+/// [`pump_once`]; `paused` (disk low) enqueues no parse or extract job.
+pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::store::StoreError> {
     let mut conn = pool.acquire().await?;
     let mut enqueued = 0;
+    if paused {
+        return publish_due(&mut conn).await;
+    }
 
     // parsing -> queued: a failed attempt that will be retried puts the file
     // back in the queue with the reason and `retryable` (4.2).
@@ -976,43 +1003,7 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
         }
     }
 
-    // indexed files and unpublished retractions -> publish (debounced)
-    let due: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f WHERE f.state = 'indexed' AND f.deleted_at IS NULL \
-                         AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
-                                          AND j.created_at >= f.state_since \
-                                          AND j.state IN ('queued', 'running', 'succeeded'))) \
-             OR EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv \
-                          ON fv.id = f.current_version_id \
-                         WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
-                           AND fv.created_at > COALESCE((SELECT max(published_at) \
-                                 FROM _oo_docs.ontology_version), '-infinity'::timestamptz) \
-                           AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
-                                        WHERE e.version_id = fv.id AND e.withdrawn_at IS NULL) \
-                           AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
-                                            AND j.created_at >= fv.created_at \
-                                            AND j.state IN ('queued', 'running', 'succeeded'))) \
-             OR EXISTS (SELECT 1 FROM _oo_docs.fact ft WHERE ft.status = 'retracted' \
-                         AND ft.retracted_in IS NULL AND ft.published_in IS NOT NULL \
-                         AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
-                                          AND j.created_at >= ft.retracted_at \
-                                          AND j.state IN ('queued', 'running', 'succeeded')))",
-    )
-    .fetch_one(&mut *conn)
-    .await?;
-    if due {
-        let now_ms: i64 =
-            sqlx::query_scalar("SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint")
-                .fetch_one(&mut *conn)
-                .await?;
-        let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
-        let key = format!("publish:{start}");
-        let mut job = NewJob::new(JobKind::Publish, &key);
-        job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
-        if store::enqueue(&mut conn, &job).await?.status == JobStatus::Enqueued {
-            enqueued += 1;
-        }
-    }
+    enqueued += publish_due(&mut conn).await?;
     Ok(enqueued)
 }
 
@@ -1090,6 +1081,49 @@ async fn fail_file(
         },
     )
     .await;
+}
+
+/// indexed files, duplicates and unpublished retractions -> publish (debounced).
+async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store::StoreError> {
+    let mut enqueued = 0;
+    // indexed files and unpublished retractions -> publish (debounced)
+    let due: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f WHERE f.state = 'indexed' AND f.deleted_at IS NULL \
+                         AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                          AND j.created_at >= f.state_since \
+                                          AND j.state IN ('queued', 'running', 'succeeded'))) \
+             OR EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv \
+                          ON fv.id = f.current_version_id \
+                         WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
+                           AND fv.created_at > COALESCE((SELECT max(published_at) \
+                                 FROM _oo_docs.ontology_version), '-infinity'::timestamptz) \
+                           AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
+                                        WHERE e.version_id = fv.id AND e.withdrawn_at IS NULL) \
+                           AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                            AND j.created_at >= fv.created_at \
+                                            AND j.state IN ('queued', 'running', 'succeeded'))) \
+             OR EXISTS (SELECT 1 FROM _oo_docs.fact ft WHERE ft.status = 'retracted' \
+                         AND ft.retracted_in IS NULL AND ft.published_in IS NOT NULL \
+                         AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                          AND j.created_at >= ft.retracted_at \
+                                          AND j.state IN ('queued', 'running', 'succeeded')))",
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+    if due {
+        let now_ms: i64 =
+            sqlx::query_scalar("SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint")
+                .fetch_one(&mut *conn)
+                .await?;
+        let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
+        let key = format!("publish:{start}");
+        let mut job = NewJob::new(JobKind::Publish, &key);
+        job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
+        if store::enqueue(&mut *conn, &job).await?.status == JobStatus::Enqueued {
+            enqueued += 1;
+        }
+    }
+    Ok(enqueued)
 }
 
 /// `parsing -> queued` for files whose parse job failed an attempt and waits
@@ -1254,17 +1288,31 @@ pub async fn retry_file(
 
 /// Run the pump until `stop` flips. `wake` is poked after every pass that
 /// enqueued something, so a scheduler sharing it claims at once.
-pub fn spawn_pump(
+pub fn spawn_pump(pool: PgPool, wake: Arc<Notify>, stop: watch::Receiver<bool>) -> JoinHandle<()> {
+    spawn_pump_guarded(pool, wake, stop, None)
+}
+
+/// [`spawn_pump`] with the disk guard: while the disk is low no parse or
+/// extract job is enqueued and waiting files say `blocked_reason = disk_low`.
+pub fn spawn_pump_guarded(
     pool: PgPool,
     wake: Arc<Notify>,
     mut stop: watch::Receiver<bool>,
+    guard: Option<Arc<crate::obs::disk::Guard>>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
+        let mut was_low = false;
         loop {
             if *stop.borrow() {
                 return;
             }
-            if let Ok(n) = pump_once(&pool).await
+            let low = guard.as_ref().is_some_and(|g| g.is_low());
+            if guard.is_some() && (low || was_low) {
+                // New files keep arriving while low; on the way back, clear.
+                let _ = crate::obs::disk::sync_blocked(&pool, low).await;
+            }
+            was_low = low;
+            if let Ok(n) = pump_once_with(&pool, low).await
                 && n > 0
             {
                 wake.notify_waiters();

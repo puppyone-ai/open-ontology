@@ -296,10 +296,25 @@ pub async fn serve(
 }
 
 async fn entry(State(app): State<Arc<AppState>>, req: Request) -> Response<Body> {
+    let started = Instant::now();
+    // Only the template of the route is ever logged, never the path or query.
+    let route_text = crate::obs::debug_enabled()
+        .then(|| crate::obs::route_template(req.method().as_str(), req.uri().path()));
     let mut resp = match route(&app, req).await {
         Ok(r) => r,
         Err(e) => e.into_response(),
     };
+    if let Some(route_text) = route_text {
+        crate::obs::emit_debug(
+            "api.request",
+            &crate::obs::Fields {
+                route: Some(&route_text),
+                status: Some(resp.status().as_u16()),
+                duration_ms: Some(i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX)),
+                ..crate::obs::Fields::default()
+            },
+        );
+    }
     resp.headers_mut().insert(
         "oo-docs-api",
         HeaderValue::from_static(crate::API_VERSION_NUMBER),

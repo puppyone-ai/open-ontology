@@ -517,9 +517,21 @@ pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failur
         .map_err(|_| Failure::local("DOCTOR_RUNTIME"))?;
     let sources = runtime.block_on(sources(stack));
     let model = model(stack);
-    let blocked = sources.iter().any(|s| s["status"] != "ok") || model["status"] != "ok";
-    let report = json!({"protocol":"oo.doctor/v1", "read_only":true,
+    #[allow(unused_mut)]
+    let mut blocked = sources.iter().any(|s| s["status"] != "ok") || model["status"] != "ok";
+    #[allow(unused_mut)]
+    let mut report = json!({"protocol":"oo.doctor/v1", "read_only":true,
         "status": if blocked {"blocked"} else {"ok"}, "sources":sources, "model":model});
+    // Super Drive: an added field, only in builds with the docs feature.
+    #[cfg(feature = "docs")]
+    {
+        let docs = runtime.block_on(super::doctor_docs::section());
+        if docs["status"] == "blocked" {
+            blocked = true;
+            report["status"] = json!("blocked");
+        }
+        report["docs"] = docs;
+    }
     let output = if json_output {
         report.to_string()
     } else {

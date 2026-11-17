@@ -14,6 +14,7 @@ use oo_docs::ingest::{FsFactory, IngestLimits, handlers};
 use oo_docs::jobs::JobKind;
 use oo_docs::jobs::scheduler::{Scheduler, SchedulerConfig, SchedulerHandle};
 use oo_docs::jobs::stages;
+use oo_docs::obs::disk::Guard;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use tokio::sync::watch;
@@ -29,6 +30,15 @@ static KEYS: AtomicU64 = AtomicU64::new(1);
 /// Fresh idempotency key.
 pub fn key() -> String {
     format!("test-key-{:016}", KEYS.fetch_add(1, Ordering::Relaxed))
+}
+
+/// Disk probe reading a number the test changes.
+pub struct SharedDisk(pub Arc<AtomicU64>);
+
+impl DiskProbe for SharedDisk {
+    fn free_bytes(&self, _: &std::path::Path) -> Option<u64> {
+        Some(self.0.load(Ordering::Relaxed))
+    }
 }
 
 /// Disk probe with a fixed answer.
@@ -51,6 +61,9 @@ pub struct Opts {
     pub stages: bool,
     /// Adjust the state before the server starts.
     pub tweak: Option<Tweak>,
+    /// Free bytes the disk guard and health see (changeable by the test);
+    /// `None` is 50 GiB and no guard.
+    pub free_bytes: Option<Arc<AtomicU64>>,
 }
 
 /// Adjusts the state before the server starts.
@@ -88,10 +101,20 @@ impl TestEngine {
             page_size: 3,
             ..IngestLimits::default()
         };
+        let (disk_box, guard): (Box<dyn DiskProbe>, Option<Arc<Guard>>) = match &opts.free_bytes {
+            Some(free) => {
+                let probe = Arc::new(SharedDisk(free.clone()));
+                (
+                    Box::new(probe.clone()),
+                    Some(Arc::new(Guard::new(probe, cas.clone()))),
+                )
+            }
+            None => (Box::new(FixedDisk(Some(50 * 1024 * 1024 * 1024))), None),
+        };
         let health = Arc::new(HealthProbe::new(
             pool.clone(),
             Some(cas.clone()),
-            Box::new(FixedDisk(Some(50 * 1024 * 1024 * 1024))),
+            disk_box,
             vec!["docs-bootstrap/1".into()],
         ));
         health.set_ready();
@@ -130,10 +153,11 @@ impl TestEngine {
             }),
         ];
         if opts.stages {
-            tasks.push(oo_docs::jobs::stages::spawn_pump(
+            tasks.push(oo_docs::jobs::stages::spawn_pump_guarded(
                 pool.clone(),
                 app.wake.clone(),
                 stop_rx.clone(),
+                guard.clone(),
             ));
         }
         if opts.watcher {
@@ -157,6 +181,13 @@ impl TestEngine {
                     cas.clone(),
                     Some(app.progress.clone()),
                 ));
+            }
+            if let Some(g) = &guard {
+                oo_docs::obs::disk::guard_handlers(
+                    &mut hs,
+                    g,
+                    &[JobKind::Hash, JobKind::Parse, JobKind::ExtractRules],
+                );
             }
             Scheduler::new(pool.clone(), cfg, hs).spawn()
         });
@@ -257,5 +288,75 @@ impl TestEngine {
         let _ = std::fs::remove_dir_all(&self.root);
         let _ = std::fs::remove_dir_all(&self.cas);
         drop_db(&self.name).await;
+    }
+}
+
+/// The real `oo-docs-engine` binary as a child process (not available to
+/// tests of other crates: `CARGO_BIN_EXE_` is only set for this package).
+pub struct ChildEngine {
+    pub child: std::process::Child,
+    pub addr: std::net::SocketAddr,
+    pub stderr_path: PathBuf,
+}
+
+impl Drop for ChildEngine {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+impl ChildEngine {
+    /// Start it against database `db` (already installed, runtime login),
+    /// `state` as its state dir (holding `engine.token` with [`TOKEN`]),
+    /// extra environment pairs, stderr appended to `<state>/engine.stderr`.
+    pub fn spawn(bin: &str, db: &str, state: &std::path::Path, env: &[(&str, &str)]) -> Self {
+        use std::io::BufRead;
+        let port = std::env::var("OO_DOCS_TEST_PG_PORT").expect("OO_DOCS_TEST_PG_PORT");
+        let host = std::env::var("OO_DOCS_TEST_PG_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+        let url = format!(
+            "postgres://{}@{host}:{port}/{db}?sslmode=disable",
+            super::RUNTIME_LOGIN
+        );
+        std::fs::write(state.join("engine.token"), TOKEN).unwrap();
+        let stderr_path = state.join("engine.stderr");
+        let stderr = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&stderr_path)
+            .unwrap();
+        let mut cmd = std::process::Command::new(bin);
+        cmd.env_clear()
+            .env("PATH", std::env::var("PATH").unwrap_or_default())
+            .env("OO_DOCS_LISTEN", "127.0.0.1:0")
+            .env("OO_DOCS_STATE_DIR", state)
+            .env("OO_DOCS_DATABASE_URL", url)
+            .env("OO_DOCS_ENGINE_TOKEN_FILE", state.join("engine.token"))
+            .stdout(std::process::Stdio::piped())
+            .stderr(stderr);
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+        let mut child = cmd.spawn().expect("spawn engine");
+        let mut line = String::new();
+        std::io::BufReader::new(child.stdout.as_mut().unwrap())
+            .read_line(&mut line)
+            .expect("first line");
+        let v: Value =
+            serde_json::from_str(line.trim()).unwrap_or_else(|_| panic!("first line: {line}"));
+        Self {
+            child,
+            addr: v["addr"].as_str().expect("addr").parse().expect("addr"),
+            stderr_path,
+        }
+    }
+
+    /// SIGTERM (via `kill`), then wait for a clean exit.
+    pub fn stop(mut self) -> std::process::ExitStatus {
+        let _ = std::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(self.child.id().to_string())
+            .status();
+        self.child.wait().expect("wait")
     }
 }
