@@ -40,7 +40,7 @@ use crate::review::overlay;
 use crate::review::queue::{self, Thresholds};
 use crate::state::{FileState, Transition, TransitionError, transition_in_tx};
 use crate::store::{StoreError, events};
-use crate::temporal::pg::{overlaps_after, queue_held, reconcile};
+use crate::temporal::pg::{overlaps_after, reconcile};
 
 /// `pg_try_advisory_lock` key of the single publisher (10 §4.9).
 pub const PUBLISH_LOCK: i64 = 6_413_202_612;
@@ -280,7 +280,7 @@ pub async fn publish(
     let mut eligible = report.eligible();
     // Supersession and functional conflicts (5.5); what must wait is queued.
     let rec = reconcile(&mut tx, &eligible).await?;
-    queue_held(&mut tx, &rec.held).await?;
+    super::constraints::route_held(&mut tx, &rec.held).await?;
     eligible.retain(|id| !rec.excluded.contains(id));
 
     let fact_rows: Vec<FactSqlRow> = sqlx::query_as(
@@ -426,7 +426,11 @@ pub async fn publish(
                 });
             }
         }
-        queue_held(&mut tx, &held).await?;
+        super::constraints::route_held(&mut tx, &held).await?;
+        // The other two core constraints (16.7): what would make an alternative
+        // rejected and decided at once, and persons that share an identity.
+        let ids2: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
+        blocked.extend(super::constraints::check_publish(&mut tx, &ids2).await?);
         ok_facts.retain(|f| {
             if blocked.contains(&f.id) {
                 g3.block("overlap", false);

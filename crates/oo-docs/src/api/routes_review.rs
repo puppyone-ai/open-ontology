@@ -385,6 +385,32 @@ fn parse_request(body: &Value) -> Result<(Vec<ItemDecision>, Option<BySource>), 
     }
 }
 
+/// `GET /v1/docs/constraints`: the core constraints with their open violations.
+pub async fn constraints(app: &Arc<AppState>) -> Result<Response<Body>, ApiError> {
+    let mut conn = app.pool.acquire().await?;
+    let as_of_seq = super::files::head_seq(&mut conn).await?;
+    let open: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT constraint_id, count(*)::bigint FROM _oo_docs.constraint_violation \
+          WHERE status = 'open' GROUP BY 1",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    let items: Vec<Value> = crate::publish::constraints::CORE
+        .iter()
+        .map(|c| {
+            let n = open
+                .iter()
+                .find(|(id, _)| id == c.id)
+                .map_or(0, |(_, n)| *n);
+            json!({"id": c.id, "core": c.core, "description": c.description, "violations": n})
+        })
+        .collect();
+    Ok(http::json(
+        200,
+        &json!({"items": items, "next_cursor": null, "as_of_seq": as_of_seq}),
+    ))
+}
+
 struct BySource {
     file_id: String,
     accept: bool,

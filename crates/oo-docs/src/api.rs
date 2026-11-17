@@ -529,6 +529,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             method_allowed(req, &["GET"])?;
             routes_entities::versions(app, req).await
         }
+        ["v1", "docs", "constraints"] => {
+            method_allowed(req, &["GET"])?;
+            routes_review::constraints(app).await
+        }
         ["v1", "docs", "resolve"] => {
             method_allowed(req, &["POST"])?;
             routes_entities::resolve(app, req).await

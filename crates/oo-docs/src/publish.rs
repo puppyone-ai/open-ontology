@@ -7,6 +7,7 @@
 //! * [`run`]: the publisher transaction that turns eligible drafts into
 //!   ontology version `vN` with `gate_report` rows.
 
+pub mod constraints;
 pub mod debounce;
 pub mod gates;
 pub mod hashes;

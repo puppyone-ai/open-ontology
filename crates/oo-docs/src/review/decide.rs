@@ -567,6 +567,77 @@ async fn apply_one(
             close_item(conn, id, "rejected", by, note).await?;
             Ok((ItemResult::ok(id), Some("rejected")))
         }
+        ("constraint_conflict", d @ (Decision::Accept | Decision::Reject)) => {
+            let fact_ids: Vec<String> = item
+                .subject
+                .get("fact_ids")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default();
+            // accept: `edit.winner` is the fact that stays, the others are
+            // rejected; reject: none of them stays.
+            let winner = it
+                .edit
+                .as_ref()
+                .and_then(|e| e.get("winner"))
+                .and_then(Value::as_str);
+            if d == Decision::Accept && !winner.is_some_and(|w| fact_ids.iter().any(|f| f == w)) {
+                return Ok((
+                    ItemResult::fail(id, "invalid", "DOCS_REVIEW_CONSTRAINT_CONFLICT"),
+                    None,
+                ));
+            }
+            for fid in &fact_ids {
+                let Some(fact) = load_fact(conn, fid).await? else {
+                    continue;
+                };
+                if d == Decision::Accept && Some(fid.as_str()) == winner {
+                    overlay::insert(
+                        conn,
+                        "fact_assert",
+                        &fact.fact_key,
+                        json!({"fact_id": fact.id, "constraint": true}),
+                        by,
+                        Some(id),
+                        "active",
+                        None,
+                    )
+                    .await?;
+                } else {
+                    overlay::insert(
+                        conn,
+                        "fact_reject",
+                        &fact.fact_key,
+                        json!({"fact_id": fact.id, "constraint": true}),
+                        by,
+                        Some(id),
+                        "active",
+                        None,
+                    )
+                    .await?;
+                    sqlx::query(
+                        "UPDATE _oo_docs.fact SET status = CASE WHEN status = 'published' THEN 'retracted' ELSE 'rejected' END, \
+                                retracted_at = CASE WHEN status = 'published' THEN clock_timestamp() ELSE retracted_at END \
+                          WHERE id = $1::uuid AND status IN ('draft', 'published')",
+                    )
+                    .bind(&fact.id)
+                    .execute(&mut *conn)
+                    .await?;
+                }
+            }
+            crate::publish::constraints::resolve_violation(conn, id).await?;
+            let status = if d == Decision::Accept {
+                "accepted"
+            } else {
+                "rejected"
+            };
+            close_item(conn, id, status, by, note).await?;
+            Ok((ItemResult::ok(id), Some(status)))
+        }
         ("orphaned_overlay", d @ (Decision::Accept | Decision::Reject)) => {
             let Some(oid) = item.subject.get("overlay_id").and_then(Value::as_str) else {
                 return Ok((invalid(id), None));
