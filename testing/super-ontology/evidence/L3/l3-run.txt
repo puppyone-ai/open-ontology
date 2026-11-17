@@ -1,0 +1,133 @@
+# L3 acceptance, run l3-final1
+[PASS] disk: at least 20 GiB free - 85 GiB
+
+## stack: oo serve --runtime compose (1 s poll)
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l3-l3-final1-tqs468a8/state --deploy-dir <repo>/deploy/docs
+  {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:a138833c3bcfb284c67d2813f4fbed6323987fb942140f1fc1a8bc7ab8929f5b"}, "mode": "compose", "port": 59473, "project": "oo-docs-fd2f82402fc7"}, "pid": 84932, "port": 59489, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-17T21:04:50Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] two Drives registered
+[PASS] the doc-parser is up and the engine can parse (health ok)
+
+## acceptance 1: golden set and hostile fixtures
+[PASS] all golden files were found - 51/51
+[PASS] golden md: parse success >= 98% - 18/18 = 100.0%
+[PASS] golden txt: parse success >= 98% - 3/3 = 100.0%
+[PASS] golden csv: parse success >= 98% - 3/3 = 100.0%
+[PASS] golden xlsx: parse success >= 98% - 4/4 = 100.0%
+[PASS] golden docx: parse success >= 98% - 10/10 = 100.0%
+[PASS] golden pptx: parse success >= 98% - 6/6 = 100.0%
+[PASS] golden pdf: parse success >= 98% - 7/7 = 100.0%
+[PASS] no golden file is left in a failure state - []
+[PASS] hostile docx-encrypted.docx: encrypted DOCS_PARSE_ENCRYPTED - ('encrypted', 'DOCS_PARSE_ENCRYPTED')
+[PASS] hostile pdf-encrypted.pdf: encrypted DOCS_PARSE_ENCRYPTED - ('encrypted', 'DOCS_PARSE_ENCRYPTED')
+[PASS] hostile legacy.doc: unsupported DOCS_PARSE_LEGACY_OFFICE - ('unsupported', 'DOCS_PARSE_LEGACY_OFFICE')
+[PASS] hostile zip-bomb-ratio.docx: unsupported DOCS_PARSE_ZIP_BOMB - ('unsupported', 'DOCS_PARSE_ZIP_BOMB')
+[PASS] hostile zip-bomb-size.xlsx: unsupported DOCS_PARSE_ZIP_BOMB - ('unsupported', 'DOCS_PARSE_ZIP_BOMB')
+[PASS] hostile zip-plain.zip: unsupported DOCS_PARSE_UNSUPPORTED_FORMAT - ('unsupported', 'DOCS_PARSE_UNSUPPORTED_FORMAT')
+[PASS] hostile zip-traversal.docx: unsupported DOCS_PARSE_CORRUPT - ('unsupported', 'DOCS_PARSE_CORRUPT')
+[PASS] hostile gb18030.txt: unsupported DOCS_PARSE_ENCODING - ('unsupported', 'DOCS_PARSE_ENCODING')
+[PASS] hostile pdf-table.pdf: published - ('published', None)
+[PASS] hostile xlsx-merged-regions.xlsx: published - ('published', None)
+[PASS] hostile xlsx-hidden-sheet.xlsx: published - ('published', None)
+[PASS] hostile comma.csv: published - ('published', None)
+[PASS] hostile semicolon.csv: published - ('published', None)
+  info: empty.csv -> ('published', None)
+[PASS] every file that did not publish carries an error code - []
+[PASS] every such code is in errors.v1.json - []
+
+## acceptance 4: ten copies of one content parse once
+[PASS] md: 10 copies -> 1 published and 9 duplicate - {"duplicate": 9, "published": 1}
+[PASS] md: one parse job and one parse result for the content - parse jobs 1, parse results 1
+[PASS] md: every one of the 10 paths has its own evidence, equal in number - 10 paths, evidence per path [11]
+[PASS] pdf: 10 copies -> 1 published and 9 duplicate - {"duplicate": 9, "published": 1}
+[PASS] pdf: one parse job and one parse result for the content - parse jobs 1, parse results 1
+[PASS] pdf: every one of the 10 paths has its own evidence, equal in number - 10 paths, evidence per path [3]
+[PASS] docx: 10 copies -> 1 published and 9 duplicate - {"duplicate": 9, "published": 1}
+[PASS] docx: one parse job and one parse result for the content - parse jobs 1, parse results 1
+[PASS] docx: every one of the 10 paths has its own evidence, equal in number - 10 paths, evidence per path [3]
+[PASS] xlsx: 10 copies -> 1 published and 9 duplicate - {"duplicate": 9, "published": 1}
+[PASS] xlsx: one parse job and one parse result for the content - parse jobs 1, parse results 1
+[PASS] xlsx: every one of the 10 paths has its own evidence, equal in number - 10 paths, evidence per path [2]
+
+## acceptance 3: poison file
+[PASS] the poison pdf ends parse_failed with DOCS_PARSE_QUARANTINED - after 33.4 s, 2 worker kills
+[PASS] the 16 other files in the same drive publish - 16/16
+[PASS] the job is quarantined after at most 3 attempts - state quarantined, attempt 2, crashes 2
+[PASS] no other file needed a second parse job - 0 retried
+[PASS] no job is stuck
+[PASS] the sidecar still parses after the poison - published
+
+## acceptance 5 (fs): add, modify, rename, delete
+[PASS] add: published - stored>queued>parsing>parsed>extracting>indexed>published
+[PASS] add: evidence rows written - 15 live evidence rows
+[PASS] modify: the new content is published - stored>queued>parsing>parsed>extracting>indexed>published>superseded>stored>queued>parsing>parsed>extracting>indexed>published
+[PASS] modify: the chain went through superseded and stored - stored>queued>parsing>parsed>extracting>indexed>published>superseded>stored>queued>parsing>parsed>extracting>indexed>published
+[PASS] modify: the old version's evidence is withdrawn, the new version's is live - old live 0, new live 15
+[PASS] rename: the new path has its result (duplicate of the old version), the old path is gone - stored>duplicate
+[PASS] rename: same content, evidence is live on the new path - 15 live evidence rows
+[PASS] rename: a file.renamed event exists - 1 events
+[PASS] rename: no fact was retracted - retracted 1 -> 1
+[PASS] delete: the file disappears from the listing
+[PASS] delete: the file row is marked deleted - true|deleted
+[PASS] delete: its evidence is withdrawn - 0 live rows
+[PASS] delete: facts left without evidence are retracted - retracted 1 -> 5
+
+## acceptance 10: format-only DOCX change
+[PASS] the docx is published - published
+[PASS] the first version has entities, aliases or facts with evidence - 3 targets, 3 evidence rows
+[PASS] the new file differs in bytes
+[PASS] the formatted docx is published as a new version - published b3 changed: True
+[PASS] the extraction was reused: the history says reused_from - {"by": "block_ids", "reused_from": "0b5fe4ba-a6c2-43a0-9a63-b6a87b752aef"}
+[PASS] the evidence moved to the new version: same count live, none left on the old one - new 3 (was 3), old live 0
+[PASS] no fact was retracted - 5 -> 5
+[PASS] the changed docx is published as a third version - published
+[PASS] control: a changed word is extracted again (no reused_from)
+
+## acceptance 8: single file latency, files dropped without any API call, 1 s poll
+[FAIL] D49 md/txt (poll): p95 6.13 s vs target 5.0 s - {"n": 20, "p50": 5.45, "p95": 6.13, "max": 6.33, "server_stored_to_published_p95": 0.0, "target_p95": 5.0}
+[PASS] D49 pdf (poll): p95 8.26 s vs target 30.0 s - {"n": 10, "p50": 8.04, "p95": 8.26, "max": 8.26, "server_stored_to_published_p95": 0.0, "target_p95": 30.0}
+[PASS] D49 docx (poll): p95 6.21 s vs target 30.0 s - {"n": 10, "p50": 6.03, "p95": 6.21, "max": 6.21, "server_stored_to_published_p95": 0.0, "target_p95": 30.0}
+[PASS] D49 xlsx (poll): p95 6.24 s vs target 20.0 s - {"n": 10, "p50": 6.06, "p95": 6.24, "max": 6.24, "server_stored_to_published_p95": 0.0, "target_p95": 20.0}
+  md/txt hop medians (seconds after stored, poll): extracting 3.14; indexed 3.15; parsed 2.64; parsing 2.64; published 4.84; queued 2.29; stored 0.00
+
+## restart with the default configuration (30 s poll)
+[PASS] oo serve exits 0 on SIGTERM - exit 0
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l3-l3-final1-tqs468a8/state --deploy-dir <repo>/deploy/docs
+  {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:a138833c3bcfb284c67d2813f4fbed6323987fb942140f1fc1a8bc7ab8929f5b"}, "mode": "compose", "port": 52787, "project": "oo-docs-fd2f82402fc7"}, "pid": 2404, "port": 52798, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-17T21:16:40Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] both Drives survived the restart
+
+## acceptance 8: single file latency, targeted sync hint, 30 s poll
+[FAIL] D49 md/txt (hint): p95 6.11 s vs target 5.0 s - {"n": 10, "p50": 4.05, "p95": 6.11, "max": 6.11, "server_stored_to_published_p95": 0.0, "target_p95": 5.0}
+[PASS] D49 pdf (hint): p95 8.15 s vs target 30.0 s - {"n": 5, "p50": 8.1, "p95": 8.15, "max": 8.15, "server_stored_to_published_p95": 0.0, "target_p95": 30.0}
+[PASS] D49 docx (hint): p95 4.13 s vs target 30.0 s - {"n": 5, "p50": 4.01, "p95": 4.13, "max": 4.13, "server_stored_to_published_p95": 0.0, "target_p95": 30.0}
+[PASS] D49 xlsx (hint): p95 6.21 s vs target 20.0 s - {"n": 5, "p50": 4.08, "p95": 6.21, "max": 6.21, "server_stored_to_published_p95": 0.0, "target_p95": 20.0}
+  md/txt hop medians (seconds after stored, hint): extracting 3.46; indexed 3.47; parsed 2.96; parsing 2.96; published 3.98; queued 2.44; stored 0.00
+
+## acceptance 9: a targeted sync does not sweep
+[PASS] the targeted sync published the new file - targeted/new-1.md
+[PASS] the generation did not advance - 670 -> 670
+[PASS] the file deleted on disk is still listed (no sweep) - golden/Notes/速记-0412.txt: published
+[PASS] the full sync sweeps it and advances the generation - 670 -> 671
+
+## acceptance 9: the seven freshness states
+  freshness now: {"as_of": "2026-11-17T21:19:02.169558Z", "ontology_version": 104, "pending_review": 0, "processing": 0, "reason_code": null, "state": "up_to_date"}
+[PASS] waiting_review: an unresolved alias tie leaves a review item - {"as_of": "2026-11-17T21:19:40.419468Z", "ontology_version": 106, "pending_review": 1, "processing": 0, "reason_code": null, "state": "waiting_review"}
+[PASS] degraded: an unreadable root is degraded and nothing is swept - {"as_of": "2026-11-17T21:19:40.419468Z", "ontology_version": 106, "pending_review": 0, "processing": 0, "reason_code": "DOCS_SOURCE_ROOT_MISSING", "state": "degraded"}
+[PASS] degraded: the files are still listed - 120 files
+[PASS] degraded: the Drive recovers by itself when the root is readable again - {"as_of": "2026-11-17T21:19:40.419468Z", "ontology_version": 106, "pending_review": 0, "processing": 0, "reason_code": null, "state": "up_to_date"}
+[PASS] held: the sync is accepted - HTTP 202
+[PASS] held: freshness says held - {"as_of": "2026-11-17T21:19:40.419468Z", "ontology_version": 106, "pending_review": 0, "processing": 0, "reason_code": "DOCS_SOURCE_MASS_DELETE_HELD", "state": "held"}
+[PASS] held: another sync answers 422 DOCS_SOURCE_MASS_DELETE_HELD - HTTP 422 {"generation": 664, "would_delete": 120}
+[PASS] held: nothing was swept - 120 files still listed
+[PASS] held: the confirmation lets the sweep through - HTTP 202 
+[PASS] held: after the confirmation the files are deleted and the Drive is up to date - {"as_of": "2026-11-17T21:19:40.419468Z", "ontology_version": 106, "pending_review": 0, "processing": 0, "reason_code": null, "state": "up_to_date"}
+  freshness states seen in events: degraded,held,processing,publishing,syncing,up_to_date,waiting_review
+[PASS] freshness up_to_date was observed
+[PASS] freshness syncing was observed
+[PASS] freshness processing was observed
+[PASS] freshness publishing was observed
+[PASS] freshness waiting_review was observed
+[PASS] freshness degraded was observed
+[PASS] freshness held was observed
+
+cleanup: containers/networks/volumes left = 0
+[PASS] cleanup left nothing
