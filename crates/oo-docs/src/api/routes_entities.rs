@@ -556,35 +556,6 @@ pub async fn resolve(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, A
     Ok(http::json(200, &json!({ "mentions": mentions })))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn ngrams_cover_the_spans() {
-        let g = ngrams("陈总来了");
-        assert!(g.contains(&(0, 2, "陈总".to_owned())));
-        assert!(g.contains(&(0, 4, "陈总来了".to_owned())));
-        assert!(g.iter().all(|(a, b, s)| s.chars().count() == b - a));
-        assert!(ngrams("a").is_empty());
-    }
-
-    #[test]
-    fn candidate_sources_map_to_the_contract_enum() {
-        for v in [
-            Via::CanonicalName,
-            Via::AliasPublished,
-            Via::AliasDraft,
-            Via::Honorific,
-            Via::Identity,
-        ] {
-            assert!(
-                ["name", "alias", "alias_draft", "honorific", "identity"].contains(&via_name(v))
-            );
-        }
-    }
-}
-
 /// `GET /v1/docs/ontology/versions?limit&cursor`: newest first.
 pub async fn versions(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiError> {
     let limit = req.query.limit()?;
@@ -628,5 +599,37 @@ pub async fn versions(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, 
     } else {
         None
     };
-    Ok(http::json(200, &json!({"items": items, "next_cursor": next, "as_of_seq": as_of_seq})))
+    Ok(http::json(
+        200,
+        &json!({"items": items, "next_cursor": next, "as_of_seq": as_of_seq}),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ngrams_cover_the_spans() {
+        let g = ngrams("陈总来了");
+        assert!(g.contains(&(0, 2, "陈总".to_owned())));
+        assert!(g.contains(&(0, 4, "陈总来了".to_owned())));
+        assert!(g.iter().all(|(a, b, s)| s.chars().count() == b - a));
+        assert!(ngrams("a").is_empty());
+    }
+
+    #[test]
+    fn candidate_sources_map_to_the_contract_enum() {
+        for v in [
+            Via::CanonicalName,
+            Via::AliasPublished,
+            Via::AliasDraft,
+            Via::Honorific,
+            Via::Identity,
+        ] {
+            assert!(
+                ["name", "alias", "alias_draft", "honorific", "identity"].contains(&via_name(v))
+            );
+        }
+    }
 }

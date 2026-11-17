@@ -33,7 +33,14 @@ pub async fn assertion_set_hash(
     conn: &mut PgConnection,
     version_id: &str,
 ) -> Result<Option<String>, StoreError> {
-    let rows: Vec<(String, Option<String>, Option<String>, Option<String>, String)> =
+    type Row = (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        String,
+    );
+    let rows: Vec<Row> =
         sqlx::query_as(
             "SELECT f.fact_key, f.value::text, f.valid_from::text, f.valid_to::text, \
                     ev.block_id || '@' || ev.anchor::text \
