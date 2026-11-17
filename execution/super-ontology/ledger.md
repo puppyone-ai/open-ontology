@@ -32,7 +32,7 @@
 | SO-B-S2-07 | L2 | merged | so/B-S2-07-rules-publish | e100e3d03 → 35c9c4e10 | — | — | 无模型 md/txt 子集：实体 F1 0.609、事实 F1 0.214（基线，非验收） |
 | SO-B-S2-08 | L2 | merged | so/B-S2-08-compile-minimal | 2b580b857 → 761c5ddb5 | — | — | 红队真实 docx 待 L4；AIGC 首行在 front matter 前 |
 | SO-B-S2-09 | L2 | merged | so/B-S2-09-control-api, so/B-S2-09-pipeline-wiring | — → 032017cf9 | — | evidence/L2/ | 流水线接线已合入 |
-| SO-B-S2-10 | L2 | merged | so/B-S2-10-oo-serve | → f431223c2 | — | evidence/L2/ | L2 简化：引擎为宿主子进程，compose 路径随 B-S3-01 |
+| SO-B-S2-10 | L2 | merged | so/B-S2-10-oo-serve, so/B-S2-10b-compose-runtime | → d73948ca1 | — | evidence/L2/ | compose 运行时 41/41；默认仍为宿主进程；仅 arm64 镜像 |
 | SO-B-S2-11 | L2 | merged | so/B-S2-11-context-mount | → 376714a94 | — | evidence/L2/ | revoke/list/refs 待 B-S6 |
 | SO-B-S2-12 | L2 | merged | so/B-S2-12-l2-e2e | → db950b4cc | — | evidence/L2/ | 验收 1–5（4 为 API 层）37/37，主线程复跑 37/37 |
 | SO-F-S2-01 | L2 | merged | codex/super-drive-F-S2-01-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
@@ -51,7 +51,7 @@
 | SO-V-S2-01 | L2 | merged | so/V-S2-01-* | — | — | formal/ | 10,000 条轨迹与真实 SQL 一致 |
 | SO-V-S2-02 | L2 | merged | so/V-S2-02-* | — | — | formal/ | FM2(md)、FM4 无反例；渲染层 FM4 回放待前端 |
 | SO-V-S2-03 | L2 | todo | — | — | — | — | — |
-| SO-B-S3-01 | L3 | merged | so/B-S3-01-docling-sidecar | — | — | evidence/L3/ | PDF 表格结构暂关（opencv 带 FFmpeg，D65）；SBOM 经书面审查后 PASS；无出网实测 |
+| SO-B-S3-01 | L3 | merged | so/B-S3-01-docling-sidecar, so/B-S3-01b-opencv-nofft, so/B-S3-01c-notices | → 681ded0a4 | — | evidence/L3/ | OpenCV 自编无 FFmpeg，表格结构已开（TableFormer 许可待律师 L5）；THIRD_PARTY_NOTICES；SBOM PASS；无出网实测 |
 | SO-B-S3-02 | L3 | merged | so/B-S3-02-xlsx-csv | — | — | evidence/L3/ | xlsx/csv 38/38 锚点；隐藏行列未跳过 |
 | SO-B-S3-03 | L3 | merged | so/B-S3-02-xlsx-csv | — | — | evidence/L3/ | 嗅探、zipguard、加密检测、CSV |
 | SO-B-S3-05 | L3 | merged | so/B-S3-01-docling-sidecar | — | — | evidence/L3/ | pdf 7/7、docx 10/10、pptx 6/6；docx 段落序号 201/201 |
