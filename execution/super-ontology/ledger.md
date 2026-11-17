@@ -13,8 +13,8 @@
 | SO-B-S1-06 | L1 | merged | so/B-S1-06-trailer-ledger-checks | edde0add0 → edde0add0 | — | — | — |
 | SO-B-S1-07 | L1 | merged | so/B-S1-07-supply-chain + 主线程 | b8f115446 → 17fe3096d | — | — | 34 个新包；cargo deny 三条 unmaintained 公告待 owner 决定 |
 | SO-B-S1-08 | L1 | merged | so/B-S1-08-private-terms | 462d12cf3 → 462d12cf3 | — | — | CI 需加密变量注入词表（owner） |
-| SO-V-S1-01 | L1 | in_progress | so/V-S1-01-formal-toolchain | — | — | — | 续作中 |
-| SO-V-S1-02 | L1 | todo | — | — | — | — | FM1 |
+| SO-V-S1-01 | L1 | merged | so/V-S1-01-formal-toolchain + 主线程 | 94d00f929 → 429b0e0d9 | — | formal/TOOLCHAIN.md | CI 按 (模型, 不变式) 分片 |
+| SO-V-S1-02 | L1 | review | so/V-S1-02-fm1-jobs-model | 4ecdfd968 → 88d60b3b8 | — | formal/reviews/FM1.md | 独立评审：带修改通过；两项阻塞随 B-S3-04 修复 |
 | SO-F-S1-01 | L1 | merged | codex/super-drive-F-S1-01-flags | 5b2f67d9 → 7139ed22 | — | — | Puppyone 本地 |
 | SO-F-S1-02 | L1 | merged | codex/super-drive-F-S1-02-surface-shell | b99a6796 → fd692501 | — | — | Puppyone 本地 |
 | SO-F-S1-03 | L1 | merged | codex/super-drive-F-S1-03-main-skeleton | 2a6e514d → 42bc8b08 | — | — | Puppyone 本地 |
@@ -47,8 +47,8 @@
 | SO-F-S2-11 | L2 | todo | — | — | — | — | — |
 | SO-F-S2-12 | L2 | todo | — | — | — | — | — |
 | SO-F-S2-13 | L2 | todo | — | — | — | — | — |
-| SO-V-S2-01 | L2 | todo | — | — | — | — | — |
-| SO-V-S2-02 | L2 | todo | — | — | — | — | — |
+| SO-V-S2-01 | L2 | merged | so/V-S2-01-* | — | — | formal/ | 10,000 条轨迹与真实 SQL 一致 |
+| SO-V-S2-02 | L2 | merged | so/V-S2-02-* | — | — | formal/ | FM2(md)、FM4 无反例；渲染层 FM4 回放待前端 |
 | SO-V-S2-03 | L2 | todo | — | — | — | — | — |
 
 ## 签收

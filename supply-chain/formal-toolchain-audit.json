@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-V-S1-01",
+  "exception": null,
+  "scope": "development and CI tools only; none is linked into, copied into or shipped with an OO or Puppyone artifact",
+  "tools": [
+    {
+      "name": "quint",
+      "ecosystem": "npm",
+      "package": "@informalsystems/quint",
+      "version": "0.33.1",
+      "official_source": "https://www.npmjs.com/package/@informalsystems/quint/v/0.33.1",
+      "repository": "https://github.com/quint-co/quint",
+      "publication_date": "2026-10-28T10:38:19Z",
+      "adoption_date": "2026-11-17",
+      "seven_day_rule": "pass (20 days)",
+      "license_spdx": "Apache-2.0",
+      "digest": "sha512-EYsgxr9SEsumYiix6pD8jbXPiPJoNbQaUxnrLE+dSVL+B9eQHPkVjSW7CBFEoBeMhau/1n70DAQOKvgxa1pVfw==",
+      "native_build": false,
+      "shipped": false
+    },
+    {
+      "name": "quint-rust-evaluator",
+      "ecosystem": "github-release",
+      "version": "v0.7.1",
+      "notes": "downloaded by quint 0.33.1 on first `quint run`",
+      "license_spdx": "Apache-2.0",
+      "digest": "sha256:c918492321c1f1db0be02477e4520c4c29ecb42afeaaaefed87b36f16fc21dd8 (macOS arm64 binary)",
+      "shipped": false
+    },
+    {
+      "name": "apalache",
+      "ecosystem": "github-release",
+      "version": "0.62.4",
+      "official_source": "https://github.com/apalache-mc/apalache/releases/tag/v0.62.4",
+      "publication_date": "2026-10-12T10:00:59Z",
+      "seven_day_rule": "pass (36 days)",
+      "license_spdx": "Apache-2.0",
+      "digest": "sha256:b781b53bba32fac14ac2e02b0332e1dc2edc64cb7b850c0608d8142cc7aa2ef4 (apalache-0.62.4.tgz); lib/apalache.jar sha256:e5223915507b65cc5f1638bd037ede60f8a4fc1644aff46355779f9b05df9262",
+      "shipped": false
+    },
+    {
+      "name": "kani-verifier",
+      "ecosystem": "crates.io",
+      "version": "0.68.0",
+      "official_source": "https://crates.io/crates/kani-verifier/0.68.0",
+      "publication_date": "2026-09-16T03:50:19Z",
+      "seven_day_rule": "pass (62 days)",
+      "license_spdx": "MIT OR Apache-2.0",
+      "bundle_notes": "bundle carries CBMC 6.11.0 (BSD-4-Clause) and BSD/MIT parts; see ~/.kani/kani-0.68.0/license-notes.txt",
+      "digest": "sha256:842fabd2ba8b13babab862e21fef2946b581d493f23062d5ce86266630f1d1ae",
+      "rust_toolchain": "nightly-2026-08-21 (installed by cargo kani setup)",
+      "shipped": false,
+      "cargo_lock_change": false,
+      "notes": "cargo install --locked, outside the workspace; no product crate depends on kani (cfg(kani) harnesses only)"
+    },
+    {
+      "name": "openjdk",
+      "version": "21.0.13",
+      "license_spdx": "GPL-2.0-only WITH Classpath-Exception-2.0",
+      "role": "Apalache runtime; CI uses the runner's Temurin 21",
+      "shipped": false
+    }
+  ],
+  "deferred": [
+    "quint-connect 0.1.2: not used. The V-S2-01 conformance test parses ITF JSON with serde_json (already a direct dependency), so no Cargo.toml or Cargo.lock change is requested."
+  ]
+}

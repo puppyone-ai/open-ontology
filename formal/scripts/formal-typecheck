@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# CI job `formal-typecheck` (80 section 6): quint typecheck on every model.
+source "$(dirname "$0")/_env.sh"
+n=0
+for f in "$FORMAL_ROOT"/formal/quint/*.qnt; do
+  [ -e "$f" ] || continue
+  echo "typecheck ${f#"$FORMAL_ROOT"/}"
+  quint typecheck "$f" >/dev/null
+  n=$((n + 1))
+done
+echo "formal-typecheck: $n model(s) ok"
