@@ -69,6 +69,8 @@ RUN --mount=type=bind,from=opencv,source=/wheels,target=/wheels \
 COPY --from=models /opt/models /opt/models
 COPY models.lock.json /opt/app/models.lock.json
 COPY doc_parser /opt/app/doc_parser
+# Generated from the image SBOM by notices.py (a build of the previous image makes the SBOM).
+COPY THIRD_PARTY_NOTICES.md /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md
 WORKDIR /opt/app
 USER 10001:10001
 EXPOSE 7481
