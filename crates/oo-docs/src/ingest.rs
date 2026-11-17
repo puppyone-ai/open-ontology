@@ -34,6 +34,7 @@ pub mod hashjob;
 pub mod poll;
 pub mod reconcile;
 pub mod sniff;
+pub mod zipguard;
 
 pub use sniff::Format;
 
