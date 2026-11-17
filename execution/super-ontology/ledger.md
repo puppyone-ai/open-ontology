@@ -50,6 +50,11 @@
 | SO-V-S2-01 | L2 | merged | so/V-S2-01-* | — | — | formal/ | 10,000 条轨迹与真实 SQL 一致 |
 | SO-V-S2-02 | L2 | merged | so/V-S2-02-* | — | — | formal/ | FM2(md)、FM4 无反例；渲染层 FM4 回放待前端 |
 | SO-V-S2-03 | L2 | todo | — | — | — | — | — |
+| SO-B-S3-01 | L3 | merged | so/B-S3-01-docling-sidecar | — | — | evidence/L3/ | PDF 表格结构暂关（opencv 带 FFmpeg，D65）；SBOM 经书面审查后 PASS；无出网实测 |
+| SO-B-S3-02 | L3 | merged | so/B-S3-02-xlsx-csv | — | — | evidence/L3/ | xlsx/csv 38/38 锚点；隐藏行列未跳过 |
+| SO-B-S3-03 | L3 | merged | so/B-S3-02-xlsx-csv | — | — | evidence/L3/ | 嗅探、zipguard、加密检测、CSV |
+| SO-B-S3-05 | L3 | merged | so/B-S3-01-docling-sidecar | — | — | evidence/L3/ | pdf 7/7、docx 10/10、pptx 6/6；docx 段落序号 201/201 |
+| SO-B-S3-06 | L3 | merged | so/B-S3-01-docling-sidecar | — | — | evidence/L3/ | sidecar 监督 6/6 |
 
 ## 签收
 
