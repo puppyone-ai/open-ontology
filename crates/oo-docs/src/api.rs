@@ -42,6 +42,7 @@ pub mod cursor;
 pub mod drives;
 pub mod error;
 pub mod events;
+pub mod file_detail;
 pub mod files;
 pub mod freshness;
 pub mod http;
@@ -49,6 +50,7 @@ pub mod idem;
 pub mod lifecycle;
 pub mod metrics;
 pub mod packs;
+pub mod progress;
 pub mod shares;
 
 use error::{ApiError, code};
@@ -84,7 +86,23 @@ pub trait SyncPort: Send + Sync + 'static {
     fn targeted(&self, drive_id: &str, paths: Vec<String>) -> SyncFuture<'_>;
     /// Registration probe: can this config be opened read only?
     fn probe(&self, config: &Value) -> Result<(), DocSourceError>;
+    /// Bytes `[offset, offset + len)` of an object of a Drive (the original
+    /// behind `GET /files/{fid}/content`). Sources that cannot serve this say
+    /// so with `Unavailable`.
+    fn read_original(
+        &self,
+        _drive_id: &str,
+        _raw_key: Vec<u8>,
+        _offset: u64,
+        _len: u64,
+    ) -> ReadFuture<'_> {
+        Box::pin(async { Err(DocSourceError::Unavailable) })
+    }
 }
+
+/// Result of [`SyncPort::read_original`].
+pub type ReadFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Vec<u8>, DocSourceError>> + Send + 'a>>;
 
 /// [`SyncPort`] over a [`SourceFactory`].
 pub struct FactorySyncPort<F: SourceFactory> {
@@ -129,6 +147,31 @@ impl<F: SourceFactory> SyncPort for FactorySyncPort<F> {
         };
         self.factory.open(&drive).map(|_| ())
     }
+
+    fn read_original(
+        &self,
+        drive_id: &str,
+        raw_key: Vec<u8>,
+        offset: u64,
+        len: u64,
+    ) -> ReadFuture<'_> {
+        let drive_id = drive_id.to_owned();
+        Box::pin(async move {
+            let drive = crate::ingest::reconcile::load_drive(&self.pool, &drive_id)
+                .await
+                .map_err(|_| DocSourceError::Unavailable)?
+                .ok_or(DocSourceError::NotFound)?;
+            let source = self.factory.open(&drive)?;
+            oo_connectors::objectstore::DocumentSource::read(
+                &source,
+                &raw_key,
+                offset,
+                len,
+                &oo_connectors::objectstore::ReadExpect::default(),
+            )
+            .await
+        })
+    }
 }
 
 struct Bucket {
@@ -160,6 +203,8 @@ pub struct AppState {
     pub sse: events::SseConfig,
     /// Requests per second per token.
     pub rate_per_second: u32,
+    /// Transient `file.progress` events from the stages.
+    pub progress: progress::Bus,
     stop: watch::Sender<bool>,
     buckets: Mutex<HashMap<[u8; 32], Bucket>>,
 }
@@ -185,9 +230,16 @@ impl AppState {
             sse_slots: Arc::new(Semaphore::new(MAX_STREAMS)),
             sse: events::SseConfig::default(),
             rate_per_second: RATE_PER_SECOND,
+            progress: progress::Bus::new(),
             stop: watch::channel(false).0,
             buckets: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Use `bus` for `file.progress` (the stages publish on the same bus).
+    pub fn with_progress(mut self, bus: progress::Bus) -> Self {
+        self.progress = bus;
+        self
     }
 
     /// Attach the content store (pack routes).
@@ -346,8 +398,7 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
 fn known_unserved(segs: &[&str]) -> bool {
     matches!(
         segs,
-        ["v1", "docs", "files", ..]
-            | ["v1", "docs", "entities", ..]
+        ["v1", "docs", "entities", ..]
             | ["v1", "docs", "resolve"]
             | ["v1", "docs", "review", ..]
             | ["v1", "docs", "review:decide"]
@@ -412,6 +463,22 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "events"] => {
             method_allowed(req, &["GET"])?;
             events::stream(app, req).await
+        }
+        ["v1", "docs", "files:retry"] => {
+            method_allowed(req, &["POST"])?;
+            file_detail::retry(app, req).await
+        }
+        ["v1", "docs", "files", fid] if !fid.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            file_detail::detail(app, fid, &req.query).await
+        }
+        ["v1", "docs", "files", fid, "blocks"] => {
+            method_allowed(req, &["GET"])?;
+            file_detail::blocks(app, fid, &req.query).await
+        }
+        ["v1", "docs", "files", fid, "content"] => {
+            method_allowed(req, &["GET"])?;
+            file_detail::content(app, fid, req).await
         }
         ["v1", "docs", "context-packs:compile"] => {
             method_allowed(req, &["POST"])?;
@@ -483,8 +550,8 @@ mod tests {
 
     #[test]
     fn unserved_routes_are_the_documented_ones() {
-        assert!(known_unserved(&["v1", "docs", "files", "abc"]));
-        assert!(known_unserved(&["v1", "docs", "files:retry"]));
+        assert!(known_unserved(&["v1", "docs", "entities", "abc"]));
+        assert!(known_unserved(&["v1", "docs", "review:decide"]));
         assert!(known_unserved(&["v1", "docs", "context-packs:compile"]));
         assert!(!known_unserved(&["v1", "docs", "nothing"]));
     }

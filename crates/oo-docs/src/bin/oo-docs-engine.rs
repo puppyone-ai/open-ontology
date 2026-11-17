@@ -132,6 +132,7 @@ async fn run() -> ExitCode {
         FsFactory,
         cfg.ingest.clone(),
     ));
+    let progress = oo_docs::api::progress::Bus::new();
     let app = Arc::new(
         AppState::new(
             pool.clone(),
@@ -140,7 +141,8 @@ async fn run() -> ExitCode {
             sync,
             health.clone(),
         )
-        .with_cas(cas.clone()),
+        .with_cas(cas.clone())
+        .with_progress(progress.clone()),
     );
 
     let (stop_tx, stop_rx) = watch::channel(false);
@@ -155,7 +157,12 @@ async fn run() -> ExitCode {
     sched_cfg.concurrency = stages::default_concurrency();
     sched_cfg.concurrency.extend(cfg.concurrency.clone());
     let mut handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
-    handlers.extend(stages::handlers(&pool, Arc::new(FsFactory), cas));
+    handlers.extend(stages::handlers_with_progress(
+        &pool,
+        Arc::new(FsFactory),
+        cas,
+        Some(progress),
+    ));
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
     // Files made by an older parser or ruleset are reprocessed (4.2, D23).
     if let Ok(n) = stages::mark_outdated(&pool).await

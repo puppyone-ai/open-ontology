@@ -106,6 +106,7 @@ fn every_route_error_code_is_in_the_contract() {
             code::SHARE_EXPIRY_INVALID,
             code::SHARE_ROLE_UNAVAILABLE,
             code::SHARE_TARGET_INVALID,
+            code::PARSE_NOT_READY,
         ]
         .into_iter()
         .find(|c| c.as_str() == name)
@@ -119,7 +120,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 38);
+    assert_eq!(ALL_CODES.len(), 39);
 }
 
 #[test]
@@ -652,5 +653,228 @@ async fn live_pack_and_share_responses_validate_against_the_schema() {
     ] {
         assert!(kinds.contains(must), "{must} missing: {kinds:?}");
     }
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn per_file_responses_validate_against_the_schema() {
+    let schema = load("contracts/docs-api/docs-api.v1.schema.json");
+    let events_schema = load("contracts/docs-api/events.v1.schema.json");
+    let v = |n: &str| def(&schema, n);
+    let ev_validator = oo_core::schema_util::compile_schema(&events_schema).expect("events schema");
+    let e = TestEngine::start(
+        "contract_files",
+        Opts {
+            workers: true,
+            stages: true,
+            ..Opts::default()
+        },
+    )
+    .await;
+    e.write(
+        "Projects/a/p.md",
+        "---\ntype: project\nname: 星火计划\nowner: 林川\n---\n# 星火计划\n\n负责人：林川\n\n状态：进行中\n",
+    );
+    e.write("Projects/a/q.md", "# 笔记\n\n周会改到周三。\n");
+    e.write("Projects/b/r.md", "# 另一份\n\n内容。\n");
+    let id = e.create_drive("contract-files").await["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    e.until("published", || async {
+        let r = e.get(&format!("/v1/docs/drives/{id}/files")).await.json();
+        let items = r["items"].as_array().unwrap();
+        items.len() == 3 && items.iter().all(|f| f["state"] == "published")
+    })
+    .await;
+    let fid: String =
+        sqlx::query_scalar("SELECT id::text FROM _oo_docs.file WHERE path = 'Projects/a/p.md'")
+            .fetch_one(&e.pool)
+            .await
+            .unwrap();
+
+    // FileDetail, with every include and without.
+    let plain = e.get(&format!("/v1/docs/files/{fid}")).await;
+    assert_eq!(plain.status, 200);
+    check(&v("FileDetail"), "GET /files/{fid}", &plain.json());
+    let full = e
+        .get(&format!(
+            "/v1/docs/files/{fid}?include=history,entities,facts,shares"
+        ))
+        .await
+        .json();
+    check(&v("FileDetail"), "GET /files/{fid}?include=all", &full);
+    for h in full["history"].as_array().unwrap() {
+        check(&v("StateEntry"), "history entry", h);
+    }
+    for f in full["facts"].as_array().unwrap() {
+        check(&v("Fact"), "fact", f);
+        for ev in f["evidence"].as_array().unwrap() {
+            check(&v("Evidence"), "evidence", ev);
+        }
+    }
+    for en in full["entities"].as_array().unwrap() {
+        check(&v("EntityRef"), "entity", en);
+    }
+    // FileSummary carries latency_ms (G13) and modified_at (G1).
+    check(&v("FileSummary"), "latency in detail", &full);
+    assert!(full["latency_ms"].is_object() && full["modified_at"].is_string());
+
+    // Blocks.
+    let blocks = e.get(&format!("/v1/docs/files/{fid}/blocks?limit=2")).await;
+    assert_eq!(blocks.status, 200);
+    let page = blocks.json();
+    check(&v("Page"), "GET blocks", &page);
+    assert!(page["next_cursor"].is_string());
+    for b in page["items"].as_array().unwrap() {
+        check(&v("Block"), "block", b);
+    }
+
+    // Retry: request, response and the errors of its statuses.
+    let req = json!({"file_ids": [fid], "mode": "normal"});
+    check(&v("RetryRequest"), "RetryRequest", &req);
+    let r = e.post("/v1/docs/files:retry", &req).await;
+    assert_eq!(r.status, 200);
+    check(&v("BatchResult"), "files:retry", &r.json());
+    assert_eq!(r.json()["results"][0]["status"], "not_retryable");
+    let too_many: Vec<String> = (0..501)
+        .map(|i| format!("00000000-0000-4000-8000-{i:012x}"))
+        .collect();
+    for (what, resp) in [
+        (
+            "413",
+            e.post("/v1/docs/files:retry", &json!({"file_ids": too_many}))
+                .await,
+        ),
+        (
+            "404",
+            e.get("/v1/docs/files/00000000-0000-4000-8000-000000000000")
+                .await,
+        ),
+        (
+            "400",
+            e.get(&format!("/v1/docs/files/{fid}?include=zzz")).await,
+        ),
+        (
+            "416",
+            e.req(
+                "GET",
+                &format!("/v1/docs/files/{fid}/content"),
+                &[("Range", "bytes=99999-")],
+                None,
+            )
+            .await,
+        ),
+        (
+            "idempotency key",
+            e.req("POST", "/v1/docs/files:retry", &[], Some(&req)).await,
+        ),
+    ] {
+        check(&v("Error"), what, &resp.json());
+    }
+
+    // The tree: per directory failed and pending_review (G9), sums of states.
+    sqlx::query("UPDATE _oo_docs.file SET state = 'parse_failed', retryable = true WHERE path = 'Projects/a/q.md'")
+        .execute(&e.pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE _oo_docs.file SET pending_review = 2 WHERE path = 'Projects/a/p.md'")
+        .execute(&e.pool)
+        .await
+        .unwrap();
+    let tree = e.get(&format!("/v1/docs/drives/{id}/tree")).await.json();
+    check(&v("Tree"), "GET tree", &tree);
+    let dir = |p: &str| {
+        tree["dirs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["path"] == p)
+            .unwrap_or_else(|| panic!("{p} in {tree}"))
+            .clone()
+    };
+    let a = dir("Projects");
+    assert_eq!(a["files"], 3);
+    assert_eq!(
+        (
+            a["counts"]["failed"].as_i64(),
+            a["counts"]["pending_review"].as_i64()
+        ),
+        (Some(1), Some(2))
+    );
+    let sub = e
+        .get(&format!("/v1/docs/drives/{id}/tree?path=Projects"))
+        .await
+        .json();
+    let pa = sub["dirs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["path"] == "Projects/a")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        (
+            pa["counts"]["failed"].as_i64(),
+            pa["counts"]["pending_review"].as_i64()
+        ),
+        (Some(1), Some(2))
+    );
+    let pb = sub["dirs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["path"] == "Projects/b")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        (
+            pb["counts"]["failed"].as_i64(),
+            pb["counts"]["pending_review"].as_i64()
+        ),
+        (Some(0), Some(0))
+    );
+    // modified_at: sort and field (G1).
+    let by = e
+        .get(&format!("/v1/docs/drives/{id}/files?sort=modified_at"))
+        .await
+        .json();
+    let times: Vec<&str> = by["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["modified_at"].as_str().unwrap())
+        .collect();
+    let mut sorted = times.clone();
+    sorted.sort_unstable();
+    assert_eq!(times, sorted);
+    for f in by["items"].as_array().unwrap() {
+        check(&v("FileSummary"), "sorted item", f);
+    }
+
+    // The transient event is an Event without seq.
+    let bearer = format!("Bearer {TOKEN}");
+    let mut sse = open_sse(e.addr, "/v1/docs/events", &[("Authorization", &bearer)]).await;
+    let _ = sse.frame(std::time::Duration::from_secs(2)).await;
+    // Not the id of a parsed file: that one reported a moment ago and the bus
+    // allows one event per file per second.
+    assert!(e.app.progress.emit(oo_docs::api::progress::Progress {
+        file_id: "0f8fad5b-d9cb-469f-a165-70867728950e".into(),
+        drive_id: Some(id.clone()),
+        unit: "page",
+        done: 1,
+        total: Some(3),
+    }));
+    let ev = sse
+        .event(std::time::Duration::from_secs(5))
+        .await
+        .expect("progress");
+    assert_eq!(ev["type"], "file.progress");
+    // events.v1 is the schema of transient events; `$defs/Event` of the API
+    // schema still lists `seq` as required, which only holds for persistent
+    // ones (reported to the coordinator, the contract is not ours to change).
+    assert!(ev.get("seq").is_none());
+    check_event(&ev_validator, &ev);
     e.finish().await;
 }

@@ -151,7 +151,12 @@ impl TestEngine {
             let mut hs = handlers::handlers(&pool, Arc::new(FsFactory), Arc::new(limits));
             if let Some(cas) = &app.cas {
                 cfg.concurrency.extend(stages::default_concurrency());
-                hs.extend(stages::handlers(&pool, Arc::new(FsFactory), cas.clone()));
+                hs.extend(stages::handlers_with_progress(
+                    &pool,
+                    Arc::new(FsFactory),
+                    cas.clone(),
+                    Some(app.progress.clone()),
+                ));
             }
             Scheduler::new(pool.clone(), cfg, hs).spawn()
         });

@@ -33,6 +33,7 @@ use tokio::task::JoinHandle;
 
 use super::scheduler::{HandlerFuture, JobCtx, JobHandler, Outcome};
 use super::{FailureClass, JobKind, JobStatus, NewJob};
+use crate::api::progress::{Bus, Progress};
 use crate::cas::{Cas, CasError, CasKind};
 use crate::extract::rules::RULESET_VERSION;
 use crate::ingest::files::{self, Extra};
@@ -236,6 +237,7 @@ pub struct ParseHandler<F: SourceFactory> {
     pool: PgPool,
     factory: Arc<F>,
     cas: Arc<Cas>,
+    progress: Option<Bus>,
 }
 
 struct ParsedIr {
@@ -334,6 +336,7 @@ impl<F: SourceFactory> ParseHandler<F> {
         if ctx.should_stop() {
             return Err(Outcome::Cancelled);
         }
+        self.report_start(s, &bytes).await;
         let b3 = s.b3.clone();
         let md = s.format == "md";
         #[cfg(feature = "failpoints")]
@@ -385,6 +388,30 @@ impl<F: SourceFactory> ParseHandler<F> {
             profile: n.ir.parser.profile_sha256.clone(),
             blocks: i32::try_from(n.ir.blocks.len()).unwrap_or(i32::MAX),
         })
+    }
+
+    /// The `file.progress` event and the `progress` column at the start of the
+    /// parse of a text file: the unit is the line, the total the number of lines.
+    /// Shown by `FileSummary.progress` until the next state change clears it.
+    async fn report_start(&self, s: &Subject, bytes: &[u8]) {
+        let total = bytes.iter().filter(|b| **b == b'\n').count() as i64 + 1;
+        let p = Progress {
+            file_id: s.file_id.clone(),
+            drive_id: Some(s.drive_id.clone()),
+            unit: "line",
+            done: 0,
+            total: Some(total),
+        };
+        let _ = sqlx::query(
+            "UPDATE _oo_docs.file SET progress = $2::jsonb WHERE id = $1::uuid AND state = 'parsing'",
+        )
+        .bind(&s.file_id)
+        .bind(p.column().to_string())
+        .execute(&self.pool)
+        .await;
+        if let Some(bus) = &self.progress {
+            bus.emit(p);
+        }
     }
 
     /// A parse that cannot succeed: the file becomes `parse_failed` and the
@@ -750,6 +777,16 @@ pub fn handlers<F: SourceFactory>(
     factory: Arc<F>,
     cas: Arc<Cas>,
 ) -> HashMap<JobKind, Arc<dyn JobHandler>> {
+    handlers_with_progress(pool, factory, cas, None)
+}
+
+/// [`handlers`] with the bus the API streams `file.progress` from.
+pub fn handlers_with_progress<F: SourceFactory>(
+    pool: &PgPool,
+    factory: Arc<F>,
+    cas: Arc<Cas>,
+    progress: Option<Bus>,
+) -> HashMap<JobKind, Arc<dyn JobHandler>> {
     let mut map: HashMap<JobKind, Arc<dyn JobHandler>> = HashMap::new();
     map.insert(
         JobKind::Parse,
@@ -757,6 +794,7 @@ pub fn handlers<F: SourceFactory>(
             pool: pool.clone(),
             factory,
             cas: cas.clone(),
+            progress,
         })),
     );
     map.insert(
