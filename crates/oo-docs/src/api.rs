@@ -423,7 +423,6 @@ fn known_unserved(segs: &[&str]) -> bool {
             | ["v1", "docs", "context-packs:compile"]
             | ["v1", "docs", "shares", ..]
             | ["v1", "docs", "usage"]
-            | ["v1", "docs", "ontology", ..]
             | ["v1", "docs", "config", ..]
             | ["v1", "docs", "refs", ..]
     ) || matches!(segs, ["v1", "docs", s] if s.contains(':'))
@@ -525,6 +524,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "entities"] => {
             method_allowed(req, &["GET"])?;
             routes_entities::list(app, req).await
+        }
+        ["v1", "docs", "ontology", "versions"] => {
+            method_allowed(req, &["GET"])?;
+            routes_entities::versions(app, req).await
         }
         ["v1", "docs", "resolve"] => {
             method_allowed(req, &["POST"])?;

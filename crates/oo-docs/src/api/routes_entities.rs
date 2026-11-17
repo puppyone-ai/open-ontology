@@ -584,3 +584,49 @@ mod tests {
         }
     }
 }
+
+/// `GET /v1/docs/ontology/versions?limit&cursor`: newest first.
+pub async fn versions(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiError> {
+    let limit = req.query.limit()?;
+    let filters = "ontology-versions";
+    let after: Option<i64> = match req.query.get("cursor") {
+        Some(t) => cursor::decode(t, filters)?.first().and_then(Value::as_i64),
+        None => None,
+    };
+    let mut conn = app.pool.acquire().await?;
+    let as_of_seq = super::files::head_seq(&mut conn).await?;
+    let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "SELECT v.n, to_char(v.as_of, 'YYYY-MM-DD\"T\"00:00:00\"Z\"') AS as_of, v.facts_added, \
+                v.facts_retracted, to_char(v.published_at AT TIME ZONE 'UTC', {FMT}) AS published_at, \
+                v.covers_drive_rev, \
+                (SELECT COALESCE(jsonb_object_agg(g.gate_id, g.disposition), '{{}}'::jsonb)::text \
+                   FROM _oo_docs.gate_report g WHERE g.n = v.n) AS gates \
+           FROM _oo_docs.ontology_version v WHERE ($1::bigint IS NULL OR v.n < $1) \
+          ORDER BY v.n DESC LIMIT {}",
+        limit + 1
+    )))
+    .bind(after)
+    .fetch_all(&mut *conn)
+    .await?;
+    let mut items = Vec::new();
+    let mut last = None;
+    for r in rows.iter().take(limit as usize) {
+        let n: i64 = r.try_get("n")?;
+        last = Some(n);
+        items.push(json!({
+            "n": n, "as_of": r.try_get::<String, _>("as_of")?,
+            "facts_added": r.try_get::<i32, _>("facts_added")?,
+            "facts_retracted": r.try_get::<i32, _>("facts_retracted")?,
+            "gates": serde_json::from_str::<Value>(&r.try_get::<String, _>("gates")?).unwrap_or(Value::Null),
+            "published_at": r.try_get::<String, _>("published_at")?,
+            "covers_drive_rev": r.try_get::<i64, _>("covers_drive_rev")?,
+            "pinned_by": 0,
+        }));
+    }
+    let next = if rows.len() as i64 > limit {
+        last.map(|n| cursor::encode(&[json!(n)], filters))
+    } else {
+        None
+    };
+    Ok(http::json(200, &json!({"items": items, "next_cursor": next, "as_of_seq": as_of_seq})))
+}
