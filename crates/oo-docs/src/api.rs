@@ -47,6 +47,7 @@ pub mod freshness;
 pub mod http;
 pub mod idem;
 pub mod lifecycle;
+pub mod metrics;
 pub mod packs;
 pub mod shares;
 
@@ -355,7 +356,6 @@ fn known_unserved(segs: &[&str]) -> bool {
             | ["v1", "docs", "shares", ..]
             | ["v1", "docs", "usage"]
             | ["v1", "docs", "ontology", ..]
-            | ["v1", "docs", "metrics"]
             | ["v1", "docs", "config", ..]
             | ["v1", "docs", "refs", ..]
     ) || matches!(segs, ["v1", "docs", s] if s.contains(':'))
@@ -404,6 +404,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             let mut conn = app.pool.acquire().await?;
             ensure_drive(&mut conn, id).await?;
             Ok(http::json(200, &files::tree(&mut conn, &q).await?))
+        }
+        ["v1", "docs", "metrics"] => {
+            method_allowed(req, &["GET"])?;
+            metrics::get(app).await
         }
         ["v1", "docs", "events"] => {
             method_allowed(req, &["GET"])?;

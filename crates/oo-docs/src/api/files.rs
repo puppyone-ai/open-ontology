@@ -167,7 +167,27 @@ pub async fn summaries(
         let j: String = r.try_get("j")?;
         out.insert(id, serde_json::from_str(&j).unwrap_or(Value::Null));
     }
+    attach_latency(conn, out.values_mut()).await?;
     Ok(out)
+}
+
+/// Adds `latency_ms` (G13) to `FileSummary` objects, one history query for all.
+pub async fn attach_latency<'a>(
+    conn: &mut PgConnection,
+    items: impl Iterator<Item = &'a mut Value>,
+) -> Result<(), ApiError> {
+    let mut items: Vec<&mut Value> = items.collect();
+    let ids: Vec<String> = items
+        .iter()
+        .filter_map(|v| v["id"].as_str().map(str::to_owned))
+        .collect();
+    let mut lat = crate::obs::latency::for_files(conn, &ids).await?;
+    for v in items.iter_mut() {
+        if let Some(l) = v["id"].as_str().and_then(|id| lat.remove(id)) {
+            v["latency_ms"] = l;
+        }
+    }
+    Ok(())
 }
 
 /// One page of files: `{"items", "next_cursor", "as_of_seq"}`.
@@ -231,6 +251,7 @@ pub async fn list_files(conn: &mut PgConnection, q: &FileQuery) -> Result<Value,
         items.push(serde_json::from_str::<Value>(&j).unwrap_or(Value::Null));
         last = Some((r.try_get("k")?, r.try_get("id")?));
     }
+    attach_latency(conn, items.iter_mut()).await?;
     let next = if rows.len() as i64 > q.limit {
         last.map(|(k, i)| cursor::encode(&[json!(k), json!(i)], &filters))
     } else {
