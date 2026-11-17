@@ -34,19 +34,19 @@
 | SO-B-S2-10 | L2 | merged | so/B-S2-10-oo-serve | → f431223c2 | — | evidence/L2/ | L2 简化：引擎为宿主子进程，compose 路径随 B-S3-01 |
 | SO-B-S2-11 | L2 | merged | so/B-S2-11-context-mount | → 376714a94 | — | evidence/L2/ | revoke/list/refs 待 B-S6 |
 | SO-B-S2-12 | L2 | merged | so/B-S2-12-l2-e2e | → db950b4cc | — | evidence/L2/ | 验收 1–5（4 为 API 层）37/37，主线程复跑 37/37 |
-| SO-F-S2-01 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-02 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-03 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-04 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-05 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-06 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-07 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-08 | L2 | todo | — | — | — | — | — |
+| SO-F-S2-01 | L2 | merged | codex/super-drive-F-S2-01-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-02 | L2 | merged | codex/super-drive-F-S2-02-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-03 | L2 | merged | codex/super-drive-F-S2-03-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-04 | L2 | merged | codex/super-drive-F-S2-04-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-05 | L2 | merged | codex/super-drive-F-S2-05-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-06 | L2 | merged | codex/super-drive-F-S2-06-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-07 | L2 | merged | codex/super-drive-F-S2-07-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-08 | L2 | in_progress | codex/super-drive-F-S2-08-* | — | — | — | — |
 | SO-F-S2-09 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-10 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-11 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-12 | L2 | todo | — | — | — | — | — |
-| SO-F-S2-13 | L2 | todo | — | — | — | — | — |
+| SO-F-S2-10 | L2 | in_progress | codex/super-drive-F-S2-10-* | — | — | — | — |
+| SO-F-S2-11 | L2 | in_progress | codex/super-drive-F-S2-11-* | — | — | — | — |
+| SO-F-S2-12 | L2 | merged | codex/super-drive-F-S2-12-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
+| SO-F-S2-13 | L2 | merged | codex/super-drive-F-S2-13-* | — | — | — | Puppyone 本地；集成分支 npm test 6227/6227 |
 | SO-V-S2-01 | L2 | merged | so/V-S2-01-* | — | — | formal/ | 10,000 条轨迹与真实 SQL 一致 |
 | SO-V-S2-02 | L2 | merged | so/V-S2-02-* | — | — | formal/ | FM2(md)、FM4 无反例；渲染层 FM4 回放待前端 |
 | SO-V-S2-03 | L2 | todo | — | — | — | — | — |
