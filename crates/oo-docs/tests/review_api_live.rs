@@ -357,6 +357,13 @@ async fn entities_resolve_review_and_the_five_second_accept() {
         p["as_of"].is_string() && p["gates"]["DOC-G3"] == "pass",
         "{p}"
     );
+    let vs = e.get("/v1/docs/ontology/versions?limit=1").await.json();
+    check(&page_v, "versions page", &vs);
+    let ov = def(&doc, "OntologyVersion");
+    check(&ov, "version", &vs["items"][0]);
+    assert!(vs["items"][0]["n"].as_i64().unwrap() >= 2);
+    assert_eq!(vs["items"][0]["gates"]["DOC-G5"], "pass");
+    assert!(vs["next_cursor"].is_string());
     drop(fx);
     e.finish().await;
 }

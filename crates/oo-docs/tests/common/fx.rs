@@ -171,6 +171,75 @@ impl Fx {
         self.plant_normalized(path, n, src.len()).await
     }
 
+    /// A second version of an already planted markdown file (new bytes, same
+    /// file row); returns the plant to index.
+    pub async fn plant_version(&mut self, path: &str, src: &str) -> Planted {
+        let n = oo_docs::parse::markdown::parse_markdown(src.as_bytes()).expect("parse");
+        let b3 = n.ir.blob_b3.clone();
+        let put = self
+            .cas
+            .put(CasKind::Ir, n.canonical.as_bytes())
+            .expect("cas put");
+        assert_eq!(put.b3, n.ir_b3);
+        let file_id: String =
+            sqlx::query_scalar("SELECT id::text FROM _oo_docs.file WHERE path = $1")
+                .bind(path)
+                .fetch_one(&mut self.admin)
+                .await
+                .unwrap();
+        let version_id = uuid();
+        let a = &mut self.admin;
+        for sql in [
+            "INSERT INTO _oo_docs.blob (b3, sha256, size, format) VALUES ($1, $2, $3, 'md') ON CONFLICT DO NOTHING",
+        ] {
+            sqlx::query(sql)
+                .bind(&b3)
+                .bind("0".repeat(64))
+                .bind(i64::try_from(src.len()).unwrap())
+                .execute(&mut *a)
+                .await
+                .unwrap();
+        }
+        sqlx::query("UPDATE _oo_docs.file_version SET superseded_at = now() WHERE file_id = $1::uuid AND superseded_at IS NULL")
+            .bind(&file_id)
+            .execute(&mut *a)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO _oo_docs.file_version (id, file_id, b3, path_at_version, fp) VALUES ($1::uuid, $2::uuid, $3, $4, '{}'::jsonb)",
+        )
+        .bind(&version_id)
+        .bind(&file_id)
+        .bind(&b3)
+        .bind(path)
+        .execute(&mut *a)
+        .await
+        .unwrap();
+        sqlx::query("UPDATE _oo_docs.file SET current_version_id = $2::uuid WHERE id = $1::uuid")
+            .bind(&file_id)
+            .bind(&version_id)
+            .execute(&mut *a)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO _oo_docs.parse_result (b3, parser_id, parser_version, profile_sha256, status, ir_b3, block_count, finished_at) \
+             VALUES ($1, 'oo-md', '1', $2, 'complete', $3, $4, clock_timestamp()) ON CONFLICT DO NOTHING",
+        )
+        .bind(&b3)
+        .bind("0".repeat(64))
+        .bind(&n.ir_b3)
+        .bind(i32::try_from(n.ir.blocks.len()).unwrap())
+        .execute(&mut *a)
+        .await
+        .unwrap();
+        Planted {
+            file_id,
+            version_id,
+            b3,
+            ir: n.ir,
+        }
+    }
+
     /// Plant and index a markdown document.
     pub async fn index_md(&mut self, path: &str, src: &str) -> IndexSummary {
         let p = self.plant_md(path, src).await;
