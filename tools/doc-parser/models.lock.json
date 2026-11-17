@@ -1,0 +1,46 @@
+{
+  "protocol": "oo.doc-parser.models-lock/v1",
+  "note": "Pinned at full commit shas (B-S1-07 LICENSES.md section 3). `files` is written by `fetch_models.py --mode write` and verified on every image build. TableFormer (docling-project/docling-models @ 2199320848bb9a8a519d22e4b528185a4f9a6f64) is NOT shipped: docling-ibm-models 4.0.4 imports cv2 at module import (tableformer/data_management/tf_predictor.py, functional.py), and every opencv-python wheel bundles FFmpeg (D65). PDF table structure stays off until a no-FFmpeg OpenCV exists.",
+  "sources": [
+    {
+      "name": "docling-layout-heron",
+      "repo_id": "docling-project/docling-layout-heron",
+      "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+      "local_dir": "docling-project--docling-layout-heron",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    }
+  ],
+  "files": [
+    {
+      "name": "docling-project--docling-layout-heron/.gitattributes",
+      "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361",
+      "size": 1519
+    },
+    {
+      "name": "docling-project--docling-layout-heron/README.md",
+      "sha256": "175700839bc7808eac6af1d0c23e4f483606ab2276fe01122f4093e61a1a65b6",
+      "size": 3219
+    },
+    {
+      "name": "docling-project--docling-layout-heron/config.json",
+      "sha256": "fdea30805ce2f5666b147fca941dcdd27ad468e27d6ed21902207d3da056a97d",
+      "size": 3268
+    },
+    {
+      "name": "docling-project--docling-layout-heron/docling_heron_400.png",
+      "sha256": "e7f78610372b32a7938e480d2c7fa1c3037ee170bd82282a5bd026232f6e6f9e",
+      "size": 96925
+    },
+    {
+      "name": "docling-project--docling-layout-heron/model.safetensors",
+      "sha256": "00333a43451945aaf89db8ca9c0a17e75d1537c17db60fdb91aa95f4c7929e0c",
+      "size": 171658996
+    },
+    {
+      "name": "docling-project--docling-layout-heron/preprocessor_config.json",
+      "sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1",
+      "size": 444
+    }
+  ]
+}

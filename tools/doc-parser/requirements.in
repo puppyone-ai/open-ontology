@@ -1,0 +1,2 @@
+# L3 profile (CPython 3.13 = the python digest in deploy/lite/images.lock.json) (no OCR; OCR is M2). Resolved with uv, see requirements.lock.
+docling-slim[convert-core,format-pdf,format-docx,format-pptx,models-local]==2.150.0
