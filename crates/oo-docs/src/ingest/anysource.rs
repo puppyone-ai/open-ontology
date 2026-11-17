@@ -161,9 +161,12 @@ impl AnySource {
         F: FnMut(Piece) -> Result<(), DocSourceError> + Send,
     {
         match self {
-            AnySource::Fs(_) => Err(DocSourceError::InvalidConfig(
-                "fs objects are read in place",
-            )),
+            AnySource::Fs(_) => {
+                let _ = (raw_key, &mut sink);
+                Err(DocSourceError::InvalidConfig(
+                    "fs objects are read in place",
+                ))
+            }
             #[cfg(feature = "objectstore-s3")]
             AnySource::S3(s) => {
                 use oo_connectors::objectstore_s3::opendal::Streamed;
