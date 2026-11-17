@@ -75,23 +75,7 @@ pub enum DocPathError {
 
 impl DocPath {
     pub fn new(path: &str) -> Result<Self, DocPathError> {
-        if path.is_empty() {
-            return Err(DocPathError::Empty);
-        }
-        if path.len() > MAX_PATH_BYTES {
-            return Err(DocPathError::TooLong);
-        }
-        if path.chars().any(char::is_control) {
-            return Err(DocPathError::ControlCharacter);
-        }
-        for segment in path.split('/') {
-            if segment.is_empty() || segment == "." || segment == ".." || segment.contains('\\') {
-                return Err(DocPathError::BadSegment);
-            }
-            if segment.len() > MAX_SEGMENT_BYTES {
-                return Err(DocPathError::SegmentTooLong);
-            }
-        }
+        path::check_doc_path_bytes(path.as_bytes())?;
         Ok(Self(path.to_owned()))
     }
 
