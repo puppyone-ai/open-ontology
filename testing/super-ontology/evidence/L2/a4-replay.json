@@ -1,0 +1,14 @@
+{
+  "cursor": 88,
+  "head": 188,
+  "replayed_seqs": "89..188",
+  "types": [
+    "drive.freshness_changed",
+    "drive.sync_completed",
+    "drive.sync_started",
+    "file.state_changed",
+    "ontology.version_published",
+    "pack.compiled",
+    "share.created"
+  ]
+}

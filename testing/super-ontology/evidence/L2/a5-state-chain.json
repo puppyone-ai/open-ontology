@@ -1,0 +1,31 @@
+{
+  "file": "Projects/a/星火计划.md",
+  "history": [
+    "stored",
+    "queued",
+    "parsing",
+    "parsed",
+    "extracting",
+    "indexed",
+    "published",
+    "superseded",
+    "stored",
+    "queued",
+    "parsing",
+    "parsed",
+    "extracting",
+    "indexed",
+    "published"
+  ],
+  "chain_after_edit": [
+    "superseded",
+    "stored",
+    "queued",
+    "parsing",
+    "parsed",
+    "extracting",
+    "indexed",
+    "published"
+  ],
+  "events_after_edit": 8
+}
