@@ -1,24 +1,27 @@
 {
   "protocol": "oo.docs-images/v1",
   "local_only": true,
-  "note": "Digests are local image ids (config digests) of builds on this host; nothing is pushed. amd64 is not built here: the lock resolves for both architectures, the image build needs an amd64 builder.",
+  "note": "Digests are local image ids of builds on this host; nothing is pushed. amd64 is not built here: the locks resolve for both architectures (the opencv stage compiles natively), but the image build needs an amd64 builder.",
   "base_indexes": {
     "python": "sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f"
   },
   "python": "3.13",
   "platforms": {
     "linux/arm64": {
-      "image": "sha256:2d957426e28806f4ce4b1aea2d269cdcc811010238fef4f37e48c4d6cd9e932c",
+      "image": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26",
       "tag": "oo-docs-parser:dev",
-      "size_bytes": 2445504768,
-      "dockerfile_sha256": "864a3f2e3a9d6eb5bd087e5a7efcdd889abd591efffcd3385bd5dfbd18ef4874",
+      "size_bytes": 2888900103,
+      "dockerfile_sha256": "6bb52b44946b65411a09bf1184bb5d0d761533df6b4ce16f565496b7b21e52ec",
       "requirements_lock_sha256": "5c2c12881e5d2dd7f5b3d229adb36652ef09a35724b634c44c33d7175a932bc0",
-      "models_lock_sha256": "9659f286e3fea950a44f0afa1188a63839427957fc96d099f99ba875cb32098d",
+      "models_lock_sha256": "4a398476b4803f9457e3f071c4c362f2c0880cbaf00280ea97e00106567cb38d",
       "sbom": "testing/super-ontology/evidence/L3/sbom-doc-parser.json",
-      "sbom_sha256": "e99b57a64087cce4410b38e06b9b95746ee888fac4ee3a9f38c4eac3798f4d05",
-      "sbom_gate": "fail: 5 components await written weak-copyleft review (see sbom-doc-parser.gate.txt)",
+      "sbom_sha256": "532146b63a85b9529b1b1d6e6de821e8aed76310862a0f52ed6d2d2b7d1df8ae",
+      "sbom_gate": "pass: five weak-copyleft components reviewed (supply-chain/doc-parser-license-reviews.json), OpenCV attested FFmpeg-free (see sbom-doc-parser.gate.txt)",
       "lane": "super-ontology-be2",
-      "built": "2026-11-17"
+      "built": "2026-11-17",
+      "opencv_build_requirements_lock_sha256": "cf65da4b2f9714acaa0a82cf699c574e8e8ae9a3b6514155dd8eeb49d8b10bd9",
+      "notices_sha256": "814ab504827ae4ddb4efb343255e8d1fb66cecde79f66f19c7777ee19b024c3b",
+      "opencv": "5.0.0.93 built from the pinned sdist without FFmpeg (Dockerfile stage opencv); table_structure on"
     },
     "linux/amd64": null
   }
