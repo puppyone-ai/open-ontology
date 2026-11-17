@@ -15,6 +15,7 @@ use oo_docs::config::EngineConfig;
 use oo_docs::health::{DfProbe, HealthProbe};
 use oo_docs::ingest::{FsFactory, handlers, poll};
 use oo_docs::jobs::scheduler::{Scheduler, SchedulerConfig};
+use oo_docs::jobs::stages;
 use oo_docs::obs;
 use oo_docs::store::install;
 use serde_json::json;
@@ -103,9 +104,10 @@ async fn run() -> ExitCode {
     };
 
     let cas_root = std::path::Path::new(&cfg.state_dir).join("cas");
-    if let Err(e) = oo_docs::cas::Cas::open(&cas_root) {
-        return fail(1, "cas.open_failed", e);
-    }
+    let cas = match oo_docs::cas::Cas::open(&cas_root) {
+        Ok(c) => Arc::new(c),
+        Err(e) => return fail(1, "cas.open_failed", e),
+    };
 
     let listener = match tokio::net::TcpListener::bind(cfg.listen).await {
         Ok(l) => l,
@@ -128,13 +130,16 @@ async fn run() -> ExitCode {
         FsFactory,
         cfg.ingest.clone(),
     ));
-    let app = Arc::new(AppState::new(
-        pool.clone(),
-        tokens,
-        oo_docs::api::auth::allowed_hosts(addr.port(), &cfg.allowed_hosts),
-        sync,
-        health.clone(),
-    ));
+    let app = Arc::new(
+        AppState::new(
+            pool.clone(),
+            tokens,
+            oo_docs::api::auth::allowed_hosts(addr.port(), &cfg.allowed_hosts),
+            sync,
+            health.clone(),
+        )
+        .with_cas(cas.clone()),
+    );
 
     let (stop_tx, stop_rx) = watch::channel(false);
     let worker_id = oo_docs::jobs::worker_id(
@@ -145,10 +150,13 @@ async fn run() -> ExitCode {
             .map_or(0, |d| d.as_nanos() as u64),
     );
     let mut sched_cfg = SchedulerConfig::new(&worker_id);
-    sched_cfg.concurrency = cfg.concurrency.clone();
-    let handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
+    sched_cfg.concurrency = stages::default_concurrency();
+    sched_cfg.concurrency.extend(cfg.concurrency.clone());
+    let mut handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
+    handlers.extend(stages::handlers(&pool, Arc::new(FsFactory), cas));
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
     let tasks = vec![
+        stages::spawn_pump(pool.clone(), app.wake.clone(), stop_rx.clone()),
         poll::spawn(
             pool.clone(),
             cfg.poll.clone(),

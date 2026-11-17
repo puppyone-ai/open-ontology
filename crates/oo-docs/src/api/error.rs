@@ -60,6 +60,20 @@ codes! {
     INVALID_CONFIG = "DOCS_SOURCE_INVALID_CONFIG",
     SYNC_RUNNING = "DOCS_SOURCE_SYNC_RUNNING",
     MASS_DELETE_HELD = "DOCS_SOURCE_MASS_DELETE_HELD",
+    PACK_SCOPE_INVALID = "DOCS_PACK_SCOPE_INVALID",
+    PACK_NOTHING_VISIBLE = "DOCS_PACK_NOTHING_VISIBLE",
+    PACK_SEED_NOT_VISIBLE = "DOCS_PACK_SEED_NOT_VISIBLE",
+    PACK_TASK_TOO_LONG = "DOCS_PACK_TASK_TOO_LONG",
+    PACK_BUDGET_TOO_SMALL = "DOCS_PACK_BUDGET_TOO_SMALL",
+    PACK_VERSION_NOT_FOUND = "DOCS_PACK_VERSION_NOT_FOUND",
+    PACK_LEAK_GUARD = "DOCS_PACK_LEAK_GUARD",
+    PACK_PROVENANCE_GAP = "DOCS_PACK_PROVENANCE_GAP",
+    PACK_TOO_LARGE = "DOCS_PACK_TOO_LARGE",
+    PACK_NOT_FOUND = "DOCS_PACK_NOT_FOUND",
+    SHARE_NOT_FOUND = "DOCS_SHARE_NOT_FOUND",
+    SHARE_EXPIRY_INVALID = "DOCS_SHARE_EXPIRY_INVALID",
+    SHARE_ROLE_UNAVAILABLE = "DOCS_SHARE_ROLE_UNAVAILABLE",
+    SHARE_TARGET_INVALID = "DOCS_SHARE_TARGET_INVALID",
 }
 
 const ERRORS_JSON: &str = include_str!("../../../../contracts/docs-api/errors.v1.json");
@@ -167,6 +181,42 @@ impl ApiError {
         builder
             .body(Body::from(self.body().to_string()))
             .unwrap_or_else(|_| Response::new(Body::empty()))
+    }
+}
+
+impl From<crate::compile::PackError> for ApiError {
+    fn from(e: crate::compile::PackError) -> Self {
+        use crate::compile::PackError as P;
+        match &e {
+            P::ScopeInvalid { paths } => {
+                Self::new(code::PACK_SCOPE_INVALID, "scope matches no files")
+                    .details(json!({ "paths": paths }))
+            }
+            P::NothingVisible => {
+                Self::new(code::PACK_NOTHING_VISIBLE, "nothing is visible in scope")
+            }
+            P::SeedNotVisible => Self::new(code::PACK_SEED_NOT_VISIBLE, "a seed is not visible"),
+            P::TaskTooLong { max_chars } => Self::new(code::PACK_TASK_TOO_LONG, "task too long")
+                .details(json!({ "max_chars": max_chars })),
+            P::BudgetTooSmall { min_budget } => {
+                Self::new(code::PACK_BUDGET_TOO_SMALL, "budget too small")
+                    .details(json!({ "min_budget": min_budget }))
+            }
+            P::VersionNotFound => {
+                Self::new(code::PACK_VERSION_NOT_FOUND, "no such ontology version")
+            }
+            P::LeakGuard { hits } => {
+                Self::new(code::PACK_LEAK_GUARD, "leak guard stopped the pack")
+                    .details(json!({ "hits": hits }))
+            }
+            P::ProvenanceGap { lines } => {
+                Self::new(code::PACK_PROVENANCE_GAP, "a line has no provenance")
+                    .details(json!({ "lines": lines }))
+            }
+            P::TooLarge => Self::new(code::PACK_TOO_LARGE, "pack exceeds the size limit"),
+            P::BadRequest(why) => Self::new(code::BAD_REQUEST, *why),
+            P::Store(_) | P::Internal(_) => Self::new(code::INTERNAL, "pack compile failed"),
+        }
     }
 }
 

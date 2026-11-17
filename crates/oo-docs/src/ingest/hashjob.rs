@@ -521,7 +521,14 @@ pub async fn run_hash<S: HashableSource>(
             JobStatus::Succeeded => {}
             _ => return Ok(false), // lost lease: discard
         }
-        files::cancel_file_jobs(&mut tx, &file_id, Some(&ctx.job.id), false).await?;
+        // Jobs of the file are pointless once its content changes (4.1.5). A
+        // re-hash that finds the same content must leave them alone: they
+        // belong to the version that stays current, and cancelling them would
+        // strand the file in the stage they were about to finish.
+        let unchanged = !deleted && row.b3.as_deref() == Some(digest.b3.as_str());
+        if !unchanged {
+            files::cancel_file_jobs(&mut tx, &file_id, Some(&ctx.job.id), false).await?;
+        }
         let Some((st, del)) = files::lock_file(&mut tx, &file_id).await? else {
             return Ok(true);
         };

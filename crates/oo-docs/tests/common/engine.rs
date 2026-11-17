@@ -8,10 +8,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use oo_docs::api::{self, AppState, FactorySyncPort, auth};
+use oo_docs::cas::Cas;
 use oo_docs::health::{DiskProbe, HealthProbe};
 use oo_docs::ingest::{FsFactory, IngestLimits, handlers};
 use oo_docs::jobs::JobKind;
 use oo_docs::jobs::scheduler::{Scheduler, SchedulerConfig, SchedulerHandle};
+use oo_docs::jobs::stages;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use tokio::sync::watch;
@@ -44,6 +46,9 @@ pub struct Opts {
     pub workers: bool,
     /// Run the freshness watcher.
     pub watcher: bool,
+    /// Run the pipeline stages (parse, extract, publish), the pump and give
+    /// the API its content store.
+    pub stages: bool,
     /// Adjust the state before the server starts.
     pub tweak: Option<Tweak>,
 }
@@ -103,6 +108,9 @@ impl TestEngine {
             health,
         );
         app.sse.poll = Duration::from_millis(100);
+        if opts.stages {
+            app.cas = Some(Arc::new(Cas::open(&cas).expect("cas")));
+        }
         if let Some(t) = opts.tweak {
             t(&mut app);
         }
@@ -121,6 +129,13 @@ impl TestEngine {
                 }
             }),
         ];
+        if opts.stages {
+            tasks.push(oo_docs::jobs::stages::spawn_pump(
+                pool.clone(),
+                app.wake.clone(),
+                stop_rx.clone(),
+            ));
+        }
         if opts.watcher {
             tasks.push(api::freshness::spawn_watcher(
                 pool.clone(),
@@ -133,12 +148,12 @@ impl TestEngine {
             cfg.poll_interval = Duration::from_millis(50);
             cfg.concurrency.insert(JobKind::Hash, 3);
             cfg.concurrency.insert(JobKind::Sync, 1);
-            Scheduler::new(
-                pool.clone(),
-                cfg,
-                handlers::handlers(&pool, Arc::new(FsFactory), Arc::new(limits)),
-            )
-            .spawn()
+            let mut hs = handlers::handlers(&pool, Arc::new(FsFactory), Arc::new(limits));
+            if let Some(cas) = &app.cas {
+                cfg.concurrency.extend(stages::default_concurrency());
+                hs.extend(stages::handlers(&pool, Arc::new(FsFactory), cas.clone()));
+            }
+            Scheduler::new(pool.clone(), cfg, hs).spawn()
         });
         Self {
             name: name.to_owned(),

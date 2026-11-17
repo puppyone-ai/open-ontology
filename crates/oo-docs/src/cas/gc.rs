@@ -192,6 +192,7 @@ impl Cas {
                 CasKind::Orig => u.orig_bytes = bytes,
                 CasKind::Ir => u.ir_bytes = bytes,
                 CasKind::Llm => u.llm_bytes = bytes,
+                CasKind::Pack => {}
             }
         }
         u

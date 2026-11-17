@@ -26,6 +26,7 @@ use self::visible::{BlockedCounts, VisibleGraph};
 
 pub mod brief;
 pub mod pack;
+pub mod persist;
 pub mod pg;
 pub mod reader;
 pub mod render;
