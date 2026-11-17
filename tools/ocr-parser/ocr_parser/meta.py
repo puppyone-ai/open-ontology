@@ -3,10 +3,13 @@ PARSER_ID = "paddleocr"
 FORMATS = ("pdf", "image")
 PROBE_FORMATS = ()
 PROFILE = "cpu"
-OCR_OPTION_ALLOWED = True
 PAGE_RANGE_FORMATS = ("pdf",)
 # Weights that decide the output; the rest of the lock (configs, READMEs) is not listed in the IR profile.
 WEIGHT_SUFFIX = "inference.pdiparams"
+
+
+def ocr_allowed():
+    return True
 
 
 def parser_version():

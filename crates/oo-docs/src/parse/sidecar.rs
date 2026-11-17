@@ -258,6 +258,12 @@ impl SidecarConfig {
         self.ocr = true;
         self
     }
+
+    /// Ask a Docling doc-parser to OCR embedded pictures too (B-S9-04). Only for an image whose
+    /// `/v1/info` says `limits.ocr`; an older image answers 422.
+    pub fn with_picture_ocr(self) -> Self {
+        self.for_ocr()
+    }
 }
 
 /// Counters of what the client saw, for the doctor and the tests.

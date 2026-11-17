@@ -2,7 +2,7 @@
 import json
 
 
-def parse(path, fmt, page_range, table, max_response):
+def parse(path, fmt, page_range, table, max_response, ocr=False):
     return json.dumps({
         "protocol": "oo.doc-parser/v1", "parser": {"id": "paddleocr", "version": "fake", "adapter_version": "1"},
         "kind": fmt, "page_count": 1, "pages": [1, 1],

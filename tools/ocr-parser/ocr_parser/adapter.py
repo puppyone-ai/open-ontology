@@ -154,7 +154,7 @@ def _run(img):
     return blocks
 
 
-def parse(path, fmt, page_range, table_structure, max_response):
+def parse(path, fmt, page_range, table_structure, max_response, ocr=True):
     pages = []
     warnings = []
     if fmt == "pdf":

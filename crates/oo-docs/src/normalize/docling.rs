@@ -18,7 +18,8 @@
 use std::collections::BTreeMap;
 
 use oo_core::docir::{
-    Anchor, BlockKind, DocFormat, DocMeta, MAX_HPATH, ParserId, ParserInfo, TableCell, TableGrid,
+    Anchor, BlockFlag, BlockKind, DocFormat, DocMeta, MAX_HPATH, ParserId, ParserInfo, TableCell,
+    TableGrid,
 };
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -27,6 +28,9 @@ use unicode_normalization::UnicodeNormalization;
 use super::{IrFragment, IrWarning, RawBlock};
 
 const PROFILE: &str = "docling/1;ocr=off;table_structure=on;pictures=off;window=20;bbox=1/100pt-top-left;docx-ordinals=ooxml";
+/// Profile text when the sidecar also OCRs embedded pictures: a different hash, so a file parsed without OCR
+/// becomes `outdated` once OCR is switched on (D23).
+const PROFILE_PICTURE_OCR: &str = "docling/1;ocr=rapidocr-ppocrv5-onnx;pictures=ocr;table_structure=on;window=20;bbox=1/100pt-top-left;docx-ordinals=ooxml";
 /// Table text rendering cap, same as the sheet tables.
 const TABLE_TEXT_CHARS: usize = 16_000;
 const MAX_CELL_CHARS: usize = 32_768;
@@ -63,6 +67,11 @@ pub struct WindowResponse {
     /// Docx only: `{"paragraphs":[{"text","style","level"}],"tables":[{"before","rows","cols"}]}`.
     pub ooxml: Option<Value>,
     pub warnings: Vec<String>,
+    /// OCR of embedded pictures (B-S9-04): `[{page, index, box:{l,t,r,b,origin}, image_size:[w,h],
+    /// lines:[{text, score, bbox_px}]}]`. Empty when the sidecar ran without OCR.
+    pub pictures: Vec<Value>,
+    /// The sidecar says picture OCR ran (`ocr: true` in the response), even if it found no text.
+    pub ocr_on: bool,
 }
 
 impl WindowResponse {
@@ -78,6 +87,15 @@ impl WindowResponse {
             pages,
             doc: v["doc"].take(),
             ooxml: v.get_mut("ooxml").map(Value::take).filter(|o| !o.is_null()),
+            ocr_on: v.get("ocr").and_then(Value::as_bool).unwrap_or(false),
+            pictures: v
+                .get_mut("pictures")
+                .map(Value::take)
+                .and_then(|p| match p {
+                    Value::Array(a) => Some(a),
+                    _ => None,
+                })
+                .unwrap_or_default(),
             warnings: v
                 .get("warnings")
                 .and_then(Value::as_array)
@@ -91,8 +109,13 @@ impl WindowResponse {
     }
 }
 
-fn profile_sha256() -> String {
-    let d = Sha256::digest(PROFILE.as_bytes());
+fn profile_sha256(picture_ocr: bool) -> String {
+    let text = if picture_ocr {
+        PROFILE_PICTURE_OCR
+    } else {
+        PROFILE
+    };
+    let d = Sha256::digest(text.as_bytes());
     d.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -253,6 +276,15 @@ fn pdf_bbox(p: &Prov, page_h: f64) -> [i64; 4] {
     let (x0, x1) = (q(l.min(r)), q(l.max(r)));
     let (y0, y1) = (q(y0.min(y1)), q(y0.max(y1)));
     [x0, y0, x1, y1]
+}
+
+fn page_width(doc: &Value, page: u32) -> f64 {
+    doc.get("pages")
+        .and_then(|p| p.get(page.to_string()))
+        .and_then(|p| p.get("size"))
+        .and_then(|s| s.get("width"))
+        .and_then(Value::as_f64)
+        .unwrap_or(595.0)
 }
 
 fn page_height(doc: &Value, page: u32) -> f64 {
@@ -727,7 +759,7 @@ pub fn assemble(
             .get("adapter_version")
             .and_then(Value::as_str)
             .map(str::to_owned),
-        profile_sha256: profile_sha256(),
+        profile_sha256: profile_sha256(windows.iter().any(|w| w.ocr_on)),
         profile: None,
     };
     let mut b = Builder {
@@ -743,6 +775,7 @@ pub fn assemble(
     ordered.sort_by_key(|w| w.pages.map_or(0, |p| p.0));
     for w in &ordered {
         add_window(&mut b, w, &mut docx_state);
+        add_pictures(&mut b, w);
         for tag in &w.warnings {
             // Warnings from the sidecar are already codes.
             if tag.starts_with("DOCS_PARSE_") {
@@ -789,4 +822,127 @@ pub fn assemble(
         blocks: b.blocks,
         warnings: b.warnings,
     })
+}
+
+/// A picture's box in points with a top-left origin: `(left, top, right, bottom)`.
+fn picture_box(rec: &Value, page_h: f64) -> Option<(f64, f64, f64, f64)> {
+    let b = rec.get("box")?;
+    let f = |k: &str| b.get(k).and_then(Value::as_f64);
+    let (l, t, r, bt) = (f("l")?, f("t")?, f("r")?, f("b")?);
+    let bottom_left = b
+        .get("origin")
+        .and_then(Value::as_str)
+        .is_none_or(|o| o.to_ascii_uppercase().contains("BOTTOMLEFT"));
+    let (top, bottom) = if bottom_left {
+        (page_h - t, page_h - bt)
+    } else {
+        (t, bt)
+    };
+    Some((l.min(r), top.min(bottom), l.max(r), top.max(bottom)))
+}
+
+/// `image_text` blocks for the pictures of a pdf window (10 §17.6, D76). The OCR lines are in bitmap pixels;
+/// a pixel `(px, py)` of a bitmap `w x h` shown in the page box `(l, t, r, b)` lies at
+/// `(l + px * (r - l) / w, t + py * (b - t) / h)`. The block's bbox is the union of its lines, in 1/100 pt,
+/// top-left origin like every pdf anchor; the parent is the pdf anchor of the picture itself.
+/// Pictures of other formats are not placed yet (their pages have no point coordinates here).
+fn add_pictures(b: &mut Builder, w: &WindowResponse) {
+    if b.format != DocFormat::Pdf {
+        return;
+    }
+    for rec in &w.pictures {
+        let page = rec.get("page").and_then(Value::as_u64).unwrap_or(0) as u32;
+        let index = rec.get("index").and_then(Value::as_u64).unwrap_or(1).max(1) as u32;
+        let (pw, ph) = (page_width(&w.doc, page), page_height(&w.doc, page));
+        let size = rec.get("image_size").and_then(Value::as_array);
+        let (img_w, img_h) = match size.map(|a| {
+            (
+                a.first().and_then(Value::as_f64),
+                a.get(1).and_then(Value::as_f64),
+            )
+        }) {
+            Some((Some(x), Some(y))) if x > 0.0 && y > 0.0 => (x, y),
+            _ => continue,
+        };
+        let Some((l, t, r, bt)) = picture_box(rec, ph) else {
+            continue;
+        };
+        if page == 0 {
+            continue;
+        }
+        let q = |v: f64| (v * 100.0).round() as i64;
+        let mut texts: Vec<&str> = Vec::new();
+        let mut scores: Vec<f64> = Vec::new();
+        let mut union: Option<[f64; 4]> = None;
+        for line in rec
+            .get("lines")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let text = line
+                .get("text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim();
+            let bb: Vec<f64> = line
+                .get("bbox_px")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(Value::as_f64).collect())
+                .unwrap_or_default();
+            if text.is_empty() || bb.len() != 4 {
+                continue;
+            }
+            texts.push(text);
+            scores.push(line.get("score").and_then(Value::as_f64).unwrap_or(1.0));
+            let px = |x: f64| l + x * (r - l) / img_w;
+            let py = |y: f64| t + y * (bt - t) / img_h;
+            let mapped = [px(bb[0]), py(bb[1]), px(bb[2]), py(bb[3])];
+            union = Some(match union {
+                None => mapped,
+                Some(u) => [
+                    u[0].min(mapped[0]),
+                    u[1].min(mapped[1]),
+                    u[2].max(mapped[2]),
+                    u[3].max(mapped[3]),
+                ],
+            });
+        }
+        let Some(u) = union else {
+            continue;
+        };
+        let mean = scores.iter().sum::<f64>() / scores.len() as f64;
+        let parent = Anchor::Pdf {
+            page,
+            bbox: [q(l), q(t), q(r), q(bt)],
+            charspan: None,
+            page_w: Some(q(pw)),
+            page_h: Some(q(ph)),
+        };
+        let hpath = b
+            .heading_stack
+            .iter()
+            .map(|(_, t)| t.clone())
+            .take(MAX_HPATH)
+            .collect();
+        b.blocks.push(RawBlock {
+            kind: BlockKind::ImageText,
+            level: None,
+            text: texts.join("\n"),
+            hpath,
+            parent: None,
+            anchor: Anchor::Image {
+                parent: Some(Box::new(parent)),
+                image_index: Some(index),
+                bbox: Some([q(u[0]), q(u[1]), q(u[2]), q(u[3])]),
+            },
+            table: None,
+            flags: if mean < 0.8 {
+                vec![BlockFlag::LowTextConfidence]
+            } else {
+                Vec::new()
+            },
+            exact: false,
+        });
+    }
 }
