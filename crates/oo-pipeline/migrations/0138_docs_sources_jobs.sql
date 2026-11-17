@@ -424,8 +424,11 @@ BEGIN
           last_error = 'lease_expired_cancelled', updated_at = clock_timestamp()
       WHERE id = v_row.id;
     ELSIF v_row.attempt >= v_row.max_attempts THEN
+      -- 10 4.1.6: a parse job that reaches its attempt cap is a poison pill and
+      -- is quarantined (manual retry only); every other kind simply fails.
       UPDATE _oo_docs.job
-      SET state = 'failed', lease_owner = NULL, lease_until = NULL,
+      SET state = CASE WHEN v_row.kind = 'parse' THEN 'quarantined' ELSE 'failed' END,
+          lease_owner = NULL, lease_until = NULL,
           last_error = 'lease_expired_attempt_cap', updated_at = clock_timestamp()
       WHERE id = v_row.id;
     ELSE
@@ -628,6 +631,15 @@ BEGIN
     RETURN _oo_docs._job_result('quarantined', v_row);
   END IF;
   IF p_count_attempt AND v_row.attempt >= v_row.max_attempts THEN
+    -- 10 4.1.6: crash, timeout and OOM at the cap of a parse job end in
+    -- quarantine (state_code DOCS_PARSE_QUARANTINED upstairs), not `failed`.
+    IF v_row.kind = 'parse' THEN
+      UPDATE _oo_docs.job
+      SET state = 'quarantined', crash_count = v_crash, lease_owner = NULL, lease_until = NULL,
+          last_error = p_code, updated_at = clock_timestamp()
+      WHERE id = p_id RETURNING * INTO v_row;
+      RETURN _oo_docs._job_result('quarantined', v_row);
+    END IF;
     UPDATE _oo_docs.job
     SET state = 'failed', crash_count = v_crash, lease_owner = NULL, lease_until = NULL,
         last_error = p_code, updated_at = clock_timestamp()
