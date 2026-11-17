@@ -107,24 +107,25 @@ pub async fn fetch_original_observed<O: FnMut(u64) + Send>(
     want_b3: Option<&str>,
     mut observer: O,
 ) -> Result<Fetched, DocSourceError> {
-    if let Some(b3) = want_b3 {
-        if cas.exists(CasKind::Orig, b3).unwrap_or(false) && cas.verify(CasKind::Orig, b3).is_ok() {
-            let size = std::fs::metadata(
-                cas.root()
-                    .join(crate::cas::object_rel_path(CasKind::Orig, b3).unwrap_or_default()),
-            )
-            .map_or(0, |m| m.len());
-            return Ok(Fetched {
-                put: Put {
-                    b3: b3.to_owned(),
-                    size,
-                    created: false,
-                    repaired: false,
-                },
-                restarts: 0,
-                from_cache: true,
-            });
-        }
+    if let Some(b3) = want_b3
+        && cas.exists(CasKind::Orig, b3).unwrap_or(false)
+        && cas.verify(CasKind::Orig, b3).is_ok()
+    {
+        let size = std::fs::metadata(
+            cas.root()
+                .join(crate::cas::object_rel_path(CasKind::Orig, b3).unwrap_or_default()),
+        )
+        .map_or(0, |m| m.len());
+        return Ok(Fetched {
+            put: Put {
+                b3: b3.to_owned(),
+                size,
+                created: false,
+                repaired: false,
+            },
+            restarts: 0,
+            from_cache: true,
+        });
     }
     let mut restarts = 0;
     loop {

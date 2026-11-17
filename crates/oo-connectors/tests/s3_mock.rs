@@ -95,13 +95,13 @@ async fn serve(b: Behaviour) -> String {
                     let _ = sock.write_all(r.as_bytes()).await;
                     return;
                 }
-                if let Some(m) = header("if-match") {
-                    if m != b.etag {
-                        let _ = sock
-                            .write_all(b"HTTP/1.1 412 Precondition Failed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                            .await;
-                        return;
-                    }
+                if let Some(m) = header("if-match")
+                    && m != b.etag
+                {
+                    let _ = sock
+                        .write_all(b"HTTP/1.1 412 Precondition Failed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                        .await;
+                    return;
                 }
                 let (start, end) = header("range")
                     .and_then(|r| {
