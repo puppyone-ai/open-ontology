@@ -1,0 +1,3823 @@
+{
+ "bomFormat": "CycloneDX",
+ "components": [
+  {
+   "licenses": [
+    {
+     "expression": "Apache"
+    }
+   ],
+   "name": "accelerate",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/accelerate@1.15.0",
+   "type": "library",
+   "version": "1.15.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "annotated-doc",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/annotated-doc@0.0.5",
+   "type": "library",
+   "version": "0.0.5"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "annotated-types",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/annotated-types@0.8.0",
+   "type": "library",
+   "version": "0.8.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "anyio",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/anyio@4.16.0",
+   "type": "library",
+   "version": "4.16.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "attrs",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/attrs@26.1.0",
+   "type": "library",
+   "version": "26.1.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MPL-2.0"
+    }
+   ],
+   "name": "certifi",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/certifi@2026.10.23",
+   "type": "library",
+   "version": "2026.10.23"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "charset-normalizer",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/charset-normalizer@3.5.2",
+   "type": "library",
+   "version": "3.5.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "click",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/click@8.5.1",
+   "type": "library",
+   "version": "8.5.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "PSFL"
+    }
+   ],
+   "name": "defusedxml",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/defusedxml@0.7.1",
+   "type": "library",
+   "version": "0.7.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "doclang",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/doclang@0.9.0",
+   "type": "library",
+   "version": "0.9.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "docling-core",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/docling-core@2.106.0",
+   "type": "library",
+   "version": "2.106.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "docling-ibm-models",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/docling-ibm-models@4.0.4",
+   "type": "library",
+   "version": "4.0.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "docling-parse",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/docling-parse@7.25.0",
+   "type": "library",
+   "version": "7.25.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "docling-slim",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/docling-slim@2.150.0",
+   "type": "library",
+   "version": "2.150.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "filelock",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/filelock@4.2.10",
+   "type": "library",
+   "version": "4.2.10"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "filetype",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/filetype@1.2.0",
+   "type": "library",
+   "version": "1.2.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "fsspec",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/fsspec@2026.9.0",
+   "type": "library",
+   "version": "2026.9.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "h11",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/h11@0.16.0",
+   "type": "library",
+   "version": "0.16.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "hf-xet",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/hf-xet@1.8.0",
+   "type": "library",
+   "version": "1.8.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "httpcore",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/httpcore@1.0.9",
+   "type": "library",
+   "version": "1.0.9"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "httpx",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/httpx@0.28.1",
+   "type": "library",
+   "version": "0.28.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "huggingface_hub",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/huggingface-hub@1.33.0",
+   "type": "library",
+   "version": "1.33.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "idna",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/idna@3.20",
+   "type": "library",
+   "version": "3.20"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD License"
+    }
+   ],
+   "name": "Jinja2",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/jinja2@3.1.6",
+   "type": "library",
+   "version": "3.1.6"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "jsonref",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/jsonref@1.1.0",
+   "type": "library",
+   "version": "1.1.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "jsonschema",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/jsonschema@4.26.0",
+   "type": "library",
+   "version": "4.26.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "jsonschema-specifications",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/jsonschema-specifications@2025.9.1",
+   "type": "library",
+   "version": "2025.9.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT License"
+    }
+   ],
+   "name": "langcodes",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/langcodes@3.5.1",
+   "type": "library",
+   "version": "3.5.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "latex2mathml",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/latex2mathml@3.81.1",
+   "type": "library",
+   "version": "3.81.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "lxml",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/lxml@6.1.3",
+   "type": "library",
+   "version": "6.1.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT License"
+    }
+   ],
+   "name": "markdown-it-py",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/markdown-it-py@4.2.0",
+   "type": "library",
+   "version": "4.2.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "MarkupSafe",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/markupsafe@3.0.4",
+   "type": "library",
+   "version": "3.0.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT License"
+    }
+   ],
+   "name": "mdurl",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/mdurl@0.1.2",
+   "type": "library",
+   "version": "0.1.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD"
+    }
+   ],
+   "name": "mpmath",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/mpmath@1.3.0",
+   "type": "library",
+   "version": "1.3.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "networkx",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/networkx@3.7",
+   "type": "library",
+   "version": "3.7"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+    }
+   ],
+   "name": "numpy",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/numpy@2.5.4",
+   "type": "library",
+   "version": "2.5.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0 OR BSD-2-Clause"
+    }
+   ],
+   "name": "packaging",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/packaging@26.3",
+   "type": "library",
+   "version": "26.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "pandas",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pandas@3.1.1",
+   "type": "library",
+   "version": "3.1.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT-CMU"
+    }
+   ],
+   "name": "pillow",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pillow@13.0.0",
+   "type": "library",
+   "version": "13.0.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pip",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pip@26.2.2",
+   "type": "library",
+   "version": "26.2.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pluggy",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pluggy@1.7.0",
+   "type": "library",
+   "version": "1.7.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "psutil",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/psutil@7.2.2",
+   "type": "library",
+   "version": "7.2.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pydantic",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pydantic@2.14.3",
+   "type": "library",
+   "version": "2.14.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pydantic-settings",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pydantic-settings@2.16.2",
+   "type": "library",
+   "version": "2.16.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pydantic_core",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pydantic-core@2.50.4",
+   "type": "library",
+   "version": "2.50.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "name": "Pygments",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pygments@2.21.0",
+   "type": "library",
+   "version": "2.21.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "pylatexenc",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pylatexenc@2.11",
+   "type": "library",
+   "version": "2.11"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause, Apache-2.0, dependency licenses"
+    }
+   ],
+   "name": "pypdfium2",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pypdfium2@5.15.2",
+   "type": "library",
+   "version": "5.15.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "python-dateutil",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/python-dateutil@4.0.0",
+   "type": "library",
+   "version": "4.0.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "python-docx",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/python-docx@1.2.0",
+   "type": "library",
+   "version": "1.2.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "python-dotenv",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/python-dotenv@1.2.4",
+   "type": "library",
+   "version": "1.2.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "python-pptx",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/python-pptx@1.0.2",
+   "type": "library",
+   "version": "1.0.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "PyYAML",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/pyyaml@6.0.3",
+   "type": "library",
+   "version": "6.0.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "referencing",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/referencing@0.37.0",
+   "type": "library",
+   "version": "0.37.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0 AND CNRI-Python"
+    }
+   ],
+   "name": "regex",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/regex@2026.11.9",
+   "type": "library",
+   "version": "2026.11.9"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "requests",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/requests@2.34.2",
+   "type": "library",
+   "version": "2.34.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "rich",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/rich@15.0.0",
+   "type": "library",
+   "version": "15.0.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "rpds-py",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/rpds-py@2026.9.1",
+   "type": "library",
+   "version": "2026.9.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "rtree",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/rtree@1.4.1",
+   "type": "library",
+   "version": "1.4.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache Software License"
+    }
+   ],
+   "name": "safetensors",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/safetensors@0.8.0",
+   "type": "library",
+   "version": "0.8.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers. (text)"
+    }
+   ],
+   "name": "scipy",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/scipy@1.18.1",
+   "type": "library",
+   "version": "1.18.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "setuptools",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/setuptools@84.2.1",
+   "type": "library",
+   "version": "84.2.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "ISC License"
+    }
+   ],
+   "name": "shellingham",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/shellingham@1.5.4",
+   "type": "library",
+   "version": "1.5.4"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD"
+    }
+   ],
+   "name": "sympy",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/sympy@1.14.0",
+   "type": "library",
+   "version": "1.14.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "tabulate",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/tabulate@0.10.0",
+   "type": "library",
+   "version": "0.10.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache Software License"
+    }
+   ],
+   "name": "tokenizers",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "Classifier"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/tokenizers@0.23.3",
+   "type": "library",
+   "version": "0.23.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND ISC AND MIT AND Zlib"
+    }
+   ],
+   "name": "torch",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/torch@2.15.0+cpu",
+   "type": "library",
+   "version": "2.15.0+cpu"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD"
+    }
+   ],
+   "name": "torchvision",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/torchvision@0.29.2+cpu",
+   "type": "library",
+   "version": "0.29.2+cpu"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MPL-2.0 AND MIT"
+    }
+   ],
+   "name": "tqdm",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/tqdm@4.70.1",
+   "type": "library",
+   "version": "4.70.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache 2.0 License"
+    }
+   ],
+   "name": "transformers",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/transformers@5.22.2",
+   "type": "library",
+   "version": "5.22.2"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "typer",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/typer@0.27.3",
+   "type": "library",
+   "version": "0.27.3"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "typing-inspection",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/typing-inspection@0.4.5",
+   "type": "library",
+   "version": "0.4.5"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "PSF-2.0"
+    }
+   ],
+   "name": "typing_extensions",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/typing-extensions@4.16.0",
+   "type": "library",
+   "version": "4.16.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "tzdata",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/tzdata@2026.6",
+   "type": "library",
+   "version": "2026.6"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "urllib3",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/urllib3@2.8.0",
+   "type": "library",
+   "version": "2.8.0"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "name": "xlsxwriter",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License-Expression"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    }
+   ],
+   "purl": "pkg:pypi/xlsxwriter@3.3.1",
+   "type": "library",
+   "version": "3.3.1"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "name": "AV1 codec library (Pillow)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libavif.so.16.4.2"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "Brotli",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libbrotlicommon.so.1.2.0,libbrotlidec.so.1.2.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "FTL OR GPL-2.0-only"
+    }
+   ],
+   "name": "FreeType",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libfreetype.so.6.20.6"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "HarfBuzz",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libharfbuzz.so.0.61450.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "Little CMS",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "liblcms2.so.2.0.19"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "OpenBLAS",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libopenblas.so.0,libscipy_openblas.so,libscipy_openblas64_.so"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "name": "OpenJPEG",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libopenjp2.so.2.5.4"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause AND Apache-2.0"
+    }
+   ],
+   "name": "PDFium (pypdfium2)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libpdfium.so"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "PyTorch native",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libc10.so,libshm.so,libtorch.so,libtorch_cpu.so,libtorch_global_deps.so,libtorch_python.so,libtorchbind_test.so"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "name": "glibc (vendored by auditwheel)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "ld-linux-aarch64.5cbc5e90.so.1"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    }
+   ],
+   "name": "libgfortran (GCC Fortran runtime)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libgfortran-daac5196.so.5.0.0,libgfortran-e1b7dfc8.so.5.0.0,libgfortran.so.5,libgfortran.so.5.0.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    }
+   ],
+   "name": "libgomp (GCC OpenMP runtime)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libgomp.so.1"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause AND IJG"
+    }
+   ],
+   "name": "libjpeg-turbo",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libjpeg.36cea85b.so.8,libjpeg.so.62.4.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "0BSD"
+    }
+   ],
+   "name": "liblzma (xz)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "liblzma.so.5.8.4"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "libpng-2.0"
+    }
+   ],
+   "name": "libpng",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libpng16.2d3c9837.so.16,libpng16.so.16.58.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "libspatialindex (rtree)",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libspatialindex.so"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "libtiff"
+    }
+   ],
+   "name": "libtiff",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libtiff.so.6.3.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "name": "libwebp",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libsharpyuv.699609ad.so.0,libsharpyuv.so.0.1.2,libwebp.0df5e47f.so.7,libwebp.so.7.2.0,libwebpdemux.so.2.0.17,libwebpmux.so.3.1.2"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "name": "libxcb",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libXau.so.6.0.0,libxcb.so.1.1.0"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Zlib"
+    }
+   ],
+   "name": "zlib",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libz.f9ce4a27.so.1"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-only"
+    }
+   ],
+   "name": "zstd",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "libzstd.so.1.5.7"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [],
+   "name": "adduser",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/adduser/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/adduser@3.134",
+   "type": "library",
+   "version": "3.134"
+  },
+  {
+   "licenses": [],
+   "name": "apt",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/apt/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/apt@2.6.1",
+   "type": "library",
+   "version": "2.6.1"
+  },
+  {
+   "licenses": [],
+   "name": "base-files",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/base-files/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/base-files@12.4+deb12u15",
+   "type": "library",
+   "version": "12.4+deb12u15"
+  },
+  {
+   "licenses": [],
+   "name": "base-passwd",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/base-passwd/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/base-passwd@3.6.1",
+   "type": "library",
+   "version": "3.6.1"
+  },
+  {
+   "licenses": [],
+   "name": "bash",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/bash/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/bash@5.2.15-2+b13",
+   "type": "library",
+   "version": "5.2.15-2+b13"
+  },
+  {
+   "licenses": [],
+   "name": "bsdutils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/bsdutils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/bsdutils@1:2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "1:2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "ca-certificates",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/ca-certificates/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/ca-certificates@20250419~deb12u2",
+   "type": "library",
+   "version": "20250419~deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "coreutils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/coreutils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/coreutils@9.1-1",
+   "type": "library",
+   "version": "9.1-1"
+  },
+  {
+   "licenses": [],
+   "name": "dash",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/dash/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/dash@0.5.12-2",
+   "type": "library",
+   "version": "0.5.12-2"
+  },
+  {
+   "licenses": [],
+   "name": "debconf",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/debconf/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/debconf@1.5.82",
+   "type": "library",
+   "version": "1.5.82"
+  },
+  {
+   "licenses": [],
+   "name": "debian-archive-keyring",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/debian-archive-keyring/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/debian-archive-keyring@2023.3+deb12u2",
+   "type": "library",
+   "version": "2023.3+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "debianutils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/debianutils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/debianutils@5.7-0.5~deb12u1",
+   "type": "library",
+   "version": "5.7-0.5~deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "diffutils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/diffutils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/diffutils@1:3.8-4",
+   "type": "library",
+   "version": "1:3.8-4"
+  },
+  {
+   "licenses": [],
+   "name": "dpkg",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/dpkg/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/dpkg@1.21.23",
+   "type": "library",
+   "version": "1.21.23"
+  },
+  {
+   "licenses": [],
+   "name": "e2fsprogs",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/e2fsprogs/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/e2fsprogs@1.47.0-2+b2",
+   "type": "library",
+   "version": "1.47.0-2+b2"
+  },
+  {
+   "licenses": [],
+   "name": "findutils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/findutils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/findutils@4.9.0-4",
+   "type": "library",
+   "version": "4.9.0-4"
+  },
+  {
+   "licenses": [],
+   "name": "gcc-12-base",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/gcc-12-base/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/gcc-12-base@12.2.0-14+deb12u1",
+   "type": "library",
+   "version": "12.2.0-14+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "gpgv",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/gpgv/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/gpgv@2.2.40-1.1+deb12u2",
+   "type": "library",
+   "version": "2.2.40-1.1+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "grep",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/grep/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/grep@3.8-5",
+   "type": "library",
+   "version": "3.8-5"
+  },
+  {
+   "licenses": [],
+   "name": "gzip",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/gzip/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/gzip@1.12-1",
+   "type": "library",
+   "version": "1.12-1"
+  },
+  {
+   "licenses": [],
+   "name": "hostname",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/hostname/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/hostname@3.23+nmu1",
+   "type": "library",
+   "version": "3.23+nmu1"
+  },
+  {
+   "licenses": [],
+   "name": "init-system-helpers",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/init-system-helpers/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/init-system-helpers@1.65.2+deb12u1",
+   "type": "library",
+   "version": "1.65.2+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libacl1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libacl1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libacl1@2.3.1-3",
+   "type": "library",
+   "version": "2.3.1-3"
+  },
+  {
+   "licenses": [],
+   "name": "libapt-pkg6.0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libapt-pkg6.0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libapt-pkg6.0@2.6.1",
+   "type": "library",
+   "version": "2.6.1"
+  },
+  {
+   "licenses": [],
+   "name": "libattr1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libattr1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libattr1@1:2.5.1-4",
+   "type": "library",
+   "version": "1:2.5.1-4"
+  },
+  {
+   "licenses": [],
+   "name": "libaudit-common",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libaudit-common/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libaudit-common@1:3.0.9-1",
+   "type": "library",
+   "version": "1:3.0.9-1"
+  },
+  {
+   "licenses": [],
+   "name": "libaudit1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libaudit1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libaudit1@1:3.0.9-1",
+   "type": "library",
+   "version": "1:3.0.9-1"
+  },
+  {
+   "licenses": [],
+   "name": "libblkid1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libblkid1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libblkid1@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "libbz2-1.0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libbz2-1.0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libbz2-1.0@1.0.8-5+b1",
+   "type": "library",
+   "version": "1.0.8-5+b1"
+  },
+  {
+   "licenses": [],
+   "name": "libc-bin",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libc-bin/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libc-bin@2.36-9+deb12u14",
+   "type": "library",
+   "version": "2.36-9+deb12u14"
+  },
+  {
+   "licenses": [],
+   "name": "libc6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libc6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libc6@2.36-9+deb12u14",
+   "type": "library",
+   "version": "2.36-9+deb12u14"
+  },
+  {
+   "licenses": [],
+   "name": "libcap-ng0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libcap-ng0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libcap-ng0@0.8.3-1+b3",
+   "type": "library",
+   "version": "0.8.3-1+b3"
+  },
+  {
+   "licenses": [],
+   "name": "libcap2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libcap2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libcap2@1:2.66-4+deb12u3+b1",
+   "type": "library",
+   "version": "1:2.66-4+deb12u3+b1"
+  },
+  {
+   "licenses": [],
+   "name": "libcom-err2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libcom-err2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libcom-err2@1.47.0-2+b2",
+   "type": "library",
+   "version": "1.47.0-2+b2"
+  },
+  {
+   "licenses": [],
+   "name": "libcrypt1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libcrypt1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libcrypt1@1:4.4.33-2",
+   "type": "library",
+   "version": "1:4.4.33-2"
+  },
+  {
+   "licenses": [],
+   "name": "libdb5.3",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libdb5.3/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libdb5.3@5.3.28+dfsg2-1",
+   "type": "library",
+   "version": "5.3.28+dfsg2-1"
+  },
+  {
+   "licenses": [],
+   "name": "libdebconfclient0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libdebconfclient0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libdebconfclient0@0.270",
+   "type": "library",
+   "version": "0.270"
+  },
+  {
+   "licenses": [],
+   "name": "libext2fs2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libext2fs2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libext2fs2@1.47.0-2+b2",
+   "type": "library",
+   "version": "1.47.0-2+b2"
+  },
+  {
+   "licenses": [],
+   "name": "libffi8",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libffi8/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libffi8@3.4.4-1",
+   "type": "library",
+   "version": "3.4.4-1"
+  },
+  {
+   "licenses": [],
+   "name": "libgcc-s1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgcc-s1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgcc-s1@12.2.0-14+deb12u1",
+   "type": "library",
+   "version": "12.2.0-14+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libgcrypt20",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgcrypt20/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgcrypt20@1.10.1-3+deb12u1",
+   "type": "library",
+   "version": "1.10.1-3+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libgdbm6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgdbm6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgdbm6@1.23-3",
+   "type": "library",
+   "version": "1.23-3"
+  },
+  {
+   "licenses": [],
+   "name": "libgmp10",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgmp10/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgmp10@2:6.2.1+dfsg1-1.1",
+   "type": "library",
+   "version": "2:6.2.1+dfsg1-1.1"
+  },
+  {
+   "licenses": [],
+   "name": "libgnutls30",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgnutls30/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgnutls30@3.7.9-2+deb12u7",
+   "type": "library",
+   "version": "3.7.9-2+deb12u7"
+  },
+  {
+   "licenses": [],
+   "name": "libgpg-error0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libgpg-error0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libgpg-error0@1.46-1",
+   "type": "library",
+   "version": "1.46-1"
+  },
+  {
+   "licenses": [],
+   "name": "libhogweed6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libhogweed6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libhogweed6@3.8.1-2",
+   "type": "library",
+   "version": "3.8.1-2"
+  },
+  {
+   "licenses": [],
+   "name": "libidn2-0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libidn2-0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libidn2-0@2.3.3-1+b1",
+   "type": "library",
+   "version": "2.3.3-1+b1"
+  },
+  {
+   "licenses": [],
+   "name": "liblz4-1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/liblz4-1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/liblz4-1@1.9.4-1",
+   "type": "library",
+   "version": "1.9.4-1"
+  },
+  {
+   "licenses": [],
+   "name": "liblzma5",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/liblzma5/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/liblzma5@5.4.1-1+deb12u2",
+   "type": "library",
+   "version": "5.4.1-1+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libmd0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libmd0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libmd0@1.0.4-2",
+   "type": "library",
+   "version": "1.0.4-2"
+  },
+  {
+   "licenses": [],
+   "name": "libmount1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libmount1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libmount1@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "libncursesw6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libncursesw6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libncursesw6@6.4-4",
+   "type": "library",
+   "version": "6.4-4"
+  },
+  {
+   "licenses": [],
+   "name": "libnettle8",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libnettle8/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libnettle8@3.8.1-2",
+   "type": "library",
+   "version": "3.8.1-2"
+  },
+  {
+   "licenses": [],
+   "name": "libp11-kit0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libp11-kit0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libp11-kit0@0.24.1-2",
+   "type": "library",
+   "version": "0.24.1-2"
+  },
+  {
+   "licenses": [],
+   "name": "libpam-modules",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libpam-modules/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libpam-modules@1.5.2-6+deb12u2",
+   "type": "library",
+   "version": "1.5.2-6+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libpam-modules-bin",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libpam-modules-bin/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libpam-modules-bin@1.5.2-6+deb12u2",
+   "type": "library",
+   "version": "1.5.2-6+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libpam-runtime",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libpam-runtime/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libpam-runtime@1.5.2-6+deb12u2",
+   "type": "library",
+   "version": "1.5.2-6+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libpam0g",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libpam0g/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libpam0g@1.5.2-6+deb12u2",
+   "type": "library",
+   "version": "1.5.2-6+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libpcre2-8-0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libpcre2-8-0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libpcre2-8-0@10.42-1+deb12u2",
+   "type": "library",
+   "version": "10.42-1+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libreadline8",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libreadline8/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libreadline8@8.2-1.3",
+   "type": "library",
+   "version": "8.2-1.3"
+  },
+  {
+   "licenses": [],
+   "name": "libseccomp2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libseccomp2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libseccomp2@2.5.4-1+deb12u1",
+   "type": "library",
+   "version": "2.5.4-1+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libselinux1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libselinux1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libselinux1@3.4-1+b6",
+   "type": "library",
+   "version": "3.4-1+b6"
+  },
+  {
+   "licenses": [],
+   "name": "libsemanage-common",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsemanage-common/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsemanage-common@3.4-1",
+   "type": "library",
+   "version": "3.4-1"
+  },
+  {
+   "licenses": [],
+   "name": "libsemanage2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsemanage2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsemanage2@3.4-1+b5",
+   "type": "library",
+   "version": "3.4-1+b5"
+  },
+  {
+   "licenses": [],
+   "name": "libsepol2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsepol2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsepol2@3.4-2.1",
+   "type": "library",
+   "version": "3.4-2.1"
+  },
+  {
+   "licenses": [],
+   "name": "libsmartcols1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsmartcols1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsmartcols1@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "libsqlite3-0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsqlite3-0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsqlite3-0@3.40.1-2+deb12u2",
+   "type": "library",
+   "version": "3.40.1-2+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libss2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libss2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libss2@1.47.0-2+b2",
+   "type": "library",
+   "version": "1.47.0-2+b2"
+  },
+  {
+   "licenses": [],
+   "name": "libssl3",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libssl3/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libssl3@3.0.22-1~deb12u2",
+   "type": "library",
+   "version": "3.0.22-1~deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libstdc++6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libstdc++6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libstdc++6@12.2.0-14+deb12u1",
+   "type": "library",
+   "version": "12.2.0-14+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libsystemd0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libsystemd0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libsystemd0@252.39-1~deb12u2",
+   "type": "library",
+   "version": "252.39-1~deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libtasn1-6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libtasn1-6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libtasn1-6@4.19.0-2+deb12u1",
+   "type": "library",
+   "version": "4.19.0-2+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "libtinfo6",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libtinfo6/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libtinfo6@6.4-4",
+   "type": "library",
+   "version": "6.4-4"
+  },
+  {
+   "licenses": [],
+   "name": "libudev1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libudev1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libudev1@252.39-1~deb12u2",
+   "type": "library",
+   "version": "252.39-1~deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "libunistring2",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libunistring2/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libunistring2@1.0-2",
+   "type": "library",
+   "version": "1.0-2"
+  },
+  {
+   "licenses": [],
+   "name": "libuuid1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libuuid1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libuuid1@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "libxxhash0",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libxxhash0/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libxxhash0@0.8.1-1",
+   "type": "library",
+   "version": "0.8.1-1"
+  },
+  {
+   "licenses": [],
+   "name": "libzstd1",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/libzstd1/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/libzstd1@1.5.4+dfsg2-5",
+   "type": "library",
+   "version": "1.5.4+dfsg2-5"
+  },
+  {
+   "licenses": [],
+   "name": "login",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/login/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/login@1:4.13+dfsg1-1+deb12u2",
+   "type": "library",
+   "version": "1:4.13+dfsg1-1+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "logsave",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/logsave/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/logsave@1.47.0-2+b2",
+   "type": "library",
+   "version": "1.47.0-2+b2"
+  },
+  {
+   "licenses": [],
+   "name": "mawk",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/mawk/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/mawk@1.3.4.20200120-3.1",
+   "type": "library",
+   "version": "1.3.4.20200120-3.1"
+  },
+  {
+   "licenses": [],
+   "name": "mount",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/mount/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/mount@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "ncurses-base",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/ncurses-base/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/ncurses-base@6.4-4",
+   "type": "library",
+   "version": "6.4-4"
+  },
+  {
+   "licenses": [],
+   "name": "ncurses-bin",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/ncurses-bin/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/ncurses-bin@6.4-4",
+   "type": "library",
+   "version": "6.4-4"
+  },
+  {
+   "licenses": [],
+   "name": "netbase",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/netbase/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/netbase@6.4",
+   "type": "library",
+   "version": "6.4"
+  },
+  {
+   "licenses": [],
+   "name": "openssl",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/openssl/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/openssl@3.0.22-1~deb12u2",
+   "type": "library",
+   "version": "3.0.22-1~deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "passwd",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/passwd/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/passwd@1:4.13+dfsg1-1+deb12u2",
+   "type": "library",
+   "version": "1:4.13+dfsg1-1+deb12u2"
+  },
+  {
+   "licenses": [],
+   "name": "perl-base",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/perl-base/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/perl-base@5.36.0-7+deb12u4",
+   "type": "library",
+   "version": "5.36.0-7+deb12u4"
+  },
+  {
+   "licenses": [],
+   "name": "readline-common",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/readline-common/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/readline-common@8.2-1.3",
+   "type": "library",
+   "version": "8.2-1.3"
+  },
+  {
+   "licenses": [],
+   "name": "sed",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/sed/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/sed@4.9-1+deb12u1",
+   "type": "library",
+   "version": "4.9-1+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "sysvinit-utils",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/sysvinit-utils/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/sysvinit-utils@3.06-4",
+   "type": "library",
+   "version": "3.06-4"
+  },
+  {
+   "licenses": [],
+   "name": "tar",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/tar/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/tar@1.34+dfsg-1.2+deb12u1",
+   "type": "library",
+   "version": "1.34+dfsg-1.2+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "tzdata",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/tzdata/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/tzdata@2026e-0+deb12u1",
+   "type": "library",
+   "version": "2026e-0+deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "usr-is-merged",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/usr-is-merged/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/usr-is-merged@37~deb12u1",
+   "type": "library",
+   "version": "37~deb12u1"
+  },
+  {
+   "licenses": [],
+   "name": "util-linux",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/util-linux/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/util-linux@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "util-linux-extra",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/util-linux-extra/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/util-linux-extra@2.38.1-5+deb12u3",
+   "type": "library",
+   "version": "2.38.1-5+deb12u3"
+  },
+  {
+   "licenses": [],
+   "name": "zlib1g",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    },
+    {
+     "name": "oo:license_source",
+     "value": "/usr/share/doc/zlib1g/copyright"
+    }
+   ],
+   "purl": "pkg:deb/debian/zlib1g@1:1.2.13.dfsg-1",
+   "type": "library",
+   "version": "1:1.2.13.dfsg-1"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/.gitattributes",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "175700839bc7808eac6af1d0c23e4f483606ab2276fe01122f4093e61a1a65b6"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/README.md",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "fdea30805ce2f5666b147fca941dcdd27ad468e27d6ed21902207d3da056a97d"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/config.json",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "e7f78610372b32a7938e480d2c7fa1c3037ee170bd82282a5bd026232f6e6f9e"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/docling_heron_400.png",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "00333a43451945aaf89db8ca9c0a17e75d1537c17db60fdb91aa95f4c7929e0c"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/model.safetensors",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-layout-heron/preprocessor_config.json",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  }
+ ],
+ "metadata": {
+  "component": {
+   "name": "oo-docs-parser",
+   "type": "container",
+   "version": "oo-docs-parser:dev@sha256:2d957426e28806f4ce4b1aea2d269cdcc811010238fef4f37e48c4d6cd9e932c"
+  },
+  "properties": [
+   {
+    "name": "oo:python",
+    "value": "3.13.18"
+   }
+  ],
+  "tools": [
+   {
+    "name": "tools/doc-parser/sbom.py",
+    "version": "1"
+   }
+  ]
+ },
+ "specVersion": "1.5",
+ "version": 1
+}
