@@ -288,6 +288,8 @@ async fn run_job(
     handler: Arc<dyn JobHandler>,
     heartbeat: Duration,
 ) {
+    let started = std::time::Instant::now();
+    log_job("job.claimed", "debug", &job, started, None);
     let cancel = Arc::new(AtomicBool::new(false));
     let lost = Arc::new(AtomicBool::new(false));
     let hb = tokio::spawn(heartbeat_loop(
@@ -320,8 +322,15 @@ async fn run_job(
     let Ok(mut conn) = pool.acquire().await else {
         return; // the lease expires and the job is reclaimed
     };
-    let _ = match outcome {
-        Outcome::Completed => return,
+    let code = match &outcome {
+        Outcome::Failed { code, .. } => Some(code.clone()),
+        _ => None,
+    };
+    let status = match outcome {
+        Outcome::Completed => {
+            log_job("job.completed", "debug", &job, started, None);
+            return;
+        }
         Outcome::Done => store::complete(&mut conn, &job.id, &owner, job.generation)
             .await
             .map(|r| r.status),
@@ -332,6 +341,31 @@ async fn run_job(
             .await
             .map(|r| r.status),
     };
+    match (&status, code.as_deref()) {
+        (Ok(JobStatus::Quarantined), c) => log_job("job.quarantined", "warn", &job, started, c),
+        (Ok(JobStatus::RetryScheduled), c) => log_job("job.retry", "info", &job, started, c),
+        (Ok(JobStatus::Exhausted), c) => log_job("job.failed", "warn", &job, started, c),
+        (Ok(_), None) => log_job("job.completed", "debug", &job, started, None),
+        _ => {}
+    }
+}
+
+/// One structured job line (10 §10.1). Fixed fields only; no path or name.
+fn log_job(event: &str, level: &str, job: &Job, started: std::time::Instant, code: Option<&str>) {
+    if level == "debug" && !crate::obs::debug_enabled() {
+        return;
+    }
+    let f = crate::obs::Fields {
+        job_id: Some(&job.id),
+        kind: Some(&job.kind),
+        drive_id: job.drive_id.as_deref(),
+        file_id: job.file_id.as_deref(),
+        attempt: Some(job.attempt),
+        duration_ms: Some(i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX)),
+        code,
+        ..crate::obs::Fields::default()
+    };
+    crate::obs::emit(level, event, &f);
 }
 
 async fn heartbeat_loop(

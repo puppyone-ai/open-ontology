@@ -27,6 +27,12 @@ pub trait DiskProbe: Send + Sync {
     fn free_bytes(&self, path: &Path) -> Option<u64>;
 }
 
+impl<T: DiskProbe + ?Sized> DiskProbe for std::sync::Arc<T> {
+    fn free_bytes(&self, path: &Path) -> Option<u64> {
+        (**self).free_bytes(path)
+    }
+}
+
 /// `df -Pk <path>`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DfProbe;

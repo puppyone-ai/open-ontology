@@ -36,7 +36,11 @@ fn main() -> ExitCode {
 }
 
 fn fail(code: u8, event: &str, why: impl std::fmt::Display) -> ExitCode {
-    obs::log("error", event, json!({ "reason": why.to_string() }));
+    obs::log(
+        "error",
+        event,
+        json!({ "reason": obs::scrub(&why.to_string()) }),
+    );
     ExitCode::from(code)
 }
 
@@ -120,10 +124,15 @@ async fn run() -> ExitCode {
         Err(e) => return fail(1, "listen.failed", e),
     };
 
+    let disk: Arc<dyn oo_docs::health::DiskProbe> = Arc::new(DfProbe);
+    let guard = Arc::new(oo_docs::obs::disk::Guard::new(
+        disk.clone(),
+        cas_root.clone(),
+    ));
     let health = Arc::new(HealthProbe::new(
         pool.clone(),
         Some(cas_root),
-        Box::new(DfProbe),
+        Box::new(disk),
         schema_versions,
     ));
     let limits = Arc::new(cfg.ingest.clone());
@@ -163,6 +172,16 @@ async fn run() -> ExitCode {
         cas,
         Some(progress),
     ));
+    // Low disk pauses hashing, parsing and extraction (4.12, G7).
+    oo_docs::obs::disk::guard_handlers(
+        &mut handlers,
+        &guard,
+        &[
+            oo_docs::jobs::JobKind::Hash,
+            oo_docs::jobs::JobKind::Parse,
+            oo_docs::jobs::JobKind::ExtractRules,
+        ],
+    );
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
     // Files made by an older parser or ruleset are reprocessed (4.2, D23).
     if let Ok(n) = stages::mark_outdated(&pool).await
@@ -171,7 +190,12 @@ async fn run() -> ExitCode {
         obs::log("info", "files.outdated", json!({ "count": n }));
     }
     let tasks = vec![
-        stages::spawn_pump(pool.clone(), app.wake.clone(), stop_rx.clone()),
+        stages::spawn_pump_guarded(
+            pool.clone(),
+            app.wake.clone(),
+            stop_rx.clone(),
+            Some(guard.clone()),
+        ),
         poll::spawn(
             pool.clone(),
             cfg.poll.clone(),
