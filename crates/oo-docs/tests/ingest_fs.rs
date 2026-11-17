@@ -365,6 +365,10 @@ async fn rename_is_detected_by_content() {
     std::fs::rename(e.root.join("keep.md"), e.root.join("kept.md")).unwrap();
     let r = e.sync().await;
     assert_eq!((r.renamed, r.removed, r.added), (1, 0, 0));
+    // The old path was the one working on the content and is gone: the new
+    // path waits for one pump pass and then leads.
+    assert_eq!(e.state("kept.md").await.0, "stored");
+    assert_eq!(oo_docs::jobs::stages::settle_waiting(&e.pool).await.unwrap(), 1);
     assert_eq!(e.state("kept.md").await.0, "queued");
     e.finish().await;
 }
@@ -696,11 +700,13 @@ async fn duplicate_content_is_detected() {
     e.write("one.md", "identical bytes\n");
     e.sync().await;
     e.hash_all().await;
-    // A twin while the first is still in the queue is not a duplicate yet.
+    // A twin while the first is still in the queue is not a duplicate yet:
+    // it waits in `stored` so that the content is parsed once, and becomes
+    // `duplicate` when the first one has its result (`settle_waiting`).
     e.write("two.md", "identical bytes\n");
     e.sync().await;
     e.hash_all().await;
-    assert_eq!(e.state("two.md").await.0, "queued");
+    assert_eq!(e.state("two.md").await.0, "stored");
     // Once the first one has a finished result, a third copy is.
     sqlx::query("UPDATE _oo_docs.file SET state = 'published' WHERE path = 'one.md'")
         .execute(&e.pool)
