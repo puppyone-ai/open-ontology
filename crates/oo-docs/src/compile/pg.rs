@@ -60,22 +60,70 @@ fn evidence(version_id: String, block_id: String, anchor: &str) -> Result<RawEvi
     })
 }
 
-async fn load_ir(conn: &mut PgConnection, cas: &Cas, b3: &str) -> Result<Option<DocIr>, PackError> {
-    let ir_b3: Option<String> = sqlx::query_scalar(
-        "SELECT ir_b3 FROM _oo_docs.parse_result \
-          WHERE b3 = $1 AND status = 'complete' AND ir_b3 IS NOT NULL \
-          ORDER BY finished_at DESC NULLS LAST, created_at DESC LIMIT 1",
+/// Block texts of immutable IRs by `ir_b3`: content addressed, so a cached
+/// entry never goes stale. Bounded; compiling is the hot path of every share.
+fn ir_cache() -> &'static std::sync::Mutex<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>> {
+    static C: std::sync::OnceLock<
+        std::sync::Mutex<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>>,
+    > = std::sync::OnceLock::new();
+    C.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))
+}
+
+const IR_CACHE_MAX: usize = 20_000;
+
+/// Block texts of the complete parse of every `b3` in one query and, for a
+/// miss, one CAS read: `b3 -> blocks`.
+async fn load_blocks(
+    conn: &mut PgConnection,
+    cas: &Cas,
+    b3s: &[String],
+) -> Result<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>, PackError> {
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT ON (b3) b3, ir_b3 FROM _oo_docs.parse_result \
+          WHERE b3 = ANY($1::text[]) AND status = 'complete' AND ir_b3 IS NOT NULL \
+          ORDER BY b3, finished_at DESC NULLS LAST, created_at DESC",
     )
-    .bind(b3)
-    .fetch_optional(&mut *conn)
+    .bind(b3s)
+    .fetch_all(&mut *conn)
     .await
     .map_err(store)?;
-    let Some(ir_b3) = ir_b3 else { return Ok(None) };
-    match cas.get(CasKind::Ir, &ir_b3) {
-        Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(store)?)),
-        Err(CasError::NotFound) => Ok(None),
-        Err(e) => Err(store(e)),
+    let mut out = BTreeMap::new();
+    for (b3, ir_b3) in rows {
+        let hit = ir_cache()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&ir_b3)
+            .cloned();
+        let blocks = match hit {
+            Some(h) => h,
+            None => {
+                let bytes = match cas.get(CasKind::Ir, &ir_b3) {
+                    Ok(b) => b,
+                    Err(CasError::NotFound) => continue,
+                    Err(e) => return Err(store(e)),
+                };
+                let ir: DocIr = serde_json::from_slice(&bytes).map_err(store)?;
+                let list: std::sync::Arc<Vec<BlockText>> = std::sync::Arc::new(
+                    ir.blocks
+                        .iter()
+                        .map(|b| BlockText {
+                            block_id: b.id.clone(),
+                            ordinal: b.ordinal,
+                            text: b.text.clone(),
+                        })
+                        .collect(),
+                );
+                let mut c = ir_cache().lock().unwrap_or_else(|p| p.into_inner());
+                if c.len() >= IR_CACHE_MAX {
+                    c.clear();
+                }
+                c.insert(ir_b3, list.clone());
+                list
+            }
+        };
+        out.insert(b3, blocks);
     }
+    Ok(out)
 }
 
 impl PgReader {
@@ -269,19 +317,12 @@ impl PgReader {
         for f in &snapshot {
             by_b3.entry(&f.b3).or_default().push(&f.version_id);
         }
+        let b3_list: Vec<String> = by_b3.keys().map(|k| (*k).to_owned()).collect();
+        let loaded = load_blocks(conn, cas, &b3_list).await?;
         for (b3, vids) in by_b3 {
-            if let Some(ir) = load_ir(conn, cas, b3).await? {
-                let list: Vec<BlockText> = ir
-                    .blocks
-                    .iter()
-                    .map(|b| BlockText {
-                        block_id: b.id.clone(),
-                        ordinal: b.ordinal,
-                        text: b.text.clone(),
-                    })
-                    .collect();
+            if let Some(list) = loaded.get(b3) {
                 for v in vids {
-                    blocks.insert(v.to_owned(), list.clone());
+                    blocks.insert(v.to_owned(), list.as_ref().clone());
                 }
             }
         }
