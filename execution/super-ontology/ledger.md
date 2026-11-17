@@ -21,7 +21,7 @@
 | SO-F-S1-04 | L1 | merged | codex/super-drive-F-S1-04-i18n-namespace | 739ced90 → 5caedb04 | — | — | 6 种语言初译待复核 |
 | SO-F-S1-05 | L1 | merged | codex/super-drive-F-S1-05-contract-vendor | 4b07b81d → da1d2a33 | — | — | 需随 3235e5c97 重新同步契约 |
 | SO-F-S1-06 | L1 | in_progress | codex/super-drive-F-S1-06-arch-baseline | 8e7eeffb → 1aaa282a | — | — | flag-off T1 已真实运行通过；flag-on T1 待做 |
-| SO-F-S1-07 | L1 | in_progress | — | — | — | — | puppy-issues 不在仓库内，待 owner 指定位置 |
+| SO-F-S1-07 | L1 | review | — | — | — | execution/super-ontology/puppy-issues-pointer/README.md | puppy-issues 为独立远端仓库：草稿在 OO 内维护，随 Puppyone 最终 PR 一并发布（主线程决定，2026-11-17） |
 | SO-B-S2-01 | L2 | merged | so/B-S2-01-docs-migrations + 主线程 | b813bef4f → 648b093f3 | — | — | 迁移 0137–0140 由主线程提交；容器测试主线程复跑 8/8 |
 | SO-B-S2-02 | L2 | merged | so/B-S2-02-objectstore-fs | 1fc956757 → 8ccfae090 | — | — | 无 libc，O_NOFOLLOW 以逐级 symlink_metadata + dev/ino 比对代替；残留窄 TOCTOU |
 | SO-B-S2-03 | L2 | merged | so/B-S2-03-cas | 16fd8f50f → 16fd8f50f | — | — | — |
