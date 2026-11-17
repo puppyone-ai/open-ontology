@@ -1,0 +1,11 @@
+# Build tools for the FFmpeg-free OpenCV wheel (B-S3-01b, D65). Mirrors the
+# [build-system] requires of the pinned opencv-python-headless sdist
+# (numpy==2.1.3 for CPython 3.13, setuptools<70) and adds the tools its build
+# backend needs. Builder stage only; none of this ships in the image.
+numpy==2.1.3
+packaging
+scikit-build>=0.14.0
+setuptools<70.0.0
+wheel
+cmake
+ninja
