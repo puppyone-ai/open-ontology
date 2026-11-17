@@ -68,25 +68,20 @@ fn like_prefix(s: &str) -> String {
     out
 }
 
+/// Candidates for the names of a text (the read-only resolve API): canonical
+/// names, aliases, title-free forms and surname prefixes, no identity.
+pub async fn load_index_for(
+    conn: &mut PgConnection,
+    names: &BTreeSet<String>,
+    surnames: &BTreeSet<String>,
+) -> Result<MapIndex, StoreError> {
+    load_index_inner(conn, names, surnames, &BTreeMap::new(), &[]).await
+}
+
 /// Candidates for every mention of `x`, with their identity, one-hop
 /// neighbours and evidence directories.
 pub async fn load_index(conn: &mut PgConnection, x: &Extraction) -> Result<MapIndex, StoreError> {
     let (names, surnames) = lookup_names(x);
-    let names_v: Vec<String> = names.iter().cloned().collect();
-    let name_rows: Vec<(String, Option<String>, String, String, String)> = sqlx::query_as(
-        "SELECT e.type, e.thing_label, e.norm_name, e.key, 'canonical' \
-           FROM _oo_docs.entity e \
-          WHERE e.status = 'active' AND e.norm_name = ANY($1::text[]) \
-         UNION ALL \
-         SELECT e.type, e.thing_label, a.norm_alias, e.key, a.status \
-           FROM _oo_docs.alias a JOIN _oo_docs.entity e ON e.id = a.entity_id \
-          WHERE e.status = 'active' AND a.status IN ('draft', 'published') \
-            AND a.norm_alias = ANY($1::text[])",
-    )
-    .bind(&names_v)
-    .fetch_all(&mut *conn)
-    .await?;
-
     // Own keys that were merged away resolve through the redirect.
     let mut own: BTreeMap<String, (EntityType, Option<String>, String)> = BTreeMap::new();
     let mut every: Vec<&crate::extract::model::EntityRef> = Vec::new();
@@ -105,6 +100,37 @@ pub async fn load_index(conn: &mut PgConnection, x: &Extraction) -> Result<MapIn
     for e in every {
         own.insert(e.key(), (e.ty, e.thing_label.clone(), e.norm()));
     }
+    let pairs: Vec<(EntityType, String, String)> = identities_of(x)
+        .iter()
+        .flat_map(|(e, id)| id.iter().map(|(k, v)| (e.ty, k.clone(), v.clone())))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    load_index_inner(conn, &names, &surnames, &own, &pairs).await
+}
+
+async fn load_index_inner(
+    conn: &mut PgConnection,
+    names: &BTreeSet<String>,
+    surnames: &BTreeSet<String>,
+    own: &BTreeMap<String, (EntityType, Option<String>, String)>,
+    pairs: &[(EntityType, String, String)],
+) -> Result<MapIndex, StoreError> {
+    let names_v: Vec<String> = names.iter().cloned().collect();
+    let name_rows: Vec<(String, Option<String>, String, String, String)> = sqlx::query_as(
+        "SELECT e.type, e.thing_label, e.norm_name, e.key, 'canonical' \
+           FROM _oo_docs.entity e \
+          WHERE e.status = 'active' AND e.norm_name = ANY($1::text[]) \
+         UNION ALL \
+         SELECT e.type, e.thing_label, a.norm_alias, e.key, a.status \
+           FROM _oo_docs.alias a JOIN _oo_docs.entity e ON e.id = a.entity_id \
+          WHERE e.status = 'active' AND a.status IN ('draft', 'published') \
+            AND a.norm_alias = ANY($1::text[])",
+    )
+    .bind(&names_v)
+    .fetch_all(&mut *conn)
+    .await?;
+
     let own_keys: Vec<String> = own.keys().cloned().collect();
     let redirects: Vec<(String, String, String, Option<String>)> = sqlx::query_as(
         "SELECT r.from_key, r.to_key, t.type, t.thing_label \
@@ -117,12 +143,6 @@ pub async fn load_index(conn: &mut PgConnection, x: &Extraction) -> Result<MapIn
     .await?;
 
     // Identity hits.
-    let pairs: Vec<(EntityType, String, String)> = identities_of(x)
-        .iter()
-        .flat_map(|(e, id)| id.iter().map(|(k, v)| (e.ty, k.clone(), v.clone())))
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
     let id_rows: Vec<(String, String, String, String)> = if pairs.is_empty() {
         Vec::new()
     } else {
@@ -243,7 +263,7 @@ pub async fn load_index(conn: &mut PgConnection, x: &Extraction) -> Result<MapIn
         index.insert_identity(parse_type(&ty)?, &kind, &value, make(&key, Via::Identity));
     }
     for (key, name_norm) in sn_rows {
-        for s in &surnames {
+        for s in surnames {
             if name_norm.starts_with(s.as_str()) && name_norm.len() > s.len() {
                 index.insert_surname(s, make(&key, Via::CanonicalName));
             }
