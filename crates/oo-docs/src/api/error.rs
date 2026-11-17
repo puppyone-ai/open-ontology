@@ -17,6 +17,10 @@ use crate::store::StoreError;
 pub struct Code(&'static str);
 
 impl Code {
+    /// A state code (no HTTP status of its own in the table) that the content
+    /// route also answers with, as a 409: the file changed after it was hashed.
+    pub const SOURCE_CHANGED_DURING_READ: Code = Code("DOCS_SOURCE_CHANGED_DURING_READ");
+
     /// The `DOCS_*` text.
     pub fn as_str(self) -> &'static str {
         self.0
@@ -60,6 +64,7 @@ codes! {
     INVALID_CONFIG = "DOCS_SOURCE_INVALID_CONFIG",
     SYNC_RUNNING = "DOCS_SOURCE_SYNC_RUNNING",
     MASS_DELETE_HELD = "DOCS_SOURCE_MASS_DELETE_HELD",
+    PARSE_NOT_READY = "DOCS_PARSE_NOT_READY",
     PACK_SCOPE_INVALID = "DOCS_PACK_SCOPE_INVALID",
     PACK_NOTHING_VISIBLE = "DOCS_PACK_NOTHING_VISIBLE",
     PACK_SEED_NOT_VISIBLE = "DOCS_PACK_SEED_NOT_VISIBLE",
@@ -276,6 +281,11 @@ mod tests {
         let body = ApiError::bad("/name", "too long").body();
         assert_eq!(body["details"]["pointer"], "/name");
         assert_eq!(body["retryable"], false);
+    }
+
+    #[test]
+    fn the_state_code_served_as_an_error_is_in_the_contract() {
+        assert!(table().contains_key(Code::SOURCE_CHANGED_DURING_READ.as_str()));
     }
 
     #[test]

@@ -256,6 +256,8 @@ async fn run(
     let mut stop = app.stop_signal();
     let mut last_sent = Instant::now();
     let mut caught_up = !replay;
+    let mut progress = app.progress.subscribe();
+    let wants_progress = types.is_empty() || types.iter().any(|t| t == "file.progress");
     loop {
         if *stop.borrow() {
             return;
@@ -321,6 +323,14 @@ async fn run(
         tokio::select! {
             _ = app.events.notified() => {}
             _ = stop.changed() => return,
+            r = progress.recv(), if wants_progress => {
+                // Transient: no id, not stored, a missed one is not replayed.
+                if let Ok(p) = r
+                    && !send(super::progress::frame(&p.event(&chrono_free_now()))).await
+                {
+                    return;
+                }
+            }
             _ = tokio::time::sleep(cfg.poll.min(idle.max(Duration::from_millis(1)))) => {}
         }
         if last_sent.elapsed() >= cfg.ping {

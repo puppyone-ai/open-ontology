@@ -287,7 +287,9 @@ pub async fn transition_in_tx(
 
     sqlx::query(
         "UPDATE _oo_docs.file SET state = $2, state_since = clock_timestamp(), state_code = $3, \
-         retryable = $4, revision = revision + 1 WHERE id = $1::uuid",
+         retryable = $4, revision = revision + 1, \
+         progress = CASE WHEN $2 IN ('parsing', 'extracting') THEN progress ELSE NULL END \
+         WHERE id = $1::uuid",
     )
     .bind(req.file_id)
     .bind(req.to.as_str())
