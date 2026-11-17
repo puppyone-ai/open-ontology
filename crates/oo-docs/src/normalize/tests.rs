@@ -157,3 +157,45 @@ fn normalize_exact_split_refines_line_ranges() {
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn normalize_v1_documents_stay_v1_and_v11_ones_are_tagged() {
+    let plain = finish(fragment(vec![raw("a", text_anchor(1, 1, 0, 1))])).unwrap();
+    assert_eq!(plain.ir.protocol, "oo.doc-ir/v1");
+    let mut f = fragment(vec![RawBlock {
+        kind: BlockKind::Utterance,
+        ..raw(
+            "你好",
+            Anchor::Media {
+                t_start_ms: 0,
+                t_end_ms: 900,
+                speaker: Some("S1".into()),
+                word_start: Some(0),
+                word_end: Some(1),
+            },
+        )
+    }]);
+    f.format = DocFormat::Audio;
+    f.parser = parser_info(ParserId::Media, "test");
+    let n = finish(f).unwrap();
+    assert_eq!(n.ir.protocol, "oo.doc-ir/v1.1");
+}
+
+#[test]
+fn normalize_page_size_does_not_change_the_block_id() {
+    let bare = Anchor::Pdf {
+        page: 2,
+        bbox: [0, 0, 100, 100],
+        charspan: None,
+        page_w: None,
+        page_h: None,
+    };
+    let sized = Anchor::Pdf {
+        page: 2,
+        bbox: [0, 0, 100, 100],
+        charspan: None,
+        page_w: Some(59_500),
+        page_h: Some(84_200),
+    };
+    assert_eq!(block_id(&bare, "x"), block_id(&sized, "x"));
+}

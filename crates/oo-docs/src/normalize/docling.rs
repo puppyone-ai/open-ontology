@@ -460,6 +460,8 @@ fn add_window(b: &mut Builder, w: &WindowResponse, docx_state: &mut DocxState) {
                     page,
                     bbox: pdf_bbox(&p, page_height(doc, page)),
                     charspan: p.charspan,
+                    page_w: None,
+                    page_h: None,
                 }
             }
             DocFormat::Pptx => {
@@ -544,6 +546,8 @@ fn add_table(
                 page: *page,
                 bbox: pdf_bbox(p, page_height(doc, *page)),
                 charspan: None,
+                page_w: None,
+                page_h: None,
             }
         }
         DocFormat::Pptx => {
@@ -724,6 +728,7 @@ pub fn assemble(
             .and_then(Value::as_str)
             .map(str::to_owned),
         profile_sha256: profile_sha256(),
+        profile: None,
     };
     let mut b = Builder {
         format,
