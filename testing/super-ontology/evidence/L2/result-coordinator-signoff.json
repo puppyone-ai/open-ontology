@@ -1,0 +1,216 @@
+{
+  "run_id": "coord-sign",
+  "status": "pass",
+  "git_head": "17397490110e23874e6754fd1c03be9b6f9eae28",
+  "binaries_sha256": {
+    "oo": "95c41832bb071696fc63e441b4313ed952154293748244504947355b7bddf76e",
+    "oo-docs-engine": "89d8e3497f3d0db28725279d3eea7620d4665e77808ef74c4e190887172138b8"
+  },
+  "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+  "timings": {
+    "acceptance1_all_published_seconds": 3.18,
+    "acceptance5_edit_to_brief_seconds": 5.91
+  },
+  "checks": [
+    {
+      "check": "drive has 20 markdown files",
+      "ok": true,
+      "detail": "20 files"
+    },
+    {
+      "check": "schema installed by the engine installer",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:53106\",\"event\":\"listening\",\"worker\":\"engine/780/18e8f7a1d23cb"
+    },
+    {
+      "check": "serve proxies the engine health",
+      "ok": true,
+      "detail": "HTTP 200 status=ok"
+    },
+    {
+      "check": "token files are 0600 and the state dir 0700",
+      "ok": true,
+      "detail": "{\"serve.token\": \"0o600\", \"serve.json\": \"0o600\", \"engine.token\": \"0o600\"}"
+    },
+    {
+      "check": "drive registered",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "A1 all 20 files published",
+      "ok": true,
+      "detail": "{\"published\": 20}"
+    },
+    {
+      "check": "A1 within 60s",
+      "ok": true,
+      "detail": "3.2s"
+    },
+    {
+      "check": "A7 the audit saw the listeners of both processes",
+      "ok": true,
+      "detail": "2 listening sockets"
+    },
+    {
+      "check": "A7 no non-loopback socket after the first sync",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "check": "A2 mount t1 exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 mount t2 exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 BRIEF.md exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A2 BRIEF has content lines",
+      "ok": true,
+      "detail": "4 content lines"
+    },
+    {
+      "check": "A2 every BRIEF content line has [src:",
+      "ok": true,
+      "detail": "4/4"
+    },
+    {
+      "check": "A2 mount is read only",
+      "ok": true,
+      "detail": "0555/0444"
+    },
+    {
+      "check": "A2 mount_json fields",
+      "ok": true,
+      "detail": "{\"protocol\": \"oo.context-mount/v1\", \"tokens\": {\"brief\": 451, \"budget\": 800}}"
+    },
+    {
+      "check": "A3 same file set",
+      "ok": true,
+      "detail": "12 files"
+    },
+    {
+      "check": "A3 every file except SHARE.json is byte identical",
+      "ok": true,
+      "detail": "11 files compared"
+    },
+    {
+      "check": "A3 SHARE.json equal once share_id, created_at, expires_at, refs are removed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A3 the share ids and refs credentials differ",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A3 SHARE.json lists the pack digest",
+      "ok": true,
+      "detail": "a43034ba9db3f089..."
+    },
+    {
+      "check": "A5 BRIEF changed after the edit",
+      "ok": true,
+      "detail": "5.9s"
+    },
+    {
+      "check": "A5 within 30s",
+      "ok": true,
+      "detail": "5.9s"
+    },
+    {
+      "check": "A5 the file went through the whole state chain again",
+      "ok": true,
+      "detail": "superseded > stored > queued > parsing > parsed > extracting > indexed > published"
+    },
+    {
+      "check": "A5 every step of the chain was announced as a file.state_changed event",
+      "ok": true,
+      "detail": "8 events after cursor 150"
+    },
+    {
+      "check": "A5 a new mount's BRIEF differs and shows the new owner",
+      "ok": true,
+      "detail": "842 bytes"
+    },
+    {
+      "check": "A5 the old owner is gone from the Projects/a BRIEF and the new one is sourced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A5 every line of the new BRIEF still has [src:",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 the event log has no gap",
+      "ok": true,
+      "detail": "1..176"
+    },
+    {
+      "check": "A4 health reports the engine unavailable while it is down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 other calls answer 503 DOCS_ENGINE_UNAVAILABLE meanwhile",
+      "ok": true,
+      "detail": "HTTP 503"
+    },
+    {
+      "check": "A4 the proxy recovers by itself when the engine is back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 oo serve stops on SIGTERM with exit 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A4 stopping removed the token files and serve.json",
+      "ok": true,
+      "detail": "left: []"
+    },
+    {
+      "check": "A4 the engine process stopped with it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 the replay since the old cursor is gap free",
+      "ok": true,
+      "detail": "90..189 (100 events)"
+    },
+    {
+      "check": "A4 the replay ends at the head",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 the file added after the reconnect is in the replay up to published",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 state after the restart equals the replayed state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A7 no non-loopback socket after the restart either",
+      "ok": true,
+      "detail": "[]"
+    }
+  ]
+}
