@@ -1,4 +1,4 @@
-// formal: main=jobs inv=inv steps=40 verify-steps=10 witnesses="witSucceeded witCancelled witQuarantined witReclaimed witCapQuarantined witFailed witBusyGiveBack" vinv="invLeaseShape invSingleLiveLease invGenerationMonotone invStaleRejected invTerminalAbsorbing invCancelTerminal invCancelProvenance invQuarantineAfterCrashes invNoLostJob invAtMostOnceSuccess"
+// formal: main=jobs inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witSucceeded witCancelled witQuarantined witReclaimed witCapQuarantined witFailed witBusyGiveBack" vinv="invLeaseShape invSingleLiveLease invGenerationMonotone invStaleRejected invTerminalAbsorbing invCancelTerminal invCancelProvenance invQuarantineAfterCrashes invNoLostJob invAtMostOnceSuccess"
 // FM1: job lease protocol, as IMPLEMENTED by crates/oo-pipeline/migrations/0138
 // (_oo_docs.enqueue/claim/heartbeat/complete/fail/quarantine/retry/cancel/
 // ack_cancel/save_checkpoint). Spec 10 4.1, 80 3.1 FM1. Human notes, bounds
