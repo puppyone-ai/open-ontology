@@ -1,4 +1,4 @@
-// formal: main=sync_reconcile inv=inv steps=40 verify-steps=8 witnesses="witRename witHeld witConfirmedSweep witPartialKeepsDeleted witTargetedCreated witRecreatedDuringListing witRetrySameGeneration" vinv="invOnlySweepKills invSweepOnlyUnseen invGenerationMonotone invHeldAfterMassOnly invRenameCarries invConverged"
+// formal: main=sync_reconcile inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witRename witHeld witConfirmedSweep witPartialKeepsDeleted witTargetedCreated witRecreatedDuringListing witRetrySameGeneration" vinv="invOnlySweepKills invSweepOnlyUnseen invGenerationMonotone invHeldAfterMassOnly invRenameCarries invConverged"
 // FM3 (fs): incremental sync of one Drive against a folder, as implemented by
 // crates/oo-docs/src/ingest/reconcile.rs (10 4.3.4, 4.3.5; D46, D47). Spec 80
 // 3.1 FM3: partial listings never sweep, targeted sync never sweeps, a listing

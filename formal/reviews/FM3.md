@@ -49,3 +49,9 @@ the snapshot and the apply), symlinks, invalid or colliding names, `max_files`, 
 pause, parallel syncs (the drive lock serialises them), the scheduler, and every s3 or multi-cloud event semantic.
 Liveness (the index converges) is only the safety form `invConverged`; no TLC check. Hash jobs are drained by one
 action, so a write between two hash jobs of one drain is not explored.
+
+## CI bounds (card V-S1-01, time budget of 80 section 6)
+
+Per invariant at 8 steps on a loaded 16 core machine (see FM1.md): invOnlySweepKills 48 s, invSweepOnlyUnseen 52 s,
+invHeldAfterMassOnly 57 s, invGenerationMonotone 58 s, invRenameCarries 92 s, invConverged 499 s. FAST bound
+`verify-steps=8`; nightly `deep-steps=10` (not measured).
