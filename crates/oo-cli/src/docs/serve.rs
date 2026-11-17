@@ -1,9 +1,14 @@
 //! `oo serve` (10 §8.6): single instance, private state, tokens, engine,
 //! loopback proxy, clean shutdown.
 //!
-//! Exit codes: 0 normal, 2 arguments, 3 Docker unavailable (not used while the
-//! engine is a host process), 4 engine binary missing, 5 state directory
-//! permissions, 6 port in use, 7 engine start timeout, 1 anything else.
+//! Exit codes: 0 normal, 2 arguments, 3 Docker unavailable (compose runtime),
+//! 4 engine binary missing (host runtime) or image missing or digest mismatch
+//! (compose runtime), 5 state directory permissions, 6 port in use, 7 engine
+//! start timeout, 1 anything else.
+//!
+//! `--runtime host` (default) runs the engine as a child process (L2);
+//! `--runtime compose` runs `docs-db`, `docs-engine` and `doc-parser` as the
+//! compose project of `deploy/docs` (see `compose.rs`).
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -14,8 +19,9 @@ use sha2::{Digest, Sha256};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
+use super::compose;
 use super::engine::{self, EngineSpec, Supervisor};
-use super::proxy::{self, EngineLink, ProxyConfig};
+use super::proxy::{self, DriveMounts, EngineLink, ProxyConfig};
 use super::secrets::{self, LockResult};
 
 /// Exit codes of 10 §8.6 point 9.
@@ -23,6 +29,8 @@ pub mod exit {
     pub const OK: u8 = 0;
     pub const OTHER: u8 = 1;
     pub const ARGS: u8 = 2;
+    /// Docker (or `docker compose`) is not available; compose runtime only.
+    pub const DOCKER: u8 = 3;
     pub const ENGINE_MISSING: u8 = 4;
     pub const STATE_DIR: u8 = 5;
     pub const PORT_IN_USE: u8 = 6;
@@ -37,9 +45,18 @@ pub enum Action {
     Stop,
 }
 
+/// Where the engine runs.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RuntimeKind {
+    Host,
+    Compose,
+}
+
 /// Parsed `oo serve` arguments.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ServeArgs {
+    pub runtime: RuntimeKind,
+    pub deploy_dir: Option<PathBuf>,
     pub action: Action,
     pub state_dir: Option<PathBuf>,
     pub port: u16,
@@ -50,6 +67,8 @@ pub struct ServeArgs {
 /// Parse the arguments after `serve`.
 pub fn parse_args(rest: &[String]) -> Result<ServeArgs, String> {
     let mut a = ServeArgs {
+        runtime: RuntimeKind::Host,
+        deploy_dir: None,
         action: Action::Run,
         state_dir: None,
         port: 0,
@@ -75,6 +94,14 @@ pub fn parse_args(rest: &[String]) -> Result<ServeArgs, String> {
                     .parse()
                     .map_err(|_| "--port must be 0..=65535".to_owned())?;
             }
+            "--runtime" => {
+                a.runtime = match value("--runtime")?.as_str() {
+                    "host" => RuntimeKind::Host,
+                    "compose" => RuntimeKind::Compose,
+                    other => return Err(format!("--runtime must be host or compose, not {other}")),
+                };
+            }
+            "--deploy-dir" => a.deploy_dir = Some(PathBuf::from(value("--deploy-dir")?)),
             "--keep-engine" => a.keep_engine = true,
             "--json" => a.json = true,
             "--status" => a.action = Action::Status,
@@ -195,6 +222,9 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
     // A crashed predecessor left files and maybe an engine behind.
     engine::reap_stale(&state.join("engine.pid"));
     secrets::clean_runtime_files(state);
+    if args.runtime == RuntimeKind::Compose {
+        return start_compose(args, state);
+    }
 
     let Some(exe) = engine::find_engine_binary() else {
         eprintln!(
@@ -211,6 +241,9 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
     };
     if args.keep_engine {
         eprintln!("oo serve: --keep-engine has no effect while the engine is a host process");
+    }
+    if args.deploy_dir.is_some() {
+        eprintln!("oo serve: --deploy-dir only applies to --runtime compose");
     }
 
     let (control, engine_token) = match (secrets::new_token("oodt_"), secrets::new_token("oodi_")) {
@@ -266,11 +299,75 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         &token_file,
         &control,
         &engine_token,
-        spec,
-        first,
+        Backend::Host(spec, first),
     ));
     secrets::clean_runtime_files(state);
     code
+}
+
+/// The compose runtime start (10 §8.6 point 3): checks, files, containers,
+/// then the same loopback proxy as the host runtime.
+fn start_compose(args: &ServeArgs, state: &Path) -> u8 {
+    let (Ok(control), Ok(engine_token), Ok(parser_token)) = (
+        secrets::new_token("oodt_"),
+        secrets::new_token("oodi_"),
+        secrets::new_token("oodp_"),
+    ) else {
+        eprintln!("oo serve: no randomness source");
+        return exit::OTHER;
+    };
+    let runtime = match compose::prepare(
+        state,
+        args.deploy_dir.as_deref(),
+        &engine_token,
+        &parser_token,
+    ) {
+        Ok(r) => Arc::new(r),
+        Err(f) => {
+            eprintln!("oo serve: {}", f.message);
+            secrets::clean_runtime_files(state);
+            return f.exit;
+        }
+    };
+    let token_file = state.join("serve.token");
+    if secrets::write_secret_file(&token_file, &control).is_err() {
+        eprintln!("oo serve: cannot write token files");
+        secrets::clean_runtime_files(state);
+        return exit::STATE_DIR;
+    }
+    if let Err(f) = runtime.up() {
+        eprintln!("oo serve: {}", f.message);
+        runtime.stop(false);
+        secrets::clean_runtime_files(state);
+        return f.exit;
+    }
+    let rt = match tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(_) => {
+            runtime.stop(false);
+            return exit::OTHER;
+        }
+    };
+    let code = rt.block_on(serve_loop(
+        args,
+        state,
+        &token_file,
+        &control,
+        &engine_token,
+        Backend::Compose(runtime),
+    ));
+    secrets::clean_runtime_files(state);
+    code
+}
+
+/// What runs the engine.
+enum Backend {
+    Host(EngineSpec, (std::process::Child, std::net::SocketAddr)),
+    Compose(Arc<compose::Runtime>),
 }
 
 async fn serve_loop(
@@ -279,15 +376,18 @@ async fn serve_loop(
     token_file: &Path,
     control: &str,
     engine_token: &str,
-    spec: EngineSpec,
-    first: (std::process::Child, std::net::SocketAddr),
+    backend: Backend,
 ) -> u8 {
     let listener = match TcpListener::bind(("127.0.0.1", args.port)).await {
         Ok(l) => l,
         Err(_) => {
-            let mut first = first;
-            let _ = first.0.kill();
-            let _ = first.0.wait();
+            match backend {
+                Backend::Host(_, mut first) => {
+                    let _ = first.0.kill();
+                    let _ = first.0.wait();
+                }
+                Backend::Compose(rt) => rt.stop(false),
+            }
             eprintln!("oo serve: port {} is in use", args.port);
             return exit::PORT_IN_USE;
         }
@@ -297,13 +397,29 @@ async fn serve_loop(
         Err(_) => return exit::OTHER,
     };
     let link = Arc::new(EngineLink::default());
-    let engine_pid = first.0.id();
-    let supervisor = Supervisor::spawn(spec, first, link.clone(), state.join("engine.pid"));
+    let (supervisor, compose_rt, engine_json, drives) = match backend {
+        Backend::Host(spec, first) => {
+            let pid = first.0.id();
+            let sup = Supervisor::spawn(spec, first, link.clone(), state.join("engine.pid"));
+            (
+                Some(sup),
+                None,
+                json!({"mode": "host_process", "pid": pid, "project": "host", "images": {}}),
+                None,
+            )
+        }
+        Backend::Compose(rt) => {
+            link.set(Some(rt.engine_addr()));
+            let drives: Arc<dyn DriveMounts> = rt.clone();
+            (None, Some(rt.clone()), rt.describe(), Some(drives))
+        }
+    };
     let cfg = Arc::new(ProxyConfig {
         port,
         token_sha256: Sha256::digest(control.as_bytes()).into(),
         engine_token: engine_token.to_owned(),
         engine: link,
+        drives,
     });
     let started = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -314,10 +430,10 @@ async fn serve_loop(
         token_file,
         state,
         &secrets::rfc3339(started),
-        json!({"mode": "host_process", "pid": engine_pid, "project": "host", "images": {}}),
+        engine_json,
     );
     if secrets::write_secret_atomic(&state.join("serve.json"), &doc.to_string()).is_err() {
-        supervisor.stop(Duration::from_secs(5));
+        stop_backend(supervisor, compose_rt, false, Duration::from_secs(5)).await;
         eprintln!("oo serve: cannot write serve.json");
         return exit::STATE_DIR;
     }
@@ -343,10 +459,34 @@ async fn serve_loop(
     let _ = stop_tx.send(true);
     let _ = server.await;
     secrets::clean_runtime_files(state);
-    let sup = tokio::task::spawn_blocking(move || supervisor.stop(Duration::from_secs(10)));
-    let _ = sup.await;
+    stop_backend(
+        supervisor,
+        compose_rt,
+        args.keep_engine,
+        Duration::from_secs(10),
+    )
+    .await;
     println!("oo serve stopped");
     exit::OK
+}
+
+/// Stop the engine side: the host child, or `docker compose stop` (volumes
+/// stay; `--keep-engine` leaves the containers running).
+async fn stop_backend(
+    supervisor: Option<Supervisor>,
+    compose_rt: Option<Arc<compose::Runtime>>,
+    keep_engine: bool,
+    grace: Duration,
+) {
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Some(s) = supervisor {
+            s.stop(grace);
+        }
+        if let Some(rt) = compose_rt {
+            rt.stop(keep_engine);
+        }
+    })
+    .await;
 }
 
 async fn wait_for_signal() {
@@ -384,6 +524,17 @@ mod tests {
         assert_eq!(parse_args(&a(&["--stop"])).unwrap().action, Action::Stop);
         assert!(parse_args(&a(&["--keep-engine"])).unwrap().keep_engine);
         assert_eq!(parse_args(&a(&[])).unwrap().port, 0);
+    }
+
+    #[test]
+    fn the_runtime_defaults_to_host_and_compose_is_opt_in() {
+        let d = parse_args(&a(&[])).unwrap();
+        assert_eq!((d.runtime, d.deploy_dir), (RuntimeKind::Host, None));
+        let c = parse_args(&a(&["--runtime", "compose", "--deploy-dir=/d"])).unwrap();
+        assert_eq!(c.runtime, RuntimeKind::Compose);
+        assert_eq!(c.deploy_dir, Some(PathBuf::from("/d")));
+        assert!(parse_args(&a(&["--runtime", "podman"])).is_err());
+        assert!(parse_args(&a(&["--runtime"])).is_err());
     }
 
     #[test]
