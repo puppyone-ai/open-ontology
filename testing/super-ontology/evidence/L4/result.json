@@ -1,0 +1,373 @@
+{
+  "run_id": "c-s6-final",
+  "status": "pass",
+  "git_head": "3a99b346fc41850faada60947948f11ecba4241e",
+  "binaries_sha256": {
+    "oo": "81c9e7d2a7f36114a05172d3655ede6f6d92bb979e7759a6c2ec9164f545f86c",
+    "oo-docs-engine": "fa1c44b2b60ba15bcbd28dc85be2df3fb054c4b071e3c232193451d85423e50b"
+  },
+  "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+  "timings": {
+    "a9_drift_after_publish_seconds": 0.023,
+    "a12_block_after_publish_seconds": 0.024
+  },
+  "checks": [
+    {
+      "check": "drive has the golden md/txt/csv files and the red-team md/txt/csv files",
+      "ok": true,
+      "detail": "27 files, 4 csv"
+    },
+    {
+      "check": "schema installed by the engine installer (incl. 0145)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "0145 share tables exist",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oo docs drive add exits 0 and returns the drive",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "every md and txt file is published (csv is unsupported until lane B routes it)",
+      "ok": true,
+      "detail": "5.2s {\"published\": 23, \"unsupported\": 4}"
+    },
+    {
+      "check": "oo docs files ls lists the files",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Drive.drive_rev and freshness.covers_drive_rev are in the Drive object",
+      "ok": true,
+      "detail": "{\"drive_rev\": 27, \"covers\": 27}"
+    },
+    {
+      "check": "oo docs health answers",
+      "ok": true,
+      "detail": "exit 0 {\"api_version\": \"1.0\", \"components\": {\"cas\": {\"status\": \"ok\"}, \"db\": {\"latency_ms\": 0, \"status\": \"ok\"}, \"engine\": {\"status\": \"ok\"}, \"model\": {\"status\": \"not_configured\"}, \"parser\": {\"detail\": {\"format"
+    },
+    {
+      "check": "oo docs usage answers",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A2 mount of scope all-main exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 mount of scope projects-only exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 mount of scope people-and-prefs exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 mount of scope decisions-only exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A2 zero red-team hits in every file of every pack",
+      "ok": true,
+      "detail": "143 files scanned over 4 scopes, 0 hits"
+    },
+    {
+      "check": "A4 mount m1 exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A4 mount m2 exits 0",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A4 same file set and every file but SHARE.json byte identical",
+      "ok": true,
+      "detail": "57 files"
+    },
+    {
+      "check": "A4 SHARE.json equal without share id, times and refs",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A4 pack_digest equal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "D66 every generated .md starts with the AI label and carries AIGC front matter",
+      "ok": true,
+      "detail": "55 files"
+    },
+    {
+      "check": "A3 BRIEF content lines all have [src:",
+      "ok": true,
+      "detail": "5 lines"
+    },
+    {
+      "check": "A3 BRIEF header names coverage and the five promises",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A3 every [src:] names a file of the scope and resolves to a block anchor of that file",
+      "ok": true,
+      "detail": "93 tags, 0 unresolved, 0 outside the scope"
+    },
+    {
+      "check": "A5 compile p95 under 2 s on a 1000 file Drive, budget 800 (bench_compile)",
+      "ok": true,
+      "detail": "p95 0.539s (release)"
+    },
+    {
+      "check": "A7 both credentials read a cited original while active",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A7 revoke deletes the local mount and says so",
+      "ok": true,
+      "detail": "{\"local_removed\": true, \"notice_code\": \"DOCS_SHARE_READ_CONTENT_IRREVOCABLE\", \"protocol\": \"oo.context-revoke/v1\", \"share_id\": \"9cd2a579-650a-4705-b552-46dcfbcd8335\", \"state\": \"revoked\"}"
+    },
+    {
+      "check": "A7 a revoked share's credential is dead (410)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A7 the daemon deleted the expired share's mount",
+      "ok": true,
+      "detail": "2.1s"
+    },
+    {
+      "check": "A7 an expired share's credential is dead (410)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A7 the list shows expired and revoked correctly",
+      "ok": true,
+      "detail": "{\"9cd2a579\": \"revoked\", \"9f757354\": \"expired\", \"61851dfb\": \"revoked\", \"b3605d19\": \"revoked\", \"b4a2bfe0\": \"revoked\", \"1a10e66c\": \"revoked\"}"
+    },
+    {
+      "check": "A7/A11 check on an expired share exits 30",
+      "ok": true,
+      "detail": "exit 30"
+    },
+    {
+      "check": "A9 mount exits 0",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A9 the share turned drifted with the new version",
+      "ok": true,
+      "detail": "6.3s from the drop to drifted"
+    },
+    {
+      "check": "A9 drifted_at - published_at <= 5 s (same transaction)",
+      "ok": true,
+      "detail": "0.023 s"
+    },
+    {
+      "check": "A9 oo context status shows drifted with updates",
+      "ok": true,
+      "detail": "{\"state\": \"drifted\", \"updates\": {\"count\": 2, \"highest_level\": \"warn\"}}"
+    },
+    {
+      "check": "A9 the daemon appended UPDATES.md",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A9 UPDATES.md has the AI label first and a warn entry for the superseded decision",
+      "ok": true,
+      "detail": "看板改用开源图表库 | - 「林远舟 决定 星图看板改用开源图表库」 已被取代，新值：「星图看板恢复自研图表引擎 取代了 星图看板改用开源图表库」。 | - 建议：提交前运行 `oo context check`，读完本条后用 `oo context refresh` 升级。 |  | ## #2 · v1 → v2 · info | - 范围内出现了 7 条新事实，不影响已用事实。 | - 仅供参考，不影响已用事实。 | "
+    },
+    {
+      "check": "A11 the pack bytes never change except UPDATES.md",
+      "ok": true,
+      "detail": "changed: []"
+    },
+    {
+      "check": "A11 check exits 10 for a warn",
+      "ok": true,
+      "detail": "exit 10"
+    },
+    {
+      "check": "A10 the old decision's facts were ended by the rule, without a person",
+      "ok": true,
+      "detail": "1 facts ended"
+    },
+    {
+      "check": "A10 the queue has a supersede_in_use prompt (the old fact was in use by a live share)",
+      "ok": true,
+      "detail": "1 items"
+    },
+    {
+      "check": "A10 oo docs review ls shows the prompt",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A10 nothing needed a person for the rule-certain supersession itself",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A9 refresh gives a new active share and mounts it",
+      "ok": true,
+      "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"0bcfb5ab-0fd1-44cc-88c7-6e265476dcb2\", \"path\": \"/tmp/oo-l4-c-s6-final-xor04sqn/drift/"
+    },
+    {
+      "check": "A9 the directory holds the new share",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A11 check exits 0 after the refresh",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A11 --require-complete refuses a scope with a file still in the pipeline (exit 7)",
+      "ok": true,
+      "detail": "file was stored; exit 7; oo context: the ontology does not cover every file of the scope yet (DOCS_PACK_COVERAGE_INCOMPLETE)"
+    },
+    {
+      "check": "A11 nothing was mounted by the refused call",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A11 once processed, --require-complete succeeds",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A11 BRIEF names the coverage in its header (all processed)",
+      "ok": true,
+      "detail": [
+        "> 覆盖：4/4 个文件已处理"
+      ]
+    },
+    {
+      "check": "A12 both group members mount",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A11 same group, same ontology version",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A12 check in agent-a is 0 before the decision is overturned",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A12 check in agent-b is 0 before the decision is overturned",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A11 a group member cannot refresh alone (exit 8)",
+      "ok": true,
+      "detail": "exit 8"
+    },
+    {
+      "check": "A12 oo docs entity correct --mark-wrong exits 0",
+      "ok": true,
+      "detail": "exit 0 {\"confidence_bp\": 9800, \"evidence\": [{\"anchor\": {\"char_end\": 69, \"char_start\": 0, \"kind\": \"text\", \"line_end\": 6, \"line_start\": 1}, \"block_id\": \"blk_480274971f46b268d312\", \"file_id\": \"dc3edb3b-6857-4ca"
+    },
+    {
+      "check": "A11 a block entry reached the share after the correction",
+      "ok": true,
+      "detail": "1.0s from the correction"
+    },
+    {
+      "check": "A12 drifted within 5 s of the new version",
+      "ok": true,
+      "detail": "0.024 s"
+    },
+    {
+      "check": "A12 UPDATES.md of agent-a got the block entry within 5 s of the daemon's next pass",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A12 oo context check in agent-a exits 20",
+      "ok": true,
+      "detail": "exit 20"
+    },
+    {
+      "check": "A12 check --json is oo.context-check/v1 with level block",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A12 agent-b (did not use that decision's section) is told what its own pack used",
+      "ok": true,
+      "detail": "exit 20"
+    },
+    {
+      "check": "A12 group refresh succeeds",
+      "ok": true,
+      "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"07087dcc-9b3b-4705-affc-e19dc57127a5\", \"path\": \"/private/tmp/oo-l4-c-s6-final-xor04sqn/agent-a/.context\", \"share_id\": \"2780c2"
+    },
+    {
+      "check": "A12 both members are on the same, newer version",
+      "ok": true,
+      "detail": "v4"
+    },
+    {
+      "check": "A12 check in agent-a is 0 after the group refresh",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A12 check in agent-b is 0 after the group refresh",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "A12 the wrong fact is not in the new pack of agent-a",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A12 the Drive's files are unchanged by the whole exercise",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A11 check exits 40 when the engine cannot be reached (fail closed)",
+      "ok": true,
+      "detail": "exit 40"
+    },
+    {
+      "check": "A8 oo docs share ls works as an alias of oo context list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A8 revoke removes every remaining mount",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}
