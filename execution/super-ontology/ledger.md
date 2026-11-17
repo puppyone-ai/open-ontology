@@ -22,15 +22,15 @@
 | SO-F-S1-05 | L1 | merged | codex/super-drive-F-S1-05-contract-vendor | 4b07b81d → da1d2a33 | — | — | 需随 3235e5c97 重新同步契约 |
 | SO-F-S1-06 | L1 | in_progress | codex/super-drive-F-S1-06-arch-baseline | 8e7eeffb → 1aaa282a | — | — | flag-off T1 已真实运行通过；flag-on T1 待做 |
 | SO-F-S1-07 | L1 | in_progress | — | — | — | — | puppy-issues 不在仓库内，待 owner 指定位置 |
-| SO-B-S2-01 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-02 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-03 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-04 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-05 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-06 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-07 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-08 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-09 | L2 | todo | — | — | — | — | — |
+| SO-B-S2-01 | L2 | merged | so/B-S2-01-docs-migrations + 主线程 | b813bef4f → 648b093f3 | — | — | 迁移 0137–0140 由主线程提交；容器测试主线程复跑 8/8 |
+| SO-B-S2-02 | L2 | merged | so/B-S2-02-objectstore-fs | 1fc956757 → 8ccfae090 | — | — | 无 libc，O_NOFOLLOW 以逐级 symlink_metadata + dev/ino 比对代替；残留窄 TOCTOU |
+| SO-B-S2-03 | L2 | merged | so/B-S2-03-cas | 16fd8f50f → 16fd8f50f | — | — | — |
+| SO-B-S2-04 | L2 | merged | so/B-S2-04-job-framework | 03313816c → 9afc868ef | — | — | jobs_live 主线程复跑 10/10；抖动哈希暂用 SHA-256 |
+| SO-B-S2-05 | L2 | in_progress | so/B-S2-05-* | — | — | — | — |
+| SO-B-S2-06 | L2 | merged | so/B-S2-06-md-txt-ir | 347c4d956 → 3df429b14 | — | — | GB18030 待 encoding_rs 准入；normalize 内有 canonical_json 副本待换 re-export |
+| SO-B-S2-07 | L2 | in_progress | so/B-S2-07-* | — | — | — | — |
+| SO-B-S2-08 | L2 | in_progress | so/B-S2-08-* | — | — | — | — |
+| SO-B-S2-09 | L2 | in_progress | so/B-S2-09-* | — | — | — | — |
 | SO-B-S2-10 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-11 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-12 | L2 | todo | — | — | — | — | — |
