@@ -307,5 +307,11 @@ pub trait DocumentSource: Send + Sync {
     }
 }
 
+pub mod fs;
+pub mod hash;
+pub mod path;
+
 #[cfg(test)]
 mod contract_tests;
+#[cfg(test)]
+mod tests;
