@@ -8,6 +8,7 @@
 
 pub mod backoff;
 pub mod scheduler;
+pub mod stages;
 
 use crate::store::StoreError;
 use crate::store::jobs as store;
