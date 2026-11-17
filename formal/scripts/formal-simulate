@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# CI job `formal-simulate` (80 section 6): quint run random simulation, fixed seed.
+# FORMAL_SAMPLES (default 10000 traces per model), FORMAL_SEED (default 0x464d),
+# FORMAL_SHARDS (default 4): the traces are split over that many parallel `quint run`
+# processes with seeds seed+0 .. seed+shards-1, so the run is reproducible and
+# 10000 traces of the slowest model fit the 10 minute budget.
+source "$(dirname "$0")/_env.sh"
+samples="${FORMAL_SAMPLES:-10000}"
+seed="${FORMAL_SEED:-0x464d}"
+shards="${FORMAL_SHARDS:-4}"
+per=$(( (samples + shards - 1) / shards ))
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+n=0
+while IFS=$'\t' read -r file main inv steps vsteps wit vinv; do
+  echo "simulate ${file#"$FORMAL_ROOT"/} main=$main inv=$inv samples=$((per * shards)) steps=$steps seed=$seed+0..$((shards - 1))"
+  for s in $(seq 0 $((shards - 1))); do
+    (
+      # shellcheck disable=SC2086
+      if quint run "$file" --main="$main" --invariant="$inv" --max-samples="$per" --max-steps="$steps" \
+           --seed="$(printf '0x%x' $((seed + s)))" ${wit:+--witnesses $wit} >"$tmp/$s.out" 2>&1; then
+        echo 0 >"$tmp/$s.rc"
+      else
+        echo 1 >"$tmp/$s.rc"
+      fi
+    ) &
+  done
+  wait
+  for s in $(seq 0 $((shards - 1))); do
+    if [ "$(cat "$tmp/$s.rc")" != 0 ]; then echo "FAILED shard $s:"; tail -n 30 "$tmp/$s.out"; exit 1; fi
+  done
+  grep -h '^\[ok\]' "$tmp"/*.out | head -n 1
+  # witness counts summed over the shards
+  # shellcheck disable=SC2086
+  for w in $wit; do
+    awk -v w="$w" '$1 == w && $2 == "was" { t += $5 } END { printf "%s witnessed in %d of %d traces\n", w, t, '"$((per * shards))"' }' "$tmp"/*.out
+  done
+  rm -f "$tmp"/*
+  n=$((n + 1))
+done < <(formal_models)
+echo "formal-simulate: $n model(s) ok"
