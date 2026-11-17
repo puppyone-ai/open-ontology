@@ -99,24 +99,31 @@ async fn a_retryable_parse_error_backs_off_three_times_then_waits_for_a_manual_r
         ],
         "{h:?}"
     );
-    for (state, code, _) in &h[3..] {
-        if state == "queued" || state == "parse_failed" {
+    // The waits carry the retryable reason; the end is the quarantine of
+    // 4.1.6: a parse job that reaches its attempt cap is a poison pill
+    // (manual retry only), whatever the counted failure was.
+    for (state, code, _) in &h[3..h.len() - 1] {
+        if state == "queued" {
             assert_eq!(code.as_deref(), Some("DOCS_PARSE_TIMEOUT"));
         }
     }
     let (state, code, retryable) = file_state(&e, "a/retry.md").await;
     assert_eq!(
         (state.as_str(), code.as_deref(), retryable),
-        ("parse_failed", Some("DOCS_PARSE_TIMEOUT"), true)
+        ("parse_failed", Some("DOCS_PARSE_QUARANTINED"), true)
     );
-    let (attempts, failed): (i32, String) = sqlx::query_as(
-        "SELECT attempt, state FROM _oo_docs.job WHERE kind = 'parse' AND file_id = $1::uuid",
+    let (attempts, jstate, crashes): (i32, String, i32) = sqlx::query_as(
+        "SELECT attempt, state, crash_count FROM _oo_docs.job WHERE kind = 'parse' AND file_id = $1::uuid",
     )
     .bind(file_id(&e, "a/retry.md").await)
     .fetch_one(&e.pool)
     .await
     .unwrap();
-    assert_eq!((attempts, failed.as_str()), (3, "failed"));
+    assert_eq!(
+        (attempts, jstate.as_str(), crashes),
+        (3, "quarantined", 0),
+        "the attempt cap quarantines without any crash"
+    );
     // The other file was not held up.
     assert_eq!(file_state(&e, "a/other.md").await.0, "published");
 
