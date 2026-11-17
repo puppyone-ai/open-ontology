@@ -24,6 +24,11 @@ use crate::store::jobs as store;
 /// Bytes read for sniffing.
 pub const SNIFF_HEAD: u64 = 64 * 1024;
 
+/// Largest container read whole for the full sniff (central directory, PDF
+/// trailer, OLE2 streams). Above it the head decides and the parser's own
+/// checks catch the rest.
+pub const SNIFF_FULL_MAX: u64 = 64 * 1024 * 1024;
+
 /// What `prepare_version` decided; `apply_plan` executes it.
 #[derive(Clone, Debug)]
 pub struct VersionPlan {
@@ -75,8 +80,27 @@ pub async fn prepare_version(
     limits: &IngestLimits,
     rename_of: Option<&str>,
 ) -> Result<VersionPlan, IngestError> {
+    prepare_version_sniffed(conn, row, state_now, deleted, obj, limits, rename_of, None).await
+}
+
+/// [`prepare_version`] with the verdict of a whole-file sniff
+/// ([`sniff::sniff_reader`]); `None` sniffs the head only.
+#[allow(clippy::too_many_arguments)]
+pub async fn prepare_version_sniffed(
+    conn: &mut PgConnection,
+    row: &FileRow,
+    state_now: FileState,
+    deleted: bool,
+    obj: &HashedObject<'_>,
+    limits: &IngestLimits,
+    rename_of: Option<&str>,
+    full: Option<sniff::Sniffed>,
+) -> Result<VersionPlan, IngestError> {
     let ext = sniff::extension(&row.path);
-    let sniffed = sniff::sniff(obj.head, obj.digest.len, &ext);
+    let mut sniffed = match full {
+        Some(f) => f,
+        None => sniff::sniff(obj.head, obj.digest.len, &ext),
+    };
     let encrypted = sniffed.verdict == Verdict::Encrypted;
     sqlx::query(
         "INSERT INTO _oo_docs.blob (b3, sha256, size, format, encrypted, has_macros) \
@@ -91,6 +115,18 @@ pub async fn prepare_version(
     .bind(sniffed.has_macros)
     .execute(&mut *conn)
     .await?;
+    // A blob that an earlier whole-file sniff found encrypted stays so for a
+    // path that only had its head sniffed (a rename).
+    if full.is_none() && sniffed.verdict == Verdict::Parseable {
+        let known: Option<bool> =
+            sqlx::query_scalar("SELECT encrypted FROM _oo_docs.blob WHERE b3 = $1")
+                .bind(&obj.digest.b3)
+                .fetch_optional(&mut *conn)
+                .await?;
+        if known == Some(true) {
+            sniffed.verdict = Verdict::Encrypted;
+        }
+    }
 
     // Same content as the current version: only the fingerprint moves.
     let current: Option<(Option<String>, Option<String>)> = sqlx::query_as(
@@ -148,6 +184,29 @@ pub async fn prepare_version(
             .await?
         }
     };
+    // Content another file is still working on: this path waits in `stored`
+    // and becomes `duplicate` when that work is done (see `settle_waiting`),
+    // so the content is parsed once. The advisory lock serialises files of
+    // the same content, so exactly one of them leads.
+    let mut waits = false;
+    if duplicate_of.is_none() && rename_of.is_none() && sniffed.verdict == Verdict::Parseable {
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(&obj.digest.b3)
+            .execute(&mut *conn)
+            .await?;
+        waits = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM _oo_docs.file_version fv \
+               JOIN _oo_docs.file f ON f.id = fv.file_id \
+              WHERE fv.b3 = $1 AND fv.file_id <> $2::uuid AND fv.superseded_at IS NULL \
+                AND fv.deleted_at IS NULL AND f.deleted_at IS NULL \
+                AND f.current_version_id = fv.id \
+                AND f.state IN ('queued', 'parsing', 'parsed', 'extracting'))",
+        )
+        .bind(&obj.digest.b3)
+        .bind(&row.id)
+        .fetch_one(&mut *conn)
+        .await?;
+    }
     let new_vid: String = sqlx::query_scalar(
         "INSERT INTO _oo_docs.file_version (id, file_id, b3, path_at_version, fp, duplicate_of) \
          VALUES (gen_random_uuid(), $1::uuid, $2, $3, $4::jsonb, $5::uuid) RETURNING id::text",
@@ -199,6 +258,7 @@ pub async fn prepare_version(
             ));
         }
         Verdict::Parseable if finished_twin => tail.push((FileState::Duplicate, None)),
+        Verdict::Parseable if waits => {}
         Verdict::Parseable => tail.push((FileState::Queued, None)),
     }
     Ok(VersionPlan {
@@ -511,6 +571,43 @@ pub async fn run_hash<S: HashableSource>(
     if ctx.should_stop() {
         return Outcome::Cancelled;
     }
+    // Containers are sniffed whole: central directory, PDF trailer, OLE2.
+    let ext = sniff::extension(&row.path);
+    let mut full: Option<sniff::Sniffed> = None;
+    let by_head = sniff::sniff(&head, digest.len, &ext);
+    if matches!(
+        by_head.format,
+        Format::Pdf
+            | Format::Docx
+            | Format::Xlsx
+            | Format::Pptx
+            | Format::Zip
+            | Format::LegacyOffice
+    ) && digest.len <= SNIFF_FULL_MAX
+    {
+        let whole = if digest.len == head.len() as u64 {
+            Ok(head.clone())
+        } else {
+            source
+                .read(&row.raw_key, 0, digest.len, &ReadExpect::default())
+                .await
+        };
+        match whole {
+            Ok(bytes) => {
+                let len = digest.len;
+                let ext2 = ext.clone();
+                full = tokio::task::spawn_blocking(move || {
+                    sniff::sniff_reader(&mut std::io::Cursor::new(&bytes), len, &ext2).ok()
+                })
+                .await
+                .ok()
+                .flatten();
+            }
+            Err(DocSourceError::Changed) => return unstable(ctx, limits).await,
+            Err(DocSourceError::NotFound) => return nothing_to_do(ctx).await,
+            Err(e) => return classify(&e),
+        }
+    }
     let fp = meta.fingerprint();
     let obj = HashedObject {
         digest: &digest,
@@ -543,7 +640,8 @@ pub async fn run_hash<S: HashableSource>(
         };
         let st = FileState::parse(&st).unwrap_or(FileState::Stored);
         let _ = &drive_id;
-        let plan = prepare_version(&mut tx, &row, st, del, &obj, limits, None).await?;
+        let plan =
+            prepare_version_sniffed(&mut tx, &row, st, del, &obj, limits, None, full).await?;
         apply_plan(&mut tx, &plan).await?;
         Ok::<bool, IngestError>(true)
     }
