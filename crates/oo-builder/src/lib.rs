@@ -59,7 +59,7 @@ pub use jsonb_profile::{
     JSONB_PROFILE_COMPILER, JSONB_PROFILE_PROTOCOL, JsonbDocumentProfile,
     compile_jsonb_document_profile,
 };
-pub use knowledge_budget::unicode_word_tokens;
+pub use knowledge_budget::{TOKEN_ESTIMATOR_V2, cjk_calibrated_tokens, unicode_word_tokens};
 pub use nfc::nfc;
 pub use oos_tree::{OosTreeCompilation, compile_oos_tree};
 pub use pack_index::manifest_file_records;
