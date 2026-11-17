@@ -53,3 +53,11 @@ def test_ledger_cli_with_git_repo(tmp_path):
     # --base limits history: pre-base Plans are not demanded in the ledger
     assert cl.main(["--repo", str(r), "--ref", "HEAD", "--base", "HEAD"]) == 1  # merged card 02 w/o commit
     assert cl.main(["--repo", str(r), "--ledger", "missing.md"]) == 2
+
+
+def test_frontend_rows_checked_only_against_puppyone_plans():
+    text = HEAD + row("SO-F-S1-01")
+    assert cl.check(text, set()) == []
+    assert cl.check(text, set(), {"SO-F-S1-01"}) == []
+    bad = cl.check(text, set(), set())
+    assert len(bad) == 1 and "Puppyone" in bad[0][1]

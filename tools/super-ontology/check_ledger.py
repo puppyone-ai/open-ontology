@@ -35,8 +35,13 @@ def parse_ledger(text):
     return rows
 
 
-def check(ledger_text, plans_on_ref):
-    """plans_on_ref: set of Plan values found on the integration ref."""
+def check(ledger_text, plans_on_ref, frontend_plans=None):
+    """plans_on_ref: set of Plan values found on the OO integration ref.
+
+    frontend_plans: Plan values found on the Puppyone integration ref, or None
+    when that repository is not given. SO-F-* cards live in Puppyone (50 §2.2),
+    so without it their merged/signed rows are not checked (and say so).
+    """
     bad = []
     seen = set()
     cards = {}
@@ -54,6 +59,12 @@ def check(ledger_text, plans_on_ref):
             bad.append((n, f"{card}: dropped requires a reason in notes"))
         cards[card] = (n, status)
     for card, (n, status) in cards.items():
+        if card.startswith("SO-F-"):
+            if frontend_plans is None or status not in ("merged", "signed"):
+                continue
+            if card not in frontend_plans:
+                bad.append((n, f"{card}: status {status} but no commit with this Plan: on the Puppyone ref"))
+            continue
         if status in ("merged", "signed") and card not in plans_on_ref:
             bad.append((n, f"{card}: status {status} but no commit with this Plan: on the integration ref"))
     for p in sorted(plans_on_ref):
@@ -78,12 +89,18 @@ def main(argv=None):
     ap.add_argument("--ledger", default="execution/super-ontology/ledger.md")
     ap.add_argument("--ref", default="HEAD", help="integration branch ref")
     ap.add_argument("--base", help="only consider commits in <base>..<ref> (default: whole history)")
+    ap.add_argument("--puppyone-repo", help="Puppyone checkout holding codex/super-drive (checks SO-F-* rows)")
+    ap.add_argument("--puppyone-ref", default="codex/super-drive")
+    ap.add_argument("--puppyone-base", help="Puppyone base (e.g. main) for <base>..<ref>")
     a = ap.parse_args(argv)
     try:
         import os
         path = a.ledger if os.path.isabs(a.ledger) else os.path.join(a.repo, a.ledger)
         text = open(path, encoding="utf-8").read()
-        bad = check(text, plans_on(a.repo, a.ref, a.base))
+        frontend = plans_on(a.puppyone_repo, a.puppyone_ref, a.puppyone_base) if a.puppyone_repo else None
+        bad = check(text, plans_on(a.repo, a.ref, a.base), frontend)
+        if frontend is None:
+            print("ledger: SO-F-* rows not checked (no --puppyone-repo)")
     except (RuntimeError, OSError) as e:
         print(e, file=sys.stderr)
         return 2
