@@ -58,6 +58,10 @@ def stack():
     token_file.write_text("egress-test-token\n")
     token_file.chmod(0o644)
     env = dict(os.environ, OO_DOCS_PROJECT=project, OO_DOCS_LANE=LANE, OO_DOCS_STATE=state, OO_DOCS_PARSER_IMAGE=IMAGE)
+    # The file also describes docs-db and docs-engine; compose wants their
+    # variables set even though only doc-parser is started here.
+    env.update(OO_DOCS_DB_IMAGE="postgres:unused", OO_DOCS_ENGINE_IMAGE="engine:unused", OO_DOCS_UID="1000",
+               OO_DOCS_GID="1000", OO_DOCS_ENGINE_STATE=state, OO_DOCS_PKI=state, OO_DOCS_ENGINE_PORT="1")
     # The compose file leaves addressing to docker; the test pins a free subnet so
     # it also runs on hosts with exhausted default pools.
     override = Path(state) / "override.yaml"

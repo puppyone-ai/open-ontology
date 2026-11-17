@@ -67,9 +67,16 @@ async fn freshness_follows_the_priority_order_and_is_announced() {
     let f = drive_state(&e, &id).await;
     assert_eq!(f["processing"], 1);
     assert_eq!(health_state(&e).await, "processing");
-    // Let the watcher take its silent baseline here.
+    // Let the watcher settle. Its first observation is a silent baseline, but
+    // on a loaded machine that first look can land while the Drive is still
+    // `syncing`, which then correctly announces `processing`. Count from here.
     tokio::time::sleep(Duration::from_millis(400)).await;
-    assert!(announced(&e).await.is_empty(), "the baseline is silent");
+    let before = announced(&e).await;
+    assert!(
+        before.iter().all(|state| state == "processing"),
+        "only the move into processing can precede the baseline: {before:?}"
+    );
+    let base = before.len();
 
     // up_to_date once the file is done.
     sqlx::query("UPDATE _oo_docs.file SET state = 'published'")
@@ -134,7 +141,7 @@ async fn freshness_follows_the_priority_order_and_is_announced() {
 
     // Every change was announced, in order, and only changes (the sync that
     // fails is seen as `syncing` first).
-    let seq = announced(&e).await;
+    let seq = announced(&e).await.split_off(base);
     assert_eq!(
         seq[..5],
         [

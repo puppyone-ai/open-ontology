@@ -37,8 +37,8 @@ def test_classify(expr, want):
     assert sbom_gate.classify(expr) == want
 
 
-def comp(name, lic, scope="python", files=None):
-    props = [{"name": "oo:scope", "value": scope}]
+def comp(name, lic, scope="python", files=None, extra=None):
+    props = [{"name": "oo:scope", "value": scope}] + (extra or [])
     if files:
         props.append({"name": "oo:files", "value": files})
     return {"type": "library", "name": name, "version": "1", "licenses": [{"expression": lic}] if lic else [], "properties": props}
@@ -75,10 +75,20 @@ def test_hard_fail_cannot_be_reviewed_away(tmp_path):
 
 
 def test_opencv_or_ffmpeg_libs_fail_even_with_a_good_license(tmp_path):
-    code, rep = run(tmp_path, [comp("opencv-python-headless", "Apache-2.0")])
+    code, rep = run(tmp_path, [comp("opencv-python-headless", "Apache-2.0")])  # no attestation
+    assert code == 1 and rep["fail"][0]["scope"] == "ffmpeg"
+    yes = [{"name": "oo:opencv_ffmpeg", "value": "YES"}]
+    code, rep = run(tmp_path, [comp("opencv-python-headless", "Apache-2.0", extra=yes)])
     assert code == 1 and rep["fail"][0]["scope"] == "ffmpeg"
     code, rep = run(tmp_path, [comp("FFmpeg", "LGPL-2.1-or-later", scope="native-in-wheel", files="libavcodec.so.60")], reviews={"FFmpeg": "x"})
     assert code == 1
+
+
+@pytest.mark.parametrize("state", ["NO", "absent"])
+def test_opencv_built_without_ffmpeg_passes(tmp_path, state):
+    attest = [{"name": "oo:opencv_ffmpeg", "value": state}]
+    code, rep = run(tmp_path, [comp("opencv-python-headless", "Apache-2.0", extra=attest)])
+    assert code == 0 and rep["verdict"] == "pass"
 
 
 def test_missing_license_fails_closed(tmp_path):

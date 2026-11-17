@@ -3,6 +3,8 @@
 > 前提：[00 决策记录](00-overview-and-decisions.md) D40；[30 闭环与 Sprint](30-closed-loops-and-sprints.md)；[20 前端](20-frontend.md) 的测试方案。
 > 本文规定的是：owner 拿到一个本地打包好的 App，直接点着用新功能；在交给 owner 之前，这个 App 必须先通过一整套用真实点击完成的端到端测试。
 
+> 执行顺序修订（D80）：阶段一（OO 先行）期间，L4、L6 交付 CLI 验收包，打包 App 的 owner 验收包与 T1/T2/T3 在阶段二按闭环补齐，见 30 §7。
+
 ## 1. 原则
 
 1. **测的是要交付的那个 App。** 最终验收的对象是 `npm run dist:mac` 产出的 `.app`/`.dmg`，不是 dev server，也不是 `vite build` 加裸 Electron。打包后才会暴露的问题（asar 路径、资源缺失、签名与 Gatekeeper、主进程找不到 `oo`、权限弹窗）只有这样才测得到。

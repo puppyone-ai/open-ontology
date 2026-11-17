@@ -1,4 +1,4 @@
-SBOM gate: PASS  components={'python': 76, 'native-in-wheel': 21, 'base-os': 97, 'model': 6}
+SBOM gate: PASS  components={'python': 77, 'native-in-wheel': 22, 'base-os': 97, 'model': 10}
   REVIEWED  certifi 2026.10.23  [python]  MPL-2.0
   REVIEWED  tqdm 4.70.1  [python]  MPL-2.0 AND MIT
   REVIEWED  glibc (vendored by auditwheel) bundled  [native-in-wheel]  LGPL-2.1-or-later

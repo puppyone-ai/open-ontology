@@ -1,0 +1,66 @@
+{
+ "doc-parser": {
+  "hostconfig": {
+   "CapDrop": [
+    "ALL"
+   ],
+   "Memory": 3221225472,
+   "NanoCpus": 2000000000,
+   "PidsLimit": 128,
+   "ReadonlyRootfs": true,
+   "SecurityOpt": [
+    "no-new-privileges:true"
+   ]
+  },
+  "image": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26",
+  "labels": {
+   "oo.lane": "super-ontology-be2"
+  },
+  "networks": [
+   "oo-docs-1d9ad8cb2b28_docs-internal"
+  ]
+ },
+ "docs-db": {
+  "hostconfig": {
+   "CapDrop": [
+    "ALL"
+   ],
+   "Memory": 1073741824,
+   "NanoCpus": 1000000000,
+   "PidsLimit": 128,
+   "ReadonlyRootfs": true,
+   "SecurityOpt": [
+    "no-new-privileges:true"
+   ]
+  },
+  "image": "sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+  "labels": {
+   "oo.lane": "super-ontology-be2"
+  },
+  "networks": [
+   "oo-docs-1d9ad8cb2b28_docs-internal"
+  ]
+ },
+ "docs-engine": {
+  "hostconfig": {
+   "CapDrop": [
+    "ALL"
+   ],
+   "Memory": 1610612736,
+   "NanoCpus": 2000000000,
+   "PidsLimit": 256,
+   "ReadonlyRootfs": true,
+   "SecurityOpt": [
+    "no-new-privileges:true"
+   ]
+  },
+  "image": "sha256:ad577c6a286a6c5eaebeefb97070dc39d553c3846af444fec922d649eb3e13ab",
+  "labels": {
+   "oo.lane": "super-ontology-be2"
+  },
+  "networks": [
+   "oo-docs-1d9ad8cb2b28_docs-egress",
+   "oo-docs-1d9ad8cb2b28_docs-internal"
+  ]
+ }
+}

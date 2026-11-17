@@ -187,6 +187,43 @@ def tiny_pdf(encrypted):
     return b"".join(body) + trailer
 
 
+def table_pdf():
+    """One page: a title, a sentence and a ruled 5x4 table (Helvetica, real xref).
+    Used to prove PDF table structure (TableFormer) is on in the sidecar."""
+    rows = [["Region", "Q1", "Q2", "Q3"], ["North", "120", "135", "150"], ["South", "98", "104", "110"],
+            ["East", "143", "151", "160"], ["West", "87", "90", "95"]]
+    x0, y0, cw, rh = 72, 640, 110, 28
+    ops = ["BT /F1 16 Tf 72 720 Td (Regional sales by quarter) Tj ET",
+           "BT /F1 11 Tf 72 696 Td (The table below lists synthetic sales figures in thousands.) Tj ET", "0.8 w"]
+    for i in range(len(rows) + 1):
+        ops.append(f"{x0} {y0 - i * rh} m {x0 + len(rows[0]) * cw} {y0 - i * rh} l S")
+    for j in range(len(rows[0]) + 1):
+        ops.append(f"{x0 + j * cw} {y0} m {x0 + j * cw} {y0 - len(rows) * rh} l S")
+    for i, r in enumerate(rows):
+        for j, t in enumerate(r):
+            ops.append(f"BT /F1 12 Tf {x0 + j * cw + 8} {y0 - i * rh - 19} Td ({t}) Tj ET")
+    ops.append("BT /F1 11 Tf 72 440 Td (Figures are invented for testing.) Tj ET")
+    stream = "\n".join(ops).encode()
+    objs = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        3: b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        4: b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
+        5: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = {}
+    for n in sorted(objs):
+        offsets[n] = len(out)
+        out += f"{n} 0 obj\n".encode() + objs[n] + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n".encode() + b"0000000000 65535 f \n"
+    for n in sorted(objs):
+        out += b"%010d 00000 n \n" % offsets[n]
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return bytes(out)
+
+
 def long_pdf(pages, lines=46):
     """`pages` pages of Helvetica text (standard font, not embedded), real xref."""
     objs = {}
@@ -269,6 +306,7 @@ def build():
     f["pdf-encrypted.pdf"] = tiny_pdf(True)
     f["pdf-plain.pdf"] = tiny_pdf(False)
     f["pdf-60pages.pdf"] = long_pdf(60)
+    f["pdf-table.pdf"] = table_pdf()
     # --- text ----------------------------------------------------------------
     f["gb18030.txt"] = "你好，世界。这是一份 GB18030 编码的文本。\n".encode("gb18030")
     f["gb18030.csv"] = "姓名,部门\n林远舟,管理\n".encode("gb18030")

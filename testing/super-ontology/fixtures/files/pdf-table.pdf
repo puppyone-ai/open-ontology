@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1169 >>
+stream
+BT /F1 16 Tf 72 720 Td (Regional sales by quarter) Tj ET
+BT /F1 11 Tf 72 696 Td (The table below lists synthetic sales figures in thousands.) Tj ET
+0.8 w
+72 640 m 512 640 l S
+72 612 m 512 612 l S
+72 584 m 512 584 l S
+72 556 m 512 556 l S
+72 528 m 512 528 l S
+72 500 m 512 500 l S
+72 640 m 72 500 l S
+182 640 m 182 500 l S
+292 640 m 292 500 l S
+402 640 m 402 500 l S
+512 640 m 512 500 l S
+BT /F1 12 Tf 80 621 Td (Region) Tj ET
+BT /F1 12 Tf 190 621 Td (Q1) Tj ET
+BT /F1 12 Tf 300 621 Td (Q2) Tj ET
+BT /F1 12 Tf 410 621 Td (Q3) Tj ET
+BT /F1 12 Tf 80 593 Td (North) Tj ET
+BT /F1 12 Tf 190 593 Td (120) Tj ET
+BT /F1 12 Tf 300 593 Td (135) Tj ET
+BT /F1 12 Tf 410 593 Td (150) Tj ET
+BT /F1 12 Tf 80 565 Td (South) Tj ET
+BT /F1 12 Tf 190 565 Td (98) Tj ET
+BT /F1 12 Tf 300 565 Td (104) Tj ET
+BT /F1 12 Tf 410 565 Td (110) Tj ET
+BT /F1 12 Tf 80 537 Td (East) Tj ET
+BT /F1 12 Tf 190 537 Td (143) Tj ET
+BT /F1 12 Tf 300 537 Td (151) Tj ET
+BT /F1 12 Tf 410 537 Td (160) Tj ET
+BT /F1 12 Tf 80 509 Td (West) Tj ET
+BT /F1 12 Tf 190 509 Td (87) Tj ET
+BT /F1 12 Tf 300 509 Td (90) Tj ET
+BT /F1 12 Tf 410 509 Td (95) Tj ET
+BT /F1 11 Tf 72 440 Td (Figures are invented for testing.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001462 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1532
+%%EOF
