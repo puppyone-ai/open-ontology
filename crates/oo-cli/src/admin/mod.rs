@@ -5,6 +5,8 @@ mod build_retained;
 mod build_tail;
 mod build_token;
 mod doctor;
+#[cfg(feature = "docs")]
+mod doctor_docs;
 mod lite;
 mod lite_bundle;
 mod ontology;
