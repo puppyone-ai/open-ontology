@@ -1,5 +1,5 @@
 {
- "run_id": "l3-compose-20261117",
+ "run_id": "l3-compose-resume",
  "ok": true,
  "checks": [
   {
@@ -20,12 +20,12 @@
   {
    "check": "the project name is oo-docs-<12 hex of sha256(state dir)>",
    "ok": true,
-   "detail": "oo-docs-1d9ad8cb2b28"
+   "detail": "oo-docs-6feaf889d45b"
   },
   {
    "check": "serve.json says compose with a project name",
    "ok": true,
-   "detail": "oo-docs-1d9ad8cb2b28"
+   "detail": "oo-docs-6feaf889d45b"
   },
   {
    "check": "health through the proxy",
@@ -45,7 +45,7 @@
   {
    "check": "the engine sees the drive as /drives/<id>",
    "ok": true,
-   "detail": "/drives/b7520667acb6b3a1"
+   "detail": "/drives/a7d0051aced26672"
   },
   {
    "check": "all 5 files published",
@@ -100,7 +100,7 @@
   {
    "check": "docs-db and doc-parser are on docs-internal only",
    "ok": true,
-   "detail": "{\"docs-engine\": [\"oo-docs-1d9ad8cb2b28_docs-egress\", \"oo-docs-1d9ad8cb2b28_docs-internal\"], \"doc-parser\": [\"oo-docs-1d9ad8cb2b28_docs-internal\"], \"docs-db\": [\"oo-docs-1d9ad8cb2b28_docs-internal\"]}"
+   "detail": "{\"docs-engine\": [\"oo-docs-6feaf889d45b_docs-egress\", \"oo-docs-6feaf889d45b_docs-internal\"], \"doc-parser\": [\"oo-docs-6feaf889d45b_docs-internal\"], \"docs-db\": [\"oo-docs-6feaf889d45b_docs-internal\"]}"
   },
   {
    "check": "docs-engine is on docs-internal and docs-egress",
@@ -115,7 +115,7 @@
   {
    "check": "the drive is a read-only bind in the engine",
    "ok": true,
-   "detail": "[\"/drives/b7520667acb6b3a1\"]"
+   "detail": "[\"/drives/a7d0051aced26672\"]"
   },
   {
    "check": "only /state is writable among the engine's binds",
@@ -185,7 +185,7 @@
   {
    "check": "the volumes stay",
    "ok": true,
-   "detail": "[\"oo-docs-1d9ad8cb2b28_docs-data\", \"oo-docs-1d9ad8cb2b28_docs-parser-scratch\"]"
+   "detail": "[\"oo-docs-6feaf889d45b_docs-data\", \"oo-docs-6feaf889d45b_docs-parser-scratch\"]"
   },
   {
    "check": "the Drive survived the restart",
@@ -209,7 +209,7 @@
   }
  ],
  "timings": {
-  "start_seconds": 12.1,
-  "publish_seconds": 9.9
+  "start_seconds": 10.8,
+  "publish_seconds": 8.3
  }
 }

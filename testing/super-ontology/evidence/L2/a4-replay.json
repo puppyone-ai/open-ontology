@@ -1,7 +1,7 @@
 {
-  "cursor": 88,
-  "head": 190,
-  "replayed_seqs": "89..190",
+  "cursor": 86,
+  "head": 188,
+  "replayed_seqs": "87..188",
   "types": [
     "drive.freshness_changed",
     "drive.sync_completed",

@@ -4,8 +4,8 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "84f88c433a1672f76ee88cb7e7248e3d65a01597b901765ab227e9210cfd76a9/BRIEF.md"
-  ReservedCode1: "84f88c433a1672f76ee88cb7e7248e3d65a01597b901765ab227e9210cfd76a9"
+  ProduceID: "203db4e0b35e69a3a1b91b65d7d230bd9251e1e9f8302492b41801acd488ee0c/BRIEF.md"
+  ReservedCode1: "203db4e0b35e69a3a1b91b65d7d230bd9251e1e9f8302492b41801acd488ee0c"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
