@@ -10,7 +10,6 @@ PACKAGE = "docling-slim"
 FORMATS = ("pdf", "docx", "pptx")
 PROBE_FORMATS = ("pdf",)
 PROFILE = "cpu"
-OCR_OPTION_ALLOWED = False  # explicit OCR is on in the image since B-S9-04 only when the lock has RapidOCR
 PAGE_RANGE_FORMATS = ("pdf",)
 
 
@@ -23,8 +22,15 @@ def parser_version():
         return "unavailable"
 
 
+def ocr_allowed():
+    """Explicit RapidOCR (B-S9-04): on only when the rapidocr package and its pinned models are in the image."""
+    from .pictures import ocr_available
+
+    return ocr_available()
+
+
 def limits():
-    return {"ocr": OCR_OPTION_ALLOWED, "table_structure": table_structure_available()}
+    return {"ocr": ocr_allowed(), "table_structure": table_structure_available()}
 
 
 def licenses(models):

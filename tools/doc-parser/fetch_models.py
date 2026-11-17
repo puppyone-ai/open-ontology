@@ -7,14 +7,15 @@ Downloads each pinned source (Hugging Face repo at a full commit sha, only the
 allowed files) into --dest, then either records every file's sha256 in the lock
 (`write`) or requires them to equal the lock (`verify`, the image build).
 Network is needed here and nowhere else; the runtime image is offline.
-Only the layout and TableFormer models are fetched: no OCR, picture,
-code/formula or VLM models (L3 has no OCR; their licenses are not cleared).
+Layout, TableFormer and (B-S9-04) the RapidOCR PP-OCRv5 det/rec ONNX files are fetched; `kind: url`
+sources are verified against their pinned sha256 while downloading. No picture, code/formula or VLM models.
 """
 import argparse
 import hashlib
 import json
 import shutil
 import sys
+import urllib.request
 from pathlib import Path
 
 
@@ -39,6 +40,19 @@ def main():
 
     files = []
     for src in lock["sources"]:
+        if src.get("kind") == "url":
+            target = dest / src["local_dir"]
+            target.mkdir(parents=True, exist_ok=True)
+            for f in src["files"]:
+                data = urllib.request.urlopen(f["url"], timeout=300).read()
+                if hashlib.sha256(data).hexdigest() != f["sha256"]:
+                    sys.exit(f"{f['url']}: sha256 differs from the lock")
+                (target / f["local"]).write_bytes(data)
+            for p in sorted(target.rglob("*")):
+                if p.is_file():
+                    files.append({"name": f"{src['local_dir']}/{p.relative_to(target).as_posix()}",
+                                  "sha256": sha256_file(p), "size": p.stat().st_size})
+            continue
         rev = src["revision"]
         if len(rev) != 40 or any(c not in "0123456789abcdef" for c in rev):
             sys.exit(f"{src['repo_id']}: revision must be a full commit sha")

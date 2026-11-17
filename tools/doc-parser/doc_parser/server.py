@@ -203,13 +203,13 @@ class Handler(BaseHTTPRequestHandler):
         opts = req.get("options") or {}
         if not isinstance(opts, dict):
             return self._error(400, "PARSER_BAD_INPUT", "options must be an object")
-        if opts.get("ocr") and not self.svc.meta.OCR_OPTION_ALLOWED:
+        if opts.get("ocr") and not self.svc.meta.ocr_allowed():
             return self._error(422, "PARSER_UNSUPPORTED", "OCR is not available in this image")
         deadline_ms = req.get("deadline_ms", cfg.max_deadline_ms)
         if not isinstance(deadline_ms, int) or isinstance(deadline_ms, bool) or not 1 <= deadline_ms <= cfg.max_deadline_ms:
             return self._error(400, "PARSER_BAD_INPUT", f"deadline_ms must be 1..{cfg.max_deadline_ms}")
         table = bool(opts.get("table_structure", True))
-        return self._run(sha, "parse", (fmt, rng, table, cfg.max_response_bytes), deadline_s=deadline_ms / 1000)
+        return self._run(sha, "parse", (fmt, rng, table, cfg.max_response_bytes, bool(opts.get("ocr"))), deadline_s=deadline_ms / 1000)
 
     def _run(self, sha, fn, extra, deadline_s):
         svc = self.svc
