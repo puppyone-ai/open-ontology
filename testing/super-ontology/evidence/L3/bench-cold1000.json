@@ -1,0 +1,433 @@
+{
+ "by_format": {
+  "csv": {
+   "published": 59
+  },
+  "docx": {
+   "published": 196
+  },
+  "md": {
+   "published": 353
+  },
+  "pdf": {
+   "published": 137
+  },
+  "pptx": {
+   "published": 118
+  },
+  "txt": {
+   "published": 59
+  },
+  "xlsx": {
+   "published": 78
+  }
+ },
+ "bytes": 3908801,
+ "checks": [
+  {
+   "check": "disk: at least 20 GiB free",
+   "detail": "84 GiB",
+   "ok": true
+  },
+  {
+   "check": "all files reached a final state",
+   "detail": "1000 files, {\"published\": 1000}",
+   "ok": true
+  },
+  {
+   "check": "cold parse of the whole Drive within 30 minutes",
+   "detail": "23.8 min",
+   "ok": true
+  },
+  {
+   "check": "every file published (synthetic variants of golden files all parse)",
+   "detail": "1000/1000",
+   "ok": true
+  },
+  {
+   "check": "peak memory of docs-engine within 1.5 GiB",
+   "detail": "66 MiB",
+   "ok": true
+  },
+  {
+   "check": "peak memory of doc-parser within 3 GiB",
+   "detail": "1697 MiB",
+   "ok": true
+  },
+  {
+   "check": "peak memory of docs-db within 1 GiB",
+   "detail": "411 MiB",
+   "ok": true
+  },
+  {
+   "check": "cleanup left nothing",
+   "detail": "0 left",
+   "ok": true
+  }
+ ],
+ "containers": {
+  "doc-parser": {
+   "cpus": 2.0,
+   "image": "sha256:83649cf8cb44",
+   "memory_limit": 3221225472
+  },
+  "docs-db": {
+   "cpus": 1.0,
+   "image": "sha256:9b18b7839705",
+   "memory_limit": 1073741824
+  },
+  "docs-engine": {
+   "cpus": 2.0,
+   "image": "sha256:f47753b83746",
+   "memory_limit": 1610612736
+  }
+ },
+ "files": 1000,
+ "mix": {
+  "csv": 59,
+  "docx": 196,
+  "md": 353,
+  "pdf": 137,
+  "pptx": 118,
+  "txt": 59,
+  "xlsx": 78
+ },
+ "ok": true,
+ "peak_memory_bytes": {
+  "doc-parser": 1779190202.368,
+  "docs-db": 431069593.6,
+  "docs-engine": 69468160.0
+ },
+ "progress": [
+  [
+   6.0,
+   {}
+  ],
+  [
+   26.3,
+   {
+    "indexed": 1,
+    "published": 582,
+    "queued": 417
+   }
+  ],
+  [
+   51.5,
+   {
+    "parsing": 2,
+    "published": 605,
+    "queued": 393
+   }
+  ],
+  [
+   81.8,
+   {
+    "parsing": 2,
+    "published": 628,
+    "queued": 370
+   }
+  ],
+  [
+   107.0,
+   {
+    "parsing": 4,
+    "published": 642,
+    "queued": 354
+   }
+  ],
+  [
+   137.3,
+   {
+    "indexed": 4,
+    "parsed": 2,
+    "published": 659,
+    "queued": 335
+   }
+  ],
+  [
+   162.5,
+   {
+    "indexed": 4,
+    "parsing": 2,
+    "published": 673,
+    "queued": 321
+   }
+  ],
+  [
+   192.7,
+   {
+    "indexed": 2,
+    "parsing": 2,
+    "published": 698,
+    "queued": 298
+   }
+  ],
+  [
+   212.9,
+   {
+    "published": 718,
+    "queued": 282
+   }
+  ],
+  [
+   238.1,
+   {
+    "published": 740,
+    "queued": 260
+   }
+  ],
+  [
+   268.3,
+   {
+    "parsed": 1,
+    "published": 753,
+    "queued": 246
+   }
+  ],
+  [
+   293.5,
+   {
+    "extracting": 2,
+    "parsing": 1,
+    "published": 760,
+    "queued": 237
+   }
+  ],
+  [
+   318.8,
+   {
+    "indexed": 1,
+    "parsing": 2,
+    "published": 766,
+    "queued": 231
+   }
+  ],
+  [
+   344.0,
+   {
+    "parsed": 1,
+    "parsing": 1,
+    "published": 779,
+    "queued": 219
+   }
+  ],
+  [
+   364.2,
+   {
+    "published": 798,
+    "queued": 202
+   }
+  ],
+  [
+   389.4,
+   {
+    "indexed": 1,
+    "published": 813,
+    "queued": 186
+   }
+  ],
+  [
+   414.6,
+   {
+    "indexed": 2,
+    "published": 825,
+    "queued": 173
+   }
+  ],
+  [
+   444.9,
+   {
+    "indexed": 3,
+    "parsed": 1,
+    "parsing": 1,
+    "published": 836,
+    "queued": 159
+   }
+  ],
+  [
+   475.2,
+   {
+    "indexed": 4,
+    "parsed": 2,
+    "published": 848,
+    "queued": 146
+   }
+  ],
+  [
+   500.4,
+   {
+    "indexed": 4,
+    "parsing": 2,
+    "published": 859,
+    "queued": 135
+   }
+  ],
+  [
+   525.6,
+   {
+    "parsing": 1,
+    "published": 871,
+    "queued": 128
+   }
+  ],
+  [
+   561.0,
+   {
+    "indexed": 2,
+    "parsed": 2,
+    "published": 883,
+    "queued": 113
+   }
+  ],
+  [
+   596.3,
+   {
+    "indexed": 1,
+    "parsing": 1,
+    "published": 896,
+    "queued": 102
+   }
+  ],
+  [
+   626.6,
+   {
+    "parsing": 1,
+    "published": 905,
+    "queued": 94
+   }
+  ],
+  [
+   656.9,
+   {
+    "published": 913,
+    "queued": 87
+   }
+  ],
+  [
+   687.2,
+   {
+    "published": 920,
+    "queued": 80
+   }
+  ],
+  [
+   717.5,
+   {
+    "published": 928,
+    "queued": 72
+   }
+  ],
+  [
+   752.8,
+   {
+    "indexed": 1,
+    "published": 936,
+    "queued": 63
+   }
+  ],
+  [
+   783.1,
+   {
+    "indexed": 1,
+    "published": 940,
+    "queued": 59
+   }
+  ],
+  [
+   813.4,
+   {
+    "published": 946,
+    "queued": 54
+   }
+  ],
+  [
+   848.7,
+   {
+    "published": 951,
+    "queued": 49
+   }
+  ],
+  [
+   879.1,
+   {
+    "published": 955,
+    "queued": 45
+   }
+  ],
+  [
+   909.4,
+   {
+    "published": 960,
+    "queued": 40
+   }
+  ],
+  [
+   939.7,
+   {
+    "published": 964,
+    "queued": 36
+   }
+  ],
+  [
+   995.4,
+   {
+    "parsing": 1,
+    "published": 970,
+    "queued": 29
+   }
+  ],
+  [
+   1056.1,
+   {
+    "indexed": 1,
+    "published": 974,
+    "queued": 25
+   }
+  ],
+  [
+   1121.9,
+   {
+    "published": 980,
+    "queued": 20
+   }
+  ],
+  [
+   1207.8,
+   {
+    "parsed": 1,
+    "published": 985,
+    "queued": 14
+   }
+  ],
+  [
+   1268.5,
+   {
+    "published": 990,
+    "queued": 10
+   }
+  ],
+  [
+   1359.4,
+   {
+    "indexed": 1,
+    "parsed": 1,
+    "published": 994,
+    "queued": 4
+   }
+  ],
+  [
+   1420.1,
+   {
+    "parsed": 1,
+    "published": 999
+   }
+  ]
+ ],
+ "run_id": "bench-resume1",
+ "seconds": 1425.2,
+ "states": {
+  "published": 1000
+ },
+ "stats_samples": 8520,
+ "throughput_files_per_minute": 42.1
+}

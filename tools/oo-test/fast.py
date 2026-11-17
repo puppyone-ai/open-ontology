@@ -180,8 +180,32 @@ def oracle_free():
         raise
 
 
+DOCS_CELLS = ("docs-rustfs", "docs-minio")
+
+
+def run_docs_cells(root, args):
+    """Super Ontology S3 cells (B-S4-04): a labelled RustFS or MinIO container
+    and the real-store tests of the S3 backend (super_ontology_s3.py)."""
+    names = sorted(c for c in args.cells if c in DOCS_CELLS)
+    evidence = ROOT / "testing/super-ontology/evidence/L1"
+    command = ["python3", "-B", str(HERE / "super_ontology_s3.py"), "--cells", ",".join(names),
+               "--run-id", args.run_id, "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-s3", command, root, 3600, lane=False)
+    entry = dict(suite="super-ontology", cells=names, **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l1-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
 def run_l1(root, args):
     day = args.day
+    if args.cells and args.cells & set(DOCS_CELLS):
+        rest = args.cells - set(DOCS_CELLS)
+        rows = run_docs_cells(root, args)
+        if not rest:
+            return rows
+        args.cells = rest
+        return rows + run_l1(root, args)
     engines = args.engines
     cells = layers.l1_cells(engines, ["T0", "T1", "T2", "T4", "T7", "T8"], day)
     if args.cells:
@@ -246,8 +270,25 @@ def run_l2(root, args):
     return results
 
 
+def run_super_ontology_s3_life(root, args):
+    """The s3 round of L3 acceptance 5 on RustFS and MinIO (B-S4-02, B-S4-04)."""
+    evidence = ROOT / "testing/super-ontology/evidence/L3"
+    results = []
+    for store in ("rustfs", "minio"):
+        command = ["python3", "-B", str(HERE / "super_ontology_s3_life.py"), "--store", store,
+                   "--run-id", f"{args.run_id}-{store}", "--evidence-dir", str(evidence)]
+        result = timed_command(f"super-ontology-s3-life-{store}", command, root, 1800, lane=False)
+        results.append(dict(suite="super-ontology", cell=f"s3-{store}", **result,
+                            evidence=str(evidence.relative_to(ROOT))))
+        print(json.dumps(results[-1]), flush=True)
+    runner.write_json(root / "l2-results.json", results)
+    return results
+
+
 def run_super_ontology_l2(root, args):
     """Super Ontology L2 walking skeleton (real oo serve + engine + container PG)."""
+    if args.cells and "s3" in args.cells:
+        return run_super_ontology_s3_life(root, args)
     evidence = ROOT / "testing/super-ontology/evidence/L2"
     command = ["python3", "-B", str(HERE / "super_ontology_l2.py"), "--run-id", args.run_id,
                "--evidence-dir", str(evidence)]

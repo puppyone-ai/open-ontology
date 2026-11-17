@@ -28,6 +28,8 @@ use sha2::{Digest, Sha256};
 use crate::state::TransitionError;
 use crate::store::StoreError;
 
+pub mod anysource;
+pub mod download;
 pub mod files;
 pub mod handlers;
 pub mod hashjob;
@@ -36,6 +38,7 @@ pub mod reconcile;
 pub mod sniff;
 pub mod zipguard;
 
+pub use anysource::{AnyFactory, AnySource};
 pub use sniff::Format;
 
 /// A [`DocumentSource`] that can also stream-hash an object. `hash_object`
@@ -47,6 +50,12 @@ pub trait HashableSource: DocumentSource {
         &self,
         raw_key: &[u8],
     ) -> impl Future<Output = Result<(DualDigest, ObjectMeta), DocSourceError>> + Send;
+
+    /// The source as an [`AnySource`] when it is one (the engine's), so that
+    /// remote originals can be cached in the CAS (`ingest::download`).
+    fn any_source(&self) -> Option<&AnySource> {
+        None
+    }
 }
 
 impl HashableSource for FsSource {

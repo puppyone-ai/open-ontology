@@ -1,0 +1,17 @@
+{
+  "run_id": "s4-fast1",
+  "cells": [
+    {
+      "cell": "docs-minio",
+      "status": "passed",
+      "seconds": 61,
+      "image": "pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372"
+    },
+    {
+      "cell": "docs-rustfs",
+      "status": "passed",
+      "seconds": 38,
+      "image": "rustfs/rustfs@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a"
+    }
+  ]
+}

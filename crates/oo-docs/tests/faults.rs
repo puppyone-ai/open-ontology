@@ -9,6 +9,9 @@
 #![cfg(feature = "failpoints")]
 
 mod common;
+mod sidecar_support;
+#[path = "sidecar_support/stack.rs"]
+mod stack;
 
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
@@ -528,4 +531,525 @@ async fn a_killed_engine_resumes_the_leased_job_after_its_lease_ends() {
     admin.close().await;
     let _ = std::fs::remove_dir_all(&state);
     common::drop_db(db).await;
+}
+
+// ------------------------------------------------------------------ L3 suite
+//
+// The cases of 10 §12.5 against the real engine binary: the sidecar killed in
+// the middle of a parse, a poison file through the sidecar, Postgres
+// restarted under a running engine, a file that is still being written, and a
+// sidecar that answers 5xx (through `testing/super-ontology/faultproxy`).
+
+use stack::Stack;
+
+async fn state_of(pool: &sqlx::PgPool, path: &str) -> (String, Option<String>, Option<String>) {
+    sqlx::query_as(
+        "SELECT state, state_code, blocked_reason FROM _oo_docs.file \
+          WHERE path = $1 AND deleted_at IS NULL",
+    )
+    .bind(path)
+    .fetch_optional(pool)
+    .await
+    .unwrap()
+    .unwrap_or_default()
+}
+
+async fn wait_for<F, Fut>(what: &str, secs: u64, mut f: F)
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let t0 = std::time::Instant::now();
+    while t0.elapsed() < Duration::from_secs(secs) {
+        if f().await {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("timed out ({secs} s) waiting for {what}");
+}
+
+async fn published(pool: &sqlx::PgPool, like: &str) -> i64 {
+    sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.file WHERE path LIKE $1 AND state = 'published' AND deleted_at IS NULL",
+    )
+    .bind(like)
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
+fn fixture_pdf() -> Vec<u8> {
+    sidecar_support::fixture("pdf-60pages.pdf")
+}
+
+/// No job is left running without a live lease and none is overdue.
+async fn assert_no_stuck_jobs(pool: &sqlx::PgPool) {
+    let stuck: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE state = 'running' AND lease_until < clock_timestamp()",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap();
+    assert_eq!(stuck, 0, "no running job with an ended lease");
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT and docker (oo-docs-parser:dev)"]
+async fn a_sidecar_killed_mid_parse_leaves_the_file_waiting_and_the_rest_flows() {
+    let mut s = Stack::start("f_sidecar_kill", 1).await;
+    std::fs::write(s.root.join("slow.pdf"), fixture_pdf()).unwrap();
+    let pdf = fixture_pdf();
+    std::fs::write(s.root.join("half.pdf"), &pdf[..pdf.len() * 4 / 10]).unwrap();
+    for i in 0..6 {
+        std::fs::write(s.root.join(format!("n{i}.md")), doc(&format!("普通{i}"))).unwrap();
+    }
+    s.register_drive().await;
+    wait_for("slow.pdf is parsing", 120, || async {
+        state_of(&s.pool, "slow.pdf").await.0 == "parsing"
+    })
+    .await;
+    s.sidecar.kill();
+    // The other files flow while the sidecar is gone.
+    wait_for("the markdown files publish", 90, || async {
+        published(&s.pool, "n%.md").await == 6
+    })
+    .await;
+    wait_for("slow.pdf waits with a reason", 90, || async {
+        let (st, _, blocked) = state_of(&s.pool, "slow.pdf").await;
+        st == "queued" && blocked.as_deref() == Some("parser_unavailable")
+    })
+    .await;
+    let crashes: i32 = sqlx::query_scalar(
+        "SELECT COALESCE(max(crash_count), 0) FROM _oo_docs.job WHERE kind = 'parse' \
+          AND file_id = (SELECT id FROM _oo_docs.file WHERE path = 'slow.pdf')",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        crashes, 0,
+        "a dead sidecar is infrastructure, not a poison file"
+    );
+    s.sidecar.start_again();
+    s.sidecar.wait_healthy(Duration::from_secs(120));
+    wait_for("slow.pdf publishes after the restart", 300, || async {
+        state_of(&s.pool, "slow.pdf").await.0 == "published"
+    })
+    .await;
+    let (st, code, blocked) = state_of(&s.pool, "half.pdf").await;
+    assert_eq!(
+        (st.as_str(), code.as_deref()),
+        ("parse_failed", Some("DOCS_PARSE_CORRUPT")),
+        "a cut-off pdf is corrupt, not stuck"
+    );
+    assert_eq!(blocked, None);
+    let (slow_state, _, slow_blocked) = state_of(&s.pool, "slow.pdf").await;
+    assert_eq!(
+        (slow_state.as_str(), slow_blocked),
+        ("published", None),
+        "the wait reason is cleared"
+    );
+    assert_no_stuck_jobs(&s.pool).await;
+    let h = history_of(&s.pool, "slow.pdf").await;
+    eprintln!("slow.pdf history: {h:?}");
+    assert!(
+        h.iter()
+            .any(|(to, code, _)| to == "queued"
+                && code.as_deref() == Some("DOCS_ENGINE_UNAVAILABLE")),
+        "the file went back to queued with the reason: {h:?}"
+    );
+    s.engine.take();
+    s.finish().await;
+}
+
+async fn history_of(pool: &sqlx::PgPool, path: &str) -> Vec<(String, Option<String>, bool)> {
+    sqlx::query_as(
+        "SELECT h.to_state, h.code, COALESCE((h.detail->>'manual')::boolean, false) \
+           FROM _oo_docs.file_state_history h JOIN _oo_docs.file f ON f.id = h.file_id \
+          WHERE f.path = $1 ORDER BY h.seq",
+    )
+    .bind(path)
+    .fetch_all(pool)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT and docker (oo-docs-parser:dev)"]
+async fn a_file_that_kills_the_sidecar_worker_is_quarantined_and_the_rest_flows() {
+    let s = Stack::start("f_sidecar_poison", 1).await;
+    std::fs::write(s.root.join("poison.pdf"), fixture_pdf()).unwrap();
+    for i in 0..6 {
+        std::fs::write(s.root.join(format!("n{i}.md")), doc(&format!("普通{i}"))).unwrap();
+        std::fs::write(
+            s.root.join(format!("t{i}.csv")),
+            format!("名称,数量\n甲{i},{i}\n乙{i},{}\n", i + 1),
+        )
+        .unwrap();
+    }
+    s.register_drive().await;
+    // The "poison": every worker that touches this file dies. A thread kills
+    // the sidecar's workers for as long as the file is being parsed.
+    let name = s.sidecar.name.clone().unwrap();
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let killer = {
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            let mut kills = 0;
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                kills += sidecar_support::kill_workers_in(&name);
+                std::thread::sleep(Duration::from_millis(400));
+            }
+            kills
+        })
+    };
+    let t0 = std::time::Instant::now();
+    wait_for("poison.pdf is quarantined", 300, || async {
+        let (st, code, _) = state_of(&s.pool, "poison.pdf").await;
+        st == "parse_failed" && code.as_deref() == Some("DOCS_PARSE_QUARANTINED")
+    })
+    .await;
+    let elapsed = t0.elapsed();
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    let kills = killer.join().unwrap();
+    wait_for("the others publish", 120, || async {
+        published(&s.pool, "n%.md").await == 6 && published(&s.pool, "t%.csv").await == 6
+    })
+    .await;
+    let (jstate, attempt, crashes): (String, i32, i32) = sqlx::query_as(
+        "SELECT state, attempt, crash_count FROM _oo_docs.job WHERE kind = 'parse' \
+          AND file_id = (SELECT id FROM _oo_docs.file WHERE path = 'poison.pdf') \
+          ORDER BY created_at DESC LIMIT 1",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    eprintln!(
+        "poison: job {jstate} attempt {attempt} crashes {crashes}, {kills} worker kills, {elapsed:?}"
+    );
+    assert_eq!(jstate, "quarantined");
+    assert!(
+        attempt <= 3 && crashes >= 2,
+        "at most 3 attempts: attempt {attempt}, crashes {crashes}"
+    );
+    // Throughput of the others: none of them needed more than one parse job.
+    let extra: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM (SELECT file_id FROM _oo_docs.job WHERE kind = 'parse' \
+           AND file_id IN (SELECT id FROM _oo_docs.file WHERE path <> 'poison.pdf') \
+           GROUP BY file_id HAVING count(*) > 1) x",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(extra, 0, "no other file was retried");
+    assert_no_stuck_jobs(&s.pool).await;
+    s.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT, docker and OO_DOCS_TEST_PG_CONTAINER (the labelled postgres container)"]
+async fn postgres_restarted_under_a_running_engine_loses_nothing() {
+    let container = std::env::var("OO_DOCS_TEST_PG_CONTAINER")
+        .expect("OO_DOCS_TEST_PG_CONTAINER names the postgres container");
+    let db = "f_pg_restart";
+    {
+        let _g = common::CLUSTER_LOCK.lock().await;
+        installed_db(db).await;
+    }
+    let state = std::env::temp_dir().join(format!("oo-docs-pg-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let root = state.join("drive");
+    std::fs::create_dir_all(&root).unwrap();
+    for i in 0..60 {
+        std::fs::write(root.join(format!("n{i:02}.md")), doc(&format!("普通{i}"))).unwrap();
+    }
+    for i in 0..10 {
+        std::fs::write(
+            root.join(format!("t{i}.csv")),
+            format!("名称,数量\n甲{i},{i}\n"),
+        )
+        .unwrap();
+    }
+    let mut engine =
+        common::engine::ChildEngine::spawn(env!("CARGO_BIN_EXE_oo-docs-engine"), db, &state, &[]);
+    let pool = pool_runtime(db, 4).await;
+    let r = call(
+        &engine.addr.to_string(),
+        "POST",
+        "/v1/docs/drives",
+        Some(&json!({"name": "pg", "backend": "fs", "config": {"root": root.to_str().unwrap()}})),
+    )
+    .await;
+    assert_eq!(r.status, 201);
+    wait_for("some files published", 60, || async {
+        published(&pool, "%").await >= 8
+    })
+    .await;
+    // Cut every connection, then stop the server for a few seconds.
+    let admin = pool_admin(db, 2).await;
+    let _ = sqlx::query(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+          WHERE usename = 'oo_docs_it_runtime_login' AND pid <> pg_backend_pid()",
+    )
+    .execute(&admin)
+    .await;
+    admin.close().await;
+    pool.close().await;
+    let t_down = std::time::Instant::now();
+    let (ok, out) = sidecar_support::docker(&["restart", "-t", "1", &container]);
+    assert!(ok, "docker restart: {out}");
+    eprintln!("postgres restarted in {:?}", t_down.elapsed());
+    // Wait for the server to accept connections again.
+    let mut up = false;
+    for _ in 0..120 {
+        if sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .connect_with(
+                sqlx::postgres::PgConnectOptions::new()
+                    .host(
+                        &std::env::var("OO_DOCS_TEST_PG_HOST")
+                            .unwrap_or_else(|_| "127.0.0.1".into()),
+                    )
+                    .port(
+                        std::env::var("OO_DOCS_TEST_PG_PORT")
+                            .unwrap()
+                            .parse()
+                            .unwrap(),
+                    )
+                    .username(common::RUNTIME_LOGIN)
+                    .database(db)
+                    .ssl_mode(sqlx::postgres::PgSslMode::Disable),
+            )
+            .await
+            .is_ok()
+        {
+            up = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    assert!(up, "postgres came back");
+    let pool = pool_runtime(db, 4).await;
+    wait_for("all 70 files publish after the restart", 180, || async {
+        published(&pool, "%").await == 70
+    })
+    .await;
+    assert!(
+        engine.child.try_wait().unwrap().is_none(),
+        "the engine survived"
+    );
+    let r = call(&engine.addr.to_string(), "GET", "/livez", None).await;
+    assert!(r.status == 200 || r.status == 204, "livez {}", r.status);
+    assert_no_stuck_jobs(&pool).await;
+    let (n, max): (i64, i64) = sqlx::query_as("SELECT count(*), max(seq) FROM _oo_docs.event")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(n, max, "events are gap free");
+    let unfinished: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE state IN ('running', 'queued') AND kind IN ('parse', 'extract_rules', 'hash')",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(unfinished, 0, "no pipeline job left unfinished");
+    let _ = engine.child.kill();
+    pool.close().await;
+    let _ = std::fs::remove_dir_all(&state);
+    common::drop_db(db).await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_file_still_being_written_is_hashed_once_when_it_stops_changing() {
+    let db = "f_half_written";
+    {
+        let _g = common::CLUSTER_LOCK.lock().await;
+        installed_db(db).await;
+    }
+    let state = std::env::temp_dir().join(format!("oo-docs-half-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let root = state.join("drive");
+    std::fs::create_dir_all(&root).unwrap();
+    for i in 0..4 {
+        std::fs::write(root.join(format!("n{i}.md")), doc(&format!("普通{i}"))).unwrap();
+    }
+    let engine =
+        common::engine::ChildEngine::spawn(env!("CARGO_BIN_EXE_oo-docs-engine"), db, &state, &[]);
+    let pool = pool_runtime(db, 4).await;
+    // A writer that appends every 700 ms for about 7 s: shorter than the 2 s
+    // settle window is never quiet long enough.
+    let path = root.join("growing.md");
+    let writer = {
+        let path = path.clone();
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let mut f = std::fs::File::create(&path).unwrap();
+            f.write_all("# 在写的文件\n\n".as_bytes()).unwrap();
+            for i in 0..10 {
+                std::thread::sleep(Duration::from_millis(700));
+                writeln!(f, "第{i}段：林川负责星火计划。\n").unwrap();
+                f.flush().unwrap();
+            }
+            std::fs::metadata(&path).unwrap().len()
+        })
+    };
+    std::thread::sleep(Duration::from_millis(300));
+    let r = call(
+        &engine.addr.to_string(),
+        "POST",
+        "/v1/docs/drives",
+        Some(&json!({"name": "half", "backend": "fs", "config": {"root": root.to_str().unwrap()}})),
+    )
+    .await;
+    assert_eq!(r.status, 201);
+    let final_len = writer.join().unwrap();
+    wait_for("the growing file publishes", 90, || async {
+        state_of(&pool, "growing.md").await.0 == "published"
+    })
+    .await;
+    let (versions, size, hashed_size): (i64, i64, i64) = sqlx::query_as(
+        "SELECT (SELECT count(*) FROM _oo_docs.file_version v WHERE v.file_id = f.id), \
+                b.size, $2::bigint \
+           FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+           JOIN _oo_docs.blob b ON b.b3 = fv.b3 WHERE f.path = 'growing.md'",
+    )
+    .bind("")
+    .bind(final_len as i64)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    eprintln!("growing.md: {versions} version(s), blob {size} bytes, final size {final_len}");
+    assert_eq!(versions, 1, "never hashed half way");
+    assert_eq!(size as u64, final_len, "the blob is the finished file");
+    let _ = hashed_size;
+    assert_eq!(
+        published(&pool, "n%.md").await,
+        4,
+        "the others were not held up"
+    );
+    drop(engine);
+    pool.close().await;
+    let _ = std::fs::remove_dir_all(&state);
+    common::drop_db(db).await;
+}
+
+/// Python fault proxy as a child process.
+struct Proxy {
+    child: Child,
+    control: u16,
+    listen: u16,
+}
+
+impl Proxy {
+    fn start(upstream: &str) -> Proxy {
+        let listen = sidecar_support::free_port();
+        let control = sidecar_support::free_port();
+        let script = sidecar_support::testing_root().join("faultproxy/faultproxy.py");
+        let mut child = Command::new("python3")
+            .arg("-I")
+            .arg("-B")
+            .arg(script)
+            .args(["--listen", &format!("127.0.0.1:{listen}")])
+            .args(["--upstream", upstream])
+            .args(["--control", &format!("127.0.0.1:{control}")])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("python3");
+        let mut line = String::new();
+        BufReader::new(child.stdout.as_mut().unwrap())
+            .read_line(&mut line)
+            .unwrap();
+        assert!(line.contains("ready"), "{line}");
+        Proxy {
+            child,
+            control,
+            listen,
+        }
+    }
+
+    fn mode(&self, query: &str) -> String {
+        use std::io::{Read, Write};
+        let mut s = std::net::TcpStream::connect(("127.0.0.1", self.control)).unwrap();
+        write!(
+            s,
+            "POST /mode?{query} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+        let mut out = String::new();
+        s.read_to_string(&mut out).unwrap();
+        out
+    }
+}
+
+impl Drop for Proxy {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT and docker (oo-docs-parser:dev)"]
+async fn a_sidecar_that_answers_5xx_holds_only_its_own_formats() {
+    let mut s = Stack::start("f_sidecar_5xx", 2).await;
+    let proxy = Proxy::start(&s.sidecar.addr);
+    proxy.mode("name=status&status=503");
+    s.parser_url = Some(format!("http://127.0.0.1:{}", proxy.listen));
+    s.engine.take();
+    s.spawn_engine(&[]);
+    let docx = walk_ext(&sidecar_support::testing_root().join("golden/docs"), "docx");
+    std::fs::copy(&docx, s.root.join("a.docx")).unwrap();
+    for i in 0..6 {
+        std::fs::write(s.root.join(format!("n{i}.md")), doc(&format!("普通{i}"))).unwrap();
+    }
+    s.register_drive().await;
+    wait_for(
+        "markdown publishes while the sidecar answers 503",
+        90,
+        || async { published(&s.pool, "n%.md").await == 6 },
+    )
+    .await;
+    wait_for("a.docx waits with a reason", 60, || async {
+        let (st, _, blocked) = state_of(&s.pool, "a.docx").await;
+        st == "queued" && blocked.as_deref() == Some("parser_unavailable")
+    })
+    .await;
+    let attempts: i32 = sqlx::query_scalar(
+        "SELECT COALESCE(max(attempt), 0) FROM _oo_docs.job WHERE kind = 'parse' \
+          AND file_id = (SELECT id FROM _oo_docs.file WHERE path = 'a.docx')",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    eprintln!("a.docx parse job attempts while the sidecar answers 503: {attempts}");
+    proxy.mode("name=pass");
+    wait_for("a.docx publishes once the sidecar answers", 240, || async {
+        state_of(&s.pool, "a.docx").await.0 == "published"
+    })
+    .await;
+    let (st, _, blocked) = state_of(&s.pool, "a.docx").await;
+    assert_eq!((st.as_str(), blocked), ("published", None));
+    assert_no_stuck_jobs(&s.pool).await;
+    s.finish().await;
+}
+
+fn walk_ext(dir: &std::path::Path, ext: &str) -> std::path::PathBuf {
+    fn find(dir: &std::path::Path, ext: &str) -> Option<std::path::PathBuf> {
+        let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+        entries.sort_by_key(|e| e.path());
+        for e in entries {
+            let p = e.path();
+            if p.is_dir() {
+                if let Some(f) = find(&p, ext) {
+                    return Some(f);
+                }
+            } else if p.extension().is_some_and(|x| x == ext) {
+                return Some(p);
+            }
+        }
+        None
+    }
+    find(dir, ext).unwrap_or_else(|| panic!("no .{ext} under {}", dir.display()))
 }

@@ -13,7 +13,7 @@ use std::time::Duration;
 use oo_docs::api::{self, AppState, FactorySyncPort, auth};
 use oo_docs::config::EngineConfig;
 use oo_docs::health::{DfProbe, HealthProbe};
-use oo_docs::ingest::{FsFactory, handlers, poll};
+use oo_docs::ingest::{AnyFactory, handlers, poll};
 use oo_docs::jobs::scheduler::{Scheduler, SchedulerConfig};
 use oo_docs::jobs::stages;
 use oo_docs::obs;
@@ -138,7 +138,7 @@ async fn run() -> ExitCode {
     let limits = Arc::new(cfg.ingest.clone());
     let sync = Arc::new(FactorySyncPort::new(
         pool.clone(),
-        FsFactory,
+        AnyFactory::from_env(),
         cfg.ingest.clone(),
     ));
     let progress = oo_docs::api::progress::Bus::new();
@@ -165,12 +165,30 @@ async fn run() -> ExitCode {
     let mut sched_cfg = SchedulerConfig::new(&worker_id);
     sched_cfg.concurrency = stages::default_concurrency();
     sched_cfg.concurrency.extend(cfg.concurrency.clone());
-    let mut handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
-    handlers.extend(stages::handlers_with_progress(
+    let sidecar = match &cfg.parser {
+        Some(ep) => match std::fs::read_to_string(&ep.token_file) {
+            Ok(t) if t.trim().len() >= 16 => {
+                Some(Arc::new(oo_docs::parse::sidecar::SidecarClient::new(
+                    oo_docs::parse::sidecar::SidecarConfig::new(ep.addr.clone(), t.trim()),
+                )))
+            }
+            _ => {
+                return fail(
+                    2,
+                    "config.parser_token_unreadable",
+                    "parser token file missing or too short",
+                );
+            }
+        },
+        None => None,
+    };
+    let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
+    handlers.extend(stages::handlers_with_sidecar(
         &pool,
-        Arc::new(FsFactory),
+        Arc::new(AnyFactory::from_env()),
         cas,
         Some(progress),
+        sidecar,
     ));
     // Low disk pauses hashing, parsing and extraction (4.12, G7).
     oo_docs::obs::disk::guard_handlers(

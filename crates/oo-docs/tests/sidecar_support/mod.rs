@@ -35,6 +35,14 @@ pub fn docker(args: &[&str]) -> (bool, String) {
     (out.status.success(), text.trim().to_owned())
 }
 
+/// A free loopback port (bound and released; a race is possible but unlikely).
+pub fn free_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .map(|a| a.port())
+        .expect("a free port")
+}
+
 pub struct Sidecar {
     pub name: Option<String>,
     pub addr: String,
@@ -71,6 +79,9 @@ impl Sidecar {
         let name = format!("oo-be2-sidecar-{}-{nanos}", std::process::id());
         let token = format!("test-token-{nanos}");
         let label = format!("oo.lane={LANE}");
+        // A fixed host port, so the address survives `docker kill` + `start`.
+        let port = free_port();
+        let publish = format!("127.0.0.1:{port}:7481");
         let workers_env = format!("OO_PARSER_WORKERS={workers}");
         let token_env = format!("OO_PARSER_TOKEN={token}");
         let (ok, out) = docker(&[
@@ -81,7 +92,7 @@ impl Sidecar {
             "--label",
             &label,
             "-p",
-            "127.0.0.1:0:7481",
+            &publish,
             "--read-only",
             "--cap-drop",
             "ALL",
@@ -106,13 +117,6 @@ impl Sidecar {
             &image,
         ]);
         assert!(ok, "docker run failed: {out}");
-        let (_, port) = docker(&["port", &name, "7481/tcp"]);
-        let port = port
-            .lines()
-            .next()
-            .and_then(|l| l.rsplit(':').next())
-            .unwrap_or("")
-            .to_owned();
         let s = Sidecar {
             name: Some(name),
             addr: format!("127.0.0.1:{port}"),
@@ -141,6 +145,14 @@ impl Sidecar {
     /// SIGKILL every parse worker (children of the fork server), keeping the
     /// HTTP process and the fork server alive. Returns how many were killed.
     pub fn kill_workers(&self) -> usize {
+        let name = self.name.as_ref().expect("needs an owned container");
+        kill_workers_in(name)
+    }
+}
+
+/// [`Sidecar::kill_workers`] by container name (usable from another thread).
+pub fn kill_workers_in(name: &str) -> usize {
+    {
         let script = r#"
 import os, signal
 procs = {}
@@ -160,7 +172,6 @@ for p, (pp, c) in procs.items():
         os.kill(p, signal.SIGKILL); killed += 1
 print(killed)
 "#;
-        let name = self.name.as_ref().expect("needs an owned container");
         let (ok, out) = docker(&["exec", name, "python", "-c", script]);
         assert!(ok, "exec failed: {out}");
         out.lines().last().and_then(|l| l.parse().ok()).unwrap_or(0)
@@ -168,6 +179,20 @@ print(killed)
 }
 
 impl Sidecar {
+    /// `docker kill` the container (the main process dies with it).
+    pub fn kill(&self) {
+        let name = self.name.as_ref().expect("needs an owned container");
+        let (ok, out) = docker(&["kill", name]);
+        assert!(ok, "kill failed: {out}");
+    }
+
+    /// `docker start` it again (same name, same published port).
+    pub fn start_again(&self) {
+        let name = self.name.as_ref().expect("needs an owned container");
+        let (ok, out) = docker(&["start", name]);
+        assert!(ok, "start failed: {out}");
+    }
+
     /// Kill workers as soon as one exists (the slot is taken before the child
     /// is forked), giving up after `within`.
     pub fn kill_workers_soon(&self, within: Duration) -> usize {

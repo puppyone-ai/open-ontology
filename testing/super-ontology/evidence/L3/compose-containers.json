@@ -17,7 +17,7 @@
    "oo.lane": "super-ontology-be2"
   },
   "networks": [
-   "oo-docs-1d9ad8cb2b28_docs-internal"
+   "oo-docs-6feaf889d45b_docs-internal"
   ]
  },
  "docs-db": {
@@ -38,7 +38,7 @@
    "oo.lane": "super-ontology-be2"
   },
   "networks": [
-   "oo-docs-1d9ad8cb2b28_docs-internal"
+   "oo-docs-6feaf889d45b_docs-internal"
   ]
  },
  "docs-engine": {
@@ -54,13 +54,13 @@
     "no-new-privileges:true"
    ]
   },
-  "image": "sha256:ad577c6a286a6c5eaebeefb97070dc39d553c3846af444fec922d649eb3e13ab",
+  "image": "sha256:f47753b83746bd2e9bc7a82b6a9f9991a83125a273e471ba82264c52c15ed081",
   "labels": {
    "oo.lane": "super-ontology-be2"
   },
   "networks": [
-   "oo-docs-1d9ad8cb2b28_docs-egress",
-   "oo-docs-1d9ad8cb2b28_docs-internal"
+   "oo-docs-6feaf889d45b_docs-egress",
+   "oo-docs-6feaf889d45b_docs-internal"
   ]
  }
 }

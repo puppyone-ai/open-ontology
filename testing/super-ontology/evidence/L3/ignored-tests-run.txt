@@ -1,0 +1,27 @@
+# `cargo test -p oo-docs --locked --features failpoints -- --ignored --test-threads=1` (PostgreSQL 17.11 container, doc-parser image, 2026-11-17)
+# First run on 152a96666 (all targets, results below); the three failures of that run were fixed and re-run:
+#   ingest_fs 14/14 and jobs_live 11/11 (cda7592ae: tests expect the waiting state; PG needs track_commit_timestamp=on),
+#   freshness_live 3/3 (f4bfb7463), faults 9/9 (254 s, see faults-run.txt).
+
+tests/api_live.rs                  ok: 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.81s
+tests/conformance_jobs.rs          ok: 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+tests/contract.rs                  ok: 3 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.83s
+tests/disk_guard_live.rs           ok: 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.76s
+tests/faults.rs                    ok: 9 passed; 0 failed; finished in 254.38s (re-run, fixed host port)
+tests/files_api_live.rs            ok: 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.83s
+tests/freshness_live.rs            ok: 3 passed; 0 failed (re-run after f4bfb7463, one test added)
+tests/ingest_fs.rs                 ok: 14 passed; 0 failed (re-run after cda7592ae)
+tests/install.rs                   ok: 8 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.41s
+tests/jobs_live.rs                 ok: 11 passed; 0 failed (re-run with track_commit_timestamp=on)
+tests/l3_routing.rs                ok: 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 228.83s
+tests/latency.rs                   ok: 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.65s
+tests/log_redaction.rs             ok: 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.28s
+tests/normalize_docling.rs         ok: 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+tests/parse_child.rs               ok: 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+tests/parse_tabular.rs             ok: 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+tests/pipeline_live.rs             ok: 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.72s
+tests/publish_live.rs              ok: 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+tests/sidecar_formats.rs           ok: 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 190.49s
+tests/sidecar_supervision.rs       ok: 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.18s
+tests/state_contract.rs            ok: 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+tests/state_live.rs                ok: 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.74s

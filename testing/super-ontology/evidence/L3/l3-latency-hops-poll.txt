@@ -1,0 +1,7 @@
+extracting 3.14
+indexed 3.15
+parsed 2.64
+parsing 2.64
+published 4.84
+queued 2.29
+stored 0.00

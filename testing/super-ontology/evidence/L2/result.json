@@ -1,15 +1,15 @@
 {
-  "run_id": "so-l2-close",
+  "run_id": "l2-resume",
   "status": "pass",
-  "git_head": "eb1350af4f795a8b049563a883f72e14ff555a6c",
+  "git_head": "cda7592aeb341f7837dd5b7dc2b1c572ea63b2f3",
   "binaries_sha256": {
-    "oo": "bba80fffc3d0146cc39fbce9313ded0054a2ba977d4b010d3857be6c40a9f7e7",
-    "oo-docs-engine": "7e0f0035b80ffecd7b92cd9922e6c4dc1d846615e20ef79d05ce7efb1bd46b8b"
+    "oo": "19c996b3629a132b2209d0c2aab3bb8a0f7134f96a8bed9a13d3b79fb0e42661",
+    "oo-docs-engine": "176698fb69a279931f9cf75d83b739f790b385f3682a2aa20ce0cfa2c12cb6bf"
   },
   "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
   "timings": {
-    "acceptance1_all_published_seconds": 6.24,
-    "acceptance5_edit_to_brief_seconds": 3.82
+    "acceptance1_all_published_seconds": 3.72,
+    "acceptance5_edit_to_brief_seconds": 3.79
   },
   "checks": [
     {
@@ -20,7 +20,7 @@
     {
       "check": "schema installed by the engine installer",
       "ok": true,
-      "detail": "{\"addr\":\"127.0.0.1:58082\",\"event\":\"listening\",\"worker\":\"engine/40961/18e8d92941f"
+      "detail": "{\"addr\":\"127.0.0.1:54390\",\"event\":\"listening\",\"worker\":\"engine/81741/18e8eb08fd5"
     },
     {
       "check": "serve proxies the engine health",
@@ -45,7 +45,7 @@
     {
       "check": "A1 within 60s",
       "ok": true,
-      "detail": "6.2s"
+      "detail": "3.7s"
     },
     {
       "check": "A7 the audit saw the listeners of both processes",
@@ -115,7 +115,7 @@
     {
       "check": "A3 SHARE.json lists the pack digest",
       "ok": true,
-      "detail": "92206afe3156b24b..."
+      "detail": "ef79eae80a86b064..."
     },
     {
       "check": "A5 BRIEF changed after the edit",
@@ -135,7 +135,7 @@
     {
       "check": "A5 every step of the chain was announced as a file.state_changed event",
       "ok": true,
-      "detail": "8 events after cursor 152"
+      "detail": "8 events after cursor 151"
     },
     {
       "check": "A5 a new mount's BRIEF differs and shows the new owner",
@@ -155,7 +155,7 @@
     {
       "check": "A4 the event log has no gap",
       "ok": true,
-      "detail": "1..174"
+      "detail": "1..171"
     },
     {
       "check": "A4 health reports the engine unavailable while it is down",
@@ -190,7 +190,7 @@
     {
       "check": "A4 the replay since the old cursor is gap free",
       "ok": true,
-      "detail": "89..190 (102 events)"
+      "detail": "87..188 (102 events)"
     },
     {
       "check": "A4 the replay ends at the head",

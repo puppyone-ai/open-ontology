@@ -198,3 +198,45 @@ async fn health_summarises_the_highest_state_of_all_drives() {
     assert_eq!(health_state(&e).await, "up_to_date");
     e.finish().await;
 }
+
+/// The review queue is not maintained on `file.pending_review` yet, so a
+/// pending review item of the Drive counts by itself (D48).
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_pending_review_item_alone_means_waiting_review() {
+    let e = TestEngine::start(
+        "fresh_review_item",
+        Opts {
+            workers: true,
+            watcher: true,
+            ..Opts::default()
+        },
+    )
+    .await;
+    e.write("a.md", "# a\n");
+    let drive = e.create_drive("review").await;
+    let id = drive["id"].as_str().unwrap().to_owned();
+    wait_state(&e, &id, "processing").await;
+    sqlx::query("UPDATE _oo_docs.file SET state = 'published'")
+        .execute(&e.pool)
+        .await
+        .unwrap();
+    wait_state(&e, &id, "up_to_date").await;
+    sqlx::query(
+        "INSERT INTO _oo_docs.review_item (id, kind, dedupe_key, drive_id, subject, reason_code) \
+         VALUES (gen_random_uuid(), 'alias_conflict', 'alias_conflict:test:x', $1::uuid, \
+                 '{}'::jsonb, 'alias_tie')",
+    )
+    .bind(&id)
+    .execute(&e.pool)
+    .await
+    .unwrap();
+    wait_state(&e, &id, "waiting_review").await;
+    assert_eq!(drive_state(&e, &id).await["pending_review"], 1);
+    sqlx::query("UPDATE _oo_docs.review_item SET status = 'accepted'")
+        .execute(&e.pool)
+        .await
+        .unwrap();
+    wait_state(&e, &id, "up_to_date").await;
+    e.finish().await;
+}

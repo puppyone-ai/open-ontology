@@ -1,0 +1,24 @@
+# cell docs-rustfs: rustfs/rustfs 1.0.6 (arm64 and amd64 index digest)
+# image rustfs/rustfs@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
+# started 2026-11-17T14:04:36
+$ cargo test -p oo-connectors --features objectstore-s3 --locked --test s3_rustfs -- --ignored --test-threads=1 --nocapture
+test a_changed_object_is_a_412_and_the_download_starts_over ... ok
+test a_multipart_object_has_a_tag_that_is_not_its_md5 ... ok
+test a_wrong_secret_is_auth_failed_and_nothing_leaks ... ok
+test an_object_rewritten_mid_stream_is_changed_not_mixed_bytes ... ok
+test listing_is_paged_complete_and_skips_what_the_drive_skips ... ok
+test stat_and_read_match_what_was_written ... ok
+test the_probe_reports_what_the_store_does ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.60s
+multipart etag shape: 36 (md5 shaped: false)
+single part etag md5 shaped: true
+PROBE Probed { if_match: true, crc64: None, strong_etag: true, versioning: false } capabilities {List, Stat, RangedRead, StrongEtag, ConditionalRead}
+(exit 0)
+$ cargo test -p oo-docs --features objectstore-s3 --locked --test download -- --ignored --test-threads=1 --nocapture
+test a_200_mib_original_streams_into_the_cas_in_under_64_mib ... ok
+test a_download_that_is_not_the_wanted_version_is_changed ... ok
+test an_object_changed_during_the_download_is_downloaded_again ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.52s
+DOWNLOAD 200 MiB in 13.7s, RSS growth 32.7 MiB (base 15 MiB)
+(exit 0)
+# status passed in 38s

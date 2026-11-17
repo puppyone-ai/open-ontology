@@ -31,12 +31,12 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:ad577c6a286a6c5eaebeefb97070dc39d553c3846af444fec922d649eb3e13ab",
+        "image": "sha256:a138833c3bcfb284c67d2813f4fbed6323987fb942140f1fc1a8bc7ab8929f5b",
         "tag": "oo-docs-engine:dev",
-        "size_bytes": 242680936,
+        "size_bytes": 246867991,
         "dockerfile_sha256": "30fdc85b0d8509fd83f3b6c9bf3022c2decf1853db286f63bdb59321d443c290",
         "cargo_lock_sha256": "3a39267b6636fdf1d10435b1c2cf6bd2d14550a4b5563bbd75fc7f0871ebda89",
-        "lane": "super-ontology-be2",
+        "lane": "super-ontology-be1",
         "built": "2026-11-17"
       },
       "linux/amd64": null
