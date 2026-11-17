@@ -216,9 +216,9 @@ class Lab:
     def drive(self, drive_id=None):
         return self.req("GET", f"/v1/docs/drives/{drive_id or self.drive_id}")
 
-    def sync(self, paths=None, drive_id=None):
+    def sync(self, paths=None, drive_id=None, ok=(200, 201, 202, 204)):
         body = {"paths": paths} if paths else {}
-        return self.req("POST", f"/v1/docs/drives/{drive_id or self.drive_id}:sync", body)
+        return self.req("POST", f"/v1/docs/drives/{drive_id or self.drive_id}:sync", body, ok=ok)
 
     def kill_sidecar_workers(self):
         r = comp.exec_py(self.sidecar_id(), KILL_WORKERS)
@@ -465,11 +465,11 @@ def phase_reuse(ev, lab):
     ok = l2.wait_until(240, lambda: cur().get("state") == "published", step=1)
     ev.check("the docx is published", bool(ok), str(cur().get("state")))
     b3a = cur().get("b3")
-    facts_a = lab.psql("SELECT count(DISTINCT e.target_id) FROM _oo_docs.evidence e JOIN _oo_docs.file f ON f.current_version_id = e.version_id WHERE f.path = 'reuse/doc.docx' AND e.target_kind = 'fact' AND e.withdrawn_at IS NULL")
+    facts_a = lab.psql("SELECT count(DISTINCT (e.target_kind, e.target_id)) FROM _oo_docs.evidence e JOIN _oo_docs.file f ON f.current_version_id = e.version_id WHERE f.path = 'reuse/doc.docx' AND e.withdrawn_at IS NULL")
     ev_a = lab.psql("SELECT count(*) FROM _oo_docs.evidence e JOIN _oo_docs.file f ON f.current_version_id = e.version_id WHERE f.path = 'reuse/doc.docx' AND e.withdrawn_at IS NULL")
     rules_a = lab.psql("SELECT count(*) FROM _oo_docs.job j JOIN _oo_docs.file f ON f.id = j.file_id WHERE f.path = 'reuse/doc.docx' AND j.kind = 'extract_rules' AND j.state = 'succeeded'")
     retracted_a = lab.psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'")
-    ev.check("the first version has facts with evidence", int(facts_a) > 0 and int(ev_a) > 0, f"{facts_a} facts, {ev_a} evidence rows")
+    ev.check("the first version has entities, aliases or facts with evidence", int(facts_a) > 0 and int(ev_a) > 0, f"{facts_a} targets, {ev_a} evidence rows")
     formatted = docx_format_only(base)
     ev.check("the new file differs in bytes", hashlib.sha256(formatted).digest() != hashlib.sha256(base).digest())
     put(lab.root, "reuse/doc.docx", formatted)
@@ -484,11 +484,10 @@ def phase_reuse(ev, lab):
     ev.check("no fact was retracted", retracted_b == retracted_a, f"{retracted_a} -> {retracted_b}")
     # the same file with a changed word is extracted again (control)
     changed = variants.vary("docx", formatted, 9701)
+    b3b = cur().get("b3")
     put(lab.root, "reuse/doc.docx", changed)
-    ok = l2.wait_until(240, lambda: cur().get("state") == "published" and cur().get("b3") not in (None, b3a), step=1)
-    b3c = cur().get("b3")
-    ok = l2.wait_until(240, lambda: cur().get("b3") != b3c or True, step=1)
-    time.sleep(3)
+    ok = l2.wait_until(240, lambda: cur().get("state") == "published" and cur().get("b3") not in (None, b3a, b3b), step=1)
+    ev.check("the changed docx is published as a third version", bool(ok), str(cur().get("state")))
     detail2 = lab.psql("SELECT h.detail::text FROM _oo_docs.file_state_history h JOIN _oo_docs.file f ON f.id = h.file_id WHERE f.path = 'reuse/doc.docx' AND h.to_state = 'indexed' ORDER BY h.seq DESC LIMIT 1")
     ev.check("control: a changed word is extracted again (no reused_from)", "reused_from" not in detail2, detail2[:100])
 
@@ -548,7 +547,7 @@ def phase_targeted(ev, lab):
     for attempt in range(1, 5):
         gen0 = lab.psql(f"SELECT sync_generation FROM _oo_docs.drive WHERE id = '{lab.drive_id}'")
         polls0 = lab.psql(f"SELECT count(*) FROM _oo_docs.drive_sync WHERE drive_id = '{lab.drive_id}'")
-        victim = f"golden/{sorted(p.name for p in (GOLDEN / 'Notes').iterdir())[0]}" if (GOLDEN / "Notes").is_dir() else None
+        victim = f"golden/Notes/{sorted(p.name for p in (GOLDEN / 'Notes').iterdir())[0]}" if (GOLDEN / "Notes").is_dir() else None
         if not victim or not (lab.root / victim).exists():
             ev.check("a golden file exists to delete", False, str(victim))
             return
@@ -595,32 +594,52 @@ def freshness_seen(lab):
 def phase_fresh(ev, lab):
     ev.log("\n## acceptance 9: the seven freshness states")
     held_id = lab.held_id
-    drive = lab.drive(held_id)
-    ev.log("  freshness now: " + json.dumps(drive.get("freshness")))
-    # held: delete every file of the small drive at once (mass delete), then confirm
+    ev.log("  freshness now: " + json.dumps(lab.drive(held_id).get("freshness")))
+
+    def sync_raw(drive_id, body=None):
+        return lab.api.request("POST", f"/v1/docs/drives/{drive_id}:sync", body or {}, timeout=60)
+
+    def fstate(drive_id):
+        return (lab.drive(drive_id).get("freshness") or {}).get("state")
+
+    # waiting_review: two people share an alias and a third file mentions it,
+    # so the resolver queues an alias_conflict review item (10 4.7)
+    put(lab.root, "review/周一.md", "---\naliases: [小周]\n---\n# 周一\n")
+    put(lab.root, "review/周二.md", "---\naliases: [小周]\n---\n# 周二\n")
+    l2.wait_until(120, lambda: all(lab.states("review").get(f"review/{n}.md", {}).get("state") == "published" for n in ("周一", "周二")), step=1)
+    time.sleep(4)
+    put(lab.root, "review/项目丙.md", "# 项目丙\n\n成员：小周\n")
+    waiting = l2.wait_until(120, lambda: fstate(lab.drive_id) == "waiting_review", step=1)
+    ev.check("waiting_review: an unresolved alias tie leaves a review item", bool(waiting), json.dumps(lab.drive(lab.drive_id).get("freshness")))
+    # degraded: the root goes away, the sync fails, freshness says so
     n0 = len(lab.states("", held_id))
-    for p in sorted(lab.held_root.glob("*.md")):
-        p.unlink()
-    lab.sync(drive_id=held_id)
-    held = l2.wait_until(90, lambda: (lab.drive(held_id).get("freshness") or {}).get("state") == "held", step=0.5)
-    ev.check("held: deleting every file of a Drive at once is held", bool(held), json.dumps(lab.drive(held_id).get("freshness")))
-    # degraded: the root goes away
-    for i in range(n0):
-        put(lab.held_root, f"h{i:03d}.md", f"# 文件{i}\n\n内容{i}\n")
     moved = lab.held_root.with_name("held.off")
     lab.held_root.rename(moved)
-    lab.sync(drive_id=held_id)
-    deg = l2.wait_until(90, lambda: (lab.drive(held_id).get("freshness") or {}).get("state") in ("degraded", "held"), step=0.5)
-    fr = lab.drive(held_id).get("freshness")
-    ev.log("  after the root was removed: " + json.dumps(fr))
+    sync_raw(held_id)
+    deg = l2.wait_until(90, lambda: fstate(held_id) == "degraded", step=0.5)
+    ev.check("degraded: a missing root is degraded and nothing is swept", bool(deg), json.dumps(lab.drive(held_id).get("freshness")))
+    ev.check("degraded: the files are still listed", len(lab.states("", held_id)) == n0, f"{n0} files")
     moved.rename(lab.held_root)
-    lab.sync(drive_id=held_id)
-    back = l2.wait_until(180, lambda: (lab.drive(held_id).get("freshness") or {}).get("state") == "up_to_date", step=1)
-    ev.check("the Drive recovers to up_to_date once the root is back and files exist", bool(back), json.dumps(lab.drive(held_id).get("freshness")))
+    sync_raw(held_id)
+    back = l2.wait_until(120, lambda: fstate(held_id) == "up_to_date", step=1)
+    ev.check("degraded: the Drive recovers by itself when the root is back", bool(back), json.dumps(lab.drive(held_id).get("freshness")))
+    # held: delete every file at once; the sweep waits for confirmation
+    for p in sorted(lab.held_root.glob("*.md")):
+        p.unlink()
+    st, body = sync_raw(held_id)
+    ev.check("held: the sync answers 422 DOCS_SOURCE_MASS_DELETE_HELD", st == 422 and body.get("code") == "DOCS_SOURCE_MASS_DELETE_HELD", f"HTTP {st} {json.dumps(body.get('details'))}")
+    held = l2.wait_until(90, lambda: fstate(held_id) == "held", step=0.5)
+    ev.check("held: freshness says held", bool(held), json.dumps(lab.drive(held_id).get("freshness")))
+    ev.check("held: nothing was swept", len(lab.states("", held_id)) == n0, f"{n0} files still listed")
+    gen = (body.get("details") or {}).get("generation")
+    st2, body2 = sync_raw(held_id, {"confirm_mass_delete": gen})
+    ev.check("held: the confirmation lets the sweep through", st2 in (200, 201, 202), f"HTTP {st2}")
+    gone = l2.wait_until(120, lambda: len(lab.states("", held_id)) == 0 and fstate(held_id) == "up_to_date", step=1)
+    ev.check("held: after the confirmation the files are deleted and the Drive is up to date", bool(gone), json.dumps(lab.drive(held_id).get("freshness")))
     seen = freshness_seen(lab)
     ev.log("  freshness states seen in events: " + ",".join(sorted(seen)))
-    for s in ("up_to_date", "syncing", "processing", "publishing", "waiting_review", "degraded", "held"):
-        ev.check(f"freshness {s} was observed", s in seen, "")
+    for st_name in ("up_to_date", "syncing", "processing", "publishing", "waiting_review", "degraded", "held"):
+        ev.check(f"freshness {st_name} was observed", st_name in seen, "")
 
 
 def main():
