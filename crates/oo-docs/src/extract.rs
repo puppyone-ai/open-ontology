@@ -7,6 +7,7 @@
 //! `publish::write`; binding mentions to stored entities is `resolve`.
 //! The LLM supplement (5.2) is a later card.
 
+pub mod confidence;
 pub mod model;
 pub mod rules;
 
