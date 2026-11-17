@@ -190,6 +190,7 @@ async fn run() -> ExitCode {
         },
         None => None,
     };
+    let cas_for_retention = cas.clone();
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
     handlers.extend(stages::handlers_with_model(
         &pool,
@@ -218,6 +219,12 @@ async fn run() -> ExitCode {
         obs::log("info", "files.outdated", json!({ "count": n }));
     }
     let tasks = vec![
+        oo_docs::store::retention::spawn(
+            pool.clone(),
+            cas_for_retention,
+            oo_docs::store::retention::SWEEP_EVERY,
+            stop_rx.clone(),
+        ),
         stages::spawn_pump_guarded(
             pool.clone(),
             app.wake.clone(),
