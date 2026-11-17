@@ -154,6 +154,8 @@ Contract-Version: docs-api/1.1
 
 这样，任何一个闭环都能用标签一步回到“两边当时签收的确切版本”。
 
+> D80：阶段一的签收只涉及 OO（`super-ontology/L<n>`）；阶段二 Desktop 会合时在 Puppyone 打本地 `super-drive/L<n>`，证据追加到 `evidence/L<n>/desktop/`（30 §7）。
+
 ## 8. 回滚与修复
 
 - 已推送的提交只用 `git revert` 撤回，不改写历史。revert 提交保留原提交的 `Plan:`，并写清原因。
