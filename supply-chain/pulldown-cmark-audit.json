@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "pulldown-cmark",
+    "version": "0.13.6",
+    "official_source": "https://crates.io/crates/pulldown-cmark/0.13.6",
+    "repository": "https://github.com/raphlinus/pulldown-cmark",
+    "manifests": [
+      "crates/oo-docs/Cargo.toml"
+    ],
+    "publication_date": "2026-10-30T08:50:18Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 18,
+    "seven_day_rule": "pass",
+    "msrv": "1.71.1; not above workspace rust-version 1.94.0, so no MSRV raise",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "supply-chain/licenses/super-ontology-s1/pulldown-cmark-0.13.6/LICENSE",
+        "sha256": "c4f10f55904bdb9f27d3fbf94c354926d6cfe8b982276e556238c258941b243b"
+      }
+    ],
+    "digest": "sha256:3db2be46835f013dd3f4fa7f5f7402c537787b54ebb6fe2b94bbdd7e2669bb7b",
+    "features_enabled": [],
+    "native_build": true,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": true,
+    "direct_manifest_default_features_disabled": true,
+    "notes": "default-features off: no html renderer, no getopts CLI, no simd. Parser only. build.rs is a no-op unless the gen-tests feature is on.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "unicase",
+        "version": "2.10.0",
+        "official_source": "https://crates.io/crates/unicase/2.10.0",
+        "repository": "https://github.com/seanmonstar/unicase",
+        "manifests": [
+          "via pulldown-cmark (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-10-05T13:11:23Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 42,
+        "seven_day_rule": "pass",
+        "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/unicase-2.10.0/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/unicase-2.10.0/LICENSE-MIT",
+            "sha256": "4f6bd11a0f17fe5b085ace1daaedb7b002a08316850dd9577c246c6a68a68e8c"
+          }
+        ],
+        "digest": "sha256:357cc3acc6a036009fd6c973ed009037c732d60d0b4f6c673e9041497482a28f",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "Markdown parser (spec 10 section 2.5). New packages: pulldown-cmark, unicase. bitflags and memchr were already locked. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}

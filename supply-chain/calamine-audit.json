@@ -1,0 +1,549 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "calamine",
+    "version": "0.38.0",
+    "official_source": "https://crates.io/crates/calamine/0.38.0",
+    "repository": "https://github.com/tafia/calamine",
+    "manifests": [
+      "crates/oo-docs/Cargo.toml"
+    ],
+    "publication_date": "2026-11-02T01:32:22Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 15,
+    "seven_day_rule": "pass",
+    "msrv": "1.88; not above workspace rust-version 1.94.0, so no MSRV raise",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "supply-chain/licenses/super-ontology-s1/calamine-0.38.0/LICENSE-MIT.md",
+        "sha256": "f0cf9b1c62bbe3bd3a69f5f79c7158f513f612b4940a0a812d1db39d605318bc"
+      }
+    ],
+    "digest": "sha256:f431b67cba6122a1f7d26b7adafc71bbdf07026095fe811f5efc025d8748e1d8",
+    "features_enabled": [],
+    "native_build": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": true,
+    "direct_manifest_default_features_disabled": true,
+    "notes": "default-features off (the crate has none). calamine declares zip with features = [\"deflate\"] and default-features = false; that feature pulls flate2 with zlib-rs and zopfli (compression-only code, unused for reading). The set cannot be narrowed from this workspace. Spec 10 §2.5 asked for zip and quick-xml to be audited with it; both are records here.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "atoi_simd",
+        "version": "0.18.1",
+        "official_source": "https://crates.io/crates/atoi_simd/0.18.1",
+        "repository": "https://github.com/RoDmitry/atoi_simd",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-02-09T12:24:52Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 280,
+        "seven_day_rule": "pass",
+        "msrv": "1.61; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/atoi_simd-0.18.1/LICENSE-APACHE",
+            "sha256": "18d98423c078c531baafb7ed6248639fca1a45c718f2fd2bbf249c56127b2e3b"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/atoi_simd-0.18.1/LICENSE-MIT",
+            "sha256": "f155f18a8148391a82157dae8f5a300bb32fec6a338ae19dcb52de6f2f3dbe21"
+          }
+        ],
+        "digest": "sha256:f3cdb3708a128e559a30fb830e8a77a5022ee6902806925c216658652b452a44",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "codepage",
+        "version": "0.1.3",
+        "official_source": "https://crates.io/crates/codepage/0.1.3",
+        "repository": "https://github.com/hsivonen/codepage",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-09-12T17:15:28Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 65,
+        "seven_day_rule": "pass",
+        "msrv": "1.36; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/codepage-0.1.3/LICENSE-APACHE",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/codepage-0.1.3/LICENSE-MIT",
+            "sha256": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+          }
+        ],
+        "digest": "sha256:bdff162541cd8b79de82e2edcc7eff3a8c2a6dc3d75152636028f96d93de3b26",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0 OR MIT",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "constant_time_eq",
+        "version": "0.6.1",
+        "official_source": "https://crates.io/crates/constant_time_eq/0.6.1",
+        "repository": "https://codeberg.org/cesarb/constant_time_eq",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-10-01T00:18:04Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 47,
+        "seven_day_rule": "pass",
+        "msrv": "1.66.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT-0 OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/constant_time_eq-0.6.1/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT-0",
+            "source": "supply-chain/licenses/super-ontology-s1/constant_time_eq-0.6.1/LICENSE-MIT0",
+            "sha256": "9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d"
+          }
+        ],
+        "digest": "sha256:9eb6feb175df65d0a3ccd3e73484e940d0ac664e8034f0519fd49a93db3071d9",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "native_build": true,
+        "upstream_manifest_license": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          },
+          {
+            "spdx": "MIT-0",
+            "obligations": [
+              "No attribution is required; the permission text may still be retained."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null,
+        "license_note": "CC0-1.0 alternative is not relied on.",
+        "notes": "build.rs only emits cfg flags (inline_asm_is_stable); no native code."
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "debug_unsafe",
+        "version": "0.1.4",
+        "official_source": "https://crates.io/crates/debug_unsafe/0.1.4",
+        "repository": "https://github.com/RoDmitry/debug_unsafe",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-02-09T12:18:49Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 280,
+        "seven_day_rule": "pass",
+        "msrv": "1.58; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/debug_unsafe-0.1.4/LICENSE-APACHE",
+            "sha256": "8286bf891c9503f40be70ddab1f3b83475d6bda0c5e2004e79928895b3cfa28b"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/debug_unsafe-0.1.4/LICENSE-MIT",
+            "sha256": "81c54baa1c7b9d422b9e28ec26d0d0062480cad4ee5737cacaefc473c6880e1c"
+          }
+        ],
+        "digest": "sha256:7eed2c4702fa172d1ce21078faa7c5203e69f5394d48cc436d25928394a867a2",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "fast-float2",
+        "version": "0.2.4",
+        "official_source": "https://crates.io/crates/fast-float2/0.2.4",
+        "repository": "https://github.com/Alexhuszagh/fast-float-rust",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-08-14T02:30:24Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 95,
+        "seven_day_rule": "pass",
+        "msrv": "1.37; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/fast-float2-0.2.4/LICENSE-APACHE",
+            "sha256": "2aec41511a0274b6841a1d197ca5f8eecefa5f93faeb6dca48f8f9137398fd93"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/fast-float2-0.2.4/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "digest": "sha256:c6e8948ce679d00a02a94739ea185595dca7118ed04feb991127e443bd3d761f",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "quick-xml",
+        "version": "0.42.0",
+        "official_source": "https://crates.io/crates/quick-xml/0.42.0",
+        "repository": "https://github.com/tafia/quick-xml",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-08-22T19:22:01Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 86,
+        "seven_day_rule": "pass",
+        "msrv": "1.86; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/quick-xml-0.42.0/LICENSE-MIT.md",
+            "sha256": "f0cf9b1c62bbe3bd3a69f5f79c7158f513f612b4940a0a812d1db39d605318bc"
+          }
+        ],
+        "digest": "sha256:41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b",
+        "features_enabled": [
+          "default",
+          "encoding",
+          "encoding_rs",
+          "overlapped-lists",
+          "serde",
+          "serialize"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT",
+        "dual_license_choice": null,
+        "relied_on_license": "MIT",
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null,
+        "notes": "Reached from calamine and from opendal-core/reqsign; recorded once here."
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "typed-path",
+        "version": "0.13.0",
+        "official_source": "https://crates.io/crates/typed-path/0.13.0",
+        "repository": "https://github.com/chipsenkbeil/typed-path",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-10-20T03:16:20Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 28,
+        "seven_day_rule": "pass",
+        "msrv": "1.65.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/typed-path-0.13.0/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/typed-path-0.13.0/LICENSE-MIT",
+            "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+          }
+        ],
+        "digest": "sha256:9ce898823d8cd0f028662d2f349694b1af0a5cc9be83f1d213a00d3147445e1e",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "zip",
+        "version": "9.5.0",
+        "official_source": "https://crates.io/crates/zip/9.5.0",
+        "repository": "https://github.com/zip-rs/zip2",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-11-09T00:03:35Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 8,
+        "seven_day_rule": "pass",
+        "msrv": "1.88; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/zip-9.5.0/LICENSE",
+            "sha256": "58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79"
+          }
+        ],
+        "digest": "sha256:0700e6c427aff64acdbf02e85fbfd946c2ee12319d1af013092f3a2178914ff8",
+        "features_enabled": [
+          "_deflate-any",
+          "deflate",
+          "deflate-flate2",
+          "deflate-flate2-zlib-rs",
+          "deflate-zopfli"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT",
+        "dual_license_choice": null,
+        "relied_on_license": "MIT",
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null,
+        "notes": "9.6.1 (published 2026-11-16) and 9.6.0 (2026-11-15) are younger than seven days; 9.5.0 is the newest release that clears the floor. calamine requires zip ^9."
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "zlib-rs",
+        "version": "0.6.8",
+        "official_source": "https://crates.io/crates/zlib-rs/0.6.8",
+        "repository": "https://github.com/trifectatechfoundation/zlib-rs",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-09-15T13:10:00Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 62,
+        "seven_day_rule": "pass",
+        "msrv": "1.75; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Zlib",
+        "license_evidence": [
+          {
+            "spdx": "Zlib",
+            "source": "supply-chain/licenses/super-ontology-s1/zlib-rs-0.6.8/LICENSE",
+            "sha256": "e72111c52b7d96ebe25348dee19f0744f444d3c95ae6b1ecb6ccaecc5bce05ba"
+          }
+        ],
+        "digest": "sha256:b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112",
+        "features_enabled": [
+          "rust-allocator"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Zlib",
+        "dual_license_choice": null,
+        "relied_on_license": "Zlib",
+        "license_obligations": [
+          {
+            "spdx": "Zlib",
+            "obligations": [
+              "Do not misrepresent origin; mark altered source versions and retain this notice."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "zopfli",
+        "version": "0.8.4",
+        "official_source": "https://crates.io/crates/zopfli/0.8.4",
+        "repository": "https://github.com/zopfli-rs/zopfli",
+        "manifests": [
+          "via calamine (crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-10-11T19:45:43Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 36,
+        "seven_day_rule": "pass",
+        "msrv": "1.88.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/zopfli-0.8.4/COPYING",
+            "sha256": "018b1cb87efdf7a04c2fcc13d57ed63f62149113fb207b27ea13430d64f13513"
+          }
+        ],
+        "digest": "sha256:aaf7fc5d30c28483d93805c4a5e12b05bbb52407fa67c5f8bd552374cd01fb11",
+        "features_enabled": [
+          "default",
+          "gzip",
+          "std",
+          "zlib"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "XLSX reader (spec 10 section 2.5). New packages: calamine and its resolved transitive set (11 packages). encoding_rs 0.8.41 was reused. Platform notes: zip pulls nix 0.31.3 (already locked) on unix. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}

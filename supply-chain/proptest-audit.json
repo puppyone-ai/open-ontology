@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "proptest",
+    "version": "1.12.0",
+    "official_source": "https://crates.io/crates/proptest/1.12.0",
+    "repository": "https://github.com/proptest-rs/proptest",
+    "manifests": [
+      "crates/oo-docs/Cargo.toml ([dev-dependencies])"
+    ],
+    "publication_date": "2026-10-10T18:18:05Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 37,
+    "seven_day_rule": "pass",
+    "msrv": "1.88; not above workspace rust-version 1.94.0, so no MSRV raise",
+    "license_spdx": "MIT OR Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "supply-chain/licenses/super-ontology-s1/proptest-1.12.0/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "spdx": "MIT",
+        "source": "supply-chain/licenses/super-ontology-s1/proptest-1.12.0/LICENSE-MIT",
+        "sha256": "d8e0806926ce9f0a5030c382ecc0ffdf6de6fbea5c69a458435fd443fa7a5b92"
+      }
+    ],
+    "digest": "sha256:b8530004ccb15eae51c7e40009fbe317f341f804db54dc033eec1c50be28cfa0",
+    "features_enabled": [
+      "regex-syntax",
+      "std"
+    ],
+    "native_build": false,
+    "upstream_manifest_license": "MIT OR Apache-2.0",
+    "dual_license_choice": "Apache-2.0",
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": true,
+    "direct_manifest_default_features_disabled": true,
+    "notes": "Dev-dependency only; default-features off with feature std (no fork, no timeout, no bit-set, so no rusty-fork or wait-timeout). Never linked into a shipped artifact. Recorded because it changes Cargo.lock.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "rand_xorshift",
+        "version": "0.5.0",
+        "official_source": "https://crates.io/crates/rand_xorshift/0.5.0",
+        "repository": "https://github.com/rust-random/rngs",
+        "manifests": [
+          "via proptest (crates/oo-docs/Cargo.toml ([dev-dependencies]))"
+        ],
+        "publication_date": "2026-02-02T08:15:36Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 288,
+        "seven_day_rule": "pass",
+        "msrv": "1.85; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/rand_xorshift-0.5.0/LICENSE-APACHE",
+            "sha256": "35242e7a83f69875e6edeff02291e688c97caafe2f8902e4e19b49d3e78b4cab"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/rand_xorshift-0.5.0/LICENSE-MIT",
+            "sha256": "209fbbe0ad52d9235e37badf9cadfe4dbdc87203179c0899e738b39ade42177b"
+          }
+        ],
+        "digest": "sha256:60aa6af80be32871323012e02e6e65f8a7cc7890931ae421d217ad8fe0df2ccf",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "unarray",
+        "version": "0.1.4",
+        "official_source": "https://crates.io/crates/unarray/0.1.4",
+        "repository": "https://github.com/cameron1024/unarray",
+        "manifests": [
+          "via proptest (crates/oo-docs/Cargo.toml ([dev-dependencies]))"
+        ],
+        "publication_date": "2022-11-30T17:09:42Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 1447,
+        "seven_day_rule": "pass",
+        "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/unarray-0.1.4/LICENSE-APACHE",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/unarray-0.1.4/LICENSE-MIT",
+            "sha256": "002c2696d92b5c8cf956c11072baa58eaf9f6ade995c031ea635c6a1ee342ad1"
+          }
+        ],
+        "digest": "sha256:eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "Property tests, dev-only. New packages: proptest, rand_xorshift, unarray. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}

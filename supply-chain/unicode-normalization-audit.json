@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "unicode-normalization",
+    "version": "0.1.25",
+    "official_source": "https://crates.io/crates/unicode-normalization/0.1.25",
+    "repository": "https://github.com/unicode-rs/unicode-normalization",
+    "manifests": [
+      "crates/oo-connectors/Cargo.toml",
+      "crates/oo-docs/Cargo.toml"
+    ],
+    "publication_date": "2025-10-30T16:06:38Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 382,
+    "seven_day_rule": "pass",
+    "msrv": "1.36; not above workspace rust-version 1.94.0, so no MSRV raise",
+    "license_spdx": "MIT OR Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "supply-chain/licenses/super-ontology-s1/unicode-normalization-0.1.25/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "spdx": "MIT",
+        "source": "supply-chain/licenses/super-ontology-s1/unicode-normalization-0.1.25/LICENSE-MIT",
+        "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+      }
+    ],
+    "digest": "sha256:5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8",
+    "features_enabled": [
+      "default",
+      "std"
+    ],
+    "native_build": false,
+    "upstream_manifest_license": "MIT OR Apache-2.0",
+    "dual_license_choice": "Apache-2.0",
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "direct_manifest_default_features_disabled": null,
+    "notes": "Already in Cargo.lock before B-S1-07 (oo-connectors). B-S1-07 adds oo-docs as a second manifest selector; no new package, no version change. 0.1.26 exists (2026-10-16, license expression gained Unicode-3.0) and is not adopted: no reason to move a locked, cleared version.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "tinyvec",
+        "version": "1.13.3",
+        "official_source": "https://crates.io/crates/tinyvec/1.13.3",
+        "repository": "https://github.com/Lokathor/tinyvec",
+        "manifests": [
+          "via unicode-normalization (crates/oo-connectors/Cargo.toml; crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-09-13T23:30:12Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 64,
+        "seven_day_rule": "pass",
+        "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+        "license_spdx": "Zlib OR Apache-2.0 OR MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/tinyvec-1.13.3/LICENSE-APACHE.md",
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/tinyvec-1.13.3/LICENSE-MIT.md",
+            "sha256": "fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc"
+          },
+          {
+            "spdx": "Zlib",
+            "source": "supply-chain/licenses/super-ontology-s1/tinyvec-1.13.3/LICENSE-ZLIB.md",
+            "sha256": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151"
+          }
+        ],
+        "digest": "sha256:fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "grab_spare_slice",
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Zlib OR Apache-2.0 OR MIT",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null,
+        "notes": "Already in Cargo.lock before B-S1-07 (reached through unicode-normalization 0.1.25)."
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "Record only: no new package. unicode-normalization 0.1.25 and tinyvec 1.13.3 were already locked; oo-docs becomes a second selector. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}

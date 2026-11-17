@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "blake3",
+    "version": "1.8.7",
+    "official_source": "https://crates.io/crates/blake3/1.8.7",
+    "repository": "https://github.com/BLAKE3-team/BLAKE3",
+    "manifests": [
+      "crates/oo-connectors/Cargo.toml (optional, feature objectstore)",
+      "crates/oo-docs/Cargo.toml"
+    ],
+    "publication_date": "2026-08-20T09:09:56Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 89,
+    "seven_day_rule": "pass",
+    "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+    "license_spdx": "Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "supply-chain/licenses/super-ontology-s1/blake3-1.8.7/LICENSE-Apache-2.0",
+        "sha256": "00fcc7a934ddbc9ece2a7cc063ac788e284b703b1d705ccbba72d462aa97921e"
+      }
+    ],
+    "digest": "sha256:6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae",
+    "features_enabled": [
+      "pure",
+      "std"
+    ],
+    "native_build": true,
+    "upstream_manifest_license": "CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception",
+    "dual_license_choice": null,
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": true,
+    "direct_manifest_default_features_disabled": true,
+    "license_note": "Upstream expression has three alternatives. CC0-1.0 is not an admitted license id and `Apache-2.0 WITH LLVM-exception` is unsupported by the record syntax (policy section 2); this project relies on plain Apache-2.0 (spec 90 section 2.1).",
+    "notes": "Features std and pure; default-features off, so no rayon, mmap, digest or zeroize. `pure` removes all C and assembly from the link: on x86-64 only the Rust SSE2/SSE4.1/AVX2 intrinsics modules are used (no AVX-512), on aarch64 the portable implementation (no NEON). build.rs still probes the C compiler for flag support through the already-locked `cc` crate, then builds nothing; a host without a C compiler also builds. No native build dependency is added. Trade-off: no AVX-512 and no NEON speed-up; revisit only with a benchmark and a new record.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "arrayvec",
+        "version": "0.7.8",
+        "official_source": "https://crates.io/crates/arrayvec/0.7.8",
+        "repository": "https://github.com/bluss/arrayvec",
+        "manifests": [
+          "via blake3 (crates/oo-connectors/Cargo.toml (optional, feature objectstore); crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2026-07-02T12:44:35Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 137,
+        "seven_day_rule": "pass",
+        "msrv": "1.51; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/arrayvec-0.7.8/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/arrayvec-0.7.8/LICENSE-MIT",
+            "sha256": "4da95ec4ecb65b738d470b7d762894ad9c97da93e6cbfb18b570fc2c96f4b871"
+          }
+        ],
+        "digest": "sha256:d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "constant_time_eq",
+        "version": "0.4.2",
+        "official_source": "https://crates.io/crates/constant_time_eq/0.4.2",
+        "repository": "https://github.com/cesarb/constant_time_eq",
+        "manifests": [
+          "via blake3 (crates/oo-connectors/Cargo.toml (optional, feature objectstore); crates/oo-docs/Cargo.toml)"
+        ],
+        "publication_date": "2025-03-15T17:03:47Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 611,
+        "seven_day_rule": "pass",
+        "msrv": "1.85.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT-0 OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/constant_time_eq-0.4.2/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT-0",
+            "source": "supply-chain/licenses/super-ontology-s1/constant_time_eq-0.4.2/LICENSE-MIT0",
+            "sha256": "9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d"
+          }
+        ],
+        "digest": "sha256:3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b",
+        "features_enabled": [
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          },
+          {
+            "spdx": "MIT-0",
+            "obligations": [
+              "No attribution is required; the permission text may still be retained."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null,
+        "license_note": "CC0-1.0 alternative is not relied on."
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "Content key (spec 10 section 2.5). New packages in Cargo.lock: blake3, arrayvec, constant_time_eq 0.4.2. `cc` and `cpufeatures 0.3.1` were already locked. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}

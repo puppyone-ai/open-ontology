@@ -1,0 +1,748 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S1-07",
+  "exception": null,
+  "package": {
+    "ecosystem": "crates.io",
+    "name": "opendal",
+    "version": "0.59.5",
+    "official_source": "https://crates.io/crates/opendal/0.59.5",
+    "repository": "https://github.com/apache/opendal",
+    "manifests": [
+      "crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3)"
+    ],
+    "publication_date": "2026-10-18T05:36:20Z",
+    "adoption_date": "2026-11-17T10:35:12Z",
+    "age_days_at_adoption": 30,
+    "seven_day_rule": "pass",
+    "msrv": "1.91; not above workspace rust-version 1.94.0, so no MSRV raise",
+    "license_spdx": "Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "supply-chain/licenses/super-ontology-s1/opendal-0.59.5/LICENSE",
+        "sha256": "132aa705aeb94a1386cb18af8dbd954d1f6b4d3a177611ccb7ab24d20b070d4d"
+      },
+      {
+        "spdx": "Apache-2.0",
+        "source": "supply-chain/licenses/super-ontology-s1/opendal-0.59.5/NOTICE",
+        "sha256": "1b0d18c41da0353bcdc75564e11a26a2fbe86c4c7a426ce17e331b66f1066816"
+      }
+    ],
+    "digest": "sha256:46081824c74bac9f68f0bc4408077f77b0e315c006514719c97af1c2227ac2d2",
+    "features_enabled": [
+      "services-s3"
+    ],
+    "native_build": false,
+    "upstream_manifest_license": "Apache-2.0",
+    "dual_license_choice": null,
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": true,
+    "direct_manifest_default_features_disabled": true,
+    "notes": "default-features off, only services-s3 (through oo-connectors feature objectstore-s3). With default features off OpenDAL has no HTTP transport, no retry layer and no tokio executor: B-S4-01 must either inject its own HttpTransporter or add features executors-tokio, layers-retry and http-transport-reqwest-rustls-no-provider. Resolved on 2026-11-17 that addition adds five more locked packages (backon 1.6.0, gloo-timers 0.3.0, opendal-http-transport-reqwest 0.59.5, opendal-layer-retry 0.59.5, wasm-streams 0.5.0) and needs its own records. Optional and off by default; recorded because Cargo.lock carries it.",
+    "native_transitive": [
+      {
+        "ecosystem": "crates.io",
+        "name": "opendal-core",
+        "version": "0.59.5",
+        "official_source": "https://crates.io/crates/opendal-core/0.59.5",
+        "repository": "https://github.com/apache/opendal",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-10-18T05:31:48Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 30,
+        "seven_day_rule": "pass",
+        "msrv": "1.91; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/opendal-core-0.59.5/LICENSE",
+            "sha256": "132aa705aeb94a1386cb18af8dbd954d1f6b4d3a177611ccb7ab24d20b070d4d"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/opendal-core-0.59.5/NOTICE",
+            "sha256": "1b0d18c41da0353bcdc75564e11a26a2fbe86c4c7a426ce17e331b66f1066816"
+          }
+        ],
+        "digest": "sha256:33d5a635dfea36a7a0c3bbb2ca34c97af17f98dd69b0cdf31a1d436a346e0a12",
+        "features_enabled": [
+          "reqsign"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "opendal-service-s3",
+        "version": "0.59.5",
+        "official_source": "https://crates.io/crates/opendal-service-s3/0.59.5",
+        "repository": "https://github.com/apache/opendal",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-10-18T05:35:06Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 30,
+        "seven_day_rule": "pass",
+        "msrv": "1.91; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/opendal-service-s3-0.59.5/LICENSE",
+            "sha256": "132aa705aeb94a1386cb18af8dbd954d1f6b4d3a177611ccb7ab24d20b070d4d"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/opendal-service-s3-0.59.5/NOTICE",
+            "sha256": "1b0d18c41da0353bcdc75564e11a26a2fbe86c4c7a426ce17e331b66f1066816"
+          }
+        ],
+        "digest": "sha256:0932321e27c712a30ef72db56b12f31e41e9f0d2d3841d63a91bc8075cd8f0ef",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "asyncband",
+        "version": "0.7.4",
+        "official_source": "https://crates.io/crates/asyncband/0.7.4",
+        "repository": "https://github.com/apache/asyncband",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-10-25T07:24:12Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 23,
+        "seven_day_rule": "pass",
+        "msrv": "1.86.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0 AND MIT",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/asyncband-0.7.4/LICENSE",
+            "sha256": "06b4f21dfe949f9a43bab81f11aa3e7e3199ddd6d852d9cba02af5034784586c"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/asyncband-0.7.4/LICENSE",
+            "sha256": "06b4f21dfe949f9a43bab81f11aa3e7e3199ddd6d852d9cba02af5034784586c"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/asyncband-0.7.4/NOTICE",
+            "sha256": "cf9d7e4f47322fa41b6ba9c6b9a72053526dda2a67b211c4d651357198bd5cca"
+          }
+        ],
+        "digest": "sha256:5d2050892d4691cf110586070786712b504985a4d37ed64a9cd8a402718e1706",
+        "features_enabled": [
+          "default",
+          "mutex",
+          "once-cell",
+          "semaphore"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0 AND MIT",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          },
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null,
+        "license_note": "Manifest says Apache-2.0; the LICENSE file also carries the Tokio MIT text for incorporated code.",
+        "notes": "Apache-2.0 crate that incorporates Tokio 1.42.0 semaphore code under the MIT License; the LICENSE file reproduces both texts, so both are recorded and both obligations apply."
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "crc-fast",
+        "version": "1.10.0",
+        "official_source": "https://crates.io/crates/crc-fast/1.10.0",
+        "repository": "https://github.com/awesomized/crc-fast-rust",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2025-12-31T19:34:28Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 320,
+        "seven_day_rule": "pass",
+        "msrv": "1.89; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/crc-fast-1.10.0/LICENSE-Apache",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/crc-fast-1.10.0/LICENSE-MIT",
+            "sha256": "60cbee3cadaf204efc23e2b24d616648b2e4c9bd033ca3831c864b9fafa3e0a7"
+          }
+        ],
+        "digest": "sha256:e75b2483e97a5a7da73ac68a05b629f9c53cff58d8ed1c77866079e18b00dba5",
+        "features_enabled": [
+          "alloc",
+          "default",
+          "digest",
+          "ffi",
+          "panic-handler",
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null,
+        "notes": "Default features include ffi and panic-handler (enabled by opendal-service-s3; cannot be narrowed from this workspace). Uses SIMD intrinsics, no build script."
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "dlv-list",
+        "version": "0.5.2",
+        "official_source": "https://crates.io/crates/dlv-list/0.5.2",
+        "repository": "https://github.com/sgodwincs/dlv-list-rs",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2023-10-24T20:28:09Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 1119,
+        "seven_day_rule": "pass",
+        "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/dlv-list-0.5.2/LICENSE-APACHE",
+            "sha256": "95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/dlv-list-0.5.2/LICENSE-MIT",
+            "sha256": "77adcddfe9e50acd2df63ddbb8e566bb8d34b4d02a9d92e7a5c1b9c2225eda9f"
+          }
+        ],
+        "digest": "sha256:442039f5147480ba31067cb00ada1adae6892028e40e45fc5de7b7df6dcc1b5f",
+        "features_enabled": [
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "hashbrown",
+        "version": "0.14.5",
+        "official_source": "https://crates.io/crates/hashbrown/0.14.5",
+        "repository": "https://github.com/rust-lang/hashbrown",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2024-04-28T18:32:09Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 932,
+        "seven_day_rule": "pass",
+        "msrv": "1.63.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/hashbrown-0.14.5/LICENSE-APACHE",
+            "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/hashbrown-0.14.5/LICENSE-MIT",
+            "sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2"
+          }
+        ],
+        "digest": "sha256:e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT OR Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "ordered-multimap",
+        "version": "0.7.3",
+        "official_source": "https://crates.io/crates/ordered-multimap/0.7.3",
+        "repository": "https://github.com/sgodwincs/ordered-multimap-rs",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2024-04-01T10:25:43Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 960,
+        "seven_day_rule": "pass",
+        "msrv": "1.64.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/ordered-multimap-0.7.3/LICENSE",
+            "sha256": "047c1d2f1c28c30ced89bd0740ff251d8f51512e81b142711f958a0551729ec4"
+          }
+        ],
+        "digest": "sha256:49203cdcae0030493bad186b28da2fa25645fa276a51b6fec8010d281e02ef79",
+        "features_enabled": [
+          "default",
+          "std"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT",
+        "dual_license_choice": null,
+        "relied_on_license": "MIT",
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "reqsign-aws-core",
+        "version": "3.2.0",
+        "official_source": "https://crates.io/crates/reqsign-aws-core/3.2.0",
+        "repository": "https://github.com/apache/opendal-reqsign",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-09-25T09:21:26Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 53,
+        "seven_day_rule": "pass",
+        "msrv": "1.86.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-aws-core-3.2.0/LICENSE",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-aws-core-3.2.0/NOTICE",
+            "sha256": "6fe746731a614db2871541a226d3fccf26219b697a5d43b5538d756ac8e9ad9b"
+          }
+        ],
+        "digest": "sha256:d38c902d8ec745bd9eadd1abbcbe227f4c1fc2926b2ec8929f89234af3114500",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "reqsign-aws-v4",
+        "version": "3.3.1",
+        "official_source": "https://crates.io/crates/reqsign-aws-v4/3.3.1",
+        "repository": "https://github.com/apache/opendal-reqsign",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-09-25T09:21:28Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 53,
+        "seven_day_rule": "pass",
+        "msrv": "1.86.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-aws-v4-3.3.1/LICENSE",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-aws-v4-3.3.1/NOTICE",
+            "sha256": "6fe746731a614db2871541a226d3fccf26219b697a5d43b5538d756ac8e9ad9b"
+          }
+        ],
+        "digest": "sha256:906bfd028f96bfe73fdb892ce26f3b3f99b4f30feb9bd024be58bd6657f68b2b",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "reqsign-core",
+        "version": "3.3.2",
+        "official_source": "https://crates.io/crates/reqsign-core/3.3.2",
+        "repository": "https://github.com/apache/opendal-reqsign",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-09-25T09:21:14Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 53,
+        "seven_day_rule": "pass",
+        "msrv": "1.86.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-core-3.3.2/LICENSE",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-core-3.3.2/NOTICE",
+            "sha256": "6fe746731a614db2871541a226d3fccf26219b697a5d43b5538d756ac8e9ad9b"
+          }
+        ],
+        "digest": "sha256:85fed85c436b6b920e4b36310f699a77771a91e38ae483df48447bd7d162671c",
+        "features_enabled": [
+          "default"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "reqsign-file-read-tokio",
+        "version": "3.0.7",
+        "official_source": "https://crates.io/crates/reqsign-file-read-tokio/3.0.7",
+        "repository": "https://github.com/apache/opendal-reqsign",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-09-25T09:21:18Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 53,
+        "seven_day_rule": "pass",
+        "msrv": "1.86.0; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-file-read-tokio-3.0.7/LICENSE",
+            "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+          },
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/reqsign-file-read-tokio-3.0.7/NOTICE",
+            "sha256": "6fe746731a614db2871541a226d3fccf26219b697a5d43b5538d756ac8e9ad9b"
+          }
+        ],
+        "digest": "sha256:586a8e198057773f9616901fd723a4bc186812b9765bc0f20368661d6169d906",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "Apache-2.0",
+        "dual_license_choice": null,
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "rust-ini",
+        "version": "0.21.3",
+        "official_source": "https://crates.io/crates/rust-ini/0.21.3",
+        "repository": "https://github.com/zonyitoo/rust-ini",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2025-08-30T17:27:36Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 443,
+        "seven_day_rule": "pass",
+        "msrv": "1.64; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/rust-ini-0.21.3/LICENSE",
+            "sha256": "ccf6244964385d34fef3799aa7792e9f8d35517de026f39a4f43f0e89b2079eb"
+          }
+        ],
+        "digest": "sha256:796e8d2b6696392a43bea58116b667fb4c29727dc5abd27d6acf338bb4f688c7",
+        "features_enabled": [
+          "default"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT",
+        "dual_license_choice": null,
+        "relied_on_license": "MIT",
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": false,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "serde_urlencoded",
+        "version": "0.7.1",
+        "official_source": "https://crates.io/crates/serde_urlencoded/0.7.1",
+        "repository": "https://github.com/nox/serde_urlencoded",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2022-01-17T11:26:21Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 1764,
+        "seven_day_rule": "pass",
+        "msrv": "not declared by the crate; compiled on the workspace toolchain 1.98.1; workspace rust-version 1.94.0 is not raised",
+        "license_spdx": "MIT OR Apache-2.0",
+        "license_evidence": [
+          {
+            "spdx": "Apache-2.0",
+            "source": "supply-chain/licenses/super-ontology-s1/serde_urlencoded-0.7.1/LICENSE-APACHE",
+            "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+          },
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/serde_urlencoded-0.7.1/LICENSE-MIT",
+            "sha256": "b9eb266294324f672cbe945fe8f2e32f85024f0d61a1a7d14382cdde0ac44769"
+          }
+        ],
+        "digest": "sha256:d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd",
+        "features_enabled": [],
+        "native_build": false,
+        "upstream_manifest_license": "MIT/Apache-2.0",
+        "dual_license_choice": "Apache-2.0",
+        "relied_on_license": "Apache-2.0",
+        "license_obligations": [
+          {
+            "spdx": "Apache-2.0",
+            "obligations": [
+              "Retain the license text, copyright, patent, trademark and attribution notices, and the NOTICE file content when redistributing; mark modified files."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      },
+      {
+        "ecosystem": "crates.io",
+        "name": "spin",
+        "version": "0.10.1",
+        "official_source": "https://crates.io/crates/spin/0.10.1",
+        "repository": "https://github.com/mvdnes/spin-rs",
+        "manifests": [
+          "via opendal (crates/oo-connectors/Cargo.toml (optional, feature objectstore-s3))"
+        ],
+        "publication_date": "2026-07-13T19:46:55Z",
+        "adoption_date": "2026-11-17T10:35:12Z",
+        "age_days_at_adoption": 126,
+        "seven_day_rule": "pass",
+        "msrv": "1.60; not above workspace rust-version 1.94.0, so no MSRV raise",
+        "license_spdx": "MIT",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "supply-chain/licenses/super-ontology-s1/spin-0.10.1/LICENSE",
+            "sha256": "6ac8711fb340c62ce0a4ecd463342d3fa0e8e70de697c863a2e1c0c53006003c"
+          }
+        ],
+        "digest": "sha256:023a211cb3138dbc438680b32560ad89f699977624c9f8dbb95a47d5b4c07dd3",
+        "features_enabled": [
+          "mutex",
+          "once",
+          "rwlock",
+          "spin_mutex"
+        ],
+        "native_build": false,
+        "upstream_manifest_license": "MIT",
+        "dual_license_choice": null,
+        "relied_on_license": "MIT",
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the copyright and permission notice in copies or substantial portions."
+            ]
+          }
+        ],
+        "prohibited_license": false,
+        "weak_copyleft_review": null,
+        "default_features_disabled": true,
+        "direct_manifest_default_features_disabled": null
+      }
+    ]
+  },
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 (RustSec advisory-db 233155b4025b854c68a4b199c0e32d7fd53291a2, 2026-11-17T11:14:35+01:00) and cargo-deny 0.20.2 (ci/deny.toml: advisories, bans, licenses, sources) on the exact Cargo.lock of this change",
+    "evidence": "supply-chain/evidence/b-s1-07/cargo-audit.json; supply-chain/evidence/b-s1-07/cargo-deny.txt",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false,
+    "note": "cargo audit: 0 vulnerabilities across 644 locked crates. No advisory names any package in this record. The repository-wide `cargo deny` advisories check already fails at the base commit on RUSTSEC-2026-0543 (chrono), RUSTSEC-2026-0555 (chrono-tz) and RUSTSEC-2026-0542 (humantime), all unmaintained notices on packages outside this change; licenses, bans and sources pass."
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "S3-compatible object store, optional (spec 10 section 2.4/2.5). New packages: opendal and its resolved transitive set (15 packages). Not in any default feature set. Versions are the newest releases published at least 7*86400 seconds before the adoption time, resolved through the crates.io sparse index; each checksum equals the Cargo.lock checksum and the crates.io index cksum, and the downloaded .crate file hashed to it.",
+  "raw_evidence_sha256": {
+    "cargo-audit.json": "03ce39aebc305e791476810179f69c4ff85fa5a69fce98cd32ac5aeef70d96b0",
+    "cargo-deny.txt": "4dc649add7de92d5ca4c66b89bc6ec3976a368bfa5e936e8bd6b2a1b31dd568f"
+  }
+}
