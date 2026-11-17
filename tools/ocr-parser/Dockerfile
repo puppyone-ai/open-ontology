@@ -57,13 +57,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH \
     HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 \
     PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True PADDLE_PDX_CACHE_HOME=/tmp \
     FLAGS_use_mkldnn=0 OO_OCR_MODELS=/opt/models OO_PARSER_MODELS_LOCK=/opt/app/models.lock.json \
-    OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
+    OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 RUN groupadd --gid 10001 parser && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin parser \
  && mkdir -p /scratch /opt/app && chown 10001:10001 /scratch
 COPY --from=deps /opt/venv /opt/venv
 RUN --mount=type=bind,from=opencv,source=/wheels,target=/wheels \
     /opt/venv/bin/pip install --no-deps --no-index --no-cache-dir /wheels/opencv_python_headless-*.whl \
  && /opt/venv/bin/python -c "import cv2,re; b=cv2.getBuildInformation(); assert not hasattr(cv2,'VideoCapture'); assert not re.search(r'FFMPEG:\s+YES', b)"
+COPY opencv_shim.py /tmp/opencv_shim.py
+RUN /opt/venv/bin/python /tmp/opencv_shim.py /opt/venv/lib/python3.13/site-packages && rm /tmp/opencv_shim.py
 COPY --from=models /opt/models /opt/models
 COPY models.lock.json /opt/app/models.lock.json
 COPY --from=dp doc_parser /opt/app/doc_parser

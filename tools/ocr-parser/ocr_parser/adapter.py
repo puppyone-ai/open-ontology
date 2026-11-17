@@ -23,12 +23,19 @@ from .meta import WEIGHT_SUFFIX, parser_version
 os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 os.environ.setdefault("PADDLE_PDX_MODEL_SOURCE", "bos")  # never reached: model dirs are explicit
 os.environ.setdefault("PADDLE_PDX_CACHE_HOME", tempfile.gettempdir())
-os.environ.setdefault("OMP_NUM_THREADS", "2")
+# One thread: the aarch64 Paddle wheel uses OpenBLAS, which is not safe with several threads (segfault in
+# predictor.run); one thread is also what makes the output repeatable. Scale with workers, not threads.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 MODELS_DIR = os.environ.get("OO_OCR_MODELS", "/opt/models")
 MODELS_LOCK = os.environ.get("OO_PARSER_MODELS_LOCK", "/opt/app/models.lock.json")
 DPI = 200
 MAX_SIDE_PX = 4096
+# Text detection runs on the page scaled to at most this long side. Memory grows with the pixel count (about
+# 6.8 GB peak per page at 1280 and 4.2 GB at 960 on linux/arm64; 12 GB and more at the full 200 dpi size); the
+# recognizer still reads the full-resolution crops.
+DET_MAX_SIDE = 1280
 MAX_IMAGE_PIXELS = 80_000_000
 IMAGE_MAGIC = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF", b"BM", b"II*\x00", b"MM\x00*")
 LABEL_KIND = {
@@ -67,7 +74,7 @@ def _pipeline():
             text_recognition_model_name="PP-OCRv5_server_rec", text_recognition_model_dir=m + "PP-OCRv5_server_rec",
             use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False,
             use_seal_recognition=False, use_table_recognition=False, use_formula_recognition=False,
-            use_chart_recognition=False, use_region_detection=False, device="cpu", cpu_threads=2,
+            use_chart_recognition=False, use_region_detection=False, device="cpu", cpu_threads=1, text_det_limit_side_len=DET_MAX_SIDE, text_det_limit_type="max",
         )
     return _PIPELINE
 

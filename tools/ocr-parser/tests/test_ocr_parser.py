@@ -126,3 +126,10 @@ def test_picture_and_chart_regions_take_the_ocr_lines_inside_them():
     assert adapter._region_text(ocr, [0, 0, 100, 100]) == "上\n下"
     assert adapter._region_text(ocr, [900, 900, 950, 950]) == ""
     assert "chart" in adapter.REGION_LABELS and "chart" not in adapter.SKIP_LABELS
+
+
+def test_detection_is_bounded_and_threads_are_one():
+    import os
+
+    assert adapter.DET_MAX_SIDE <= 1280
+    assert os.environ["OMP_NUM_THREADS"] == "1" and os.environ["OPENBLAS_NUM_THREADS"] == "1"
