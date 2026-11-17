@@ -13,7 +13,7 @@
 | SO-B-S1-06 | L1 | merged | so/B-S1-06-trailer-ledger-checks | edde0add0 → edde0add0 | — | — | — |
 | SO-B-S1-07 | L1 | merged | so/B-S1-07-supply-chain + 主线程 | b8f115446 → 17fe3096d | — | — | 34 个新包；cargo deny 三条 unmaintained 公告待 owner 决定 |
 | SO-B-S1-08 | L1 | merged | so/B-S1-08-private-terms | 462d12cf3 → 462d12cf3 | — | — | CI 需加密变量注入词表（owner） |
-| SO-V-S1-01 | L1 | in_progress | so/V-S1-01-formal-toolchain | — | — | — | quint、kani 已装；待续作 |
+| SO-V-S1-01 | L1 | in_progress | so/V-S1-01-formal-toolchain | — | — | — | 续作中 |
 | SO-V-S1-02 | L1 | todo | — | — | — | — | FM1 |
 | SO-F-S1-01 | L1 | merged | codex/super-drive-F-S1-01-flags | 5b2f67d9 → 7139ed22 | — | — | Puppyone 本地 |
 | SO-F-S1-02 | L1 | merged | codex/super-drive-F-S1-02-surface-shell | b99a6796 → fd692501 | — | — | Puppyone 本地 |
@@ -28,8 +28,8 @@
 | SO-B-S2-04 | L2 | merged | so/B-S2-04-job-framework | 03313816c → 9afc868ef | — | — | jobs_live 主线程复跑 10/10；抖动哈希暂用 SHA-256 |
 | SO-B-S2-05 | L2 | in_progress | so/B-S2-05-* | — | — | — | — |
 | SO-B-S2-06 | L2 | merged | so/B-S2-06-md-txt-ir | 347c4d956 → 3df429b14 | — | — | GB18030 待 encoding_rs 准入；normalize 内有 canonical_json 副本待换 re-export |
-| SO-B-S2-07 | L2 | in_progress | so/B-S2-07-* | — | — | — | — |
-| SO-B-S2-08 | L2 | in_progress | so/B-S2-08-* | — | — | — | — |
+| SO-B-S2-07 | L2 | merged | so/B-S2-07-rules-publish | e100e3d03 → 35c9c4e10 | — | — | 无模型 md/txt 子集：实体 F1 0.609、事实 F1 0.214（基线，非验收） |
+| SO-B-S2-08 | L2 | merged | so/B-S2-08-compile-minimal | 2b580b857 → 761c5ddb5 | — | — | 红队真实 docx 待 L4；AIGC 首行在 front matter 前 |
 | SO-B-S2-09 | L2 | in_progress | so/B-S2-09-* | — | — | — | — |
 | SO-B-S2-10 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-11 | L2 | todo | — | — | — | — | — |
