@@ -90,9 +90,10 @@ module event_stream {
     lastRes' = "disconnected",
   }
 
-  // retention: the oldest events are dropped (7 days / 1M rows)
+  // retention: the oldest events are dropped (7 days / 1M rows); the newest event always stays, because
+  // the runtime role cannot read event_head and `bounds()` takes head = max(seq)
   action purge(n: int): bool = all {
-    purges < MAXPURGE, n > floor, n <= headSeq,
+    purges < MAXPURGE, n > floor, n < headSeq,  // retention keeps the head event (see FM4.md section on bounds())
     floor' = n, purges' = purges + 1,
     hist' = hist, headSeq' = headSeq, prevHead' = headSeq, connected' = connected, cursor' = cursor, view' = view,
     transients' = transients, tUsed' = tUsed, disc' = disc, refetches' = refetches, dupDropped' = dupDropped,
