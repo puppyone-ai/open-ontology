@@ -1,0 +1,391 @@
+{
+  "protocol": "oo.eval.token-calibration/v1",
+  "note": "tokens is null until calibrated against a tokenizer; cjk/ascii counts are for text formats only",
+  "files": [
+    {
+      "path": "docs/Data/任务清单.csv",
+      "bytes": 325,
+      "cjk_chars": 89,
+      "ascii_chars": 58,
+      "tokens": null
+    },
+    {
+      "path": "docs/Data/会议室预订.csv",
+      "bytes": 185,
+      "cjk_chars": 46,
+      "ascii_chars": 47,
+      "tokens": null
+    },
+    {
+      "path": "docs/Data/客户反馈.csv",
+      "bytes": 232,
+      "cjk_chars": 62,
+      "ascii_chars": 46,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-01-周报每周五发送.md",
+      "bytes": 333,
+      "cjk_chars": 81,
+      "ascii_chars": 84,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-02-星图采用自研引擎.md",
+      "bytes": 324,
+      "cjk_chars": 80,
+      "ascii_chars": 84,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-03-知了客服采购外部模型.md",
+      "bytes": 322,
+      "cjk_chars": 81,
+      "ascii_chars": 79,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-04-周报改为每周四发送.md",
+      "bytes": 300,
+      "cjk_chars": 68,
+      "ascii_chars": 90,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-05-星图改用开源图表库.md",
+      "bytes": 457,
+      "cjk_chars": 123,
+      "ascii_chars": 82,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-06-办公迁至滨江.md",
+      "bytes": 254,
+      "cjk_chars": 57,
+      "ascii_chars": 83,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2026-08-取消周报.md",
+      "bytes": 296,
+      "cjk_chars": 70,
+      "ascii_chars": 80,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-01-08-年度计划会.docx",
+      "bytes": 6793,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-01-10-周会.docx",
+      "bytes": 6113,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-02-15-星图技术评审.docx",
+      "bytes": 6629,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-03-03-客服方案评审.docx",
+      "bytes": 6623,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-04-02-周会.docx",
+      "bytes": 6146,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-05-20-星图复盘会.docx",
+      "bytes": 6662,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-06-01-项目分工调整.docx",
+      "bytes": 6142,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-06-15-迁址沟通会.docx",
+      "bytes": 6158,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-07-06-官网改版启动会.docx",
+      "bytes": 6480,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2026-08-20-周会.docx",
+      "bytes": 6103,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Notes/速记-0412.txt",
+      "bytes": 188,
+      "cjk_chars": 59,
+      "ascii_chars": 11,
+      "tokens": null
+    },
+    {
+      "path": "docs/Notes/速记-0601.txt",
+      "bytes": 166,
+      "cjk_chars": 52,
+      "ascii_chars": 10,
+      "tokens": null
+    },
+    {
+      "path": "docs/Notes/速记-0828.txt",
+      "bytes": 177,
+      "cjk_chars": 55,
+      "ascii_chars": 12,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/周若溪.md",
+      "bytes": 172,
+      "cjk_chars": 42,
+      "ascii_chars": 46,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/孙晓棠.md",
+      "bytes": 144,
+      "cjk_chars": 33,
+      "ascii_chars": 45,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/林远舟.md",
+      "bytes": 190,
+      "cjk_chars": 45,
+      "ascii_chars": 55,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/陈子墨.md",
+      "bytes": 188,
+      "cjk_chars": 47,
+      "ascii_chars": 47,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/周若溪-文档偏好.md",
+      "bytes": 144,
+      "cjk_chars": 35,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/林远舟-会议偏好.md",
+      "bytes": 147,
+      "cjk_chars": 36,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/陈子墨-沟通偏好.md",
+      "bytes": 144,
+      "cjk_chars": 35,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/官网改版.md",
+      "bytes": 229,
+      "cjk_chars": 52,
+      "ascii_chars": 73,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/星图看板.md",
+      "bytes": 335,
+      "cjk_chars": 79,
+      "ascii_chars": 98,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/灯塔迁移.md",
+      "bytes": 279,
+      "cjk_chars": 70,
+      "ascii_chars": 69,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/知了客服.md",
+      "bytes": 231,
+      "cjk_chars": 54,
+      "ascii_chars": 69,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/办公迁址方案.pdf",
+      "bytes": 1766,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/官网改版方案.pdf",
+      "bytes": 1766,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/年度客户调研方案.pdf",
+      "bytes": 1778,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/星图看板产品方案.pdf",
+      "bytes": 2023,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/澄海物流合作方案.pdf",
+      "bytes": 1794,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/灯塔迁移方案.pdf",
+      "bytes": 2024,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/知了客服方案.pdf",
+      "bytes": 1932,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/人员表.xlsx",
+      "bytes": 6450,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/客户与供应商.xlsx",
+      "bytes": 4101,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/年度预算表.xlsx",
+      "bytes": 4038,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/项目负责人表.xlsx",
+      "bytes": 4292,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W03-周报.pptx",
+      "bytes": 16144,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W10-周报.pptx",
+      "bytes": 16085,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W15-周报.pptx",
+      "bytes": 16089,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W22-周报.pptx",
+      "bytes": 16135,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W28-周报.pptx",
+      "bytes": 16059,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2026-W34-周报.pptx",
+      "bytes": 16065,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/夜航计划.txt",
+      "bytes": 152,
+      "cjk_chars": 33,
+      "ascii_chars": 53,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/并购评估备忘.md",
+      "bytes": 433,
+      "cjk_chars": 110,
+      "ascii_chars": 103,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/董事会纪要.docx",
+      "bytes": 4904,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/薪酬调整.csv",
+      "bytes": 116,
+      "cjk_chars": 20,
+      "ascii_chars": 56,
+      "tokens": null
+    }
+  ]
+}
