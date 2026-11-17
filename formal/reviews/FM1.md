@@ -183,7 +183,7 @@ one Apalache server per run, 8 runs side by side on a 16 core machine that was a
 | invCancelTerminal | 393 s | 169 s |
 | invLeaseShape | 568 s | 167 s |
 | invAtMostOnceSuccess | 784 s (over 12 min) | 195 s |
-| invNoLostJob | still running after 40 min (30 min in an earlier run) | 586 s |
+| invNoLostJob | 2412 s (40 min) | 586 s |
 
 FAST bound: `verify-steps=8` for the whole model (the slowest invariant is 586 s). Nightly bound: `deep-steps=10`
-(`formal-verify-deep`, own machine). `invNoLostJob` at 10 steps does not fit a PR job and stays in the deep run.
+(`formal-verify-deep`, own machine). `invNoLostJob` at 10 steps takes 40 minutes, does not fit a PR job and stays in the deep run.
