@@ -54,6 +54,7 @@ pub mod progress;
 pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_review;
+pub mod routes_usage;
 pub mod shares;
 
 use error::{ApiError, code};
@@ -423,7 +424,6 @@ fn known_unserved(segs: &[&str]) -> bool {
             | ["v1", "docs", "context-packs", ..]
             | ["v1", "docs", "context-packs:compile"]
             | ["v1", "docs", "shares", ..]
-            | ["v1", "docs", "usage"]
             | ["v1", "docs", "config", ..]
             | ["v1", "docs", "refs", ..]
     ) || matches!(segs, ["v1", "docs", s] if s.contains(':'))
@@ -541,6 +541,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "facts", last] if last.ends_with(":correct") => {
             method_allowed(req, &["POST"])?;
             routes_correct::correct_fact(app, last.trim_end_matches(":correct"), req).await
+        }
+        ["v1", "docs", "usage"] => {
+            method_allowed(req, &["GET"])?;
+            routes_usage::get(app, req).await
         }
         ["v1", "docs", "resolve"] => {
             method_allowed(req, &["POST"])?;

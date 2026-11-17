@@ -70,6 +70,16 @@ pub async fn index_document_with(
     siblings: &[String],
 ) -> Result<IndexSummary, StoreError> {
     let extraction = extract_in(doc.path, doc.ir, &Siblings { paths: siblings });
+    index_extraction(conn, doc, &extraction).await
+}
+
+/// Store an extraction (rules or LLM supplement) for one file version.
+pub async fn index_extraction(
+    conn: &mut PgConnection,
+    doc: &DocumentInput<'_>,
+    extraction: &crate::extract::model::Extraction,
+) -> Result<IndexSummary, StoreError> {
+    let extraction = extraction.clone();
     let mut tx = conn.begin().await?;
 
     // Lock every name that may create an entity, in byte order.
@@ -83,7 +93,19 @@ pub async fn index_document_with(
 
     let index = load_index(&mut tx, &extraction).await?;
     let resolved = resolve_extraction(&index, &extraction);
-    let mut summary = store_resolved(&mut tx, doc, &resolved).await?;
+    let src = match &extraction.llm {
+        Some(m) => WriteSource {
+            origin: "llm",
+            prompt_version: Some(m.prompt_version.clone()),
+            extraction_key: Some(m.extraction_key.clone()),
+        },
+        None => WriteSource {
+            origin: "rule",
+            prompt_version: None,
+            extraction_key: None,
+        },
+    };
+    let mut summary = store_resolved(&mut tx, doc, &resolved, &src).await?;
     post_resolve(&mut tx, doc, &resolved, &mut summary).await?;
     if let Some((_, same)) = super::hashes::store_assertion_hash(&mut tx, doc.version_id).await? {
         summary.early_cutoff = same;
@@ -141,19 +163,27 @@ async fn post_resolve(
     Ok(())
 }
 
+/// Who produced what is stored: `rule` or the LLM supplement.
+struct WriteSource {
+    origin: &'static str,
+    prompt_version: Option<String>,
+    extraction_key: Option<String>,
+}
+
 async fn add_evidence(
     conn: &mut PgConnection,
     kind: &str,
     target_id: &str,
     doc: &DocumentInput<'_>,
     ev: &EvidenceRef,
+    src: &WriteSource,
 ) -> Result<bool, StoreError> {
     let anchor = serde_json::to_string(&ev.anchor)
         .map_err(|e| StoreError::Protocol(format!("anchor json: {e}")))?;
     let done = sqlx::query(
         "INSERT INTO _oo_docs.evidence \
            (id, target_kind, target_id, version_id, b3, block_id, anchor, quote_b3, origin) \
-         SELECT gen_random_uuid(), $1, $2::uuid, $3::uuid, $4, $5, $6::jsonb, $7, 'rule' \
+         SELECT gen_random_uuid(), $1, $2::uuid, $3::uuid, $4, $5, $6::jsonb, $7, $8 \
           WHERE NOT EXISTS (SELECT 1 FROM _oo_docs.evidence \
                              WHERE target_kind = $1 AND target_id = $2::uuid \
                                AND version_id = $3::uuid AND block_id = $5 \
@@ -166,6 +196,7 @@ async fn add_evidence(
     .bind(&ev.block_id)
     .bind(&anchor)
     .bind(&ev.quote_b3)
+    .bind(src.origin)
     .execute(&mut *conn)
     .await?;
     Ok(done.rows_affected() > 0)
@@ -175,6 +206,7 @@ async fn store_resolved(
     conn: &mut PgConnection,
     doc: &DocumentInput<'_>,
     r: &Resolved,
+    src: &WriteSource,
 ) -> Result<IndexSummary, StoreError> {
     let mut s = IndexSummary::default();
     let mut entity_ids: BTreeMap<&str, String> = BTreeMap::new();
@@ -205,7 +237,7 @@ async fn store_resolved(
             return Err(StoreError::Protocol(format!("entity {} vanished", e.key)));
         };
         for ev in &e.evidence {
-            if add_evidence(conn, "entity", &id, doc, ev).await? {
+            if add_evidence(conn, "entity", &id, doc, ev, src).await? {
                 s.evidence_added += 1;
             }
         }
@@ -219,13 +251,14 @@ async fn store_resolved(
         let created = sqlx::query(
             "INSERT INTO _oo_docs.alias \
                (id, entity_id, alias, norm_alias, origin, confidence_bp, status, original_entity_id) \
-             VALUES (gen_random_uuid(), $1::uuid, $2, $3, 'rule', $4, 'draft', $1::uuid) \
+             VALUES (gen_random_uuid(), $1::uuid, $2, $3, $5, $4, 'draft', $1::uuid) \
              ON CONFLICT (entity_id, norm_alias) DO NOTHING",
         )
         .bind(entity_id)
         .bind(&a.alias)
         .bind(&a.norm)
         .bind(i32::from(a.confidence_bp))
+        .bind(src.origin)
         .execute(&mut *conn)
         .await?;
         s.aliases_created += u32::try_from(created.rows_affected()).unwrap_or(0);
@@ -237,7 +270,7 @@ async fn store_resolved(
         .fetch_one(&mut *conn)
         .await?;
         for ev in &a.evidence {
-            if add_evidence(conn, "alias", &alias_id, doc, ev).await? {
+            if add_evidence(conn, "alias", &alias_id, doc, ev, src).await? {
                 s.evidence_added += 1;
             }
         }
@@ -277,9 +310,9 @@ async fn store_resolved(
                     "INSERT INTO _oo_docs.fact \
                        (id, fact_key, subject_id, original_subject_id, predicate, object_id, \
                         original_object_id, value, valid_from, valid_to, valid_precision, \
-                        confidence_bp, origin, rule_id, status) \
+                        confidence_bp, origin, rule_id, prompt_version, extraction_key, status) \
                      VALUES (gen_random_uuid(), $1, $2::uuid, $2::uuid, $3, $4::uuid, $4::uuid, \
-                             $5::jsonb, $6::date, $7::date, $8, $9, 'rule', $10, 'draft') \
+                             $5::jsonb, $6::date, $7::date, $8, $9, $11, $10, $12, $13, 'draft') \
                      RETURNING id::text",
                 )
                 .bind(&f.fact_key)
@@ -291,7 +324,14 @@ async fn store_resolved(
                 .bind(f.valid_to.as_deref())
                 .bind(f.valid_precision)
                 .bind(i32::from(f.confidence_bp))
-                .bind(f.rule_id)
+                .bind(if src.origin == "rule" {
+                    Some(f.rule_id)
+                } else {
+                    None
+                })
+                .bind(src.origin)
+                .bind(src.prompt_version.as_deref())
+                .bind(src.extraction_key.as_deref())
                 .fetch_one(&mut *conn)
                 .await?;
                 s.facts_created += 1;
@@ -299,7 +339,7 @@ async fn store_resolved(
             }
         };
         for ev in &f.evidence {
-            if add_evidence(conn, "fact", &fact_id, doc, ev).await? {
+            if add_evidence(conn, "fact", &fact_id, doc, ev, src).await? {
                 s.evidence_added += 1;
             }
         }

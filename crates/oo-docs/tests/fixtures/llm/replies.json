@@ -1,0 +1,103 @@
+{
+ "pinned_keys": [
+  "ecfd737f12193088031b633ca7804f6f256469b842a7fa5b3d5a60a22b637efd",
+  "d1613faeae04cce69cfbb19b980c3ba220fa08978dfaeb8679fcd125bd308ccd"
+ ],
+ "division": {
+  "entities": [
+   {
+    "id": "e1",
+    "type": "Person",
+    "name": "陈子墨",
+    "aliases": [
+     "小陈"
+    ],
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "陈子墨负责星图看板",
+    "confidence": "high"
+   },
+   {
+    "id": "e2",
+    "type": "Project",
+    "name": "星图看板",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "星图看板",
+    "confidence": "high"
+   },
+   {
+    "id": "e3",
+    "type": "Person",
+    "name": "周若溪",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "周若溪负责知了客服",
+    "confidence": "medium"
+   },
+   {
+    "id": "e4",
+    "type": "Project",
+    "name": "知了客服",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "知了客服",
+    "confidence": "medium"
+   }
+  ],
+  "relations": [
+   {
+    "subject": "e1",
+    "predicate": "owns",
+    "object": "e2",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "陈子墨负责星图看板",
+    "confidence": "high"
+   },
+   {
+    "subject": "e3",
+    "predicate": "owns",
+    "object": "e4",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "周若溪负责知了客服",
+    "confidence": "medium"
+   },
+   {
+    "subject": "e1",
+    "predicate": "owns",
+    "object": "e4",
+    "block_id": "{{BLOCK:陈子墨负责}}",
+    "quote": "这句话原文里没有",
+    "confidence": "high"
+   }
+  ]
+ },
+ "decision": {
+  "entities": [
+   {
+    "id": "e1",
+    "type": "Decision",
+    "name": "采用灰度发布",
+    "block_id": "{{BLOCK:2026-03-01}}",
+    "quote": "决定采用灰度发布",
+    "confidence": "high"
+   },
+   {
+    "id": "e2",
+    "type": "Decision",
+    "name": "全量发布",
+    "block_id": "{{BLOCK:2026-03-01}}",
+    "quote": "取代全量发布",
+    "confidence": "high"
+   }
+  ],
+  "relations": [
+   {
+    "subject": "e1",
+    "predicate": "supersedes",
+    "object": "e2",
+    "valid_from": "2026-03-01",
+    "block_id": "{{BLOCK:2026-03-01}}",
+    "quote": "决定采用灰度发布，取代全量发布",
+    "confidence": "high"
+   }
+  ]
+ },
+ "broken": "这不是 JSON"
+}

@@ -277,12 +277,24 @@ pub struct BindHint {
     pub evidence: Vec<EvidenceRef>,
 }
 
+/// Provenance of an LLM extraction (10 §5.2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LlmMeta {
+    /// `extract/1`.
+    pub prompt_version: String,
+    /// Hash of the batch cache keys the facts came from.
+    pub extraction_key: String,
+}
+
 /// Everything the rules found in one file, sorted and de-duplicated, so the
 /// same input always gives the same value.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Extraction {
     /// Drive-relative path (NFC) the rules ran on.
     pub path: String,
+    /// Set for the output of the LLM supplement: its facts, aliases and
+    /// evidence are stored with `origin = 'llm'`.
+    pub llm: Option<LlmMeta>,
     pub entities: Vec<EntityMention>,
     pub aliases: Vec<AliasMention>,
     pub facts: Vec<FactMention>,
@@ -505,6 +517,7 @@ impl Collector {
             .collect();
         Extraction {
             path: path.to_owned(),
+            llm: None,
             entities,
             aliases,
             facts,
