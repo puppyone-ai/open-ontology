@@ -41,6 +41,8 @@ fn fail(code: u8, event: &str, why: impl std::fmt::Display) -> ExitCode {
 }
 
 async fn run() -> ExitCode {
+    #[cfg(feature = "failpoints")]
+    oo_docs::failpoints::init_from_env();
     let env = |k: &str| std::env::var(k).ok();
     let state = env("OO_DOCS_STATE_DIR").unwrap_or_default();
     let docs_json = std::fs::read_to_string(std::path::Path::new(&state).join("docs.json")).ok();
@@ -155,6 +157,12 @@ async fn run() -> ExitCode {
     let mut handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
     handlers.extend(stages::handlers(&pool, Arc::new(FsFactory), cas));
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
+    // Files made by an older parser or ruleset are reprocessed (4.2, D23).
+    if let Ok(n) = stages::mark_outdated(&pool).await
+        && n > 0
+    {
+        obs::log("info", "files.outdated", json!({ "count": n }));
+    }
     let tasks = vec![
         stages::spawn_pump(pool.clone(), app.wake.clone(), stop_rx.clone()),
         poll::spawn(

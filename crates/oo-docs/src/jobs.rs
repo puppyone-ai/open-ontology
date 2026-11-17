@@ -366,6 +366,16 @@ pub async fn report_failure(
     let kind = JobKind::parse(&job.kind)
         .ok_or_else(|| StoreError::Protocol(format!("unknown job kind {}", job.kind)))?;
     let backoff = kind.policy().backoff;
+    // Tests with the `failpoints` feature shorten every retry delay.
+    #[cfg(feature = "failpoints")]
+    let backoff = match crate::failpoints::backoff_ms() {
+        Some(ms) => Backoff {
+            base_ms: ms as u64,
+            factor: 1,
+            cap_ms: ms as u64,
+        },
+        None => backoff,
+    };
     match class {
         FailureClass::Permanent => store::fail(conn, &job.id, owner, job.generation, code).await,
         FailureClass::Transient => {
