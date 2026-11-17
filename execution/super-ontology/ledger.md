@@ -11,17 +11,17 @@
 | SO-B-S1-04 | L1 | merged | so/B-S1-04-golden-set | b44b1736c → 07834ceab | — | — | 51 份文档 + 4 红队 |
 | SO-B-S1-05 | L1 | merged | so/B-S1-05-oo-eval-docs | ec491bdf7 → ec491bdf7 | — | — | 自带 JSON 解析器，L2 前改用 serde_json |
 | SO-B-S1-06 | L1 | merged | so/B-S1-06-trailer-ledger-checks | edde0add0 → edde0add0 | — | — | — |
-| SO-B-S1-07 | L1 | in_progress | so/B-S1-07-supply-chain | — | — | — | 子智能体起草补丁 |
+| SO-B-S1-07 | L1 | merged | so/B-S1-07-supply-chain + 主线程 | b8f115446 → 17fe3096d | — | — | 34 个新包；cargo deny 三条 unmaintained 公告待 owner 决定 |
 | SO-B-S1-08 | L1 | merged | so/B-S1-08-private-terms | 462d12cf3 → 462d12cf3 | — | — | CI 需加密变量注入词表（owner） |
 | SO-V-S1-01 | L1 | in_progress | so/V-S1-01-formal-toolchain | — | — | — | quint、kani 已装；待续作 |
 | SO-V-S1-02 | L1 | todo | — | — | — | — | FM1 |
-| SO-F-S1-01 | L1 | in_progress | codex/super-drive-F-S1-01-* | — | — | — | Puppyone |
-| SO-F-S1-02 | L1 | in_progress | codex/super-drive-F-S1-02-* | — | — | — | Puppyone |
-| SO-F-S1-03 | L1 | in_progress | codex/super-drive-F-S1-03-* | — | — | — | Puppyone |
-| SO-F-S1-04 | L1 | in_progress | codex/super-drive-F-S1-04-* | — | — | — | Puppyone |
-| SO-F-S1-05 | L1 | todo | — | — | — | — | 依赖 B-S1-01（5f1fb464e） |
-| SO-F-S1-06 | L1 | todo | — | — | — | — | — |
-| SO-F-S1-07 | L1 | in_progress | — | — | — | — | 指针文档 |
+| SO-F-S1-01 | L1 | merged | codex/super-drive-F-S1-01-flags | 5b2f67d9 → 7139ed22 | — | — | Puppyone 本地 |
+| SO-F-S1-02 | L1 | merged | codex/super-drive-F-S1-02-surface-shell | b99a6796 → fd692501 | — | — | Puppyone 本地 |
+| SO-F-S1-03 | L1 | merged | codex/super-drive-F-S1-03-main-skeleton | 2a6e514d → 42bc8b08 | — | — | Puppyone 本地 |
+| SO-F-S1-04 | L1 | merged | codex/super-drive-F-S1-04-i18n-namespace | 739ced90 → 5caedb04 | — | — | 6 种语言初译待复核 |
+| SO-F-S1-05 | L1 | merged | codex/super-drive-F-S1-05-contract-vendor | 4b07b81d → da1d2a33 | — | — | 需随 3235e5c97 重新同步契约 |
+| SO-F-S1-06 | L1 | in_progress | codex/super-drive-F-S1-06-arch-baseline | 8e7eeffb → 1aaa282a | — | — | flag-off T1 已真实运行通过；flag-on T1 待做 |
+| SO-F-S1-07 | L1 | in_progress | — | — | — | — | puppy-issues 不在仓库内，待 owner 指定位置 |
 | SO-B-S2-01 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-02 | L2 | todo | — | — | — | — | — |
 | SO-B-S2-03 | L2 | todo | — | — | — | — | — |
