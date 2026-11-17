@@ -22,6 +22,8 @@ pub mod dirs;
 pub mod frontmatter;
 pub mod headings;
 pub mod kv;
+pub mod tables;
+pub mod text;
 
 use oo_core::docir::{BlockKind, DocFormat, DocIr};
 use serde_json::{Value, json};
@@ -45,6 +47,11 @@ struct Ctx<'a> {
     doc: EntityRef,
     mains: Vec<EntityRef>,
     default_from: Option<(String, &'static str)>,
+    /// First date written in the block being read (`text.date`), the most
+    /// specific `valid_from` there is.
+    block_date: Option<ParsedDate>,
+    /// The file is a csv (rule ids `csv.*`).
+    csv: bool,
     _ir: &'a DocIr,
 }
 
@@ -62,6 +69,7 @@ impl Ctx<'_> {
         rule: &'static str,
         ev: &EvidenceRef,
     ) {
+        let from = from.or(self.block_date.as_ref());
         let (valid_from, valid_precision) = match from {
             Some(d) => (Some(d.iso.clone()), Some(d.precision)),
             None => match &self.default_from {
@@ -245,6 +253,31 @@ impl Ctx<'_> {
                     }
                 }
             }
+            Field::Email | Field::Github | Field::EmployeeId => {
+                let kind = match f {
+                    Field::Email => "email",
+                    Field::Github => "github",
+                    _ => "employee_id",
+                };
+                // Identity of the one Person the file stands for.
+                if let [m] = mains.as_slice()
+                    && m.ty == EntityType::Person
+                    && let Some(v) = values.first()
+                {
+                    let v = v.trim().trim_matches(['<', '>']);
+                    let ok = match kind {
+                        "email" => text::is_email(v),
+                        _ => {
+                            !v.is_empty()
+                                && v.chars().count() <= 64
+                                && !v.contains(char::is_whitespace)
+                        }
+                    };
+                    if ok {
+                        self.col.identity(m, kind, v, conf, rule, ev);
+                    }
+                }
+            }
             Field::Type | Field::Date | Field::Tags => {}
         }
     }
@@ -258,8 +291,21 @@ fn clip(s: &str, max: usize) -> String {
     s.trim().chars().take(max).collect()
 }
 
+/// Other files of the same Drive, as far as `name.version` needs them.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Siblings<'a> {
+    /// Drive-relative NFC paths of live files (any directory).
+    pub paths: &'a [String],
+}
+
 /// Run `rules/1` on one parsed file. `path` is the drive-relative path.
 pub fn extract(path: &str, ir: &DocIr) -> Extraction {
+    extract_in(path, ir, &Siblings::default())
+}
+
+/// [`extract`] with the sibling files, which `name.version` needs to find an
+/// older version of the same document.
+pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction {
     let path = nfc(path);
     let info: PathInfo = dirs::path_info(&path);
     let blocks = &ir.blocks;
@@ -283,6 +329,8 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
         .find(|b| b.kind == BlockKind::Frontmatter)
         .map_or_else(|| anchor_ev.clone(), EvidenceRef::from_block);
     let is_text = matches!(ir.format, DocFormat::Md | DocFormat::Txt);
+    // md.kv and md.headings read paragraphs and lists of every prose format.
+    let is_prose = !matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx);
     let fm_map = ir.meta.frontmatter.clone().unwrap_or_default();
     let fm_fields = if is_text {
         frontmatter::fields(&fm_map)
@@ -321,12 +369,18 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
                 .map(|d| (d.iso, "doc_date"))
         });
 
+    let year: Option<u32> = default_from
+        .as_ref()
+        .and_then(|(iso, _)| iso.get(..4))
+        .and_then(|y| y.parse().ok());
     let doc = EntityRef::new(EntityType::Document, path.clone());
     let mut ctx = Ctx {
         col: Collector::default(),
         doc: doc.clone(),
         mains: Vec::new(),
         default_from,
+        block_date: None,
+        csv: ir.format == DocFormat::Csv,
         _ir: ir,
     };
 
@@ -432,7 +486,7 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
         ctx.mains.push(doc.clone());
     }
 
-    if is_text {
+    if is_prose {
         // fm.fields
         for (f, values) in &fm_fields {
             ctx.apply_field(*f, values, &fm_ev, 9800, "fm.fields");
@@ -450,6 +504,7 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
                 continue;
             }
             let ev = EvidenceRef::from_block(b);
+            ctx.block_date = block_date(&b.text, year);
             // md.kv and the dated ownership sentence.
             for line in b.text.split('\n') {
                 if let Some((key, value)) = kv::split_kv(line)
@@ -555,6 +610,24 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
         }
     }
 
+    ctx.block_date = None;
+
+    // dir.terms: definition lists and two column tables.
+    if info.dir == Dir::Terms {
+        terms(&mut ctx, blocks);
+    }
+    // xlsx.* / csv.* / table.header_map.
+    if matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx) {
+        tables::apply(&mut ctx, blocks);
+    }
+    // doc.meta, pptx.title, name.version, text.email.
+    doc_meta(&mut ctx, ir, &anchor_ev);
+    if ir.format == DocFormat::Pptx {
+        pptx_title(&mut ctx, blocks);
+    }
+    name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
+    text_email(&mut ctx, blocks);
+
     // doc.entity: the Document mentions every other entity found in the file.
     let found: Vec<(EntityRef, EvidenceRef)> = ctx
         .col
@@ -578,4 +651,253 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
         );
     }
     ctx.col.finish(&path)
+}
+
+/// `text.date`: the first date written in `text`; `M月D日` takes its year from
+/// the document date.
+fn block_date(text: &str, year: Option<u32>) -> Option<ParsedDate> {
+    let full = dates::scan(text, false).into_iter().next();
+    let short = year.and_then(|y| dates::scan_month_day(text, y).into_iter().next());
+    match (full, short) {
+        (Some(f), Some(sh)) => Some(if f.1 <= sh.1 { f.0 } else { sh.0 }),
+        (Some(f), None) => Some(f.0),
+        (None, Some(sh)) => Some(sh.0),
+        (None, None) => None,
+    }
+}
+
+/// `dir.terms`: `term：definition` lines and two column tables.
+fn terms(ctx: &mut Ctx<'_>, blocks: &[oo_core::docir::Block]) {
+    let put = |ctx: &mut Ctx<'_>, term: &str, def: &str, ev: &EvidenceRef| {
+        let term = clip(term, MAX_NAME_CHARS);
+        let def = clip(def, 500);
+        if term.is_empty() || def.is_empty() {
+            return;
+        }
+        let t = EntityRef::new(EntityType::Term, term);
+        ctx.fact(
+            &t,
+            Predicate::Attr("definition".into()),
+            None,
+            Some(json!({"text": def})),
+            None,
+            None,
+            9500,
+            "dir.terms",
+            ev,
+        );
+    };
+    for b in blocks {
+        let ev = EvidenceRef::from_block(b);
+        match b.kind {
+            BlockKind::ListItem | BlockKind::Paragraph => {
+                if let Some((t, d)) = text::definition_line(&b.text) {
+                    put(ctx, &t, &d, &ev);
+                }
+            }
+            BlockKind::Table | BlockKind::SheetTable => {
+                let Some(g) = &b.table else { continue };
+                if g.cols != 2 {
+                    continue;
+                }
+                for r in g.header_rows..g.rows {
+                    let cell = |c: u32| {
+                        g.cells
+                            .iter()
+                            .find(|x| x.r == r && x.c == c)
+                            .map(|x| x.text.trim().to_owned())
+                            .unwrap_or_default()
+                    };
+                    put(ctx, &cell(0), &cell(1), &ev);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `doc.meta`: authors and creation date of the Document.
+fn doc_meta(ctx: &mut Ctx<'_>, ir: &DocIr, ev: &EvidenceRef) {
+    let doc = ctx.doc.clone();
+    for author in &ir.meta.authors {
+        let a = clip(author, MAX_NAME_CHARS);
+        if text::generic_author(&a) {
+            continue;
+        }
+        ctx.fact(
+            &doc,
+            Predicate::Attr("author".into()),
+            None,
+            Some(json!({"text": a})),
+            None,
+            None,
+            9000,
+            "doc.meta",
+            ev,
+        );
+        ctx.col.hint(
+            &doc,
+            Predicate::Mentions,
+            EntityType::Person,
+            &a,
+            9000,
+            "doc.meta",
+            ev,
+        );
+    }
+    if let Some(created) = ir
+        .meta
+        .created
+        .as_deref()
+        .and_then(|c| dates::parse_exact(c.get(..10).unwrap_or(c)))
+    {
+        ctx.fact(
+            &doc,
+            Predicate::Attr("created".into()),
+            None,
+            Some(json!({"date": created.iso})),
+            None,
+            None,
+            9000,
+            "doc.meta",
+            ev,
+        );
+    }
+}
+
+/// Words a deck or report title may end with before the project name.
+const TITLE_TAILS: &[&str] = &[
+    "周报",
+    "月报",
+    "日报",
+    "汇报",
+    "复盘",
+    "进展",
+    "方案",
+    "评审",
+    "纪要",
+    "同步",
+    "汇总",
+    "总结",
+    "启动会",
+    "周会",
+];
+
+/// `pptx.title`: the title of the first slide names the Document and hints at
+/// a Project (resolve binds it only to an existing one).
+fn pptx_title(ctx: &mut Ctx<'_>, blocks: &[oo_core::docir::Block]) {
+    let Some(b) = blocks
+        .iter()
+        .find(|b| b.kind == BlockKind::SlideTitle && !b.text.trim().is_empty())
+    else {
+        return;
+    };
+    let ev = EvidenceRef::from_block(b);
+    let title = clip(&b.text.replace('\n', " "), 256);
+    let doc = ctx.doc.clone();
+    ctx.col.alias(&doc, &title, 7000, "pptx.title", &ev);
+    let mut candidates = vec![title.clone()];
+    let mut t = title.as_str();
+    loop {
+        let before = t;
+        for tail in TITLE_TAILS {
+            if let Some(x) = t.trim().strip_suffix(tail) {
+                t = x;
+            }
+        }
+        t = t.trim_end_matches(|c: char| {
+            c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ' '
+        });
+        if t == before {
+            break;
+        }
+    }
+    let t = t.trim();
+    if !t.is_empty() && t != title {
+        candidates.push(t.to_owned());
+    }
+    for c in candidates {
+        ctx.col.hint(
+            &doc,
+            Predicate::About,
+            EntityType::Project,
+            &c,
+            7000,
+            "pptx.title",
+            &ev,
+        );
+    }
+}
+
+/// `name.version`: an older sibling with the same trunk is proposed as
+/// superseded (never published without review).
+fn name_version(
+    ctx: &mut Ctx<'_>,
+    info: &PathInfo,
+    path: &str,
+    siblings: &Siblings<'_>,
+    ev: &EvidenceRef,
+) {
+    let Some(mine) = text::version_mark(&info.stem) else {
+        return;
+    };
+    let dir = path.rsplit_once('/').map_or("", |(d, _)| d);
+    let mut best: Option<(u32, String)> = None;
+    for other in siblings.paths {
+        if other == path || other.rsplit_once('/').map_or("", |(d, _)| d) != dir {
+            continue;
+        }
+        let other_info = dirs::path_info(other);
+        let rank = match text::version_mark(&other_info.stem) {
+            Some(m) if m.trunk == mine.trunk => m.rank,
+            Some(_) => continue,
+            None if crate::resolve::normalize::norm(&other_info.stem) == mine.trunk => 0,
+            None => continue,
+        };
+        if rank < mine.rank && best.as_ref().is_none_or(|(r, p)| (rank, other) > (*r, p)) {
+            best = Some((rank, other.clone()));
+        }
+    }
+    if let Some((_, old)) = best {
+        let doc = ctx.doc.clone();
+        let old = EntityRef::new(EntityType::Document, old);
+        ctx.fact(
+            &doc,
+            Predicate::Supersedes,
+            Some(old),
+            None,
+            None,
+            None,
+            7000,
+            "name.version",
+            ev,
+        );
+    }
+}
+
+/// `text.email`: one email and one known Person in the same block.
+fn text_email(ctx: &mut Ctx<'_>, blocks: &[oo_core::docir::Block]) {
+    let persons: Vec<EntityRef> = ctx
+        .col
+        .entities
+        .keys()
+        .filter(|e| e.ty == EntityType::Person)
+        .cloned()
+        .collect();
+    for b in blocks {
+        if matches!(b.kind, BlockKind::Frontmatter | BlockKind::Code) {
+            continue;
+        }
+        let emails = text::emails(&b.text);
+        let [email] = emails.as_slice() else { continue };
+        let named: Vec<&EntityRef> = persons
+            .iter()
+            .filter(|p| b.text.contains(p.name.as_str()))
+            .collect();
+        if let [person] = named.as_slice() {
+            let ev = EvidenceRef::from_block(b);
+            ctx.col
+                .identity(person, "email", email, 9000, "text.email", &ev);
+        }
+    }
 }

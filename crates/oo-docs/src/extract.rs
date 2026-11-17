@@ -12,3 +12,5 @@ pub mod rules;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_s5;

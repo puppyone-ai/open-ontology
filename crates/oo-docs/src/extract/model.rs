@@ -249,6 +249,34 @@ pub struct FactMention {
     pub evidence: Vec<EvidenceRef>,
 }
 
+/// A deterministic identity attribute of an entity (10 §5.4 step 2): the
+/// resolver binds on an exact equal `(kind, value)` of the same type.
+#[derive(Clone, Debug, PartialEq)]
+pub struct IdentityMention {
+    pub entity: EntityRef,
+    /// `email`, `employee_id` or `github`.
+    pub kind: &'static str,
+    /// Normalized value (lowercase for `email` and `github`).
+    pub value: String,
+    pub confidence_bp: u16,
+    pub rule_id: &'static str,
+    pub evidence: Vec<EvidenceRef>,
+}
+
+/// A relation whose far end must already exist (`pptx.title`, `doc.meta`
+/// author): resolve turns it into a fact only when `target_name` binds to a
+/// stored entity of `target_ty`, and never creates that entity (10 §5.1).
+#[derive(Clone, Debug, PartialEq)]
+pub struct BindHint {
+    pub subject: EntityRef,
+    pub predicate: Predicate,
+    pub target_ty: EntityType,
+    pub target_name: String,
+    pub confidence_bp: u16,
+    pub rule_id: &'static str,
+    pub evidence: Vec<EvidenceRef>,
+}
+
 /// Everything the rules found in one file, sorted and de-duplicated, so the
 /// same input always gives the same value.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -258,6 +286,8 @@ pub struct Extraction {
     pub entities: Vec<EntityMention>,
     pub aliases: Vec<AliasMention>,
     pub facts: Vec<FactMention>,
+    pub identities: Vec<IdentityMention>,
+    pub hints: Vec<BindHint>,
 }
 
 /// Merge helper: ordered maps give the deterministic output order.
@@ -266,6 +296,8 @@ pub(crate) struct Collector {
     pub entities: BTreeMap<EntityRef, Vec<EvidenceRef>>,
     pub aliases: BTreeMap<(EntityRef, String), AliasMention>,
     pub facts: BTreeMap<FactSlot, FactMention>,
+    pub identities: BTreeMap<(EntityRef, &'static str, String), IdentityMention>,
+    pub hints: BTreeMap<(EntityRef, Predicate, EntityType, String), BindHint>,
 }
 
 /// Identity of a fact candidate inside one file.
@@ -314,6 +346,83 @@ impl Collector {
             slot.confidence_bp = conf;
             slot.rule_id = rule;
         }
+        if !slot.evidence.contains(ev) {
+            slot.evidence.push(ev.clone());
+        }
+    }
+
+    pub fn identity(
+        &mut self,
+        entity: &EntityRef,
+        kind: &'static str,
+        value: &str,
+        conf: u16,
+        rule: &'static str,
+        ev: &EvidenceRef,
+    ) {
+        let value = value.trim();
+        if value.is_empty() {
+            return;
+        }
+        let value = if kind == "employee_id" {
+            value.to_owned()
+        } else {
+            value.to_lowercase()
+        };
+        self.entity(entity, Some(ev));
+        let slot = self
+            .identities
+            .entry((entity.clone(), kind, value.clone()))
+            .or_insert_with(|| IdentityMention {
+                entity: entity.clone(),
+                kind,
+                value,
+                confidence_bp: conf,
+                rule_id: rule,
+                evidence: Vec::new(),
+            });
+        if conf > slot.confidence_bp {
+            slot.confidence_bp = conf;
+            slot.rule_id = rule;
+        }
+        if !slot.evidence.contains(ev) {
+            slot.evidence.push(ev.clone());
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn hint(
+        &mut self,
+        subject: &EntityRef,
+        predicate: Predicate,
+        target_ty: EntityType,
+        target_name: &str,
+        conf: u16,
+        rule: &'static str,
+        ev: &EvidenceRef,
+    ) {
+        let target_name = target_name.trim();
+        if target_name.is_empty() {
+            return;
+        }
+        self.entity(subject, Some(ev));
+        let slot = self
+            .hints
+            .entry((
+                subject.clone(),
+                predicate.clone(),
+                target_ty,
+                norm(target_name),
+            ))
+            .or_insert_with(|| BindHint {
+                subject: subject.clone(),
+                predicate,
+                target_ty,
+                target_name: target_name.to_owned(),
+                confidence_bp: conf,
+                rule_id: rule,
+                evidence: Vec::new(),
+            });
         if !slot.evidence.contains(ev) {
             slot.evidence.push(ev.clone());
         }
@@ -378,11 +487,29 @@ impl Collector {
                 f
             })
             .collect();
+        let identities = self
+            .identities
+            .into_values()
+            .map(|mut i| {
+                sort(&mut i.evidence);
+                i
+            })
+            .collect();
+        let hints = self
+            .hints
+            .into_values()
+            .map(|mut h| {
+                sort(&mut h.evidence);
+                h
+            })
+            .collect();
         Extraction {
             path: path.to_owned(),
             entities,
             aliases,
             facts,
+            identities,
+            hints,
         }
     }
 }

@@ -76,6 +76,14 @@ fn at(c: &[char], i: usize, partial: bool) -> Option<(ParsedDate, usize)> {
             None
         }
         Some('年') => {
+            // `2026年Q1`
+            if matches!(c.get(p + 1), Some('Q' | 'q')) {
+                let q = c.get(p + 2)?.to_digit(10)?;
+                if !(1..=4).contains(&q) || c.get(p + 3).is_some_and(char::is_ascii_digit) {
+                    return None;
+                }
+                return month(y, (q - 1) * 3 + 1).map(|x| (x, p + 3));
+            }
             let (m, q) = digits(c, p + 1, 1, 2)?;
             if c.get(q) != Some(&'月') {
                 return None;
@@ -127,6 +135,32 @@ pub fn scan(text: &str, partial: bool) -> Vec<(ParsedDate, usize, usize)> {
             while i < chars.len() && chars[i].is_ascii_digit() {
                 i += 1;
             }
+            continue;
+        }
+        i += 1;
+    }
+    out
+}
+
+/// `M月D日` (also `号`) without a year: the year is taken from `year` (the
+/// document date, 10 §5.1 `text.date`). Dates preceded by `年` or a digit are
+/// not read (they belong to a full date). Returns the date and char range.
+pub fn scan_month_day(text: &str, year: u32) -> Vec<(ParsedDate, usize, usize)> {
+    let c: Vec<char> = text.chars().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < c.len() {
+        let starts = c[i].is_ascii_digit()
+            && (i == 0 || !(c[i - 1].is_ascii_digit() || c[i - 1] == '年' || c[i - 1] == '-'));
+        if starts
+            && let Some((m, p)) = digits(&c, i, 1, 2)
+            && c.get(p) == Some(&'月')
+            && let Some((d, q)) = digits(&c, p + 1, 1, 2)
+            && matches!(c.get(q), Some('日' | '号'))
+            && let Some(date) = day(year, m, d)
+        {
+            out.push((date, i, q + 1));
+            i = q + 1;
             continue;
         }
         i += 1;
