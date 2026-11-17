@@ -32,11 +32,15 @@ use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection};
 
 use super::gates::{
-    AliasRow, DOC_G1, DOC_G2, EvidenceRow, FactRow, IrIndex, Tally, g1_alias, g1_fact, g2,
+    AliasRow, DOC_G1, DOC_G2, DOC_G3, DOC_G4, DOC_G5, EvidenceRow, FactRow, IrIndex, Tally,
+    g1_alias, g1_fact, g2,
 };
 use crate::cas::{Cas, CasError, CasKind};
+use crate::review::overlay;
+use crate::review::queue::{self, Thresholds};
 use crate::state::{FileState, Transition, TransitionError, transition_in_tx};
 use crate::store::{StoreError, events};
+use crate::temporal::pg::{overlaps_after, queue_held, reconcile};
 
 /// `pg_try_advisory_lock` key of the single publisher (10 §4.9).
 pub const PUBLISH_LOCK: i64 = 6_413_202_612;
@@ -46,8 +50,10 @@ pub const AUTO_PUBLISH_BP: i32 = 8000;
 /// Knobs of one publish run.
 #[derive(Clone, Copy, Debug)]
 pub struct PublishConfig {
-    /// Non-rule items at or above this confidence publish without review.
+    /// Items at or above this confidence publish without review.
     pub auto_publish_bp: i32,
+    /// Items from here up to `auto_publish_bp` wait in the review queue.
+    pub queue_min_bp: i32,
     /// `ontology_version.trigger`.
     pub trigger: &'static str,
 }
@@ -56,6 +62,7 @@ impl Default for PublishConfig {
     fn default() -> Self {
         Self {
             auto_publish_bp: AUTO_PUBLISH_BP,
+            queue_min_bp: crate::extract::confidence::QUEUE_MIN_BP,
             trigger: "auto",
         }
     }
@@ -67,6 +74,9 @@ pub enum PublishError {
     Cas(CasError),
     Ir(String),
     Transition(String),
+    /// A gate that stops the whole version failed (DOC-G5): nothing was
+    /// published and the transaction rolled back.
+    Blocked(String),
 }
 
 impl fmt::Display for PublishError {
@@ -76,6 +86,7 @@ impl fmt::Display for PublishError {
             Self::Cas(e) => write!(f, "publish cas read failed: {e}"),
             Self::Ir(e) => write!(f, "publish could not read an IR: {e}"),
             Self::Transition(e) => write!(f, "publish file transition failed: {e}"),
+            Self::Blocked(e) => write!(f, "publish blocked by a gate: {e}"),
         }
     }
 }
@@ -257,15 +268,28 @@ pub async fn publish(
         return Ok(PublishOutcome::Busy);
     }
 
+    // Review queue first: what waits is queued, what a person rejected is
+    // out, what remains is eligible (5.3, 4.8).
+    let th = Thresholds {
+        auto_publish_bp: cfg.auto_publish_bp,
+        queue_min_bp: cfg.queue_min_bp,
+    };
+    let report = queue::enqueue(&mut tx, th).await?;
+    let mut eligible = report.eligible();
+    // Supersession and functional conflicts (5.5); what must wait is queued.
+    let rec = reconcile(&mut tx, &eligible).await?;
+    queue_held(&mut tx, &rec.held).await?;
+    eligible.retain(|id| !rec.excluded.contains(id));
+
     let fact_rows: Vec<FactSqlRow> = sqlx::query_as(
         "SELECT f.id::text, f.fact_key, f.predicate, f.value::text, s.type, o.type \
                FROM _oo_docs.fact f \
                JOIN _oo_docs.entity s ON s.id = f.subject_id \
                LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
-              WHERE f.status = 'draft' AND (f.origin = 'rule' OR f.confidence_bp >= $1) \
+              WHERE f.status = 'draft' AND f.id = ANY($1::text[]::uuid[]) \
               ORDER BY f.fact_key, f.id",
     )
-    .bind(cfg.auto_publish_bp)
+    .bind(&eligible)
     .fetch_all(&mut *tx)
     .await?;
     let mut facts = Vec::with_capacity(fact_rows.len());
@@ -289,7 +313,7 @@ pub async fn publish(
     let alias_rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
         "SELECT a.id::text, e.key, a.norm_alias, a.alias, e.type \
            FROM _oo_docs.alias a JOIN _oo_docs.entity e ON e.id = a.entity_id \
-          WHERE a.status = 'draft' AND (a.origin = 'rule' OR a.confidence_bp >= $1) \
+          WHERE a.status = 'draft' AND (a.origin = 'human' OR a.confidence_bp >= $1) \
           ORDER BY e.key, a.norm_alias",
     )
     .bind(cfg.auto_publish_bp)
@@ -359,6 +383,83 @@ pub async fn publish(
     let blocked_facts = u32::try_from(g1.blocked_facts + g2t.blocked_facts).unwrap_or(u32::MAX);
     let blocked_aliases =
         u32::try_from(g1.blocked_aliases + g2t.blocked_aliases).unwrap_or(u32::MAX);
+
+    // DOC-G4: content a person rejected or replaced never returns.
+    let mut g4 = Tally::default();
+    {
+        let keys: Vec<String> = ok_facts.iter().map(|f| f.fact_key.clone()).collect();
+        let rejected = overlay::rejected_keys(&mut tx, &keys).await?;
+        ok_facts.retain(|f| {
+            if rejected.contains(&f.fact_key) {
+                g4.block("fact_rejected", false);
+                false
+            } else {
+                g4.pass();
+                true
+            }
+        });
+    }
+    // DOC-G3: two different values never hold at once (the supersession of
+    // the reconcile step above is already applied).
+    let mut g3 = Tally::default();
+    {
+        let ids: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
+        let overlaps = overlaps_after(&mut tx, &ids).await?;
+        let mut blocked: BTreeSet<String> = BTreeSet::new();
+        let mut held = Vec::new();
+        for o in &overlaps {
+            // The one that is not yet published waits; between two newcomers
+            // the larger key does.
+            let (loser, other) = match (o.a_published, o.b_published) {
+                (true, false) => (&o.b_id, &o.a_id),
+                (false, true) => (&o.a_id, &o.b_id),
+                _ if o.a_key <= o.b_key => (&o.b_id, &o.a_id),
+                _ => (&o.a_id, &o.b_id),
+            };
+            if blocked.insert(loser.clone()) {
+                held.push(crate::temporal::Held {
+                    fact_id: loser.clone(),
+                    other_id: other.clone(),
+                    reason: crate::temporal::ReviewReason::FunctionalConflict,
+                });
+            }
+        }
+        queue_held(&mut tx, &held).await?;
+        ok_facts.retain(|f| {
+            if blocked.contains(&f.id) {
+                g3.block("overlap", false);
+                false
+            } else {
+                g3.pass();
+                true
+            }
+        });
+    }
+    // DOC-G5: redirects are acyclic and at most one deep, and no published
+    // or incoming fact points at a merged entity. A failure stops the version.
+    let mut g5 = Tally::default();
+    {
+        let ids: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
+        let bad: i64 = sqlx::query_scalar(
+            "SELECT (SELECT count(*) FROM _oo_docs.entity_redirect a \
+                       LEFT JOIN _oo_docs.entity_redirect b ON b.from_key = a.to_key \
+                      WHERE a.from_key = a.to_key OR b.from_key IS NOT NULL) \
+                  + (SELECT count(*) FROM _oo_docs.fact f \
+                       JOIN _oo_docs.entity e ON e.id IN (f.subject_id, f.object_id) \
+                      WHERE e.status = 'merged' AND (f.status = 'published' OR f.id = ANY($1::text[]::uuid[])))",
+        )
+        .bind(&ids)
+        .fetch_one(&mut *tx)
+        .await?;
+        if bad > 0 {
+            return Err(PublishError::Blocked(format!(
+                "DOC-G5: {bad} merge integrity violations"
+            )));
+        }
+        g5.pass();
+    }
+    let blocked_facts =
+        blocked_facts + u32::try_from(g3.blocked_facts + g4.blocked_facts).unwrap_or(0);
 
     // Schema-blocked facts go to the review queue (deduplicated).
     for (f, reason) in &schema_blocked {
@@ -430,7 +531,13 @@ pub async fn publish(
     let digest = version_digest(n, parent_digest, &fact_keys, &alias_keys, &retracted_keys);
 
     let mut gates = Vec::new();
-    for (gate_id, tally) in [(DOC_G1, &g1), (DOC_G2, &g2t)] {
+    for (gate_id, tally) in [
+        (DOC_G1, &g1),
+        (DOC_G2, &g2t),
+        (DOC_G3, &g3),
+        (DOC_G4, &g4),
+        (DOC_G5, &g5),
+    ] {
         let disposition = tally.disposition();
         let detail = tally.detail();
         let evidence_sha256 = gate_evidence_sha256(&digest, gate_id, disposition, &detail);
@@ -557,6 +664,15 @@ pub async fn publish(
         }
     }
 
+    let as_of: String =
+        sqlx::query_scalar("SELECT as_of::text FROM _oo_docs.ontology_version WHERE n = $1")
+            .bind(n)
+            .fetch_one(&mut *tx)
+            .await?;
+    let gate_map: serde_json::Map<String, Value> = gates
+        .iter()
+        .map(|g| (g.gate_id.to_owned(), json!(g.disposition)))
+        .collect();
     events::append_event(
         &mut tx,
         "ontology.version_published",
@@ -564,8 +680,10 @@ pub async fn publish(
         Some(&n.to_string()),
         &json!({
             "n": n,
+            "as_of": as_of,
             "facts_added": ok_facts.len(),
             "facts_retracted": retractions.len(),
+            "gates": gate_map,
         })
         .to_string(),
     )

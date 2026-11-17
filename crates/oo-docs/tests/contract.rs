@@ -107,6 +107,8 @@ fn every_route_error_code_is_in_the_contract() {
             code::SHARE_ROLE_UNAVAILABLE,
             code::SHARE_TARGET_INVALID,
             code::PARSE_NOT_READY,
+            code::REVIEW_BATCH_TOO_LARGE,
+            code::REVIEW_INVALID_DECISION,
         ]
         .into_iter()
         .find(|c| c.as_str() == name)
@@ -120,7 +122,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 39);
+    assert_eq!(ALL_CODES.len(), 41);
 }
 
 #[test]

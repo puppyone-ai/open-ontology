@@ -51,6 +51,8 @@ pub mod lifecycle;
 pub mod metrics;
 pub mod packs;
 pub mod progress;
+pub mod routes_entities;
+pub mod routes_review;
 pub mod shares;
 
 use error::{ApiError, code};
@@ -520,6 +522,27 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             }
             packs::file(app, pid, &path).await
         }
+        ["v1", "docs", "entities"] => {
+            method_allowed(req, &["GET"])?;
+            routes_entities::list(app, req).await
+        }
+        ["v1", "docs", "resolve"] => {
+            method_allowed(req, &["POST"])?;
+            routes_entities::resolve(app, req).await
+        }
+        // `eid` is an id or a key (`person:<24 hex>`, which contains a colon).
+        ["v1", "docs", "entities", eid] => {
+            method_allowed(req, &["GET"])?;
+            routes_entities::detail(app, eid, req).await
+        }
+        ["v1", "docs", "review"] => {
+            method_allowed(req, &["GET"])?;
+            routes_review::list(app, req).await
+        }
+        ["v1", "docs", "review:decide"] => {
+            method_allowed(req, &["POST"])?;
+            routes_review::decide(app, req).await
+        }
         ["v1", "docs", "shares"] => {
             method_allowed(req, &["POST"])?;
             shares::create(app, req).await
@@ -566,7 +589,6 @@ mod tests {
     #[test]
     fn unserved_routes_are_the_documented_ones() {
         assert!(known_unserved(&["v1", "docs", "entities", "abc"]));
-        assert!(known_unserved(&["v1", "docs", "review:decide"]));
         assert!(known_unserved(&["v1", "docs", "context-packs:compile"]));
         assert!(!known_unserved(&["v1", "docs", "nothing"]));
     }

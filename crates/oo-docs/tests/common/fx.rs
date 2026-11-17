@@ -68,6 +68,27 @@ impl Fx {
         }
     }
 
+    /// Attach to a database a `TestEngine` already installed: inserts the Drive
+    /// and uses the engine's content store directory.
+    pub async fn attach(db: &str, cas_dir: &std::path::Path) -> Self {
+        let mut admin = connect(db).await;
+        admin
+            .execute(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO _oo_docs.drive (id, name, backend, config) VALUES ('{DRIVE}', 'd', 'fs', '{{}}')"
+            )))
+            .await
+            .unwrap();
+        let cas = Cas::open(cas_dir).expect("cas");
+        let rt = connect_runtime(db).await;
+        Self {
+            cas,
+            dir: cas_dir.to_path_buf(),
+            admin,
+            rt,
+            siblings: Vec::new(),
+        }
+    }
+
     /// Plant blob, file (state `indexed`), version and a complete parse.
     pub async fn plant_normalized(&mut self, path: &str, n: Normalized, size: usize) -> Planted {
         let b3 = n.ir.blob_b3.clone();
@@ -194,6 +215,107 @@ impl Fx {
             .fetch_all(&mut self.admin)
             .await
             .unwrap()
+    }
+
+    /// The plant of a path that was planted before (to index it again): the
+    /// IR is read back from the CAS through the stored parse result.
+    pub async fn known_plant(&mut self, path: &str) -> Planted {
+        let (file_id, version_id, b3, ir_b3): (String, String, String, String) = sqlx::query_as(
+            "SELECT f.id::text, fv.id::text, fv.b3, pr.ir_b3 FROM _oo_docs.file f \
+               JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+               JOIN _oo_docs.parse_result pr ON pr.b3 = fv.b3 WHERE f.path = $1",
+        )
+        .bind(path)
+        .fetch_one(&mut self.admin)
+        .await
+        .unwrap();
+        let bytes = self.cas.get(CasKind::Ir, &ir_b3).expect("ir");
+        Planted {
+            file_id,
+            version_id,
+            b3,
+            ir: serde_json::from_slice(&bytes).unwrap(),
+        }
+    }
+
+    /// `n` LLM facts `Document about Topic` of the file at `path`, each with its
+    /// own topic and the evidence of the document's first block. Returns the
+    /// fact ids.
+    pub async fn llm_facts(&mut self, path: &str, n: usize, bp: i32) -> Vec<String> {
+        self.llm_facts_named(path, "议题", n, bp).await
+    }
+
+    /// [`Self::llm_facts`] with topics named `<prefix>NNN`.
+    pub async fn llm_facts_named(
+        &mut self,
+        path: &str,
+        prefix: &str,
+        n: usize,
+        bp: i32,
+    ) -> Vec<String> {
+        use oo_docs::extract::model::EntityType;
+        use oo_docs::resolve::normalize::{entity_key, fact_key, norm};
+        let (doc_id, doc_key): (String, String) = sqlx::query_as(
+            "SELECT id::text, key FROM _oo_docs.entity WHERE type = 'Document' AND canonical_name = $1",
+        )
+        .bind(path)
+        .fetch_one(&mut self.admin)
+        .await
+        .unwrap();
+        let ev: (String, String, String, String, String) = sqlx::query_as(
+            "SELECT ev.version_id::text, ev.b3, ev.block_id, ev.anchor::text, ev.quote_b3 \
+               FROM _oo_docs.evidence ev WHERE ev.target_kind = 'entity' AND ev.target_id = $1::uuid \
+              ORDER BY ev.block_id LIMIT 1",
+        )
+        .bind(&doc_id)
+        .fetch_one(&mut self.admin)
+        .await
+        .unwrap();
+        let mut ids = Vec::new();
+        for i in 0..n {
+            let name = format!("{prefix}{i:03}");
+            let tkey = entity_key(EntityType::Topic, None, &norm(&name), None);
+            sqlx::query(
+                "INSERT INTO _oo_docs.entity (id, key, type, canonical_name, norm_name) \
+                 VALUES (gen_random_uuid(), $1, 'Topic', $2, $3) ON CONFLICT (key) DO NOTHING",
+            )
+            .bind(&tkey)
+            .bind(&name)
+            .bind(norm(&name))
+            .execute(&mut self.admin)
+            .await
+            .unwrap();
+            let fkey = fact_key(&doc_key, "about", Some(&tkey), None, None);
+            let fid: String = sqlx::query_scalar(
+                "INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, \
+                    object_id, original_object_id, confidence_bp, origin, status) \
+                 SELECT gen_random_uuid(), $1, $2::uuid, $2::uuid, 'about', t.id, t.id, $3, 'llm', 'draft' \
+                   FROM _oo_docs.entity t WHERE t.key = $4 RETURNING id::text",
+            )
+            .bind(&fkey)
+            .bind(&doc_id)
+            .bind(bp)
+            .bind(&tkey)
+            .fetch_one(&mut self.admin)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, block_id, anchor, \
+                                                quote_b3, origin) \
+                 VALUES (gen_random_uuid(), 'fact', $1::uuid, $2::uuid, $3, $4, $5::jsonb, $6, 'llm')",
+            )
+            .bind(&fid)
+            .bind(&ev.0)
+            .bind(&ev.1)
+            .bind(&ev.2)
+            .bind(&ev.3)
+            .bind(&ev.4)
+            .execute(&mut self.admin)
+            .await
+            .unwrap();
+            ids.push(fid);
+        }
+        ids
     }
 
     pub async fn finish(self, db: &str) {

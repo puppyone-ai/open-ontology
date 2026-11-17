@@ -1,4 +1,6 @@
-//! DOC-G1 (schema) and DOC-G2 (evidence), 10 §6.1. Pure.
+//! DOC-G1 (schema) and DOC-G2 (evidence), 10 §6.1. Pure. DOC-G3 (bitemporal),
+//! DOC-G4 (overlay) and DOC-G5 (merge integrity) are checked in `run.rs`
+//! because they read the store; they share the [`Tally`].
 //!
 //! Reading of the spec where it is short:
 //! * G1 checks per fact: the predicate is one of the eight core relations or
@@ -25,6 +27,9 @@ use crate::extract::model::{EntityType, Predicate};
 /// Gate ids as stored in `gate_report.gate_id`.
 pub const DOC_G1: &str = "DOC-G1";
 pub const DOC_G2: &str = "DOC-G2";
+pub const DOC_G3: &str = "DOC-G3";
+pub const DOC_G4: &str = "DOC-G4";
+pub const DOC_G5: &str = "DOC-G5";
 
 /// Longest `attr.*` value text.
 pub const MAX_VALUE_CHARS: usize = 2000;
