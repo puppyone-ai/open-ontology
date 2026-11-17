@@ -270,8 +270,25 @@ def run_l2(root, args):
     return results
 
 
+def run_super_ontology_s3_life(root, args):
+    """The s3 round of L3 acceptance 5 on RustFS and MinIO (B-S4-02, B-S4-04)."""
+    evidence = ROOT / "testing/super-ontology/evidence/L3"
+    results = []
+    for store in ("rustfs", "minio"):
+        command = ["python3", "-B", str(HERE / "super_ontology_s3_life.py"), "--store", store,
+                   "--run-id", f"{args.run_id}-{store}", "--evidence-dir", str(evidence)]
+        result = timed_command(f"super-ontology-s3-life-{store}", command, root, 1800, lane=False)
+        results.append(dict(suite="super-ontology", cell=f"s3-{store}", **result,
+                            evidence=str(evidence.relative_to(ROOT))))
+        print(json.dumps(results[-1]), flush=True)
+    runner.write_json(root / "l2-results.json", results)
+    return results
+
+
 def run_super_ontology_l2(root, args):
     """Super Ontology L2 walking skeleton (real oo serve + engine + container PG)."""
+    if args.cells and "s3" in args.cells:
+        return run_super_ontology_s3_life(root, args)
     evidence = ROOT / "testing/super-ontology/evidence/L2"
     command = ["python3", "-B", str(HERE / "super_ontology_l2.py"), "--run-id", args.run_id,
                "--evidence-dir", str(evidence)]

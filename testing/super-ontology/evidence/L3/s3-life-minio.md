@@ -1,10 +1,14 @@
-# s3 round of acceptance 5 on pgsty/minio RELEASE.2026-08-04T00-00-00Z (community fork of MinIO), run s3l-final-minio
+# s3 round of acceptance 5 on pgsty/minio RELEASE.2026-08-04T00-00-00Z (community fork of MinIO), run s4-l2s3-minio
+$ cargo build --locked -p oo-cli --features docs
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+$ cargo build --locked -p oo-docs --features objectstore-s3 --bin oo-docs-engine
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
 [PASS] the store is up - pgsty/minio
-$ docker run -d --name oo-be1-pg-s3l-final-minio --label oo.lane=super-ontology-be1 -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 docker.io/library/postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 -c track_commit_timestamp=on
-  27af8b6acd8c0ecd0122a0ad58df9b6dbbaa5eeff04da355f3008b80bc7abe12
-[PASS] schema installed - {"addr":"127.0.0.1:51079","event":"listening","worker":"engi
-$ <repo>/target/debug/oo serve --json --port 0 --state-dir /tmp/oo-s3l-s3l-final-minio-kf2kjf9o/state
-  {"api_version": "1.0", "engine": {"images": {}, "mode": "host_process", "pid": 77911, "project": "host"}, "pid": 77910, "port": 51101, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-17T22:05:51Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+$ docker run -d --name oo-be1-pg-s4-l2s3-minio --label oo.lane=super-ontology-be1 -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 docker.io/library/postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 -c track_commit_timestamp=on
+  b32cfb7edfa9c4edffa392f8e8d10eeb9365eea0552c30c54d0def93beceedab
+[PASS] schema installed - {"addr":"127.0.0.1:60350","event":"listening","worker":"engi
+$ <repo>/target/debug/oo serve --json --port 0 --state-dir /tmp/oo-s3l-s4-l2s3-minio-8xjn88vy/state
+  {"api_version": "1.0", "engine": {"images": {}, "mode": "host_process", "pid": 7323, "project": "host"}, "pid": 7296, "port": 60392, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-17T22:16:46Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
 [PASS] a Drive with an inline key is refused - HTTP 400
 [PASS] the s3 Drive is registered - HTTP 201
 [PASS] the bystander is published
