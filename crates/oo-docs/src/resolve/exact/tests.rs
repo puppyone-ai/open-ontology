@@ -171,6 +171,7 @@ fn apply_rekeys_facts_to_the_bound_entity() {
             rule_id: "md.kv",
             evidence: vec![ev("1")],
         }],
+        ..Extraction::default()
     };
     let mut idx = MapIndex::default();
     idx.insert(
