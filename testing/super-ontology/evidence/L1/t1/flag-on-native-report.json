@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "nativeInput": true,
+  "superOntologyChannels": [
+    "super-ontology:engine-read"
+  ],
+  "engineStatus": "引擎未连接",
+  "dataLocal": "不会上传到 puppyone 云端",
+  "error": null,
+  "navigationItems": [
+    "super-drive",
+    "settings"
+  ],
+  "surfaceOutlets": 2
+}
