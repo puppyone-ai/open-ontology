@@ -1,6 +1,6 @@
-SBOM gate: FAIL  components={'python': 76, 'native-in-wheel': 21, 'base-os': 97, 'model': 6}
-  REVIEW    certifi 2026.10.23  [python]  MPL-2.0
-  REVIEW    tqdm 4.70.1  [python]  MPL-2.0 AND MIT
-  REVIEW    glibc (vendored by auditwheel) bundled  [native-in-wheel]  LGPL-2.1-or-later
-  REVIEW    libgfortran (GCC Fortran runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
-  REVIEW    libgomp (GCC OpenMP runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
+SBOM gate: PASS  components={'python': 76, 'native-in-wheel': 21, 'base-os': 97, 'model': 6}
+  REVIEWED  certifi 2026.10.23  [python]  MPL-2.0
+  REVIEWED  tqdm 4.70.1  [python]  MPL-2.0 AND MIT
+  REVIEWED  glibc (vendored by auditwheel) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgfortran (GCC Fortran runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEWED  libgomp (GCC OpenMP runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
