@@ -11,6 +11,7 @@
 //! half-open `[char_start, char_end)`, newlines included. A line ends at
 //! `\n`; a `\r` before it stays in the line.
 
+pub mod csv;
 pub mod decode;
 pub mod frontmatter;
 pub mod lines;
