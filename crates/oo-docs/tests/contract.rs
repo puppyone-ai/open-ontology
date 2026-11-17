@@ -543,3 +543,114 @@ async fn h_head(e: &TestEngine) -> i64 {
         .as_i64()
         .unwrap()
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn live_pack_and_share_responses_validate_against_the_schema() {
+    let schema = load("contracts/docs-api/docs-api.v1.schema.json");
+    let events_schema = load("contracts/docs-api/events.v1.schema.json");
+    let v = |n: &str| def(&schema, n);
+    let ev_validator = oo_core::schema_util::compile_schema(&events_schema).expect("events schema");
+    let e = TestEngine::start(
+        "contract_packs",
+        Opts {
+            workers: true,
+            stages: true,
+            ..Opts::default()
+        },
+    )
+    .await;
+    e.write(
+        "Projects/a/p.md",
+        "---\ntype: project\nname: 星火计划\nowner: 林川\n---\n# 星火计划\n\n负责人：林川\n",
+    );
+    let id = e.create_drive("contract-packs").await["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    e.until("published", || async {
+        let r = e.get(&format!("/v1/docs/drives/{id}/files")).await.json();
+        let items = r["items"].as_array().unwrap();
+        !items.is_empty() && items.iter().all(|f| f["state"] == "published")
+    })
+    .await;
+
+    let compile =
+        json!({"drive_id": id, "scope": ["Projects/a"], "budget": 800, "task": "星火计划"});
+    check(&v("CompileRequest"), "CompileRequest", &compile);
+    let r = e.post("/v1/docs/context-packs:compile", &compile).await;
+    assert_eq!(r.status, 201, "{}", String::from_utf8_lossy(&r.body));
+    let pack = r.json();
+    check(&v("ContextPack"), "POST :compile", &pack);
+    let pid = pack["id"].as_str().unwrap();
+    check(
+        &v("ContextPack"),
+        "GET pack",
+        &e.get(&format!("/v1/docs/context-packs/{pid}")).await.json(),
+    );
+    let create = json!({"compile": compile, "mount": {"target_dir": "/tmp/oo-contract"}, "expires_in_seconds": 3600});
+    check(&v("ShareCreate"), "ShareCreate", &create);
+    let s = e.post("/v1/docs/shares", &create).await;
+    assert_eq!(s.status, 201, "{}", String::from_utf8_lossy(&s.body));
+    check(&v("Share"), "POST /shares", &s.json());
+    let sid = s.json()["id"].as_str().unwrap().to_owned();
+    check(
+        &v("Share"),
+        "GET share",
+        &e.get(&format!("/v1/docs/shares/{sid}")).await.json(),
+    );
+    for (what, body) in [
+        (
+            "scope",
+            e.post(
+                "/v1/docs/context-packs:compile",
+                &json!({"drive_id": id, "scope": ["Nope"]}),
+            )
+            .await,
+        ),
+        (
+            "missing pack",
+            e.get("/v1/docs/context-packs/00000000-0000-4000-8000-000000000000")
+                .await,
+        ),
+        (
+            "missing share",
+            e.get("/v1/docs/shares/00000000-0000-4000-8000-000000000000")
+                .await,
+        ),
+    ] {
+        check(&v("Error"), what, &body.json());
+    }
+
+    let bearer = format!("Bearer {TOKEN}");
+    let mut sse = open_sse(
+        e.addr,
+        "/v1/docs/events?since=0",
+        &[("Authorization", &bearer)],
+    )
+    .await;
+    let head: i64 = sqlx::query_scalar("SELECT max(seq) FROM _oo_docs.event")
+        .fetch_one(&e.pool)
+        .await
+        .unwrap();
+    let mut kinds = BTreeSet::new();
+    let mut last = 0;
+    while last < head {
+        let ev = sse
+            .event(std::time::Duration::from_secs(5))
+            .await
+            .expect("event");
+        check(&v("Event"), "stream event vs Event", &ev);
+        check_event(&ev_validator, &ev);
+        last = ev["seq"].as_i64().unwrap();
+        kinds.insert(ev["type"].as_str().unwrap().to_owned());
+    }
+    for must in [
+        "pack.compiled",
+        "share.created",
+        "ontology.version_published",
+    ] {
+        assert!(kinds.contains(must), "{must} missing: {kinds:?}");
+    }
+    e.finish().await;
+}
