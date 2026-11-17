@@ -117,3 +117,12 @@ def test_requirements_lock_has_no_opencv_wheel_and_no_forbidden_package():
     assert not {n for n in names if n.startswith("opencv")}
     assert not names & {"qwen-asr", "soynlp", "easyocr", "pymupdf", "ultralytics", "extract-msg", "docling"}
     assert {"paddleocr", "paddlepaddle", "paddlex"} <= names
+
+
+def test_picture_and_chart_regions_take_the_ocr_lines_inside_them():
+    ocr = {"rec_polys": [[[10, 10], [50, 10], [50, 20], [10, 20]], [[10, 40], [50, 40], [50, 50], [10, 50]],
+                         [[500, 500], [510, 500], [510, 510], [500, 510]]],
+           "rec_texts": ["上", "下", "外"]}
+    assert adapter._region_text(ocr, [0, 0, 100, 100]) == "上\n下"
+    assert adapter._region_text(ocr, [900, 900, 950, 950]) == ""
+    assert "chart" in adapter.REGION_LABELS and "chart" not in adapter.SKIP_LABELS

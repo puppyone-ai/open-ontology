@@ -34,12 +34,14 @@ IMAGE_MAGIC = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF", b"BM", b"II*\x00"
 LABEL_KIND = {
     "doc_title": "heading", "paragraph_title": "heading", "text": "paragraph", "content": "paragraph",
     "abstract": "paragraph", "reference": "paragraph", "reference_content": "paragraph",
-    "aside_text": "paragraph", "vertical_text": "paragraph", "table": "table", "figure_title": "caption",
+    "aside_text": "paragraph", "image": "paragraph", "chart": "paragraph", "vertical_text": "paragraph", "table": "table", "figure_title": "caption",
     "table_title": "caption", "chart_title": "caption", "header": "page_header", "footer": "page_footer",
     "header_image": "page_header", "footer_image": "page_footer", "footnote": "footnote",
     "vision_footnote": "footnote", "number": "page_footer", "algorithm": "code", "formula": "paragraph",
 }
-SKIP_LABELS = {"image", "chart", "seal", "formula_number"}
+SKIP_LABELS = {"seal", "formula_number"}
+# Pictures and charts have no block text of their own; the OCR lines inside the region are the text.
+REGION_LABELS = {"image", "chart"}
 
 
 def _models():
@@ -138,6 +140,19 @@ def _line_score(ocr, box):
     return round(sum(scores) / len(scores), 4) if scores else 0.0
 
 
+def _region_text(ocr, box):
+    """OCR lines whose centre is inside `box`, top to bottom, left to right, joined by newlines."""
+    x0, y0, x1, y1 = box
+    found = []
+    for poly, text in zip(ocr.get("rec_polys", []), ocr.get("rec_texts", [])):
+        xs = [p[0] for p in poly]
+        ys = [p[1] for p in poly]
+        cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+        if x0 <= cx <= x1 and y0 <= cy <= y1 and str(text).strip():
+            found.append((round(cy / 12), cx, str(text).strip()))
+    return "\n".join(t for _, _, t in sorted(found))
+
+
 def _run(img):
     out = list(_pipeline().predict(_to_bgr(img)))
     res = out[0].json["res"]
@@ -146,9 +161,11 @@ def _run(img):
     for b in sorted(res.get("parsing_res_list", []), key=lambda b: b.get("block_order") or 0):
         label = b.get("block_label", "text")
         text = (b.get("block_content") or "").strip()
+        box = [int(v) for v in b["block_bbox"]]
+        if label in REGION_LABELS and not text:
+            text = _region_text(ocr, box)
         if label in SKIP_LABELS or not text:
             continue
-        box = [int(v) for v in b["block_bbox"]]
         blocks.append({"label": label, "kind": LABEL_KIND.get(label, "paragraph"), "text": text,
                        "bbox_px": box, "score": _line_score(ocr, box)})
     return blocks
