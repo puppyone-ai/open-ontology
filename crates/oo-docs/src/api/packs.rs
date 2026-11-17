@@ -92,6 +92,36 @@ pub fn parse_compile(v: &Value, pointer: &str) -> Result<(String, CompileRequest
     Ok((drive, req))
 }
 
+/// `min_drive_rev`, `wait_ms`, `require_complete` of a compile object (D54).
+pub fn parse_freshness(
+    v: &Value,
+    pointer: &str,
+) -> Result<crate::share::coverage::Freshness, ApiError> {
+    use crate::share::coverage::{DEFAULT_WAIT_MS, Freshness, MAX_WAIT_MS};
+    let at = |k: &str| format!("{pointer}/{k}");
+    let mut f = Freshness::default();
+    if let Some(n) = v.get("min_drive_rev") {
+        f.min_drive_rev = Some(
+            n.as_i64()
+                .filter(|n| *n >= 0)
+                .ok_or_else(|| ApiError::bad(&at("min_drive_rev"), "expected a number >= 0"))?,
+        );
+    }
+    f.wait_ms = DEFAULT_WAIT_MS;
+    if let Some(n) = v.get("wait_ms") {
+        f.wait_ms = n
+            .as_u64()
+            .filter(|n| *n <= MAX_WAIT_MS)
+            .ok_or_else(|| ApiError::bad(&at("wait_ms"), "wait_ms is 0 to 120000"))?;
+    }
+    if let Some(b) = v.get("require_complete") {
+        f.require_complete = b
+            .as_bool()
+            .ok_or_else(|| ApiError::bad(&at("require_complete"), "expected a boolean"))?;
+    }
+    Ok(f)
+}
+
 /// Compile and persist; the second value is whether the pack was new.
 pub async fn compile_and_store(
     conn: &mut PgConnection,
@@ -157,7 +187,17 @@ pub async fn compile(app: &AppState, req: &Req) -> Result<Response<Body>, ApiErr
     if let Some(stored) = idem::lookup(&mut conn, route, &key, &sha).await? {
         return Ok(json_with(stored.status, &stored.response, &[]));
     }
-    let (drive, creq) = parse_compile(&body, "")?;
+    let (drive, mut creq) = parse_compile(&body, "")?;
+    let fresh = parse_freshness(&body, "")?;
+    creq.coverage = Some(
+        crate::share::coverage::prepare(
+            &app.pool,
+            &drive,
+            &crate::compile::normalize_scope(&creq.scope),
+            &fresh,
+        )
+        .await?,
+    );
     let cas = cas(app)?;
     let (compiled, record, created) = compile_and_store(&mut conn, cas, &drive, &creq).await?;
     let mut v = with_preview(&mut conn, cas, &record).await?;

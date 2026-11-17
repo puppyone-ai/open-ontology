@@ -1,141 +1,47 @@
-//! Shares, minimal (10 §7.6, L2): `POST /v1/docs/shares` compiles (or reuses)
-//! a pack, creates the share row and its refs credential and returns the
-//! `Share`; `GET /v1/docs/shares/{sid}` reads it back.
+//! Shares (10 §7.6, §8.3, §16): create, list, get, `:refresh`, `:revoke`,
+//! `:check`, `/updates`, and the task-group refresh. The lifecycle lives in
+//! `crate::share`; this file is the HTTP shape.
 //!
 //! Two additions to the contract `Share` object, both only on the creation
-//! response: `files` (path, sha256, bytes, tokens of the pack files to pull
-//! from `context-packs/{pid}/files/{path}`) and `share_json` (the text of
-//! `SHARE.json`, which holds the one-time refs credential, so it is not
-//! stored and not replayed). The engine writes nothing outside its state
-//! directory; the physical mount belongs to the caller (the `oo` CLI, the
-//! `oo serve` daemon later).
-
-use std::io::Read;
+//! and refresh responses: `files` (path, sha256, bytes, tokens of the pack
+//! files to pull from `context-packs/{pid}/files/{path}`) and `share_json`
+//! (the text of `SHARE.json`, which holds the one-time refs credential, so it
+//! is not stored and not replayed). The engine writes nothing outside its
+//! state directory; the physical mount belongs to the `oo` CLI and the
+//! `oo serve` daemon.
 
 use axum::body::Body;
 use axum::http::Response;
 use serde_json::{Map, Value, json};
-use sqlx::PgConnection;
 
 use super::error::{ApiError, code};
-use super::http::{FMT, is_uuid, json_with, parse_json};
+use super::http::{is_uuid, json_with, parse_json};
 use super::idem;
-use super::packs::{compile_and_store, parse_compile};
+use super::packs::{parse_compile, parse_freshness};
 use super::{AppState, Req};
-use crate::compile::pack::ShareFields;
-use crate::store::events;
+use crate::share::lifecycle::{self, DEFAULT_EXPIRES, Plan};
 
-const DEFAULT_EXPIRES: i64 = 7 * 24 * 3600;
-const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-/// base64url without padding.
-pub fn b64url(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let n = chunk
-            .iter()
-            .enumerate()
-            .fold(0u32, |acc, (i, b)| acc | (u32::from(*b) << (16 - 8 * i)));
-        let chars = chunk.len() + 1;
-        for i in 0..chars {
-            out.push(B64[((n >> (18 - 6 * i)) & 63) as usize] as char);
-        }
-    }
-    out
-}
-
-/// `prefix` + base64url of 32 bytes from the operating system.
-pub fn random_token(prefix: &str) -> Result<String, ApiError> {
-    let mut buf = [0u8; 32];
-    std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(&mut buf))
-        .map_err(|_| ApiError::new(code::INTERNAL, "no randomness source"))?;
-    Ok(format!("{prefix}{}", b64url(&buf)))
-}
+pub use crate::share::lifecycle::{b64url, random_token, share_value};
 
 fn share_not_found(id: &str) -> ApiError {
-    ApiError::new(code::SHARE_NOT_FOUND, "share not found").details(json!({ "share_id": id }))
+    lifecycle::share_not_found(id)
 }
 
-type ShareRow = (
-    String,
-    String,
-    String,
-    String,
-    String,
-    Option<String>,
-    i32,
-    String,
-    String,
-    String,
-    Option<String>,
-    Option<String>,
-    i64,
-    i64,
-);
-
-/// The `Share` object of `sid`.
-pub async fn share_value(conn: &mut PgConnection, sid: &str) -> Result<Option<Value>, ApiError> {
-    let row: Option<ShareRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "SELECT s.id::text, s.pack_id::text, p.pack_digest, s.drive_id::text, s.scope::text, \
-                    s.task, s.budget, s.role, s.status, \
-                    to_char(s.created_at AT TIME ZONE 'UTC', {FMT}), \
-                    to_char(s.revoked_at AT TIME ZONE 'UTC', {FMT}), \
-                    s.refreshed_from::text, s.revision, p.version_n \
-               FROM _oo_docs.share s JOIN _oo_docs.context_pack p ON p.id = s.pack_id \
-              WHERE s.id = $1::uuid"
-    )))
-    .bind(sid)
-    .fetch_optional(&mut *conn)
-    .await?;
-    let Some((
-        id,
-        pack_id,
-        digest,
-        drive,
-        scope,
-        task,
-        budget,
-        role,
-        status,
-        created,
-        revoked,
-        from,
-        revision,
-        version,
-    )) = row
-    else {
-        return Ok(None);
-    };
-    let expires: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-        "SELECT to_char(expires_at AT TIME ZONE 'UTC', {FMT}) FROM _oo_docs.share WHERE id = $1::uuid"
-    )))
-    .bind(sid)
-    .fetch_one(&mut *conn)
-    .await?;
-    Ok(Some(json!({
-        "id": id,
-        "pack_id": pack_id,
-        "pack_digest": digest,
-        "drive_id": drive,
-        "scope": serde_json::from_str::<Value>(&scope).unwrap_or(Value::Null),
-        "role": role,
-        "task": task,
-        "budget": budget,
-        "version": version,
-        "state": status,
-        "mount": {"present": false},
-        "refreshed_from": from,
-        "created_at": created,
-        "expires_at": expires,
-        "revoked_at": revoked,
-        "revision": revision,
-    })))
+fn public_host(req: &Req) -> String {
+    req.headers
+        .get("x-oo-public-host")
+        .or_else(|| req.headers.get("host"))
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("127.0.0.1")
+        .to_owned()
 }
 
-fn parse_create(
-    v: &Value,
-) -> Result<(String, crate::compile::CompileRequest, String, i64, String), ApiError> {
+struct Create {
+    drive: String,
+    plan: Plan,
+}
+
+fn parse_create(v: &Value, host: String) -> Result<Create, ApiError> {
     let obj: &Map<String, Value> = v
         .as_object()
         .ok_or_else(|| ApiError::bad("", "expected an object"))?;
@@ -150,11 +56,11 @@ fn parse_create(
     if let Some(k) = obj.keys().find(|k| !KEYS.contains(&k.as_str())) {
         return Err(ApiError::bad(&format!("/{k}"), "unknown field"));
     }
-    let (drive, creq) = parse_compile(
-        obj.get("compile")
-            .ok_or_else(|| ApiError::bad("/compile", "compile is required"))?,
-        "/compile",
-    )?;
+    let compile = obj
+        .get("compile")
+        .ok_or_else(|| ApiError::bad("/compile", "compile is required"))?;
+    let (drive, creq) = parse_compile(compile, "/compile")?;
+    let fresh = parse_freshness(compile, "/compile")?;
     let target = obj
         .get("mount")
         .and_then(|m| m.get("target_dir"))
@@ -186,13 +92,49 @@ fn parse_create(
             .ok_or_else(|| ApiError::bad("/grantor", "grantor must be 1..=128 characters"))?
             .to_owned(),
     };
+    let group = match obj.get("group") {
+        None => None,
+        Some(g) => Some(
+            g.as_str()
+                .filter(|g| {
+                    !g.is_empty()
+                        && g.len() <= 128
+                        && g.chars()
+                            .all(|c| c.is_ascii_alphanumeric() || "._#:-".contains(c))
+                })
+                .ok_or_else(|| ApiError::bad("/group", "group must match [A-Za-z0-9._#:-]{1,128}"))?
+                .to_owned(),
+        ),
+    };
+    let refresh_policy = match obj.get("refresh_policy").map(Value::as_str) {
+        None => "manual".to_owned(),
+        Some(Some(p @ ("manual" | "at-checkpoint" | "pinned"))) => p.to_owned(),
+        Some(_) => {
+            return Err(ApiError::bad(
+                "/refresh_policy",
+                "refresh_policy is manual, at-checkpoint or pinned",
+            ));
+        }
+    };
     if creq.role == "editor" {
         return Err(ApiError::new(
             code::SHARE_ROLE_UNAVAILABLE,
             "the editor role is not available yet",
         ));
     }
-    Ok((drive, creq, target.to_owned(), expires, grantor))
+    Ok(Create {
+        drive: drive.clone(),
+        plan: Plan {
+            drive,
+            creq,
+            fresh,
+            expires_in: expires,
+            grantor,
+            group,
+            refresh_policy,
+            public_host: host,
+        },
+    })
 }
 
 /// `POST /v1/docs/shares`.
@@ -205,125 +147,23 @@ pub async fn create(app: &AppState, req: &Req) -> Result<Response<Body>, ApiErro
     if let Some(stored) = idem::lookup(&mut conn, route, &key, &sha).await? {
         return Ok(json_with(stored.status, &stored.response, &[]));
     }
-    let (drive, creq, _target, expires_in, grantor) = parse_create(&body)?;
-    let cas = app
-        .cas
-        .as_deref()
-        .ok_or_else(|| ApiError::new(code::INTERNAL, "this engine has no content store"))?;
-    let (compiled, record, _) = compile_and_store(&mut conn, cas, &drive, &creq).await?;
-
-    let public = req
-        .headers
-        .get("x-oo-public-host")
-        .or_else(|| req.headers.get("host"))
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("127.0.0.1")
-        .to_owned();
-    let credential = random_token("oodr_")?;
-    let cred_b3 = blake3::hash(credential.as_bytes()).to_hex().to_string();
-    let mount_ref = format!(
-        "m_{}",
-        random_token("")?.chars().take(24).collect::<String>()
-    );
-
+    let c = parse_create(&body, public_host(req))?;
+    let _ = &c.drive;
+    let prepared = lifecycle::prepare(app, c.plan).await?;
     let mut tx = sqlx::Connection::begin(&mut *conn).await?;
-    let (sid, created, expires): (String, String, String) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "INSERT INTO _oo_docs.share \
-           (id, pack_id, drive_id, scope, role, task, budget, status, grantor, mount_ref, expires_at) \
-         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3::jsonb, $4, $5, $6, 'active', $7, $8, \
-                 clock_timestamp() + $9::bigint * interval '1 second') \
-         RETURNING id::text, to_char(created_at AT TIME ZONE 'UTC', {FMT}), \
-                   to_char(expires_at AT TIME ZONE 'UTC', {FMT})"
-    )))
-    .bind(&record.id)
-    .bind(&drive)
-    .bind(serde_json::to_string(&compiled.scope).unwrap_or_else(|_| "[]".into()))
-    .bind(&compiled.role)
-    .bind(if compiled.task.is_empty() { None } else { Some(compiled.task.as_str()) })
-    .bind(i32::try_from(compiled.budget).unwrap_or(i32::MAX))
-    .bind(&grantor)
-    .bind(&mount_ref)
-    .bind(expires_in)
-    .fetch_one(&mut *tx)
-    .await?;
-    sqlx::query(
-        "INSERT INTO _oo_docs.refs_credential (id, share_id, token_b3, scopes, expires_at) \
-         SELECT gen_random_uuid(), $1::uuid, $2, ARRAY['refs:read'], expires_at \
-           FROM _oo_docs.share WHERE id = $1::uuid",
-    )
-    .bind(&sid)
-    .bind(&cred_b3)
-    .execute(&mut *tx)
-    .await?;
-    let keys: Vec<String> = compiled.uses.iter().map(|u| u.fact_key.clone()).collect();
-    let sections: Vec<String> = compiled.uses.iter().map(|u| u.section.to_owned()).collect();
-    let precisions: Vec<String> = compiled
-        .uses
-        .iter()
-        .map(|u| u.precision.to_owned())
-        .collect();
-    sqlx::query(
-        "INSERT INTO _oo_docs.share_fact_use (share_id, fact_id, section, precision) \
-         SELECT DISTINCT ON (f.id) $1::uuid, f.id, u.section, u.precision \
-           FROM unnest($2::text[], $3::text[], $4::text[]) AS u(fact_key, section, precision) \
-           JOIN _oo_docs.fact f ON f.fact_key = u.fact_key \
-          WHERE f.status IN ('published', 'retracted') AND f.published_in <= $5 \
-            AND (f.retracted_in IS NULL OR f.retracted_in > $5) \
-          ORDER BY f.id \
-         ON CONFLICT DO NOTHING",
-    )
-    .bind(&sid)
-    .bind(&keys)
-    .bind(&sections)
-    .bind(&precisions)
-    .bind(compiled.version.n)
-    .execute(&mut *tx)
-    .await?;
-    events::append_event(
-        &mut tx,
-        "share.created",
-        Some(&drive),
-        Some(&sid),
-        &json!({"share_id": sid, "pack_id": record.id, "expires_at": expires}).to_string(),
-    )
-    .await?;
+    let ins = lifecycle::insert(&mut tx, &prepared, None).await?;
     tx.commit().await?;
-
-    let share_file = compiled.share_json(&ShareFields {
-        share_id: sid.clone(),
-        grantor,
-        created_at: created,
-        expires_at: expires.clone(),
-        refs_endpoint: format!("http://{public}/v1/docs/refs"),
-        refs_credential: credential,
-        refs_expires_at: expires,
-    });
-    let mut share = share_value(&mut conn, &sid)
-        .await?
-        .ok_or_else(|| share_not_found(&sid))?;
+    let share = lifecycle::payload(&mut conn, &prepared, &ins).await?;
     // Stored for replay without the credential.
-    idem::store(&mut conn, route, &key, &sha, 201, &share).await?;
-    let files: Vec<Value> = compiled
-        .files
-        .iter()
-        .map(|f| {
-            json!({
-                "path": f.path,
-                "sha256": crate::compile::pack::sha256_hex(&f.bytes),
-                "bytes": f.bytes.len(),
-                "tokens": f.tokens,
-            })
-        })
-        .collect();
-    share["files"] = Value::Array(files);
-    share["share_json"] = Value::String(share_file.as_str().to_owned());
-    share["tokens"] = json!({"brief": record.tokens_brief, "budget": compiled.budget});
-    share["trimmed"] = record.trimmed.clone();
-    share["blocked"] = json!({"facts": record.blocked_facts, "entities": record.blocked_entities});
+    let mut replay = share.clone();
+    for k in ["files", "share_json"] {
+        replay.as_object_mut().map(|o| o.remove(k));
+    }
+    idem::store(&mut conn, route, &key, &sha, 201, &replay).await?;
     Ok(json_with(
         201,
         &share,
-        &[("location", format!("/v1/docs/shares/{sid}"))],
+        &[("location", format!("/v1/docs/shares/{}", ins.id))],
     ))
 }
 
@@ -336,5 +176,175 @@ pub async fn get(app: &AppState, sid: &str) -> Result<Response<Body>, ApiError> 
     let v = share_value(&mut conn, sid)
         .await?
         .ok_or_else(|| share_not_found(sid))?;
+    Ok(json_with(200, &v, &[]))
+}
+
+/// `GET /v1/docs/shares?state&drive_id&group_id&limit&cursor`.
+pub async fn list(app: &AppState, req: &Req) -> Result<Response<Body>, ApiError> {
+    let limit = req.query.limit()?;
+    let state = req.query.get("state");
+    if let Some(s) = state
+        && !matches!(
+            s,
+            "active" | "drifted" | "refreshed" | "expired" | "revoked"
+        )
+    {
+        return Err(ApiError::bad("/query/state", "unknown share state"));
+    }
+    let filters = format!(
+        "shares:{}:{}:{}",
+        state.unwrap_or(""),
+        req.query.get("drive_id").unwrap_or(""),
+        req.query.get("group_id").unwrap_or("")
+    );
+    let after = match req.query.get("cursor") {
+        Some(t) => {
+            let v = super::cursor::decode(t, &filters)?;
+            match (
+                v.first().and_then(Value::as_str),
+                v.get(1).and_then(Value::as_str),
+            ) {
+                (Some(a), Some(b)) => Some((a.to_owned(), b.to_owned())),
+                _ => return Err(ApiError::new(code::CURSOR_INVALID, "cursor is not valid")),
+            }
+        }
+        None => None,
+    };
+    for k in ["drive_id", "group_id"] {
+        if let Some(v) = req.query.get(k)
+            && !is_uuid(v)
+        {
+            return Err(ApiError::bad(&format!("/query/{k}"), "expected a UUID"));
+        }
+    }
+    let mut conn = app.pool.acquire().await?;
+    let (items, next) = lifecycle::list(
+        &mut conn,
+        state,
+        req.query.get("drive_id"),
+        req.query.get("group_id"),
+        after,
+        limit,
+    )
+    .await?;
+    let next = next.map(|(ts, id)| super::cursor::encode(&[json!(ts), json!(id)], &filters));
+    Ok(json_with(
+        200,
+        &json!({"items": items, "next_cursor": next}),
+        &[],
+    ))
+}
+
+/// `POST /v1/docs/shares/{sid}:revoke`.
+pub async fn revoke(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(sid) {
+        return Err(share_not_found(sid));
+    }
+    let key = idem::key_from(&req.headers)?;
+    let route = format!("POST /v1/docs/shares/{sid}:revoke");
+    let sha = idem::body_sha256(&req.body);
+    let mut conn = app.pool.acquire().await?;
+    if let Some(stored) = idem::lookup(&mut conn, &route, &key, &sha).await? {
+        return Ok(json_with(stored.status, &stored.response, &[]));
+    }
+    let share = lifecycle::revoke(&mut conn, sid, "revoked_by_owner").await?;
+    let v = json!({"share": share, "local_removed": false,
+                   "notice_code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE"});
+    idem::store(&mut conn, &route, &key, &sha, 200, &v).await?;
+    Ok(json_with(200, &v, &[]))
+}
+
+/// `POST /v1/docs/shares/{sid}:refresh`.
+pub async fn refresh(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(sid) {
+        return Err(share_not_found(sid));
+    }
+    let key = idem::key_from(&req.headers)?;
+    let route = format!("POST /v1/docs/shares/{sid}:refresh");
+    let sha = idem::body_sha256(&req.body);
+    let mut conn = app.pool.acquire().await?;
+    if let Some(stored) = idem::lookup(&mut conn, &route, &key, &sha).await? {
+        return Ok(json_with(stored.status, &stored.response, &[]));
+    }
+    let share = lifecycle::refresh(app, sid, &public_host(req)).await?;
+    let mut replay = share.clone();
+    for k in ["files", "share_json"] {
+        replay.as_object_mut().map(|o| o.remove(k));
+    }
+    idem::store(&mut conn, &route, &key, &sha, 200, &replay).await?;
+    Ok(json_with(200, &share, &[]))
+}
+
+/// `POST /v1/docs/shares/{sid}:check`; `?since=<seq>` restricts the entries.
+pub async fn check(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(sid) {
+        return Err(share_not_found(sid));
+    }
+    let since = since_of(req)?;
+    let v = crate::share::check::run(app, sid, since, &public_host(req)).await?;
+    Ok(json_with(200, &v, &[]))
+}
+
+fn since_of(req: &Req) -> Result<i64, ApiError> {
+    match req.query.get("since") {
+        None => Ok(0),
+        Some(s) => s
+            .parse::<i64>()
+            .ok()
+            .filter(|n| *n >= 0)
+            .ok_or_else(|| ApiError::bad("/query/since", "since is a sequence number")),
+    }
+}
+
+/// `GET /v1/docs/shares/{sid}/updates?since=<seq>&limit=`.
+pub async fn updates(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(sid) {
+        return Err(share_not_found(sid));
+    }
+    let since = since_of(req)?;
+    let limit = req.query.limit()?;
+    let mut conn = app.pool.acquire().await?;
+    if share_value(&mut conn, sid).await?.is_none() {
+        return Err(share_not_found(sid));
+    }
+    let mut items = crate::share::updates::list(&mut conn, sid, since, limit + 1).await?;
+    let more = items.len() as i64 > limit;
+    items.truncate(limit as usize);
+    let next = if more {
+        items.last().and_then(|i| i["seq"].as_i64())
+    } else {
+        None
+    };
+    Ok(json_with(
+        200,
+        &json!({"items": items, "next_cursor": next.map(|n| n.to_string())}),
+        &[],
+    ))
+}
+
+/// `POST /v1/docs/share-groups/{gid}:refresh`.
+pub async fn group_refresh(
+    app: &AppState,
+    gid: &str,
+    req: &Req,
+) -> Result<Response<Body>, ApiError> {
+    let key = idem::key_from(&req.headers)?;
+    let route = format!("POST /v1/docs/share-groups/{gid}:refresh");
+    let sha = idem::body_sha256(&req.body);
+    let mut conn = app.pool.acquire().await?;
+    if let Some(stored) = idem::lookup(&mut conn, &route, &key, &sha).await? {
+        return Ok(json_with(stored.status, &stored.response, &[]));
+    }
+    let v = crate::share::group::refresh(app, gid, &public_host(req)).await?;
+    let mut replay = v.clone();
+    replay.as_object_mut().map(|o| o.remove("refreshed"));
+    idem::store(&mut conn, &route, &key, &sha, 200, &replay).await?;
+    Ok(json_with(200, &v, &[]))
+}
+
+/// `GET /v1/docs/share-groups/{gid}`.
+pub async fn group_get(app: &AppState, gid: &str) -> Result<Response<Body>, ApiError> {
+    let mut conn = app.pool.acquire().await?;
+    let v = crate::share::group::get(&mut conn, gid).await?;
     Ok(json_with(200, &v, &[]))
 }

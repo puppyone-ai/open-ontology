@@ -51,6 +51,7 @@ pub mod lifecycle;
 pub mod metrics;
 pub mod packs;
 pub mod progress;
+pub mod refs;
 pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_review;
@@ -79,6 +80,9 @@ pub struct Req {
     pub headers: HeaderMap,
     /// Body (read for POST, PATCH and DELETE only).
     pub body: Bytes,
+    /// Set when the caller presented a share's refs credential instead of the
+    /// control token (task-time calls only, see `cred_allowed`).
+    pub cred: Option<crate::share::credential::ShareCred>,
 }
 
 type SyncFuture<'a> =
@@ -381,11 +385,20 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
             .unwrap_or_default());
     }
     let presented = auth::bearer(headers.get("authorization").and_then(|v| v.to_str().ok()));
-    let Some(token) = presented.filter(|t| auth::token_matches(&app.tokens, t)) else {
-        return Err(
-            ApiError::new(code::UNAUTHENTICATED, "a valid bearer token is required")
-                .header("www-authenticate", "Bearer".into()),
-        );
+    let mut cred = None;
+    let token = match presented {
+        Some(t) if t.starts_with("oodr_") => {
+            let mut conn = app.pool.acquire().await?;
+            cred = Some(crate::share::credential::authenticate(&mut conn, t).await?);
+            t
+        }
+        Some(t) if auth::token_matches(&app.tokens, t) => t,
+        _ => {
+            return Err(
+                ApiError::new(code::UNAUTHENTICATED, "a valid bearer token is required")
+                    .header("www-authenticate", "Bearer".into()),
+            );
+        }
     };
     if let Err(ms) = app.take(&auth::token_hash(token)) {
         return Err(ApiError::new(code::RATE_LIMITED, "too many requests")
@@ -409,6 +422,7 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
         query: Query::parse(parts.uri.query())?,
         headers,
         body,
+        cred,
     };
     dispatch(app, &req).await
 }
@@ -429,9 +443,54 @@ fn known_unserved(segs: &[&str]) -> bool {
     ) || matches!(segs, ["v1", "docs", s] if s.contains(':'))
 }
 
+/// What a refs credential may call: its own share's check, updates and read,
+/// the originals it cites, and entity detail (restricted to the share's scope).
+fn cred_allowed(
+    segs: &[&str],
+    method: &Method,
+    cred: &crate::share::credential::ShareCred,
+) -> bool {
+    match (method, segs) {
+        (&Method::GET, ["v1", "docs", "refs", _]) => true,
+        (&Method::POST, ["v1", "docs", "shares", last]) => {
+            last.strip_suffix(":check") == Some(cred.share_id.as_str())
+        }
+        (&Method::GET, ["v1", "docs", "shares", sid, "updates"]) => *sid == cred.share_id,
+        (&Method::GET, ["v1", "docs", "shares", sid]) => *sid == cred.share_id,
+        (&Method::GET, ["v1", "docs", "entities", _]) => true,
+        _ => false,
+    }
+}
+
 async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiError> {
     let segs: Vec<&str> = req.path.trim_start_matches('/').split('/').collect();
+    if let Some(c) = &req.cred
+        && !cred_allowed(&segs, &req.method, c)
+    {
+        return Err(ApiError::new(
+            code::SHARE_REFS_OUT_OF_SCOPE,
+            "a refs credential cannot call this route",
+        ));
+    }
     match segs.as_slice() {
+        ["v1", "docs", "refs", b3] => {
+            method_allowed(req, &["GET"])?;
+            let cred = req.cred.as_ref().ok_or_else(|| {
+                ApiError::new(
+                    code::SHARE_REFS_CREDENTIAL_INVALID,
+                    "refs need a share credential",
+                )
+            })?;
+            refs::get(app, b3, req, cred).await
+        }
+        ["v1", "docs", "share-groups", last] if last.ends_with(":refresh") => {
+            method_allowed(req, &["POST"])?;
+            shares::group_refresh(app, last.trim_end_matches(":refresh"), req).await
+        }
+        ["v1", "docs", "share-groups", gid] if !gid.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            shares::group_get(app, gid).await
+        }
         ["v1", "docs", "health"] => {
             method_allowed(req, &["GET"])?;
             Ok(http::json(200, &app.health.snapshot().await))
@@ -568,8 +627,28 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             routes_review::decide(app, req).await
         }
         ["v1", "docs", "shares"] => {
+            method_allowed(req, &["GET", "POST"])?;
+            if req.method == Method::GET {
+                shares::list(app, req).await
+            } else {
+                shares::create(app, req).await
+            }
+        }
+        ["v1", "docs", "shares", last] if last.ends_with(":refresh") => {
             method_allowed(req, &["POST"])?;
-            shares::create(app, req).await
+            shares::refresh(app, last.trim_end_matches(":refresh"), req).await
+        }
+        ["v1", "docs", "shares", last] if last.ends_with(":revoke") => {
+            method_allowed(req, &["POST"])?;
+            shares::revoke(app, last.trim_end_matches(":revoke"), req).await
+        }
+        ["v1", "docs", "shares", last] if last.ends_with(":check") => {
+            method_allowed(req, &["POST"])?;
+            shares::check(app, last.trim_end_matches(":check"), req).await
+        }
+        ["v1", "docs", "shares", sid, "updates"] => {
+            method_allowed(req, &["GET"])?;
+            shares::updates(app, sid, req).await
         }
         ["v1", "docs", "shares", sid] if !sid.contains(':') => {
             method_allowed(req, &["GET"])?;

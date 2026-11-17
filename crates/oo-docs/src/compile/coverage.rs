@@ -60,7 +60,7 @@ impl Coverage {
 
 fn state_cn(state: &str) -> &str {
     match state {
-        "detected" | "stored" => "等待解析",
+        "detected" | "stored" | "queued" => "等待解析",
         "parsing" => "解析中",
         "parsed" | "normalized" => "已解析，待抽取",
         "extracting" => "抽取中",

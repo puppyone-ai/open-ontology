@@ -34,6 +34,17 @@ impl PackRecord {
     /// The `ContextPack` object (contract `$defs/ContextPack`), without the
     /// BRIEF preview.
     pub fn to_json(&self) -> Value {
+        let mut v = self.to_base_json();
+        if let Some(c) = self.manifest.get("coverage") {
+            v["coverage"] = c.clone();
+        }
+        if let Some(g) = self.manifest.get("guarantees") {
+            v["guarantees"] = g.clone();
+        }
+        v
+    }
+
+    fn to_base_json(&self) -> Value {
         json!({
             "id": self.id,
             "pack_digest": self.pack_digest,
