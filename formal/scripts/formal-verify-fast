@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # CI job `formal-verify-fast` (80 section 6): Apalache bounded check at default bounds.
-# Usage: formal-verify-fast [model-file-substring]
+# Usage: formal-verify-fast [model-file-substring] [invariant]
+# CI runs one (model, invariant) pair per matrix job so each stays inside the 15-minute budget.
 source "$(dirname "$0")/_env.sh"
 only="${1:-}"
+only_inv="${2:-}"
 n=0
 while IFS=$'\t' read -r file main inv steps vsteps wit vinv; do
   case "$file" in *"$only"*) ;; *) continue ;; esac
   for i in $vinv; do
+    if [ -n "$only_inv" ] && [ "$i" != "$only_inv" ]; then continue; fi
     echo "verify ${file#"$FORMAL_ROOT"/} main=$main invariant=$i max-steps=$vsteps"
     quint verify "$file" --main="$main" --invariant="$i" --max-steps="$vsteps" | grep -E '^\[|violation|rror:' | tail -n 3
   done

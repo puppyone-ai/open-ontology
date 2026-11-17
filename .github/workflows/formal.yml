@@ -1,0 +1,129 @@
+# Formal verification jobs (spec 80 section 6). Dev and CI tools only; nothing
+# here ships in a product artifact. Pins and checksums: formal/TOOLCHAIN.md.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# dtolnay/rust-toolchain @ 02cb101ec7c40f2c49e1d9714d64511d8e1b74de (2026-09-12)
+# rustc is pinned to 1.98.1. Node and Temurin 21 come preinstalled on ubuntu-24.04.
+# Repository credentials stay unset. Forks receive none.
+# A green job is not phase sign-off and is not branch protection.
+
+name: formal
+
+on:
+  pull_request:
+    paths:
+      - "formal/**"
+      - "crates/oo-docs/**"
+      - "crates/oo-pipeline/migrations/**"
+      - ".github/workflows/formal.yml"
+  schedule:
+    - cron: "43 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QUINT_VERSION: "0.33.1"
+  APALACHE_JAR_SHA256: "e5223915507b65cc5f1638bd037ede60f8a4fc1644aff46355779f9b05df9262"
+  FORMAL_JAVA_HOME: "/usr/lib/jvm/temurin-21-jdk-amd64"
+
+jobs:
+  formal-typecheck:
+    name: formal-typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: typecheck every model
+        run: formal/scripts/formal-typecheck
+
+  formal-simulate:
+    name: formal-simulate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: random simulation, 10000 traces per model, fixed seed
+        run: formal/scripts/formal-simulate
+
+  formal-verify-fast:
+    # One (model, invariant) per job: run sequentially the set takes ~95 minutes,
+    # the 80 section 6 budget is 15 minutes per check.
+    name: formal-verify-fast (${{ matrix.model }} ${{ matrix.invariant }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: jobs, invariant: invLeaseShape }
+          - { model: jobs, invariant: invSingleLiveLease }
+          - { model: jobs, invariant: invGenerationMonotone }
+          - { model: jobs, invariant: invStaleRejected }
+          - { model: jobs, invariant: invTerminalAbsorbing }
+          - { model: jobs, invariant: invCancelTerminal }
+          - { model: jobs, invariant: invQuarantineAfterCrashes }
+          - { model: jobs, invariant: invNoLostJob }
+          - { model: jobs, invariant: invAtMostOnceSuccess }
+          - { model: file_lifecycle, invariant: inv }
+          - { model: event_stream, invariant: inv }
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: apalache bounded check at default bounds
+        run: formal/scripts/formal-verify-fast "${{ matrix.model }}" "${{ matrix.invariant }}"
+      - name: apalache jar digest
+        run: |
+          echo "${APALACHE_JAR_SHA256}  ${HOME}/.quint/apalache-dist-0.62.4/apalache/lib/apalache.jar" | sha256sum --check
+
+  formal-conformance:
+    name: formal-conformance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: postgres (digest pinned, throwaway)
+        run: |
+          docker run -d --name oo-fv-pg --label oo.lane=super-ontology-fv \
+            -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_PASSWORD=unused \
+            -p 127.0.0.1:55432:5432 \
+            postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 \
+            -c track_commit_timestamp=on -c max_connections=200
+          for i in $(seq 1 30); do docker exec oo-fv-pg pg_isready -U postgres && break; sleep 1; done
+      - name: replay committed ITF traces against the SQL functions
+        env:
+          OO_DOCS_TEST_PG_PORT: "55432"
+        run: cargo test -p oo-docs --locked --test conformance_jobs -- --ignored --nocapture
+      - name: remove postgres
+        if: always()
+        run: docker rm -f oo-fv-pg
