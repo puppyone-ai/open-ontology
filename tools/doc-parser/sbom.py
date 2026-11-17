@@ -71,14 +71,28 @@ def py_components():
             cls = [c.split("::")[-1].strip() for c in md.get_all("Classifier", []) if c.startswith("License ::")]
             if cls:
                 lic, src = " AND ".join(cls), "Classifier"
+        props = [{"name": "oo:license_source", "value": src if lic else "none"},
+                 {"name": "oo:scope", "value": "python"}]
+        if re.match(r"opencv", name, re.I):
+            props.append({"name": "oo:opencv_ffmpeg", "value": opencv_ffmpeg_state()})
         out.append({
             "type": "library", "name": name, "version": md["Version"],
             "purl": f"pkg:pypi/{name.lower().replace('_', '-')}@{md['Version']}",
             "licenses": [{"expression": lic}] if lic else [],
-            "properties": [{"name": "oo:license_source", "value": src if lic else "none"},
-                           {"name": "oo:scope", "value": "python"}],
+            "properties": props,
         })
     return out
+
+
+def opencv_ffmpeg_state():
+    """What cv2.getBuildInformation() says about FFmpeg: NO, YES, or absent
+    (the videoio module is not built at all). Anything but NO/absent fails the gate."""
+    try:
+        import cv2  # noqa: PLC0415
+    except Exception as e:  # noqa: BLE001
+        return f"import-failed:{type(e).__name__}"
+    m = re.search(r"^\s*FFMPEG:\s*(\S+)", cv2.getBuildInformation(), re.M)
+    return m.group(1) if m else "absent"
 
 
 def native_components(site):

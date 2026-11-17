@@ -6,7 +6,8 @@
 Fails (exit 1) on AGPL, GPL, BUSL, SSPL, Elastic-2.0, CC-BY-NC, LicenseRef-*;
 on any LGPL (or GPL with a runtime exception) without a written review record;
 on an unknown/missing license in a Python or native component; on any
-OpenCV component that bundles FFmpeg libraries (D65). Base-OS packages are
+FFmpeg library in the image or any OpenCV distribution whose build does not
+attest FFmpeg off (D65). Base-OS packages are
 listed but not gated here: the base image is pinned by digest and covered by
 its own review. Exit 0 only when nothing fails and nothing needs review.
 """
@@ -66,9 +67,14 @@ def main():
         expr = " AND ".join(l.get("expression") or l.get("license", {}).get("id", "") for l in c.get("licenses", [])) or None
         v = classify(expr)
         name = c["name"]
-        if re.search(r"opencv", name, re.I) or any(FFMPEG_LIBS.match(f) for f in next(
-                (p["value"].split(",") for p in c.get("properties", []) if p["name"] == "oo:files"), [])):
+        files = next((p["value"].split(",") for p in c.get("properties", []) if p["name"] == "oo:files"), [])
+        if any(FFMPEG_LIBS.match(f) for f in files) or re.fullmatch(r"FFmpeg", name):
             ffmpeg.append(name)
+        if re.match(r"opencv", name, re.I) and scope == "python":
+            # The wheel must attest, from cv2.getBuildInformation(), that FFmpeg is off or not built.
+            state = next((p["value"] for p in c.get("properties", []) if p["name"] == "oo:opencv_ffmpeg"), "missing")
+            if state not in ("NO", "absent"):
+                ffmpeg.append(f"{name} (oo:opencv_ffmpeg={state})")
         if v == "pass":
             continue
         entry = {"component": f"{name} {c.get('version', '')}".strip(), "scope": scope, "license": expr}
