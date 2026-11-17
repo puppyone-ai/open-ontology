@@ -10,7 +10,14 @@ version = "0.2.1"
 [lints]
 workspace = true
 
+[features]
+default = []
+# Super Ontology: `oo serve`, `oo context`, doctor docs section. Off by default
+# on master (spec 50 §2.1); release builds turn it on only after L4 (D41).
+docs = ["dep:oo-docs"]
+
 [dependencies]
+oo-docs = { path = "../oo-docs", optional = true }
 oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2", "dm8"] }
 oo-stack = { path = "../oo-stack" }
 oo-core = { path = "../oo-core" }

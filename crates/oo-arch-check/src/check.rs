@@ -26,9 +26,9 @@ use crate::policy::{
     R_EDGE_UNDECLARED, R_GATEWAY_ADMIN_DDL, R_GATEWAY_CONNECTOR, R_GATEWAY_PIPELINE,
     R_GATEWAY_RUNTIME, R_GATEWAY_SOURCE_CREDENTIAL, R_GATEWAY_SOURCE_DRIVER, R_MEMBER_DUPLICATE,
     R_MEMBER_MISSING, R_MEMBER_UNKNOWN, R_MEMBER_UNRESOLVED, R_RESOLVE_DANGLING, R_RESOLVE_MISSING,
-    R_TOOL_FORBIDDEN, REQUIRED_EDGES, REQUIRED_MEMBERS, is_admin_ddl_crate,
-    is_client_database_driver, is_gateway_forbidden_driver, is_model_sdk, is_required_edge,
-    is_sandbox_orchestrator, is_source_credential_crate,
+    R_TOOL_FORBIDDEN, REQUIRED_EDGES, REQUIRED_MEMBERS, is_admin_ddl_crate, is_allowed_edge,
+    is_client_database_driver, is_gateway_forbidden_driver, is_model_sdk, is_sandbox_orchestrator,
+    is_source_credential_crate,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -264,7 +264,7 @@ pub fn check(metadata: &Metadata) -> Report {
     }
 
     for (from, to) in &observed_edges {
-        if !is_required_edge(from, to) {
+        if !is_allowed_edge(from, to) {
             violations.insert(violation(
                 R_EDGE_UNDECLARED,
                 from,
@@ -874,7 +874,7 @@ mod tests {
         R_DEP_KIND_UNKNOWN, R_EDGE_MISSING, R_EDGE_UNDECLARED, R_GATEWAY_ADMIN_DDL,
         R_GATEWAY_CONNECTOR, R_GATEWAY_PIPELINE, R_GATEWAY_RUNTIME, R_GATEWAY_SOURCE_CREDENTIAL,
         R_GATEWAY_SOURCE_DRIVER, R_MEMBER_MISSING, R_MEMBER_UNKNOWN, R_RESOLVE_DANGLING,
-        REQUIRED_MEMBERS,
+        REQUIRED_MEMBERS, is_required_edge,
     };
 
     fn metadata() -> &'static Metadata {
@@ -1770,13 +1770,17 @@ mod tests {
     }
 
     #[test]
-    fn required_membership_is_eighteen_including_xtask() {
-        assert_eq!(REQUIRED_MEMBERS.len(), 18);
+    fn required_membership_is_nineteen_including_xtask_and_docs() {
+        assert_eq!(REQUIRED_MEMBERS.len(), 19);
+        assert!(REQUIRED_MEMBERS.contains(&"oo-docs"));
         assert!(REQUIRED_MEMBERS.contains(&"oo-stack"));
         assert!(REQUIRED_MEMBERS.contains(&"xtask"));
         assert!(is_required_edge("xtask", "oo-core"));
         assert!(is_required_edge("xtask", "oo-arch-check"));
         assert!(!is_required_edge("oo-arch-check", "xtask"));
+        assert!(is_allowed_edge("oo-cli", "oo-docs"));
+        assert!(!is_required_edge("oo-cli", "oo-docs"));
+        assert!(!is_allowed_edge("oo-gateway", "oo-docs"));
     }
 
     #[test]

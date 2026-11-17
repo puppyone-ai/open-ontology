@@ -6,6 +6,7 @@ members = [
     "crates/oo-control",
     "crates/oo-connectors",
     "crates/oo-pipeline",
+    "crates/oo-docs",
     "crates/oo-builder",
     "crates/oo-gateway",
     "crates/oo-sdk",

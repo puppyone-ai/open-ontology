@@ -45,6 +45,7 @@ pub const REQUIRED_MEMBERS: &[&str] = &[
     "oo-connectors",
     "oo-control",
     "oo-core",
+    "oo-docs",
     "oo-entry",
     "oo-eval",
     "oo-gateway",
@@ -70,6 +71,9 @@ pub const REQUIRED_EDGES: &[(&str, &str)] = &[
     ("oo-connectors", "oo-core"),
     ("oo-connectors", "oo-stack"),
     ("oo-control", "oo-core"),
+    ("oo-docs", "oo-builder"),
+    ("oo-docs", "oo-connectors"),
+    ("oo-docs", "oo-core"),
     ("oo-control", "oo-jobs"),
     ("oo-entry", "oo-core"),
     ("oo-eval", "oo-core"),
@@ -86,6 +90,20 @@ pub const REQUIRED_EDGES: &[(&str, &str)] = &[
     ("xtask", "oo-arch-check"),
     ("xtask", "oo-core"),
 ];
+
+/// Allowed workspace edges that exist only behind an optional Cargo feature.
+/// They are walked by the forbidden checks like any other edge, but a default
+/// build does not have them, so they are not required. Super Ontology keeps the
+/// document pipeline off the default CLI (`oo-cli` feature `docs`, spec 50 §2.1).
+pub const FEATURE_GATED_EDGES: &[(&str, &str)] = &[("oo-cli", "oo-docs")];
+
+/// Required or feature-gated: the full allowed set of workspace edges.
+pub fn is_allowed_edge(from: &str, to: &str) -> bool {
+    is_required_edge(from, to)
+        || FEATURE_GATED_EDGES
+            .iter()
+            .any(|(edge_from, edge_to)| *edge_from == from && *edge_to == to)
+}
 
 pub fn is_required_edge(from: &str, to: &str) -> bool {
     REQUIRED_EDGES

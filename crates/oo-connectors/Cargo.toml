@@ -24,6 +24,9 @@ oracle = ["dep:oracledb"]
 olap = ["mysql"]
 mongodb = ["dep:mongodb", "dep:mongodb-internal-macros"]
 opensearch = ["dep:reqwest"]
+# Super Ontology read-only document sources (oo.doc-source/v1). Trait only in
+# S1; the fs backend and blake3 arrive with B-S2-02 after supply-chain admission.
+objectstore = []
 sqlserver = ["dep:tiberius", "dep:tokio-util", "dep:futures-util", "tokio/net", "tokio/io-util"]
 
 [[bin]]

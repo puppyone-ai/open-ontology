@@ -1,0 +1,27 @@
+[package]
+name = "oo-docs"
+description = "Super Ontology document pipeline: ingest, parse, index, compile Context Packs, docs control API."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Test-only fault injection (spec 10 §12.5). Never enabled in release builds.
+failpoints = []
+
+# S1 skeleton: no new registry dependencies. blake3, pulldown-cmark, calamine,
+# opendal and friends are added by the integration thread after their
+# supply-chain records pass (B-S1-07, supply-chain/policy.md §1, §4).
+[dependencies]
+oo-core = { path = "../oo-core" }
+oo-connectors = { path = "../oo-connectors", features = ["objectstore"] }
+oo-builder = { path = "../oo-builder" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+thiserror = "=2.0.21"

@@ -3142,6 +3142,7 @@ dependencies = [
  "libc",
  "oo-connectors",
  "oo-core",
+ "oo-docs",
  "oo-sdk",
  "oo-stack",
  "ratatui",
@@ -3215,6 +3216,18 @@ dependencies = [
  "utoipa",
  "utoipa-gen",
  "zerocopy",
+]
+
+[[package]]
+name = "oo-docs"
+version = "0.1.0"
+dependencies = [
+ "oo-builder",
+ "oo-connectors",
+ "oo-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
