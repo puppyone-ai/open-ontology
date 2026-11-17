@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod docs;
+
 use std::process::Command;
 
 /// Run the repository-local harness without adding benchmark-only dependencies
