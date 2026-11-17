@@ -102,7 +102,13 @@ impl FileState {
 const EDGES: &[(FileState, &[FileState])] = {
     use FileState::*;
     &[
-        (Stored, &[TooLarge, Unsupported, Queued, Duplicate]),
+        // Stored -> ParseFailed is the 10 4.3.2 "unreadable file" row
+        // (DOCS_SOURCE_PERMISSION_DENIED, retryable): the object could not be
+        // read, so the file never reaches `queued`.
+        (
+            Stored,
+            &[TooLarge, Unsupported, Queued, Duplicate, ParseFailed],
+        ),
         (Queued, &[Unsupported, Encrypted, Parsing]),
         (Parsing, &[Parsed, Queued, ParseFailed]),
         (Parsed, &[Extracting]),
@@ -443,7 +449,10 @@ mod tests {
     #[test]
     fn matches_adjacency_list() {
         let main: &[(FileState, &[FileState])] = &[
-            (Stored, &[TooLarge, Unsupported, Queued, Duplicate]),
+            (
+                Stored,
+                &[TooLarge, Unsupported, Queued, Duplicate, ParseFailed],
+            ),
             (Queued, &[Unsupported, Encrypted, Parsing]),
             (Parsing, &[Parsed, Queued, ParseFailed]),
             (Parsed, &[Extracting]),
