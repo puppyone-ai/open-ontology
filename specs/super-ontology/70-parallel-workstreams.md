@@ -8,24 +8,24 @@
 - **12 个板块并行**：后端 5 个、前端 3 个、质量 3 个（评测门禁、端到端、形式化）、集成 1 个（主线程）。
 - **四个解耦手段**让板块不必等上游完成：契约先行、夹具边界、trait 接缝、目录所有权互斥。
 - **闭环交叠**：下一个闭环的代码在上一个闭环签收前就开始写，只是签收前不合入集成主线（30 §1）。
-- **排期从串行的约 15 周压到约 12 周**（估算）。关键路径在后端的“作业框架 → 状态机 → 本体 → 可见性与编译 → Share”这一条；前端和质量板块都不在关键路径上，前提是 S1 冻结契约、S2 交付夹具。
+- **排期从串行的约 16 周压到约 13 周**（估算；L6 因多模态延长 1 周，D77）。关键路径在后端的“作业框架 → 状态机 → 本体 → 可见性与编译 → Share”这一条；前端和质量板块都不在关键路径上，前提是 S1 冻结契约、S2 交付夹具。
 
 ## 2. 板块定义
 
 | 板块 | 名称 | 负责 | 拥有的目录（只有本板块能写） | 主要任务卡 |
 |---|---|---|---|---|
 | **WS-BE1** | 存储与同步 | objectstore provider、指纹与 BLAKE3、CAS、对账、事件去重、企业桶 | `crates/oo-docs/src/{ingest,cas}/`、`crates/oo-connectors` 中的 objectstore 部分 | B-S2-02、B-S2-03、B-S2-05、B-S4-01–04、B-S11-01–03 |
-| **WS-BE2** | 解析 | parser sidecar、各格式到 IR、XLSX、嗅探与预检、OCR | `crates/oo-docs/src/parse/`、`tools/doc-parser/` | B-S2-06、B-S3-01–03、B-S3-05、B-S3-06、B-S3-10、B-S9-01 |
-| **WS-BE3** | 本体 | 规则抽取、LLM 补抽、resolve、双时间、待确认队列、类型升格、重跑、投影、向量 | `crates/oo-docs/src/{extract,resolve,temporal,review}/`、`publish/constraints.rs`、`api/routes_correct.rs` 的处理逻辑（路由注册归 BE5） | B-S2-07、B-S5-02–06、B-S5-11、B-S5-12、B-S9-02、B-S10-02、B-S10-03、B-S11-04、B-S13-02 |
-| **WS-BE4** | 编译与共享 | 可见性单一出口、BRIEF、Pack、Share、refs、mount、Suggest、漂移与刷新、远端挂载 | `crates/oo-docs/src/{compile,share,suggest}/`、`crates/oo-cli/src/docs/{context,mounts}.rs` | B-S2-08、B-S2-11、B-S6-01–06、B-S6-10–12、B-S7-02、B-S7-03、B-S7-05、B-S8-01、B-S10-01、B-S10-04、B-S12-02 |
+| **WS-BE2** | 解析 | parser sidecar、各格式到 IR、XLSX、嗅探与预检、OCR、图片与内嵌图片、`media-parser`（音频、视频、ASR、说话人分离） | `crates/oo-docs/src/parse/`、`tools/doc-parser/`、`tools/ocr-parser/`、`tools/media-parser/` | B-S2-06、B-S3-01–03、B-S3-05、B-S3-06、B-S3-10、B-S9-01、B-S9-04、B-S10-05–07、B-S10-09、B-S10-10 |
+| **WS-BE3** | 本体 | 规则抽取、LLM 补抽、resolve、双时间、待确认队列、类型升格、重跑、投影、向量 | `crates/oo-docs/src/{extract,resolve,temporal,review}/`、`publish/constraints.rs`、`api/routes_correct.rs` 的处理逻辑（路由注册归 BE5） | B-S2-07、B-S5-02–06、B-S5-11、B-S5-12、B-S9-02、B-S10-08、B-S10-02、B-S10-03、B-S11-04、B-S13-02 |
+| **WS-BE4** | 编译与共享 | 可见性单一出口、BRIEF、Pack、Share、refs、mount、Suggest、漂移与刷新、远端挂载 | `crates/oo-docs/src/{compile,share,suggest}/`、`crates/oo-cli/src/docs/{context,mounts}.rs` | B-S2-08、B-S2-11、B-S6-01–06、B-S6-10–13、B-S7-02、B-S7-03、B-S7-05、B-S8-01、B-S10-01、B-S10-04、B-S12-02 |
 | **WS-BE5** | 引擎与 API | 作业框架、状态机、事件 outbox、控制 API、`oo serve`、发布门禁、doctor、MCP、Cloud 代理、免 Docker | `crates/oo-docs/src/{api,store,obs,failpoints,publish}/`、`jobs/`、`state.rs`、`crates/oo-cli/src/docs/serve.rs`、`deploy/docs/`、`tools/mcp-gateway` 的 suggest 部分 | B-S2-04、B-S2-09、B-S2-10、B-S3-04、B-S3-07、B-S3-09、B-S4-05、B-S5-10、B-S5-07、B-S5-08、B-S7-04、B-S7-07、B-S12-01、B-S14-01 |
-| **WS-FE1** | 壳与主进程 | flag、surface、主进程服务、IPC、引擎生命周期、验收渠道、无项目入口、上传通道、s3 Drive、Cloud 代理、免 Docker 的客户端侧 | `electron/main/super-ontology/`、`electron/main/ipc/super-ontology-ipc.mjs`、`shared/super-ontology/` | F-S1-01–04、F-S2-01–04、F-S2-10、F-S2-11、F-S3-01（主进程部分）、F-S3-07、F-S4-01、F-S8-03、F-S12-01、F-S14-01 |
-| **WS-FE2** | 浏览与状态 | store、事件应用、列表与网格、队列面板、横幅、详情栏、状态矩阵、大目录、OCR 呈现、重跑、规模 | `src/features/super-drive/{browser,banners,details,queue}/`、`superDriveStore.ts`、`superDriveEvents.ts`、`superDriveStateModel.ts` | F-S2-05–07、F-S2-12、F-S3-01（渲染部分）、F-S3-02–05、F-S3-08、F-S4-02–04、F-S9-01、F-S10-02、F-S11-01、F-S13-01、F-S13-02 |
-| **WS-FE3** | 审核与分享 | 待确认队列、实体、模型与用量、分享面板、共享列表、BRIEF 预览、修订模式、类型升格、漂移刷新、审计 | `src/features/super-drive/{review,entities,share,settings}/` | F-S5-01–03、F-S5-05、F-S5-06、F-S6-01–05、F-S6-07、F-S6-08、F-S7-01、F-S7-02、F-S8-01、F-S8-02、F-S9-02、F-S10-01、F-S10-03、F-S12-02 |
-| **WS-QA** | 评测与门禁 | 评测集、评测工具、私有词与 trailer 检查、故障注入、性能、红队与确定性门禁、契约测试 | `testing/super-ontology/{golden,fixtures}/`、`crates/oo-eval/src/docs/`、`tools/super-ontology/`、`tests/{architecture,integration}/super-drive/contract*` | B-S1-04–06、B-S1-08、B-S3-08、B-S4-06、B-S5-09、B-S6-07、B-S8-02、B-S13-03、F-S1-05、F-S1-06、F-S3-06、F-S5-04 |
-| **WS-E2E** | 端到端 | T1 真实点击场景、T2 打包黑盒、T3 Agent 探索、owner 验收包、闭环证据 | `tests/e2e/super-drive/`、`tests/support/super-drive/`、`testing/super-ontology/evidence/` | B-S2-12、B-S6-08、F-S2-08、F-S2-09、F-S4-05、F-S6-06、F-S8-04、F-S10-04、F-S12-03、F-S14-02 |
+| **WS-FE1** | 壳与主进程 | flag、surface、主进程服务、IPC、引擎生命周期、验收渠道、无项目入口、上传通道、s3 Drive、Cloud 代理、免 Docker 的客户端侧 | `electron/main/super-ontology/`、`electron/main/ipc/super-ontology-ipc.mjs`、`shared/super-ontology/` | F-S1-01–04、F-S2-01–04、F-S2-10、F-S2-11、F-S3-01（主进程部分）、F-S3-07、F-S10-05、F-S4-01、F-S8-03、F-S12-01、F-S14-01 |
+| **WS-FE2** | 浏览与状态 | store、事件应用、列表与网格、队列面板、横幅、详情栏、状态矩阵、大目录、OCR 呈现、重跑、规模 | `src/features/super-drive/{browser,banners,details,queue}/`、`superDriveStore.ts`、`superDriveEvents.ts`、`superDriveStateModel.ts` | F-S2-05–07、F-S2-12、F-S3-01（渲染部分）、F-S3-02–05、F-S3-08、F-S4-02–04、F-S9-01、F-S10-02、F-S10-07、F-S11-01、F-S13-01、F-S13-02 |
+| **WS-FE3** | 审核与分享 | 待确认队列、实体、模型与用量、分享面板、共享列表、BRIEF 预览、修订模式、类型升格、漂移刷新、审计 | `src/features/super-drive/{review,entities,share,settings}/` | F-S5-01–03、F-S5-05、F-S5-06、F-S6-01–05、F-S6-07–09、F-S7-01、F-S7-02、F-S8-01、F-S8-02、F-S9-02、F-S10-01、F-S10-03、F-S10-06、F-S12-02 |
+| **WS-QA** | 评测与门禁 | 评测集、评测工具、私有词与 trailer 检查、故障注入、性能、红队与确定性门禁、契约测试 | `testing/super-ontology/{golden,fixtures}/`、`crates/oo-eval/src/docs/`、`tools/super-ontology/`、`tests/{architecture,integration}/super-drive/contract*` | B-S1-04–06、B-S1-08、B-S3-08、B-S3-11、B-S10-06、B-S4-06、B-S5-09、B-S6-07、B-S8-02、B-S13-03、F-S1-05、F-S1-06、F-S3-06、F-S5-04 |
+| **WS-E2E** | 端到端 | T1 真实点击场景、T2 打包黑盒、T3 Agent 探索、owner 验收包、闭环证据 | `tests/e2e/super-drive/`、`tests/support/super-drive/`、`testing/super-ontology/evidence/` | B-S2-12、B-S6-08、F-S2-08、F-S2-09、F-S4-05、F-S6-06、F-S8-04、F-S10-04、F-S10-08、F-S12-03、F-S14-02 |
 | **WS-FV** | 形式化验证 | Quint 模型、ITF 轨迹一致性测试、Kani 证明、形式化门禁 | `formal/`、各 crate 内 `#[cfg(kani)] mod proofs`、`crates/oo-docs/tests/conformance_*.rs`、`tests/unit/super-drive/conformance/` | V-S1-01 起（80 分册 §7） |
-| **WS-INT** | 集成（主线程） | 共享文件、迁移、契约冻结与版本、合并、台账、闭环签收、owner 验收包交付 | 50 §4 列出的全部共享文件、`contracts/`、`execution/super-ontology/` | 全部 **[主]** 卡、B-S1-01–03、B-S1-07、B-S2-01、B-S5-01、B-S5-13、B-S6-09、B-S7-01、B-S7-06、B-S13-01、F-S1-07 |
+| **WS-INT** | 集成（主线程） | 共享文件、迁移、契约冻结与版本、合并、台账、闭环签收、owner 验收包交付 | 50 §4 列出的全部共享文件、`contracts/`、`execution/super-ontology/` | 全部 **[主]** 卡、B-S1-01–03、B-S1-07、B-S2-01、B-S5-01、B-S5-13、B-S6-09、B-S9-03、B-S7-01、B-S7-06、B-S13-01、F-S1-07 |
 
 “拥有的目录”是写权限的边界：别的板块需要改这些目录，只能提需求给拥有者，或者通过 WS-INT。这样同一时刻两个 writer 不会碰同一个文件（HANDOFF 的硬约束）。
 
@@ -91,12 +91,13 @@ S1 契约冻结 + trait 定稿（INT）
 | 6 | L4 | · | · | 修复 | 红队、确定性、出处门禁 | · | · | · | ShareWizard 部件抽取、详情栏 Share | 红队门禁 | T2 P1–P16、T3、**owner 验收包 #1** | 形式化门禁全绿 | **L4 签收**；D41 |
 | 7 | L5 | · | OCR sidecar | 类型升格统计 | suggest 约定、影响式规则 | MCP suggest | 回写通道（editor） | · | suggestion 种类、editor 角色 | 审核负荷基准设计 | T1 L5 | FM7 | D42 定基线、迁移 0143 |
 | 8 | L5/L6 | · | OCR 锚点 | 重跑与 `outdated` | diff 接口、漂移检测 | · | · | OCR 呈现 | 修订模式、影响提示、类型升格卡 | 审核负荷基准 | T2 P17、**L5 签收** | FM6 扩展（漂移刷新） | **L5 签收** |
-| 9 | L6 | · | · | 全量重建入口 | refresh 差异、`puppyone share` 一致性 | · | · | 可更新文件批处理 | 漂移刷新、`puppyone share` 交接 | OCR 召回评测 | T2 P18、T3、**owner 验收包 #2** | 重跑模型 | **L6 签收** |
-| 10 | L7/L8 | oss/cos/r2、事件 | · | 只读投影（D12） | 远端挂载 | Cloud 代理 token 与审计 | Cloud 代理 | 企业桶登记 | 审计与远端 | 1 万文件基准设计 | T1 L7 | FM3 多云事件 | 迁移 0144 |
-| 11 | L7/L8 | 分前缀并行列举 | · | 本地嵌入、确定性向量排序 | · | 免 Docker 原型 | 免 Docker 客户端侧 | 1 万文件规模 | 相关标记 | 1 万文件基准 | T2 L7、**L7 签收** | 规模放大的模型边界 | **L7 签收** |
-| 12 | L8 | · | · | · | · | 免 Docker 收尾 | · | · | · | 性能回归 | T2 全量、T3、**owner 验收包 #3** | 全部门禁复跑 | **L8 签收**；若 owner 决定，提 Puppyone 唯一 PR（D43） |
+| 9 | L6 | · | IR v1.1、内嵌图片 OCR、`media-parser` 骨架、自编 FFmpeg | 说话人身份规则与 `speaker_identity` | · | 媒体并发池 | 宿主机解码 helper | OCR 与图片呈现 | 类型升格卡 | **ASR 与分离比测、选型报告**、SBOM 门禁扩展 | T1 媒体场景 | KP9 | IR v1.1 契约 |
+| 10 | L6 | · | 长音频流水线、视频切镜与帧 OCR | 全量重建入口 | refresh 差异、`puppyone share` 一致性 | · | · | 媒体转写与播放、关键帧条带、可更新文件批处理 | 说话人确认、漂移刷新、`puppyone share` 交接 | OCR 与媒体召回评测 | T2 P18、P22–P24、T3、**owner 验收包 #2** | 重跑模型 | **L6 签收** |
+| 11 | L7/L8 | oss/cos/r2、事件 | · | 只读投影（D12） | 远端挂载 | Cloud 代理 token 与审计 | Cloud 代理 | 企业桶登记 | 审计与远端 | 1 万文件基准设计 | T1 L7 | FM3 多云事件 | 迁移 0144 |
+| 12 | L7/L8 | 分前缀并行列举 | · | 本地嵌入、确定性向量排序 | · | 免 Docker 原型 | 免 Docker 客户端侧 | 1 万文件规模 | 相关标记 | 1 万文件基准 | T2 L7、**L7 签收** | 规模放大的模型边界 | **L7 签收** |
+| 13 | L8 | · | · | · | · | 免 Docker 收尾 | · | · | · | 性能回归 | T2 全量、T3、**owner 验收包 #3** | 全部门禁复跑 | **L8 签收**；若 owner 决定，提 Puppyone 唯一 PR（D43） |
 
-**节省从哪里来**：L3 与 L4 的后端、前端各有一半工作靠夹具和 mock 提前到第 3–4 周；L5 与 L6 交叠一周；L7 与 L8 完全并行。
+**节省从哪里来**：L3 与 L4 的后端、前端各有一半工作靠夹具和 mock 提前到第 3–4 周；L5 与 L6 交叠一周；L7 与 L8 完全并行。L6 的媒体工作（第 9–10 周）与本体、编译板块的演进工作并行。
 
 **不能压缩的部分**：第 5 周“真实 IR → 本体”联调、第 6 周红队与确定性门禁、每个闭环的 T2 和 owner 验收包。这些是质量闸门，不为赶工期跳过。
 

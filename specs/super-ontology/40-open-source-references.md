@@ -93,3 +93,22 @@
 | 会话中途有新版本 | OO docs/06 §8：会话继续用开始时的版本 | 版本钉住，变更另行通知 | D52 |
 
 反面参照：mem0、[Supermemory](https://supermemory.ai/docs/concepts/graph-memory)、Letta 等 Agent 记忆系统都是原地更新、取最新值，不保证任务内的快照一致；[Graphiti](https://arxiv.org/abs/2501.13956) 的冲突完全由 LLM 判定。这些是我们刻意不采用的做法。
+
+
+## 9. 多模态解析与商用许可（D63–D77）
+
+调研日期 2026-11-17。许可证判定以 [90 分册](90-commercial-boundary.md) §2 为准（一手核准）；下表只记录选型依据。
+
+| 领域 | 采用 | 理由 | 不采用及原因 |
+|---|---|---|---|
+| 文档与图片主干 | [Docling](https://github.com/docling-project/docling)（MIT）库模式 | 唯一用同一套出处结构同时表示版面坐标（`prov`）与媒体时间段（`TrackSource`）的框架；格式覆盖最全 | docling-serve：长任务无进度（[#754](https://github.com/docling-project/docling-serve/issues/754)）、失败报成功（[#648](https://github.com/docling-project/docling-serve/issues/648)）、WebSocket 把 key 写进日志；Docling 的 ASR 管线只有段级时间戳、默认英文、不做说话人分离，不用于中文音频 |
+| 扫描件 OCR | PP-StructureV3（Apache-2.0）；`gpu` 档 [PaddleOCR-VL-1.5](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.5)（Apache-2.0，OmniDocBench v1.5 94.5） | 中文最强、原生输出 bbox 与阅读顺序 | MinerU（自定义许可，外部可选）；olmOCR（无坐标）；dots.ocr、DeepSeek-OCR（CPU 跑不动）；Nemotron OCR（非 OSI） |
+| 视觉检索 | 不采用 | ColPali / ColQwen 只能检索到页，产出不了带精确出处的事实 | — |
+| 中文 ASR | 比测：[Qwen3-ASR + ForcedAligner](https://github.com/QwenLM/Qwen3-ASR)（权重 Apache-2.0）、[FireRedASR2](https://github.com/FireRedTeam/FireRedASR2S)（Apache-2.0）、[FunASR](https://github.com/modelscope/FunASR) Paraformer-zh（模型 Apache-2.0） | 中文会议场景 CER 远低于 Whisper（Qwen3-ASR 报告 WenetSpeech meeting 5.9–6.9%，Whisper-large-v3 19.1%） | Whisper 系（中文会议差、静音段幻觉）；NeMo Parakeet / Canary（不支持中文转写）；`qwen-asr` 包（依赖 GPL 的 soynlp）；SenseVoiceSmall（许可标注冲突） |
+| 说话人分离 | 比测：[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) + [3D-Speaker](https://github.com/modelscope/3D-Speaker)（Apache-2.0，默认倾向）、[pyannote community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)（CC-BY-4.0、门控，仅对照） | 纯 ONNX、无 torch、许可干净 | DiariZen（权重非商用）；Sortformer（最多 4 人） |
+| VAD | [silero-vad](https://github.com/snakers4/silero-vad)（MIT） | ONNX，单块不到 1 ms | — |
+| 长音频工程 | 参照 WhisperX 的 VAD 切分与 FunASR 的 `max_single_segment_time` 做法 | 成熟、可续跑 | 固定 30 秒硬切（碎片上易幻觉） |
+| 视频 | [PySceneDetect 0.7.3](https://www.scenedetect.com/changelog/)（BSD-3，正确处理可变帧率）+ imagehash（BSD-2）+ RapidOCR | 会议录屏的关键信息在屏幕文字 | VideoRAG（只在英文上测过）；NVIDIA VSS（需 GPU 与企业授权） |
+| 编解码 | 自编 LGPL FFmpeg（[法律页](https://ffmpeg.org/legal.html)），不含 H.264/HEVC/AAC；macOS 用系统解码 | [Via LA AVC](https://www.via-la.com/licensing-programs/avc-h-264/)、[AAC](https://www.via-la.com/licensing-programs/aac/) 对 PC 软件终端产品收费，AAC 无免费额度 | OpenCV 官方 wheel（捆绑完整 FFmpeg） |
+| 说话人身份 | 元数据候选 + LLM 识别自我介绍 + 人工确认 | 开源会议转写项目的通行做法 | 声纹库：PIPL 第 28、29 条敏感个人信息、[BIPA](https://www.ilga.gov/Legislation/ILCS/Articles?ActID=3004&ChapterID=57) 诉讼风险、EU AI Act 远程生物识别 |
+| AI 标识 | 首行显式标识 + YAML front matter `AIGC` 字段 | [《人工智能生成合成内容标识办法》](https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm)第 4、5 条；GB 45438-2025；[EU AI Act 第 50 条](https://artificialintelligenceact.eu/article/50/) | — |

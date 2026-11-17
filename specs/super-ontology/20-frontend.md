@@ -2005,6 +2005,13 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 完成定义：block 级更新在共享列表中最醒目（颜色 token 用 danger 语义）；整组刷新失败时显示具体是哪个成员失败；**A1–A5**。
 - 验证：`npx vitest run tests/component/super-drive/share`；T2 场景 P21。
 
+**F-S6-09 · aigc-and-licenses** — scope `super-drive`（WS-FE3）
+- 目标：D66、90 §5。BRIEF 预览与 Pack 文件预览顶部显示“AI生成”角标（文字 + 图标，不只靠颜色）；“关于”页增加“开源许可”入口，打开随包的 `THIRD_PARTY_NOTICES/`（这是许可证要求的署名，不是用户须知；App 内不展示用户须知，D68）。
+- 文件：`src/features/super-drive/share/BriefPreview.tsx`；“关于”页入口位置在本卡开始时读代码确认（**未确认**）。
+- 依赖：F-S6-05；**B-S6-13**、**B-S3-11**。
+- 完成定义：角标不可关闭；开源许可页能列出全部组件；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/share`。
+
 ### 7.5 M2 · L5 Suggest 回流（S7、S8）
 
 **F-S7-01 · suggestion-kind** — scope `super-drive`
@@ -2043,7 +2050,7 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 完成定义：理念文档六步跑通，第 5 步“点接受”≤ 2 s；T2 全绿。
 - 验证：`npx electron tests/e2e/super-drive/suggest/revision-mode.smoke.mjs --native`；`run-packaged.mjs --scenarios P01-P17`。
 
-### 7.6 M2 · L6 演进与漂移（S9、S10）
+### 7.6 M2 · L6 多模态与演进（S9、S10、S10b）
 
 **F-S9-01 · ocr-presentation** — scope `super-drive`
 - 目标：OCR 块在解析结果中的呈现（bbox 锚点、`low_text_confidence` 标记）；扫描件从“暂不支持”转 `outdated` 重跑的呈现。
@@ -2080,6 +2087,33 @@ P1–P18 与前端功能的对应和负责的卡见 §7（每个闭环最后一�
 - 依赖：F-S9-01 至 F-S10-03。
 - 完成定义：T1、T2 全绿；T4 包 sha256 一致。
 - 验证：`npx electron tests/e2e/super-drive/drift/refresh.smoke.mjs --native`；`run-packaged.mjs --scenarios P01-P18`。
+
+**F-S10-05 · host-media-decoder** — scope `super-drive-main`（WS-FE1）
+- 目标：D65 macOS 宿主机解码。新增一个随 App 构建的原生 helper（Swift，AVFoundation；构建方式参照现有 `build:native-drag`、`build:native-templates`）：输入媒体文件路径，输出 16 kHz 单声道 WAV 与 1 fps 帧序列 PNG（含 pts 清单）和 manifest（源文件 BLAKE3、helper 版本），写入引擎 scratch 的交换目录；主进程按引擎请求调用，超时与取消可控。HEIC 图片同样经此 helper 转 PNG。
+- 文件：`native/super-drive-media-decoder/**`、`scripts/build-native-media-decoder.mjs`、`electron/main/super-ontology/media-decoder.mjs`；**[主线程]** `package.json` 构建脚本与签名配置。
+- 依赖：F-S2-02；**B-S10-05**。
+- 完成定义：H.264/AAC 的 mp4、m4a、mov 能产出与源时长一致（误差 ≤ 50 ms）的 WAV 与帧序列；helper 不联网、不写 scratch 以外的位置；App 退出时子进程被回收；Windows 构建不包含该 helper（D33 已关闭功能）。
+- 验证：`npx vitest run tests/integration/super-drive/main/mediaDecoder.test.mjs`；T2 场景 P22。
+
+**F-S10-06 · speaker-identity** — scope `super-drive`（WS-FE3）
+- 目标：D74。录音详情里列出说话人（`S1`、`S2`…）、各自发言时长与代表片段（点击播放）、候选身份及其依据（参会人元数据、自我介绍原文）；操作为“确认为…”“改为…”“不是任何已知的人”；待确认队列新增 `speaker_identity` 卡片。
+- 文件：`src/features/super-drive/details/SpeakerPanel.tsx`、`review/SpeakerIdentityCard.tsx`。
+- 依赖：F-S5-01、F-S10-07；**B-S10-08**。
+- 完成定义：未确认的说话人旁显示“未确认，相关内容暂不进入本体”；不出现任何声纹库或跨录音识别的入口；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/details tests/component/super-drive/review`。
+
+**F-S10-07 · media-presentation** — scope `super-drive`（WS-FE2）
+- 目标：音视频在 Super Drive 中的呈现：处理进度按时间（“已转写 23:10 / 1:42:00”）；解析结果以带时间戳的发言列表展示；点击 `#t=` 出处在内置播放器中从该时间点播放；视频显示关键帧条带与帧文字；`DOCS_PARSE_CODEC_UNAVAILABLE` 显示编码名与配置方法；媒体并发池排队状态单独显示。
+- 文件：`src/features/super-drive/details/{MediaTranscript.tsx,MediaPlayer.tsx,KeyframeStrip.tsx}`、`superDriveStateModel.ts`。
+- 依赖：F-S3-04；**B-S10-07**、**B-S10-09**。
+- 完成定义：播放器复用现有媒体查看器（`editor/viewers` 中的媒体预览，若可复用；**未确认**）；时间戳跳转误差 ≤ 0.5 秒；**A1–A5**。
+- 验证：`npx vitest run tests/component/super-drive/details`。
+
+**F-S10-08 · t1-t2-media** — scope `super-drive-test`（S10b，L6 最后一张 T 卡的媒体部分）
+- 目标：T1 媒体场景；T2 场景 P22–P25；L6 owner 验收清单追加音视频步骤。
+- 依赖：F-S10-05 至 F-S10-07。
+- 完成定义：T1、T2 全绿。
+- 验证：`run-packaged.mjs --scenarios P22,P23,P24,P25`。
 
 ### 7.7 M3 · L7 企业与云（S11、S12）
 

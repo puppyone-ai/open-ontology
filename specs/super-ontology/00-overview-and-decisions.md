@@ -2,7 +2,7 @@
 
 > 状态：Proposed（2026-11-16 落版，待评审）
 > 范围：Open Ontology 仓库（`feat/super-ontology`）与 Puppyone Desktop 仓库（`codex/super-drive`，从本地 `main` 拉出；开发期间不碰 `main`/`qubits`，最后一次性提 PR）
-> 分册：[10 后端](10-backend.md) · [20 前端](20-frontend.md) · [30 闭环与 Sprint](30-closed-loops-and-sprints.md) · [40 开源借鉴](40-open-source-references.md) · [50 提交策略与追溯](50-commit-and-traceability.md) · [60 端到端测试与 owner 验收](60-e2e-and-owner-acceptance.md) · [70 并行板块与排期](70-parallel-workstreams.md) · [80 形式化验证](80-formal-verification.md)
+> 分册：[10 后端](10-backend.md) · [20 前端](20-frontend.md) · [30 闭环与 Sprint](30-closed-loops-and-sprints.md) · [40 开源借鉴](40-open-source-references.md) · [50 提交策略与追溯](50-commit-and-traceability.md) · [60 端到端测试与 owner 验收](60-e2e-and-owner-acceptance.md) · [70 并行板块与排期](70-parallel-workstreams.md) · [80 形式化验证](80-formal-verification.md) · [90 商用边界](90-commercial-boundary.md)
 > 产品理念输入：`research/strategy/2026-11-08-context-drive-product-design.md`（在旧主工作区，未进 master；本文 §1 已摘要其中与实现相关的部分）
 
 本文是另外四个分册共同的前提。分册之间有冲突时，以本文的决策记录（§4）和跨仓契约（§6）为准；改动这两节要先改本文，再改分册。
@@ -31,7 +31,8 @@
 - **第二种接入**：企业已有的 S3/OSS/COS/R2 桶，只读挂载，产出同样的 Index 和 Context Pack（M3）。
 - **第一版（M1 结束）包含**：Drive 浏览与上传、文件处理与状态、Index（核心类型 + 开放候选 + 待确认队列）、Context Pack 编译、`oo context mount`、Super Drive 页面与分享面板。
 - **第一版不包含**：Suggest 写回（M2）、OCR（M2）、类型升格（M2）、向量检索（M3）、云端 Worker（M3）、免 Docker 运行时（M3）。
-- **永远不做**：自动发布低置信事实；把共享范围外的任何字面内容放进 Pack；静默跳过失败的文件。
+- **本轮不做**（商用边界，D63）：声纹库（跨录音识别同一个人）；云端 ASR 与云端内容处理；内置模型 Key 或中转模型请求。
+- **永远不做**：自动发布低置信事实；把共享范围外的任何字面内容放进 Pack；静默跳过失败的文件；去除 AI 生成内容标识。
 
 ## 3. 总体架构
 
@@ -152,6 +153,21 @@
 | D60 | 形式化与验收：新增 FM10（新鲜度令牌与覆盖率）、FM11（完整性约束）；FM6 增加“包字节不变、UPDATES 只追加、组内版本一致”；新增 T2 场景 P21（两个并行 Agent，其中一个用到的决定被推翻后，`oo context check` 拦住提交），作为 L4 验收演示 | 承诺要可验证 |
 | D61 | 任务内的拉取式查询也读快照：所有读接口加 `as_of`；带 Share 凭证且省略时读该 Share 钉住的版本，否则读最新；显式 `as_of=latest` 时，响应标注“与你的包版本不一致” | 防止文件是 v42、查询却是 v45 |
 | D62 | 刷新策略 `--refresh-policy`：`manual`（默认，只通知）、`at-checkpoint`（每次 `oo context check` 通过时自动升级到最新版本，适合长任务）、`pinned`（不接受刷新，用于审计复现）。不提供“随时自动替换”这一档 | 刷新只发生在安全点 |
+| D63 | **商用边界 C1–C10**（[90 分册](90-commercial-boundary.md) §1）：本地默认模式下我们只是工具提供方；不内置模型 Key、不中转模型请求；遥测默认关；**本轮不做声纹库**；**本轮不提供云端 ASR，也不在云端处理内容**（L7 Cloud 代理在律师放行前不对外发布）；AI 生成内容必须标识；默认产物只放核准为“默认可用”的组件；不分发有专利费风险的解码器；不面向 14 周岁以下用户；对外发布前过律师门禁 | owner 2026-11-17 确认；商用 |
+| D64 | 组件准入以 90 §2 为准（2026-11-17 一手核准）；每个容器镜像构建后生成 SBOM，出现 AGPL、GPL、BUSL、SSPL、Elastic-2.0、CC-BY-NC、`LicenseRef-*` 即构建失败，LGPL 组件须有弱 copyleft 审查记录；`qwen-asr` 包（依赖 GPL 的 soynlp）、Nemotron OCR、DiariZen、SenseVoiceSmall（许可冲突，待律师）不进产物；MinerU 只作外部可选 | 商用许可合规 |
+| D65 | FFmpeg 与编解码：我们分发自编的 LGPL 版 FFmpeg，只解码、不含 H.264、HEVC、AAC 解码器；这类文件在 macOS 上由 Desktop 主进程调用系统框架（AVFoundation）解码后交给容器，在 Linux 上由客户自带 FFmpeg；都不满足时为 `unsupported(DOCS_PARSE_CODEC_UNAVAILABLE)`；OpenCV 用不带 FFmpeg 的自编版本 | AVC、AAC 专利对 PC 软件按台收费 |
+| D66 | AI 生成内容标识：生成文件首行显式标注“AI生成”；YAML front matter 写入 `AIGC` 元数据（ContentProducer 为公司主体名称，待提供，暂用占位符）；`SHARE.json`、`manifest.json` 带同结构字段；产品不提供去除标识的选项；标识不含时间戳，不影响逐字节可重放 | 《人工智能生成合成内容标识办法》、GB 45438-2025、EU AI Act 第 50(2) 条 |
+| D67 | 律师门禁：90 §8 的问题有书面结论后，才能对外发布带 Super Drive 的版本、提交 Puppyone 最终 PR；内部开发与 owner 验收不受影响；律师沟通由 owner 负责 | 风险集中、先有结论 |
+| D68 | **用户须知（隐私说明、使用条款等）由官网发布，不在 App 内展示，也不写进本 spec**。许可证要求的开源署名页与 AI 生成内容标识不属于用户须知，仍随产品提供 | owner 2026-11-17 决定 |
+| D69 | 解析层架构：自研 IR 是唯一契约；三个解析 sidecar 统一使用 `oo.doc-parser/v1`：`doc-parser`（Docling 库模式 + 薄包装，覆盖 PDF、DOCX、PPTX、图片与文档内嵌图片；OCR 显式指定 RapidOCR）、`ocr-parser`（PP-StructureV3，中文扫描件与图片）、`media-parser`（新增：音频、视频、ASR、说话人分离、切镜、帧 OCR）；Excel 仍用 Rust calamine；不使用 docling-serve（无进度、假成功、key 进日志三个已知问题） | 成熟组件做主干，契约自控 |
+| D70 | IR 升到 `oo.doc-ir/v1.1`（向后兼容）：锚点联合类型新增 `media`（起止毫秒、说话人、字序号）、`frame`（pts 毫秒、bbox）、`image`（父锚点、bbox，图内坐标换算回页面坐标），`pdf` 锚点附页面宽高；新增块类型 `utterance`、`scene`、`frame_text`、`image_text`、`image_caption`；出处片段 `#t=00:12:31-00:12:48`；抽取层不变 | 与 Docling 出处模型对齐 |
+| D71 | 算力分档 `cpu`（默认，容器内）、`host-accel`（宿主机原生加速，M3）、`gpu`（Linux 服务器）；档位写入 IR 的 `parser.profile`，换档使文件变为 `outdated` 并重跑。云端档本轮不提供（D63） | 可复现 |
+| D72 | 中文 ASR 与说话人分离先比测后选型（S10 第一项）：ASR 候选 Qwen3-ASR-0.6B + ForcedAligner（用 transformers 加载，不用 `qwen-asr` 包）、FireRedASR2-AED、FunASR Paraformer-zh；分离候选 sherpa-onnx + 3D-Speaker（默认倾向）、pyannote community-1（仅作对照）；指标 CER、DER、CPU 实时率、峰值内存、许可证；用合成的 3 人中文会议录音评测 | 不在 spec 里拍死模型 |
+| D73 | 长音频：音频统一转 16 kHz 单声道（来源见 D65），用完删除并记录起始偏移；VAD 在静音处切分，每块 ≤30 秒，不重叠，必须硬切时按字中点归属；对齐窗口 ≤300 秒；说话人特征逐块计算后对整段统一聚类，处理完即丢弃；每块按“音频哈希 + 区间 + 模型版本 + 参数”缓存，断点续跑；进度按时间显示；贪心解码、temperature=0、固定线程数，记录 CPU 指令集指纹；整个文件完成后再进入抽取 | 成熟做法，可续跑、可复现 |
+| D74 | 说话人身份三层：会议元数据中的参会人作为候选；LLM 识别自我介绍与点名并附锚点；人工确认（新增待确认种类 `speaker_identity`）。不做声纹库（D63）；身份未确认的说话人，其发言产生的事实不自动发布 | 合规与准确 |
+| D75 | 视频：PySceneDetect 0.7.3 切镜 + 1 fps 采样 + 感知哈希去重 → RapidOCR 识别帧上文字 → 音轨走 D73；统一按 pts 毫秒对齐时间轴；画面描述（Qwen3-VL）只在 `gpu`、`host-accel` 档且用户开启时运行 | 会议录屏的关键信息在屏幕文字 |
+| D76 | 图片：独立图片用 PP-StructureV3 做 OCR；文档内嵌图片用 Docling 的 picture item，保留父锚点，图内 OCR 坐标换算回页面坐标；DOCX 内嵌图片只记段落路径与图片序号；图片描述默认关闭 | 图表与截图里的文字不丢 |
+| D77 | 排期与上限：L6 改名“多模态与演进”，延长 1 周（S9 OCR 与图片，S10 音频与比测，S10b 视频与原 L6 收尾），总工期约 13 周；媒体文件单个 ≤4 GiB、时长 ≤4 小时，超出为 `too_large`；媒体处理单独并发池，默认 1；D31 的格式与上限按此扩展 | 多模态不挤占文档处理 |
 
 ## 5. 核心机制（分册的共同前提）
 
@@ -301,14 +317,14 @@ uploading ─▶ stored ─▶ queued ─▶ parsing ─▶ parsed ─▶ extrac
 - Share 刷新策略：`manual`（默认）、`at-checkpoint`、`pinned`（D62）；变更级别：`info`、`warn`、`block`（D55）。
 - Drive 新鲜度：`up_to_date`、`syncing`、`processing`、`publishing`、`waiting_review`、`degraded`、`held`（D48）。
 - Share 角色：`viewer`（只读）、`suggester`（只读 + 可写 `suggest/`，默认）、`editor`（可直接写回，M2 起才开放）。
-- 待确认种类：`constraint_conflict`（D57）、`low_confidence_fact`、`entity_merge`、`alias_conflict`、`orphaned_overlay`、`type_promotion`（M2）、`suggestion`（M2）、`reprocess_diff`（M2，D23 重跑差异）。
+- 待确认种类：`speaker_identity`（D74，L6）、`constraint_conflict`（D57）、`low_confidence_fact`、`entity_merge`、`alias_conflict`、`orphaned_overlay`、`type_promotion`（M2）、`suggestion`（M2）、`reprocess_diff`（M2，D23 重跑差异）。
 - 错误码前缀：`DOCS_SOURCE_*`、`DOCS_PARSE_*`、`DOCS_EXTRACT_*`、`DOCS_REVIEW_*`、`DOCS_PACK_*`、`DOCS_SHARE_*`、`DOCS_ENGINE_*`；`DOCS_DOCTOR_*` 只出现在 `oo doctor` 输出中，不属于 API。
 
 ### 6.3 Context Pack 目录
 
 ```
 .context/
-├── BRIEF.md          ← ≤预算；固定章节；每行带 [src:锚点]
+├── BRIEF.md          ← 首行“AI生成”标识（D66）；≤预算；固定章节；每行带 [src:锚点]
 ├── SHARE.json        ← 范围、角色、本体版本、drive_rev 与 coverage、任务组、刷新策略、guarantees、有效期、授权人、已拦截数量
 ├── INDEX.md          ← 下一层清单（三级渐进披露）
 ├── people/ projects/ decisions.md terms.md

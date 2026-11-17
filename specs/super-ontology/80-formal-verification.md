@@ -63,6 +63,8 @@ harness 写在各 crate 内的 `#[cfg(kani)] mod proofs`，函数契约用 `#[ka
 | **KP6** | BRIEF 排序键与 token 估算 | 排序键是全序（任意两条可比、无并列，保证确定性）；token 估算对拼接满足次可加的上下界；降精度后的 token 数不超过预算 | L4 |
 | **KP7** | 状态转换函数 | 对所有（状态，事件）组合都有定义、不 panic，且结果在转换表内（与 FM2 的表逐项一致） | L3 |
 | **KP8** | 内容寻址路径计算 | BLAKE3 摘要到目录路径的映射是单射、只产生合法文件名 | L2 |
+| **KP9** | 长音频切块的字归属（D73） | 对任意字时间序列与切块边界，每个字恰好归属一块（按时间中点），既不丢也不重；块时间换算回源文件时间轴时加起始偏移不溢出 | L6 |
+| **KP10** | AIGC 标识写入（D66） | 对任意 pack id 与文件路径，front matter 与首行标识的生成是确定的、不含时间戳，且写入后正文字节与未加标识时一致（标识只在前缀） | L4 |
 
 ## 4. 模型与实现怎样对上：轨迹一致性测试
 
@@ -126,8 +128,10 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | V-S6-01 | KP5、KP6 | `crates/oo-docs/src/compile/proofs.rs` | B-S6-01、B-S6-02 | 证明通过 | `cargo kani -p oo-docs --harness compile` |
 | V-S6-02 | FM6 + 一致性测试；L4 形式化报告 | `formal/quint/share_lifecycle.qnt`、`conformance_share.rs`、`testing/super-ontology/evidence/L4/formal.md` | B-S6-04 | 门禁全绿 | `formal-verify-deep` |
 | V-S6-03 | FM10、FM11 模型与一致性测试；FM6 一致性扩展（UPDATES、check、任务组、刷新策略） | `formal/quint/{freshness_token,constraints,share_lifecycle}.qnt`、`conformance_{freshness,constraints,share}.rs` | B-S5-10、B-S5-11、B-S6-11、B-S6-12 | 无反例；一致 | `quint verify …`；`cargo test -p oo-docs --test conformance_freshness --test conformance_constraints --test conformance_share` |
+| V-S6-04 | KP10 | `crates/oo-docs/src/compile/proofs.rs` | B-S6-13 | 证明通过 | `cargo kani -p oo-docs --harness aigc` |
 | V-S7-01 | FM7 | `formal/quint/suggest_rules.qnt` | B-S7-03 | 互斥完备 | `quint verify formal/quint/suggest_rules.qnt` |
 | V-S9-01 | FM6 扩展漂移与刷新、FM9 | `formal/quint/{share_lifecycle,reprocess}.qnt` | B-S10-01、B-S10-02 | 无反例；一致 | `cargo test -p oo-docs --test conformance_share --test conformance_reprocess` |
+| V-S9-02 | KP9；FM1 一致性测试扩展到媒体按块续跑 | `tools/media-parser` 的字归属函数移植到 `crates/oo-docs/src/parse/media/chunks.rs` 并加证明；`conformance_jobs.rs` | B-S10-07 | 证明通过；按块续跑的轨迹一致 | `cargo kani -p oo-docs --harness media_chunks && cargo test -p oo-docs --test conformance_jobs` |
 | V-S11-01 | FM3 多云事件语义 | `formal/quint/sync_reconcile.qnt` | B-S11-02 | 无反例 | 同上 |
 | V-S13-01 | 规模放大后的边界复核与报告 | `formal/reports/L8.md` | B-S13-03 | 深度检查全绿 | `formal-verify-deep` |
 
@@ -138,9 +142,9 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | L1 | 工具链锁定；FM1 草稿评审通过 | — |
 | L2 | FM1、FM2（md）、FM4 无反例；FM1、FM4 一致性测试通过；KP1、KP2、KP8 | `evidence/L2/formal.md` |
 | L3 | FM2 全量、FM3（fs + s3）无反例与一致；KP3、KP4、KP7 | `evidence/L3/formal.md` |
-| L4 | FM5、FM6（含一致性扩展）、FM8、FM10、FM11 无反例与一致；KP5、KP6；`formal-verify-deep` 全绿 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
+| L4 | FM5、FM6（含一致性扩展）、FM8、FM10、FM11 无反例与一致；KP5、KP6、KP10；`formal-verify-deep` 全绿 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
 | L5 | FM7 | `evidence/L5/formal.md` |
-| L6 | FM6（漂移刷新）、FM9 | `evidence/L6/formal.md` |
+| L6 | FM6（漂移刷新）、FM9；KP9；FM1 媒体续跑一致性 | `evidence/L6/formal.md` |
 | L7 | FM3（多云事件） | `evidence/L7/formal.md` |
 | L8 | 全部模型在放大边界下复跑 | `evidence/L8/formal.md` |
 

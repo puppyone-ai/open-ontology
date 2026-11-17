@@ -1071,7 +1071,7 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 | `PK\x03\x04` | 读 `[Content_Types].xml`：`wordprocessingml` → docx，`spreadsheetml` → xlsx，`presentationml` → pptx；`macroEnabled` → 同格式 + `has_macros=true`；否则 `unsupported(DOCS_PARSE_UNSUPPORTED_FORMAT)` |
 | `D0 CF 11 E0`（OLE2） | 含 `EncryptionInfo` 流 → `encrypted`（加密的 OOXML）；否则 `unsupported(DOCS_PARSE_LEGACY_OFFICE)`（.doc/.xls/.ppt 不在 D31 范围） |
 | 文本 | UTF-8（可带 BOM）严格校验 → 通过；否则 UTF-16 BOM；否则 GB18030 严格解码（`encoding_rs`，不允许替换字符）；都失败 → `unsupported(DOCS_PARSE_ENCODING)` |
-| 其他 | `unsupported(DOCS_PARSE_UNSUPPORTED_FORMAT)`；图片 → `unsupported(DOCS_PARSE_IMAGE_OCR_M2)` |
+| 其他 | `unsupported(DOCS_PARSE_UNSUPPORTED_FORMAT)`；图片 → `unsupported(DOCS_PARSE_IMAGE_OCR_M2)`（L6 起走 §17）；音频、视频容器（`ftyp`、`RIFF/WAVE`、`OggS`、`fLaC`、`ID3`/MPEG 帧头、Matroska/WebM）→ L6 起走 §17，之前为 `unsupported(DOCS_PARSE_MEDIA_L6)` |
 | 空文件 | `published`，无块，warning `DOCS_PARSE_EMPTY`（不算失败） |
 
 #### 4.4.2 OOXML 预检（`zipguard.rs`）
@@ -2547,3 +2547,135 @@ oo context check [--dir .context] [--json] [--since <seq>]
 | B-S6-11 | coverage、`UPDATES.md`、`share_update`、`:check`、`oo context check`、`at-checkpoint`、接入配方（D54、D55、D62） | `crates/oo-docs/src/share/{updates,check,coverage}.rs`、`crates/oo-cli/src/docs/context.rs`、`docs/guide/super-ontology-agent-recipes.md` | B-S6-04、B-S6-10、B-S5-10 | 退出码与 00 §5.6.3 一致；UPDATES 只追加；fail closed | `cargo test -p oo-docs share::check share::updates && cargo test -p oo-cli context_check` |
 | B-S6-12 | 任务组与组内原子刷新（D56）、`as_of` 读语义（D61）、版本保留（D58） | `crates/oo-docs/src/share/group.rs`、`api/as_of.rs`、`store/retention.rs` | B-S6-11 | 组刷新全有或全无；带 Share 凭证的读默认读 Share 版本 | `cargo test -p oo-docs share::group api::as_of store::retention` |
 | B-S7-07 | MCP 资源 `puppyone://share/<sid>/updates` 订阅通知、MCP 工具 `context_check`；接受建议前的跨 Share 影响检查 | `tools/mcp-gateway/src/**`、`crates/oo-docs/src/suggest/impact.rs` | B-S7-06、B-S6-11 | 追加后 2 秒内发出通知 | `cargo test --manifest-path tools/mcp-gateway/Cargo.toml updates` |
+
+
+## 17. 多模态解析（D63–D77，L6）
+
+本节把音频、视频、图片和文档内嵌图片接入同一条流水线。原则：**成熟组件做主干，自研 IR 做唯一契约**；所有组件必须在 [90 分册](90-commercial-boundary.md) §2 中判定为“默认可用”或满足“有条件”的条件。抽取、resolve、可见性、Pack 编译不因模态改变。
+
+### 17.1 解析器拓扑
+
+| sidecar | 负责 | 主干组件 | 档位 | 镜像约束 |
+|---|---|---|---|---|
+| `doc-parser`（已有，§2.6） | PDF、DOCX、PPTX、图片、文档内嵌图片 | Docling 库模式（不用 docling-serve）；OCR 显式 `RapidOcrOptions(backend="onnxruntime")`，不用 `OcrAutoOptions`；不安装 `feat-ocr-nemotron` | cpu | 同 §2.6 |
+| `ocr-parser`（L6，§11.2） | 中文扫描件、独立图片 | PP-StructureV3（PP-DocLayout_plus-L、PP-OCRv5_server_det/rec、SLANeXt_wired）；`gpu` 档可选 PaddleOCR-VL-1.5 | cpu / gpu | 关闭 PaddleX 的模型自动下载；云 SDK 被网络隔离屏蔽 |
+| `media-parser`（新增） | 音频、视频 | 见 §17.3–§17.6 | cpu / gpu | 自编 LGPL FFmpeg（§17.2）；OpenCV 自编、不带 videoio-FFmpeg；`PYANNOTE_METRICS_ENABLED=0`（若比测用到 pyannote）；`mem_limit` 4g、`cpus` 2 |
+
+三者都实现 `oo.doc-parser/v1`（§2.6），`/v1/info` 增加 `profile`（`cpu` / `gpu` / `host-accel`）与 `licenses`（组件与模型的 SPDX、版本、sha256 列表，供 SBOM 门禁比对）。`media-parser` 的 `/v1/parse` 支持长任务：返回 `202 {task}`，进度经 `GET /v1/tasks/{id}` 返回 `{done_ms, total_ms}`，取消即 kill 子进程（与 §2.6 相同语义）。
+
+### 17.2 媒体输入与解码路径（D65）
+
+```
+媒体文件（Drive 内，原件不动）
+ ├─ 嗅探：ffprobe（我们自编的 LGPL 版）读容器与编码；记录 start_time 偏移、时长、轨道
+ ├─ 编码属于自带解码器支持的集合（Opus、Vorbis、FLAC、PCM、MP3、VP8、VP9、AV1）
+ │     → 容器内 FFmpeg 解码：音频 → 16 kHz 单声道 PCM WAV；视频 → 1 fps 帧序列 PNG（带 pts）
+ ├─ 编码属于 H.264、HEVC、AAC 等
+ │     ├─ macOS：Desktop 主进程的宿主机解码 helper（AVFoundation，见 20 分册 F-S10-05）
+ │     │     产出同样的 WAV 与帧序列，写入引擎 scratch 的只读交换目录，附 manifest（源 blob 哈希、pts 列表、helper 版本）
+ │     ├─ Linux：客户在 `oo.docs/v1` 配置 `media.external_ffmpeg`（绝对路径），引擎以子进程调用，我们不分发
+ │     └─ 都没有：unsupported(DOCS_PARSE_CODEC_UNAVAILABLE)，details 写明编码名与配置方法
+ └─ 中间产物在 scratch 中处理完即删除；只有 IR 与帧缩略图（用于证据预览，≤ 320px 长边）进 CAS
+```
+
+- 自编 FFmpeg：`--disable-gpl --disable-nonfree --disable-encoders --disable-muxers` 后只开所需解码器、demuxer 与 `pcm_s16le` 编码（WAV 输出需要；PCM 无专利问题）；`--disable-decoder=h264,hevc,aac,…`；动态链接；CI 检查 `ffmpeg -buildconf`。
+- 宿主机解码 helper 产物的校验：引擎核对 manifest 中的源 blob 哈希与当前文件版本一致，否则丢弃并重排。
+
+### 17.3 音频与长音频（D72、D73）
+
+| 步骤 | 做法 |
+|---|---|
+| 预处理 | §17.2 得到 16 kHz 单声道 WAV；记录起始偏移，所有时间戳统一换算为源文件时间轴毫秒 |
+| VAD | silero-vad（ONNX）在静音处切分，每块 ≤ 30 秒，不重叠；不得不硬切时（连续语音 > 30 秒），每个字按其时间中点归属到唯一一块 |
+| ASR | S10 比测后选定（D72）；字级或 token 级时间戳；热词来自本 Drive 已发布的实体名与别名；热词只影响识别结果，本身不写进任何 Pack |
+| 标点与对齐 | 选定 ASR 自带标点则用之，否则 ct-punc；对齐窗口 ≤ 300 秒 |
+| 说话人分离 | 逐块计算说话人特征，落盘到 scratch；整段统一聚类；采用“同一时刻只保留一个说话人”的排他结果，把每个字归到说话人；**特征在文件处理完成后删除，不进 CAS、不进数据库** |
+| 缓存与续跑 | 每块结果的缓存键 = BLAKE3(音频 PCM) ‖ 区间 ‖ 模型 revision ‖ 参数；作业按块领取（§4.1 的 lease），崩溃后只重跑未完成的块 |
+| 确定性 | 贪心解码、temperature=0、关闭温度回退、固定线程数；IR 的 `parser.profile` 记录模型 sha256 与 CPU 指令集指纹；同一指纹下逐字节可重放 |
+| 进度 | `file.progress` 事件按时间上报：`{done_ms, total_ms}` |
+| 进入抽取 | 整个文件完成后再进入 extract；M2 不做边转写边发布 |
+
+IR 输出：每个说话人连续的一段话为一个 `utterance` 块，`anchor = {kind: "media", t_start_ms, t_end_ms, speaker: "S1", word_start, word_end}`，`hpath` 为空，`meta.duration_ms`、`meta.speakers`（只有标签）。块文字过长（> 2,000 字）时按句切开。ASR 平均置信度 < 0.8 的块带 `low_text_confidence`。
+
+### 17.4 说话人身份（D74）
+
+- 说话人标签只在单个文件内有效（`S1`、`S2`…），不跨文件。
+- 候选来源：
+  1. 同目录或文件名中的会议元数据（例如同名的纪要文件、文件名里的参会人），由规则 `media.attendees` 产出候选集；
+  2. LLM 补抽时识别自我介绍与点名（“我是小王”“小王你说一下”），产出 `speaker_is(S1, 小王)` 候选，附锚点；
+  3. 用户在 Desktop 里确认或改正。
+- 所有映射都进待确认种类 `speaker_identity`；确认后写 overlay，`S1` 发言中的事实主语按确认结果解析。
+- 身份未确认的说话人：其发言产生的事实保持 `draft`，不自动发布，BRIEF 中不出现。
+- 不做声纹库，不跨录音比对（D63）。
+
+### 17.5 视频（D75）
+
+1. §17.2 得到 1 fps 帧序列与音轨。
+2. 切镜：对帧序列做内容差异与感知哈希比较（PySceneDetect 0.7.3 的 `ContentDetector`、`HashDetector`，以图像序列为输入；能否直接读图像序列在 S10b 首日验证，不行则用 imagehash 自写同等逻辑）。
+3. 去重：相邻关键帧的感知哈希距离小于阈值则合并，PPT 翻页与屏幕共享每页只留一帧。
+4. 帧 OCR：RapidOCR（PP-OCRv5 ONNX）识别关键帧文字，产出 `frame_text` 块，`anchor = {kind: "frame", t_ms, bbox}`；同时生成 `scene` 块，`anchor = {kind: "media", t_start_ms, t_end_ms}`，文字为该场景内帧文字的去重合并。
+5. 音轨走 §17.3，产出 `utterance` 块。
+6. 所有块按 pts 毫秒排序合并为一份 IR。
+7. 画面描述（Qwen3-VL-2B/4B）：只在 `gpu`、`host-accel` 档且用户开启时为关键帧生成 `image_caption` 块，带 `flags: model_generated`；描述类块产生的事实一律进待确认。
+
+### 17.6 图片与文档内嵌图片（D76）
+
+- 独立图片（PNG、JPEG、WebP、HEIC 需宿主机解码，规则同 §17.2）：`ocr-parser` 产出 `image_text` 块，`anchor = {kind: "image", parent: null, bbox}`。
+- PDF、PPTX 内嵌图片：Docling `generate_picture_images=true`，对 picture item 做 OCR；图内 bbox 按图片在页面中的位置换算回页面坐标，`anchor = {kind: "image", parent: <pdf 或 slide 锚点>, bbox}`。
+- DOCX 内嵌图片：没有页面坐标，`parent` 为 `docx` 锚点（段落路径）加 `image_index`。
+- 图片描述（SmolVLM-256M 或 Qwen3-VL）默认关闭；开启条件同 §17.5 第 7 步。
+
+### 17.7 IR v1.1 增量（`contracts/docs-ir/doc-ir.v1.schema.json` 向后兼容扩展）
+
+| 项 | 增量 |
+|---|---|
+| `format` | 增加 `audio`、`video`、`image`、`pdf_scanned` |
+| `parser.id` | 增加 `paddleocr`、`media` |
+| `parser.profile` | 新字段：`{tier, models:[{name, sha256}], isa}` |
+| `meta` | 增加 `duration_ms`、`speakers`、`codec`、`width`、`height` |
+| 块 `kind` | 增加 `utterance`、`scene`、`frame_text`、`image_text`、`image_caption` |
+| 锚点 | 增加 `media {t_start_ms, t_end_ms, speaker?, word_start?, word_end?}`、`frame {t_ms, bbox?}`、`image {parent?, image_index?, bbox?}`；`pdf` 增加可选 `page_w`、`page_h` |
+| `flags` | 增加 `model_generated` |
+| 出处片段 | `#t=00:12:31-00:12:48`、`#t=00:12:31@S1`、`#f=00:03:05`；图片 `#img2` |
+
+块 id 规则不变（§3.4），所以同一媒体文件、同一模型版本重跑得到相同块 id。
+
+### 17.8 上限与资源（D77）
+
+| 项 | 上限 |
+|---|---|
+| 单个媒体文件 | ≤ 4 GiB，时长 ≤ 4 小时；超出 `too_large(DOCS_SOURCE_MEDIA_TOO_LONG)` |
+| 媒体并发池 | 默认 1（`concurrency.media`），与文档池分开；媒体作业不占用文档池 |
+| scratch | 媒体中间产物 ≤ 20 GiB，按作业清理；不足时作业 `blocked_reason=disk_low` |
+| 帧 | 每小时视频最多 600 个关键帧进入 OCR；超出时按场景时长加权抽样并记 warning |
+
+### 17.9 许可与 SBOM 门禁（D64）
+
+- 每个 sidecar 镜像构建后用 syft 生成 SBOM（SPDX JSON），与 `/v1/info.licenses` 和 `supply-chain/` 的审计记录比对；命中禁用许可或缺审计记录即构建失败。
+- 模型文件全部在 `models.lock.json` 中锁定 sha256 与来源；门控模型（pyannote 系）只在比测环境拉取，不进默认产物，直到律师结论（90 §8 L3）。
+- `THIRD_PARTY_NOTICES/` 由构建脚本从审计记录生成，随离线包分发（90 §5）。
+
+### 17.10 AI 生成内容标识（D66，L4 起）
+
+- 编译器在每个生成的 Markdown 文件首行写显式标识，并写 YAML front matter `AIGC` 字段（90 §7）；`SHARE.json`、`manifest.json` 写 `aigc` 字段。
+- 标识内容来自配置 `aigc.content_producer`（公司主体名称，默认占位符 `<COMPANY>`），不含时间戳；`ProduceID` 由 pack id 与文件路径确定，保证逐字节可重放。
+- 红队门禁与出处门禁跳过首行标识与 front matter；出处覆盖率只统计正文。
+
+### 17.11 新增错误码
+
+`DOCS_PARSE_MEDIA_L6`、`DOCS_PARSE_CODEC_UNAVAILABLE`、`DOCS_SOURCE_MEDIA_TOO_LONG`、`DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH`（宿主机解码产物与文件版本不符）、`DOCS_PARSE_ASR_FAILED`、`DOCS_PARSE_DIARIZATION_FAILED`、`DOCS_REVIEW_SPEAKER_UNCONFIRMED`。
+
+### 17.12 任务卡
+
+| 卡 | 目标 | 涉及文件 | 依赖 | 完成定义 | 验证命令 |
+|---|---|---|---|---|---|
+| B-S3-11 | SBOM 许可门禁（D64），覆盖已有的 `doc-parser` 镜像与 Rust 产物 | `tools/super-ontology/sbom_gate.py`、`.github/workflows/super-ontology-sbom.yml` | B-S3-01 | 禁用许可与缺审计记录都能拦下；`THIRD_PARTY_NOTICES/` 自动生成 | `python3 -B -m pytest -q tools/super-ontology/test_sbom_gate.py` |
+| B-S6-13 | AIGC 标识写入编译器（D66） | `crates/oo-docs/src/compile/aigc.rs` | B-S6-03 | 首行标识与 front matter 正确；不影响逐字节重放；门禁跳过标识行 | `cargo test -p oo-docs compile::aigc` |
+| B-S9-03 **[主]** | IR v1.1 契约（§17.7） | `contracts/docs-ir/doc-ir.v1.schema.json`、`crates/oo-core/src/docir/**` | L5 签收 | v1 文件仍能通过校验；新锚点有往返测试 | `cargo test -p oo-core docir` |
+| B-S9-04 | Docling 显式 RapidOCR、内嵌图片 OCR 与坐标换算（§17.6） | `tools/doc-parser/**`、`crates/oo-docs/src/parse/normalize.rs` | B-S9-03 | 评测集中图表、截图内文字召回 ≥ 0.9（字符级）；图内 bbox 换算误差 ≤ 1pt | `python3 -B -m pytest -q tools/doc-parser && cargo test -p oo-docs parse::images` |
+| B-S10-05 | `media-parser` 骨架、自编 LGPL FFmpeg、解码路径与 `CODEC_UNAVAILABLE`（§17.1、§17.2） | `tools/media-parser/**`、`deploy/docs/compose.yaml`、`crates/oo-docs/src/parse/media.rs` | B-S9-03、B-S3-11 | `ffmpeg -buildconf` 不含 gpl、nonfree 与被禁解码器；宿主机解码产物哈希校验；Linux 自带 FFmpeg 路径可用 | `python3 -B -m pytest -q tools/media-parser && tools/oo-test/oo-test fast --layer L1 --cells docs-media --run-id <id>` |
+| B-S10-06 | ASR 与说话人分离比测、选型报告（D72） | `testing/super-ontology/golden/media/`、`tools/super-ontology/asr_bakeoff.py`、`testing/super-ontology/evidence/L6/asr-bakeoff.md` | B-S10-05 | 报告给出每个候选的 CER、DER、CPU 实时率、峰值内存、许可判定，并写明选型结论 | `python3 -B tools/super-ontology/asr_bakeoff.py --golden testing/super-ontology/golden/media` |
+| B-S10-07 | 长音频流水线（§17.3） | `tools/media-parser/asr/**`、`crates/oo-docs/src/parse/media.rs` | B-S10-06 | 2 小时合成会议：中途杀进程后续跑不重做已完成块；同一 ISA 指纹下逐字节可重放；说话人特征文件在完成后不存在 | `tools/oo-test/oo-test fast --layer L2 --cells docs-media-long --run-id <id>` |
+| B-S10-08 | 说话人身份三层与 `speaker_identity`（§17.4） | `crates/oo-docs/src/{extract/rules/media.rs,review/speaker.rs}` | B-S10-07、B-S5-06 | 未确认说话人的事实不发布；确认后主语正确解析 | `cargo test -p oo-docs review::speaker extract::rules::media` |
+| B-S10-09 | 视频（§17.5） | `tools/media-parser/video/**` | B-S10-07 | 合成录屏视频：每页幻灯片恰好一个关键帧；帧文字召回 ≥ 0.9；时间轴合并正确 | `python3 -B -m pytest -q tools/media-parser/video` |
+| B-S10-10 | 媒体上限、并发池、scratch 守卫（§17.8） | `crates/oo-docs/src/jobs/scheduler.rs`、`oo.docs/v1` schema | B-S10-05 | 媒体作业不阻塞文档作业（并发测试）；超限显式报错 | `cargo test -p oo-docs jobs::media_pool` |
