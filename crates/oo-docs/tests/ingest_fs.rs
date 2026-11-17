@@ -368,7 +368,12 @@ async fn rename_is_detected_by_content() {
     // The old path was the one working on the content and is gone: the new
     // path waits for one pump pass and then leads.
     assert_eq!(e.state("kept.md").await.0, "stored");
-    assert_eq!(oo_docs::jobs::stages::settle_waiting(&e.pool).await.unwrap(), 1);
+    assert_eq!(
+        oo_docs::jobs::stages::settle_waiting(&e.pool)
+            .await
+            .unwrap(),
+        1
+    );
     assert_eq!(e.state("kept.md").await.0, "queued");
     e.finish().await;
 }
