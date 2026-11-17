@@ -13,7 +13,7 @@ What the two stores answered (the capability probe, `s3_rustfs::the_probe_report
 `If-Match` on a ranged read is honoured (a stale tag is a 412, which the backend maps to `Changed`), the ETag of a single
 part object is the MD5 of the content, the ETag of a multipart object is not (36 characters with a `-N` suffix), no object
 version ids (the bucket is not versioned), no CRC64 header for objects uploaded without a checksum. The CRC64 verification
-(three downloads, then `DOCS_SOURCE_CHECKSUM`) is covered by `crates/oo-connectors/tests/s3_mock.rs`.
+(three downloads, then a `Protocol` error "checksum mismatch"; the spec code `DOCS_SOURCE_CHECKSUM_MISMATCH` needs a `DocSourceError` variant in the coordinator-owned `objectstore/mod.rs`) is covered by `crates/oo-connectors/tests/s3_mock.rs`.
 
 The L3 acceptance 5 round on both stores (add, same size modify, rename by copy and delete, delete, cache, secrets):
 `../L3/s3-life-rustfs.md` and `../L3/s3-life-minio.md`, 20 of 20 checks each.
