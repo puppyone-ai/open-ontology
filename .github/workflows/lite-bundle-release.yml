@@ -195,12 +195,12 @@ jobs:
               --title "Open Ontology ${TAG#v}" --notes-file - <<'NOTES'
           Open Ontology release.
 
-          Install the CLI from npm. `oo up` and `oo quickstart` pull the signed lite
-          runtime by digest; when that pull fails, they download the matching
+          Install the CLI from npm. `oo up` pulls the signed lite
+          runtime by digest; when that pull fails, it downloads the matching
           `oo-lite-runtime-*-linux-<arch>.tar.gz` below, check its size and SHA-256
           against the pin shipped in the npm package (`oo-lite-bundle.json`), verify
           and load it. To install offline, download the asset for your Docker
-          daemon's architecture and run `oo quickstart --offline-bundle FILE`.
+          daemon's architecture and run `oo up --offline-bundle FILE`.
 
           `lite-bundles.json` lists each asset's size, SHA-256, manifest SHA-256 and
           image identities. PostgreSQL is pulled from Docker Hub by digest.

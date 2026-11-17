@@ -354,7 +354,7 @@ test('readiness requires publication and visible tables, not just HTTPS success'
 test('standalone native cache expires, rejects clock rollback, and checks data commands before sending credentials', async t => {
   const f = await fixture(t);
   f.state.direct = true;
-  assert.equal(JSON.parse((await f.cli(['--version', '--json'])).stdout).version, '0.2.0');
+  assert.equal(JSON.parse((await f.cli(['--version', '--json'])).stdout).version, '0.2.1');
   const logged = await f.cli(['login', '--gateway', f.gateway, '--ca-file', f.cert, '--code-stdin', '--json'], 'OO-0000-0000\r\n');
   assert.equal(logged.status, 0, logged.stderr);
   const cache = join(f.dir, readdirSync(f.dir).find(name => name.startsWith('native-meta-')));

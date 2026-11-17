@@ -6,7 +6,7 @@
   <p>The open-source ontology layer for your agents.</p>
 
   <p>
-    <a href="#-try-it"><b>Get started</b></a> ·
+    <a href="#get-started"><b>Get started</b></a> ·
     <a href="#-inside-open-ontology"><b>How it works</b></a>
   </p>
 
@@ -16,31 +16,29 @@
   </p>
 </div>
 
-## Quickstart (v0.3 preview)
+## Get started
 
 ```sh
 npm install -g @reduxxx888/ontology-cli
-oo quickstart --yes
-oo try
+oo --help
+oo init
 ```
 
-**Pending integration, not a released three-command experience.** The demo
-fixture and curated no-model Packs are available locally; the `oo init --demo`
-TUI handoff, publication and enrollment still need integration.
-See [verified scope and local commands](deploy/lite/demo/README.md). No
-install-to-first-answer p50/p95 is claimed.
+`oo init` connects your own read-only database: it picks up connections this
+machine already knows, checks the host, port, TLS certificate and sign-in,
+lets you choose tables, builds the ontology and asks you to confirm it before
+anything is published. Follow [Connect your database](docs/guide/connect-your-database.md)
+for the full walkthrough. No install-to-first-answer p50/p95 is claimed.
 
-The npm package carries only the runtime image pin, not the images. `oo up` and
-`oo quickstart` pull the signed runtime from GHCR by digest. If that pull fails
-(network, registry access), they download the matching runtime bundle from the
-[GitHub Release](https://github.com/puppyone-ai/open-ontology/releases), check
+The npm package carries only the runtime image pin, not the images. `oo up`
+pulls the signed runtime from GHCR by digest. If that pull fails (network,
+registry access), it downloads the matching runtime bundle from the
+[GitHub Release](https://github.com/puppyone-ai/open-ontology/releases), checks
 its size and SHA-256 against `oo-lite-bundle.json` shipped in the package,
-verify and load it. Offline, download the asset for your Docker daemon's
-architecture and run `oo quickstart --offline-bundle FILE`; `OO_LITE_OFFLINE=1`
-disables every pull and download. See [Quickstart](docs/guide/quickstart.md).
-
-For a working bring-your-own-database flow, see
-[Connect your database](docs/guide/connect-your-database.md).
+verifies and loads it. Offline, download the asset for your Docker daemon's
+architecture and run `oo up --offline-bundle FILE`; `OO_LITE_OFFLINE=1`
+disables every pull and download. See
+[Runtime image](docs/guide/connect-your-database.md#runtime-image-registry-pull-or-release-bundle).
 
 **Your data ≠ your agent's world**
 
@@ -85,13 +83,10 @@ Connect with the `oo` CLI, the HTTP API, or a local MCP server, using any model 
 
 ## ![](docs/assets/readme/icons/bonfire.svg) Try it
 
-The v0.3 demo entry point is the three-command preview at the top of this
-page. `oo quickstart` delegates to `oo init --demo`; it does not bypass the
-onboarding confirmation. `oo try` uses fixed gold SQL, not a model.
-
-For your own source, follow [Connect your database](docs/guide/connect-your-database.md).
+Run `oo init` against your own read-only database and follow
+[Connect your database](docs/guide/connect-your-database.md).
 Older source-build and manual fixture instructions are collected under
-[Legacy demos](docs/legacy/README.md); they are not the quickstart.
+[Legacy demos](docs/legacy/README.md).
 
 ## ![](docs/assets/readme/icons/sun.svg) Roadmap
 
@@ -110,7 +105,7 @@ Older source-build and manual fixture instructions are collected under
 - [Self-build ontology](#-self-build-ontology)
 - [Inside Open Ontology](#-inside-open-ontology)
 - [Supported databases](#-supported-databases)
-- [Try it](#-try-it)
+- [Get started](#get-started)
 - [Roadmap](#-roadmap)
 
 **Reference**
@@ -323,13 +318,12 @@ Configure the client’s transport, authentication mode, and protocol version ag
 
 ## Getting started
 
-Follow the [local lite quickstart](docs/guide/quickstart.md): install the npm CLI,
+Follow [Connect your database](docs/guide/connect-your-database.md): install the npm CLI,
 answer the seven-step `oo init` wizard, run `oo up` and `oo build`, review the
 ontology, then give the generated share prompt to your Agent for `oo login`.
 
-**Release gate:** the 2026-11-05 fresh-HOME check could not install version
-0.2.0 from npm (`ETARGET`). The recorded L1 success uses a locally packaged
-CLI; public installation and remote SSH retained build are not yet accepted.
+**Release status:** `@reduxxx888/ontology-cli` is published on npm (0.2.0 on
+2026-11-16, 0.2.1 current). Remote SSH retained build is not yet accepted.
 
 - [Generated command reference](docs/reference/cli.md): actual native/npm help.
 - [Troubleshooting](docs/guide/troubleshooting.md): named errors, causes and recovery.

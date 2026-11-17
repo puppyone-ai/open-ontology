@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[4]
 
 class AdjudicatedReview(unittest.TestCase):
     def test_confirmation_applies_evidence_and_preserves_exact_input_bytes(self):
-        envelope = json.loads((ROOT / "deploy/lite/demo/confirmed-analyst.json").read_text())
-        expected = json.loads((ROOT / "deploy/lite/demo/pack-analyst.json").read_text())
+        envelope = json.loads((ROOT / "crates/oo-cli/tests/fixtures/review/confirmed-analyst.json").read_text())
+        expected = json.loads((ROOT / "crates/oo-cli/tests/fixtures/review/pack-analyst.json").read_text())
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             def write(name, value):

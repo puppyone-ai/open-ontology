@@ -88,11 +88,6 @@ impl Build {
         }
     }
 
-    /// Units completed so far, all stages together.
-    pub fn completed(&self) -> u64 {
-        self.stages.iter().map(|s| s.completed).sum()
-    }
-
     /// Overall progress, each stage weighing one fifth.
     pub fn fraction(&self) -> f64 {
         self.stages.iter().map(stage_fraction).sum::<f64>() / self.stages.len().max(1) as f64

@@ -513,21 +513,21 @@ fn detail(state: &Select, row: usize, area: Rect, buf: &mut Buffer, theme: &Them
 
 const NONE_SELECTED: &str = "select at least one table";
 
-pub fn demo_tables() -> Vec<TableMeta> {
-    let value: serde_json::Value =
-        serde_json::from_str(include_str!("../demo-catalog.json")).unwrap_or_default();
-    crate::tui::scorer::from_catalog(&value).unwrap_or_default()
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::snapshot;
     use super::*;
     use crossterm::event::KeyEvent;
 
+    fn sample_tables() -> Vec<TableMeta> {
+        let value: serde_json::Value =
+            serde_json::from_str(include_str!("../../../tests/fixtures/catalog.json")).unwrap();
+        crate::tui::scorer::from_catalog(&value).unwrap()
+    }
+
     #[test]
     fn keys_toggle_accept_and_search() {
-        let mut s = Select::new(&demo_tables());
+        let mut s = Select::new(&sample_tables());
         let recommended = s.chosen.len();
         assert!(recommended > 5);
         key(&mut s, KeyEvent::from(KeyCode::Char(' ')));
@@ -552,12 +552,12 @@ mod tests {
 
     #[test]
     fn snapshots() {
-        let mut state = Select::new(&demo_tables());
+        let mut state = Select::new(&sample_tables());
         state.cursor = 2;
         snapshot::all_sizes("2-tables", |area, buf, theme| {
             render(&state, area, buf, theme)
         });
-        let mut zh = Select::new(&demo_tables());
+        let mut zh = Select::new(&sample_tables());
         zh.searching = true;
         zh.search = "ship".into();
         snapshot::check(
@@ -571,7 +571,7 @@ mod tests {
 
     #[test]
     fn opening_sweep_frames() {
-        let state = Select::new(&demo_tables());
+        let state = Select::new(&sample_tables());
         let frames: Vec<(usize, &str)> = (0..SWEEP_FRAMES)
             .step_by(2)
             .map(|f| (f, "verdicts sweep in, meter fills"))
