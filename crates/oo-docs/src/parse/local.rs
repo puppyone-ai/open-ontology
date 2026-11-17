@@ -61,6 +61,7 @@ fn format_name(format: DocFormat) -> Option<&'static str> {
     match format {
         DocFormat::Md => Some("md"),
         DocFormat::Txt => Some("txt"),
+        DocFormat::Xlsx => Some("xlsx"),
         _ => None,
     }
 }
@@ -90,6 +91,7 @@ pub fn serve<R: Read, W: Write>(r: &mut R, w: &mut W) -> io::Result<()> {
     let result = match format {
         Some("md") => parse_markdown(&bytes),
         Some("txt") => parse_text(&bytes),
+        Some("xlsx") => super::xlsx::parse_xlsx(&bytes),
         _ => Err(ParseError::NotText),
     };
     let response = match result {
