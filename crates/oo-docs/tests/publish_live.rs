@@ -204,7 +204,10 @@ async fn publish_golden_md_subset_makes_v1() {
         gates,
         [
             ("DOC-G1".into(), "pass".into()),
-            ("DOC-G2".into(), "pass".into())
+            ("DOC-G2".into(), "pass".into()),
+            ("DOC-G3".into(), "pass".into()),
+            ("DOC-G4".into(), "pass".into()),
+            ("DOC-G5".into(), "pass".into())
         ]
     );
 
@@ -217,7 +220,7 @@ async fn publish_golden_md_subset_makes_v1() {
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.gate_report WHERE n = 1 AND disposition = 'pass'")
             .await,
-        2
+        5
     );
     assert_eq!(
         fx.scalar(
@@ -467,7 +470,7 @@ async fn publish_is_single_writer_and_chains_versions() {
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.gate_report WHERE n = 2")
             .await,
-        2
+        5
     );
 
     // A retraction alone makes a version and stamps retracted_in.
