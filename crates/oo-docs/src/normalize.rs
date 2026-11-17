@@ -14,6 +14,7 @@ use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
 mod canonical;
+pub mod docling;
 #[cfg(test)]
 mod tests;
 
