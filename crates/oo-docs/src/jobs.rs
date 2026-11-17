@@ -7,6 +7,7 @@
 //! in those functions; the Rust wrappers in `store::jobs` never bypass it.
 
 pub mod backoff;
+pub mod reuse;
 pub mod scheduler;
 pub mod stages;
 

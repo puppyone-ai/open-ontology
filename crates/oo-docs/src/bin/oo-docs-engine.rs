@@ -165,12 +165,30 @@ async fn run() -> ExitCode {
     let mut sched_cfg = SchedulerConfig::new(&worker_id);
     sched_cfg.concurrency = stages::default_concurrency();
     sched_cfg.concurrency.extend(cfg.concurrency.clone());
+    let sidecar = match &cfg.parser {
+        Some(ep) => match std::fs::read_to_string(&ep.token_file) {
+            Ok(t) if t.trim().len() >= 16 => {
+                Some(Arc::new(oo_docs::parse::sidecar::SidecarClient::new(
+                    oo_docs::parse::sidecar::SidecarConfig::new(ep.addr.clone(), t.trim()),
+                )))
+            }
+            _ => {
+                return fail(
+                    2,
+                    "config.parser_token_unreadable",
+                    "parser token file missing or too short",
+                );
+            }
+        },
+        None => None,
+    };
     let mut handlers = handlers::handlers(&pool, Arc::new(FsFactory), limits);
-    handlers.extend(stages::handlers_with_progress(
+    handlers.extend(stages::handlers_with_sidecar(
         &pool,
         Arc::new(FsFactory),
         cas,
         Some(progress),
+        sidecar,
     ));
     // Low disk pauses hashing, parsing and extraction (4.12, G7).
     oo_docs::obs::disk::guard_handlers(

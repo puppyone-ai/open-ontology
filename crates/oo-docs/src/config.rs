@@ -15,6 +15,7 @@ use serde_json::Value;
 
 use crate::ingest::IngestLimits;
 use crate::ingest::poll::PollConfig;
+use crate::ingest::sniff::Format;
 use crate::jobs::JobKind;
 
 /// Why the configuration is unusable.
@@ -65,6 +66,19 @@ pub struct EngineConfig {
     pub poll: PollConfig,
     /// `concurrency.*`.
     pub concurrency: HashMap<JobKind, usize>,
+    /// `OO_DOCS_PARSER_URL` (`http://host:port`) and
+    /// `OO_DOCS_PARSER_TOKEN_FILE`: the Docling sidecar. Without it pdf, docx
+    /// and pptx are `unsupported`.
+    pub parser: Option<ParserEndpoint>,
+}
+
+/// Where the sidecar is and the file holding its bearer token.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParserEndpoint {
+    /// `host:port`.
+    pub addr: String,
+    /// Token file path.
+    pub token_file: PathBuf,
 }
 
 impl EngineConfig {
@@ -103,6 +117,34 @@ impl EngineConfig {
             .unwrap_or_default();
 
         let mut ingest = IngestLimits::default();
+        // csv and xlsx are parsed by the engine itself.
+        ingest.parsers.insert(Format::Csv);
+        ingest.parsers.insert(Format::Xlsx);
+        let parser = match (env("OO_DOCS_PARSER_URL"), env("OO_DOCS_PARSER_TOKEN_FILE")) {
+            (Some(url), Some(file)) => {
+                let addr = url
+                    .strip_prefix("http://")
+                    .unwrap_or(&url)
+                    .trim_end_matches('/')
+                    .to_owned();
+                if addr.is_empty() || addr.contains('/') {
+                    return Err(ConfigError::Invalid(
+                        "OO_DOCS_PARSER_URL",
+                        "expected http://host:port".into(),
+                    ));
+                }
+                ingest
+                    .parsers
+                    .extend([Format::Pdf, Format::Docx, Format::Pptx]);
+                Some(ParserEndpoint {
+                    addr,
+                    token_file: PathBuf::from(file),
+                })
+            }
+            (None, None) => None,
+            (Some(_), None) => return Err(ConfigError::Missing("OO_DOCS_PARSER_TOKEN_FILE")),
+            (None, Some(_)) => return Err(ConfigError::Missing("OO_DOCS_PARSER_URL")),
+        };
         let mut poll = PollConfig::default();
         let mut concurrency: HashMap<JobKind, usize> =
             HashMap::from([(JobKind::Sync, 1), (JobKind::Hash, 4)]);
@@ -139,6 +181,7 @@ impl EngineConfig {
             ingest,
             poll,
             concurrency,
+            parser,
         })
     }
 }
@@ -170,6 +213,58 @@ mod tests {
         assert_eq!(c.poll.interval, Duration::from_secs(30));
         assert_eq!(c.concurrency[&JobKind::Hash], 4);
         assert!(c.admin_database_url.is_none());
+    }
+
+    #[test]
+    fn the_parser_endpoint_admits_the_sidecar_formats() {
+        use crate::ingest::sniff::Format;
+        let c = EngineConfig::from_parts(&env_of(BASE), None).unwrap();
+        assert!(c.parser.is_none());
+        assert!(
+            c.ingest.parsers.contains(&Format::Csv) && c.ingest.parsers.contains(&Format::Xlsx)
+        );
+        assert!(
+            !c.ingest.parsers.contains(&Format::Pdf),
+            "no sidecar, no pdf"
+        );
+        let with: Vec<(&str, &str)> = BASE
+            .iter()
+            .copied()
+            .chain([
+                ("OO_DOCS_PARSER_URL", "http://doc-parser:7481/"),
+                ("OO_DOCS_PARSER_TOKEN_FILE", "/run/oo/parser-token"),
+            ])
+            .collect();
+        let env = move |k: &str| {
+            with.iter()
+                .find(|(n, _)| *n == k)
+                .map(|(_, v)| (*v).to_owned())
+        };
+        let c = EngineConfig::from_parts(&env, None).unwrap();
+        let ep = c.parser.unwrap();
+        assert_eq!(ep.addr, "doc-parser:7481");
+        assert_eq!(ep.token_file, PathBuf::from("/run/oo/parser-token"));
+        for f in [Format::Pdf, Format::Docx, Format::Pptx] {
+            assert!(c.ingest.parsers.contains(&f));
+        }
+    }
+
+    #[test]
+    fn a_parser_url_without_a_token_file_is_refused() {
+        let with: Vec<(&str, &str)> = BASE
+            .iter()
+            .copied()
+            .chain([("OO_DOCS_PARSER_URL", "http://127.0.0.1:7481")])
+            .collect();
+        let env = move |k: &str| {
+            with.iter()
+                .find(|(n, _)| *n == k)
+                .map(|(_, v)| (*v).to_owned())
+        };
+        assert!(matches!(
+            EngineConfig::from_parts(&env, None),
+            Err(ConfigError::Missing("OO_DOCS_PARSER_TOKEN_FILE"))
+        ));
     }
 
     #[test]
