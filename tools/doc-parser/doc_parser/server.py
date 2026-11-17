@@ -1,5 +1,6 @@
 """HTTP surface of oo.doc-parser/v1 (10 §2.6). Standard library only."""
 import hmac
+import importlib
 import json
 import re
 import select
@@ -11,12 +12,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import ADAPTER_VERSION, PROTOCOL
-from .capabilities import table_structure_available
 from .scratch import HEX64, Scratch, ScratchFull
 from .supervisor import Pool
 from .watchdog import Watchdog
 
-FORMATS = ("pdf", "docx", "pptx")
 BLOB_PATH = re.compile(r"^/v1/blobs/([0-9a-f]{64})$")
 
 
@@ -28,33 +27,27 @@ def load_models(path):
     return [{"name": f["name"], "sha256": f["sha256"]} for f in lock.get("files", [])]
 
 
-def parser_version():
-    try:
-        from importlib import metadata
-
-        return metadata.version("docling-slim")
-    except Exception:  # noqa: BLE001 - tests run without docling
-        return "unavailable"
-
-
 class Service:
     def __init__(self, cfg):
         self.cfg = cfg
         self.scratch = Scratch(cfg.scratch_dir, cfg.scratch_bytes)
         self.pool = Pool(cfg)
         self.models = load_models(cfg.models_lock)
-        self.version = parser_version()
+        self.meta = importlib.import_module(cfg.meta)
+        self.version = self.meta.parser_version()
         self.watchdog = Watchdog(cfg.watchdog_s)
 
     def info(self):
         c = self.cfg
         return {
             "protocol": PROTOCOL,
-            "parser_id": "docling",
+            "parser_id": self.meta.PARSER_ID,
+            "profile": self.meta.PROFILE,
+            "licenses": self.meta.licenses(self.models),
             "parser_version": self.version,
             "adapter_version": ADAPTER_VERSION,
             "models": self.models,
-            "formats": list(FORMATS),
+            "formats": list(self.meta.FORMATS),
             "workers": c.workers,
             "busy": self.pool.busy,
             "limits": {
@@ -62,8 +55,7 @@ class Service:
                 "max_response_bytes": c.max_response_bytes,
                 "max_deadline_ms": c.max_deadline_ms,
                 "scratch_bytes": c.scratch_bytes,
-                "ocr": False,
-                "table_structure": table_structure_available(),
+                **self.meta.limits(),
             },
             "stats": dict(self.pool.stats),
         }
@@ -194,7 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         sha, fmt = req.get("blob"), req.get("format")
         if not isinstance(sha, str) or not HEX64.match(sha):
             return self._error(400, "PARSER_BAD_INPUT", "blob must be a sha256 hex string")
-        if fmt not in FORMATS or (self.path == "/v1/probe" and fmt != "pdf"):
+        meta = self.svc.meta
+        if fmt not in meta.FORMATS or (self.path == "/v1/probe" and fmt not in meta.PROBE_FORMATS):
             return self._error(422, "PARSER_UNSUPPORTED", "format is not supported here")
         if self.path == "/v1/probe":
             return self._run(sha, "probe", (fmt,), deadline_s=30)
@@ -205,13 +198,13 @@ class Handler(BaseHTTPRequestHandler):
         rng = req.get("page_range")
         if rng is not None:
             ok = isinstance(rng, list) and len(rng) == 2 and all(isinstance(x, int) and not isinstance(x, bool) for x in rng)
-            if not ok or rng[0] < 1 or rng[0] > rng[1] or fmt != "pdf":
+            if not ok or rng[0] < 1 or rng[0] > rng[1] or fmt not in self.svc.meta.PAGE_RANGE_FORMATS:
                 return self._error(400, "PARSER_BAD_INPUT", "page_range must be [start, end], 1-based, pdf only")
         opts = req.get("options") or {}
         if not isinstance(opts, dict):
             return self._error(400, "PARSER_BAD_INPUT", "options must be an object")
-        if opts.get("ocr"):
-            return self._error(422, "PARSER_UNSUPPORTED", "OCR is not available in this image (M2)")
+        if opts.get("ocr") and not self.svc.meta.OCR_OPTION_ALLOWED:
+            return self._error(422, "PARSER_UNSUPPORTED", "OCR is not available in this image")
         deadline_ms = req.get("deadline_ms", cfg.max_deadline_ms)
         if not isinstance(deadline_ms, int) or isinstance(deadline_ms, bool) or not 1 <= deadline_ms <= cfg.max_deadline_ms:
             return self._error(400, "PARSER_BAD_INPUT", f"deadline_ms must be 1..{cfg.max_deadline_ms}")
@@ -250,7 +243,7 @@ def serve(cfg):
     svc = Service(cfg)
     srv = Server(svc)
     svc.watchdog.start()
-    print(f"doc-parser listening on {cfg.host}:{srv.server_address[1]} workers={cfg.workers}", file=sys.stderr, flush=True)
+    print(f"{svc.meta.PARSER_ID} sidecar listening on {cfg.host}:{srv.server_address[1]} workers={cfg.workers}", file=sys.stderr, flush=True)
     try:
         srv.serve_forever(poll_interval=0.5)
     finally:

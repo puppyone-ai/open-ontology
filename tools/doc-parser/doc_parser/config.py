@@ -20,6 +20,7 @@ class Config:
     max_deadline_ms: int = 120_000
     watchdog_s: float = 60.0
     backend: str = "doc_parser.adapter"
+    meta: str = "doc_parser.meta"
     start_method: str = "forkserver"
     models_lock: str = "/opt/app/models.lock.json"
     cgroup_events: str = "/sys/fs/cgroup/memory.events"
@@ -54,6 +55,7 @@ class Config:
             max_deadline_ms=num("OO_PARSER_MAX_DEADLINE_MS", d["max_deadline_ms"].default),
             watchdog_s=num("OO_PARSER_WATCHDOG_S", d["watchdog_s"].default, float),
             backend=env.get("OO_PARSER_BACKEND", d["backend"].default),
+            meta=env.get("OO_PARSER_META", d["meta"].default),
             start_method=env.get("OO_PARSER_START_METHOD", d["start_method"].default),
             models_lock=env.get("OO_PARSER_MODELS_LOCK", d["models_lock"].default),
             cgroup_events=env.get("OO_PARSER_CGROUP_EVENTS", d["cgroup_events"].default),
