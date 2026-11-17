@@ -30,10 +30,10 @@
 | SO-B-S2-06 | L2 | merged | so/B-S2-06-md-txt-ir | 347c4d956 → 3df429b14 | — | — | GB18030 待 encoding_rs 准入；normalize 内有 canonical_json 副本待换 re-export |
 | SO-B-S2-07 | L2 | merged | so/B-S2-07-rules-publish | e100e3d03 → 35c9c4e10 | — | — | 无模型 md/txt 子集：实体 F1 0.609、事实 F1 0.214（基线，非验收） |
 | SO-B-S2-08 | L2 | merged | so/B-S2-08-compile-minimal | 2b580b857 → 761c5ddb5 | — | — | 红队真实 docx 待 L4；AIGC 首行在 front matter 前 |
-| SO-B-S2-09 | L2 | in_progress | so/B-S2-09-control-api + 续作 | — | — | — | API 已合入（api_live 11/11）；流水线接线续作中 |
-| SO-B-S2-10 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-11 | L2 | todo | — | — | — | — | — |
-| SO-B-S2-12 | L2 | todo | — | — | — | — | — |
+| SO-B-S2-09 | L2 | merged | so/B-S2-09-control-api, so/B-S2-09-pipeline-wiring | — → 032017cf9 | — | evidence/L2/ | 流水线接线已合入 |
+| SO-B-S2-10 | L2 | merged | so/B-S2-10-oo-serve | → f431223c2 | — | evidence/L2/ | L2 简化：引擎为宿主子进程，compose 路径随 B-S3-01 |
+| SO-B-S2-11 | L2 | merged | so/B-S2-11-context-mount | → 376714a94 | — | evidence/L2/ | revoke/list/refs 待 B-S6 |
+| SO-B-S2-12 | L2 | merged | so/B-S2-12-l2-e2e | → db950b4cc | — | evidence/L2/ | 验收 1–5（4 为 API 层）37/37，主线程复跑 37/37 |
 | SO-F-S2-01 | L2 | todo | — | — | — | — | — |
 | SO-F-S2-02 | L2 | todo | — | — | — | — | — |
 | SO-F-S2-03 | L2 | todo | — | — | — | — | — |
