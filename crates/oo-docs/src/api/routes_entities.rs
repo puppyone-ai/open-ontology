@@ -54,7 +54,8 @@ pub fn fact_sql() -> String {
          'retracted_at', CASE WHEN ft.retracted_at IS NULL THEN NULL ELSE \
              to_char(ft.retracted_at AT TIME ZONE 'UTC', {FMT}) END, \
          'confidence_bp', ft.confidence_bp, 'origin', ft.origin, 'status', ft.status, \
-         'published_in', ft.published_in, 'superseded_by', ft.superseded_by::text))",
+         'published_in', ft.published_in, 'superseded_by', ft.superseded_by::text, \
+         'revision', ft.revision))",
         s = entity_ref_sql("s"),
         o = object_sql,
     )

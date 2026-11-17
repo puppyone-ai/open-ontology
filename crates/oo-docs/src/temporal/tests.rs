@@ -360,3 +360,44 @@ proptest! {
         prop_assert!(overlaps(&live).is_empty(), "{:?}", overlaps(&live));
     }
 }
+
+#[test]
+fn an_extraction_never_overrides_a_person() {
+    let human = t(
+        "1",
+        "attr.status",
+        "已完成",
+        Some("2026-01-01"),
+        10000,
+        Origin::Human,
+    );
+    // A later extracted value would normally end the person's: it waits instead.
+    let later = status("2", "暂停", "2026-06-01");
+    let p = plan_group(&[human.clone(), later]);
+    assert!(p.end.is_empty());
+    assert_eq!(
+        p.held,
+        [Held {
+            fact_id: "2".into(),
+            other_id: "1".into(),
+            reason: ReviewReason::ConflictsWithHumanOverlay
+        }]
+    );
+    // The same day: the person's value stays, the extraction waits with the same reason.
+    let same_day = status("3", "暂停", "2026-01-01");
+    let p = plan_group(&[human.clone(), same_day]);
+    assert_eq!(p.held.len(), 1);
+    assert_eq!(p.held[0].reason, ReviewReason::ConflictsWithHumanOverlay);
+    assert_eq!(p.held[0].reason.code(), "conflicts_with_human_overlay");
+    // A person's later value ends an extracted earlier one as usual.
+    let newer = t(
+        "4",
+        "attr.status",
+        "完成",
+        Some("2026-09-01"),
+        10000,
+        Origin::Human,
+    );
+    let p = plan_group(&[status("5", "进行中", "2026-01-01"), newer]);
+    assert_eq!(p.end.len(), 1);
+}

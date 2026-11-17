@@ -15,18 +15,38 @@ pub async fn insert(
     conn: &mut PgConnection,
     kind: &str,
     binds: &str,
-    mut payload: Value,
+    payload: Value,
     author: &str,
     review_id: Option<&str>,
     status: &str,
     supersedes: Option<&str>,
 ) -> Result<String, StoreError> {
+    insert_rev(
+        conn, kind, binds, payload, author, review_id, status, supersedes, None,
+    )
+    .await
+}
+
+/// [`insert`] with the `drive_rev` the correction advanced (16.2); the table
+/// is insert-only, so the rev has to be given with the row.
+#[allow(clippy::too_many_arguments)]
+pub async fn insert_rev(
+    conn: &mut PgConnection,
+    kind: &str,
+    binds: &str,
+    mut payload: Value,
+    author: &str,
+    review_id: Option<&str>,
+    status: &str,
+    supersedes: Option<&str>,
+    drive_rev: Option<i64>,
+) -> Result<String, StoreError> {
     if let (Some(old), Some(obj)) = (supersedes, payload.as_object_mut()) {
         obj.insert("supersedes_overlay".into(), json!(old));
     }
     let id: String = sqlx::query_scalar(
-        "INSERT INTO _oo_docs.overlay (id, kind, binds, payload, author, review_id, status) \
-         VALUES (gen_random_uuid(), $1, $2, $3::jsonb, $4, $5::uuid, $6) RETURNING id::text",
+        "INSERT INTO _oo_docs.overlay (id, kind, binds, payload, author, review_id, status, drive_rev) \
+         VALUES (gen_random_uuid(), $1, $2, $3::jsonb, $4, $5::uuid, $6, $7) RETURNING id::text",
     )
     .bind(kind)
     .bind(binds)
@@ -34,6 +54,7 @@ pub async fn insert(
     .bind(author)
     .bind(review_id)
     .bind(status)
+    .bind(drive_rev)
     .fetch_one(&mut *conn)
     .await?;
     Ok(id)

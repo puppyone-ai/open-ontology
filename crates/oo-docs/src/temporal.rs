@@ -128,6 +128,9 @@ pub enum ReviewReason {
     SupersedeInUse,
     /// The superseding date is unknown or before the old fact started.
     SupersedeUndated,
+    /// A later extraction disagrees with a person's correction, which is
+    /// never overridden by itself (D22, 16.8).
+    ConflictsWithHumanOverlay,
 }
 
 impl ReviewReason {
@@ -137,6 +140,7 @@ impl ReviewReason {
             Self::SupersedeCandidate => "supersede_candidate",
             Self::SupersedeInUse => "supersede_in_use",
             Self::SupersedeUndated => "supersede_undated",
+            Self::ConflictsWithHumanOverlay => "conflicts_with_human_overlay",
         }
     }
 }
@@ -211,7 +215,11 @@ pub fn plan_group(group: &[TFact]) -> Plan {
                 plan.held.push(Held {
                     fact_id: other.id.clone(),
                     other_id: top.id.clone(),
-                    reason: ReviewReason::FunctionalConflict,
+                    reason: if top.origin == Origin::Human && other.origin != Origin::Human {
+                        ReviewReason::ConflictsWithHumanOverlay
+                    } else {
+                        ReviewReason::FunctionalConflict
+                    },
                 });
             }
         }
@@ -238,7 +246,14 @@ pub fn plan_group(group: &[TFact]) -> Plan {
         if f.valid_to.as_deref().is_some_and(|have| have <= to) {
             continue;
         }
-        if g.origin.certain() {
+        if f.origin == Origin::Human && g.origin != Origin::Human {
+            // A person's value is not ended by an extraction (16.8).
+            plan.held.push(Held {
+                fact_id: g.id.clone(),
+                other_id: f.id.clone(),
+                reason: ReviewReason::ConflictsWithHumanOverlay,
+            });
+        } else if g.origin.certain() {
             plan.end.push(EndFact {
                 fact_id: f.id.clone(),
                 valid_to: to.to_owned(),

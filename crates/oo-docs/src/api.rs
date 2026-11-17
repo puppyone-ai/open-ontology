@@ -51,6 +51,7 @@ pub mod lifecycle;
 pub mod metrics;
 pub mod packs;
 pub mod progress;
+pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_review;
 pub mod shares;
@@ -533,11 +534,23 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             method_allowed(req, &["GET"])?;
             routes_review::constraints(app).await
         }
+        ["v1", "docs", "entities:merge"] => {
+            method_allowed(req, &["POST"])?;
+            routes_correct::merge(app, req).await
+        }
+        ["v1", "docs", "facts", last] if last.ends_with(":correct") => {
+            method_allowed(req, &["POST"])?;
+            routes_correct::correct_fact(app, last.trim_end_matches(":correct"), req).await
+        }
         ["v1", "docs", "resolve"] => {
             method_allowed(req, &["POST"])?;
             routes_entities::resolve(app, req).await
         }
         // `eid` is an id or a key (`person:<24 hex>`, which contains a colon).
+        ["v1", "docs", "entities", eid] if eid.ends_with(":split") => {
+            method_allowed(req, &["POST"])?;
+            routes_correct::split(app, eid.trim_end_matches(":split"), req).await
+        }
         ["v1", "docs", "entities", eid] => {
             method_allowed(req, &["GET"])?;
             routes_entities::detail(app, eid, req).await

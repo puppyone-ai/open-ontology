@@ -157,7 +157,10 @@ pub(crate) struct FactRow {
     pub(crate) valid_to: Option<String>,
 }
 
-async fn load_fact(conn: &mut PgConnection, id: &str) -> Result<Option<FactRow>, StoreError> {
+pub(crate) async fn load_fact(
+    conn: &mut PgConnection,
+    id: &str,
+) -> Result<Option<FactRow>, StoreError> {
     let row = sqlx::query(
         "SELECT f.id::text AS id, f.fact_key, s.key AS subject_key, f.predicate, o.key AS object_key, \
                 f.value::text AS value, f.valid_from::text AS valid_from, f.valid_to::text AS valid_to \
@@ -286,6 +289,7 @@ pub(crate) async fn edit_fact(
     edit: &Value,
     by: &str,
     review_id: Option<&str>,
+    drive_rev: Option<i64>,
 ) -> Result<Option<String>, StoreError> {
     let value = match edit.get("value") {
         Some(Value::Null) | None => fact.value.clone(),
@@ -358,7 +362,7 @@ pub(crate) async fn edit_fact(
     .bind(&new_id)
     .execute(&mut *conn)
     .await?;
-    overlay::insert(
+    overlay::insert_rev(
         conn,
         "fact_edit",
         &fact.fact_key,
@@ -368,11 +372,13 @@ pub(crate) async fn edit_fact(
         review_id,
         "active",
         None,
+        drive_rev,
     )
     .await?;
     sqlx::query(
         "UPDATE _oo_docs.fact SET status = CASE WHEN status = 'published' THEN 'retracted' ELSE 'rejected' END, \
-                retracted_at = CASE WHEN status = 'published' THEN clock_timestamp() ELSE retracted_at END \
+                retracted_at = CASE WHEN status = 'published' THEN clock_timestamp() ELSE retracted_at END, \
+                revision = revision + 1 \
           WHERE id = $1::uuid AND status IN ('draft', 'published')",
     )
     .bind(&fact.id)
@@ -425,7 +431,7 @@ async fn apply_one(
                     let Some(edit) = it.edit.as_ref().filter(|e| e.is_object()) else {
                         return Ok((invalid(id), None));
                     };
-                    edit_fact(conn, &fact, edit, by, Some(id)).await?;
+                    edit_fact(conn, &fact, edit, by, Some(id), None).await?;
                     close_item(conn, id, "accepted", by, note).await?;
                     Ok((ItemResult::ok(id), Some("accepted")))
                 }
