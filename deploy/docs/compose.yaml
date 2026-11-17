@@ -1,10 +1,14 @@
-# Runtime containers of the document pipeline (10 §2.7). This file carries the
-# parser sidecar and the two networks; `docs-db` and `docs-engine` are added by
-# the engine lanes and join the same networks.
+# Runtime containers of the document pipeline (10 §2.7): `docs-db`,
+# `docs-engine` and `doc-parser` on two networks. `oo serve --runtime compose`
+# drives this file with a generated override (Drive bind mounts, the engine's
+# loopback port and uid, the engine environment).
 #
-# Hardening is the lite x-runtime baseline. The sidecar sits on `docs-internal`
-# only, which is `internal: true`: no route out, so a hostile document cannot
-# phone home (proved by deploy/docs/test_no_egress.py).
+# Hardening is the lite x-runtime baseline. `docs-db` and `doc-parser` sit on
+# `docs-internal` only, which is `internal: true`: no route out, no published
+# port, so a hostile document cannot phone home (proved by
+# deploy/docs/test_no_egress.py) and the sidecar is reachable only from the
+# engine. `docs-engine` is on both networks: `docs-egress` carries its
+# loopback-published port (a published port needs a non-internal network).
 #
 # Project name: oo-docs-<first 12 hex of sha256(canonical state dir)>, set by
 # the daemon with `-p`, so it never collides with a lite project.
@@ -13,7 +17,113 @@ name: ${OO_DOCS_PROJECT:-oo-docs}
 x-labels: &labels
   oo.lane: "${OO_DOCS_LANE:-docs}"
 
+x-docs-runtime: &docs-runtime
+  pull_policy: never
+  labels: *labels
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
 services:
+  docs-db:
+    # lite's pinned postgres digest (deploy/lite/images.lock.json)
+    image: ${OO_DOCS_DB_IMAGE:?set to the postgres digest in deploy/docs/images.lock.json}
+    pull_policy: missing
+    labels: *labels
+    entrypoint: [/bin/sh, /ops/postgres.sh]
+    cap_drop: [ALL]
+    # initdb and the entrypoint chown/gosu the data directory
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    restart: unless-stopped
+    tmpfs: [/tmp, "/var/run/postgresql"]
+    environment:
+      OO_DB_IDENTITY: docs-db
+      POSTGRES_PASSWORD_FILE: /tmp/admin-password
+      POSTGRES_DB: oo_docs
+    volumes:
+      - docs-data:/var/lib/postgresql/data
+      - ${OO_DOCS_PKI:?pki directory}:/pki:ro
+      - ./postgres.sh:/ops/postgres.sh:ro
+    networks: [docs-internal]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d oo_docs"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+
+  docs-engine:
+    <<: *docs-runtime
+    image: ${OO_DOCS_ENGINE_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    user: "${OO_DOCS_UID:?host uid}:${OO_DOCS_GID:?host gid}"
+    mem_limit: 1536m
+    cpus: 2
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    environment:
+      OO_DOCS_LISTEN: 0.0.0.0:7480
+      OO_DOCS_STATE_DIR: /state
+      OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
+      OO_DOCS_PARSER_URL: http://doc-parser:7481
+      OO_DOCS_PARSER_TOKEN_FILE: /run/oo/parser-token
+      HOME: /tmp
+      # OO_DOCS_DATABASE_URL and OO_DOCS_ALLOWED_HOSTS come from the generated override.
+    volumes:
+      # <state>/engine: docs.json and cas/ (the only writable bind)
+      - ${OO_DOCS_ENGINE_STATE:?engine state directory}:/state
+      - ${OO_DOCS_STATE:?state directory}/engine-token:/run/oo/engine-token:ro
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - ${OO_DOCS_PKI:?pki directory}/ca-cert:/run/oo/ca.crt:ro
+      # /drives/<id>: one read-only bind per local Drive, added by the override.
+    networks: [docs-internal, docs-egress]
+    ports:
+      - "127.0.0.1:${OO_DOCS_ENGINE_PORT:?loopback port}:7480"
+    depends_on:
+      docs-db: {condition: service_healthy}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7480/livez', timeout=2).read()"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # One-shot schema install with the admin login (profile `install`); run by
+  # `oo serve` before docs-engine starts. Never published, never egress.
+  docs-installer:
+    <<: *docs-runtime
+    profiles: [install]
+    image: ${OO_DOCS_ENGINE_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    user: "${OO_DOCS_UID:?host uid}:${OO_DOCS_GID:?host gid}"
+    entrypoint: [/usr/local/bin/oo-docs-install-schema]
+    restart: "no"
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    environment:
+      OO_DOCS_LISTEN: 127.0.0.1:0
+      OO_DOCS_STATE_DIR: /tmp/install-state
+      OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
+      HOME: /tmp
+      # OO_DOCS_DATABASE_URL / OO_DOCS_ADMIN_DATABASE_URL: generated override.
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/engine-token:/run/oo/engine-token:ro
+      - ${OO_DOCS_PKI:?pki directory}/ca-cert:/run/oo/ca.crt:ro
+      # long syntax: `compose run` splits the short tmpfs form on commas
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 67108864, mode: 1023}}
+    networks: [docs-internal]
+    depends_on:
+      docs-db: {condition: service_healthy}
+
   doc-parser:
     image: ${OO_DOCS_PARSER_IMAGE:?set to the digest in deploy/docs/images.lock.json}
     pull_policy: never
@@ -62,4 +172,6 @@ networks:
 
 volumes:
   docs-parser-scratch:
+    labels: *labels
+  docs-data:
     labels: *labels

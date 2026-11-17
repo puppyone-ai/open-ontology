@@ -149,6 +149,46 @@ fn sidecar_info_declares_the_protocol_and_no_ocr() {
     );
 }
 
+/// B-S3-01b: OpenCV built without FFmpeg brought TableFormer back. The sidecar
+/// says so in `/v1/info` and finds the grid of a ruled table.
+#[test]
+#[ignore = "needs docker and the oo-docs-parser:dev image"]
+fn sidecar_pdf_table_structure_is_on_and_finds_the_grid() {
+    let s = Sidecar::start(2);
+    let info = s.client().info().unwrap();
+    assert_eq!(info["limits"]["table_structure"], true, "{info}");
+    let n = s
+        .client()
+        .parse_bytes(&fixture("pdf-table.pdf"), DocFormat::Pdf, &mut |_| {})
+        .unwrap();
+    let tables: Vec<&Block> =
+        n.ir.blocks
+            .iter()
+            .filter(|b| b.kind == BlockKind::Table)
+            .collect();
+    assert_eq!(tables.len(), 1, "{:?}", n.ir.blocks);
+    let t = tables[0];
+    let grid = t.table.as_ref().expect("table grid");
+    eprintln!(
+        "TABLE rows={} cols={} cells={} text={:?}",
+        grid.rows,
+        grid.cols,
+        grid.cells.len(),
+        t.text
+    );
+    assert_eq!((grid.rows, grid.cols), (5, 4));
+    assert_eq!(grid.cells.len(), 20);
+    assert!(t.text.contains("Region") && t.text.contains("160"));
+    assert!(
+        !n.ir
+            .warnings
+            .iter()
+            .any(|w| w.code.contains("TABLE_STRUCTURE_OFF")),
+        "{:?}",
+        n.ir.warnings
+    );
+}
+
 #[test]
 #[ignore = "needs docker and the oo-docs-parser:dev image"]
 fn sidecar_golden_parse_success_rate_is_98_percent_per_format() {

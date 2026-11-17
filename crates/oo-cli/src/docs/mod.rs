@@ -5,6 +5,7 @@
 //! engine and a token-checking reverse proxy, `oo context` talks to the proxy.
 
 pub mod client;
+pub mod compose;
 pub mod context;
 pub mod engine;
 pub mod mounts;
@@ -15,7 +16,7 @@ pub mod serve;
 use crate::args::Invocation;
 use crate::outcome::Failure;
 
-const HELP: &str = "Usage:\n  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text>] [--budget <n>] [--json]\n  oo serve [--state-dir <dir>] [--port <n>|0] [--keep-engine] [--json]\n  oo serve --status [--json]\n  oo serve --stop\n";
+const HELP: &str = "Usage:\n  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text>] [--budget <n>] [--json]\n  oo serve [--state-dir <dir>] [--port <n>|0] [--runtime host|compose] [--deploy-dir <dir>] [--keep-engine] [--json]\n  oo serve --status [--json]\n  oo serve --stop\n";
 
 /// `serve` dispatch. Runs the daemon to completion; the process exit code is
 /// the daemon's (10 §8.6 point 9).

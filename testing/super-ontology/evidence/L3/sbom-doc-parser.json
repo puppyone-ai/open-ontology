@@ -760,6 +760,31 @@
   {
    "licenses": [
     {
+     "expression": "Apache 2.0"
+    }
+   ],
+   "name": "opencv_python_headless",
+   "properties": [
+    {
+     "name": "oo:license_source",
+     "value": "License"
+    },
+    {
+     "name": "oo:scope",
+     "value": "python"
+    },
+    {
+     "name": "oo:opencv_ffmpeg",
+     "value": "absent"
+    }
+   ],
+   "purl": "pkg:pypi/opencv-python-headless@5.0.0.93",
+   "type": "library",
+   "version": "5.0.0.93"
+  },
+  {
+   "licenses": [
+    {
      "expression": "Apache-2.0 OR BSD-2-Clause"
     }
    ],
@@ -1712,6 +1737,26 @@
     {
      "name": "oo:files",
      "value": "libopenblas.so.0,libscipy_openblas.so,libscipy_openblas64_.so"
+    }
+   ],
+   "type": "library",
+   "version": "bundled"
+  },
+  {
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "name": "OpenCV",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-wheel"
+    },
+    {
+     "name": "oo:files",
+     "value": "cv2.abi3.so"
     }
    ],
    "type": "library",
@@ -3797,13 +3842,101 @@
    ],
    "type": "machine-learning-model",
    "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "CDLA-Permissive-2.0 AND Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-models/README.md",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "9c34024dc28ff47b75818f415e769809798c29bf9bde6f2ccc63a4acb62396d9"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "CDLA-Permissive-2.0 AND Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-models/config.json",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2a7d6c924b3cd12fb99a09280ca9c33a89c5d60b93253617d2e088c1a40374d9"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "CDLA-Permissive-2.0 AND Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-models/model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
+  },
+  {
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "984e122ceb8ccf84d84c9d2882f6f2302a44b4f1e577babd6289892c36f3cffd"
+    }
+   ],
+   "licenses": [
+    {
+     "expression": "CDLA-Permissive-2.0 AND Apache-2.0"
+    }
+   ],
+   "name": "docling-project--docling-models/model_artifacts/tableformer/accurate/tm_config.json",
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "model"
+    }
+   ],
+   "type": "machine-learning-model",
+   "version": "pinned"
   }
  ],
  "metadata": {
   "component": {
    "name": "oo-docs-parser",
    "type": "container",
-   "version": "oo-docs-parser:dev@sha256:2d957426e28806f4ce4b1aea2d269cdcc811010238fef4f37e48c4d6cd9e932c"
+   "version": "oo-docs-parser:dev"
   },
   "properties": [
    {

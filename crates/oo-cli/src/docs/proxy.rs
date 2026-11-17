@@ -45,6 +45,14 @@ impl EngineLink {
     }
 }
 
+/// Host side effect of registering a local Drive (10 §8.6 point 6): make the
+/// Drive's directory visible to the engine and return the path the engine sees.
+/// Only the compose runtime has one; a host-process engine sees the host path.
+pub trait DriveMounts: Send + Sync {
+    /// Blocking: may recreate the engine container.
+    fn mount(&self, host_root: &str) -> Result<String, String>;
+}
+
 /// What the proxy needs to serve.
 pub struct ProxyConfig {
     /// Port the daemon listens on (the `Host` value must carry it).
@@ -55,6 +63,22 @@ pub struct ProxyConfig {
     pub engine_token: String,
     /// Engine address.
     pub engine: Arc<EngineLink>,
+    /// Drive mounts (compose runtime), applied to `POST /v1/docs/drives`.
+    pub drives: Option<Arc<dyn DriveMounts>>,
+}
+
+/// `POST /v1/docs/drives` body with `config.root` replaced; `None` when the
+/// body has no string root (the engine will reject it itself).
+pub fn rewrite_drive_root(
+    body: &[u8],
+    map: impl FnOnce(&str) -> Result<String, String>,
+) -> Option<Result<Vec<u8>, String>> {
+    let mut v: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let root = v.get("config")?.get("root")?.as_str()?.to_owned();
+    Some(map(&root).map(|new_root| {
+        v["config"]["root"] = serde_json::Value::String(new_root);
+        v.to_string().into_bytes()
+    }))
 }
 
 /// A parsed request head.
@@ -157,6 +181,7 @@ fn reason(status: u16) -> &'static str {
         401 => "Unauthorized",
         403 => "Forbidden",
         413 => "Payload Too Large",
+        422 => "Unprocessable Entity",
         502 => "Bad Gateway",
         503 => "Service Unavailable",
         _ => "Error",
@@ -343,6 +368,33 @@ async fn serve_one(
         body.extend_from_slice(&chunk[..n]);
     }
 
+    let mut head = head;
+    if let Some(drives) = cfg.drives.clone()
+        && head.method == "POST"
+        && head.path() == "/v1/docs/drives"
+    {
+        let b = body.clone();
+        let rewritten =
+            tokio::task::spawn_blocking(move || rewrite_drive_root(&b, |root| drives.mount(root)))
+                .await
+                .ok()
+                .flatten();
+        match rewritten {
+            Some(Ok(new_body)) => {
+                for (k, v) in &mut head.headers {
+                    if k == "content-length" {
+                        *v = new_body.len().to_string();
+                    }
+                }
+                body = new_body;
+            }
+            Some(Err(why)) => {
+                return Err(error(422, "DOCS_SOURCE_ROOT_MISSING", &why, true, &[]));
+            }
+            None => {}
+        }
+    }
+
     let unavailable = |head: &Head| {
         if head.method == "GET" && head.path() == "/v1/docs/health" {
             response(
@@ -453,7 +505,88 @@ mod tests {
             token_sha256: Sha256::digest(b"oodt_secret").into(),
             engine_token: "oodi_engine".into(),
             engine: link,
+            drives: None,
         })
+    }
+
+    struct FakeMounts;
+    impl DriveMounts for FakeMounts {
+        fn mount(&self, host_root: &str) -> Result<String, String> {
+            if host_root.starts_with("/nope") {
+                Err("source root is missing or not a directory".into())
+            } else {
+                Ok("/drives/abc".into())
+            }
+        }
+    }
+
+    #[test]
+    fn drive_roots_are_rewritten_only_when_there_is_a_string_root() {
+        let ok = |r: &str| Ok(format!("/drives{r}"));
+        let out = rewrite_drive_root(br#"{"name":"n","config":{"root":"/h","x":1}}"#, ok)
+            .unwrap()
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(v["config"]["root"], "/drives/h");
+        assert_eq!(v["config"]["x"], 1);
+        assert_eq!(v["name"], "n");
+        assert!(rewrite_drive_root(br#"{"config":{}}"#, ok).is_none());
+        assert!(rewrite_drive_root(b"not json", ok).is_none());
+        assert!(rewrite_drive_root(br#"{"config":{"root":3}}"#, ok).is_none());
+        assert!(
+            rewrite_drive_root(br#"{"config":{"root":"/x"}}"#, |_| Err("no".into()))
+                .unwrap()
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn registering_a_drive_goes_through_the_mount_hook() {
+        let (engine, seen) = fake_engine().await;
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        drop(l);
+        let mut c = Arc::try_unwrap(cfg(port, Some(engine))).ok().unwrap();
+        c.drives = Some(Arc::new(FakeMounts));
+        let l = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+        let addr = l.local_addr().unwrap();
+        let (tx, rx) = watch::channel(false);
+        let h = tokio::spawn(serve(l, Arc::new(c), rx, Duration::from_secs(2)));
+        let post = |body: &str| {
+            format!(
+                "POST /v1/docs/drives HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer oodt_secret\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let r = raw(
+            addr,
+            &post(r#"{"name":"d","backend":"fs","config":{"root":"/host/dir"}}"#),
+        )
+        .await;
+        assert!(r.starts_with("HTTP/1.1 200"), "{r}");
+        let upstream = seen.lock().unwrap().join("\n");
+        assert!(
+            upstream.contains(r#""root":"/drives/abc""#) && !upstream.contains("/host/dir"),
+            "{upstream}"
+        );
+        assert!(
+            upstream.to_lowercase().contains(&format!(
+                "content-length: {}",
+                r#"{"backend":"fs","config":{"root":"/drives/abc"},"name":"d"}"#.len()
+            )),
+            "{upstream}"
+        );
+        let r = raw(
+            addr,
+            &post(r#"{"name":"d","backend":"fs","config":{"root":"/nope/x"}}"#),
+        )
+        .await;
+        assert!(
+            r.starts_with("HTTP/1.1 422") && r.contains("DOCS_SOURCE_ROOT_MISSING"),
+            "{r}"
+        );
+        let _ = tx.send(true);
+        let _ = h.await;
     }
 
     #[test]

@@ -1,0 +1,18 @@
+$ cargo test -p oo-docs --locked --test sidecar_formats --test sidecar_supervision -- --ignored --nocapture --test-threads=1   (image oo-docs-parser:dev, 2026-11-17)
+test sidecar_docx_ordinals_match_the_labels ... docx ordinals: anchors=201 landed=201; entity anchors whose paragraph text names the entity: 179/179; table row anchors 1/1
+test sidecar_golden_parse_success_rate_is_98_percent_per_format ... RATE pdf: 7/7 = 100.0% (26 blocks)
+RATE docx: 10/10 = 100.0% (110 blocks)
+RATE pptx: 6/6 = 100.0% (50 blocks)
+test sidecar_info_declares_the_protocol_and_no_ocr ... parser_version="2.150.0" models=10
+test sidecar_pdf_and_pptx_label_anchors_land_in_blocks ... pdf anchors: 68, page has blocks 68, bbox IoU>=0.5 59; pptx anchors 75, slide has blocks 75
+test sidecar_pdf_is_windowed_with_progress_and_deterministic ... ok
+test sidecar_pdf_table_structure_is_on_and_finds_the_grid ... TABLE rows=5 cols=4 cells=20 text="Region | Q1 | Q2 | Q3\nNorth | 120 | 135 | 150\nSouth | 98 | 104 | 110\nEast | 143 | 151 | 160\nWest | 87 | 90 | 95"
+test sidecar_refuses_encrypted_scanned_and_broken_inputs ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 188.82s
+test sidecar_busy_is_429_without_consuming_an_attempt ... ok
+test sidecar_crash_count_accumulates_on_the_client ... ok
+test sidecar_dead_sidecar_opens_the_breaker_and_a_restart_closes_it ... ok
+test sidecar_deadline_kills_the_worker_with_a_timeout ... ok
+test sidecar_kill_worker_mid_parse_is_a_crash_and_the_service_survives ... ok
+test sidecar_rejects_a_wrong_token_and_hash_mismatches ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.74s
