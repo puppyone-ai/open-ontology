@@ -13,6 +13,8 @@
 
 pub mod gc;
 pub mod layout;
+#[cfg(kani)]
+mod proofs;
 #[cfg(test)]
 mod tests;
 

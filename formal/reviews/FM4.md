@@ -17,3 +17,9 @@ Bounds: 5 durable events, 2 keys, 2 transient events, 2 disconnects, 1 purge. No
 `stream.lagging`, the 15 s ping, multiple clients, freshness (D48), real transaction ordering across
 sessions (the `event_head` lock makes seq order commit order; `jobs_live.rs` tests concurrent appenders).
 Liveness (client eventually reaches head) is shown only by witnesses, not model checked.
+
+## CI bounds (card V-S1-01, time budget of 80 section 6)
+
+Per invariant, 10 steps, same conditions as in FM1.md (loaded 16 core machine): invOutboxGapFree 14 s,
+invTransientHasNoSeq 12 s, invCaughtUpEqualsServer 176 s, invViewMatchesCursor 561 s. All inside 12 minutes, so the
+FAST bound stays `verify-steps=10`; the nightly bound is `deep-steps=12` (not measured).

@@ -327,6 +327,30 @@ async fn start_sync(
     trigger: Trigger,
 ) -> Result<(), IngestError> {
     let mut tx = pool.begin().await?;
+    // A generation that is run again (the earlier attempt failed, was held or
+    // died) must not inherit the marks that attempt left: a file it listed
+    // and that was deleted afterwards would count as seen and never be swept
+    // by the retry (FM3-001). Under the drive lock; live rows only.
+    let again: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.drive_sync WHERE drive_id = $1::uuid AND generation = $2)",
+    )
+    .bind(drive_id)
+    .bind(g)
+    .fetch_one(&mut *tx)
+    .await?;
+    if again {
+        sqlx::query("SET LOCAL lock_timeout = '5s'")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "UPDATE _oo_docs.file SET last_seen_generation = $2 - 1 \
+             WHERE drive_id = $1::uuid AND deleted_at IS NULL AND last_seen_generation >= $2",
+        )
+        .bind(drive_id)
+        .bind(g)
+        .execute(&mut *tx)
+        .await?;
+    }
     sqlx::query(
         "INSERT INTO _oo_docs.drive_sync (drive_id, generation, trigger, status) \
          VALUES ($1::uuid, $2, $3, 'running') \

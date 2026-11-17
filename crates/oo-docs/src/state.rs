@@ -7,6 +7,9 @@
 
 use sqlx::{PgConnection, PgPool};
 
+#[cfg(kani)]
+mod proofs;
+
 use crate::store::StoreError;
 use crate::store::events;
 

@@ -525,6 +525,56 @@ async fn partial_listing_never_sweeps() {
     e.finish().await;
 }
 
+/// FM3-001 (formal/traces/regressions/FM3-001.itf.json): a generation that is
+/// run again must not inherit the marks of the failed attempt, or a file that
+/// attempt listed and that was deleted afterwards is never swept by the retry.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_retried_generation_forgets_the_marks_of_the_failed_attempt() {
+    let e = env("ingest_retry_marks", 100).await;
+    for i in 0..4 {
+        e.write(&format!("f{i}.md"), &format!("file number {i}\n"));
+    }
+    e.sync().await;
+    e.hash_all().await;
+    assert_eq!((e.live().await, e.generation().await), (4, 1));
+
+    // Generation 2 fails after listing everything: every row is marked 2.
+    let drive = load_drive(&e.pool, &e.drive).await.unwrap().unwrap();
+    let flaky = Flaky {
+        inner: FsSource::open(&e.root, Default::default()).unwrap(),
+        fail_page: None,
+        never_complete: true,
+        pages: Default::default(),
+    };
+    let r = run_sync_source(
+        &e.pool,
+        &drive,
+        &flaky,
+        SyncFlavor::POLL,
+        &e.limits,
+        &AtomicBool::new(false),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (r.status, r.generation, r.removed),
+        (SyncStatus::Failed, 2, 0)
+    );
+
+    // The file goes away, then generation 2 runs again.
+    e.rm("f2.md");
+    let r = e.sync().await;
+    assert_eq!((r.status, r.generation), (SyncStatus::Complete, 2));
+    assert_eq!(
+        r.removed, 1,
+        "the retry must sweep what the failed attempt had marked"
+    );
+    assert_eq!(e.state("f2.md").await.0, "deleted");
+    assert_eq!(e.live().await, 3);
+    e.finish().await;
+}
+
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
 async fn missing_root_fails_without_sweeping() {

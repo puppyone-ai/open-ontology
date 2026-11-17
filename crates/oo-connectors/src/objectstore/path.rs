@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use unicode_normalization::UnicodeNormalization;
 
-use super::{DocPath, ObjectMeta};
+use super::{DocPath, DocPathError, MAX_PATH_BYTES, MAX_SEGMENT_BYTES, ObjectMeta};
 
 /// Name of the mount-output directory. Never ingested, never removable from
 /// the exclude list, so mounted Context Packs are not eaten again.
@@ -63,6 +63,60 @@ pub fn skip_reason(name: &str) -> Option<SkipReason> {
 /// True when any segment of a '/'-separated relative path is skipped.
 pub fn is_skipped_path(path: &str) -> bool {
     path.split('/').any(|s| skip_reason(s).is_some())
+}
+
+/// The structural rules of [`DocPath`] on bytes, with no allocation and no
+/// `str` machinery (so the KP1 proofs reach every byte). `DocPath::new` calls
+/// it on `path.as_bytes()`; on a valid UTF-8 string the control character
+/// rule (Unicode `Cc`) is a byte below 0x20, 0x7f, or 0xC2 followed by
+/// 0x80..=0x9F.
+///
+/// Formal: KP1
+pub fn check_doc_path_bytes(b: &[u8]) -> Result<(), DocPathError> {
+    if b.is_empty() {
+        return Err(DocPathError::Empty);
+    }
+    if b.len() > MAX_PATH_BYTES {
+        return Err(DocPathError::TooLong);
+    }
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c < 0x20
+            || c == 0x7f
+            || (c == 0xC2 && i + 1 < b.len() && matches!(b[i + 1], 0x80..=0x9F))
+        {
+            return Err(DocPathError::ControlCharacter);
+        }
+        i += 1;
+    }
+    let mut start = 0;
+    let mut i = 0;
+    while i <= b.len() {
+        if i == b.len() || b[i] == b'/' {
+            let seg = &b[start..i];
+            if seg.is_empty() || seg == b"." || seg == b".." || contains_byte(seg, b'\\') {
+                return Err(DocPathError::BadSegment);
+            }
+            if seg.len() > MAX_SEGMENT_BYTES {
+                return Err(DocPathError::SegmentTooLong);
+            }
+            start = i + 1;
+        }
+        i += 1;
+    }
+    Ok(())
+}
+
+fn contains_byte(b: &[u8], x: u8) -> bool {
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == x {
+            return true;
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Convert source-side bytes to a Drive path: UTF-8, NFC, structurally valid.
