@@ -4,6 +4,8 @@
 //! adds candidates. Everything the model says goes to drafts with
 //! `origin = 'llm'` and must carry a block id and a verbatim quote:
 //!
+//! * [`config`]: the model configuration (`GET/PUT /v1/docs/config/model`) and the
+//!   egress process behind it;
 //! * [`batch`]: sections of the IR become batches of at most 3,000 tokens;
 //! * [`prompt`]: `extract/1` prompt and the block level cache key;
 //! * [`schema`]: `oo.docs.llm-extract/v1` validation;
@@ -24,6 +26,7 @@
 //! `--config`); nothing here reads or prints them.
 
 pub mod batch;
+pub mod config;
 pub mod egress;
 pub mod post;
 pub mod prompt;

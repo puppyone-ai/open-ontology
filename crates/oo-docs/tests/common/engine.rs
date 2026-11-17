@@ -64,6 +64,8 @@ pub struct Opts {
     /// Free bytes the disk guard and health see (changeable by the test);
     /// `None` is 50 GiB and no guard.
     pub free_bytes: Option<Arc<AtomicU64>>,
+    /// The engine's model (recorded replies); `None` is rules only.
+    pub model: Option<Arc<oo_docs::extract::llm::config::ModelRuntime>>,
 }
 
 /// Adjusts the state before the server starts.
@@ -134,6 +136,9 @@ impl TestEngine {
         if opts.stages {
             app.cas = Some(Arc::new(Cas::open(&cas).expect("cas")));
         }
+        if let Some(m) = &opts.model {
+            app.model = m.clone();
+        }
         if let Some(t) = opts.tweak {
             t(&mut app);
         }
@@ -175,18 +180,25 @@ impl TestEngine {
             let mut hs = handlers::handlers(&pool, Arc::new(FsFactory), Arc::new(limits));
             if let Some(cas) = &app.cas {
                 cfg.concurrency.extend(stages::default_concurrency());
-                hs.extend(stages::handlers_with_progress(
+                hs.extend(stages::handlers_with_model(
                     &pool,
                     Arc::new(FsFactory),
                     cas.clone(),
                     Some(app.progress.clone()),
+                    None,
+                    app.model.clone(),
                 ));
             }
             if let Some(g) = &guard {
                 oo_docs::obs::disk::guard_handlers(
                     &mut hs,
                     g,
-                    &[JobKind::Hash, JobKind::Parse, JobKind::ExtractRules],
+                    &[
+                        JobKind::Hash,
+                        JobKind::Parse,
+                        JobKind::ExtractRules,
+                        JobKind::ExtractLlm,
+                    ],
                 );
             }
             Scheduler::new(pool.clone(), cfg, hs).spawn()

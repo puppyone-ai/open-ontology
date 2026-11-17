@@ -142,6 +142,13 @@ async fn run() -> ExitCode {
         cfg.ingest.clone(),
     ));
     let progress = oo_docs::api::progress::Bus::new();
+    // The model (G3): its configuration lives in the state directory; the egress
+    // script is `OO_DOCS_MODEL_EGRESS` (the model stays off without one).
+    let model = oo_docs::extract::llm::config::ModelRuntime::open(
+        cfg.state_dir.clone(),
+        env("OO_DOCS_MODEL_EGRESS").map(std::path::PathBuf::from),
+        env("OO_DOCS_PYTHON"),
+    );
     let app = Arc::new(
         AppState::new(
             pool.clone(),
@@ -151,6 +158,7 @@ async fn run() -> ExitCode {
             health.clone(),
         )
         .with_cas(cas.clone())
+        .with_model(model.clone())
         .with_progress(progress.clone()),
     );
 
@@ -183,12 +191,13 @@ async fn run() -> ExitCode {
         None => None,
     };
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
-    handlers.extend(stages::handlers_with_sidecar(
+    handlers.extend(stages::handlers_with_model(
         &pool,
         Arc::new(AnyFactory::from_env()),
         cas,
         Some(progress),
         sidecar,
+        model.clone(),
     ));
     // Low disk pauses hashing, parsing and extraction (4.12, G7).
     oo_docs::obs::disk::guard_handlers(
@@ -198,6 +207,7 @@ async fn run() -> ExitCode {
             oo_docs::jobs::JobKind::Hash,
             oo_docs::jobs::JobKind::Parse,
             oo_docs::jobs::JobKind::ExtractRules,
+            oo_docs::jobs::JobKind::ExtractLlm,
         ],
     );
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
@@ -243,6 +253,7 @@ async fn run() -> ExitCode {
     for t in tasks {
         let _ = t.await;
     }
+    model.stop();
     pool.close().await;
     match served {
         Ok(()) => ExitCode::SUCCESS,

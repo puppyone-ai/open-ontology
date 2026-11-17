@@ -274,6 +274,17 @@ class Tests(unittest.TestCase):
         with self.assertRaises(Refusal):
             read_key('model-key', self.secrets)
 
+    def test_env_reference_reads_the_environment_and_refuses_bad_names(self):
+        with patch.dict(os.environ, {'OO_TEST_MODEL_KEY': 'env-secret-value'}):
+            self.assertEqual(read_key('env:OO_TEST_MODEL_KEY'), 'env-secret-value')
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('OO_TEST_MODEL_KEY', None)
+            with self.assertRaisesRegex(Refusal, 'SECRET_CONTENT'):
+                read_key('env:OO_TEST_MODEL_KEY')
+        for bad in ('env:', 'env:1X', 'env:A-B', 'env:A B'):
+            with self.assertRaisesRegex(Refusal, 'SECRET_REFERENCE'):
+                read_key(bad)
+
     def test_in_place_file_sources_keep_the_same_private_file_boundary(self):
         reference = 'file:' + str(self.path)
         self.assertEqual(read_key(reference), self.key)

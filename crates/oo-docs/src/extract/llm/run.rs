@@ -58,6 +58,9 @@ impl From<CasError> for RunError {
     }
 }
 
+/// Wait before the one retry of a call that failed on the wire.
+const INFRA_RETRY_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// Limits of one run.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -179,7 +182,13 @@ pub async fn extract_llm(
         let req = request(&model, input.title, &format, &input.known, &batch);
         let mut parsed: Option<LlmOutput> = None;
         let mut last_reply: Option<ChatReply> = None;
-        for attempt in 0..2 {
+        // Up to two schema attempts; an unreachable or erroring model is tried
+        // once more after a short wait (10 §4.1.4: 5xx and timeouts retry), every
+        // call counted against the caps.
+        let mut infra_tries = 0u32;
+        let mut attempt = 0u32;
+        while attempt < 2 {
+            attempt += 1;
             if used >= limits.per_file {
                 if !stats.file_limited {
                     record(conn, input.drive_id, Outcome::FileLimited).await?;
@@ -217,7 +226,6 @@ pub async fn extract_llm(
                         Err(_) => {
                             stats.schema_invalid += 1;
                             last_reply = Some(reply);
-                            let _ = attempt;
                         }
                     }
                 }
@@ -229,8 +237,14 @@ pub async fn extract_llm(
                 }
                 Err(_) => {
                     record(conn, input.drive_id, Outcome::Failed).await?;
-                    infra_errors += 1;
+                    infra_tries += 1;
                     last_reply = None;
+                    if infra_tries < 2 {
+                        tokio::time::sleep(INFRA_RETRY_WAIT).await;
+                        attempt -= 1; // an infrastructure failure is not a schema attempt
+                        continue;
+                    }
+                    infra_errors += 1;
                     break;
                 }
             }

@@ -44,6 +44,8 @@ pub async fn get(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiEr
     .await?;
     let status = if enabled == 0 {
         "not_configured"
+    } else if app.model.status() == "unavailable" {
+        "unavailable"
     } else if limited > 0 {
         "limited"
     } else {
