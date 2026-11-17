@@ -355,3 +355,29 @@ fn cas_orig_eviction_keeps_budget_and_uses_read_recency() {
     let r = cas.evict_orig(0, &prot).unwrap();
     assert!(r.evicted.is_empty());
 }
+
+#[test]
+fn sample_verify_finds_a_damaged_object_and_deletes_nothing() {
+    let t = Tmp::new();
+    let cas = Cas::open(&t.0).unwrap();
+    assert_eq!(
+        cas.sample_verify(20, 0),
+        gc::SampleReport::default(),
+        "empty store"
+    );
+    let mut keys = Vec::new();
+    for i in 0..30u8 {
+        keys.push(cas.put(CasKind::Ir, &[i; 40]).unwrap().b3);
+    }
+    let r = cas.sample_verify(20, 7);
+    assert_eq!((r.checked, r.corrupt), (20, 0));
+    // Damage one object in place (same name, other bytes).
+    let path = cas.abs(CasKind::Ir, &keys[3]).unwrap();
+    fs::write(&path, b"damaged").unwrap();
+    // Sampling every object finds it; the file is still there afterwards.
+    let r = cas.sample_verify(100, 0);
+    assert_eq!((r.checked, r.corrupt), (30, 1));
+    assert!(path.exists(), "a read only check removes nothing");
+    // Another seed samples a different start but never more than asked.
+    assert_eq!(cas.sample_verify(5, 11).checked, 5);
+}

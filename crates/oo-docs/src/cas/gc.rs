@@ -39,6 +39,15 @@ pub struct Usage {
     pub objects: u64,
 }
 
+/// Result of [`Cas::sample_verify`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SampleReport {
+    /// Objects hashed.
+    pub checked: u32,
+    /// Objects whose content does not hash to their name.
+    pub corrupt: u32,
+}
+
 struct Found {
     key: String,
     path: std::path::PathBuf,
@@ -177,6 +186,37 @@ impl Cas {
             }
         }
         Ok(report)
+    }
+
+    /// Hash up to `n` objects spread over the store and count those whose
+    /// content is not what their name says (`oo doctor`, 10 §10.4). Read only:
+    /// unlike [`Cas::verify`] it deletes nothing. `seed` picks where the
+    /// stride starts, so successive samples cover different objects.
+    pub fn sample_verify(&self, n: usize, seed: u64) -> SampleReport {
+        let mut all: Vec<(CasKind, Found)> = Vec::new();
+        for kind in CasKind::ALL {
+            let mut found = Vec::new();
+            let mut foreign = 0;
+            walk(&kind_root(self, kind), kind, &mut found, &mut foreign);
+            all.extend(found.into_iter().map(|f| (kind, f)));
+        }
+        all.sort_by(|a, b| a.1.key.cmp(&b.1.key));
+        let mut report = SampleReport::default();
+        if all.is_empty() || n == 0 {
+            return report;
+        }
+        let take = n.min(all.len());
+        let step = (all.len() / take).max(1);
+        let start = (seed % all.len() as u64) as usize;
+        for i in 0..take {
+            let (_, f) = &all[(start + i * step) % all.len()];
+            report.checked += 1;
+            match super::file_b3(&f.path) {
+                Ok(h) if h == f.key => {}
+                _ => report.corrupt += 1,
+            }
+        }
+        report
     }
 
     /// Disk usage for health and metrics.

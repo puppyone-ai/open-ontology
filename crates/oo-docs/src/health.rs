@@ -12,7 +12,12 @@ use serde_json::{Value, json};
 use sqlx::PgPool;
 
 use crate::api::freshness;
+use crate::cas::{Cas, gc::SampleReport};
 use crate::store::events;
+
+/// Objects hashed per sample and the time between samples.
+const CAS_SAMPLE_SIZE: usize = 20;
+const CAS_SAMPLE_EVERY: Duration = Duration::from_secs(300);
 
 /// Free space below which hashing and parsing stop (2.8 `disk.pause_below_bytes`).
 pub const DISK_LOW_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -63,6 +68,7 @@ pub struct HealthProbe {
     started: Instant,
     ready: std::sync::atomic::AtomicBool,
     usage: Mutex<Option<(Instant, u64, u64)>>,
+    sample: Mutex<Option<(Instant, SampleReport)>>,
 }
 
 impl HealthProbe {
@@ -82,6 +88,7 @@ impl HealthProbe {
             started: Instant::now(),
             ready: std::sync::atomic::AtomicBool::new(false),
             usage: Mutex::new(None),
+            sample: Mutex::new(None),
         }
     }
 
@@ -112,6 +119,29 @@ impl HealthProbe {
         (total, orig)
     }
 
+    /// Hash a few objects of the content store, at most every five minutes
+    /// (`oo doctor` `cas_sample`, 10 §10.4).
+    fn cas_sample(&self) -> SampleReport {
+        let Some(root) = &self.cas_root else {
+            return SampleReport::default();
+        };
+        let mut cache = self.sample.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some((at, r)) = *cache
+            && at.elapsed() < CAS_SAMPLE_EVERY
+        {
+            return r;
+        }
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let report = Cas::open(root).map_or_else(
+            |_| SampleReport::default(),
+            |cas| cas.sample_verify(CAS_SAMPLE_SIZE, seed),
+        );
+        *cache = Some((Instant::now(), report));
+        report
+    }
+
     /// The `Health` object.
     pub async fn snapshot(&self) -> Value {
         let ready = self.ready.load(std::sync::atomic::Ordering::Relaxed);
@@ -131,6 +161,7 @@ impl HealthProbe {
         // Disk and CAS.
         let free = self.cas_root.as_ref().and_then(|r| self.disk.free_bytes(r));
         let (used, orig) = self.cas_usage();
+        let sample = self.cas_sample();
         let cas = match (&self.cas_root, free) {
             (None, _) => json!({ "status": "not_configured" }),
             (Some(_), Some(f)) if f < DISK_FULL_BYTES => {
@@ -139,9 +170,17 @@ impl HealthProbe {
             (Some(_), Some(f)) if f < DISK_LOW_BYTES => {
                 json!({ "status": "degraded", "code": "DOCS_ENGINE_DISK_LOW" })
             }
+            // Damage found by the sample is reported even with space to spare.
+            _ if sample.corrupt > 0 => {
+                json!({ "status": "degraded", "code": "DOCS_ENGINE_CAS_CORRUPT" })
+            }
             _ => json!({ "status": "ok" }),
         };
-        let mut disk = json!({ "cas_used_bytes": used, "original_cache_bytes": orig });
+        let mut disk = json!({
+            "cas_used_bytes": used,
+            "original_cache_bytes": orig,
+            "cas_sample": { "checked": sample.checked, "corrupt": sample.corrupt },
+        });
         if let Some(f) = free {
             disk["free_bytes"] = json!(f);
         }
@@ -191,12 +230,14 @@ impl HealthProbe {
 }
 
 async fn queue_counts(conn: &mut sqlx::PgConnection) -> Option<Value> {
-    let row: (i64, i64, i64, i64, i64) = sqlx::query_as(
+    let row: (i64, i64, i64, i64, i64, i64) = sqlx::query_as(
         "SELECT count(*) FILTER (WHERE state = 'queued'), \
                 count(*) FILTER (WHERE state = 'running'), \
                 count(*) FILTER (WHERE state = 'failed'), \
                 count(*) FILTER (WHERE state = 'quarantined'), \
-                count(*) FILTER (WHERE state = 'queued' AND blocked_reason IS NOT NULL) \
+                count(*) FILTER (WHERE state = 'queued' AND blocked_reason IS NOT NULL), \
+                count(*) FILTER (WHERE state = 'running' \
+                                   AND lease_until < clock_timestamp() - interval '5 minutes') \
          FROM _oo_docs.job",
     )
     .fetch_one(&mut *conn)
@@ -204,7 +245,7 @@ async fn queue_counts(conn: &mut sqlx::PgConnection) -> Option<Value> {
     .ok()?;
     Some(json!({
         "queued": row.0, "running": row.1, "failed_manual": row.2,
-        "quarantined": row.3, "blocked": row.4,
+        "quarantined": row.3, "blocked": row.4, "stuck": row.5,
     }))
 }
 
