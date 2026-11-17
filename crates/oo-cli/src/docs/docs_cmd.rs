@@ -93,10 +93,19 @@ fn rev_header(rev: i64) -> String {
     format!("\"r{rev}\"")
 }
 
+/// A query value or one path segment: percent-encoded, `/` too; `:` is kept
+/// A query value or one path segment: percent-encoded, `/` too; `:` is kept
+/// for entity keys (`person:abc`), where the engine reads it as part of the key.
 fn q(s: &str) -> String {
-    super::client::encode_path(s)
-        .replace('/', "%2F")
-        .replace(':', "%3A")
+    let mut out = String::new();
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b"-._~:".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
 }
 
 fn out(p: &Parsed, protocol: &str, mut v: Value, human: String) {
@@ -149,11 +158,12 @@ pub fn run(rest: &[String]) -> u8 {
         eprint!("{HELP}");
         return exit::ARGS;
     };
-    let Some((sub, args)) = tail
-        .split_first()
-        .map(|(s, a)| (s.as_str(), a))
-        .or_else(|| matches!(group.as_str(), "usage" | "health").then_some(("", tail)))
-    else {
+    // `usage` and `health` have no subcommand: everything after them is flags.
+    let (sub, args) = if matches!(group.as_str(), "usage" | "health") {
+        ("", tail)
+    } else if let Some((s, a)) = tail.split_first() {
+        (s.as_str(), a)
+    } else {
         eprint!("{HELP}");
         return exit::ARGS;
     };
@@ -792,6 +802,7 @@ mod tests {
 
     #[test]
     fn query_values_are_escaped() {
-        assert_eq!(q("a b:c/d"), "a%20b%3Ac%2Fd");
+        assert_eq!(q("a b:c/d"), "a%20b:c%2Fd");
+        assert_eq!(q("person:abc"), "person:abc");
     }
 }

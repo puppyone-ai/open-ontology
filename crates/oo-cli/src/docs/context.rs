@@ -126,9 +126,15 @@ pub fn parse_mount_args(rest: &[String]) -> Result<MountArgs, String> {
             }
             "--require-complete" => a.require_complete = true,
             "--wait" => {
-                let secs = parse_duration(&value("--wait")?)
+                let text = value("--wait")?;
+                let secs = if matches!(text.as_str(), "0" | "0s") {
+                    Some(0)
+                } else {
+                    parse_duration(&text)
+                };
+                let secs = secs
                     .filter(|s| *s <= 120)
-                    .ok_or("--wait must be at most 120s, like 20s")?;
+                    .ok_or("--wait must be at most 120s, like 20s or 0s")?;
                 a.wait_ms = Some(secs as u64 * 1000);
             }
             "--strict-budget" => a.strict_budget = true,
