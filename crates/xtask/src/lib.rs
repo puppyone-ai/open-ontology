@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod advisory_exceptions;
 pub mod architecture;
 pub mod capability;
 pub mod containment;
