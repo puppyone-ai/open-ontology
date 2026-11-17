@@ -14,3 +14,4 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `errors.v1.json` adds `DOCS_SOURCE_NOT_FOUND`, `DOCS_SOURCE_INVALID_CONFIG`, `DOCS_SOURCE_PROTOCOL`,
   `DOCS_SOURCE_IO` for the closed `DocumentSource` error set, and the codes named in G7, G17, G18, G20, D65.
 - Becomes `1.0` at the L2 meeting point (10 §8.7) once the real engine passes the contract tests.
+- 2026-11-17 (still 1.0-draft): `errors.v1.json` adds `DOCS_PARSE_LIMIT_BLOCKS`, `DOCS_PARSE_LIMIT_CELLS`, `DOCS_PARSE_LIMIT_PAGES` (10 §4.11 limits that the parsers return as state codes).

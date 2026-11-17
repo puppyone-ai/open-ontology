@@ -510,6 +510,42 @@
       "i18n_key": "super-drive.errors.DOCS_PARSE_LEGACY_OFFICE"
     },
     {
+      "code": "DOCS_PARSE_LIMIT_BLOCKS",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "块数超过上限",
+      "details": [
+        "limit",
+        "observed"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_LIMIT_BLOCKS"
+    },
+    {
+      "code": "DOCS_PARSE_LIMIT_CELLS",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "单元格数超过上限",
+      "details": [
+        "limit",
+        "observed"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_LIMIT_CELLS"
+    },
+    {
+      "code": "DOCS_PARSE_LIMIT_PAGES",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "页数超过上限",
+      "details": [
+        "limit",
+        "observed"
+      ],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_LIMIT_PAGES"
+    },
+    {
       "code": "DOCS_PARSE_MACRO_PRESENT",
       "http": null,
       "state_code": false,
