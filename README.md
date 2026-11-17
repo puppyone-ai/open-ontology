@@ -322,9 +322,8 @@ Follow [Connect your database](docs/guide/connect-your-database.md): install the
 answer the seven-step `oo init` wizard, run `oo up` and `oo build`, review the
 ontology, then give the generated share prompt to your Agent for `oo login`.
 
-**Release gate:** the 2026-11-05 fresh-HOME check could not install version
-0.2.0 from npm (`ETARGET`). The recorded L1 success uses a locally packaged
-CLI; public installation and remote SSH retained build are not yet accepted.
+**Release status:** `@reduxxx888/ontology-cli` is published on npm (0.2.0 on
+2026-11-16, 0.2.1 current). Remote SSH retained build is not yet accepted.
 
 - [Generated command reference](docs/reference/cli.md): actual native/npm help.
 - [Troubleshooting](docs/guide/troubleshooting.md): named errors, causes and recovery.
