@@ -3142,7 +3142,6 @@ dependencies = [
  "libc",
  "oo-connectors",
  "oo-core",
- "oo-docs",
  "oo-sdk",
  "oo-stack",
  "ratatui",

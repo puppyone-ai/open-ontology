@@ -14,10 +14,12 @@ workspace = true
 default = []
 # Super Ontology: `oo serve`, `oo context`, doctor docs section. Off by default
 # on master (spec 50 §2.1); release builds turn it on only after L4 (D41).
-docs = ["dep:oo-docs"]
+# The CLI is a client of the docs engine over loopback HTTP and does not link
+# oo-docs: the engine carries sqlx, which a client crate may not reach
+# (architecture rule R-CLIENT-DB-DRIVER).
+docs = []
 
 [dependencies]
-oo-docs = { path = "../oo-docs", optional = true }
 oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2", "dm8"] }
 oo-stack = { path = "../oo-stack" }
 oo-core = { path = "../oo-core" }
