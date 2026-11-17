@@ -1,4 +1,4 @@
-// formal: main=file_lifecycle inv=inv steps=40 verify-steps=10 witnesses="witPublished witDuplicate witSupersededMidParse witStaleDiscarded witDeletedRestored witOutdatedReparse"
+// formal: main=file_lifecycle inv=inv steps=40 verify-steps=10 witnesses="witPublished witDuplicate witSupersededMidParse witStaleDiscarded witDeletedRestored witOutdatedReparse" vinv="invOnlyTableTransitions invPublishedFromLatest invNoStaleOverwrite invDuplicateSameHash invNoDeadEnd"
 // FM2: file state machine (00 5.1, 10 4.2), checked against the single
 // transition table `is_legal` in crates/oo-docs/src/state.rs. Scope of this
 // card (V-S2-02): the md-subset behaviour (no sidecar), 3 files, 3 versions per

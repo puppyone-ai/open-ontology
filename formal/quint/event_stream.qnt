@@ -1,4 +1,4 @@
-// formal: main=event_stream inv=inv steps=40 verify-steps=10 witnesses="witCaughtUp witGone410 witDuplicateDropped witTransientSeen witReconnectReplay"
+// formal: main=event_stream inv=inv steps=40 verify-steps=10 witnesses="witCaughtUp witGone410 witDuplicateDropped witTransientSeen witReconnectReplay" vinv="invOutboxGapFree invViewMatchesCursor invCaughtUpEqualsServer invTransientHasNoSeq"
 // FM4: event outbox and client catch-up (10 8.5, append_event in migration 0138,
 // store/events.rs; 20 1.7 store). Durable events get seq 1..N under the
 // event_head row lock (gap-free, monotone); transient events (file.progress)
