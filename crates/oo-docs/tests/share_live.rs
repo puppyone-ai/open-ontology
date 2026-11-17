@@ -660,6 +660,8 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
     let (e, mut fx) = world("share_asof").await;
     let s = mk_share(&e, &["Decisions"], json!({})).await;
     let cred = cred_of(&s);
+    let v0 = s["version"].as_i64().unwrap();
+    let (pin, late) = (format!("v{v0}"), format!("v{}", v0 + 1));
     let proj = fx.text("SELECT key FROM _oo_docs.entity WHERE canonical_name = '星图看板' AND type = 'Project'").await.remove(0);
     let person = fx
         .text("SELECT key FROM _oo_docs.entity WHERE canonical_name = '林远舟' LIMIT 1")
@@ -674,7 +676,7 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
     assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
     assert_eq!(
         r.header("oo-docs-as-of"),
-        Some("v1"),
+        Some(pin.as_str()),
         "a credential reads its own version by default"
     );
     let body = r.json();
@@ -701,10 +703,10 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
         &format!("/v1/docs/entities/{person}?as_of=latest"),
     )
     .await;
-    assert_eq!(latest.header("oo-docs-as-of"), Some("v2"));
+    assert_eq!(latest.header("oo-docs-as-of"), Some(late.as_str()));
     assert_eq!(
         latest.json()["stale_vs_pack"],
-        json!({"pack_version": 1, "latest_version": 2})
+        json!({"pack_version": v0, "latest_version": v0 + 1})
     );
     let share = as_cred(
         &e,
@@ -713,20 +715,22 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
         &format!("/v1/docs/entities/{person}?as_of=share"),
     )
     .await;
-    assert_eq!(share.header("oo-docs-as-of"), Some("v1"));
+    assert_eq!(share.header("oo-docs-as-of"), Some(pin.as_str()));
     // An entity that exists only outside the scope is not there.
     let r = as_cred(&e, &cred, "GET", &format!("/v1/docs/entities/{proj}")).await;
     assert!(r.status == 200 || r.status == 404);
     // The control token defaults to latest; as_of=share needs a credential.
     let c = e.get(&format!("/v1/docs/entities/{person}")).await;
-    assert_eq!(c.header("oo-docs-as-of"), Some("v2"));
+    assert_eq!(c.header("oo-docs-as-of"), Some(late.as_str()));
     assert!(c.json().get("stale_vs_pack").is_none());
     let c = e
         .get(&format!("/v1/docs/entities/{person}?as_of=share"))
         .await;
     assert_eq!(c.status, 400);
-    let c = e.get(&format!("/v1/docs/entities/{person}?as_of=v1")).await;
-    assert_eq!(c.header("oo-docs-as-of"), Some("v1"));
+    let c = e
+        .get(&format!("/v1/docs/entities/{person}?as_of={pin}"))
+        .await;
+    assert_eq!(c.header("oo-docs-as-of"), Some(pin.as_str()));
     e.finish().await;
 }
 

@@ -561,18 +561,21 @@ pub struct Old {
     pub grantor: String,
 }
 
-/// Read a share's saved parameters (and lock it when `lock`).
+/// `(id, drive, status, group, policy, compile params, expires_in, grantor)`.
+type OldRow = (
+    String,
+    String,
+    String,
+    Option<String>,
+    String,
+    Option<String>,
+    i64,
+    String,
+);
+
+/// Read a share's saved parameters.
 pub async fn load_old(conn: &mut PgConnection, sid: &str) -> Result<Old, ApiError> {
-    let r: Option<(
-        String,
-        String,
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        i64,
-        String,
-    )> = sqlx::query_as(
+    let r: Option<OldRow> = sqlx::query_as(
         "SELECT id::text, drive_id::text, status, group_id::text, refresh_policy, \
                     compile_params::text, \
                     GREATEST(3600, EXTRACT(EPOCH FROM (expires_at - created_at))::bigint), grantor \

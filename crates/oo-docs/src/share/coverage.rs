@@ -34,17 +34,23 @@ impl Default for Freshness {
     }
 }
 
-const PENDING: [&str; 8] = [
+/// Not settled: something is left to do before the file is in a version.
+const PENDING: [&str; 6] = [
     "stored",
     "queued",
     "parsing",
     "parsed",
     "extracting",
     "indexed",
-    "outdated",
-    "extract_partial",
 ];
-const FAILED: [&str; 4] = ["parse_failed", "unsupported", "too_large", "encrypted"];
+/// Settled without being fully read.
+const FAILED: [&str; 5] = [
+    "parse_failed",
+    "extract_partial",
+    "unsupported",
+    "too_large",
+    "encrypted",
+];
 
 fn scope_sql(col: &str) -> String {
     format!(
@@ -64,12 +70,11 @@ pub async fn measure(
         .fetch_optional(&mut *conn)
         .await?
         .unwrap_or(0);
-    let covered_rev: i64 = sqlx::query_scalar(
-        "SELECT covers_drive_rev FROM _oo_docs.ontology_version ORDER BY n DESC LIMIT 1",
-    )
-    .fetch_optional(&mut *conn)
-    .await?
-    .unwrap_or(0);
+    // Live, not the number stored at the last publish: a file that became
+    // `duplicate` or `superseded` after it settles without a publish.
+    let covered_rev = crate::store::rev::covers_drive_rev(conn, &[])
+        .await
+        .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     let sql = format!(
         "SELECT f.path, f.state, f.state_code FROM _oo_docs.file f \
           WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL \

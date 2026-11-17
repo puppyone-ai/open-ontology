@@ -164,6 +164,6 @@ mod tests {
         let a = json!({"labels": ["旧"], "new": [], "count": 1});
         assert!(text("facts_superseded", &a).contains("新值不在共享范围内"));
         assert!(text("new_facts", &json!({"count": 3})).contains("3 条新事实"));
-        assert_eq!(rank("block") > rank("warn"), true);
+        assert!(rank("block") > rank("warn"));
     }
 }
