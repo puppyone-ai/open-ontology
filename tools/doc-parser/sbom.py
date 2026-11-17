@@ -41,6 +41,8 @@ KNOWN_NATIVE = [
     (r"^libspatialindex", "libspatialindex (rtree)", "MIT"),
     (r"^libxml2|^libxslt|^libexslt", "libxml2/libxslt (lxml)", "MIT"),
     (r"^libiconv|^libcharset", "libiconv (lxml)", "LGPL-2.1-or-later"),
+    (r"^libgeos_c", "libgeos_c (shapely)", "LGPL-2.1-or-later"),
+    (r"^libgeos", "libgeos (shapely)", "LGPL-2.1-or-later"),
     (r"^libicu", "ICU", "Unicode-3.0"),
     (r"^libpdfium|^pdfium", "PDFium (pypdfium2)", "BSD-3-Clause AND Apache-2.0"),
     (r"^libavcodec|^libavformat|^libavutil|^libswscale|^libswresample", "FFmpeg", "LGPL-2.1-or-later"),

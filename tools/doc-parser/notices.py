@@ -15,6 +15,7 @@ component that has no entry in SOURCES makes the generator exit 2, so a new
 weak-copyleft component cannot reach the image without a source location here.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -23,7 +24,8 @@ import sbom_gate
 
 HERE = Path(__file__).resolve().parent
 TEXTS = HERE / "license-texts"
-IMAGE_PATH = "/usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md"
+IMAGE_NAME = os.environ.get("OO_NOTICES_IMAGE", "oo-docs-parser")  # ocr-parser and media-parser set their own
+IMAGE_PATH = f"/usr/share/licenses/{IMAGE_NAME}/THIRD_PARTY_NOTICES.md"
 
 # Where the corresponding source of each weak-copyleft component lives, and how
 # it is shipped. Keys are SBOM component names.
@@ -68,6 +70,36 @@ SOURCES = {
         "url": "https://ftp.gnu.org/gnu/gcc/",
         "how": "Unmodified GCC runtime library shipped inside a wheel as a shared object.",
     },
+    "crc32c": {
+        "kind": "lgpl",
+        "url": "https://github.com/ICRAR/crc32c",
+        "how": "Unmodified PyPI wheel (a compiled Python extension). Pulled in by bce-python-sdk, a PaddleX dependency. Replaceable: remove the wheel or install another build of the same version.",
+    },
+    "cssutils": {
+        "kind": "lgpl",
+        "url": "https://github.com/jaraco/cssutils",
+        "how": "Unmodified PyPI wheel, pure Python source kept as shipped. Pulled in by premailer (PaddleX document parsing dependency).",
+    },
+    "encutils": {
+        "kind": "lgpl",
+        "url": "https://github.com/jaraco/encutils",
+        "how": "Unmodified PyPI wheel, pure Python source kept as shipped. Dependency of cssutils.",
+    },
+    "python-bidi": {
+        "kind": "lgpl",
+        "url": "https://github.com/MeirKriheli/python-bidi",
+        "how": "Unmodified PyPI wheel (a compiled Python extension). Pulled in by PaddleOCR.",
+    },
+    "libgeos (shapely)": {
+        "kind": "lgpl",
+        "url": "https://libgeos.org/usage/download/",
+        "how": "Unmodified GEOS shared object vendored in the shapely wheel (a separate library loaded dynamically; replaceable by another build with the same file name).",
+    },
+    "libgeos_c (shapely)": {
+        "kind": "lgpl",
+        "url": "https://libgeos.org/usage/download/",
+        "how": "Unmodified GEOS C API shared object vendored in the shapely wheel (a separate library loaded dynamically).",
+    },
     "libiconv (lxml)": {
         "kind": "lgpl",
         "url": "https://ftp.gnu.org/gnu/libiconv/",
@@ -78,6 +110,7 @@ SOURCES = {
 CANONICAL = {
     "Apache-2.0": "Apache-2.0.txt",
     "LGPL-2.1": "LGPL-2.1.txt",
+    "LGPL-3.0": "LGPL-3.0.txt",
     "MPL-2.0": "MPL-2.0.txt",
     "GPL-3.0": "GPL-3.txt",
     "GCC-exception-3.1": "GCC-exception-3.1.txt",
@@ -123,7 +156,7 @@ def generate(sbom):
     image = sbom.get("metadata", {}).get("component", {})
     out = []
     w = out.append
-    w("# Third-party notices: oo-docs-parser image")
+    w(f"# Third-party notices: {IMAGE_NAME} image")
     w("")
     w("This file is generated from the image SBOM by `tools/doc-parser/notices.py`; do not edit it by hand. "
       "It ships in the image at `" + IMAGE_PATH + "`. Every Python package keeps its own license and notice files "
@@ -131,7 +164,7 @@ def generate(sbom):
       "base image keep theirs under `/usr/share/doc/<package>/copyright`. This file adds the inventory, the source "
       "offer and the notices that the weak-copyleft licenses require.")
     w("")
-    w(f"Image: `{image.get('name', 'oo-docs-parser')}` ({image.get('version', 'dev')}). "
+    w(f"Image: `{image.get('name', IMAGE_NAME)}` ({image.get('version', 'dev')}). "
       f"Components: {len(by_scope.get('python', []))} Python distributions, "
       f"{len(by_scope.get('native-in-wheel', []))} native libraries inside wheels, "
       f"{len(by_scope.get('model', []))} model files, {len(by_scope.get('base-os', []))} base-image packages.")
@@ -247,6 +280,10 @@ def generate(sbom):
         appendix.append(("Mozilla Public License 2.0", "MPL-2.0"))
     if "lgpl" in kinds or re.search(r"\bLGPL", all_lic):
         appendix.append(("GNU Lesser General Public License 2.1", "LGPL-2.1"))
+    if re.search(r"LGPL-3|LGPLv3|LGPL-3\.0|\(LGPL\)", all_lic) or any(
+        "LGPL-3" in lic_of(c) for c in comps if prop(c, "oo:scope") != "base-os"
+    ):
+        appendix.append(("GNU Lesser General Public License 3.0 (cssutils, encutils)", "LGPL-3.0"))
     if "gcc-runtime" in kinds or re.search(r"GCC-exception", all_lic):
         appendix.append(("GNU General Public License 3.0 (applies to the GCC runtime libraries together with the exception below)", "GPL-3.0"))
         appendix.append(("GCC Runtime Library Exception 3.1", "GCC-exception-3.1"))
