@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use sqlx::{PgConnection, PgPool};
+use sqlx::PgPool;
 use tokio::sync::{Notify, watch};
 use tokio::task::JoinHandle;
 
@@ -51,15 +51,61 @@ pub const PUBLISH_WINDOW_MS: i64 = 2_000;
 pub const PUMP_TICK: Duration = Duration::from_millis(250);
 const PUMP_BATCH: i64 = 200;
 
+/// Code of a failure caused by lock contention, which a handler may retry at
+/// once (the stages are idempotent) instead of waiting out the job backoff.
+const CONTENDED: &str = "DOCS_ENGINE_DB_CONTENDED";
+
+/// Deadlock, serialization failure or lock timeout, from the text of a driver
+/// or store error (`sqlstate=40P01`, `40001`, `55P03`).
+fn is_contention(text: &str) -> bool {
+    ["sqlstate=40P01", "sqlstate=40001", "sqlstate=55P03"]
+        .iter()
+        .any(|s| text.contains(s))
+        || text.contains("deadlock detected")
+        || text.contains("could not serialize")
+        || text.contains("lock timeout")
+}
+
 fn db_fail(e: impl std::fmt::Display) -> Outcome {
     // Driver and server messages carry no row values; cap the length anyway.
-    let why: String = e.to_string().chars().take(240).collect();
+    let text = e.to_string();
+    let why: String = text.chars().take(240).collect();
     crate::obs::log(
         "warn",
         "stage.db_failed",
         serde_json::json!({ "reason": why }),
     );
+    if is_contention(&text) {
+        return Outcome::failed(FailureClass::Transient, CONTENDED);
+    }
     Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_DB_UNAVAILABLE")
+}
+
+/// Runs a stage handler again, a few times and quickly, when it lost a lock
+/// race. Every stage is idempotent, so a rerun is safe; anything else is the
+/// handler's own outcome.
+struct Contended<H>(H);
+
+impl<H: JobHandler> JobHandler for Contended<H> {
+    fn run(&self, ctx: JobCtx) -> HandlerFuture<'_> {
+        Box::pin(async move {
+            let mut tries = 0u64;
+            loop {
+                let out = self.0.run(ctx.clone()).await;
+                let again = matches!(&out, Outcome::Failed { code, .. } if code == CONTENDED);
+                tries += 1;
+                if !again || tries >= 6 || ctx.should_stop() {
+                    return match out {
+                        Outcome::Failed { class, code } if code == CONTENDED => {
+                            Outcome::failed(class, "DOCS_ENGINE_DB_UNAVAILABLE")
+                        }
+                        other => other,
+                    };
+                }
+                tokio::time::sleep(Duration::from_millis(120 * tries)).await;
+            }
+        })
+    }
 }
 
 async fn begin_stage(
@@ -680,25 +726,25 @@ pub fn handlers<F: SourceFactory>(
     let mut map: HashMap<JobKind, Arc<dyn JobHandler>> = HashMap::new();
     map.insert(
         JobKind::Parse,
-        Arc::new(ParseHandler {
+        Arc::new(Contended(ParseHandler {
             pool: pool.clone(),
             factory,
             cas: cas.clone(),
-        }),
+        })),
     );
     map.insert(
         JobKind::ExtractRules,
-        Arc::new(ExtractHandler {
+        Arc::new(Contended(ExtractHandler {
             pool: pool.clone(),
             cas: cas.clone(),
-        }),
+        })),
     );
     map.insert(
         JobKind::Publish,
-        Arc::new(PublishHandler {
+        Arc::new(Contended(PublishHandler {
             pool: pool.clone(),
             cas,
-        }),
+        })),
     );
     map
 }
@@ -713,6 +759,45 @@ pub fn default_concurrency() -> HashMap<JobKind, usize> {
 }
 
 // ----------------------------------------------------------------- pump
+
+/// Enqueue a stage job. A key whose job ended cancelled (a newer fingerprint
+/// or a hash of the same content passed by) is replaced by `#r<n>`, up to
+/// four times, so a cancelled job never strands a file.
+async fn enqueue_stage(
+    conn: &mut sqlx::PgConnection,
+    kind: JobKind,
+    key: &str,
+    drive_id: &str,
+    file_id: &str,
+    version_id: &str,
+) -> Result<bool, crate::store::StoreError> {
+    let mut job = NewJob::new(kind, key);
+    job.drive_id = Some(drive_id);
+    job.file_id = Some(file_id);
+    job.version_id = Some(version_id);
+    let first = store::enqueue(conn, &job).await?.status;
+    if first == JobStatus::Enqueued {
+        return Ok(true);
+    }
+    if first != JobStatus::Terminal {
+        return Ok(false);
+    }
+    let used: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE dedupe_key = $1 OR dedupe_key LIKE $1 || '#r%'",
+    )
+    .bind(key)
+    .fetch_one(&mut *conn)
+    .await?;
+    if used > 4 {
+        return Ok(false);
+    }
+    let retry_key = format!("{key}#r{used}");
+    let mut job = NewJob::new(kind, &retry_key);
+    job.drive_id = Some(drive_id);
+    job.file_id = Some(file_id);
+    job.version_id = Some(version_id);
+    Ok(store::enqueue(conn, &job).await?.status == JobStatus::Enqueued)
+}
 
 /// One pump pass: enqueue what is due. Returns the number of jobs enqueued.
 pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
@@ -736,22 +821,20 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     .await?;
     for (file_id, version_id, drive_id, b3, failed) in rows {
         if failed {
-            fail_file(
-                pool,
-                &file_id,
-                &version_id,
-                "parsing",
-                FileState::ParseFailed,
-            )
-            .await;
+            fail_file(pool, &file_id, &version_id, FileState::ParseFailed).await;
             continue;
         }
         let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}");
-        let mut job = NewJob::new(JobKind::Parse, &key);
-        job.drive_id = Some(&drive_id);
-        job.file_id = Some(&file_id);
-        job.version_id = Some(&version_id);
-        if store::enqueue(&mut conn, &job).await?.status == JobStatus::Enqueued {
+        if enqueue_stage(
+            &mut conn,
+            JobKind::Parse,
+            &key,
+            &drive_id,
+            &file_id,
+            &version_id,
+        )
+        .await?
+        {
             enqueued += 1;
         }
     }
@@ -776,24 +859,20 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     .await?;
     for (file_id, version_id, drive_id, ir_b3, failed) in rows {
         if failed {
-            if let Some(FileState::Extracting) = current_state(&mut conn, &file_id).await {
-                fail_file(
-                    pool,
-                    &file_id,
-                    &version_id,
-                    "extracting",
-                    FileState::ExtractPartial,
-                )
-                .await;
-            }
+            fail_file(pool, &file_id, &version_id, FileState::ExtractPartial).await;
             continue;
         }
         let key = format!("rules:{version_id}:{ir_b3}:{RULESET_VERSION}");
-        let mut job = NewJob::new(JobKind::ExtractRules, &key);
-        job.drive_id = Some(&drive_id);
-        job.file_id = Some(&file_id);
-        job.version_id = Some(&version_id);
-        if store::enqueue(&mut conn, &job).await?.status == JobStatus::Enqueued {
+        if enqueue_stage(
+            &mut conn,
+            JobKind::ExtractRules,
+            &key,
+            &drive_id,
+            &file_id,
+            &version_id,
+        )
+        .await?
+        {
             enqueued += 1;
         }
     }
@@ -828,20 +907,10 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     Ok(enqueued)
 }
 
-async fn current_state(conn: &mut PgConnection, file_id: &str) -> Option<FileState> {
-    let s: Option<String> =
-        sqlx::query_scalar("SELECT state FROM _oo_docs.file WHERE id = $1::uuid")
-            .bind(file_id)
-            .fetch_optional(&mut *conn)
-            .await
-            .ok()
-            .flatten();
-    s.and_then(|s| FileState::parse(&s))
-}
-
-/// A stage whose job failed for good: move the file to its failure state.
-async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, from: &str, to: FileState) {
-    let from = FileState::parse(from);
+/// A stage whose job failed for good: move the file to its failure state,
+/// through the intermediate state the table requires (`queued -> parsing ->
+/// parse_failed`, `parsed -> extracting -> extract_partial`).
+async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, to: FileState) {
     let code: Option<String> = sqlx::query_scalar(
         "SELECT last_error FROM _oo_docs.job WHERE file_id = $1::uuid AND version_id = $2::uuid \
            AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
@@ -853,6 +922,35 @@ async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, from: &str, t
     .ok()
     .flatten();
     let code = code.unwrap_or_else(|| "DOCS_ENGINE_INTERNAL".to_owned());
+    let current: Option<String> =
+        sqlx::query_scalar("SELECT state FROM _oo_docs.file WHERE id = $1::uuid")
+            .bind(file_id)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
+    let mut from = current.as_deref().and_then(FileState::parse);
+    let via = match (from, to) {
+        (Some(FileState::Queued), FileState::ParseFailed) => Some(FileState::Parsing),
+        (Some(FileState::Parsed), FileState::ExtractPartial) => Some(FileState::Extracting),
+        _ => None,
+    };
+    if let Some(mid) = via {
+        let hop = Transition {
+            file_id,
+            expect_from: from,
+            to: mid,
+            code: None,
+            retryable: false,
+            version_id: Some(version_id),
+            attempt: None,
+            detail_json: None,
+        };
+        if state::transition(pool, &hop).await.is_err() {
+            return;
+        }
+        from = Some(mid);
+    }
     let _ = state::transition(
         pool,
         &Transition {

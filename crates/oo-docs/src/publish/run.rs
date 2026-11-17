@@ -500,6 +500,22 @@ pub async fn publish(
     .bind(&touched)
     .fetch_all(&mut *tx)
     .await?;
+    // Lock every file row before the first event (10 4.1.3): a transition
+    // appends an event, which holds the `event_head` lock until commit, and a
+    // stage that holds a file row waits for that lock. Taking the rows one by
+    // one after the first event would deadlock with it.
+    let lock_ids: Vec<String> = files
+        .iter()
+        .map(|(f, _)| f.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    sqlx::query(
+        "SELECT id FROM _oo_docs.file WHERE id = ANY($1::text[]::uuid[]) ORDER BY id FOR UPDATE",
+    )
+    .bind(&lock_ids)
+    .fetch_all(&mut *tx)
+    .await?;
     let mut files_published = 0u32;
     let mut seen_files = BTreeSet::new();
     for (file_id, version_id) in &files {
