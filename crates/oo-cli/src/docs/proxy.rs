@@ -375,9 +375,10 @@ async fn serve_one(
     {
         return Err(unavailable(&head));
     }
-    let (mut ur, mut uw) = upstream.split();
+    // The write half stays open: a hyper server treats a half-closed
+    // connection as an aborted request and drops the response.
+    let (mut ur, _uw) = upstream.split();
     let (mut cr, mut cw) = client.split();
-    let _ = uw.shutdown().await;
     // Copy the response; stop when the engine closes, the client goes away or
     // the daemon shuts down. A client that disconnects shows up as a read of
     // zero bytes on its side.
@@ -530,6 +531,14 @@ mod tests {
                         if buf.windows(4).any(|w| w == b"\r\n\r\n") {
                             break;
                         }
+                    }
+                    // Like hyper: a client that half-closes before the response
+                    // is going away, so answer nothing.
+                    let mut probe = [0u8; 1];
+                    if let Ok(Ok(0)) =
+                        tokio::time::timeout(Duration::from_millis(150), s.read(&mut probe)).await
+                    {
+                        return;
                     }
                     let text = String::from_utf8_lossy(&buf).into_owned();
                     log.lock().unwrap().push(text.clone());
