@@ -199,3 +199,122 @@ fn normalize_page_size_does_not_change_the_block_id() {
     };
     assert_eq!(block_id(&bare, "x"), block_id(&sized, "x"));
 }
+
+fn ocr_response(
+    kind: &str,
+    page: u32,
+    pt: Option<(f64, f64)>,
+    blocks: serde_json::Value,
+) -> serde_json::Value {
+    json!({
+        "protocol": "oo.doc-parser/v1",
+        "parser": {"id": "paddleocr", "version": "3.7.0", "adapter_version": "1"},
+        "kind": kind, "page_count": 2, "pages": [page, page],
+        "page_list": [{"page": page, "px_w": 1654, "px_h": 2339,
+                       "pt_w": pt.map(|p| p.0), "pt_h": pt.map(|p| p.1), "blocks": blocks}],
+        "profile": {"tier": "cpu", "isa": "aarch64:asimd",
+                    "models": [{"name": "PaddlePaddle--PP-OCRv5_server_rec/inference.pdiparams", "sha256": "ab".repeat(32)}]},
+        "warnings": ["DOCS_PARSE_TABLE_STRUCTURE_OFF", "not-a-code"]
+    })
+}
+
+#[test]
+fn ocr_scanned_pdf_maps_pixels_to_hundredth_points() {
+    use super::paddle::assemble;
+    let blocks = json!([
+        {"label": "doc_title", "kind": "heading", "text": "灯塔迁移方案", "bbox_px": [193, 231, 467, 273], "score": 0.99},
+        {"label": "text", "kind": "paragraph", "text": "项目负责人为陈子墨", "bbox_px": [0, 0, 1654, 2339], "score": 0.5}
+    ]);
+    // Page 2 arrives first: windows are sorted by page.
+    let late = ocr_response("pdf", 2, Some((595.0, 842.0)), blocks.clone());
+    let early = ocr_response("pdf", 1, Some((595.0, 842.0)), blocks);
+    let frag = assemble(DocFormat::PdfScanned, "0".repeat(64), vec![late, early]).unwrap();
+    assert_eq!(frag.blocks.len(), 4);
+    assert_eq!(
+        frag.blocks[0].anchor,
+        Anchor::Pdf {
+            page: 1,
+            bbox: [6943, 8316, 16800, 9828],
+            charspan: None,
+            page_w: Some(59_500),
+            page_h: Some(84_200)
+        }
+    );
+    assert_eq!(frag.blocks[0].kind, BlockKind::Heading);
+    assert_eq!(frag.blocks[1].hpath, vec!["灯塔迁移方案".to_owned()]);
+    assert_eq!(
+        frag.blocks[1].flags,
+        vec![oo_core::docir::BlockFlag::LowTextConfidence]
+    );
+    assert_eq!(frag.meta.page_count, Some(2));
+    let n = finish(frag).unwrap();
+    assert_eq!(n.ir.protocol, "oo.doc-ir/v1.1");
+    assert_eq!(n.ir.format, DocFormat::PdfScanned);
+    let profile = n.ir.parser.profile.as_ref().unwrap();
+    assert_eq!(profile.models[0].name, "PP-OCRv5_server_rec");
+    assert_eq!(profile.isa, "aarch64:asimd");
+    let codes: Vec<&str> = n.ir.warnings.iter().map(|w| w.code.as_str()).collect();
+    assert_eq!(codes, ["DOCS_PARSE_TABLE_STRUCTURE_OFF"]);
+    assert_eq!(n.ir.blocks[0].anchor.fragment(), "#p1");
+}
+
+#[test]
+fn ocr_standalone_image_gives_image_text_blocks() {
+    use super::paddle::{PaddleError, assemble};
+    let blocks = json!([{"label": "text", "kind": "paragraph", "text": "会议室 A301", "bbox_px": [10, 20, 300, 60], "score": 0.97}]);
+    let frag = assemble(
+        DocFormat::Image,
+        "0".repeat(64),
+        vec![ocr_response("image", 1, None, blocks)],
+    )
+    .unwrap();
+    assert_eq!(frag.blocks[0].kind, BlockKind::ImageText);
+    assert_eq!(
+        frag.blocks[0].anchor,
+        Anchor::Image {
+            parent: None,
+            image_index: None,
+            bbox: Some([10, 20, 300, 60])
+        }
+    );
+    assert_eq!(
+        (frag.meta.width, frag.meta.height),
+        (Some(1654), Some(2339))
+    );
+    let n = finish(frag).unwrap();
+    assert_eq!(n.ir.protocol, "oo.doc-ir/v1.1");
+    assert!(n.ir.meta.width.is_some());
+    // A pdf response without page size, a wrong format and empty input are errors, not guesses.
+    let no_pt = ocr_response(
+        "pdf",
+        1,
+        None,
+        json!([{"label": "text", "kind": "paragraph", "text": "x", "bbox_px": [0, 0, 1, 1], "score": 1.0}]),
+    );
+    assert_eq!(
+        assemble(DocFormat::PdfScanned, "0".repeat(64), vec![no_pt]).unwrap_err(),
+        PaddleError::Shape("page size")
+    );
+    assert_eq!(
+        assemble(DocFormat::Md, "0".repeat(64), vec![json!({})]).unwrap_err(),
+        PaddleError::Shape("format is not pdf_scanned or image")
+    );
+    assert_eq!(
+        assemble(DocFormat::Image, "0".repeat(64), vec![]).unwrap_err(),
+        PaddleError::Empty
+    );
+}
+
+#[test]
+fn ocr_empty_page_warns_instead_of_failing() {
+    use super::paddle::assemble;
+    let frag = assemble(
+        DocFormat::Image,
+        "0".repeat(64),
+        vec![ocr_response("image", 1, None, json!([]))],
+    )
+    .unwrap();
+    assert!(frag.blocks.is_empty());
+    assert!(frag.warnings.iter().any(|w| w.code == "DOCS_PARSE_EMPTY"));
+    finish(frag).unwrap();
+}

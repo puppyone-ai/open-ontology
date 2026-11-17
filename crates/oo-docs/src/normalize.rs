@@ -15,6 +15,7 @@ use unicode_normalization::UnicodeNormalization;
 
 mod canonical;
 pub mod docling;
+pub mod paddle;
 #[cfg(test)]
 mod tests;
 
