@@ -45,6 +45,11 @@ use crate::store::jobs as store;
 use oo_connectors::objectstore::{DocumentSource, ReadExpect};
 use oo_core::docir::DocIr;
 
+/// Priority of a new file's stage jobs; manual retry 50; reprocessing after an
+/// upgrade 900 (4.1.7, D23).
+const PRIORITY_NEW: i16 = 100;
+const PRIORITY_OUTDATED: i16 = 900;
+
 /// Debounce window of the `publish` job (4.9).
 pub const PUBLISH_WINDOW_MS: i64 = 2_000;
 /// Pump period.
@@ -294,6 +299,13 @@ impl<F: SourceFactory> ParseHandler<F> {
     }
 
     async fn parse(&self, ctx: &JobCtx, s: &Subject) -> Result<ParsedIr, Outcome> {
+        #[cfg(feature = "failpoints")]
+        if crate::failpoints::hits("parse_error", &s.b3) {
+            return Err(Outcome::failed(
+                FailureClass::Transient,
+                "DOCS_PARSE_TIMEOUT",
+            ));
+        }
         if let Some(hit) = cached_parse(&self.pool, &s.b3).await.map_err(db_fail)? {
             return Ok(hit);
         }
@@ -324,7 +336,15 @@ impl<F: SourceFactory> ParseHandler<F> {
         }
         let b3 = s.b3.clone();
         let md = s.format == "md";
+        #[cfg(feature = "failpoints")]
+        if let Some(ms) = crate::failpoints::sleep_ms("parse_window_mid", &b3) {
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+        }
         let parsed = tokio::task::spawn_blocking(move || {
+            #[cfg(feature = "failpoints")]
+            if crate::failpoints::hits("parse_crash", &b3) {
+                panic!("failpoint parse_crash");
+            }
             if blake3::hash(&bytes).to_hex().as_str() != b3 {
                 return None;
             }
@@ -412,17 +432,20 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 Ok(None) => return Outcome::Done,
                 Err(e) => return db_fail(e),
             };
-            if !matches!(s.state, FileState::Queued | FileState::Parsing) {
+            if !matches!(
+                s.state,
+                FileState::Queued | FileState::Parsing | FileState::Outdated
+            ) {
                 return Outcome::Done;
             }
             if ctx.should_stop() {
                 return Outcome::Cancelled;
             }
-            if s.state == FileState::Queued
+            if matches!(s.state, FileState::Queued | FileState::Outdated)
                 && let Err(e) = move_file(
                     &self.pool,
                     &s,
-                    FileState::Queued,
+                    s.state,
                     FileState::Parsing,
                     None,
                     false,
@@ -544,6 +567,10 @@ impl JobHandler for ExtractHandler {
                 .await
             {
                 return db_fail(e);
+            }
+            #[cfg(feature = "failpoints")]
+            if crate::failpoints::hits("extract_error", &s.b3) {
+                return Outcome::failed(FailureClass::Permanent, "DOCS_EXTRACT_FAILPOINT");
             }
             let ir = match self.load_ir(&s.b3).await {
                 Ok(Some(ir)) => ir,
@@ -770,25 +797,33 @@ async fn enqueue_stage(
     drive_id: &str,
     file_id: &str,
     version_id: &str,
+    priority: i16,
 ) -> Result<bool, crate::store::StoreError> {
     let mut job = NewJob::new(kind, key);
     job.drive_id = Some(drive_id);
     job.file_id = Some(file_id);
     job.version_id = Some(version_id);
+    job.priority = priority;
     let first = store::enqueue(conn, &job).await?.status;
     if first == JobStatus::Enqueued {
         return Ok(true);
     }
-    if first != JobStatus::Terminal {
+    // `AlreadyDone` with the file still waiting for this stage means the file
+    // was sent back through it (reprocessing after an upgrade, manual retry):
+    // the finished job is history, a new one is due.
+    if !matches!(first, JobStatus::Terminal | JobStatus::AlreadyDone) {
         return Ok(false);
     }
-    let used: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM _oo_docs.job WHERE dedupe_key = $1 OR dedupe_key LIKE $1 || '#r%'",
+    // Only cancellations are capped (a cancel loop must not spin); a job
+    // that failed and was sent back by a retry or an upgrade is not.
+    let (used, cancelled): (i64, i64) = sqlx::query_as(
+        "SELECT count(*), count(*) FILTER (WHERE state = 'cancelled') FROM _oo_docs.job \
+          WHERE dedupe_key = $1 OR dedupe_key LIKE $1 || '#r%'",
     )
     .bind(key)
     .fetch_one(&mut *conn)
     .await?;
-    if used > 4 {
+    if cancelled > 4 {
         return Ok(false);
     }
     let retry_key = format!("{key}#r{used}");
@@ -796,6 +831,7 @@ async fn enqueue_stage(
     job.drive_id = Some(drive_id);
     job.file_id = Some(file_id);
     job.version_id = Some(version_id);
+    job.priority = priority;
     Ok(store::enqueue(conn, &job).await?.status == JobStatus::Enqueued)
 }
 
@@ -804,14 +840,27 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     let mut conn = pool.acquire().await?;
     let mut enqueued = 0;
 
-    // queued / parsing -> parse
-    let rows: Vec<(String, String, String, String, bool)> = sqlx::query_as(
+    // parsing -> queued: a failed attempt that will be retried puts the file
+    // back in the queue with the reason and `retryable` (4.2).
+    requeue_retrying(pool).await;
+
+    // queued / parsing / outdated -> parse. A blob whose parse was
+    // quarantined fails every path that carries it, until a parse of that
+    // content has succeeded (4.1.6).
+    let rows: Vec<(String, String, String, String, bool, bool, String)> = sqlx::query_as(
         "SELECT f.id::text, f.current_version_id::text, f.drive_id::text, fv.b3, \
                 EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
                           AND j.version_id = f.current_version_id \
-                          AND j.state IN ('failed', 'quarantined')) \
+                          AND j.state IN ('failed', 'quarantined') AND j.updated_at >= f.state_since), \
+                (EXISTS (SELECT 1 FROM _oo_docs.job j \
+                           JOIN _oo_docs.file_version qv ON qv.id = j.version_id \
+                          WHERE j.kind = 'parse' AND j.state = 'quarantined' AND qv.b3 = fv.b3) \
+                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.parse_result p \
+                                  WHERE p.b3 = fv.b3 AND p.status = 'complete' \
+                                    AND p.ir_b3 IS NOT NULL)), \
+                f.state \
            FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
-          WHERE f.state IN ('queued', 'parsing') AND f.deleted_at IS NULL \
+          WHERE f.state IN ('queued', 'parsing', 'outdated') AND f.deleted_at IS NULL \
             AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id AND j.state IN ('queued', 'running')) \
           ORDER BY f.state_since, f.id LIMIT $1",
@@ -819,12 +868,22 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     .bind(PUMP_BATCH)
     .fetch_all(&mut *conn)
     .await?;
-    for (file_id, version_id, drive_id, b3, failed) in rows {
+    for (file_id, version_id, drive_id, b3, failed, inherited, state) in rows {
         if failed {
-            fail_file(pool, &file_id, &version_id, FileState::ParseFailed).await;
+            fail_file(pool, &file_id, &version_id, FileState::ParseFailed, None).await;
+            continue;
+        }
+        if inherited {
+            let code = Some("DOCS_PARSE_QUARANTINED");
+            fail_file(pool, &file_id, &version_id, FileState::ParseFailed, code).await;
             continue;
         }
         let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}");
+        let priority = if state == "outdated" {
+            PRIORITY_OUTDATED
+        } else {
+            PRIORITY_NEW
+        };
         if enqueue_stage(
             &mut conn,
             JobKind::Parse,
@@ -832,6 +891,7 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
             &drive_id,
             &file_id,
             &version_id,
+            priority,
         )
         .await?
         {
@@ -844,7 +904,7 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
         "SELECT f.id::text, f.current_version_id::text, f.drive_id::text, pr.ir_b3, \
                 EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
                           AND j.version_id = f.current_version_id \
-                          AND j.state IN ('failed', 'quarantined')) \
+                          AND j.state IN ('failed', 'quarantined') AND j.updated_at >= f.state_since) \
            FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
            JOIN LATERAL (SELECT ir_b3 FROM _oo_docs.parse_result p \
                           WHERE p.b3 = fv.b3 AND p.status = 'complete' AND p.ir_b3 IS NOT NULL \
@@ -859,7 +919,7 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     .await?;
     for (file_id, version_id, drive_id, ir_b3, failed) in rows {
         if failed {
-            fail_file(pool, &file_id, &version_id, FileState::ExtractPartial).await;
+            fail_file(pool, &file_id, &version_id, FileState::ExtractPartial, None).await;
             continue;
         }
         let key = format!("rules:{version_id}:{ir_b3}:{RULESET_VERSION}");
@@ -870,6 +930,7 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
             &drive_id,
             &file_id,
             &version_id,
+            PRIORITY_NEW,
         )
         .await?
         {
@@ -883,6 +944,16 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
                                           AND j.created_at >= f.state_since \
                                           AND j.state IN ('queued', 'running', 'succeeded'))) \
+             OR EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv \
+                          ON fv.id = f.current_version_id \
+                         WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
+                           AND fv.created_at > COALESCE((SELECT max(published_at) \
+                                 FROM _oo_docs.ontology_version), '-infinity'::timestamptz) \
+                           AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
+                                        WHERE e.version_id = fv.id AND e.withdrawn_at IS NULL) \
+                           AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                            AND j.created_at >= fv.created_at \
+                                            AND j.state IN ('queued', 'running', 'succeeded'))) \
              OR EXISTS (SELECT 1 FROM _oo_docs.fact ft WHERE ft.status = 'retracted' \
                          AND ft.retracted_in IS NULL AND ft.published_in IS NOT NULL \
                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
@@ -910,10 +981,17 @@ pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
 /// A stage whose job failed for good: move the file to its failure state,
 /// through the intermediate state the table requires (`queued -> parsing ->
 /// parse_failed`, `parsed -> extracting -> extract_partial`).
-async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, to: FileState) {
-    let code: Option<String> = sqlx::query_scalar(
-        "SELECT last_error FROM _oo_docs.job WHERE file_id = $1::uuid AND version_id = $2::uuid \
-           AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
+async fn fail_file(
+    pool: &PgPool,
+    file_id: &str,
+    version_id: &str,
+    to: FileState,
+    forced_code: Option<&str>,
+) {
+    let last: Option<(Option<String>, String)> = sqlx::query_as(
+        "SELECT last_error, state FROM _oo_docs.job \
+          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'extract_rules') \
+            AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
     )
     .bind(file_id)
     .bind(version_id)
@@ -921,7 +999,14 @@ async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, to: FileState
     .await
     .ok()
     .flatten();
-    let code = code.unwrap_or_else(|| "DOCS_ENGINE_INTERNAL".to_owned());
+    // A quarantined blob (poison pill) reads the same wherever it shows up;
+    // only a manual retry takes it out of `parse_failed`.
+    let code = match last {
+        _ if forced_code.is_some() => forced_code.unwrap_or_default().to_owned(),
+        Some((_, state)) if state == "quarantined" => "DOCS_PARSE_QUARANTINED".to_owned(),
+        Some((Some(code), _)) => code,
+        _ => "DOCS_ENGINE_INTERNAL".to_owned(),
+    };
     let current: Option<String> =
         sqlx::query_scalar("SELECT state FROM _oo_docs.file WHERE id = $1::uuid")
             .bind(file_id)
@@ -931,7 +1016,9 @@ async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, to: FileState
             .flatten();
     let mut from = current.as_deref().and_then(FileState::parse);
     let via = match (from, to) {
-        (Some(FileState::Queued), FileState::ParseFailed) => Some(FileState::Parsing),
+        (Some(FileState::Queued | FileState::Outdated), FileState::ParseFailed) => {
+            Some(FileState::Parsing)
+        }
         (Some(FileState::Parsed), FileState::ExtractPartial) => Some(FileState::Extracting),
         _ => None,
     };
@@ -965,6 +1052,166 @@ async fn fail_file(pool: &PgPool, file_id: &str, version_id: &str, to: FileState
         },
     )
     .await;
+}
+
+/// `parsing -> queued` for files whose parse job failed an attempt and waits
+/// for its backoff (job `queued` again with an error and `attempt > 0`): the
+/// state shows "waiting to retry" with the code, `retryable = true` (4.2).
+async fn requeue_retrying(pool: &PgPool) {
+    let rows: Vec<(String, String, String, i32)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text, j.last_error, j.attempt \
+           FROM _oo_docs.file f \
+           JOIN _oo_docs.job j ON j.kind = 'parse' AND j.file_id = f.id \
+                              AND j.version_id = f.current_version_id \
+          WHERE f.state = 'parsing' AND f.deleted_at IS NULL \
+            AND j.state = 'queued' AND j.attempt > 0 AND j.last_error IS NOT NULL \
+          LIMIT 200",
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    for (file_id, version_id, code, attempt) in rows {
+        let _ = state::transition(
+            pool,
+            &Transition {
+                file_id: &file_id,
+                expect_from: Some(FileState::Parsing),
+                to: FileState::Queued,
+                code: Some(&code),
+                retryable: true,
+                version_id: Some(&version_id),
+                attempt: Some(attempt),
+                detail_json: None,
+            },
+        )
+        .await;
+    }
+}
+
+/// Files whose result was made by an older parser or ruleset become
+/// `outdated`; the pump then reprocesses them at low priority and the old
+/// facts stay valid meanwhile (4.2, D23). Returns how many were marked.
+pub async fn mark_outdated(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text \
+           FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+          WHERE f.state IN ('published', 'extract_partial', 'parse_failed') AND f.deleted_at IS NULL \
+            AND fv.duplicate_of IS NULL \
+            AND EXISTS (SELECT 1 FROM _oo_docs.parse_result p WHERE p.b3 = fv.b3 \
+                         AND p.status = 'complete' AND p.parser_id IN ('oo-md', 'oo-text')) \
+            AND (NOT EXISTS (SELECT 1 FROM _oo_docs.parse_result p WHERE p.b3 = fv.b3 \
+                              AND p.status = 'complete' AND p.parser_id IN ('oo-md', 'oo-text') \
+                              AND p.parser_version = $1) \
+                 OR NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' \
+                                 AND j.version_id = fv.id AND j.state = 'succeeded' \
+                                 AND j.dedupe_key LIKE '%:' || $2 || '%')) \
+          ORDER BY f.id LIMIT 500",
+    )
+    .bind(LOCAL_PARSER_VERSION)
+    .bind(RULESET_VERSION)
+    .fetch_all(pool)
+    .await?;
+    let mut n = 0;
+    for (file_id, version_id) in rows {
+        let done = state::transition(
+            pool,
+            &Transition {
+                file_id: &file_id,
+                expect_from: None,
+                to: FileState::Outdated,
+                code: None,
+                retryable: false,
+                version_id: Some(&version_id),
+                attempt: None,
+                detail_json: None,
+            },
+        )
+        .await;
+        match done {
+            Ok(_) => n += 1,
+            Err(TransitionError::Conflict { .. } | TransitionError::NotFound) => {}
+            Err(TransitionError::Illegal { .. }) => {}
+            Err(TransitionError::Store(e)) => return Err(e),
+            Err(TransitionError::UnknownState(_)) => {}
+        }
+    }
+    Ok(n)
+}
+
+type RetryRow = (String, Option<String>, Option<String>, Option<String>, bool);
+
+/// What `retry_file` did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RetryResult {
+    /// The file is queued again.
+    Queued,
+    /// The file is not in a state a retry applies to.
+    NotRetryable(String),
+    /// No such file.
+    NotFound,
+}
+
+/// Manual retry (4.2): `parse_failed` and `extract_partial` go back to
+/// `queued` with the attempt counter cleared (a new job; the old failed or
+/// quarantined one stays as history) at the manual priority 50. `safe`
+/// asks for the degraded parser where the format has one; md and txt have
+/// none, so it behaves like `normal`.
+pub async fn retry_file(
+    pool: &PgPool,
+    file_id: &str,
+    _safe: bool,
+) -> Result<RetryResult, crate::store::StoreError> {
+    let mut tx = pool.begin().await?;
+    let row: Option<RetryRow> = sqlx::query_as(
+        "SELECT f.state, f.current_version_id::text, f.drive_id::text, \
+                (SELECT fv.b3 FROM _oo_docs.file_version fv WHERE fv.id = f.current_version_id), \
+                f.deleted_at IS NOT NULL \
+           FROM _oo_docs.file f WHERE f.id = $1::uuid FOR UPDATE",
+    )
+    .bind(file_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((state_text, version_id, drive_id, b3, deleted)) = row else {
+        return Ok(RetryResult::NotFound);
+    };
+    let b3 = b3.unwrap_or_default();
+    let (Some(version_id), Some(drive_id)) = (version_id, drive_id) else {
+        return Ok(RetryResult::NotRetryable(state_text));
+    };
+    if deleted || !matches!(state_text.as_str(), "parse_failed" | "extract_partial") {
+        return Ok(RetryResult::NotRetryable(state_text));
+    }
+    state::transition_in_tx(
+        &mut tx,
+        &Transition {
+            file_id,
+            expect_from: FileState::parse(&state_text),
+            to: FileState::Queued,
+            code: None,
+            retryable: false,
+            version_id: Some(&version_id),
+            attempt: None,
+            detail_json: Some("{\"manual\":true}"),
+        },
+    )
+    .await
+    .map_err(|e| match e {
+        TransitionError::Store(s) => s,
+        other => crate::store::StoreError::Protocol(other.to_string()),
+    })?;
+    let stamp: i64 =
+        sqlx::query_scalar("SELECT (extract(epoch FROM clock_timestamp()) * 1000000)::bigint")
+            .fetch_one(&mut *tx)
+            .await?;
+    let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}#m{stamp}");
+    let mut job = NewJob::new(JobKind::Parse, &key);
+    job.drive_id = Some(&drive_id);
+    job.file_id = Some(file_id);
+    job.version_id = Some(&version_id);
+    job.priority = 50;
+    store::enqueue(&mut tx, &job).await?;
+    tx.commit().await?;
+    Ok(RetryResult::Queued)
 }
 
 /// Run the pump until `stop` flips. `wake` is poked after every pass that
