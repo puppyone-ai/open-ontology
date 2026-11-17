@@ -236,6 +236,15 @@ async fn write_fp_columns(
 
 /// Run the state transitions of a plan (events are appended here).
 pub async fn apply_plan(conn: &mut PgConnection, plan: &VersionPlan) -> Result<(), IngestError> {
+    // A duplicate keeps its own evidence copy (4.7.1), written before the
+    // first transition so the version is complete when the event is seen.
+    if let (Some(from), Some(to), true) = (
+        plan.duplicate_of.as_deref(),
+        plan.version_id.as_deref(),
+        plan.tail.iter().any(|(s, _)| *s == FileState::Duplicate),
+    ) {
+        files::copy_evidence(conn, from, to).await?;
+    }
     if let Some(from) = plan.restart_from {
         files::restart_as_stored(conn, &plan.file_id, from, None).await?;
     }

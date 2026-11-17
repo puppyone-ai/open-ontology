@@ -1049,10 +1049,6 @@ async fn apply_rename(
         tx.rollback().await?;
         return Ok(false); // a hash job got there first: plain delete + add
     }
-    let Some(prepared) = files::prepare_delete(&mut tx, &old.id).await? else {
-        tx.rollback().await?;
-        return Ok(false);
-    };
     let finished = matches!(
         old.state.as_str(),
         "published" | "indexed" | "extract_partial"
@@ -1076,6 +1072,18 @@ async fn apply_rename(
         },
     )
     .await?;
+    // The evidence moves with the file: the new version gets its copy while
+    // the old rows are still live, then the old file is deleted, so facts
+    // keep live evidence and are not retracted by the withdrawal (4.3.5).
+    if let (Some(from), Some(to)) = (old.version_id.as_deref(), plan.version_id.as_deref())
+        && plan.duplicate_of.is_some()
+    {
+        files::copy_evidence(&mut tx, from, to).await?;
+    }
+    let Some(prepared) = files::prepare_delete(&mut tx, &old.id).await? else {
+        tx.rollback().await?;
+        return Ok(false);
+    };
     let detail = serde_json::json!({ "renamed_to": new.path }).to_string();
     files::finish_delete(&mut tx, &prepared, None, Some(&detail)).await?;
     apply_plan(&mut tx, &plan).await?;

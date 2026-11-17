@@ -385,7 +385,25 @@ pub async fn publish(
     .fetch_all(&mut *tx)
     .await?;
 
-    if ok_facts.is_empty() && ok_aliases.is_empty() && retractions.is_empty() {
+    // A duplicate (4.7.1) adds evidence but no fact: the version that follows
+    // it still has to exist, because a pack is a snapshot of the file
+    // versions live at its ontology version and must be able to see the path.
+    let uncovered_duplicate: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \
+           JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+          WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
+            AND fv.created_at > COALESCE((SELECT max(published_at) FROM _oo_docs.ontology_version), \
+                                         '-infinity'::timestamptz) \
+            AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
+                         WHERE e.version_id = fv.id AND e.withdrawn_at IS NULL))",
+    )
+    .fetch_one(&mut *tx)
+    .await?;
+    if ok_facts.is_empty()
+        && ok_aliases.is_empty()
+        && retractions.is_empty()
+        && !uncovered_duplicate
+    {
         tx.commit().await?;
         return Ok(PublishOutcome::NoChange {
             blocked_facts,

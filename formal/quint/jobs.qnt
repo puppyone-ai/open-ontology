@@ -1,10 +1,14 @@
-// formal: main=jobs inv=inv steps=40 verify-steps=10 witnesses="witSucceeded witCancelled witQuarantined witReclaimed witExhausted witBusyGiveBack" vinv="invLeaseShape invSingleLiveLease invGenerationMonotone invStaleRejected invTerminalAbsorbing invCancelTerminal invQuarantineAfterCrashes invNoLostJob invAtMostOnceSuccess"
+// formal: main=jobs inv=inv steps=40 verify-steps=10 witnesses="witSucceeded witCancelled witQuarantined witReclaimed witCapQuarantined witFailed witBusyGiveBack" vinv="invLeaseShape invSingleLiveLease invGenerationMonotone invStaleRejected invTerminalAbsorbing invCancelTerminal invCancelProvenance invQuarantineAfterCrashes invNoLostJob invAtMostOnceSuccess"
 // FM1: job lease protocol, as IMPLEMENTED by crates/oo-pipeline/migrations/0138
 // (_oo_docs.enqueue/claim/heartbeat/complete/fail/quarantine/retry/cancel/
 // ack_cancel/save_checkpoint). Spec 10 4.1, 80 3.1 FM1. Human notes, bounds
 // and the rule-by-rule mapping: formal/reviews/FM1.md.
 //
-// One job kind. Job index = dedupe key (the table has UNIQUE(dedupe_key)).
+// One job kind: the parse kind, the only one 10 4.1.6 quarantines. Its attempt
+// cap ends in `quarantined`, never `failed`: by crash, by a counted failure
+// (timeout, OOM) or by an expired lease at the cap (the SQL says so for
+// kind = 'parse'; other kinds fail at the cap and are not modelled here).
+// Job index = dedupe key (the table has UNIQUE(dedupe_key)).
 // Time is not a number: a lease is `live` (lease_until > now) or not; the
 // `expire` action is time passing. Retry delays are always 0 (a queued job is
 // always due); backoff values are not modelled (KP4 covers them).
@@ -32,6 +36,7 @@ module jobs {
   var rows: int -> int        // rows inserted per dedupe key
   var term: int -> str        // first terminal state reached ("" if none yet)
   var prevGen: int -> int     // generation before the last step
+  var cancelQueued: int -> bool  // history: cancel() hit this job while it was queued
   var lastOp: Op
   var lastRes: str
   var lastAccepted: bool      // the last op changed state under a live lease
@@ -50,7 +55,7 @@ module jobs {
   pure def reclaimOne(jb: Job): Job =
     if (jb.st == "running" and not(jb.live)) {
       if (jb.cancel) { ...jb, st: "cancelled", owner: NONE, live: false }
-      else if (jb.attempt >= MAX_ATTEMPTS) { ...jb, st: "failed", owner: NONE, live: false }
+      else if (jb.attempt >= MAX_ATTEMPTS) { ...jb, st: "quarantined", owner: NONE, live: false }
       else { ...jb, st: "queued", owner: NONE, live: false }
     } else jb
   pure def reclaimAll(m: int -> Job): int -> Job = JOBS.mapBy(i => reclaimOne(m.get(i)))
@@ -60,10 +65,9 @@ module jobs {
     val crash2 = jb.crash + (if (op.crash) 1 else 0)
     val attempt2 = if (op.cnt) jb.attempt else (if (jb.attempt - 1 > 0) jb.attempt - 1 else 0)
     if (not(valid(jb, op.w, op.g))) { job: jb, res: rejection(jb), acc: false }
-    else if (op.crash and (crash2 >= CRASH_LIMIT or jb.attempt >= MAX_ATTEMPTS))
+    // crash limit, or the attempt cap reached by a crash or by any counted failure: quarantine
+    else if ((op.crash and (crash2 >= CRASH_LIMIT or jb.attempt >= MAX_ATTEMPTS)) or (op.cnt and jb.attempt >= MAX_ATTEMPTS))
       { job: { ...jb, st: "quarantined", crash: crash2, owner: NONE, live: false }, res: "quarantined", acc: true }
-    else if (op.cnt and jb.attempt >= MAX_ATTEMPTS)
-      { job: { ...jb, st: "failed", crash: crash2, owner: NONE, live: false }, res: "exhausted", acc: true }
     else
       { job: { ...jb, st: "queued", attempt: attempt2, crash: crash2, owner: NONE, live: false }, res: "retry_scheduled", acc: true }
   }
@@ -136,6 +140,7 @@ module jobs {
     jobs' = JOBS.mapBy(i => ABSENT),
     successes' = JOBS.mapBy(i => 0),
     rows' = JOBS.mapBy(i => 0),
+    cancelQueued' = JOBS.mapBy(i => false),
     term' = JOBS.mapBy(i => ""),
     prevGen' = JOBS.mapBy(i => 0),
     lastOp' = NOOP,
@@ -170,6 +175,7 @@ module jobs {
       jobs' = o.jobs,
       successes' = if (kind == "complete" and o.acc) successes.set(j, successes.get(j) + 1) else successes,
       rows' = if (kind == "enqueue" and o.acc) rows.set(j, rows.get(j) + 1) else rows,
+      cancelQueued' = if (kind == "cancel" and cur.st == "queued") cancelQueued.set(j, true) else cancelQueued,
       term' = JOBS.mapBy(i => if (term.get(i) == "" and isTerm(o.jobs.get(i).st)) o.jobs.get(i).st else term.get(i)),
       prevGen' = JOBS.mapBy(i => jobs.get(i).gen),
       lastOp' = op,
@@ -196,6 +202,10 @@ module jobs {
   // terminal states are absorbing; cancelled in particular
   val invTerminalAbsorbing = JOBS.forall(i => term.get(i) != "" implies jobs.get(i).st == term.get(i))
   val invCancelTerminal = JOBS.forall(i => jobs.get(i).st == "cancelled" implies (term.get(i) == "cancelled" and jobs.get(i).owner == NONE))
+  // a job reaches `cancelled` only if cancel() found it queued or the cancel flag was set
+  // (mutation M3 of formal/reviews/FM1.md: ack_cancel ignoring the flag is caught here)
+  val invCancelProvenance = JOBS.forall(i =>
+    jobs.get(i).st == "cancelled" implies (cancelQueued.get(i) or jobs.get(i).cancel))
   // quarantine after CRASH_LIMIT crashes (or attempt cap with a crash)
   val invQuarantineAfterCrashes = JOBS.forall(i =>
     jobs.get(i).crash <= CRASH_LIMIT and (jobs.get(i).crash >= CRASH_LIMIT implies jobs.get(i).st == "quarantined"))
@@ -207,18 +217,23 @@ module jobs {
     (jb.st == "queued" implies jb.owner == NONE) and
     (jb.st == "running" implies jb.attempt >= 1)
   })
-  // at-most-once effect per dedupe key
+  // At most one accepted complete() per dedupe key. ROW LEVEL ONLY: it says the job row can
+  // reach `succeeded` once. It does not say a stage's product is committed once: that rests
+  // on 10 4.1.3 (job completion and products in one transaction), outside FM1.
   val invAtMostOnceSuccess = JOBS.forall(i =>
     successes.get(i) <= 1 and (successes.get(i) == 1) == (jobs.get(i).st == "succeeded"))
 
   val inv = invLeaseShape and invSingleLiveLease and invGenerationMonotone and invStaleRejected and
-            invTerminalAbsorbing and invCancelTerminal and invQuarantineAfterCrashes and invNoLostJob and invAtMostOnceSuccess
+            invTerminalAbsorbing and invCancelTerminal and invCancelProvenance and invQuarantineAfterCrashes and invNoLostJob and invAtMostOnceSuccess
 
   // ---- witnesses for `quint run --witnesses` (reachability, not safety) ----
   val witSucceeded = JOBS.exists(i => jobs.get(i).st == "succeeded")
   val witCancelled = JOBS.exists(i => jobs.get(i).st == "cancelled")
   val witQuarantined = JOBS.exists(i => jobs.get(i).st == "quarantined" and jobs.get(i).crash >= CRASH_LIMIT)
   val witReclaimed = JOBS.exists(i => jobs.get(i).gen >= 2 and jobs.get(i).st == "running")
-  val witExhausted = JOBS.exists(i => jobs.get(i).st == "failed" and jobs.get(i).attempt >= MAX_ATTEMPTS)
+  // quarantined by the attempt cap alone (fewer than CRASH_LIMIT crashes)
+  val witCapQuarantined = JOBS.exists(i => jobs.get(i).st == "quarantined" and jobs.get(i).crash < CRASH_LIMIT and jobs.get(i).attempt >= MAX_ATTEMPTS)
+  // `failed` only by an explicit fail(): a permanent error, never the cap
+  val witFailed = JOBS.exists(i => jobs.get(i).st == "failed")
   val witBusyGiveBack = lastRes == "retry_scheduled" and not(lastOp.cnt)
 }

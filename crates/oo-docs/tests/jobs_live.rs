@@ -1117,3 +1117,116 @@ async fn transition_writes_state_history_and_event_together() {
     pool.close().await;
     drop_db("oo_docs_jl_state").await;
 }
+
+/// 10 4.1.6: a parse job that reaches its attempt cap is quarantined, whether
+/// the last counted failure was a crash, a timeout or an expired lease; other
+/// kinds fail at the cap, and an explicit permanent failure stays `failed`.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn the_parse_attempt_cap_ends_in_quarantine() {
+    let name = "oo_docs_jl_cap_quarantine";
+    let _g = CLUSTER_LOCK.lock().await;
+    installed_db(name).await;
+    let mut rt = connect_runtime(name).await;
+    let mut admin = connect(name).await;
+    let owner = "host/1/aaaa";
+
+    // A counted, non crash failure (a timeout) at the cap.
+    let id = enqueue(&mut rt, JobKind::Parse, "parse:cap-timeout", Some(2)).await;
+    let first = claim_one(&mut rt, JobKind::Parse, owner).await;
+    let r = report_failure(
+        &mut rt,
+        &first,
+        owner,
+        FailureClass::Transient,
+        "DOCS_PARSE_TIMEOUT",
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status, JobStatus::RetryScheduled);
+    make_due(&mut admin, &id).await;
+    let second = claim_one(&mut rt, JobKind::Parse, owner).await;
+    assert_eq!(second.attempt, 2);
+    let r = report_failure(
+        &mut rt,
+        &second,
+        owner,
+        FailureClass::Transient,
+        "DOCS_PARSE_TIMEOUT",
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status, JobStatus::Quarantined, "attempt cap, no crash");
+    let dead = store::get(&mut rt, &id).await.unwrap().unwrap();
+    assert_eq!((dead.state.as_str(), dead.crash_count), ("quarantined", 0));
+    assert_eq!(dead.last_error.as_deref(), Some("DOCS_PARSE_TIMEOUT"));
+    // Terminal and absorbing.
+    assert_eq!(
+        store::complete(&mut rt, &id, owner, second.generation)
+            .await
+            .unwrap()
+            .status,
+        JobStatus::Terminal
+    );
+
+    // A lease that ends at the cap.
+    let id = enqueue(&mut rt, JobKind::Parse, "parse:cap-lease", Some(1)).await;
+    claim_one(&mut rt, JobKind::Parse, owner).await;
+    age_lease(&mut admin, &id).await;
+    assert!(
+        store::claim(&mut rt, &["parse"], owner, 5)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    let dead = store::get(&mut rt, &id).await.unwrap().unwrap();
+    assert_eq!(dead.state, "quarantined");
+    assert_eq!(
+        dead.last_error.as_deref(),
+        Some("lease_expired_attempt_cap")
+    );
+
+    // Below the cap an expired lease still just requeues.
+    let id = enqueue(&mut rt, JobKind::Parse, "parse:below", Some(3)).await;
+    claim_one(&mut rt, JobKind::Parse, owner).await;
+    age_lease(&mut admin, &id).await;
+    let again = claim_one(&mut rt, JobKind::Parse, owner).await;
+    assert_eq!((again.id.as_str(), again.attempt), (id.as_str(), 2));
+
+    // Other kinds fail at the cap, both ways.
+    let id = enqueue(&mut rt, JobKind::Hash, "hash:cap-timeout", Some(1)).await;
+    let job = claim_one(&mut rt, JobKind::Hash, owner).await;
+    let r = report_failure(
+        &mut rt,
+        &job,
+        owner,
+        FailureClass::Transient,
+        "DOCS_SOURCE_TIMEOUT",
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status, JobStatus::Exhausted);
+    assert_eq!(
+        store::get(&mut rt, &id).await.unwrap().unwrap().state,
+        "failed"
+    );
+
+    // An explicit permanent failure of a parse job is `failed`, not a poison pill.
+    let id = enqueue(&mut rt, JobKind::Parse, "parse:permanent", Some(3)).await;
+    let job = claim_one(&mut rt, JobKind::Parse, owner).await;
+    let r = report_failure(
+        &mut rt,
+        &job,
+        owner,
+        FailureClass::Permanent,
+        "DOCS_PARSE_ENCODING",
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status, JobStatus::Failed);
+    assert_eq!(
+        store::get(&mut rt, &id).await.unwrap().unwrap().state,
+        "failed"
+    );
+    drop_db(name).await;
+}
