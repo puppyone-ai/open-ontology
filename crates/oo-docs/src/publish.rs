@@ -9,6 +9,7 @@
 
 pub mod debounce;
 pub mod gates;
+pub mod hashes;
 pub mod run;
 pub mod write;
 
