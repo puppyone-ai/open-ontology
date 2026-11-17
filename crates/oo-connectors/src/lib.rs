@@ -53,6 +53,8 @@ pub mod mysql;
 pub mod opensearch;
 #[cfg(feature = "mysql")]
 pub use mysql::{mariadb, oceanbase, tidb};
+#[cfg(feature = "objectstore")]
+pub mod objectstore;
 #[cfg(feature = "olap")]
 pub mod olap;
 #[cfg(feature = "oracle")]
