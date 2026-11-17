@@ -47,3 +47,12 @@ interaction (FM1), the pump's rule that a poison blob fails every path carrying 
 with a poison hash be retried), the sidecar and media paths, per-version history beyond one file row, and 3 versions x 3
 files is the whole bound. `too_large`/`unsupported`/`encrypted` are reachable from any file regardless of
 size or sniff result (the model does not carry the cause).
+
+## CI bounds (card V-S1-01, time budget of 80 section 6)
+
+Per invariant on a loaded 16 core machine (see FM1.md). The md-subset model at 10 steps: invNoDeadEnd 74 s,
+invOnlyTableTransitions 82 s, invPublishedFromLatest 94 s, invDuplicateSameHash 215 s, invNoStaleOverwrite 1087 s (over
+12 minutes). The full model (this card) at 8 steps: invPublishedFromLatest 46 s, invNoDeadEnd 48 s,
+invOnlyTableTransitions 51 s, invDuplicateSameHash 111 s, invQuarantinePoison 142 s, invQuarantineShape 206 s,
+invNoStaleOverwrite 403 s. FAST bound `verify-steps=8`; nightly `deep-steps=10` (the full model at 10 steps is not
+measured).
