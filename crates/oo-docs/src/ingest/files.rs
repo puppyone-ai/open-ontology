@@ -368,6 +368,36 @@ pub async fn withdraw_evidence(
     Ok((ev, facts))
 }
 
+/// Give `to_version` its own copy of the live evidence of `from_version`
+/// (10 4.7.1): files with the same content share parse and extraction, but
+/// every path keeps its own evidence rows (same blocks, same targets), because
+/// visibility is decided per path (D26). Idempotent: a row the target already
+/// has for the same target and block is not copied again. Returns the number
+/// of rows added.
+pub async fn copy_evidence(
+    conn: &mut PgConnection,
+    from_version: &str,
+    to_version: &str,
+) -> Result<u64, IngestError> {
+    let done = sqlx::query(
+        "INSERT INTO _oo_docs.evidence \
+           (id, target_kind, target_id, version_id, b3, block_id, anchor, quote_b3, origin) \
+         SELECT gen_random_uuid(), e.target_kind, e.target_id, $2::uuid, e.b3, e.block_id, \
+                e.anchor, e.quote_b3, e.origin \
+           FROM _oo_docs.evidence e \
+          WHERE e.version_id = $1::uuid AND e.withdrawn_at IS NULL \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence x \
+                             WHERE x.version_id = $2::uuid AND x.target_kind = e.target_kind \
+                               AND x.target_id = e.target_id AND x.block_id = e.block_id \
+                               AND x.withdrawn_at IS NULL)",
+    )
+    .bind(from_version)
+    .bind(to_version)
+    .execute(&mut *conn)
+    .await?;
+    Ok(done.rows_affected())
+}
+
 /// A file locked and stamped for deletion; finish with [`finish_delete`].
 #[derive(Clone, Debug)]
 pub struct PreparedDelete {
