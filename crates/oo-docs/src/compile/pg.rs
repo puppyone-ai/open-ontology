@@ -15,8 +15,8 @@ use sqlx::PgConnection;
 
 use super::PackError;
 use super::reader::{
-    BlockText, BlockedInfo, DriveInfo, OntologyReader, RawAlias, RawEntity, RawEvidence, RawFact,
-    Scoped, SnapshotFile, VersionInfo, in_prefix,
+    BlockText, BlockedInfo, DriveInfo, OntologyReader, RawAlias, RawConflict, RawEntity,
+    RawEvidence, RawFact, Scoped, SnapshotFile, VersionInfo, in_prefix,
 };
 use crate::cas::{Cas, CasError, CasKind};
 use crate::extract::model::{EntityType, Predicate};
@@ -60,22 +60,70 @@ fn evidence(version_id: String, block_id: String, anchor: &str) -> Result<RawEvi
     })
 }
 
-async fn load_ir(conn: &mut PgConnection, cas: &Cas, b3: &str) -> Result<Option<DocIr>, PackError> {
-    let ir_b3: Option<String> = sqlx::query_scalar(
-        "SELECT ir_b3 FROM _oo_docs.parse_result \
-          WHERE b3 = $1 AND status = 'complete' AND ir_b3 IS NOT NULL \
-          ORDER BY finished_at DESC NULLS LAST, created_at DESC LIMIT 1",
+/// Block texts of immutable IRs by `ir_b3`: content addressed, so a cached
+/// entry never goes stale. Bounded; compiling is the hot path of every share.
+fn ir_cache() -> &'static std::sync::Mutex<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>> {
+    static C: std::sync::OnceLock<
+        std::sync::Mutex<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>>,
+    > = std::sync::OnceLock::new();
+    C.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))
+}
+
+const IR_CACHE_MAX: usize = 20_000;
+
+/// Block texts of the complete parse of every `b3` in one query and, for a
+/// miss, one CAS read: `b3 -> blocks`.
+async fn load_blocks(
+    conn: &mut PgConnection,
+    cas: &Cas,
+    b3s: &[String],
+) -> Result<BTreeMap<String, std::sync::Arc<Vec<BlockText>>>, PackError> {
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT ON (b3) b3, ir_b3 FROM _oo_docs.parse_result \
+          WHERE b3 = ANY($1::text[]) AND status = 'complete' AND ir_b3 IS NOT NULL \
+          ORDER BY b3, finished_at DESC NULLS LAST, created_at DESC",
     )
-    .bind(b3)
-    .fetch_optional(&mut *conn)
+    .bind(b3s)
+    .fetch_all(&mut *conn)
     .await
     .map_err(store)?;
-    let Some(ir_b3) = ir_b3 else { return Ok(None) };
-    match cas.get(CasKind::Ir, &ir_b3) {
-        Ok(bytes) => Ok(Some(serde_json::from_slice(&bytes).map_err(store)?)),
-        Err(CasError::NotFound) => Ok(None),
-        Err(e) => Err(store(e)),
+    let mut out = BTreeMap::new();
+    for (b3, ir_b3) in rows {
+        let hit = ir_cache()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&ir_b3)
+            .cloned();
+        let blocks = match hit {
+            Some(h) => h,
+            None => {
+                let bytes = match cas.get(CasKind::Ir, &ir_b3) {
+                    Ok(b) => b,
+                    Err(CasError::NotFound) => continue,
+                    Err(e) => return Err(store(e)),
+                };
+                let ir: DocIr = serde_json::from_slice(&bytes).map_err(store)?;
+                let list: std::sync::Arc<Vec<BlockText>> = std::sync::Arc::new(
+                    ir.blocks
+                        .iter()
+                        .map(|b| BlockText {
+                            block_id: b.id.clone(),
+                            ordinal: b.ordinal,
+                            text: b.text.clone(),
+                        })
+                        .collect(),
+                );
+                let mut c = ir_cache().lock().unwrap_or_else(|p| p.into_inner());
+                if c.len() >= IR_CACHE_MAX {
+                    c.clear();
+                }
+                c.insert(ir_b3, list.clone());
+                list
+            }
+        };
+        out.insert(b3, blocks);
     }
+    Ok(out)
 }
 
 impl PgReader {
@@ -269,19 +317,12 @@ impl PgReader {
         for f in &snapshot {
             by_b3.entry(&f.b3).or_default().push(&f.version_id);
         }
+        let b3_list: Vec<String> = by_b3.keys().map(|k| (*k).to_owned()).collect();
+        let loaded = load_blocks(conn, cas, &b3_list).await?;
         for (b3, vids) in by_b3 {
-            if let Some(ir) = load_ir(conn, cas, b3).await? {
-                let list: Vec<BlockText> = ir
-                    .blocks
-                    .iter()
-                    .map(|b| BlockText {
-                        block_id: b.id.clone(),
-                        ordinal: b.ordinal,
-                        text: b.text.clone(),
-                    })
-                    .collect();
+            if let Some(list) = loaded.get(b3) {
                 for v in vids {
-                    blocks.insert(v.to_owned(), list.clone());
+                    blocks.insert(v.to_owned(), list.as_ref().clone());
                 }
             }
         }
@@ -345,7 +386,111 @@ impl PgReader {
         .map_err(store)?;
         terms.extend(names.into_iter().map(|(t,)| t));
 
+        // Open constraint violations (16.7) on the entities of this scope. The
+        // sides are held-back facts: only their in-scope evidence is read.
+        let viol: Vec<(String, String, Vec<String>)> = sqlx::query_as(
+            "SELECT entity_key, constraint_id, fact_ids::text[] FROM _oo_docs.constraint_violation \
+              WHERE status = 'open' AND entity_key = ANY($1::text[]) ORDER BY entity_key, constraint_id",
+        )
+        .bind(&keys)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(store)?;
+        let side_ids: Vec<String> = viol.iter().flat_map(|v| v.2.iter().cloned()).collect();
+        type SideRow = (
+            String,
+            String,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        );
+        let side_rows: Vec<SideRow> = sqlx::query_as(
+            "SELECT f.id::text, f.fact_key, s.key, f.predicate, o.key, f.value::text, \
+                    f.valid_from::text, f.valid_to::text, f.origin, \
+                    e.version_id::text, e.block_id, e.anchor::text \
+               FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+               LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+               LEFT JOIN _oo_docs.evidence e ON e.target_kind = 'fact' AND e.target_id = f.id \
+                    AND e.withdrawn_at IS NULL AND e.version_id = ANY($2::text[]::uuid[]) \
+              WHERE f.id = ANY($1::text[]::uuid[]) \
+              ORDER BY f.fact_key, e.version_id, e.block_id",
+        )
+        .bind(&side_ids)
+        .bind(&scope_ids)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(store)?;
+        let mut sides: BTreeMap<String, RawFact> = BTreeMap::new();
+        for (
+            id,
+            fact_key,
+            subject,
+            predicate,
+            object,
+            value,
+            from,
+            to,
+            origin,
+            vid,
+            block,
+            anchor,
+        ) in side_rows
+        {
+            let slot = match sides.get_mut(&id) {
+                Some(f) => f,
+                None => {
+                    let predicate = Predicate::parse(&predicate)
+                        .ok_or(PackError::Store("unknown predicate in the store".into()))?;
+                    let value = match value {
+                        Some(v) => Some(serde_json::from_str(&v).map_err(store)?),
+                        None => None,
+                    };
+                    sides.entry(id.clone()).or_insert(RawFact {
+                        fact_key,
+                        subject_key: subject,
+                        predicate,
+                        object_key: object,
+                        value,
+                        valid_from: from,
+                        valid_to: to,
+                        origin,
+                        evidence: Vec::new(),
+                    })
+                }
+            };
+            if let (Some(vid), Some(block), Some(anchor)) = (vid, block, anchor) {
+                slot.evidence.push(evidence(vid, block, &anchor)?);
+            }
+        }
+        let conflicts: Vec<RawConflict> = viol
+            .into_iter()
+            .map(|(entity_key, constraint_id, ids)| {
+                let mut hidden = 0u32;
+                let mut list = Vec::new();
+                for id in ids {
+                    match sides.get(&id) {
+                        Some(f) if !f.evidence.is_empty() => list.push(f.clone()),
+                        _ => hidden += 1,
+                    }
+                }
+                RawConflict {
+                    entity_key,
+                    constraint_id,
+                    sides: list,
+                    hidden_sides: hidden,
+                }
+            })
+            .collect();
+
         let scoped = Scoped {
+            conflicts,
             snapshot,
             entities,
             aliases: aliases.into_values().collect(),

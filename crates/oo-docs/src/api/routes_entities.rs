@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 use sqlx::{PgConnection, Row};
 
 use super::error::ApiError;
-use super::http::{self, FMT, Query, is_uuid, json_with, parse_json};
+use super::http::{self, FMT, is_uuid, json_with, parse_json};
 use super::{AppState, Req, cursor};
 use crate::extract::model::{EntityRef, EntityType};
 use crate::resolve::exact::{Context, Via, rank};
@@ -112,27 +112,46 @@ pub struct AsOf {
     pub version: Option<(i64, String)>,
     /// `v<N>` was asked for (historic) rather than `latest`.
     pub historic: bool,
+    /// `(pack version, latest)` when a credential read `latest` while its
+    /// share is behind (`stale_vs_pack`, D61).
+    pub stale: Option<(i64, i64)>,
 }
 
-/// Parse `as_of` (`latest` or `v<N>`).
-pub async fn read_as_of(conn: &mut PgConnection, q: &Query) -> Result<AsOf, ApiError> {
-    let (sql, n) = match q.get("as_of").unwrap_or("latest") {
+/// Parse `as_of` (D61): `latest`, `v<N>` or `share`. Absent: a request that
+/// carries a share's refs credential reads the share's pinned version, any
+/// other reads the latest. `latest` with a credential whose share is behind
+/// sets `stale`.
+pub async fn read_as_of(conn: &mut PgConnection, req: &Req) -> Result<AsOf, ApiError> {
+    let cred = req.cred.as_ref();
+    let want = req
+        .query
+        .get("as_of")
+        .unwrap_or(if cred.is_some() { "share" } else { "latest" });
+    let (sql, n) = match want {
         "latest" => (
             "SELECT n, as_of::text FROM _oo_docs.ontology_version ORDER BY n DESC LIMIT 1",
             None,
         ),
         "share" => {
-            return Err(ApiError::bad(
-                "/query/as_of",
-                "as_of=share needs a refs credential",
-            ));
+            let c = cred.ok_or_else(|| {
+                ApiError::bad("/query/as_of", "as_of=share needs a refs credential")
+            })?;
+            (
+                "SELECT n, as_of::text FROM _oo_docs.ontology_version WHERE n = $1",
+                Some(c.version),
+            )
         }
         v => match v.strip_prefix('v').and_then(|n| n.parse::<i64>().ok()) {
             Some(n) if n >= 1 => (
                 "SELECT n, as_of::text FROM _oo_docs.ontology_version WHERE n = $1",
                 Some(n),
             ),
-            _ => return Err(ApiError::bad("/query/as_of", "expected latest or v<N>")),
+            _ => {
+                return Err(ApiError::bad(
+                    "/query/as_of",
+                    "expected latest, v<N> or share",
+                ));
+            }
         },
     };
     let mut query = sqlx::query_as::<_, (i64, String)>(sql);
@@ -143,10 +162,46 @@ pub async fn read_as_of(conn: &mut PgConnection, q: &Query) -> Result<AsOf, ApiE
     if version.is_none() && n.is_some() {
         return Err(ApiError::not_found("ontology version"));
     }
+    let stale = match (&version, cred, want) {
+        (Some((latest, _)), Some(c), "latest") if *latest != c.version => {
+            Some((c.version, *latest))
+        }
+        _ => None,
+    };
     Ok(AsOf {
         version,
         historic: n.is_some(),
+        stale,
     })
+}
+
+/// Keep only what a share's scope may see (D26): evidence outside the scope
+/// goes, a fact or alias with none left goes, and with nothing left the
+/// entity is not there.
+fn restrict_to_scope(entity: &mut Value, scope: &[String]) -> bool {
+    use crate::compile::reader::in_prefix;
+    let inside = |path: &str| scope.is_empty() || scope.iter().any(|p| in_prefix(path, p));
+    let keep = |list: &mut Value| {
+        let Some(items) = list.as_array_mut() else {
+            return;
+        };
+        for it in items.iter_mut() {
+            if let Some(ev) = it.get_mut("evidence").and_then(Value::as_array_mut) {
+                ev.retain(|e| e["path"].as_str().is_some_and(&inside));
+            }
+        }
+        items.retain(|it| it["evidence"].as_array().is_some_and(|e| !e.is_empty()));
+    };
+    for k in ["aliases", "facts", "history"] {
+        if let Some(list) = entity.get_mut(k) {
+            keep(list);
+        }
+    }
+    if let Some(files) = entity.get_mut("files").and_then(Value::as_array_mut) {
+        files.retain(|f| f.as_str().is_some_and(&inside));
+    }
+    let any = |k: &str| entity[k].as_array().is_some_and(|a| !a.is_empty());
+    any("aliases") || any("facts") || any("history")
 }
 
 fn like_escape(s: &str) -> String {
@@ -242,7 +297,7 @@ pub async fn detail(app: &Arc<AppState>, eid: &str, req: &Req) -> Result<Respons
         .get("include")
         .is_some_and(|v| v.split(',').any(|x| x == "history"));
     let mut conn = app.pool.acquire().await?;
-    let as_of = read_as_of(&mut conn, &req.query).await?;
+    let as_of = read_as_of(&mut conn, req).await?;
     let not_found = || ApiError::not_found("entity");
     // id or key; a key that was merged away goes through the redirect.
     let by_key = !is_uuid(eid);
@@ -375,6 +430,14 @@ pub async fn detail(app: &Arc<AppState>, eid: &str, req: &Req) -> Result<Respons
     .fetch_all(&mut *conn)
     .await?;
     entity["files"] = json!(files);
+    if let Some(c) = &req.cred
+        && !restrict_to_scope(&mut entity, &c.scope)
+    {
+        return Err(not_found());
+    }
+    if let Some((pack, latest)) = as_of.stale {
+        entity["stale_vs_pack"] = json!({"pack_version": pack, "latest_version": latest});
+    }
     let version_header = as_of
         .version
         .as_ref()
@@ -570,7 +633,7 @@ pub async fn versions(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, 
     let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
         "SELECT v.n, to_char(v.as_of, 'YYYY-MM-DD\"T\"00:00:00\"Z\"') AS as_of, v.facts_added, \
                 v.facts_retracted, to_char(v.published_at AT TIME ZONE 'UTC', {FMT}) AS published_at, \
-                v.covers_drive_rev, \
+                v.covers_drive_rev, (SELECT pinned_by FROM _oo_docs.ontology_version_pins pv WHERE pv.n = v.n) AS pinned_by, \
                 (SELECT COALESCE(jsonb_object_agg(g.gate_id, g.disposition), '{{}}'::jsonb)::text \
                    FROM _oo_docs.gate_report g WHERE g.n = v.n) AS gates \
            FROM _oo_docs.ontology_version v WHERE ($1::bigint IS NULL OR v.n < $1) \
@@ -592,7 +655,7 @@ pub async fn versions(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, 
             "gates": serde_json::from_str::<Value>(&r.try_get::<String, _>("gates")?).unwrap_or(Value::Null),
             "published_at": r.try_get::<String, _>("published_at")?,
             "covers_drive_rev": r.try_get::<i64, _>("covers_drive_rev")?,
-            "pinned_by": 0,
+            "pinned_by": r.try_get::<i64, _>("pinned_by")?,
         }));
     }
     let next = if rows.len() as i64 > limit {

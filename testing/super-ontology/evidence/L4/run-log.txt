@@ -1,0 +1,125 @@
+# Super Ontology L4 end to end, run c-s6-final
+$ docker run -d --name oo-l4-pg-c-s6-final --label oo.lane=super-ontology-be4 -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 docker.io/library/postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 -c track_commit_timestamp=on
+  f3c7ff5b5a7b06698f9539cf29e4f43dbef58df7a4bf791a762c1078529348ff
+[PASS] drive has the golden md/txt/csv files and the red-team md/txt/csv files - 27 files, 4 csv
+[PASS] schema installed by the engine installer (incl. 0145)
+[PASS] 0145 share tables exist
+$ <repo>/target/debug/oo serve --json --port 0 --state-dir /tmp/oo-l4-c-s6-final-xor04sqn/state
+  {"api_version": "1.0", "engine": {"images": {}, "mode": "host_process", "pid": 66056, "project": "host"}, "pid": 66055, "port": 62552, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-17T22:44:33Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+
+## Drive: `oo docs drive add`, every file published
+$ oo docs drive add --name l4-drive --root <tmp>/drive --json  -> exit 0
+[PASS] oo docs drive add exits 0 and returns the drive - exit 0
+[PASS] every md and txt file is published (csv is unsupported until lane B routes it) - 5.2s {"published": 23, "unsupported": 4}
+$ oo docs files ls --drive l4-drive --json  -> exit 0
+[PASS] oo docs files ls lists the files
+$ oo docs drive show l4-drive --json  -> exit 0
+[PASS] Drive.drive_rev and freshness.covers_drive_rev are in the Drive object - {"drive_rev": 27, "covers": 27}
+$ oo docs health --json  -> exit 0
+[PASS] oo docs health answers - exit 0 {"api_version": "1.0", "components": {"cas": {"status": "ok"}, "db": {"latency_ms": 0, "status": "ok"}, "engine": {"status": "ok"}, "model": {"status": "not_configured"}, "parser": {"detail": {"format
+$ oo docs usage --json  -> exit 0
+[PASS] oo docs usage answers
+
+## A2: red team, no canary and no red-team-only name in any pack of another scope
+[PASS] A2 mount of scope all-main exits 0 - exit 0
+[PASS] A2 mount of scope projects-only exits 0 - exit 0
+[PASS] A2 mount of scope people-and-prefs exits 0 - exit 0
+[PASS] A2 mount of scope decisions-only exits 0 - exit 0
+[PASS] A2 zero red-team hits in every file of every pack - 143 files scanned over 4 scopes, 0 hits
+
+## A3 provenance, A4 determinism
+$ oo context mount --to <tmp>/m1 --for 星图看板的决定 --budget 1200 --scope Decisions --scope Projects --scope People --json  -> exit 0
+[PASS] A4 mount m1 exits 0 - exit 0
+$ oo context mount --to <tmp>/m2 --for 星图看板的决定 --budget 1200 --scope Decisions --scope Projects --scope People --json  -> exit 0
+[PASS] A4 mount m2 exits 0 - exit 0
+[PASS] A4 same file set and every file but SHARE.json byte identical - 57 files
+[PASS] A4 SHARE.json equal without share id, times and refs
+[PASS] A4 pack_digest equal
+[PASS] D66 every generated .md starts with the AI label and carries AIGC front matter - 55 files
+[PASS] A3 BRIEF content lines all have [src: - 5 lines
+[PASS] A3 BRIEF header names coverage and the five promises
+[PASS] A3 every [src:] names a file of the scope and resolves to a block anchor of that file - 93 tags, 0 unresolved, 0 outside the scope
+[PASS] A5 compile p95 under 2 s on a 1000 file Drive, budget 800 (bench_compile) - p95 0.539s (release)
+
+## A7: expiry and revocation
+[PASS] A7 both credentials read a cited original while active
+$ oo context revoke <tmp>/rev --json  -> exit 0
+[PASS] A7 revoke deletes the local mount and says so - {"local_removed": true, "notice_code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE", "protocol": "oo.context-revoke/v1", "share_id": "9cd2a579-650a-4705-b552-46dcfbcd8335", "state": "revoked"}
+[PASS] A7 a revoked share's credential is dead (410)
+[PASS] A7 the daemon deleted the expired share's mount - 2.1s
+[PASS] A7 an expired share's credential is dead (410)
+$ oo context list --json  -> exit 0
+[PASS] A7 the list shows expired and revoked correctly - {"9cd2a579": "revoked", "9f757354": "expired", "61851dfb": "revoked", "b3605d19": "revoked", "b4a2bfe0": "revoked", "1a10e66c": "revoked"}
+$ oo context check --dir <tmp>/.context  -> exit 30
+[PASS] A7/A11 check on an expired share exits 30 - exit 30
+
+## A9 light drift, A10 rule-certain supersession
+$ oo context mount --to <tmp>/drift --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json  -> exit 0
+[PASS] A9 mount exits 0
+[PASS] A9 the share turned drifted with the new version - 6.3s from the drop to drifted
+[PASS] A9 drifted_at - published_at <= 5 s (same transaction) - 0.023 s
+$ oo context status <tmp>/drift --json  -> exit 0
+[PASS] A9 oo context status shows drifted with updates - {"state": "drifted", "updates": {"count": 2, "highest_level": "warn"}}
+[PASS] A9 the daemon appended UPDATES.md
+[PASS] A9 UPDATES.md has the AI label first and a warn entry for the superseded decision - 看板改用开源图表库 | - 「林远舟 决定 星图看板改用开源图表库」 已被取代，新值：「星图看板恢复自研图表引擎 取代了 星图看板改用开源图表库」。 | - 建议：提交前运行 `oo context check`，读完本条后用 `oo context refresh` 升级。 |  | ## #2 · v1 → v2 · info | - 范围内出现了 7 条新事实，不影响已用事实。 | - 仅供参考，不影响已用事实。 | 
+[PASS] A11 the pack bytes never change except UPDATES.md - changed: []
+$ oo context check --dir <tmp>/.context  -> exit 10
+[PASS] A11 check exits 10 for a warn - exit 10
+[PASS] A10 the old decision's facts were ended by the rule, without a person - 1 facts ended
+[PASS] A10 the queue has a supersede_in_use prompt (the old fact was in use by a live share) - 1 items
+$ oo docs review ls --status pending --json  -> exit 0
+[PASS] A10 oo docs review ls shows the prompt
+[PASS] A10 nothing needed a person for the rule-certain supersession itself
+$ oo context refresh <tmp>/drift --json  -> exit 0
+[PASS] A9 refresh gives a new active share and mounts it - {"protocol": "oo.context-refresh/v1", "shares": [{"mounted": true, "old": "0bcfb5ab-0fd1-44cc-88c7-6e265476dcb2", "path": "/tmp/oo-l4-c-s6-final-xor04sqn/drift/
+[PASS] A9 the directory holds the new share
+$ oo context check --dir <tmp>/.context  -> exit 0
+[PASS] A11 check exits 0 after the refresh - exit 0
+
+## A11: coverage, --require-complete, check, groups, corrections
+$ oo context mount --to <tmp>/cov --scope Notes --require-complete --wait 0s  -> exit 7
+[PASS] A11 --require-complete refuses a scope with a file still in the pipeline (exit 7) - file was stored; exit 7; oo context: the ontology does not cover every file of the scope yet (DOCS_PACK_COVERAGE_INCOMPLETE)
+[PASS] A11 nothing was mounted by the refused call
+$ oo context mount --to <tmp>/cov --scope Notes --require-complete --wait 20s --json  -> exit 0
+[PASS] A11 once processed, --require-complete succeeds
+[PASS] A11 BRIEF names the coverage in its header (all processed) - ['> 覆盖：4/4 个文件已处理']
+
+## A11/A12: P21 (two shares of one group, a used decision marked wrong)
+$ oo context mount --to <tmp>/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json  -> exit 0
+$ oo context mount --to <tmp>/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json  -> exit 0
+[PASS] A12 both group members mount
+[PASS] A11 same group, same ontology version
+$ oo context check --dir <tmp>/.context  -> exit 0
+[PASS] A12 check in agent-a is 0 before the decision is overturned - exit 0
+$ oo context check --dir <tmp>/.context  -> exit 0
+[PASS] A12 check in agent-b is 0 before the decision is overturned - exit 0
+$ oo context refresh <tmp>/agent-a  -> exit 8
+[PASS] A11 a group member cannot refresh alone (exit 8) - exit 8
+$ oo docs entity correct 7f64aa33-e91c-4586-9bf6-5b175d9c02c5 --mark-wrong --reason 决定被推翻 --entity decision:0fbf9e4d3057798344bc9e6c --json  -> exit 0
+[PASS] A12 oo docs entity correct --mark-wrong exits 0 - exit 0 {"confidence_bp": 9800, "evidence": [{"anchor": {"char_end": 69, "char_start": 0, "kind": "text", "line_end": 6, "line_start": 1}, "block_id": "blk_480274971f46b268d312", "file_id": "dc3edb3b-6857-4ca
+[PASS] A11 a block entry reached the share after the correction - 1.0s from the correction
+[PASS] A12 drifted within 5 s of the new version - 0.024 s
+[PASS] A12 UPDATES.md of agent-a got the block entry within 5 s of the daemon's next pass
+$ oo context check --dir <tmp>/.context  -> exit 20
+[PASS] A12 oo context check in agent-a exits 20 - exit 20
+[PASS] A12 check --json is oo.context-check/v1 with level block
+$ oo context check --dir <tmp>/.context  -> exit 20
+[PASS] A12 agent-b (did not use that decision's section) is told what its own pack used - exit 20
+$ oo context refresh --group TICKET-P21 --json  -> exit 0
+[PASS] A12 group refresh succeeds - {"protocol": "oo.context-refresh/v1", "shares": [{"mounted": true, "old": "07087dcc-9b3b-4705-affc-e19dc57127a5", "path": "/private/tmp/oo-l4-c-s6-final-xor04sqn/agent-a/.context", "share_id": "2780c2
+[PASS] A12 both members are on the same, newer version - v4
+$ oo context check --dir <tmp>/.context  -> exit 0
+[PASS] A12 check in agent-a is 0 after the group refresh - exit 0
+$ oo context check --dir <tmp>/.context  -> exit 0
+[PASS] A12 check in agent-b is 0 after the group refresh - exit 0
+[PASS] A12 the wrong fact is not in the new pack of agent-a
+[PASS] A12 the Drive's files are unchanged by the whole exercise
+$ oo context check --dir <tmp>/.context  -> exit 40
+[PASS] A11 check exits 40 when the engine cannot be reached (fail closed) - exit 40
+
+## A8: the end-to-end demonstration ran above: Drive -> files published -> mount -> BRIEF with sources -> drift -> refresh -> revoke
+$ oo docs share ls --json  -> exit 0
+[PASS] A8 oo docs share ls works as an alias of oo context list
+[PASS] A8 revoke removes every remaining mount
+
+# 71/71 checks passed

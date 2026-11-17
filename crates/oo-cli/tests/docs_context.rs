@@ -568,7 +568,15 @@ fn argument_errors_exit_2() {
     for bad in [
         &["mount"][..],
         &["mount", "--to", "/tmp", "--budget", "5"],
-        &["list"],
+        &["status"],
+        &["refresh"],
+        &["revoke"],
+        &["refresh", "x", "--group", "t"],
+        &["check", "--since", "x"],
+        &["list", "--status", "nope"],
+        &["mount", "--to", "/tmp", "--group", "bad group"],
+        &["mount", "--to", "/tmp", "--refresh-policy", "always"],
+        &["bogus"],
         &[],
     ] {
         assert_eq!(f.run(bad).status.code(), Some(2), "{bad:?}");

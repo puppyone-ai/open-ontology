@@ -214,14 +214,21 @@ async fn decision_supersession_candidates_and_shares_in_use() {
     .await;
     let ids = drafts(&mut fx).await;
     let r = reconcile(&mut fx.rt, &ids).await.unwrap();
-    assert!(r.ended.is_empty(), "{r:?}");
+    assert!(
+        !r.ended.is_empty(),
+        "the rule-certain cut runs even for a used fact: {r:?}"
+    );
     assert_eq!(r.held.len(), 1);
-    assert_eq!(r.held[0].reason, ReviewReason::SupersedeInUse);
     assert_eq!(
-        fx.scalar("SELECT count(*) FROM _oo_docs.fact WHERE valid_to IS NOT NULL")
-            .await,
-        0,
-        "nothing was cut"
+        r.held[0].reason,
+        ReviewReason::SupersedeInUse,
+        "one notice for a person"
+    );
+    assert!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.fact WHERE valid_to IS NOT NULL AND superseded_by IS NOT NULL")
+            .await
+            >= 1,
+        "the old fact was cut"
     );
     fx.finish(db).await;
 }

@@ -140,6 +140,80 @@ impl Cas {
         self.put_reader(kind, bytes)
     }
 
+    /// Write many small objects of one kind without one fsync round trip per
+    /// object. With `durable` every object and its directory are fsynced (by a
+    /// few threads) before this returns, the guarantee of [`Self::put`]. Without
+    /// it nothing is fsynced: for derived objects that can be rebuilt (packs),
+    /// where the full fsync of a laptop disk would cost seconds per compile. An
+    /// object that is there with the right size is left alone; one with the
+    /// wrong size (a torn write after a crash) is written again. Returns the
+    /// BLAKE3 of each item, in order.
+    pub fn put_batch(
+        &self,
+        kind: CasKind,
+        items: &[&[u8]],
+        durable: bool,
+    ) -> Result<Vec<String>, CasError> {
+        let mut out = Vec::with_capacity(items.len());
+        let mut todo: std::collections::BTreeMap<String, &[u8]> = std::collections::BTreeMap::new();
+        for bytes in items {
+            let b3 = blake3::hash(bytes).to_hex().to_string();
+            let whole = fs::metadata(self.abs(kind, &b3)?)
+                .is_ok_and(|m| m.is_file() && m.len() == bytes.len() as u64);
+            if !whole {
+                todo.insert(b3.clone(), bytes);
+            }
+            out.push(b3);
+        }
+        let mut synced: Vec<PathBuf> = Vec::new();
+        let mut dirs: std::collections::BTreeSet<PathBuf> = std::collections::BTreeSet::new();
+        for (b3, bytes) in &todo {
+            let dest = self.abs(kind, b3)?;
+            let parent = dest.parent().ok_or(CasError::Io("object has no parent"))?;
+            mkdir_all(parent)?;
+            let tmp = self.root.join("tmp").join(format!(
+                "{}-{}-{}.part",
+                std::process::id(),
+                TMP_SEQ.fetch_add(1, Ordering::Relaxed),
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_nanos())
+            ));
+            let mut f = create_excl(&tmp)?;
+            if let Err(e) = f.write_all(bytes) {
+                drop(f);
+                let _ = fs::remove_file(&tmp);
+                return Err(io("cannot write tmp")(e));
+            }
+            drop(f);
+            fs::rename(&tmp, &dest).map_err(io("cannot rename into place"))?;
+            dirs.insert(parent.to_path_buf());
+            synced.push(dest);
+        }
+        if !durable {
+            return Ok(out);
+        }
+        synced.extend(dirs);
+        let per = synced.len().div_ceil(8).max(1);
+        let failed = std::thread::scope(|s| {
+            let handles: Vec<_> = synced
+                .chunks(per)
+                .map(|chunk| {
+                    s.spawn(move || {
+                        chunk
+                            .iter()
+                            .any(|p| File::open(p).and_then(|f| f.sync_all()).is_err())
+                    })
+                })
+                .collect();
+            handles.into_iter().any(|h| h.join().unwrap_or(true))
+        });
+        if failed {
+            return Err(CasError::Io("cannot fsync batch"));
+        }
+        Ok(out)
+    }
+
     /// Stream a reader into the store (originals can be large).
     pub fn put_reader<R: Read>(&self, kind: CasKind, reader: R) -> Result<Put, CasError> {
         self.write_object(kind, reader, None)

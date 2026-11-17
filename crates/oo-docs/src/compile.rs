@@ -25,11 +25,14 @@ use self::reader::{DriveInfo, OntologyReader, VersionInfo};
 use self::visible::{BlockedCounts, VisibleGraph};
 
 pub mod brief;
+pub mod coverage;
+pub mod leakguard;
 pub mod pack;
 pub mod persist;
 pub mod pg;
 pub mod reader;
 pub mod render;
+pub mod sections;
 pub mod source;
 pub mod tokens;
 pub mod visible;
@@ -125,6 +128,9 @@ pub struct CompileRequest {
     pub role: String,
     /// `None` is the latest ontology version.
     pub version: Option<i64>,
+    /// Freshness coverage the store measured (D54); part of the parameters,
+    /// so a pack compiled under another coverage is another pack.
+    pub coverage: Option<coverage::Coverage>,
 }
 
 impl Default for CompileRequest {
@@ -136,6 +142,7 @@ impl Default for CompileRequest {
             budget: DEFAULT_BUDGET,
             role: "suggester".into(),
             version: None,
+            coverage: None,
         }
     }
 }
@@ -177,6 +184,13 @@ pub struct CompiledPack {
     pub seeds: Vec<String>,
     /// Precision at which each fact was used, for `share_fact_use`.
     pub uses: Vec<FactUse>,
+    /// `(section, fact_key, section_digest)` of every fact in every section
+    /// of the pack, for `share_section_use` (16.3).
+    pub section_uses: Vec<(String, String, String)>,
+    pub guarantees: coverage::Guarantees,
+    pub coverage: Option<coverage::Coverage>,
+    /// Entity keys with an open constraint violation visible in this pack.
+    pub conflict_entities: Vec<String>,
 }
 
 impl CompiledPack {
@@ -204,6 +218,7 @@ impl CompiledPack {
                 snapshot_sha256: &self.snapshot_sha256,
                 blocked_facts: self.blocked.facts,
                 blocked_entities: self.blocked.entities,
+                guarantees: self.guarantees,
             },
             fields,
         )
@@ -220,71 +235,6 @@ fn snapshot_digest(g: &VisibleGraph) -> String {
     rows.dedup();
     let v: Vec<Value> = rows.iter().map(|(p, b)| json!([p, b])).collect();
     pack::sha256_hex(oo_builder::canonical_json(&Value::Array(v)).as_bytes())
-}
-
-fn scan_text(s: &str) -> String {
-    s.nfkc().collect::<String>().to_lowercase()
-}
-
-/// DOC-G6: no blocked word may appear in any output byte unless the scope's
-/// own text says it. Returns the number of offending words (never the words).
-fn leak_guard(files: &[PackFile], terms: &[String], g: &VisibleGraph) -> usize {
-    let scope_text: Vec<String> = g.scope_texts().iter().map(|t| scan_text(t)).collect();
-    let outputs: Vec<String> = files.iter().map(|f| scan_text(f.as_str())).collect();
-    let mut hits = 0;
-    for term in terms {
-        let t = crate::resolve::normalize::norm(term);
-        if t.chars().count() < 2 {
-            continue;
-        }
-        if outputs.iter().any(|o| o.contains(&t)) && !scope_text.iter().any(|s| s.contains(&t)) {
-            hits += 1;
-        }
-    }
-    hits
-}
-
-/// DOC-G7: every content line (`- ...`) of BRIEF and of the entity files
-/// carries at least one tag, and every tag names in-scope evidence.
-fn provenance_gaps(files: &[PackFile], g: &VisibleGraph) -> usize {
-    let mut allowed: BTreeSet<(String, String)> = BTreeSet::new();
-    let mut add = |e: &visible::VisibleEvidence| {
-        allowed.insert((e.path.clone(), source::frag(&e.anchor)));
-    };
-    for f in g.facts() {
-        f.evidence.iter().for_each(&mut add);
-    }
-    for e in g.entities() {
-        for a in g.aliases(&e.key) {
-            a.evidence.iter().for_each(&mut add);
-        }
-    }
-    let mut bad = 0;
-    for f in files {
-        let checked = f.path == "BRIEF.md"
-            || f.path.starts_with("people/")
-            || f.path.starts_with("projects/")
-            || f.path.starts_with("decisions")
-            || f.path.starts_with("terms");
-        if !checked {
-            continue;
-        }
-        for line in f.as_str().lines().filter(|l| l.starts_with("- ")) {
-            let tags = source::tags_in(line);
-            let mut ok = !tags.is_empty() && !tags[0].starts_with('+');
-            for t in &tags {
-                if let Some(n) = t.strip_prefix('+') {
-                    ok &= n.parse::<u32>().is_ok();
-                } else {
-                    ok &= source::split_tag(t).is_some_and(|k| allowed.contains(&k));
-                }
-            }
-            if !ok {
-                bad += 1;
-            }
-        }
-    }
-    bad
 }
 
 /// Compile one pack. See the module docs for what is guaranteed.
@@ -354,6 +304,7 @@ pub(crate) fn compile_inner(
         "budget": req.budget,
         "role": req.role,
         "version": req.version,
+        "coverage": req.coverage.as_ref().map(coverage::Coverage::to_json),
         "compiler": COMPILER,
         "token_estimator": tokens::ESTIMATOR,
     });
@@ -375,7 +326,7 @@ pub(crate) fn compile_inner(
         .as_bytes(),
     );
 
-    let b = brief::build(
+    let mut b = brief::build(
         &g,
         &basis,
         &BriefParams {
@@ -383,8 +334,23 @@ pub(crate) fn compile_inner(
             seeds: &seeds,
             budget: req.budget,
             role: &req.role,
+            coverage: req.coverage.as_ref(),
         },
     )?;
+    {
+        // Facts that live only in the entity files are used too (16.3).
+        let have: BTreeSet<String> = b.uses.iter().map(|u| u.fact_key.clone()).collect();
+        for f in g.facts().filter(|f| !have.contains(&f.key)) {
+            b.uses.push(FactUse {
+                fact_key: f.key.clone(),
+                section: "detail",
+                precision: "full",
+            });
+        }
+        b.uses.sort_by(|a, c| a.fact_key.cmp(&c.fact_key));
+    }
+    let guarantees =
+        coverage::Guarantees::compute(req.coverage.as_ref(), !g.conflicts().is_empty());
     let brief_file = PackFile::text("BRIEF.md", b.text.clone());
     let mut cites = b.cites;
     let mut files = pack::build_files(&g, &basis, &brief_file, &mut cites)?;
@@ -394,14 +360,15 @@ pub(crate) fn compile_inner(
         t(&mut files);
     }
 
-    let gaps = provenance_gaps(&files, &g);
+    let gaps = leakguard::provenance_gaps(&files, &g);
     if gaps > 0 {
         return Err(PackError::ProvenanceGap { lines: gaps });
     }
-    let hits = leak_guard(&files, &blocked_terms, &g);
+    let hits = leakguard::leak_guard(&files, &blocked_terms, &g);
     if hits > 0 {
         return Err(PackError::LeakGuard { hits });
     }
+    let section_uses = sections::uses(&g, &files, &b.uses);
     let total: usize = files.iter().map(|f| f.bytes.len()).sum();
     if total > pack::MAX_PACK_BYTES {
         return Err(PackError::TooLarge);
@@ -432,6 +399,8 @@ pub(crate) fn compile_inner(
             trimmed,
             blocked_facts: blocked.facts,
             blocked_entities: blocked.entities,
+            guarantees,
+            coverage: req.coverage.as_ref(),
         },
     );
     let mut text = oo_builder::canonical_json(&manifest);
@@ -457,5 +426,9 @@ pub(crate) fn compile_inner(
         brief_tokens: b.tokens,
         seeds: b.seeds,
         uses: b.uses,
+        section_uses,
+        guarantees,
+        coverage: req.coverage.clone(),
+        conflict_entities: g.conflicts().iter().map(|c| c.entity_key.clone()).collect(),
     })
 }

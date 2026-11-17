@@ -714,6 +714,8 @@ pub async fn publish(
         .to_string(),
     )
     .await?;
+    // Shares that used a fact this version retracted or superseded (D50, D55).
+    crate::share::drift::apply(&mut tx, n).await?;
     tx.commit().await?;
 
     Ok(PublishOutcome::Published(PublishedVersion {

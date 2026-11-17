@@ -74,6 +74,17 @@ pub struct VisibleAlias {
     pub evidence: Vec<VisibleEvidence>,
 }
 
+/// An open constraint violation, reduced to what the scope may see.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VisibleConflict {
+    pub entity_key: String,
+    pub constraint_id: String,
+    /// Held-back facts with in-scope evidence, ordered by fact key.
+    pub sides: Vec<VisibleFact>,
+    /// Sides the scope cannot see (a count, nothing else).
+    pub hidden_sides: u32,
+}
+
 pub struct VisibleGraph {
     version: VersionInfo,
     scope: Vec<String>,
@@ -84,6 +95,7 @@ pub struct VisibleGraph {
     by_entity: BTreeMap<String, Vec<usize>>,
     blocks: BTreeMap<String, Vec<(u32, String, String)>>,
     blocked: BlockedCounts,
+    conflicts: Vec<VisibleConflict>,
 }
 
 fn sort_evidence(v: &mut Vec<VisibleEvidence>) {
@@ -111,6 +123,7 @@ impl VisibleGraph {
             facts,
             blocks,
             blocked,
+            conflicts,
         } = s;
         let path_of: BTreeMap<&str, &str> = snapshot
             .iter()
@@ -233,6 +246,48 @@ impl VisibleGraph {
                 )
             })
             .collect();
+        let mut vis_conflicts: Vec<VisibleConflict> = Vec::new();
+        for c in conflicts {
+            if !ents.contains_key(&c.entity_key) {
+                continue;
+            }
+            let mut hidden = c.hidden_sides;
+            let mut sides: Vec<VisibleFact> = Vec::new();
+            for f in c.sides {
+                let evidence = visible_ev(&f.evidence);
+                let ends_known = ents.contains_key(&f.subject_key)
+                    && f.object_key.as_ref().is_none_or(|o| ents.contains_key(o));
+                if evidence.is_empty() || !ends_known {
+                    hidden += 1;
+                    continue;
+                }
+                sides.push(VisibleFact {
+                    key: f.fact_key,
+                    subject: f.subject_key,
+                    predicate: f.predicate,
+                    object: f.object_key,
+                    value: f.value,
+                    valid_from: f.valid_from,
+                    valid_to: f.valid_to,
+                    origin: f.origin,
+                    evidence,
+                });
+            }
+            sides.sort_by(|a, b| a.key.cmp(&b.key));
+            sides.dedup_by(|a, b| a.key == b.key);
+            if sides.is_empty() {
+                continue;
+            }
+            vis_conflicts.push(VisibleConflict {
+                entity_key: c.entity_key,
+                constraint_id: c.constraint_id,
+                sides,
+                hidden_sides: hidden,
+            });
+        }
+        vis_conflicts.sort_by(|a, b| {
+            (&a.entity_key, &a.constraint_id).cmp(&(&b.entity_key, &b.constraint_id))
+        });
         let mut terms = blocked.terms;
         terms.sort();
         terms.dedup();
@@ -250,9 +305,15 @@ impl VisibleGraph {
                     facts: blocked.facts,
                     entities: blocked.entities,
                 },
+                conflicts: vis_conflicts,
             },
             terms,
         )
+    }
+
+    /// Open constraint violations on visible entities (10 §16.7).
+    pub fn conflicts(&self) -> &[VisibleConflict] {
+        &self.conflicts
     }
 
     pub fn version(&self) -> &VersionInfo {

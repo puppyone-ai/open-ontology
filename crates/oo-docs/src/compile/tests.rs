@@ -1297,3 +1297,125 @@ fn renderers_do_not_touch_the_store() {
         );
     }
 }
+
+// ------------------------------------------- consistency (S6, 10 §16) -----
+
+fn conflict_world() -> (MemoryReader, String) {
+    let mut r = scope_world();
+    let in_a = |e: &RawEvidence| {
+        r.files
+            .iter()
+            .any(|f| f.file.version_id == e.version_id && f.file.path == "a/one.txt")
+    };
+    let (raw, key) = r
+        .facts
+        .iter()
+        .filter(|f| f.fact.object_key.is_some())
+        .find_map(|f| {
+            let ev: Vec<RawEvidence> = f
+                .evidence
+                .iter()
+                .map(|e| e.evidence.clone())
+                .filter(|e| in_a(e))
+                .collect();
+            (!ev.is_empty()).then(|| {
+                let mut raw = f.fact.clone();
+                raw.evidence = ev;
+                let k = raw.subject_key.clone();
+                (raw, k)
+            })
+        })
+        .unwrap();
+    r.conflicts.push(RawConflict {
+        entity_key: key.clone(),
+        constraint_id: "project_single_owner".into(),
+        sides: vec![raw],
+        hidden_sides: 1,
+    });
+    (r, key)
+}
+
+#[test]
+fn open_conflicts_are_worded_with_sources_and_flip_the_guarantee() {
+    let (r, _) = conflict_world();
+    let p = compile(&r, &req(&["a"], "李甲")).unwrap();
+    let b = brief(&p);
+    let line = b
+        .lines()
+        .find(|l| l.starts_with("- 冲突未决：李甲"))
+        .unwrap_or_else(|| panic!("{b}"));
+    assert!(line.contains("[src:a/one.txt"), "{line}");
+    assert!(line.contains("（另有 1 方来源不在共享范围内）"), "{line}");
+    assert!(!p.guarantees.constraint_free);
+    assert_eq!(p.manifest["guarantees"]["constraint_free"], false);
+    assert_eq!(p.conflict_entities.len(), 1);
+    // The other side's file never shows.
+    assert!(p.files.iter().all(|f| !f.as_str().contains("b/two.txt")));
+    // A scope without the entity has no conflict and keeps the promise.
+    let none = compile(&r, &req(&["b"], "")).unwrap();
+    assert!(none.guarantees.constraint_free || !none.conflict_entities.is_empty());
+}
+
+#[test]
+fn coverage_is_in_the_brief_manifest_and_parameters() {
+    let r = scope_world();
+    let mut q = req(&["a"], "李甲");
+    let plain = compile(&r, &q).unwrap();
+    q.coverage = Some(coverage::Coverage {
+        drive_rev: 9,
+        covered_rev: 7,
+        in_scope: 2,
+        processed: 1,
+        pending: vec![("a/new.pdf".into(), "parsing".into())],
+        failed: vec![],
+    });
+    let p = compile(&r, &q).unwrap();
+    let b = brief(&p);
+    assert!(
+        b.contains("> 覆盖：1/2 个文件已处理；未完成 1 个（a/new.pdf 解析中）"),
+        "{b}"
+    );
+    assert!(b.contains("新鲜度下界 否"));
+    assert_eq!(p.manifest["coverage"]["covered_rev"], 7);
+    assert_eq!(p.manifest["guarantees"]["freshness_floor"], false);
+    assert_ne!(p.params_sha256, plain.params_sha256);
+    assert_ne!(p.pack_digest, plain.pack_digest);
+    // Same coverage twice: same bytes.
+    let again = compile(&r, &q).unwrap();
+    assert_eq!(p.pack_digest, again.pack_digest);
+}
+
+#[test]
+fn manifest_lists_section_digests_and_uses_cover_every_visible_fact() {
+    let r = scope_world();
+    let p = compile(&r, &req(&[], "李甲")).unwrap();
+    let files = p.manifest["files"].as_array().unwrap();
+    for f in files {
+        let path = f["path"].as_str().unwrap();
+        assert_eq!(
+            f.get("section_digests").is_some(),
+            path.ends_with(".md"),
+            "{path}"
+        );
+    }
+    let brief_file = files.iter().find(|f| f["path"] == "BRIEF.md").unwrap();
+    assert!(brief_file["section_digests"]["当前状态与决定"].is_string());
+    let (g, _) = visible::VisibleGraph::load(&r, &r.latest_version().unwrap(), &[]).unwrap();
+    for f in g.facts() {
+        assert!(
+            p.uses.iter().any(|u| u.fact_key == f.key),
+            "fact {} has no use record",
+            f.key
+        );
+        assert!(
+            p.section_uses
+                .iter()
+                .any(|(_, k, d)| *k == f.key && d.len() == 64),
+            "fact {} has no section use",
+            f.key
+        );
+    }
+    // Digests are stable across compiles.
+    let again = compile(&r, &req(&[], "李甲")).unwrap();
+    assert_eq!(p.section_uses, again.section_uses);
+}

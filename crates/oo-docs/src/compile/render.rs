@@ -220,6 +220,36 @@ pub fn src_tags(evs: &[VisibleEvidence], cites: &mut Cites) -> String {
     parts.join(" ")
 }
 
+/// `- 冲突未决：<实体>：甲 [src] vs 乙 [src]` for each open conflict (10 §16.7).
+/// The sides are shown only with in-scope evidence; the rest is a count.
+pub fn conflict_lines(
+    g: &VisibleGraph,
+    conflicts: &[&super::visible::VisibleConflict],
+    cites: &mut Cites,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for c in conflicts {
+        let name = g.entity(&c.entity_key).map_or("", |e| e.name.as_str());
+        let sides: Vec<String> = c
+            .sides
+            .iter()
+            .map(|s| {
+                format!(
+                    "{} {}",
+                    fact_text(g, s, false),
+                    src_tags(&s.evidence, cites)
+                )
+            })
+            .collect();
+        let mut line = format!("- 冲突未决：{name}：{}", sides.join(" vs "));
+        if c.hidden_sides > 0 {
+            line.push_str(&format!("（另有 {} 方来源不在共享范围内）", c.hidden_sides));
+        }
+        out.push(line);
+    }
+    out
+}
+
 /// Only the first evidence (summary and title lines).
 pub fn first_src(evs: &[VisibleEvidence], cites: &mut Cites) -> String {
     match evs.first() {

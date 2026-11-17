@@ -77,6 +77,17 @@ pub struct RawFact {
     pub evidence: Vec<RawEvidence>,
 }
 
+/// An open integrity-constraint violation (10 §16.7) on one entity. Each side
+/// is a held-back fact; only the evidence inside the scope is attached, the
+/// sides without any are counted in `hidden_sides`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RawConflict {
+    pub entity_key: String,
+    pub constraint_id: String,
+    pub sides: Vec<RawFact>,
+    pub hidden_sides: u32,
+}
+
 /// Text of one IR block, for refs snippets and the leak guard.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockText {
@@ -105,6 +116,8 @@ pub struct Scoped {
     /// Blocks of the snapshot's file versions, by file version id.
     pub blocks: BTreeMap<String, Vec<BlockText>>,
     pub blocked: BlockedInfo,
+    /// Open constraint violations on entities of this scope.
+    pub conflicts: Vec<RawConflict>,
 }
 
 pub trait OntologyReader {
@@ -168,6 +181,7 @@ pub struct MemoryReader {
     pub aliases: Vec<MemAlias>,
     pub facts: Vec<MemFact>,
     pub blocks: BTreeMap<String, Vec<BlockText>>,
+    pub conflicts: Vec<RawConflict>,
 }
 
 fn live_at(since: i64, until: Option<i64>, n: i64) -> bool {
@@ -328,6 +342,7 @@ impl OntologyReader for MemoryReader {
                 entities: blocked_only.len() as u64,
                 terms: terms.into_iter().collect(),
             },
+            conflicts: self.conflicts.clone(),
         })
     }
 }

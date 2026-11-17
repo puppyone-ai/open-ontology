@@ -233,6 +233,29 @@ const DROP: [&str; 9] = [
     "x-oo-public-host",
 ];
 
+/// A refs credential (`oodr_...`) on a path the engine lets a credential call:
+/// the proxy forwards it untouched and the engine authenticates it (10 §7.8).
+pub fn credential_call(head: &Head) -> bool {
+    let bearer = head
+        .header("authorization")
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(str::trim)
+        .unwrap_or("");
+    if !bearer.starts_with("oodr_") {
+        return false;
+    }
+    let p = head.path();
+    let segs: Vec<&str> = p.trim_start_matches('/').split('/').collect();
+    match (head.method.as_str(), segs.as_slice()) {
+        ("GET", ["v1", "docs", "refs", _]) => true,
+        ("POST", ["v1", "docs", "shares", last]) => last.ends_with(":check"),
+        ("GET", ["v1", "docs", "shares", _, "updates"]) => true,
+        ("GET", ["v1", "docs", "shares", _]) => true,
+        ("GET", ["v1", "docs", "entities", _]) => true,
+        _ => false,
+    }
+}
+
 /// The request to send to the engine.
 pub fn upstream_request(
     head: &Head,
@@ -243,7 +266,10 @@ pub fn upstream_request(
     let mut out = format!("{} {} HTTP/1.1\r\n", head.method, head.target).into_bytes();
     let mut put = |k: &str, v: &str| out.extend_from_slice(format!("{k}: {v}\r\n").as_bytes());
     put("host", &engine.to_string());
-    put("authorization", &format!("Bearer {}", cfg.engine_token));
+    match head.header("authorization") {
+        Some(h) if credential_call(head) => put("authorization", h),
+        _ => put("authorization", &format!("Bearer {}", cfg.engine_token)),
+    }
     put("x-oo-public-host", &format!("127.0.0.1:{}", cfg.port));
     put("connection", "close");
     for (k, v) in &head.headers {
@@ -318,7 +344,7 @@ async fn serve_one(
             b"HTTP/1.1 204 No Content\r\noo-docs-api: 1.0\r\nconnection: close\r\n\r\n".to_vec(),
         );
     }
-    if !token_ok(head.header("authorization"), &cfg.token_sha256) {
+    if !token_ok(head.header("authorization"), &cfg.token_sha256) && !credential_call(&head) {
         return Err(error(
             401,
             "DOCS_ENGINE_UNAUTHENTICATED",

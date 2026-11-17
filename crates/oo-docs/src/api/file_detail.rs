@@ -569,7 +569,7 @@ pub fn parse_range(header: Option<&str>, len: u64) -> RangeSpec {
     }
 }
 
-fn content_type(format: Option<&str>) -> &'static str {
+pub(crate) fn content_type(format: Option<&str>) -> &'static str {
     match format {
         Some("md") => "text/markdown; charset=utf-8",
         Some("txt") | Some("csv") => "text/plain; charset=utf-8",

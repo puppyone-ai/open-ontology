@@ -35,6 +35,8 @@ use crate::resolve::normalize::norm;
 
 /// Maximum "可能指的是" lines.
 pub const MAX_MAYBE: usize = 5;
+/// Most "冲突未决" lines in BRIEF; the rest are in the entity files.
+pub const MAX_CONFLICTS: usize = 5;
 /// Longest task, in characters.
 pub const MAX_TASK_CHARS: usize = 2000;
 
@@ -112,6 +114,7 @@ pub struct BriefParams<'a> {
     pub seeds: &'a [String],
     pub budget: u32,
     pub role: &'a str,
+    pub coverage: Option<&'a super::coverage::Coverage>,
 }
 
 pub struct Brief {
@@ -468,9 +471,16 @@ impl Frame<'_> {
                 v.n, v.as_of, scope, used, self.p.budget, self.p.role
             ),
             "> 每行末尾的 [src:路径#位置] 是出处；原文片段见 refs/，清单见 INDEX.md。".into(),
-            String::new(),
-            "## 你在做什么".into(),
         ];
+        if let Some(c) = self.p.coverage {
+            body.push(format!("> {}", c.brief_line()));
+        }
+        body.push(format!(
+            "> {}",
+            super::coverage::Guarantees::compute(self.p.coverage, !self.g.conflicts().is_empty())
+                .brief_line()
+        ));
+        body.extend([String::new(), "## 你在做什么".into()]);
         if self.p.task.trim().is_empty() {
             body.push("> （未指定任务）".into());
         } else {
@@ -509,7 +519,12 @@ impl Frame<'_> {
             body.push(String::new());
             body.push(format!("## {}", sec.title()));
             let items: Vec<&Entry> = entries.iter().filter(|e| e.sec == sec).collect();
-            let lines = render_section(&items, cites);
+            let mut lines = Vec::new();
+            if sec == Sec::State {
+                let all: Vec<_> = self.g.conflicts().iter().take(MAX_CONFLICTS).collect();
+                lines.extend(super::render::conflict_lines(self.g, &all, cites));
+            }
+            lines.extend(render_section(&items, cites));
             if lines.is_empty() {
                 body.push("（无）".into());
             }
