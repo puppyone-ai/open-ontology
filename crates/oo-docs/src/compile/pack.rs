@@ -112,6 +112,12 @@ fn entity_section(
             src_tags(&f.evidence, cites)
         ));
     }
+    let mine: Vec<_> = g
+        .conflicts()
+        .iter()
+        .filter(|c| c.entity_key == e.key)
+        .collect();
+    out.extend(super::render::conflict_lines(g, &mine, cites));
     for a in g.aliases(&e.key) {
         out.push(format!(
             "- 别名 {} {}",
@@ -267,6 +273,8 @@ pub struct ManifestInput<'a> {
     pub trimmed: Value,
     pub blocked_facts: u64,
     pub blocked_entities: u64,
+    pub guarantees: super::coverage::Guarantees,
+    pub coverage: Option<&'a super::coverage::Coverage>,
 }
 
 /// `manifest.json` value and the pack digest (`sha256(canonical(manifest))`).
@@ -277,15 +285,19 @@ pub fn manifest(files: &[PackFile], m: &ManifestInput<'_>) -> (Value, String) {
     let list: Vec<Value> = sorted
         .iter()
         .map(|f| {
-            json!({
+            let mut v = json!({
                 "path": f.path,
                 "sha256": sha256_hex(&f.bytes),
                 "bytes": f.bytes.len(),
                 "tokens": f.tokens,
-            })
+            });
+            if f.path.ends_with(".md") {
+                v["section_digests"] = json!(super::sections::section_digests(f.as_str()));
+            }
+            v
         })
         .collect();
-    let manifest = json!({
+    let mut manifest = json!({
         "protocol": "oo.context-pack.manifest/v1",
         "compiler": m.compiler,
         "token_estimator": tokens::ESTIMATOR,
@@ -297,8 +309,12 @@ pub fn manifest(files: &[PackFile], m: &ManifestInput<'_>) -> (Value, String) {
         "files": list,
         "trimmed": m.trimmed,
         "blocked": {"facts": m.blocked_facts, "entities": m.blocked_entities},
+        "guarantees": m.guarantees.to_json(),
         "aigc": aigc_object(m.basis, &format!("{}/manifest.json", m.basis)),
     });
+    if let Some(c) = m.coverage {
+        manifest["coverage"] = c.to_json();
+    }
     let digest = sha256_hex(oo_builder::canonical_json(&manifest).as_bytes());
     (manifest, digest)
 }
@@ -330,6 +346,7 @@ pub struct ShareInput<'a> {
     pub snapshot_sha256: &'a str,
     pub blocked_facts: u64,
     pub blocked_entities: u64,
+    pub guarantees: super::coverage::Guarantees,
 }
 
 /// `SHARE.json` (`oo.context-pack.share/v1`) as canonical JSON plus `\n`.
@@ -348,6 +365,7 @@ pub fn share_json(s: &ShareInput<'_>, f: &ShareFields) -> PackFile {
         "expires_at": f.expires_at,
         "grantor": f.grantor,
         "blocked": {"facts": s.blocked_facts, "entities": s.blocked_entities},
+        "guarantees": s.guarantees.to_json(),
         "refs": {"endpoint": f.refs_endpoint, "credential": f.refs_credential, "expires_at": f.refs_expires_at},
         "notice": "撤销后本目录会被删除；已读取的内容无法收回。",
         "aigc": aigc_object(s.pack_digest, &format!("{}/SHARE.json", s.basis)),

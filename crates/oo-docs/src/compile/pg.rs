@@ -15,8 +15,8 @@ use sqlx::PgConnection;
 
 use super::PackError;
 use super::reader::{
-    BlockText, BlockedInfo, DriveInfo, OntologyReader, RawAlias, RawEntity, RawEvidence, RawFact,
-    Scoped, SnapshotFile, VersionInfo, in_prefix,
+    BlockText, BlockedInfo, DriveInfo, OntologyReader, RawAlias, RawConflict, RawEntity,
+    RawEvidence, RawFact, Scoped, SnapshotFile, VersionInfo, in_prefix,
 };
 use crate::cas::{Cas, CasError, CasKind};
 use crate::extract::model::{EntityType, Predicate};
@@ -345,7 +345,111 @@ impl PgReader {
         .map_err(store)?;
         terms.extend(names.into_iter().map(|(t,)| t));
 
+        // Open constraint violations (16.7) on the entities of this scope. The
+        // sides are held-back facts: only their in-scope evidence is read.
+        let viol: Vec<(String, String, Vec<String>)> = sqlx::query_as(
+            "SELECT entity_key, constraint_id, fact_ids::text[] FROM _oo_docs.constraint_violation \
+              WHERE status = 'open' AND entity_key = ANY($1::text[]) ORDER BY entity_key, constraint_id",
+        )
+        .bind(&keys)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(store)?;
+        let side_ids: Vec<String> = viol.iter().flat_map(|v| v.2.iter().cloned()).collect();
+        type SideRow = (
+            String,
+            String,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        );
+        let side_rows: Vec<SideRow> = sqlx::query_as(
+            "SELECT f.id::text, f.fact_key, s.key, f.predicate, o.key, f.value::text, \
+                    f.valid_from::text, f.valid_to::text, f.origin, \
+                    e.version_id::text, e.block_id, e.anchor::text \
+               FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+               LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+               LEFT JOIN _oo_docs.evidence e ON e.target_kind = 'fact' AND e.target_id = f.id \
+                    AND e.withdrawn_at IS NULL AND e.version_id = ANY($2::text[]::uuid[]) \
+              WHERE f.id = ANY($1::text[]::uuid[]) \
+              ORDER BY f.fact_key, e.version_id, e.block_id",
+        )
+        .bind(&side_ids)
+        .bind(&scope_ids)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(store)?;
+        let mut sides: BTreeMap<String, RawFact> = BTreeMap::new();
+        for (
+            id,
+            fact_key,
+            subject,
+            predicate,
+            object,
+            value,
+            from,
+            to,
+            origin,
+            vid,
+            block,
+            anchor,
+        ) in side_rows
+        {
+            let slot = match sides.get_mut(&id) {
+                Some(f) => f,
+                None => {
+                    let predicate = Predicate::parse(&predicate)
+                        .ok_or(PackError::Store("unknown predicate in the store".into()))?;
+                    let value = match value {
+                        Some(v) => Some(serde_json::from_str(&v).map_err(store)?),
+                        None => None,
+                    };
+                    sides.entry(id.clone()).or_insert(RawFact {
+                        fact_key,
+                        subject_key: subject,
+                        predicate,
+                        object_key: object,
+                        value,
+                        valid_from: from,
+                        valid_to: to,
+                        origin,
+                        evidence: Vec::new(),
+                    })
+                }
+            };
+            if let (Some(vid), Some(block), Some(anchor)) = (vid, block, anchor) {
+                slot.evidence.push(evidence(vid, block, &anchor)?);
+            }
+        }
+        let conflicts: Vec<RawConflict> = viol
+            .into_iter()
+            .map(|(entity_key, constraint_id, ids)| {
+                let mut hidden = 0u32;
+                let mut list = Vec::new();
+                for id in ids {
+                    match sides.get(&id) {
+                        Some(f) if !f.evidence.is_empty() => list.push(f.clone()),
+                        _ => hidden += 1,
+                    }
+                }
+                RawConflict {
+                    entity_key,
+                    constraint_id,
+                    sides: list,
+                    hidden_sides: hidden,
+                }
+            })
+            .collect();
+
         let scoped = Scoped {
+            conflicts,
             snapshot,
             entities,
             aliases: aliases.into_values().collect(),
