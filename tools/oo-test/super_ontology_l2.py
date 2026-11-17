@@ -15,7 +15,11 @@ mount`, over a 20 file Markdown Drive built from the synthetic golden set.
   acceptance 5  editing one Markdown file runs its state chain again and the
                 BRIEF changes within 30 s
 
-Acceptance 6 and 7 need Desktop and a packet capture; they are not covered.
+  acceptance 7  with the default configuration the engine and `oo serve` open no
+                non-loopback socket (`lsof -i -P -n` on both pids, checked while
+                idle, while syncing and after the restart)
+
+Acceptance 6 needs Desktop and is not covered.
 
 Usage:  tools/oo-test/super_ontology_l2.py [--run-id ID] [--evidence-dir DIR]
         [--keep] [--skip-build]
@@ -258,6 +262,42 @@ def content_lines(text: str):
     return [l for l in text.splitlines() if re.match(r"^\s*(?:[-*+]|\d+[.)])\s+\S", l)]
 
 
+def parse_lsof_names(text: str):
+    """Socket endpoints in `lsof -i -P -n` output: (name, [hosts], state)."""
+    rows = []
+    for line in text.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 9 or parts[4] not in ("IPv4", "IPv6"):
+            continue
+        name = " ".join(parts[8:])
+        state = ""
+        m = re.search(r"\s\((\w+)\)$", name)
+        if m:
+            state, name = m.group(1), name[: m.start()]
+        ends = [e for e in name.split("->") if e]
+        hosts = [e.rsplit(":", 1)[0].strip("[]") for e in ends]
+        rows.append((name, hosts, state))
+    return rows
+
+
+def is_loopback(host: str) -> bool:
+    return host in ("127.0.0.1", "::1") or host.startswith("127.")
+
+
+def non_loopback(rows):
+    """Endpoints that are not loopback; `*` (wildcard bind) counts as non loopback."""
+    return [name for name, hosts, _ in rows if any(not is_loopback(h) for h in hosts)]
+
+
+def socket_audit(ev, label, pids):
+    argv = ["lsof", "-a", "-p", ",".join(str(p) for p in pids), "-i", "-P", "-n"]
+    p = subprocess.run(argv, capture_output=True, text=True)
+    rows = parse_lsof_names(p.stdout)
+    bad = non_loopback(rows)
+    ev.log(f"  {label}: {len(rows)} sockets on pids {pids}, non loopback: {bad or 'none'}")
+    return rows, bad
+
+
 def build_drive(drive: Path):
     n = 0
     for p in sorted(GOLDEN.rglob("*.md")):
@@ -428,6 +468,14 @@ def main():
             ]
             ev.write("a1-failure-diagnostics.txt", "\n\n".join(diag) + "\n")
             ev.log("  diagnostics written to a1-failure-diagnostics.txt")
+        # ================= acceptance 7: no non-loopback socket with the default config
+        ev.log("\n## Acceptance 7: engine and oo serve open no non-loopback socket")
+        sock_pids = [serve.proc.pid, int((state / "engine.pid").read_text())]
+        rows7, bad7 = socket_audit(ev, "after sync", sock_pids)
+        listen7 = [r for r in rows7 if r[2] == "LISTEN"]
+        ev.check("A7 the audit saw the listeners of both processes", len(listen7) >= 2, f"{len(listen7)} listening sockets")
+        ev.check("A7 no non-loopback socket after the first sync", not bad7, json.dumps(bad7))
+        ev.write("a7-sockets.json", json.dumps({"pids": ["serve", "engine"], "sockets": [{"name": n, "state": s} for n, _, s in rows7], "non_loopback": bad7}, indent=2) + "\n")
         ev.write("a1-file-states.json", json.dumps(dict(sorted(states.items())), ensure_ascii=False, indent=2) + "\n")
 
         # ================= acceptance 2: mount a scope, every BRIEF line has [src:
@@ -561,6 +609,8 @@ def main():
         new_states = [e for e in replay if e.get("type") == "file.state_changed" and "重连后新增" in json.dumps(e, ensure_ascii=False)]
         ev.check("A4 the file added after the reconnect is in the replay up to published", any(e["data"]["file"]["state"] == "published" for e in new_states))
         ev.check("A4 state after the restart equals the replayed state", file_states(api, drive_id).get("Notes/重连后新增.md") == "published" and states_ok_all(api, drive_id))
+        rows7b, bad7b = socket_audit(ev, "after restart", [serve.proc.pid, int((state / "engine.pid").read_text())])
+        ev.check("A7 no non-loopback socket after the restart either", not bad7b and len(rows7b) >= 2, json.dumps(bad7b))
         ev.write("a4-replay.json", json.dumps({"cursor": cursor, "head": head, "replayed_seqs": f"{cursor + 1}..{head}", "types": sorted({e.get("type") for e in replay})}, indent=2) + "\n")
         ok = all(c["ok"] for c in ev.checks)
     finally:
