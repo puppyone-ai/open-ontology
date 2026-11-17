@@ -256,3 +256,81 @@ async fn a_binary_or_empty_file_does_not_stall_the_rest() {
     .await;
     e.finish().await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn many_files_sharing_names_all_reach_published_without_stalling() {
+    // Sixty projects owned by six people: every extract wants the same name
+    // locks, and publish runs while files are still arriving.
+    let e = TestEngine::start("pipe_many", opts()).await;
+    let people = ["林川", "周远", "陈子墨", "孙晓棠", "韩立", "贺文博"];
+    for p in people {
+        e.write(
+            &format!("People/{p}.md"),
+            &format!("---\ntype: person\nname: {p}\nrole: 成员\n---\n# {p}\n\n角色：成员\n"),
+        );
+    }
+    for i in 0..60 {
+        let owner = people[i % people.len()];
+        e.write(
+            &format!("Projects/p{i}.md"),
+            &format!(
+                "---\ntype: project\nname: 项目{i}\nowner: {owner}\n---\n# 项目{i}\n\n负责人：{owner}\n\n状态：进行中\n"
+            ),
+        );
+    }
+    let drive = e.create_drive("pipe-many").await;
+    let did = drive["id"].as_str().unwrap().to_owned();
+    e.until("66 files published", || async {
+        all_in(&e, &did, "published", 66).await
+    })
+    .await;
+    let failed: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE state IN ('failed', 'quarantined')",
+    )
+    .fetch_one(&e.pool)
+    .await
+    .unwrap();
+    assert_eq!(failed, 0, "no stage job may end failed");
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn deep_resyncs_while_stages_run_do_not_cancel_them() {
+    // A re-hash that finds the same content must not cancel the parse or
+    // extract jobs of the version that stays current: a deep sync hashes
+    // every file again, here again and again while the pipeline works.
+    let e = TestEngine::start("pipe_rehash", opts()).await;
+    for i in 0..30 {
+        e.write(
+            &format!("Projects/q{i}.md"),
+            &format!(
+                "---\ntype: project\nname: 项目q{i}\nowner: 林川\n---\n# 项目q{i}\n\n负责人：林川\n"
+            ),
+        );
+    }
+    let drive = e.create_drive("pipe-rehash").await;
+    let did = drive["id"].as_str().unwrap().to_owned();
+    for _ in 0..12 {
+        let _ = e
+            .post(
+                &format!("/v1/docs/drives/{did}:sync"),
+                &json!({"deep": true}),
+            )
+            .await;
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+    e.until("30 files published", || async {
+        all_in(&e, &did, "published", 30).await
+    })
+    .await;
+    let cancelled: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE kind IN ('parse', 'extract_rules') AND state = 'cancelled'",
+    )
+    .fetch_one(&e.pool)
+    .await
+    .unwrap();
+    assert_eq!(cancelled, 0, "unchanged content cancels no stage job");
+    e.finish().await;
+}
