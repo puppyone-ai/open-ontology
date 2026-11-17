@@ -3280,6 +3280,7 @@ dependencies = [
  "arrow-schema",
  "blake3",
  "futures-util",
+ "http",
  "mongodb",
  "mongodb-internal-macros",
  "mysql_async",
