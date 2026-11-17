@@ -14,9 +14,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use oo_core::docir::DocIr;
 use sqlx::{Connection, PgConnection};
 
-use crate::extract::model::{EntityType, EvidenceRef};
-use crate::extract::rules::extract;
-use crate::resolve::exact::{Candidate, MapIndex, Resolved, Via, resolve_extraction};
+use crate::extract::model::EvidenceRef;
+use crate::extract::rules::{Siblings, extract_in};
+use crate::resolve::exact::{Resolved, resolve_extraction};
+use crate::resolve::merge::{MergeError, merge_entities};
+use crate::resolve::pg::{
+    load_index, lookup_names, propose_merges, same_identity_pairs, store_identities,
+};
 use crate::store::StoreError;
 
 /// What to index: one parsed file version.
@@ -39,6 +43,12 @@ pub struct IndexSummary {
     pub facts_created: u32,
     pub evidence_added: u32,
     pub alias_conflicts: u32,
+    /// Identity attributes added to entities.
+    pub identities_added: u32,
+    /// Entities merged because they share an identity (5.4 step 2).
+    pub identity_merges: u32,
+    /// `entity_merge` review items queued (5.4 step 6, refused identity merges).
+    pub merge_proposals: u32,
 }
 
 /// Run the rules on `doc.ir` and store the result.
@@ -46,23 +56,21 @@ pub async fn index_document(
     conn: &mut PgConnection,
     doc: &DocumentInput<'_>,
 ) -> Result<IndexSummary, StoreError> {
-    let extraction = extract(doc.path, doc.ir);
+    index_document_with(conn, doc, &[]).await
+}
+
+/// [`index_document`] with the other live paths of the Drive, which
+/// `name.version` needs to find an older version of the same document.
+pub async fn index_document_with(
+    conn: &mut PgConnection,
+    doc: &DocumentInput<'_>,
+    siblings: &[String],
+) -> Result<IndexSummary, StoreError> {
+    let extraction = extract_in(doc.path, doc.ir, &Siblings { paths: siblings });
     let mut tx = conn.begin().await?;
 
     // Lock every name that may create an entity, in byte order.
-    let mut norms: BTreeSet<String> = BTreeSet::new();
-    for m in &extraction.entities {
-        norms.insert(m.entity.norm());
-    }
-    for a in &extraction.aliases {
-        norms.insert(a.entity.norm());
-    }
-    for f in &extraction.facts {
-        norms.insert(f.subject.norm());
-        if let Some(o) = &f.object {
-            norms.insert(o.norm());
-        }
-    }
+    let (norms, _) = lookup_names(&extraction);
     for n in &norms {
         sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
             .bind(n)
@@ -70,44 +78,61 @@ pub async fn index_document(
             .await?;
     }
 
-    let index = load_candidates(&mut tx, &norms).await?;
+    let index = load_index(&mut tx, &extraction).await?;
     let resolved = resolve_extraction(&index, &extraction);
-    let summary = store_resolved(&mut tx, doc, &resolved).await?;
+    let mut summary = store_resolved(&mut tx, doc, &resolved).await?;
+    post_resolve(&mut tx, doc, &resolved, &mut summary).await?;
     tx.commit().await?;
     Ok(summary)
 }
 
-async fn load_candidates(
+/// Identity attributes, identity merges and merge proposals of one file.
+async fn post_resolve(
     conn: &mut PgConnection,
-    norms: &BTreeSet<String>,
-) -> Result<MapIndex, StoreError> {
-    let wanted: Vec<String> = norms.iter().cloned().collect();
-    let rows: Vec<(String, Option<String>, String, String, String)> = sqlx::query_as(
-        "SELECT e.type, e.thing_label, e.norm_name, e.key, 'canonical' \
-           FROM _oo_docs.entity e \
-          WHERE e.status = 'active' AND e.norm_name = ANY($1::text[]) \
-         UNION ALL \
-         SELECT e.type, e.thing_label, a.norm_alias, e.key, a.status \
-           FROM _oo_docs.alias a JOIN _oo_docs.entity e ON e.id = a.entity_id \
-          WHERE e.status = 'active' AND a.status IN ('draft', 'published') \
-            AND a.norm_alias = ANY($1::text[])",
-    )
-    .bind(&wanted)
-    .fetch_all(&mut *conn)
-    .await?;
-    let mut index = MapIndex::default();
-    for (ty, label, name_norm, key, via) in rows {
-        let Some(ty) = EntityType::parse(&ty) else {
-            return Err(StoreError::Protocol(format!("unknown entity type {ty}")));
-        };
-        let via = match via.as_str() {
-            "canonical" => Via::CanonicalName,
-            "published" => Via::AliasPublished,
-            _ => Via::AliasDraft,
-        };
-        index.insert(ty, label.as_deref(), &name_norm, Candidate { key, via });
+    doc: &DocumentInput<'_>,
+    resolved: &Resolved,
+    summary: &mut IndexSummary,
+) -> Result<(), StoreError> {
+    let gained = store_identities(conn, resolved).await?;
+    summary.identities_added += u32::try_from(gained.len()).unwrap_or(u32::MAX);
+    let mut pairs: BTreeSet<(String, String)> = BTreeSet::new();
+    for (a, b) in same_identity_pairs(conn, &gained).await? {
+        pairs.insert(if a <= b { (a, b) } else { (b, a) });
     }
-    Ok(index)
+    for (into, from) in pairs {
+        match merge_entities(conn, &from, &into, "identity", None).await {
+            Ok(_) => summary.identity_merges += 1,
+            Err(MergeError::IdentityConflict(..) | MergeError::NotActive(_)) => {
+                // Already merged by an earlier pair, or contradicting: a person decides.
+                let kinds = sqlx::query(
+                    "INSERT INTO _oo_docs.review_item \
+                       (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, \
+                        confidence_bp, reason_code) \
+                     SELECT gen_random_uuid(), 'entity_merge', $1, f.drive_id, f.id, fv.id, \
+                            jsonb_build_object('entity_keys', jsonb_build_array($2::text, $3::text), \
+                                               'shared_aliases', '[]'::jsonb), \
+                            NULL, 'identity_conflict' \
+                       FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id \
+                      WHERE fv.id = $4::uuid \
+                        AND EXISTS (SELECT 1 FROM _oo_docs.entity e WHERE e.key = $2 AND e.status = 'active') \
+                        AND EXISTS (SELECT 1 FROM _oo_docs.entity e WHERE e.key = $3 AND e.status = 'active') \
+                     ON CONFLICT (dedupe_key) DO NOTHING",
+                )
+                .bind(format!("entity_merge:{into}:{from}"))
+                .bind(&into)
+                .bind(&from)
+                .bind(doc.version_id)
+                .execute(&mut *conn)
+                .await?;
+                summary.merge_proposals += u32::try_from(kinds.rows_affected()).unwrap_or(0);
+            }
+            Err(MergeError::Store(e)) => return Err(e),
+            Err(e) => return Err(StoreError::Protocol(e.to_string())),
+        }
+    }
+    let keys: Vec<String> = resolved.entities.iter().map(|e| e.key.clone()).collect();
+    summary.merge_proposals += propose_merges(conn, &keys, doc.version_id).await?;
+    Ok(())
 }
 
 async fn add_evidence(
@@ -187,8 +212,8 @@ async fn store_resolved(
         };
         let created = sqlx::query(
             "INSERT INTO _oo_docs.alias \
-               (id, entity_id, alias, norm_alias, origin, confidence_bp, status) \
-             VALUES (gen_random_uuid(), $1::uuid, $2, $3, 'rule', $4, 'draft') \
+               (id, entity_id, alias, norm_alias, origin, confidence_bp, status, original_entity_id) \
+             VALUES (gen_random_uuid(), $1::uuid, $2, $3, 'rule', $4, 'draft', $1::uuid) \
              ON CONFLICT (entity_id, norm_alias) DO NOTHING",
         )
         .bind(entity_id)
@@ -270,6 +295,11 @@ async fn store_resolved(
 
     for c in &r.conflicts {
         let dedupe = format!("alias_conflict:{}:{}", c.ty.slug(), c.norm);
+        let reason = if c.reason == "identity" {
+            "identity_conflict"
+        } else {
+            "alias_tie"
+        };
         let done = sqlx::query(
             "INSERT INTO _oo_docs.review_item \
                (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, \
@@ -278,7 +308,7 @@ async fn store_resolved(
                     jsonb_build_object('alias', $2::text, \
                       'entity_ids', (SELECT COALESCE(jsonb_agg(e.id::text ORDER BY e.key), '[]'::jsonb) \
                                        FROM _oo_docs.entity e WHERE e.key = ANY($3::text[]))), \
-                    9000, 'alias_tie' \
+                    9000, $5 \
                FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id \
               WHERE fv.id = $4::uuid \
              ON CONFLICT (dedupe_key) DO NOTHING",
@@ -287,6 +317,7 @@ async fn store_resolved(
         .bind(&c.norm)
         .bind(&c.entity_keys)
         .bind(doc.version_id)
+        .bind(reason)
         .execute(&mut *conn)
         .await?;
         s.alias_conflicts += u32::try_from(done.rows_affected()).unwrap_or(0);
