@@ -18,4 +18,18 @@ while [ "$left" -gt 0 ]; do
     --out-itf="$out/b${b}-trace{seq}.itf.json" >/dev/null
   left=$(( left - k )); b=$(( b + 1 ))
 done
+if [ -z "${mbt:-}" ]; then :; else
+  # committed samples: drop machine paths and wall-clock times from the ITF metadata
+  python3 -I - "$out" "formal/quint/$name.qnt" <<'PY'
+import json, glob, sys
+out, src = sys.argv[1], sys.argv[2]
+for f in glob.glob(out + "/*.itf.json"):
+    with open(f) as fh:
+        t = json.load(fh)
+    t["#meta"] = {"format": t["#meta"].get("format", "ITF"), "source": src, "status": t["#meta"].get("status", "ok")}
+    with open(f, "w") as fh:
+        json.dump(t, fh, separators=(",", ":"))
+        fh.write("\n")
+PY
+fi
 echo "wrote $(ls "$out" | wc -l | tr -d ' ') traces to ${out#"$FORMAL_ROOT"/}"
