@@ -6,6 +6,9 @@
 
 use std::env;
 
+pub mod engine;
+pub mod http;
+
 use oo_docs::store::install::{self, InstallOutcome};
 use sqlx::postgres::{PgConnectOptions, PgConnection, PgPool, PgPoolOptions, PgSslMode};
 use sqlx::{Connection, Executor};
