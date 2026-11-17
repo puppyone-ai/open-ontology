@@ -140,7 +140,7 @@ impl Anchor {
     }
 
     /// Provenance fragment without the leading path: `#L12-L18`, `#R12`,
-    /// `#'Sheet 1'!A1:C9`, `#¶12-14`, `#T2!R3C1`, `#s3`, `#p5`.
+    /// `#'Sheet 1'!A1:C9`, `#¶12-14`, `#T2!R3C1` (tables 1-based), `#s3`, `#p5`.
     /// A single-line or single-paragraph range is written once (`#L12`).
     pub fn fragment(&self) -> String {
         match self {
