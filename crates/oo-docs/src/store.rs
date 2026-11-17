@@ -1,10 +1,14 @@
 //! Postgres `_oo_docs` access (10 §3). Board WS-BE5.
 //!
-//! `install` owns the schema and its checksummed migrations.
+//! `install` owns the schema and its checksummed migrations. `jobs` and
+//! `events` wrap the `_oo_docs` SECURITY DEFINER functions; the runtime role
+//! has no direct DML on the job and event tables.
 
 use std::fmt;
 
+pub mod events;
 pub mod install;
+pub mod jobs;
 
 /// Database failure with the SQLSTATE kept apart from the message.
 #[derive(Debug)]
