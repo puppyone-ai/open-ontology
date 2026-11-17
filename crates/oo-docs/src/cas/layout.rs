@@ -13,6 +13,11 @@ pub enum CasKind {
     Ir,
     /// `llm/<aa>/<response_b3>.json`: raw LLM response.
     Llm,
+    /// `packs/<aa>/<b3>`: one file of a compiled Context Pack. Not in
+    /// [`CasKind::ALL`]: packs are immutable and referenced by
+    /// `context_pack_file`, so the GC sweep leaves them alone until a pack GC
+    /// exists (share card).
+    Pack,
 }
 
 impl CasKind {
@@ -24,6 +29,7 @@ impl CasKind {
             CasKind::Orig => "orig",
             CasKind::Ir => "ir",
             CasKind::Llm => "llm",
+            CasKind::Pack => "packs",
         }
     }
 }
@@ -50,6 +56,7 @@ pub fn object_rel_path(kind: CasKind, b3: &str) -> Option<String> {
         CasKind::Orig => format!("orig/b3/{aa}/{bb}/{b3}"),
         CasKind::Ir => format!("ir/{aa}/{b3}.json"),
         CasKind::Llm => format!("llm/{aa}/{b3}.json"),
+        CasKind::Pack => format!("packs/{aa}/{b3}"),
     })
 }
 
@@ -57,7 +64,7 @@ pub fn object_rel_path(kind: CasKind, b3: &str) -> Option<String> {
 /// `kind`.
 pub fn key_from_file_name(kind: CasKind, file_name: &str) -> Option<String> {
     let hex = match kind {
-        CasKind::Orig => file_name,
+        CasKind::Orig | CasKind::Pack => file_name,
         CasKind::Ir | CasKind::Llm => file_name.strip_suffix(".json")?,
     };
     is_b3_hex(hex).then(|| hex.to_owned())

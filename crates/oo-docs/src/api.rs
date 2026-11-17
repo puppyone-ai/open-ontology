@@ -47,6 +47,8 @@ pub mod freshness;
 pub mod http;
 pub mod idem;
 pub mod lifecycle;
+pub mod packs;
+pub mod shares;
 
 use error::{ApiError, code};
 use http::Query;
@@ -145,6 +147,8 @@ pub struct AppState {
     pub sync: Arc<dyn SyncPort>,
     /// Health sources.
     pub health: Arc<HealthProbe>,
+    /// Content store for packs; `None` leaves the pack routes answering 500.
+    pub cas: Option<Arc<crate::cas::Cas>>,
     /// Poked after a job is enqueued.
     pub wake: Arc<Notify>,
     /// Poked when the event log grew (see `events::spawn_hub`).
@@ -174,6 +178,7 @@ impl AppState {
             hosts,
             sync,
             health,
+            cas: None,
             wake: Arc::new(Notify::new()),
             events: Arc::new(Notify::new()),
             sse_slots: Arc::new(Semaphore::new(MAX_STREAMS)),
@@ -182,6 +187,12 @@ impl AppState {
             stop: watch::channel(false).0,
             buckets: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Attach the content store (pack routes).
+    pub fn with_cas(mut self, cas: Arc<crate::cas::Cas>) -> Self {
+        self.cas = Some(cas);
+        self
     }
 
     /// A receiver that flips to true on shutdown.
@@ -397,6 +408,39 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "events"] => {
             method_allowed(req, &["GET"])?;
             events::stream(app, req).await
+        }
+        ["v1", "docs", "context-packs:compile"] => {
+            method_allowed(req, &["POST"])?;
+            packs::compile(app, req).await
+        }
+        ["v1", "docs", "context-packs", pid] => {
+            method_allowed(req, &["GET"])?;
+            packs::get(app, pid).await
+        }
+        ["v1", "docs", "context-packs", pid, "files", rest @ ..] if !rest.is_empty() => {
+            method_allowed(req, &["GET"])?;
+            // Percent-decode each segment; `+` is a plus in a path.
+            let path = rest
+                .iter()
+                .map(|seg| http::pct_decode(&seg.replace('+', "%2B")))
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| ApiError::bad("/path", "malformed percent encoding"))?
+                .join("/");
+            if path
+                .split('/')
+                .any(|p| p.is_empty() || p == "." || p == "..")
+            {
+                return Err(ApiError::not_found("pack file"));
+            }
+            packs::file(app, pid, &path).await
+        }
+        ["v1", "docs", "shares"] => {
+            method_allowed(req, &["POST"])?;
+            shares::create(app, req).await
+        }
+        ["v1", "docs", "shares", sid] if !sid.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            shares::get(app, sid).await
         }
         s if known_unserved(s) => Err(ApiError::not_found("route")),
         _ => Err(ApiError::not_found("route")),

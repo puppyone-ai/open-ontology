@@ -92,6 +92,20 @@ fn every_route_error_code_is_in_the_contract() {
             code::INVALID_CONFIG,
             code::SYNC_RUNNING,
             code::MASS_DELETE_HELD,
+            code::PACK_SCOPE_INVALID,
+            code::PACK_NOTHING_VISIBLE,
+            code::PACK_SEED_NOT_VISIBLE,
+            code::PACK_TASK_TOO_LONG,
+            code::PACK_BUDGET_TOO_SMALL,
+            code::PACK_VERSION_NOT_FOUND,
+            code::PACK_LEAK_GUARD,
+            code::PACK_PROVENANCE_GAP,
+            code::PACK_TOO_LARGE,
+            code::PACK_NOT_FOUND,
+            code::SHARE_NOT_FOUND,
+            code::SHARE_EXPIRY_INVALID,
+            code::SHARE_ROLE_UNAVAILABLE,
+            code::SHARE_TARGET_INVALID,
         ]
         .into_iter()
         .find(|c| c.as_str() == name)
@@ -105,7 +119,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 24);
+    assert_eq!(ALL_CODES.len(), 38);
 }
 
 #[test]
