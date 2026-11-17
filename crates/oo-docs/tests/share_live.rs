@@ -101,6 +101,13 @@ async fn publish_now(fx: &mut Fx) {
     wait_version(fx, before + 1).await;
 }
 
+/// The newest ontology version number. Tests never assume how many versions
+/// the engine's own publisher cut before them: they read this and count from it.
+async fn vmax(fx: &mut Fx) -> i64 {
+    fx.scalar("SELECT coalesce(max(n), 0) FROM _oo_docs.ontology_version")
+        .await
+}
+
 async fn wait_version(fx: &mut Fx, n: i64) {
     let t = Instant::now();
     while fx
@@ -289,6 +296,7 @@ async fn a_used_fact_marked_wrong_blocks_the_share_within_five_seconds() {
     );
 
     let fid = used_decision_fact(&mut fx, &sid).await;
+    let next = vmax(&mut fx).await + 1;
     let t = Instant::now();
     let w = e
         .req(
@@ -299,7 +307,7 @@ async fn a_used_fact_marked_wrong_blocks_the_share_within_five_seconds() {
         )
         .await;
     assert_eq!(w.status, 200, "{}", String::from_utf8_lossy(&w.body));
-    wait_version(&mut fx, 2).await;
+    wait_version(&mut fx, next).await;
     let state = || async { e.get(&format!("/v1/docs/shares/{sid}")).await.json() };
     let mut drifted = state().await;
     while drifted["state"] != "drifted" {
@@ -621,7 +629,8 @@ async fn task_groups_refresh_all_or_none() {
         .iter()
         .map(|s| s["version"].as_i64().unwrap())
         .collect();
-    assert_eq!(versions, [2, 2, 2]);
+    let latest = vmax(&mut fx).await;
+    assert_eq!(versions, [latest, latest, latest]);
     for s in [&sa, &sb, &sl] {
         assert_eq!(
             e.get(&format!("/v1/docs/shares/{s}")).await.json()["state"],
@@ -629,7 +638,7 @@ async fn task_groups_refresh_all_or_none() {
         );
     }
     let g = e.get("/v1/docs/share-groups/TICKET-7").await.json();
-    assert_eq!(g["ontology_version"], 2);
+    assert_eq!(g["ontology_version"], latest);
     assert_eq!(
         g["members"]
             .as_array()
@@ -661,7 +670,7 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
     let s = mk_share(&e, &["Decisions"], json!({})).await;
     let cred = cred_of(&s);
     let v0 = s["version"].as_i64().unwrap();
-    let (pin, late) = (format!("v{v0}"), format!("v{}", v0 + 1));
+    let pin = format!("v{v0}");
     let proj = fx.text("SELECT key FROM _oo_docs.entity WHERE canonical_name = '星图看板' AND type = 'Project'").await.remove(0);
     let person = fx
         .text("SELECT key FROM _oo_docs.entity WHERE canonical_name = '林远舟' LIMIT 1")
@@ -671,6 +680,9 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
     let src = "---\ntype: decision\nstatus: confirmed\ndate: 2026-11-01\nowner: 林远舟\n---\n\n# 决定：新的决定\n\n林远舟决定采用新方案。\n";
     fx.index_md("Decisions/新决定.md", src).await;
     publish_now(&mut fx).await;
+    let latest_n = vmax(&mut fx).await;
+    assert!(latest_n > v0);
+    let late = format!("v{latest_n}");
 
     let r = as_cred(&e, &cred, "GET", &format!("/v1/docs/entities/{person}")).await;
     assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
@@ -706,7 +718,7 @@ async fn reads_with_a_share_credential_use_the_share_version_and_its_scope() {
     assert_eq!(latest.header("oo-docs-as-of"), Some(late.as_str()));
     assert_eq!(
         latest.json()["stale_vs_pack"],
-        json!({"pack_version": v0, "latest_version": v0 + 1})
+        json!({"pack_version": v0, "latest_version": latest_n})
     );
     let share = as_cred(
         &e,
@@ -746,7 +758,9 @@ async fn at_checkpoint_refreshes_on_a_passing_check_and_pins_are_counted() {
     .await;
     let sid = s["id"].as_str().unwrap().to_owned();
     // Pinned by the share, in the version list.
+    let pinned = s["version"].as_i64().unwrap();
     let vs = e.get("/v1/docs/ontology/versions").await.json();
+    assert_eq!(vs["items"][0]["n"], pinned);
     assert_eq!(vs["items"][0]["pinned_by"], 1);
     // Nothing newer: a plain pass.
     let c = e
@@ -769,9 +783,11 @@ async fn at_checkpoint_refreshes_on_a_passing_check_and_pins_are_counted() {
         .await
         .json();
     assert_eq!(c["exit_code"], 0);
-    assert_eq!(c["upgraded_to_version"], 2);
+    let newer = vmax(&mut fx).await;
+    assert!(newer > pinned);
+    assert_eq!(c["upgraded_to_version"], newer);
     let new = c["refreshed_to"].as_str().expect("refreshed_to");
-    assert_eq!(c["refreshed"]["version"], 2);
+    assert_eq!(c["refreshed"]["version"], newer);
     assert_eq!(
         e.get(&format!("/v1/docs/shares/{sid}")).await.json()["state"],
         "refreshed"
@@ -788,6 +804,167 @@ async fn at_checkpoint_refreshes_on_a_passing_check_and_pins_are_counted() {
         .iter()
         .map(|v| (v["n"].as_i64().unwrap(), v["pinned_by"].as_i64().unwrap()))
         .collect();
-    assert_eq!(pins, [(2, 1), (1, 0)]);
+    assert_eq!(pins.first(), Some(&(newer, 1)));
+    assert_eq!(pins.iter().find(|(n, _)| *n == pinned), Some(&(pinned, 0)));
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_real_constraint_violation_holds_the_fact_queues_a_conflict_and_the_pack_says_so() {
+    let (e, mut fx) = world("share_conflict").await;
+    // A share cut before the conflict exists.
+    let before = mk_share(&e, &["Projects"], json!({})).await;
+    let sid = before["id"].as_str().unwrap().to_owned();
+    let used = fx
+        .scalar(&format!(
+            "SELECT count(*) FROM _oo_docs.share_fact_use u JOIN _oo_docs.fact f ON f.id = u.fact_id \
+              WHERE u.share_id = '{sid}' AND f.predicate = 'owns'"
+        ))
+        .await;
+    assert!(used > 0, "the pack uses an owner fact of the project");
+
+    // Another file gives 星图看板 a different owner from the same day as the
+    // current one: two owners at once (project_single_owner).
+    let owner_now: String = fx
+        .text("SELECT s.canonical_name FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+                 JOIN _oo_docs.entity o ON o.id = f.object_id \
+                WHERE f.predicate = 'owns' AND o.canonical_name = '星图看板' AND f.status = 'published' \
+                  AND f.valid_to IS NULL")
+        .await
+        .remove(0);
+    let from: String = fx
+        .text("SELECT f.valid_from::text FROM _oo_docs.fact f JOIN _oo_docs.entity o ON o.id = f.object_id \
+                WHERE f.predicate = 'owns' AND o.canonical_name = '星图看板' AND f.status = 'published' \
+                  AND f.valid_to IS NULL")
+        .await
+        .remove(0);
+    let other = if owner_now == "韩立" {
+        "吴启明"
+    } else {
+        "韩立"
+    };
+    let src = format!("---\ndate: {from}\nowner: {other}\n---\n\n# 星图看板\n\n内容\n");
+    fx.index_md("Projects/星图看板/第二份.md", &src).await;
+    publish_now(&mut fx).await;
+
+    assert_eq!(
+        fx.text("SELECT constraint_id || '/' || status FROM _oo_docs.constraint_violation")
+            .await,
+        ["project_single_owner/open"]
+    );
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'constraint_conflict' AND status = 'pending'")
+            .await,
+        1,
+        "the conflict is queued for a person"
+    );
+    assert_eq!(
+        fx.scalar(&format!(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+              WHERE f.predicate = 'owns' AND s.canonical_name = '{other}' AND f.status = 'published'"
+        ))
+        .await,
+        0,
+        "the challenger is not published"
+    );
+
+    // A pack cut now says the conflict is unresolved, with sources on both sides.
+    let after = mk_share(&e, &["Projects"], json!({})).await;
+    let pid = after["pack_id"].as_str().unwrap();
+    let brief = e
+        .get(&format!("/v1/docs/context-packs/{pid}/files/BRIEF.md"))
+        .await;
+    let text = String::from_utf8(brief.body).unwrap();
+    let line = text
+        .lines()
+        .find(|l| l.starts_with("- 冲突未决：星图看板"))
+        .unwrap_or_else(|| panic!("no 冲突未决 line:\n{text}"));
+    assert!(
+        line.contains(" vs ") && line.matches("[src:").count() >= 2,
+        "{line}"
+    );
+
+    // The older share used the owner fact: its update level is block, check says 20.
+    let ups = e
+        .get(&format!("/v1/docs/shares/{sid}/updates"))
+        .await
+        .json();
+    let levels: Vec<&str> = ups["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|u| u["level"].as_str())
+        .collect();
+    assert!(levels.contains(&"block"), "{ups}");
+    assert!(
+        ups["items"].as_array().unwrap().iter().any(|u| u["summary"]
+            .as_str()
+            .is_some_and(|s| s.contains("冲突未决"))
+            || u.to_string().contains("冲突未决")),
+        "{ups}"
+    );
+    let c = e
+        .post(&format!("/v1/docs/shares/{sid}:check"), &json!({}))
+        .await;
+    assert_eq!(
+        c.json()["exit_code"],
+        20,
+        "{}",
+        String::from_utf8_lossy(&c.body)
+    );
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn group_refresh_under_at_checkpoint_upgrades_the_group_together() {
+    let (e, mut fx) = world("share_group_ckpt").await;
+    let a = mk_share(
+        &e,
+        &["Decisions"],
+        json!({"group": "TICKET-9", "refresh_policy": "at-checkpoint"}),
+    )
+    .await;
+    let b = mk_share(
+        &e,
+        &["Projects"],
+        json!({"group": "TICKET-9", "refresh_policy": "at-checkpoint"}),
+    )
+    .await;
+    let (sa, sb) = (
+        a["id"].as_str().unwrap().to_owned(),
+        b["id"].as_str().unwrap().to_owned(),
+    );
+    let pinned = a["version"].as_i64().unwrap();
+    // A new in-scope fact: info only.
+    let src = "---\ntype: decision\nstatus: confirmed\ndate: 2026-11-01\nowner: 林远舟\n---\n\n# 决定：新的决定\n\n林远舟决定采用新方案。\n";
+    fx.index_md("Decisions/新决定.md", src).await;
+    publish_now(&mut fx).await;
+    let newer = vmax(&mut fx).await;
+    assert!(newer > pinned);
+    // A passing check of one member upgrades the whole group (no member refreshes alone).
+    let c = e
+        .post(&format!("/v1/docs/shares/{sa}:check"), &json!({}))
+        .await;
+    let c = c.json();
+    assert_eq!(c["exit_code"], 0, "{c}");
+    for s in [&sa, &sb] {
+        assert_eq!(
+            e.get(&format!("/v1/docs/shares/{s}")).await.json()["state"],
+            "refreshed",
+            "{s}"
+        );
+    }
+    let g = e.get("/v1/docs/share-groups/TICKET-9").await.json();
+    assert_eq!(g["ontology_version"], newer, "{g}");
+    let active: Vec<i64> = g["members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["state"] == "active")
+        .map(|m| m["version"].as_i64().unwrap_or(newer))
+        .collect();
+    assert_eq!(active.len(), 2, "both members have a new active share: {g}");
     e.finish().await;
 }
