@@ -87,6 +87,10 @@ pub fn parse() -> Result<Invocation, Failure> {
         return result;
     }
     let args = expand_long_options(&args);
+    #[cfg(feature = "docs")]
+    if let Some(result) = crate::docs::dispatch(&args) {
+        return result;
+    }
     if let Some(result) = crate::profile::dispatch(&args) {
         return result;
     }
