@@ -857,13 +857,15 @@ async fn per_file_responses_validate_against_the_schema() {
     let bearer = format!("Bearer {TOKEN}");
     let mut sse = open_sse(e.addr, "/v1/docs/events", &[("Authorization", &bearer)]).await;
     let _ = sse.frame(std::time::Duration::from_secs(2)).await;
-    e.app.progress.emit(oo_docs::api::progress::Progress {
-        file_id: fid.clone(),
+    // Not the id of a parsed file: that one reported a moment ago and the bus
+    // allows one event per file per second.
+    assert!(e.app.progress.emit(oo_docs::api::progress::Progress {
+        file_id: "0f8fad5b-d9cb-469f-a165-70867728950e".into(),
         drive_id: Some(id.clone()),
         unit: "page",
         done: 1,
         total: Some(3),
-    });
+    }));
     let ev = sse
         .event(std::time::Duration::from_secs(5))
         .await
