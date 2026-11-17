@@ -237,7 +237,13 @@ async fn store_resolved(
         }
     }
 
+    // Content a person rejected or replaced is not a draft again (DOC-G4).
+    let all_keys: Vec<String> = r.facts.iter().map(|f| f.fact_key.clone()).collect();
+    let rejected = crate::review::overlay::rejected_keys(conn, &all_keys).await?;
     for f in &r.facts {
+        if rejected.contains(&f.fact_key) {
+            continue;
+        }
         let existing: Option<String> = sqlx::query_scalar(
             "SELECT id::text FROM _oo_docs.fact \
               WHERE fact_key = $1 AND status IN ('draft', 'published') \

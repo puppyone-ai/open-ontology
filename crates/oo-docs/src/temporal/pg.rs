@@ -284,3 +284,90 @@ pub async fn queue_held(conn: &mut PgConnection, held: &[Held]) -> Result<u32, S
     }
     Ok(n)
 }
+
+/// Two live facts of one functional group whose intervals overlap with
+/// different values (DOC-G3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Overlap {
+    pub a_id: String,
+    pub b_id: String,
+    pub a_key: String,
+    pub b_key: String,
+    pub a_published: bool,
+    pub b_published: bool,
+}
+
+/// Overlaps, after supersession was applied, that involve one of `ids`.
+pub async fn overlaps_after(
+    conn: &mut PgConnection,
+    ids: &[String],
+) -> Result<Vec<Overlap>, StoreError> {
+    let sql = format!("{SELECT} WHERE f.id = ANY($1::text[]::uuid[])");
+    let inc: Vec<TFact> = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(sql))
+        .bind(ids)
+        .fetch_all(&mut *conn)
+        .await?
+        .into_iter()
+        .map(to_fact)
+        .collect::<Result<_, _>>()?;
+    let mut subjects: BTreeSet<String> = BTreeSet::new();
+    let mut objects: BTreeSet<String> = BTreeSet::new();
+    for f in &inc {
+        if functional_group(f).is_some() {
+            if f.predicate == "owns" {
+                if let Some(o) = &f.object_key {
+                    objects.insert(o.clone());
+                }
+            } else {
+                subjects.insert(f.subject_key.clone());
+            }
+        }
+    }
+    if subjects.is_empty() && objects.is_empty() {
+        return Ok(Vec::new());
+    }
+    let subjects: Vec<String> = subjects.into_iter().collect();
+    let objects: Vec<String> = objects.into_iter().collect();
+    let sql = format!(
+        "{SELECT} WHERE (f.status = 'published' OR f.id = ANY($3::text[]::uuid[])) \
+           AND ((f.predicate IN ('attr.status', 'attr.role') AND s.key = ANY($1::text[])) \
+             OR (f.predicate = 'owns' AND o.type = 'Project' AND o.key = ANY($2::text[])))"
+    );
+    let rows: Vec<TFact> = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(sql))
+        .bind(&subjects)
+        .bind(&objects)
+        .bind(ids)
+        .fetch_all(&mut *conn)
+        .await?
+        .into_iter()
+        .map(to_fact)
+        .collect::<Result<_, _>>()?;
+    let mut groups: BTreeMap<String, Vec<TFact>> = BTreeMap::new();
+    for f in rows {
+        if let Some(g) = functional_group(&f) {
+            groups.entry(g).or_default().push(f);
+        }
+    }
+    let incoming: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+    let mut out = Vec::new();
+    for group in groups.values() {
+        for (a, b) in super::overlaps(group) {
+            if !incoming.contains(a.as_str()) && !incoming.contains(b.as_str()) {
+                continue;
+            }
+            let get = |id: &str| group.iter().find(|f| f.id == id);
+            if let (Some(fa), Some(fb)) = (get(&a), get(&b)) {
+                out.push(Overlap {
+                    a_id: a,
+                    b_id: b,
+                    a_key: fa.fact_key.clone(),
+                    b_key: fb.fact_key.clone(),
+                    a_published: fa.published,
+                    b_published: fb.published,
+                });
+            }
+        }
+    }
+    out.sort_by(|x, y| x.a_id.cmp(&y.a_id).then(x.b_id.cmp(&y.b_id)));
+    Ok(out)
+}
