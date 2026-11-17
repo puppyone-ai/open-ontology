@@ -511,7 +511,7 @@ impl S3Source {
                 if !ok {
                     mismatches += 1;
                     if mismatches >= CRC_ATTEMPTS {
-                        return Err(DocSourceError::Protocol("checksum mismatch"));
+                        return Err(DocSourceError::ChecksumMismatch);
                     }
                     sink(Streamed::Restart)?;
                     continue;

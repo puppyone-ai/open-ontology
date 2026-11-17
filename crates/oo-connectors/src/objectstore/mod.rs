@@ -215,10 +215,14 @@ pub enum DocSourceError {
     NotFound,
     PermissionDenied,
     AuthFailed,
-    Throttled { retry_after_ms: u64 },
+    Throttled {
+        retry_after_ms: u64,
+    },
     Unavailable,
     Timeout,
     Changed,
+    /// Bytes read did not match the checksum the store reported.
+    ChecksumMismatch,
     InvalidConfig(&'static str),
     Protocol(&'static str),
     Io(&'static str),
@@ -235,6 +239,7 @@ impl DocSourceError {
             DocSourceError::Unavailable => "DOCS_SOURCE_UNAVAILABLE",
             DocSourceError::Timeout => "DOCS_SOURCE_TIMEOUT",
             DocSourceError::Changed => "DOCS_SOURCE_CHANGED_DURING_READ",
+            DocSourceError::ChecksumMismatch => "DOCS_SOURCE_CHECKSUM_MISMATCH",
             DocSourceError::InvalidConfig(_) => "DOCS_SOURCE_INVALID_CONFIG",
             DocSourceError::Protocol(_) => "DOCS_SOURCE_PROTOCOL",
             DocSourceError::Io(_) => "DOCS_SOURCE_IO",
@@ -248,6 +253,7 @@ impl DocSourceError {
                 | DocSourceError::Unavailable
                 | DocSourceError::Timeout
                 | DocSourceError::Changed
+                | DocSourceError::ChecksumMismatch
                 | DocSourceError::Io(_)
         )
     }
@@ -263,6 +269,7 @@ impl fmt::Display for DocSourceError {
             DocSourceError::Unavailable => f.write_str("source unavailable"),
             DocSourceError::Timeout => f.write_str("source timed out"),
             DocSourceError::Changed => f.write_str("object changed during read"),
+            DocSourceError::ChecksumMismatch => f.write_str("checksum mismatch"),
             DocSourceError::InvalidConfig(why)
             | DocSourceError::Protocol(why)
             | DocSourceError::Io(why) => f.write_str(why),
