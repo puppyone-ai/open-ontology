@@ -382,6 +382,20 @@ async fn serve_one(
     // Copy the response; stop when the engine closes, the client goes away or
     // the daemon shuts down. A client that disconnects shows up as a read of
     // zero bytes on its side.
+    // An engine that accepts and dies before it says anything (it is being
+    // killed) must look like an unavailable engine, not like a dropped
+    // connection.
+    let mut first = [0u8; 8192];
+    let n = tokio::select! {
+        r = ur.read(&mut first) => r.unwrap_or(0),
+        _ = stop.changed() => return Ok(()),
+    };
+    if n == 0 {
+        return Err(unavailable(&head));
+    }
+    if cw.write_all(&first[..n]).await.is_err() {
+        return Ok(());
+    }
     let mut sink = [0u8; 256];
     tokio::select! {
         _ = tokio::io::copy(&mut ur, &mut cw) => {}
@@ -599,6 +613,40 @@ mod tests {
         assert_eq!(log.len(), 2);
         assert!(log[0].contains("authorization: Bearer oodi_engine"));
         assert!(!log[0].contains("oodt_secret"));
+        let _ = tx.send(true);
+        h.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_engine_that_dies_without_answering_is_unavailable_not_a_dropped_connection() {
+        let dying = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let engine = dying.local_addr().unwrap();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut s, _)) = dying.accept().await else {
+                    return;
+                };
+                let mut b = [0u8; 4096];
+                let _ = s.read(&mut b).await;
+                drop(s);
+            }
+        });
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        drop(l);
+        let c = cfg(port, Some(engine));
+        let l = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+        let addr = l.local_addr().unwrap();
+        let (tx, rx) = watch::channel(false);
+        let h = tokio::spawn(serve(l, c, rx, Duration::from_secs(1)));
+        let host = format!("127.0.0.1:{port}");
+        let r = raw(addr, &format!("GET /v1/docs/health HTTP/1.1\r\nHost: {host}\r\nAuthorization: Bearer oodt_secret\r\n\r\n")).await;
+        assert!(
+            r.starts_with("HTTP/1.1 200") && r.contains("\"unavailable\""),
+            "{r}"
+        );
+        let r = raw(addr, &format!("GET /v1/docs/drives HTTP/1.1\r\nHost: {host}\r\nAuthorization: Bearer oodt_secret\r\n\r\n")).await;
+        assert!(r.starts_with("HTTP/1.1 503"), "{r}");
         let _ = tx.send(true);
         h.await.unwrap();
     }
