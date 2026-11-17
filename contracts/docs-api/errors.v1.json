@@ -688,7 +688,7 @@
     },
     {
       "code": "DOCS_REVIEW_MERGE_CONFLICT",
-      "http": null,
+      "http": 409,
       "state_code": false,
       "retryable": false,
       "meaning_zh": "合并目标已合并或身份冲突",

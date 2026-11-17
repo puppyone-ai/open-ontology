@@ -15,3 +15,13 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `DOCS_SOURCE_IO` for the closed `DocumentSource` error set, and the codes named in G7, G17, G18, G20, D65.
 - Becomes `1.0` at the L2 meeting point (10 §8.7) once the real engine passes the contract tests.
 - 2026-11-17 (still 1.0-draft): `errors.v1.json` adds `DOCS_PARSE_LIMIT_BLOCKS`, `DOCS_PARSE_LIMIT_CELLS`, `DOCS_PARSE_LIMIT_PAGES` (10 §4.11 limits that the parsers return as state codes).
+
+## 1.0-draft (L4, B-S5 cards)
+
+- `Fact.revision` (optional integer): the `If-Match` token of `POST /facts/{id}:correct`.
+- `DOCS_REVIEW_MERGE_CONFLICT` now has HTTP 409: `POST /entities:merge` answers it when the merge target was
+  already merged away, the types differ or the identities contradict (it stays an item level code of
+  `review:decide`).
+- `GET /ontology/versions` items carry `covers_drive_rev` (already in the schema); `pinned_by` is always 0
+  until the share lifecycle cards maintain it.
+- 2026-11-17 (still 1.0-draft): `Fact.revision` (optional, for If-Match on corrections); `DOCS_REVIEW_MERGE_CONFLICT` gets HTTP 409.

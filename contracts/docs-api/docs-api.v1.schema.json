@@ -1314,6 +1314,10 @@
             "null"
           ]
         },
+        "revision": {
+          "type": "integer",
+          "description": "Optimistic concurrency token of corrections: send as If-Match \"r<revision>\" to POST /facts/{id}:correct."
+        },
         "evidence": {
           "type": "array",
           "items": {
