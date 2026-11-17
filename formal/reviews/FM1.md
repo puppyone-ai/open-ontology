@@ -165,3 +165,25 @@ Resolve finding 1, add the invariant of finding 2 (and re-run the M3 mutation to
 - Blocking 2: add `invCancelProvenance`; rename or document `invAtMostOnceSuccess` as row-level only. Same card.
 - Non-blocking items are tracked for L3 (checkpoint monotonicity, reclaim fairness, `run_at` coverage in conformance) and L4 deep checks (liveness).
 - Review status: approved with changes; the L1 formal gate closes when both blocking items land and `formal-verify-fast` for FM1 is green again.
+
+## CI bounds (card V-S1-01, time budget of 80 section 6)
+
+`formal-verify-fast` must fit 15 minutes per (model, invariant) job. Measured with `formal/scripts/formal-verify-fast`,
+one Apalache server per run, 8 runs side by side on a 16 core machine that was also running other work (load average
+9 to 22), so the numbers are upper bounds:
+
+| invariant | 10 steps | 8 steps |
+|---|---|---|
+| invSingleLiveLease | 25 s | n/m |
+| invStaleRejected | 16 s | n/m |
+| invTerminalAbsorbing | 128 s | n/m |
+| invGenerationMonotone | 161 s | n/m |
+| invQuarantineAfterCrashes | 241 s | n/m |
+| invCancelProvenance | 305 s | 127 s |
+| invCancelTerminal | 393 s | 169 s |
+| invLeaseShape | 568 s | 167 s |
+| invAtMostOnceSuccess | 784 s (over 12 min) | 195 s |
+| invNoLostJob | still running after 40 min (30 min in an earlier run) | 586 s |
+
+FAST bound: `verify-steps=8` for the whole model (the slowest invariant is 586 s). Nightly bound: `deep-steps=10`
+(`formal-verify-deep`, own machine). `invNoLostJob` at 10 steps does not fit a PR job and stays in the deep run.
