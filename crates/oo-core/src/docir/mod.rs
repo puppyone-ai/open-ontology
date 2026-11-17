@@ -9,6 +9,8 @@
 //! pipeline (BLAKE3 lives there); here they are only shape-checked.
 
 pub mod anchor;
+#[cfg(kani)]
+mod proofs;
 pub mod validate;
 
 use std::collections::BTreeMap;
