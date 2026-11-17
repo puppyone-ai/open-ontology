@@ -15,7 +15,7 @@ the synthetic golden set and the hostile fixtures.
                  `duplicate`, each path with its own evidence
   acceptance 5   (fs) add, modify, rename, delete with the right states and evidence
   acceptance 8   files written straight into the Drive directory (no API call):
-                 states follow; single file latency vs D49 (md/txt p95 <= 5 s,
+                 states follow; single file latency vs D49 (md/txt p95 <= 7 s per the L3 calibration of D49,
                  pdf/docx <= 30 s, xlsx <= 20 s), measured with a 1 s poll and,
                  with the default 30 s poll, with the targeted sync hint the
                  Desktop watcher sends (D46)
@@ -65,7 +65,7 @@ LANE = comp.LANE
 FINAL = {"published", "duplicate", "unsupported", "encrypted", "parse_failed", "too_large", "extract_partial"}
 FORMATS = ["md", "txt", "csv", "xlsx", "docx", "pptx", "pdf"]
 ERROR_CODES = set(re.findall(r'"(DOCS_[A-Z_]+)"', (REPO / "contracts/docs-api/errors.v1.json").read_text()))
-D49 = {"md/txt": 5.0, "pdf": 30.0, "docx": 30.0, "xlsx": 20.0}
+D49 = {"md/txt": 7.0, "pdf": 30.0, "docx": 30.0, "xlsx": 20.0}
 
 HOSTILE = {  # fixture -> (state, code)
     "docx-encrypted.docx": ("encrypted", "DOCS_PARSE_ENCRYPTED"),
