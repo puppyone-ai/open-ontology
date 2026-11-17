@@ -540,6 +540,18 @@ def phase_latency(ev, lab, hint, samples):
         ev.check(f"D49 {group} ({mode}): p95 {result[group]['p95']} s vs target {D49[group]} s", ok, json.dumps(result[group]))
     ev.timings[f"latency_{mode}"] = result
     ev.write(f"l3-latency-{mode}.json", json.dumps(result, indent=1, sort_keys=True) + "\n")
+    # where the time goes: median seconds from `stored` (first seen) to each state
+    try:
+        rows = lab.psql(
+            "WITH h AS (SELECT f.id, h.to_state, h.at, min(h.at) OVER (PARTITION BY f.id) AS t0 "
+            "FROM _oo_docs.file_state_history h JOIN _oo_docs.file f ON f.id = h.file_id "
+            f"WHERE f.path LIKE 'lat-{mode}/md_txt-%' AND h.seq <= 8) "
+            "SELECT to_state || ' ' || round((percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM at - t0)))::numeric, 2) "
+            "FROM h GROUP BY to_state ORDER BY 1")
+        ev.log(f"  md/txt hop medians (seconds after stored, {mode}): " + "; ".join(rows.splitlines()))
+        ev.write(f"l3-latency-hops-{mode}.txt", rows + "\n")
+    except Exception as e:  # diagnostics only
+        ev.log(f"  hop timings unavailable: {e}")
 
 
 def phase_targeted(ev, lab):
@@ -564,7 +576,10 @@ def phase_targeted(ev, lab):
             # a poll sweep ran in between: put the file back and try again
             ev.log(f"  attempt {attempt}: a poll sweep ran in the window (generation {gen0} -> {gen1}); retrying")
             (lab.root / victim).write_bytes(saved)
-            time.sleep(2)
+            # a swept file comes back with the next full sync; wait for it so
+            # the next attempt starts from the same picture
+            lab.sync()
+            l2.wait_until(90, lambda: lab.states("golden").get(victim, {}).get("state") in ("published", "duplicate"), step=1)
             continue
         ev.check("the targeted sync published the new file", bool(ok), f"{new}")
         ev.check("the generation did not advance", gen1 == gen0, f"{gen0} -> {gen1}")
@@ -604,36 +619,43 @@ def phase_fresh(ev, lab):
 
     # waiting_review: two people share an alias and a third file mentions it,
     # so the resolver queues an alias_conflict review item (10 4.7)
-    put(lab.root, "review/周一.md", "---\naliases: [小周]\n---\n# 周一\n")
-    put(lab.root, "review/周二.md", "---\naliases: [小周]\n---\n# 周二\n")
-    l2.wait_until(120, lambda: all(lab.states("review").get(f"review/{n}.md", {}).get("state") == "published" for n in ("周一", "周二")), step=1)
+    put(lab.root, "People/周一.md", "---\naliases: [小周]\n---\n# 周一\n")
+    put(lab.root, "People/周二.md", "---\naliases: [小周]\n---\n# 周二\n")
+    l2.wait_until(120, lambda: all(lab.states("People").get(f"People/{n}.md", {}).get("state") == "published" for n in ("周一", "周二")), step=1)
     time.sleep(4)
-    put(lab.root, "review/项目丙.md", "# 项目丙\n\n成员：小周\n")
+    put(lab.root, "Projects/丙周.md", "# 丙周\n\n成员：小周\n")
     waiting = l2.wait_until(120, lambda: fstate(lab.drive_id) == "waiting_review", step=1)
     ev.check("waiting_review: an unresolved alias tie leaves a review item", bool(waiting), json.dumps(lab.drive(lab.drive_id).get("freshness")))
-    # degraded: the root goes away, the sync fails, freshness says so
+    # degraded: the root cannot be read, the sync fails, freshness says so.
+    # (A bind mount follows a renamed directory, so the root is made
+    # unreadable instead: chmod 000 on the host directory.)
     n0 = len(lab.states("", held_id))
-    moved = lab.held_root.with_name("held.off")
-    lab.held_root.rename(moved)
-    sync_raw(held_id)
-    deg = l2.wait_until(90, lambda: fstate(held_id) == "degraded", step=0.5)
-    ev.check("degraded: a missing root is degraded and nothing is swept", bool(deg), json.dumps(lab.drive(held_id).get("freshness")))
-    ev.check("degraded: the files are still listed", len(lab.states("", held_id)) == n0, f"{n0} files")
-    moved.rename(lab.held_root)
+    os.chmod(lab.held_root, 0)
+    try:
+        sync_raw(held_id)
+        deg = l2.wait_until(90, lambda: fstate(held_id) == "degraded", step=0.5)
+        ev.check("degraded: an unreadable root is degraded and nothing is swept", bool(deg), json.dumps(lab.drive(held_id).get("freshness")))
+        ev.check("degraded: the files are still listed", len(lab.states("", held_id)) == n0, f"{n0} files")
+    finally:
+        os.chmod(lab.held_root, 0o755)
     sync_raw(held_id)
     back = l2.wait_until(120, lambda: fstate(held_id) == "up_to_date", step=1)
-    ev.check("degraded: the Drive recovers by itself when the root is back", bool(back), json.dumps(lab.drive(held_id).get("freshness")))
-    # held: delete every file at once; the sweep waits for confirmation
+    ev.check("degraded: the Drive recovers by itself when the root is readable again", bool(back), json.dumps(lab.drive(held_id).get("freshness")))
+    # held: delete every file at once; the sweep waits for confirmation. The
+    # sync that finds the mass delete is asynchronous (202); a second plain
+    # sync is answered 422 with the generation to confirm.
     for p in sorted(lab.held_root.glob("*.md")):
         p.unlink()
-    st, body = sync_raw(held_id)
-    ev.check("held: the sync answers 422 DOCS_SOURCE_MASS_DELETE_HELD", st == 422 and body.get("code") == "DOCS_SOURCE_MASS_DELETE_HELD", f"HTTP {st} {json.dumps(body.get('details'))}")
+    st, _ = sync_raw(held_id)
+    ev.check("held: the sync is accepted", st in (200, 201, 202), f"HTTP {st}")
     held = l2.wait_until(90, lambda: fstate(held_id) == "held", step=0.5)
     ev.check("held: freshness says held", bool(held), json.dumps(lab.drive(held_id).get("freshness")))
+    st, body = sync_raw(held_id)
+    ev.check("held: another sync answers 422 DOCS_SOURCE_MASS_DELETE_HELD", st == 422 and body.get("code") == "DOCS_SOURCE_MASS_DELETE_HELD", f"HTTP {st} {json.dumps(body.get('details'))}")
     ev.check("held: nothing was swept", len(lab.states("", held_id)) == n0, f"{n0} files still listed")
     gen = (body.get("details") or {}).get("generation")
     st2, body2 = sync_raw(held_id, {"confirm_mass_delete": gen})
-    ev.check("held: the confirmation lets the sweep through", st2 in (200, 201, 202), f"HTTP {st2}")
+    ev.check("held: the confirmation lets the sweep through", st2 in (200, 201, 202), f"HTTP {st2} {json.dumps(body2)[:120] if st2 >= 400 else ''}")
     gone = l2.wait_until(120, lambda: len(lab.states("", held_id)) == 0 and fstate(held_id) == "up_to_date", step=1)
     ev.check("held: after the confirmation the files are deleted and the Drive is up to date", bool(gone), json.dumps(lab.drive(held_id).get("freshness")))
     seen = freshness_seen(lab)
