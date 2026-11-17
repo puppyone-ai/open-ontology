@@ -3,3 +3,4 @@
 !models.lock.json
 !fetch_models.py
 !doc_parser
+!opencv-build-requirements.lock
