@@ -1,0 +1,22 @@
+# Integrity constraints of the document ontology (10 16.7, D57).
+# Core constraints ship with the schema and cannot be removed; a person may add
+# constraints through an overlay. The checker in src/publish/constraints.rs
+# implements the ids below, and a test keeps the two lists equal.
+version: 1
+constraints:
+  - id: project_single_owner
+    core: true
+    form: "(Project, owns inverse) has at most one current value"
+    time: "validity intervals never overlap"
+  - id: decision_single_status
+    core: true
+    form: "(Decision, attr.status) has at most one current value"
+    time: "validity intervals never overlap"
+  - id: identity_unique_person
+    core: true
+    form: "an identity attribute (email, github, feishu_id) belongs to at most one Person"
+    time: "not time dependent"
+  - id: rejected_not_adopted
+    core: true
+    form: "one alternative is not both rejected and currently decided"
+    time: "validity intervals never overlap"

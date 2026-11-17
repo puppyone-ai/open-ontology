@@ -49,6 +49,9 @@ pub struct IndexSummary {
     pub identity_merges: u32,
     /// `entity_merge` review items queued (5.4 step 6, refused identity merges).
     pub merge_proposals: u32,
+    /// The file version repeats the assertions of an earlier version of the
+    /// same file (early cutoff, 16.1).
+    pub early_cutoff: bool,
 }
 
 /// Run the rules on `doc.ir` and store the result.
@@ -82,6 +85,9 @@ pub async fn index_document_with(
     let resolved = resolve_extraction(&index, &extraction);
     let mut summary = store_resolved(&mut tx, doc, &resolved).await?;
     post_resolve(&mut tx, doc, &resolved, &mut summary).await?;
+    if let Some((_, same)) = super::hashes::store_assertion_hash(&mut tx, doc.version_id).await? {
+        summary.early_cutoff = same;
+    }
     tx.commit().await?;
     Ok(summary)
 }

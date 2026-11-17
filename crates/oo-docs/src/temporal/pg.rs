@@ -240,7 +240,9 @@ fn merge_plan(out: &mut Reconciled, plan: Plan, incoming: &BTreeSet<&str>) {
     for h in &plan.held {
         if matches!(
             h.reason,
-            ReviewReason::FunctionalConflict | ReviewReason::SupersedeCandidate
+            ReviewReason::FunctionalConflict
+                | ReviewReason::SupersedeCandidate
+                | ReviewReason::ConflictsWithHumanOverlay
         ) && incoming.contains(h.fact_id.as_str())
         {
             out.excluded.insert(h.fact_id.clone());
@@ -261,7 +263,8 @@ pub async fn queue_held(conn: &mut PgConnection, held: &[Held]) -> Result<u32, S
              SELECT gen_random_uuid(), 'low_confidence_fact', \
                     'low_confidence_fact:' || $3 || ':' || f.fact_key || ':' || o.fact_key, \
                     src.drive_id, src.file_id, src.version_id, \
-                    jsonb_build_object('fact_id', f.id::text, 'other_fact_id', o.id::text), \
+                    jsonb_build_object('fact_id', f.id::text, 'other_fact_id', o.id::text, \
+                                       'details', jsonb_build_object('reason', $3::text)), \
                     f.confidence_bp, $3 \
                FROM _oo_docs.fact f \
                JOIN _oo_docs.fact o ON o.id = $2::uuid \

@@ -40,7 +40,7 @@ use crate::review::overlay;
 use crate::review::queue::{self, Thresholds};
 use crate::state::{FileState, Transition, TransitionError, transition_in_tx};
 use crate::store::{StoreError, events};
-use crate::temporal::pg::{overlaps_after, queue_held, reconcile};
+use crate::temporal::pg::{overlaps_after, reconcile};
 
 /// `pg_try_advisory_lock` key of the single publisher (10 §4.9).
 pub const PUBLISH_LOCK: i64 = 6_413_202_612;
@@ -125,6 +125,8 @@ pub struct PublishedVersion {
     pub blocked_facts: u32,
     pub blocked_aliases: u32,
     pub files_published: u32,
+    pub changed_entities: u32,
+    pub covers_drive_rev: i64,
     pub gates: Vec<GateRecord>,
 }
 
@@ -278,7 +280,7 @@ pub async fn publish(
     let mut eligible = report.eligible();
     // Supersession and functional conflicts (5.5); what must wait is queued.
     let rec = reconcile(&mut tx, &eligible).await?;
-    queue_held(&mut tx, &rec.held).await?;
+    super::constraints::route_held(&mut tx, &rec.held).await?;
     eligible.retain(|id| !rec.excluded.contains(id));
 
     let fact_rows: Vec<FactSqlRow> = sqlx::query_as(
@@ -424,7 +426,11 @@ pub async fn publish(
                 });
             }
         }
-        queue_held(&mut tx, &held).await?;
+        super::constraints::route_held(&mut tx, &held).await?;
+        // The other two core constraints (16.7): what would make an alternative
+        // rejected and decided at once, and persons that share an identity.
+        let ids2: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
+        blocked.extend(super::constraints::check_publish(&mut tx, &ids2).await?);
         ok_facts.retain(|f| {
             if blocked.contains(&f.id) {
                 g3.block("overlap", false);
@@ -557,10 +563,29 @@ pub async fn publish(
         sha256_hex(joined.as_bytes())
     };
 
+    let publish_fact_ids: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
+    let publish_alias_ids: Vec<String> = ok_aliases.iter().map(|a| a.id.clone()).collect();
+    let mut touched: Vec<String> = publish_fact_ids.clone();
+    touched.extend(publish_alias_ids.iter().cloned());
+    let files: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT f.id::text, fv.id::text \
+           FROM _oo_docs.evidence e \
+           JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
+           JOIN _oo_docs.file f ON f.id = fv.file_id \
+          WHERE e.withdrawn_at IS NULL AND e.target_kind IN ('fact', 'alias') \
+            AND e.target_id = ANY($1::text[]::uuid[]) AND f.state = 'indexed' \
+          ORDER BY 1, 2",
+    )
+    .bind(&touched)
+    .fetch_all(&mut *tx)
+    .await?;
+    let settling: Vec<String> = files.iter().map(|(f, _)| f.clone()).collect();
+    let covers = crate::store::rev::covers_drive_rev(&mut tx, &settling).await?;
     sqlx::query(
         "INSERT INTO _oo_docs.ontology_version \
-           (n, parent, as_of, facts_added, facts_retracted, digest, gate_report_sha256, trigger) \
-         VALUES ($1, $2, (clock_timestamp() AT TIME ZONE 'UTC')::date, $3, $4, $5, $6, $7)",
+           (n, parent, as_of, facts_added, facts_retracted, digest, gate_report_sha256, trigger, \
+            covers_drive_rev) \
+         VALUES ($1, $2, (clock_timestamp() AT TIME ZONE 'UTC')::date, $3, $4, $5, $6, $7, $8)",
     )
     .bind(n)
     .bind(parent.as_ref().map(|(p, _)| *p))
@@ -569,6 +594,7 @@ pub async fn publish(
     .bind(&digest)
     .bind(&report_sha)
     .bind(cfg.trigger)
+    .bind(covers)
     .execute(&mut *tx)
     .await?;
     for g in &gates {
@@ -585,8 +611,6 @@ pub async fn publish(
         .await?;
     }
 
-    let publish_fact_ids: Vec<String> = ok_facts.iter().map(|f| f.id.clone()).collect();
-    let publish_alias_ids: Vec<String> = ok_aliases.iter().map(|a| a.id.clone()).collect();
     sqlx::query(
         "UPDATE _oo_docs.fact SET status = 'published', published_in = $1 \
           WHERE id = ANY($2::text[]::uuid[])",
@@ -610,21 +634,21 @@ pub async fn publish(
         .execute(&mut *tx)
         .await?;
 
-    // Files whose content is now published.
-    let mut touched: Vec<String> = publish_fact_ids.clone();
-    touched.extend(publish_alias_ids.iter().cloned());
-    let files: Vec<(String, String)> = sqlx::query_as(
-        "SELECT DISTINCT f.id::text, fv.id::text \
-           FROM _oo_docs.evidence e \
-           JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
-           JOIN _oo_docs.file f ON f.id = fv.file_id \
-          WHERE e.withdrawn_at IS NULL AND e.target_kind IN ('fact', 'alias') \
-            AND e.target_id = ANY($1::text[]::uuid[]) AND f.state = 'indexed' \
-          ORDER BY 1, 2",
+    // Entity states of this version; an unchanged hash writes nothing.
+    let touched: BTreeSet<String> = sqlx::query_scalar::<_, String>(
+        "SELECT DISTINCT x::text FROM _oo_docs.fact f, \
+                LATERAL unnest(ARRAY[f.subject_id, f.object_id]) x \
+          WHERE x IS NOT NULL AND (f.published_in = $1 OR f.retracted_in = $1) \
+         UNION \
+         SELECT a.entity_id::text FROM _oo_docs.alias a WHERE a.published_in = $1",
     )
-    .bind(&touched)
+    .bind(n)
     .fetch_all(&mut *tx)
-    .await?;
+    .await?
+    .into_iter()
+    .collect();
+    let changed_entities = super::hashes::snapshot_entity_states(&mut tx, n, &touched).await?;
+
     // Lock every file row before the first event (10 4.1.3): a transition
     // appends an event, which holds the `event_head` lock until commit, and a
     // stage that holds a file row waits for that lock. Taking the rows one by
@@ -683,6 +707,8 @@ pub async fn publish(
             "as_of": as_of,
             "facts_added": ok_facts.len(),
             "facts_retracted": retractions.len(),
+            "changed_entities": changed_entities.len(),
+            "covers_drive_rev": covers,
             "gates": gate_map,
         })
         .to_string(),
@@ -699,6 +725,8 @@ pub async fn publish(
         blocked_facts,
         blocked_aliases,
         files_published,
+        changed_entities: u32::try_from(changed_entities.len()).unwrap_or(u32::MAX),
+        covers_drive_rev: covers,
         gates,
     }))
 }

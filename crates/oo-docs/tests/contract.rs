@@ -109,6 +109,7 @@ fn every_route_error_code_is_in_the_contract() {
             code::PARSE_NOT_READY,
             code::REVIEW_BATCH_TOO_LARGE,
             code::REVIEW_INVALID_DECISION,
+            code::REVIEW_MERGE_CONFLICT,
         ]
         .into_iter()
         .find(|c| c.as_str() == name)
@@ -122,7 +123,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 41);
+    assert_eq!(ALL_CODES.len(), 42);
 }
 
 #[test]
