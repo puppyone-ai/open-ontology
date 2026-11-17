@@ -257,7 +257,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_COMMAND_PIPE` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:119`](../../crates/oo-cli/src/admin/build_retained.rs#L119) |
 | `BUILD_COMMAND_START` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:114`](../../crates/oo-cli/src/admin/build_retained.rs#L114) |
 | `BUILD_COMMAND_TIMEOUT_OR_IO` | [query-budget](#query-budget) | [`build_retained.rs:150`](../../crates/oo-cli/src/admin/build_retained.rs#L150) |
-| `BUILD_COMPLETION_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build_lite.rs:458`](../../crates/oo-cli/src/admin/build_lite.rs#L458) |
+| `BUILD_COMPLETION_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build_lite.rs:461`](../../crates/oo-cli/src/admin/build_lite.rs#L461) |
 | `BUILD_CYCLE_REQUIRES_RESUME_AND_ID` | [configuration-and-source](#configuration-and-source) | [`build.rs:172`](../../crates/oo-cli/src/admin/build.rs#L172) |
 | `BUILD_ERROR_PROTOCOL` | [configuration-and-source](#configuration-and-source) | [`build.rs:395`](../../crates/oo-cli/src/admin/build.rs#L395) |
 | `BUILD_EXECUTION_FAILED` | [configuration-and-source](#configuration-and-source) | [`draft.py:287`](../../deploy/lite/draft.py#L287) |
@@ -275,7 +275,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_LIFECYCLE_START` | [configuration-and-source](#configuration-and-source) | [`build_tail.rs:118`](../../crates/oo-cli/src/admin/build_tail.rs#L118) |
 | `BUILD_LITE_GATEWAY_SERVICE` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:436`](../../crates/oo-cli/src/admin/build_lite.rs#L436) |
 | `BUILD_LITE_NOT_PROVISIONED` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:38`](../../crates/oo-cli/src/admin/build_lite.rs#L38) |
-| `BUILD_LITE_NO_PROGRESS` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:480`](../../crates/oo-cli/src/admin/build_lite.rs#L480) |
+| `BUILD_LITE_NO_PROGRESS` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:486`](../../crates/oo-cli/src/admin/build_lite.rs#L486) |
 | `BUILD_LITE_OWNER` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:48`](../../crates/oo-cli/src/admin/build_lite.rs#L48) |
 | `BUILD_LITE_PATH` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:69`](../../crates/oo-cli/src/admin/build_lite.rs#L69) |
 | `BUILD_LITE_RETAINED_GRANT` | [installation-and-runtime](#installation-and-runtime) | [`build_lite.rs:372`](../../crates/oo-cli/src/admin/build_lite.rs#L372) |
@@ -287,7 +287,7 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `BUILD_LOCK` | [configuration-and-source](#configuration-and-source) | [`build.rs:208`](../../crates/oo-cli/src/admin/build.rs#L208) |
 | `BUILD_ORIGIN_INCOMPLETE` | [configuration-and-source](#configuration-and-source) | [`build.rs:181`](../../crates/oo-cli/src/admin/build.rs#L181) |
 | `BUILD_ORIGIN_MISSING` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:271`](../../crates/oo-cli/src/admin/build_retained.rs#L271) |
-| `BUILD_PROFILE_NOT_PUBLISHED` | [credentials](#credentials) | [`build_lite.rs:493`](../../crates/oo-cli/src/admin/build_lite.rs#L493) |
+| `BUILD_PROFILE_NOT_PUBLISHED` | [credentials](#credentials) | [`build_lite.rs:513`](../../crates/oo-cli/src/admin/build_lite.rs#L513) |
 | `BUILD_PROMPT_RECEIPT` | [configuration-and-source](#configuration-and-source) | [`build.rs:426`](../../crates/oo-cli/src/admin/build.rs#L426) |
 | `BUILD_PUBLICATION_FAILED` | [review-and-publication](#review-and-publication) | [`build_retained.rs:349`](../../crates/oo-cli/src/admin/build_retained.rs#L349) |
 | `BUILD_PUBLICATION_RECEIPT` | [review-and-publication](#review-and-publication) | [`build_retained.rs:353`](../../crates/oo-cli/src/admin/build_retained.rs#L353) |
