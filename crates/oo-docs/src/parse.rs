@@ -1,7 +1,7 @@
 //! Parse routing, local and sidecar parsers (10 §4.4). Board WS-BE2.
 //!
-//! This card (B-S2-06) covers the local `md` and `txt` parsers and the frame
-//! protocol of the `oo-docs-parse` subprocess. Parsers produce an
+//! Local parsers: `md`, `txt` (B-S2-06), `csv` and `xlsx` (B-S3-02, B-S3-03);
+//! the frame protocol of the `oo-docs-parse` subprocess. Parsers produce an
 //! [`crate::normalize::IrFragment`]; [`crate::normalize::finish`] turns it
 //! into canonical `oo.doc-ir/v1` plus its `ir_b3`.
 //!
@@ -11,12 +11,15 @@
 //! half-open `[char_start, char_end)`, newlines included. A line ends at
 //! `\n`; a `\r` before it stays in the line.
 
+pub mod csv;
 pub mod decode;
 pub mod frontmatter;
 pub mod lines;
 pub mod local;
 pub mod markdown;
+pub mod table;
 pub mod text;
+pub mod xlsx;
 
 #[cfg(test)]
 mod tests;
@@ -40,6 +43,14 @@ pub enum ParseError {
     IrInvalid,
     /// More than `oo_core::docir::MAX_BLOCKS` blocks.
     LimitBlocks,
+    /// More than 5,000,000 cells, or a record wider than 16,384 columns.
+    LimitCells,
+    /// Package fails the zip pre-flight (`DOCS_PARSE_ZIP_BOMB`).
+    ZipBomb,
+    /// Not a readable container of the declared format.
+    Corrupt,
+    /// Password protected.
+    Encrypted,
 }
 
 impl ParseError {
@@ -50,6 +61,10 @@ impl ParseError {
             ParseError::NotText => "DOCS_PARSE_UNSUPPORTED_FORMAT",
             ParseError::IrInvalid => "DOCS_PARSE_IR_INVALID",
             ParseError::LimitBlocks => "DOCS_PARSE_LIMIT_BLOCKS",
+            ParseError::LimitCells => "DOCS_PARSE_LIMIT_CELLS",
+            ParseError::ZipBomb => "DOCS_PARSE_ZIP_BOMB",
+            ParseError::Corrupt => "DOCS_PARSE_CORRUPT",
+            ParseError::Encrypted => "DOCS_PARSE_ENCRYPTED",
         }
     }
 
@@ -65,6 +80,10 @@ impl std::fmt::Display for ParseError {
             ParseError::NotText => f.write_str("content is not text"),
             ParseError::IrInvalid => f.write_str("parser output violates oo.doc-ir/v1"),
             ParseError::LimitBlocks => f.write_str("block limit exceeded"),
+            ParseError::LimitCells => f.write_str("cell limit exceeded"),
+            ParseError::ZipBomb => f.write_str("package fails the zip pre-flight"),
+            ParseError::Corrupt => f.write_str("container is not readable"),
+            ParseError::Encrypted => f.write_str("document is password protected"),
         }
     }
 }

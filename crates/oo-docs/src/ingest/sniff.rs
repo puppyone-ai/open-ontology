@@ -5,7 +5,12 @@
 //! Only the head of the file is looked at. Heuristics that need the whole
 //! container (OOXML `[Content_Types].xml`, PDF text-layer ratio) belong to the
 //! zip guard and the sidecar probe; here an OOXML package is recognised by the
-//! part names its first local headers carry in clear text.
+//! part names its first local headers carry in clear text. [`sniff_reader`]
+//! looks at the whole file (central directory, PDF trailer, OLE2 streams).
+
+use std::io::{self, Read, Seek, SeekFrom};
+
+use super::zipguard::{self, Package, ZipError};
 
 /// `_oo_docs.blob.format` values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -85,6 +90,8 @@ pub const CODES: &[&str] = &[
     "DOCS_PARSE_ENCODING",
     "DOCS_PARSE_ENCRYPTED",
     "DOCS_PARSE_IMAGE_OCR_M2",
+    "DOCS_PARSE_ZIP_BOMB",
+    "DOCS_PARSE_CORRUPT",
 ];
 
 fn find(hay: &[u8], needle: &[u8]) -> bool {
@@ -102,6 +109,83 @@ pub fn extension(path: &str) -> String {
         Some((stem, ext)) if !stem.is_empty() => ext.to_ascii_lowercase(),
         _ => String::new(),
     }
+}
+
+/// Window and overlap of the OLE2 name scan.
+const OLE_SCAN_CHUNK: usize = 1 << 20;
+/// How much of an OLE2 file is scanned for encryption stream names.
+const OLE_SCAN_MAX: u64 = 32 << 20;
+const HEAD_BYTES: u64 = 64 * 1024;
+
+/// Sniff a whole file, not just its head. Adds what needs more than the first
+/// bytes: the ZIP central directory (package type from entry names, macros,
+/// the zip guard verdicts), `/Encrypt` in a PDF head or tail, and the
+/// `EncryptedPackage` / `EncryptionInfo` stream names anywhere in the first
+/// 32 MiB of an OLE2 file.
+pub fn sniff_reader<R: Read + Seek>(r: &mut R, len: u64, ext: &str) -> io::Result<Sniffed> {
+    let head_len = len.min(HEAD_BYTES) as usize;
+    let mut head = vec![0u8; head_len];
+    r.seek(SeekFrom::Start(0))?;
+    r.read_exact(&mut head)?;
+    let mut out = sniff(&head, len, ext);
+    let tail = |r: &mut R| -> io::Result<Vec<u8>> {
+        let n = len.min(HEAD_BYTES);
+        r.seek(SeekFrom::Start(len - n))?;
+        let mut t = vec![0u8; n as usize];
+        r.read_exact(&mut t)?;
+        Ok(t)
+    };
+    match out.format {
+        Format::Pdf => {
+            if find(&head, b"/Encrypt") || find(&tail(r)?, b"/Encrypt") {
+                out.verdict = Verdict::Encrypted;
+            }
+        }
+        Format::Docx | Format::Xlsx | Format::Pptx | Format::Zip => {
+            // A head that starts with PK is a zip, whatever the part names.
+            match zipguard::check(r, len) {
+                Ok(report) => {
+                    let (format, verdict) = match report.package {
+                        Package::Docx => (Format::Docx, Verdict::Parseable),
+                        Package::Xlsx => (Format::Xlsx, Verdict::Parseable),
+                        Package::Pptx => (Format::Pptx, Verdict::Parseable),
+                        Package::Other => (
+                            Format::Zip,
+                            Verdict::Unsupported("DOCS_PARSE_UNSUPPORTED_FORMAT"),
+                        ),
+                    };
+                    out = Sniffed {
+                        format,
+                        verdict,
+                        has_macros: report.has_macros,
+                    };
+                }
+                Err(ZipError::Encrypted) => out.verdict = Verdict::Encrypted,
+                Err(e) => out.verdict = Verdict::Unsupported(e.code()),
+            }
+        }
+        Format::LegacyOffice => {
+            let names = [utf16le("EncryptedPackage"), utf16le("EncryptionInfo")];
+            let keep = names.iter().map(Vec::len).max().unwrap_or(0);
+            let mut pos = 0u64;
+            let mut carry: Vec<u8> = Vec::new();
+            r.seek(SeekFrom::Start(0))?;
+            while pos < len.min(OLE_SCAN_MAX) {
+                let mut chunk = vec![0u8; OLE_SCAN_CHUNK.min((len - pos) as usize)];
+                r.read_exact(&mut chunk)?;
+                pos += chunk.len() as u64;
+                let mut window = std::mem::take(&mut carry);
+                window.extend_from_slice(&chunk);
+                if names.iter().any(|n| find(&window, n)) {
+                    out.verdict = Verdict::Encrypted;
+                    break;
+                }
+                carry = window[window.len().saturating_sub(keep)..].to_vec();
+            }
+        }
+        _ => {}
+    }
+    Ok(out)
 }
 
 /// Classify `head` (the first bytes of the file, at most 64 KiB is useful).
