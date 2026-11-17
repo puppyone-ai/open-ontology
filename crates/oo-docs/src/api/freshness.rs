@@ -92,6 +92,11 @@ pub async fn compute(
     .fetch_one(&mut *conn)
     .await?;
     let (n, as_of) = version.unwrap_or((0, now));
+    let covers: i64 = sqlx::query_scalar(
+        "SELECT COALESCE((SELECT covers_drive_rev FROM _oo_docs.ontology_version ORDER BY n DESC LIMIT 1), 0)",
+    )
+    .fetch_one(&mut *conn)
+    .await?;
     let publishing: bool = sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM _oo_docs.job WHERE kind = 'publish' AND state IN ('queued', 'running'))",
     )
@@ -132,6 +137,7 @@ pub async fn compute(
             json!({
                 "state": state,
                 "ontology_version": n,
+                "covers_drive_rev": covers,
                 "as_of": as_of,
                 "processing": inputs.processing,
                 "pending_review": inputs.pending_review,

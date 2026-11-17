@@ -447,6 +447,7 @@ async fn serve_loop(
     );
 
     let (stop_tx, stop_rx) = watch::channel(false);
+    let reconciler = tokio::spawn(reconcile_loop(state.to_owned(), stop_rx.clone()));
     let server = tokio::spawn(proxy::serve(
         listener,
         cfg,
@@ -458,6 +459,7 @@ async fn serve_loop(
     // before the engine goes (10 §8.6 point 7).
     let _ = stop_tx.send(true);
     let _ = server.await;
+    let _ = reconciler.await;
     secrets::clean_runtime_files(state);
     stop_backend(
         supervisor,
@@ -468,6 +470,26 @@ async fn serve_loop(
     .await;
     println!("oo serve stopped");
     exit::OK
+}
+
+/// The daemon's mount upkeep (10 §7.7 point 6, §16.4): every second, delete the
+/// directories of expired and revoked shares and append new `UPDATES.md`
+/// entries. Quiet when the engine is down; it simply tries again.
+async fn reconcile_loop(state: PathBuf, mut stop: watch::Receiver<bool>) {
+    loop {
+        if *stop.borrow() {
+            return;
+        }
+        if !super::mounts::load_mounts(&state).is_empty()
+            && let Ok(d) = super::client::Daemon::connect(&state)
+        {
+            let _ = super::mounts::reconcile(&d, &state).await;
+        }
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+            _ = stop.changed() => {}
+        }
+    }
 }
 
 /// Stop the engine side: the host child, or `docker compose stop` (volumes

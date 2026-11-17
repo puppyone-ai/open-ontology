@@ -281,7 +281,11 @@ pub async fn check(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body
         return Err(share_not_found(sid));
     }
     let since = since_of(req)?;
-    let v = crate::share::check::run(app, sid, since, &public_host(req)).await?;
+    // A caller with the control token gets the at-checkpoint upgrade by
+    // default; one with only a refs credential asks for it (`auto_refresh=true`)
+    // when it can mount the new pack itself.
+    let auto = req.query.flag("auto_refresh", req.cred.is_none())?;
+    let v = crate::share::check::run(app, sid, since, &public_host(req), auto).await?;
     Ok(json_with(200, &v, &[]))
 }
 

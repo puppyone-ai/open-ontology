@@ -20,6 +20,18 @@ use crate::store::{events, jobs as store};
 
 const BACKENDS: [&str; 5] = ["fs", "s3", "oss", "cos", "r2"];
 
+/// The Drive's freshness token now (D54); sync responses carry it so a
+/// caller can ask for a pack that covers at least this.
+async fn current_rev(conn: &mut PgConnection, id: &str) -> Result<i64, ApiError> {
+    Ok(
+        sqlx::query_scalar("SELECT rev FROM _oo_docs.drive WHERE id = $1::uuid")
+            .bind(id)
+            .fetch_optional(&mut *conn)
+            .await?
+            .unwrap_or(0),
+    )
+}
+
 fn drive_not_found(id: &str) -> ApiError {
     ApiError::new(code::DRIVE_NOT_FOUND, "drive not found").details(json!({ "drive_id": id }))
 }
@@ -31,7 +43,7 @@ pub async fn drive_values(conn: &mut PgConnection, ids: &[String]) -> Result<Vec
     }
     let base = sqlx::query(sqlx::AssertSqlSafe(format!(
         "SELECT id::text AS id, name, backend, config::text AS config, status, status_code, \
-         model_enabled, llm_daily_calls, revision, \
+         model_enabled, llm_daily_calls, revision, rev, \
          to_char(created_at AT TIME ZONE 'UTC', {FMT}) AS created_at \
          FROM _oo_docs.drive WHERE id = ANY($1::text[]::uuid[])"
     )))
@@ -90,6 +102,7 @@ pub async fn drive_values(conn: &mut PgConnection, ids: &[String]) -> Result<Vec
             "model_enabled": r.try_get::<bool, _>("model_enabled")?,
             "llm_daily_calls": r.try_get::<i32, _>("llm_daily_calls")?,
             "revision": r.try_get::<i64, _>("revision")?,
+            "drive_rev": r.try_get::<i64, _>("rev")?,
             "counts": by_state,
             "pending_review": pending,
             "files_total": total,
@@ -569,7 +582,7 @@ pub async fn delete(app: &AppState, id: &str, req: &Req) -> Result<Response<Body
     }
     let shares: Vec<String> = sqlx::query_scalar(
         "SELECT id::text FROM _oo_docs.share WHERE drive_id = $1::uuid \
-         AND status IN ('active', 'drifted', 'refreshed') ORDER BY id",
+         AND status IN ('active', 'drifted') ORDER BY id",
     )
     .bind(id)
     .fetch_all(&mut *tx)
@@ -728,6 +741,7 @@ pub async fn sync(app: &AppState, id: &str, req: &Req) -> Result<Response<Body>,
             "finished_at": finished,
             "targeted": true,
             "maybe_deleted": report.maybe_deleted,
+            "drive_rev": current_rev(&mut conn, id).await?,
         })
     } else {
         let flavor = SyncFlavor {
@@ -749,6 +763,7 @@ pub async fn sync(app: &AppState, id: &str, req: &Req) -> Result<Response<Body>,
                     "error_code": null,
                     "started_at": now_text(&mut conn).await?,
                     "finished_at": null,
+                    "drive_rev": current_rev(&mut conn, id).await?,
                 })
             }
             Ok(EnqueuedSync::Running { generation }) => {

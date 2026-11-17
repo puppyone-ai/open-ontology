@@ -54,7 +54,12 @@ impl CliError {
             "DOCS_PACK_SCOPE_INVALID" | "DOCS_PACK_NOTHING_VISIBLE" => exit::SCOPE,
             "DOCS_SHARE_TARGET_OCCUPIED" | "DOCS_SHARE_TARGET_INVALID" => exit::TARGET,
             "DOCS_PACK_LEAK_GUARD" | "DOCS_PACK_PROVENANCE_GAP" => exit::GATE,
-            "DOCS_SHARE_NOT_FOUND" | "DOCS_SHARE_INVALID_TRANSITION" => exit::SHARE_STATE,
+            "DOCS_SHARE_NOT_FOUND"
+            | "DOCS_SHARE_INVALID_TRANSITION"
+            | "DOCS_SHARE_PINNED"
+            | "DOCS_SHARE_GROUP_MEMBER" => exit::SHARE_STATE,
+            // A coverage the caller refused (`--require-complete`) is a compile gate.
+            "DOCS_PACK_COVERAGE_INCOMPLETE" => exit::GATE,
             _ if status == 400 || status == 422 => exit::ARGS,
             _ => exit::OTHER,
         };
@@ -157,12 +162,101 @@ impl Daemon {
             .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "response is not JSON"))
     }
 
+    /// `DELETE` (with `If-Match` when given); the body may be empty.
+    pub async fn delete(&self, path: &str, if_match: Option<&str>) -> Result<Value, CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let mut req = self
+            .http
+            .delete(format!("{}{path}", self.base))
+            .header("idempotency-key", key);
+        if let Some(m) = if_match {
+            req = req.header("if-match", m);
+        }
+        let (_, body) = self.send(req).await?;
+        Ok(serde_json::from_slice(&body).unwrap_or(Value::Null))
+    }
+
+    /// `POST` JSON with an `If-Match` header and a fresh idempotency key.
+    pub async fn post_json_if(
+        &self,
+        path: &str,
+        body: &Value,
+        if_match: &str,
+    ) -> Result<Value, CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let req = self
+            .http
+            .post(format!("{}{path}", self.base))
+            .header("idempotency-key", key)
+            .header("if-match", if_match)
+            .header("content-type", "application/json")
+            .body(body.to_string());
+        let (_, body) = self.send(req).await?;
+        serde_json::from_slice(&body)
+            .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "response is not JSON"))
+    }
+
     /// `GET`, raw bytes.
     pub async fn get_bytes(&self, path: &str) -> Result<Vec<u8>, CliError> {
         Ok(self
             .send(self.http.get(format!("{}{path}", self.base)))
             .await?
             .1)
+    }
+
+    /// A client that authenticates with a share's refs credential at `base`
+    /// (`http://127.0.0.1:<port>`), for the task-time calls of `oo context check`.
+    pub fn with_credential(base: &str, credential: &str) -> Result<Self, CliError> {
+        let http = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(15))
+            .build()
+            .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "http client"))?;
+        Ok(Self {
+            base: base.trim_end_matches('/').to_owned(),
+            token: credential.to_owned(),
+            http,
+        })
+    }
+
+    /// `POST` that returns the status and the JSON body without mapping
+    /// statuses to errors. Only a connection failure is an error (exit 3).
+    pub async fn post_raw(&self, path: &str, body: &Value) -> Result<(u16, Value), CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let resp = self
+            .http
+            .post(format!("{}{path}", self.base))
+            .header("authorization", format!("Bearer {}", self.token))
+            .header("idempotency-key", key)
+            .header("content-type", "application/json")
+            .body(body.to_string())
+            .send()
+            .await
+            .map_err(|_| {
+                CliError::new(
+                    exit::ENGINE_UNAVAILABLE,
+                    "DOCS_ENGINE_UNAVAILABLE",
+                    "cannot reach the engine",
+                )
+            })?;
+        let status = resp.status().as_u16();
+        let bytes = resp.bytes().await.map_err(|_| {
+            CliError::new(
+                exit::ENGINE_UNAVAILABLE,
+                "DOCS_ENGINE_UNAVAILABLE",
+                "connection lost",
+            )
+        })?;
+        Ok((
+            status,
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        ))
     }
 
     /// `POST` JSON with a fresh idempotency key.

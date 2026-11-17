@@ -775,6 +775,11 @@ impl JobHandler for PublishHandler {
                 }
                 Err(_) => return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_INTERNAL"),
             };
+            // A person's decision whose evidence is gone becomes an orphaned
+            // overlay item (D22), after every publish.
+            if let Ok(mut c) = self.pool.acquire().await {
+                let _ = crate::review::overlay::sweep_orphans(&mut c).await;
+            }
             let n = match n {
                 Some(n) => Some(n),
                 None => sqlx::query_scalar("SELECT max(n) FROM _oo_docs.ontology_version")

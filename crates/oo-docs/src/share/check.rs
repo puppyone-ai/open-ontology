@@ -49,11 +49,12 @@ pub async fn run(
     sid: &str,
     since: i64,
     public_host: &str,
+    auto_refresh: bool,
 ) -> Result<Value, ApiError> {
     let mut conn = app.pool.acquire().await?;
     let mut result = evaluate(&mut conn, sid, since).await?;
     let exit = result["exit_code"].as_i64().unwrap_or(40);
-    if exit != 0 && exit != 10 {
+    if !auto_refresh || (exit != 0 && exit != 10) {
         return Ok(result);
     }
     let old = lifecycle::load_old(&mut conn, sid).await?;
