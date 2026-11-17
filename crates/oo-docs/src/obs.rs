@@ -4,6 +4,8 @@
 //! nothing is read from request bodies, and `message` text from sources is
 //! never formatted in (error `Display` impls are static text, 4.3.1).
 
+pub mod latency;
+
 use serde_json::{Map, Value, json};
 
 /// Build a log line. `level` is `info`, `warn` or `error`.

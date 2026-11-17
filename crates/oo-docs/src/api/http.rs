@@ -129,6 +129,15 @@ pub fn json_with(status: u16, value: &Value, headers: &[(&str, String)]) -> Resp
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
+/// A plain text response with its own content type.
+pub fn text(status: u16, content_type: &str, body: String) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::from_u16(status).unwrap_or(StatusCode::OK))
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
+}
+
 /// Lowercase UUID text.
 pub fn is_uuid(s: &str) -> bool {
     let b = s.as_bytes();
