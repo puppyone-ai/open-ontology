@@ -30,10 +30,12 @@ export JVM_ARGS="${JVM_ARGS:--Xmx8g}"
 command -v quint >/dev/null 2>&1 || { echo "quint not found; see formal/TOOLCHAIN.md" >&2; exit 127; }
 
 # Model registry: every formal/quint/*.qnt carries one header line
-#   // formal: main=<module> inv=<invariant> steps=<n> verify-steps=<n> witnesses="a b"
-# formal_models prints "file<TAB>main<TAB>inv<TAB>steps<TAB>verify-steps<TAB>witnesses".
+#   // formal: main=<module> inv=<invariant> steps=<n> verify-steps=<n> witnesses="a b" [vinv="i1 i2 ..."]
+# `inv` is the combined invariant used by simulation; `vinv` (default: inv) lists the invariants
+# `quint verify` checks one by one (Apalache is far faster per invariant than on one big conjunction).
+# formal_models prints "file<TAB>main<TAB>inv<TAB>steps<TAB>verify-steps<TAB>witnesses<TAB>vinv".
 formal_models() {
-  local f line main inv steps vsteps wit
+  local f line main inv steps vsteps wit vinv
   for f in "$FORMAL_ROOT"/formal/quint/*.qnt; do
     [ -e "$f" ] || continue
     line="$(grep -m1 '^// formal:' "$f" || true)"
@@ -43,6 +45,7 @@ formal_models() {
     steps="$(sed -n 's/.* steps=\([^ ]*\).*/\1/p' <<<"$line")"
     vsteps="$(sed -n 's/.* verify-steps=\([^ ]*\).*/\1/p' <<<"$line")"
     wit="$(sed -n 's/.* witnesses="\([^"]*\)".*/\1/p' <<<"$line")"
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$main" "$inv" "${steps:-40}" "${vsteps:-10}" "$wit"
+    vinv="$(sed -n 's/.* vinv="\([^"]*\)".*/\1/p' <<<"$line")"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$main" "$inv" "${steps:-40}" "${vsteps:-10}" "$wit" "${vinv:-$inv}"
   done
 }

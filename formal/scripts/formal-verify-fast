@@ -4,10 +4,12 @@
 source "$(dirname "$0")/_env.sh"
 only="${1:-}"
 n=0
-while IFS=$'\t' read -r file main inv steps vsteps wit; do
+while IFS=$'\t' read -r file main inv steps vsteps wit vinv; do
   case "$file" in *"$only"*) ;; *) continue ;; esac
-  echo "verify ${file#"$FORMAL_ROOT"/} main=$main invariant=$inv max-steps=$vsteps"
-  quint verify "$file" --main="$main" --invariant="$inv" --max-steps="$vsteps" | tail -n 6
+  for i in $vinv; do
+    echo "verify ${file#"$FORMAL_ROOT"/} main=$main invariant=$i max-steps=$vsteps"
+    quint verify "$file" --main="$main" --invariant="$i" --max-steps="$vsteps" | grep -E '^\[|violation|rror:' | tail -n 3
+  done
   n=$((n + 1))
 done < <(formal_models)
 echo "formal-verify-fast: $n model(s) ok"

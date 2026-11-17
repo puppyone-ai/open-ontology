@@ -5,7 +5,7 @@ source "$(dirname "$0")/_env.sh"
 samples="${FORMAL_SAMPLES:-10000}"
 seed="${FORMAL_SEED:-0x464d}"
 n=0
-while IFS=$'\t' read -r file main inv steps vsteps wit; do
+while IFS=$'\t' read -r file main inv steps vsteps wit vinv; do
   echo "simulate ${file#"$FORMAL_ROOT"/} main=$main inv=$inv samples=$samples steps=$steps seed=$seed"
   quint run "$file" --main="$main" --invariant="$inv" --max-samples="$samples" \
     --max-steps="$steps" --seed="$seed" | tail -n 6
