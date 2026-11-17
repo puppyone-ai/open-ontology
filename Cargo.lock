@@ -3339,8 +3339,11 @@ dependencies = [
 name = "oo-docs"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "blake3",
  "calamine",
+ "futures-core",
+ "jsonschema",
  "oo-builder",
  "oo-connectors",
  "oo-core",
