@@ -2916,7 +2916,12 @@
           "type": "string",
           "description": "The id of the drive to rebuild. A full rebuild is manual and needs this confirmation (10 4.2, D23)."
         }
-      }
+      },
+      "examples": [
+        {
+          "confirm": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        }
+      ]
     },
     "RebuildInfo": {
       "type": "object",
@@ -2931,12 +2936,20 @@
         },
         "files": {
           "type": "integer",
-          "description": "Files marked outdated; they are reprocessed at priority 900, two at a time, each new extraction judged by DOC-G10."
+          "description": "Files marked outdated; they are reprocessed at priority 900, one at a time, each new extraction judged by DOC-G10."
         },
         "priority": {
           "type": "integer"
         }
-      }
+      },
+      "examples": [
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "status": "queued",
+          "files": 42,
+          "priority": 900
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
