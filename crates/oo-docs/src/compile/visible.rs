@@ -406,6 +406,15 @@ impl VisibleGraph {
         Ok(parts.join("\n\n"))
     }
 
+    /// Text of one in-scope block (vector scoring).
+    pub(crate) fn block_text(&self, version_id: &str, block_id: &str) -> Option<&str> {
+        self.blocks
+            .get(version_id)?
+            .iter()
+            .find(|(_, id, _)| id == block_id)
+            .map(|(_, _, t)| t.as_str())
+    }
+
     /// Normalised in-scope block text, for the leak guard's "the scope itself
     /// says this word" check. One string per file version.
     pub(crate) fn scope_texts(&self) -> Vec<String> {

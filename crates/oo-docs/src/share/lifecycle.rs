@@ -725,6 +725,7 @@ pub fn request_of(params: &Value) -> CompileRequest {
         version: None,
         coverage: None,
         changes: None,
+        vector: params["vector"].as_str().map(str::to_owned),
     }
 }
 

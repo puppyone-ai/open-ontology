@@ -1,4 +1,4 @@
-// formal: main=file_lifecycle inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witPublished witDuplicate witSupersededMidParse witStaleDiscarded witDeletedRestored witOutdatedReparse witQuarantined witQuarantineRetried witUnreadable witState_stored witState_queued witState_parsing witState_parsed witState_extracting witState_indexed witState_published witState_parse_failed witState_extract_partial witState_unsupported witState_too_large witState_encrypted witState_duplicate witState_superseded witState_deleted witState_outdated" vinv="invOnlyTableTransitions invPublishedFromLatest invNoStaleOverwrite invDuplicateSameHash invNoDeadEnd invQuarantineShape invQuarantinePoison"
+// formal: main=file_lifecycle inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witPublished witDuplicate witSupersededMidParse witStaleDiscarded witDeletedRestored witOutdatedReparse witQuarantined witQuarantineRetried witUnreadable witState_stored witState_queued witState_parsing witState_parsed witState_extracting witState_indexed witState_published witState_parse_failed witState_extract_partial witState_unsupported witState_too_large witState_encrypted witState_duplicate witState_superseded witState_deleted witState_outdated" vinv="invResultFromCurrentLease invOnlyTableTransitions invPublishedFromLatest invNoStaleOverwrite invDuplicateSameHash invNoDeadEnd invQuarantineShape invQuarantinePoison"
 // FM2: file state machine (00 5.1, 10 4.2), checked against the single
 // transition table `is_legal` in crates/oo-docs/src/state.rs. Scope: all 16
 // states, the "any state" lifecycle rows, quarantine (a parse_failed file whose
@@ -17,8 +17,11 @@ module file_lifecycle {
 
   // pfc: why the file is in parse_failed ("" otherwise): "quarantined" (poison blob), "exhausted"
   // (attempts used up or not retryable), "unreadable" (stored, object could not be read)
-  type File = { st: str, ver: int, hash: int, jobVer: int, resVer: int, pubVer: int, dupHash: int, pfc: str }
-  pure val NEW: File = { st: "absent", ver: 0, hash: -1, jobVer: -1, resVer: -1, pubVer: -1, dupHash: -1, pfc: "" }
+  // gen: the lease generation (FM1: every lease raises it); jobs: parse jobs in flight as (version, generation) pairs, a
+  // worker that lost its lease keeps running; accGen: the generation of the accepted parse result
+  type Job = { ver: int, gen: int }
+  type File = { st: str, ver: int, hash: int, gen: int, jobs: Set[Job], accGen: int, resVer: int, pubVer: int, dupHash: int, pfc: str }
+  pure val NEW: File = { st: "absent", ver: 0, hash: -1, gen: 0, jobs: Set(), accGen: -1, resVer: -1, pubVer: -1, dupHash: -1, pfc: "" }
 
   var files: int -> File
   var lastFrom: str
@@ -110,22 +113,28 @@ module file_lifecycle {
       setFile(f, { ...fl, st: "queued" }, fl.st, "queued"),
     }
   }
-  // the parse job is leased for the version the file is at right now
+  // the parse job is leased for the version the file is at right now, under a new generation; the jobs of
+  // earlier leases are still running somewhere (a lease that expired does not stop its worker)
   action toParsing(f: int): bool = {
     val fl = files.get(f)
-    setFile(f, { ...fl, st: "parsing", jobVer: fl.ver }, fl.st, "parsing")
+    setFile(f, { ...fl, st: "parsing", gen: fl.gen + 1, jobs: fl.jobs.union(Set({ ver: fl.ver, gen: fl.gen + 1 })) }, fl.st, "parsing")
   }
-  // parse completion: only a result for the current version is stored, anything else is discarded
+  // parse completion of one in-flight job: accepted only under the CAS on (version, generation) of the current lease;
+  // anything else is a late result and is discarded (`lost_lease`, 10 4.1.1)
   action finishParse(f: int): bool = {
     val fl = files.get(f)
-    if (fl.st == "parsing" and fl.jobVer == fl.ver) setFile(f, { ...fl, st: "parsed", resVer: fl.ver }, "parsing", "parsed")
-    else all {
-      fl.jobVer != -1 and (fl.st != "parsing" or fl.jobVer != fl.ver),
-      files' = files.set(f, { ...fl, jobVer: -1 }),
-      discards' = discards + 1,
-      lastFrom' = lastFrom,
-      lastTo' = lastTo,
-      poison' = poison, retried' = retried,
+    nondet j = fl.jobs.oneOf()
+    all {
+      fl.jobs.size() > 0,
+      if (fl.st == "parsing" and j.gen == fl.gen and j.ver == fl.ver)
+        setFile(f, { ...fl, st: "parsed", resVer: j.ver, accGen: j.gen, jobs: fl.jobs.exclude(Set(j)) }, "parsing", "parsed")
+      else all {
+        files' = files.set(f, { ...fl, jobs: fl.jobs.exclude(Set(j)) }),
+        discards' = discards + 1,
+        lastFrom' = lastFrom,
+        lastTo' = lastTo,
+        poison' = poison, retried' = retried,
+      },
     }
   }
   // publish: only a result of the current version feeds facts
@@ -213,11 +222,13 @@ module file_lifecycle {
     val fl = files.get(f)
     (fl.st == "parse_failed" and fl.pfc == "quarantined") implies poison.contains(fl.hash)
   })
-  val inv = invOnlyTableTransitions and invPublishedFromLatest and invNoStaleOverwrite and invDuplicateSameHash and invNoDeadEnd and invQuarantineShape and invQuarantinePoison
+  // a parsed result is from the current lease: its generation is the file's (review B1)
+  val invResultFromCurrentLease = FILES.forall(f => files.get(f).st == "parsed" implies (files.get(f).accGen == files.get(f).gen and files.get(f).resVer == files.get(f).ver))
+  val inv = invResultFromCurrentLease and invOnlyTableTransitions and invPublishedFromLatest and invNoStaleOverwrite and invDuplicateSameHash and invNoDeadEnd and invQuarantineShape and invQuarantinePoison
 
   val witPublished = FILES.exists(f => files.get(f).st == "published")
   val witDuplicate = FILES.exists(f => files.get(f).st == "duplicate")
-  val witSupersededMidParse = FILES.exists(f => files.get(f).st == "stored" and files.get(f).jobVer != -1 and files.get(f).jobVer < files.get(f).ver)
+  val witSupersededMidParse = FILES.exists(f => files.get(f).st == "stored" and files.get(f).jobs.exists(j => j.ver < files.get(f).ver))
   val witStaleDiscarded = discards > 0
   val witDeletedRestored = lastFrom == "deleted" and lastTo == "stored"
   val witOutdatedReparse = FILES.exists(f => files.get(f).st == "parsing" and files.get(f).pubVer != -1)

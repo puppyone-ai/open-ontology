@@ -16,6 +16,8 @@ use super::render::{AIGC_LABEL_LINE, CONTENT_PRODUCER};
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RankKey<'a> {
     pub seed_hit: bool,
+    /// Vector score in basis points (0 when vectors are off); versioned vectors rank here (10 11.3).
+    pub vec_bp: i32,
     pub valid_from: Option<&'a str>,
     pub evs: usize,
     pub subject: &'a str,
@@ -27,6 +29,7 @@ pub(crate) struct RankKey<'a> {
 pub(crate) fn rank_cmp_keys(a: &RankKey<'_>, b: &RankKey<'_>) -> Ordering {
     b.seed_hit
         .cmp(&a.seed_hit)
+        .then_with(|| b.vec_bp.cmp(&a.vec_bp))
         .then_with(|| b.valid_from.cmp(&a.valid_from))
         .then_with(|| b.evs.cmp(&a.evs))
         .then_with(|| a.subject.cmp(b.subject))

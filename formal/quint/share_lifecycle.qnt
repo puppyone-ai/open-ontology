@@ -1,4 +1,4 @@
-// formal: main=share_lifecycle inv=inv steps=40 verify-steps=5 deep-steps=6 witnesses="witDrifted witRefreshed witGroupRefresh witGroupRefreshRolledBack witAtCheckpoint witBlockCheck20 witWarnCheck10 witExpired witRevoked witExtended witCredRejected witLateJoinBackfill witUnreachable witPinnedRefused witGcCollected witMountRemoved" vinv="invCredentialDead invRefreshAtomic invPackBytesImmutable invUpdatesAppendOnly invDriftMarked invChangeDelivered invCheckCodes invCheckFailClosed invGroupSameVersion invGroupAllOrNothing invRefreshPolicy invRetention invExtendKeepsContent invTerminalAbsorbing"
+// formal: main=share_lifecycle inv=inv steps=40 verify-steps=5 deep-steps=6 witnesses="witDrifted witRefreshed witGroupRefresh witGroupRefreshRolledBack witAtCheckpoint witBlockCheck20 witWarnCheck10 witExpired witRevoked witExtended witCredRejected witLateJoinBackfill witUnreachable witPinnedRefused witGcCollected witMountRemoved" vinv="invCredentialDead invRefreshAtomic invPackBytesImmutable invDriftMarked invChangeDelivered invCheckCodes invCheckFailClosed invGroupSameVersion invGroupAllOrNothing invRefreshPolicy invRetention invExtendKeepsContent invTerminalAbsorbing" dinv="invUpdatesAppendOnly"
 // FM6: Share lifecycle, drift, UPDATES.md, check, task groups, refresh policy and version retention
 // (00 5.4, 5.6; 10 7.6-7.8, 16.3-16.6, 16.9; D50, D55, D56, D58, D60, D62). Implementation: crates/oo-docs/src/share/.
 // A share is active -> drifted (a used fact was superseded, retracted, or hit by a new constraint violation)
@@ -145,6 +145,9 @@ module share_lifecycle {
   // ---- an ontology version is published: the change, and the drift of every live share ----
   action publish = {
     nondet k0 = Set(ADD, SUPERSEDE, RETRACT, VIOLATE).oneOf()
+    publishK(k0)
+  }
+  action publishK(k0: int): bool = {
     nondet f0 = FACTS.oneOf()
     val c: Chg = { k: k0, f: f0 }
     val w = V + 1
@@ -159,7 +162,8 @@ module share_lifecycle {
       sh' = SLOTS.mapBy(i => {
         val s = sh.get(i)
         val l = levelOf(c, s.uses)
-        if (live(s) and l > 0 and s.nupd < MAXUPD)
+        // a share past its end date (not swept yet) is skipped, as `drift::apply` does (`expires_at > now`)
+        if (live(s) and now < s.exp and l > 0 and s.nupd < MAXUPD)
           { ...s, nupd: s.nupd + 1, lvl: s.lvl.set(s.nupd + 1, l), tov: s.tov.set(s.nupd + 1, w), st: if (l >= 2) "drifted" else s.st }
         else s
       }),
@@ -332,6 +336,9 @@ module share_lifecycle {
     }
   }
 
+  // the profile `conformance_share.rs` replays on the live engine: publishes only add facts (a share's `uses` do not matter then:
+  // every share in scope gets an info entry), no extension (PATCH /shares is not implemented), no daemon or gc steps
+  action stepReplay = any { mount, all { publishK(ADD) }, refresh, groupRefresh, check, revoke, tick, expireSweep, refsRead }
   action step = any { mount, publish, refresh, groupRefresh, check, revoke, tick, expireSweep, extend, daemonAppend, removeMount, refsRead, gc }
 
   // ---- invariants ----
@@ -363,12 +370,12 @@ module share_lifecycle {
   // D50: a live share that used a fact that was superseded, retracted or hit by a violation after its version is drifted
   val invDriftMarked = SLOTS.forall(i => {
     val s = sh.get(i)
-    live(s) implies (VERS.filter(w => w > s.ver and w <= V and levelOf(clog.get(w), s.uses) >= 2).size() > 0 implies s.st == "drifted")
+    (live(s) and now < s.exp) implies (VERS.filter(w => w > s.ver and w <= V and levelOf(clog.get(w), s.uses) >= 2).size() > 0 implies s.st == "drifted")
   })
   // change delivery: every such change has an entry of at least its level, at that version
   val invChangeDelivered = SLOTS.forall(i => {
     val s = sh.get(i)
-    live(s) implies VERS.forall(w => (w > s.ver and w <= V and levelOf(clog.get(w), s.uses) > 0) implies
+    (live(s) and now < s.exp) implies VERS.forall(w => (w > s.ver and w <= V and levelOf(clog.get(w), s.uses) > 0) implies
       SEQS.exists(q => q <= s.nupd and s.tov.get(q) == w and s.lvl.get(q) >= levelOf(clog.get(w), s.uses)))
   })
   // exit codes: 30 ended or past expiry, 20 a block entry above `since`, 10 a warn, else 0; never 0 or 10 over a block

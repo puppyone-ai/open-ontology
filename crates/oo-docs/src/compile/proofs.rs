@@ -128,6 +128,7 @@ fn key<'a>(
 ) -> RankKey<'a> {
     RankKey {
         seed_hit: f,
+        vec_bp: 0,
         valid_from: vf.as_ref().map(|b| std::str::from_utf8(b).unwrap()),
         evs,
         subject: std::str::from_utf8(subj).unwrap(),

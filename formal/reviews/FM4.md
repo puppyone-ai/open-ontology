@@ -40,3 +40,15 @@ Non-blocking
 7. `duplicate(s)` is accepted for `s <= cursor` only. A duplicate of a purged seq (the code's replay returns 410 for it) is not modelled; fine, but say so.
 
 Checked and fine: `appendEvent` is gap-free and monotone (`headSeq + 1`, `invOutboxGapFree` holds on the unmodified model); the code 410 condition `s + 1 < oldest` equals the model's `cursor < floor` when `floor = oldest - 1`; `deliver` always applies `cursor + 1`, so out-of-order delivery cannot be expressed in the model at all (the `seq` check of the test is therefore a real check only of the real stream).
+
+## Response to the independent review (lane A, 2026-11-17)
+
+- **B1:** reviewer option (b). A purge that leaves a connected client below the new floor now closes that connection in the model
+  (`purge`: `connected' = connected and cursor >= n`), and the reconnect takes the 410 branch. Invariant `invNoStrandedClient`
+  (`connected implies cursor >= floor`); mutation M1 (purge leaves the client connected) is caught by it, before nothing failed.
+  **Code finding, no patch:** the live loop in `api/events.rs::run` reads `seq > cursor` and has no check that `oldest <= cursor + 1`, so a purge while a client is
+  connected and behind would make it silently skip the purged events. Nothing in the engine deletes events today (no retention job for the `event` table), so
+  the state is unreachable now; the job that is added later must close or 410 such streams. Open item for the board lead.
+- **B2:** the replay already compared `floor` and `cursor` after every step; it now follows the model on purge (drops its stream when the model closes it).
+  It cannot see the real stream's behaviour in that state, for the reason above.
+- Not done: 3 (retained-tail ghost), 4 (`since > head` is not modelled: the model keeps `cursor <= head`), 5, 6, 7 (a duplicate of a purged seq is not modelled).

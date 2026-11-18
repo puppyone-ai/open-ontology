@@ -1,4 +1,4 @@
-// formal: main=event_stream inv=inv steps=40 verify-steps=10 deep-steps=12 witnesses="witCaughtUp witGone410 witDuplicateDropped witTransientSeen witReconnectReplay" vinv="invOutboxGapFree invViewMatchesCursor invCaughtUpEqualsServer invTransientHasNoSeq"
+// formal: main=event_stream inv=inv steps=40 verify-steps=10 deep-steps=12 witnesses="witCaughtUp witGone410 witDuplicateDropped witTransientSeen witReconnectReplay" vinv="invNoStrandedClient invOutboxGapFree invViewMatchesCursor invCaughtUpEqualsServer invTransientHasNoSeq"
 // FM4: event outbox and client catch-up (10 8.5, append_event in migration 0138,
 // store/events.rs; 20 1.7 store). Durable events get seq 1..N under the
 // event_head row lock (gap-free, monotone); transient events (file.progress)
@@ -95,7 +95,10 @@ module event_stream {
   action purge(n: int): bool = all {
     purges < MAXPURGE, n > floor, n < headSeq,  // retention keeps the head event (see FM4.md section on bounds())
     floor' = n, purges' = purges + 1,
-    hist' = hist, headSeq' = headSeq, prevHead' = headSeq, connected' = connected, cursor' = cursor, view' = view,
+    // a connected client that the purge leaves below the floor can never be served again (`deliver` needs cursor + 1 > floor):
+    // the server closes its stream, and the reconnect gets the 410 (FM4.md B1, option b)
+    connected' = if (connected and cursor < n) false else connected,
+    hist' = hist, headSeq' = headSeq, prevHead' = headSeq, cursor' = cursor, view' = view,
     transients' = transients, tUsed' = tUsed, disc' = disc, refetches' = refetches, dupDropped' = dupDropped,
     lastRes' = "purged",
   }
@@ -133,7 +136,9 @@ module event_stream {
   val invCaughtUpEqualsServer = (cursor == headSeq) implies (view == stateAt(hist, headSeq))
   // seq are only ever assigned to durable events
   val invTransientHasNoSeq = headSeq == hist.keys().size() and tUsed >= transients
-  val inv = invOutboxGapFree and invViewMatchesCursor and invCaughtUpEqualsServer and invTransientHasNoSeq
+  // the 410 path is the only way out of a position below the floor: no connected client is ever stranded there (review B1)
+  val invNoStrandedClient = connected implies cursor >= floor
+  val inv = invNoStrandedClient and invOutboxGapFree and invViewMatchesCursor and invCaughtUpEqualsServer and invTransientHasNoSeq
 
   val witCaughtUp = headSeq >= 3 and cursor == headSeq and connected
   val witGone410 = lastRes == "gone_410_refetch"

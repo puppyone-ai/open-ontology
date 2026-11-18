@@ -27,8 +27,11 @@ fn options(db: &str, user: Option<&str>) -> PgConnectOptions {
         .parse()
         .expect("port");
     let admin = env::var("OO_DOCS_TEST_PG_USER").unwrap_or_else(|_| "postgres".into());
-    PgConnectOptions::new()
-        .host(&host)
+    let mut o = PgConnectOptions::new();
+    if let Ok(pw) = env::var("OO_DOCS_TEST_PG_PASSWORD") {
+        o = o.password(&pw);
+    }
+    o.host(&host)
         .port(port)
         .username(user.unwrap_or(&admin))
         .database(db)

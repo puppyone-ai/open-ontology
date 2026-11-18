@@ -50,7 +50,12 @@ reviewer 1 (the author, lane A, 2026-11-17). Reviewer 2 (independent, run by the
 | M2 | withdrawn evidence still counts | `invEvidenceOnlyInScope` |
 | M3 | an alias is visible whenever its owner is | `invAliasesInScope` |
 | M4 | the pack attaches all live evidence, not only in-scope | `invEvidenceOnlyInScope` |
-| M5 | blocked facts counted one hop from the seeds | `invBlockedCounts` |
+| M5 | blocked facts counted one hop from the seeds | `invBlockedFactCount` |
+| M6 | alias scope ignored in the helper (reviewer M5) | `invAliasesInScope`, `invNoLeakAliases`, `invNoLeakEntities`, `invEntitiesSupported` |
+| M7 | fact scope ignored in the helper | `invFactsInScope`, `invEvidenceOnlyInScope` |
+| M8 | alias withdrawal ignored in the helper | `invAliasesInScope` |
+
+After review B1 (2026-11-17) the invariants `invFactsInScope`, `invAliasesInScope` and `supported` (hence `invEntitiesSupported`, `invNoLeak*`) are written on the raw graph maps (`evInScope`, `aliasEvInScope`), not on the compile's helpers, so M6 to M8 fail where before they passed.
 
 ## 5. Where to attack (for reviewer 2)
 
@@ -88,3 +93,16 @@ Non-blocking
 5. The compile is run with a fixed graph per trace (`g` is constant in `step`). Changes of graph (new evidence, withdrawal between compiles) are the FM2 and FM3 territory; say so.
 6. KP5 (Kani) proves `visible_decide` on indices. The model's `compile` is a second copy of that rule; the conformance test links the two. Keep both, and note that a helper mutation in the Rust `visible.rs` (not the kernel) is only caught by conformance.
 7. Concern to re-check after B1: with a deterministic 4-file, 10-fact graph, the witnesses `witAliasFiltered` and `witScopeGrows` are the only ones that reach alias filtering; confirm they are true in the bulk run, not only in the simulation.
+
+## Pairs that do not fit the FAST budget (lane A, 2026-11-18)
+
+Per D81 `formal-verify-deep` is not a gate; the FAST set is. Three FM8 invariants did not finish inside 900 s at 2 steps (the cost is the cardinality of, and the
+nested quantifiers over, set comprehensions) and are **not in the FAST list**: `invBlockedEntityCount`, `invBlockedHidden`, `invNoLeakEntities` (header `dinv`, informational only). What
+covers them instead:
+
+- `invNoLeakEntities` is `invEntitiesSupported` (FAST green): `hiddenEnts = {e | not supported(e)}`, so `out.ents ∩ hiddenEnts = ∅` iff every `e in out.ents` is supported.
+- `invBlockedHidden` has four conjuncts: dropped facts are not in the pack and not visible (`invBlockedFactsNotVisible`, new, pointwise per fact, FAST 133 s); hidden
+  entities are not in the pack (`invEntitiesSupported`); aliases of hidden entities are not in the pack (`invNoLeakAliases`); hidden entities are not visible (follows from the second).
+- `invBlockedEntityCount` (the count of blocked entities) has **no cheaper Apalache form that fits**: a version that reports the set and checks it element by element and its size was tried and
+  also exceeded 900 s, and was removed. It is checked by simulation (10,000 traces, all witnesses), by the replay (`conformance_visibility.rs`: both blocked counts equal the model's on every state,
+  1,000 traces) and by the unit tests of the compile. Not covered by Apalache.

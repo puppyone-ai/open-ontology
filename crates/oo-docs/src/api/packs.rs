@@ -89,6 +89,12 @@ pub fn parse_compile(v: &Value, pointer: &str) -> Result<(String, CompileRequest
                 .ok_or_else(|| ApiError::bad(&at("version"), "version must be >= 1"))?,
         );
     }
+    // Optional local vectors for "other related" (10 11.3): off unless the operator names the model
+    // version, because the compile contract has no such field. The version is part of the pack
+    // parameters, so a pack compiled with vectors replays with them.
+    req.vector = std::env::var("OO_DOCS_VECTORS")
+        .ok()
+        .filter(|v| v == crate::vector::MODEL_VERSION);
     Ok((drive, req))
 }
 

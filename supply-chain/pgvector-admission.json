@@ -1,0 +1,32 @@
+{
+  "protocol": "oo.image-admission/v1",
+  "card": "B-S13-01",
+  "admitted_on": "2026-11-18",
+  "component": "pgvector",
+  "purpose": "optional vector storage for docs-db (docs-vectors/1); ranking is computed in the engine from integer vectors, so the extension is a store and filter, never the source of truth for order",
+  "image": {
+    "name": "supabase/postgres",
+    "tag": "17.6.1.064",
+    "digest": "sha256:4c6d67181e482549bab276e8ae933f807be59ea1c371c225d85c189b0c14b9de",
+    "size_bytes": 4602240633,
+    "source": "image already present in the local store; the registry is not reachable from this host, so nothing was pulled",
+    "base": "Ubuntu 24.04, PostgreSQL 17.6 built with nix, pgvector 0.8.0 (vector.control default_version 0.8.0)"
+  },
+  "licenses": {
+    "pgvector": "PostgreSQL License (permissive)",
+    "postgresql": "PostgreSQL License (permissive)",
+    "image_other_layers": "not reviewed layer by layer; the SBOM gate for this image has not run (see open_items)"
+  },
+  "verified": {
+    "create_extension_vector": "works as the superuser; the installer creates it in schema public, then docs-vectors/1 creates _oo_docs.block_vector as oo_docs_owner",
+    "install_tests": "cargo test -p oo-docs --test install -- --ignored: 9 passed on this image and on the stock postgres 17.10 image (where the optional step is skipped)",
+    "exact_cosine": "ORDER BY embedding <=> query on vector(256) ranks like crates/oo-docs/src/vector.rs cosine_bp for the test pair"
+  },
+  "not_a_replacement_for_stock": "docs-db keeps the stock image (deploy/lite pin) by default. The vector image is used only when vectors are switched on; it ships its own entrypoint, so deploy/docs/postgres.sh (TLS and SCRAM wrapper around docker-entrypoint.sh) does not apply to it as is",
+  "open_items": [
+    "a slim image (stock postgres bookworm plus the pgvector package or a pinned source build) once a registry or the pgvector source is reachable; this image is 4.6 GB",
+    "SBOM and license gate of the vector image (spec 90 section 3) before any external release",
+    "compose wiring of the vector image with the TLS entrypoint"
+  ],
+  "legal_gate": "D67"
+}
