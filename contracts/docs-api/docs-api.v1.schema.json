@@ -1076,7 +1076,9 @@
       "description": "oo.doc-ir/v1 block，见 contracts/docs-ir/doc-ir.v1.schema.json#/$defs/block；另加 src 字段（出处片段）",
       "properties": {
         "src": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^\\[src:[^\\]#]+#[^\\]]+\\]$",
+          "description": "Source mark, canonical form [src:<path>#<frag>] (spec 10 6.2): the path percent-encodes ], #, % and whitespace."
         }
       },
       "examples": [
@@ -1188,7 +1190,9 @@
           "type": "object"
         },
         "src": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^\\[src:[^\\]#]+#[^\\]]+\\]$",
+          "description": "Source mark, canonical form [src:<path>#<frag>] (spec 10 6.2): the path percent-encodes ], #, % and whitespace."
         },
         "quote": {
           "type": "string",
@@ -1216,7 +1220,7 @@
           "path": "x",
           "block_id": "x",
           "anchor": {},
-          "src": "x",
+          "src": "[src:x#L1-L1]",
           "origin": "rule"
         }
       ]

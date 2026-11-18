@@ -96,18 +96,23 @@ fn frag_of(anchor: &Value) -> String {
         .unwrap_or_default()
 }
 
+/// The body of a source mark. The canonical form is `[src:<path>#<frag>]` (10 6.2); the same text without the
+/// brackets (`src:<path>#<frag>`) names the same evidence and is accepted too.
+fn unmark(reference: &str) -> String {
+    let r = reference.trim();
+    let r = r.strip_prefix('[').unwrap_or(r);
+    let r = r.strip_prefix("src:").unwrap_or(r);
+    r.strip_suffix(']').unwrap_or(r).to_owned()
+}
+
 /// Path and optional fragment of one evidence reference.
 fn parse_ref(e: &Evidence) -> Option<(String, Option<String>)> {
     let body = match e.kind.as_str() {
         "brief_line" => tags_in(&e.reference)
             .first()
             .map(|t| (*t).to_owned())
-            .or_else(|| Some(e.reference.clone()))?,
-        "ref" => e
-            .reference
-            .trim_start_matches("[src:")
-            .trim_end_matches(']')
-            .to_owned(),
+            .or_else(|| Some(unmark(&e.reference)))?,
+        "ref" => unmark(&e.reference),
         _ => return None,
     };
     match split_tag(&body) {
@@ -891,6 +896,25 @@ mod tests {
         assert!(!path_in_scope("Projects/ab/x.md", &s));
         assert!(!path_in_scope("People/x.md", &s));
         assert!(path_in_scope("anything.md", &[]));
+    }
+
+    #[test]
+    fn a_source_mark_with_or_without_brackets_names_the_same_evidence() {
+        for r in [
+            "[src:Projects/a/周会.md#L3-L3]",
+            "src:Projects/a/周会.md#L3-L3",
+            "Projects/a/周会.md#L3-L3",
+        ] {
+            let e = Evidence {
+                kind: "ref".into(),
+                reference: r.into(),
+            };
+            assert_eq!(
+                parse_ref(&e).unwrap(),
+                ("Projects/a/周会.md".to_owned(), Some("#L3-L3".to_owned())),
+                "{r}"
+            );
+        }
     }
 
     #[test]
