@@ -93,3 +93,13 @@ Non-blocking
 6. `invRevMonotone` allows +1 on every slot in one step, but the model moves a single slot per step; `invRevMonotone` could be strengthened to "at most one slot changes revision per step".
 
 Checked and fine: `evidenceGone` keeps the overlay of every asserted/active fact (D22) and creates one orphan item per such fact in id order (`rankOf`), matching `overlay.rs` l.96 to l.136; `orphanFix` maps accept to `active` and reject to `withdrawn` (`decide.rs` l.726 table); `markWrong` beats an earlier assertion (`ov = reject`, `invRejectWins`).
+
+## Response to the independent review (lane A, 2026-11-17)
+
+- `certain` is derived, not drawn: a supersession is certain when its origin is human, or rule with rule id `fm.fields` or `md.headings` (the code's
+  `temporal::certain_supersedes`); `invLlmNeverAuto` states the same condition on `origin` and `rid`, not on the flag, so a mutation of the derivation fails it.
+  Mutation M7 (`name.version` counted as certain) is caught.
+- D51 conformance for supersessions: `conformance_review_d51.rs` (no database) compares the model's `certain` flag with `certain_supersedes` for the whole
+  origin x rule table and, on the model's supersession slots (committed samples `formal/traces/review_decide_super`, bulk 14,736 slots), checks that the
+  real `classify` queues a `supersedes` fact exactly when it is not certain, whatever its confidence, and that a not-certain supersession only executes after
+  an accept. The merge half (kind 1) is still covered by `resolve_live.rs` only, **not replayed**.
