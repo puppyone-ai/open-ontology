@@ -6,6 +6,8 @@
 |---|---|---|---|---|---|---|---|
 | SO-SIGN-L2 | L2 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L2/ | OO 侧（D80 阶段一）；标签 super-ontology/L2（本地） |
 | SO-SIGN-L1 | L1 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L1/ | 标签 super-ontology/L1（本地） |
+| SO-SIGN-L4 | L4 | review | feat/super-ontology (主线程) | f53c8ed73 → 5ef32bb19 | — | testing/super-ontology/evidence/L4/ | 提交为 L4 CLI 验收包，使用了签收 Plan；L4 尚未签收，签收归主线程 |
+| SO-SIGN-L6 | L6 | review | feat/super-ontology (主线程) | 8c566f3a2 → d777341cf | — | testing/super-ontology/evidence/L6/ | 提交为 L6 CLI 验收包，使用了签收 Plan；L6 尚未签收，签收归主线程 |
 | SO-SPEC | — | merged | feat/super-ontology (主线程) | 台账、spec 类提交 | — | — | 非卡片的主线程提交 |
 | SO-B-S1-01 | L1 | signed | feat/super-ontology (主线程) | 5f1fb464e → 5f1fb464e | — | contracts/docs-api/ | docs-api 1.0-draft |
 | SO-B-S1-02 | L1 | signed | feat/super-ontology (主线程) | b5b6d3831 → b5b6d3831 | — | — | oo-docs 骨架；arch 新增 FEATURE_GATED_EDGES |
