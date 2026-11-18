@@ -684,8 +684,12 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             shares::updates(app, sid, req).await
         }
         ["v1", "docs", "shares", sid] if !sid.contains(':') => {
-            method_allowed(req, &["GET"])?;
-            shares::get(app, sid).await
+            method_allowed(req, &["GET", "PATCH"])?;
+            if req.method == Method::PATCH {
+                shares::patch(app, sid, req).await
+            } else {
+                shares::get(app, sid).await
+            }
         }
         s if known_unserved(s) => Err(ApiError::not_found("route")),
         _ => Err(ApiError::not_found("route")),

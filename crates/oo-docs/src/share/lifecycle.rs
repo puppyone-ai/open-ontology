@@ -506,6 +506,102 @@ pub async fn revoke(conn: &mut PgConnection, sid: &str, reason: &str) -> Result<
         .ok_or_else(|| share_not_found(sid))
 }
 
+/// Longest life of a share, from its creation (D28, G6).
+pub const MAX_LIFE_DAYS: i32 = 30;
+
+/// `PATCH /shares/{sid}` (G6): move `expires_at` of an active or drifted share to
+/// `expires` (an RFC 3339 time). Only the expiry changes: the pack, the version
+/// and the refresh policy stay, and nothing is refreshed. The new time must be
+/// in the future and at most 30 days after the share was created, so repeated
+/// extensions cannot keep a share alive for ever; the refs credential follows.
+/// `want` is the revision of `If-Match`.
+pub async fn extend(
+    conn: &mut PgConnection,
+    sid: &str,
+    want: i64,
+    expires: &str,
+) -> Result<Value, ApiError> {
+    let bad = |why: &str| {
+        ApiError::new(code::SHARE_EXPIRY_INVALID, why.to_owned())
+            .details(json!({ "share_id": sid }))
+    };
+    // The cast also validates the text; a value Postgres cannot read is the caller's fault.
+    let parsed: Option<bool> = sqlx::query_scalar("SELECT $1::timestamptz IS NOT NULL")
+        .bind(expires)
+        .fetch_optional(&mut *conn)
+        .await
+        .ok()
+        .flatten();
+    if parsed != Some(true) {
+        return Err(ApiError::bad("/expires_at", "expected an RFC 3339 time"));
+    }
+    let mut tx = conn.begin().await?;
+    let row: Option<(String, i64, String)> = sqlx::query_as(
+        "SELECT status, revision, drive_id::text FROM _oo_docs.share WHERE id = $1::uuid FOR UPDATE",
+    )
+    .bind(sid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((status, revision, drive)) = row else {
+        return Err(share_not_found(sid));
+    };
+    if revision != want {
+        return Err(
+            ApiError::new(code::PRECONDITION_FAILED, "the share changed")
+                .details(json!({ "current_revision": revision })),
+        );
+    }
+    if !matches!(status.as_str(), "active" | "drifted") {
+        return Err(invalid_transition(sid, &status, "extended"));
+    }
+    let (future, within): (bool, bool) = sqlx::query_as(
+        "SELECT $2::timestamptz > clock_timestamp(), \
+                $2::timestamptz <= created_at + make_interval(days => $3::int) \
+           FROM _oo_docs.share WHERE id = $1::uuid",
+    )
+    .bind(sid)
+    .bind(expires)
+    .bind(MAX_LIFE_DAYS)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !future {
+        return Err(bad(
+            "expires_at must be in the future (revoke a share to end it)",
+        ));
+    }
+    if !within {
+        return Err(bad("a share lives at most 30 days from its creation"));
+    }
+    sqlx::query(
+        "UPDATE _oo_docs.share SET expires_at = $2::timestamptz, revision = revision + 1 WHERE id = $1::uuid",
+    )
+    .bind(sid)
+    .bind(expires)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "UPDATE _oo_docs.refs_credential SET expires_at = $2::timestamptz \
+          WHERE share_id = $1::uuid AND revoked_at IS NULL",
+    )
+    .bind(sid)
+    .bind(expires)
+    .execute(&mut *tx)
+    .await?;
+    events::append_event(
+        &mut tx,
+        "share.state_changed",
+        Some(&drive),
+        Some(sid),
+        &json!({"share_id": sid, "from": status, "to": status, "reason": "expiry_changed"})
+            .to_string(),
+    )
+    .await?;
+    tx.commit().await?;
+    share_value(conn, sid)
+        .await?
+        .ok_or_else(|| share_not_found(sid))
+}
+
 /// Sweep `expires_at <= now()`: terminal `expired`, credentials revoked, one
 /// event each (the daemon deletes the mount when it sees it). Returns the
 /// number of shares expired.

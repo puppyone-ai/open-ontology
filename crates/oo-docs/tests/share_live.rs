@@ -968,3 +968,148 @@ async fn group_refresh_under_at_checkpoint_upgrades_the_group_together() {
     assert_eq!(active.len(), 2, "both members have a new active share: {g}");
     e.finish().await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn patch_moves_the_expiry_and_nothing_else() {
+    let (e, mut fx) = world("share_patch").await;
+    let s = mk_share(&e, &["Decisions"], json!({})).await;
+    let sid = s["id"].as_str().unwrap().to_owned();
+    let cred = cred_of(&s);
+    let rev = s["revision"].as_i64().unwrap();
+    let t = |sql: String| sql;
+    let later = fx
+        .text(&t(format!(
+            "SELECT to_char((created_at + interval '20 days') AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') FROM _oo_docs.share WHERE id = '{sid}'"
+        )))
+        .await
+        .remove(0);
+    let patch = |body: Value, if_match: Option<String>| {
+        let path = format!("/v1/docs/shares/{sid}");
+        let e = &e;
+        async move {
+            let mut h: Vec<(&str, String)> = Vec::new();
+            if let Some(m) = if_match {
+                h.push(("If-Match", m));
+            }
+            let hs: Vec<(&str, &str)> = h.iter().map(|(k, v)| (*k, v.as_str())).collect();
+            e.req("PATCH", &path, &hs, Some(&body)).await
+        }
+    };
+    // If-Match is required; a stale one is refused.
+    let r = patch(json!({"expires_at": later}), None).await;
+    assert_eq!(r.status, 428);
+    let r = patch(
+        json!({"expires_at": later}),
+        Some(format!("\"r{}\"", rev + 5)),
+    )
+    .await;
+    assert_eq!(r.status, 412, "{}", String::from_utf8_lossy(&r.body));
+    // Only the expiry may change.
+    let r = patch(
+        json!({"expires_at": later, "budget": 5000}),
+        Some(format!("\"r{rev}\"")),
+    )
+    .await;
+    assert_eq!(r.status, 400);
+    let r = patch(
+        json!({"expires_at": "not a time"}),
+        Some(format!("\"r{rev}\"")),
+    )
+    .await;
+    assert_eq!(r.status, 400);
+    // 30 days from creation is the ceiling; the past is refused too.
+    let beyond = fx
+        .text(&t(format!(
+            "SELECT to_char((created_at + interval '31 days') AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') FROM _oo_docs.share WHERE id = '{sid}'"
+        )))
+        .await
+        .remove(0);
+    for bad in [beyond.as_str(), "2020-01-01T00:00:00Z"] {
+        let r = patch(json!({"expires_at": bad}), Some(format!("\"r{rev}\""))).await;
+        assert_eq!(
+            (r.status, r.json()["code"].as_str().map(str::to_owned)),
+            (400, Some("DOCS_SHARE_EXPIRY_INVALID".to_owned())),
+            "{bad}: {}",
+            String::from_utf8_lossy(&r.body)
+        );
+    }
+    // A refs credential cannot extend its own share.
+    let auth = format!("Bearer {cred}");
+    let k = key();
+    let r = http::request(
+        e.addr,
+        "PATCH",
+        &format!("/v1/docs/shares/{sid}"),
+        &[
+            ("Authorization", &auth),
+            ("If-Match", &format!("\"r{rev}\"")),
+            ("Idempotency-Key", &k),
+        ],
+        Some(&json!({"expires_at": later}).to_string()),
+    )
+    .await;
+    assert_eq!(r.status, 403);
+
+    // The good one: 200, the contract's Share, a new revision, the same pack and version.
+    let r = patch(json!({"expires_at": later}), Some(format!("\"r{rev}\""))).await;
+    assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+    let v = r.json();
+    check(&def("Share"), "share", &v);
+    assert_eq!(v["revision"], rev + 1);
+    assert_eq!(r.header("etag"), Some(format!("\"r{}\"", rev + 1).as_str()));
+    assert_eq!(
+        (
+            &v["pack_id"],
+            &v["version"],
+            &v["state"],
+            &v["refresh_policy"],
+            &v["budget"]
+        ),
+        (
+            &s["pack_id"],
+            &s["version"],
+            &s["state"],
+            &s["refresh_policy"],
+            &s["budget"]
+        ),
+        "nothing but the expiry changed"
+    );
+    assert!(
+        v["expires_at"].as_str().unwrap().starts_with(&later[..16]),
+        "{} vs {later}",
+        v["expires_at"]
+    );
+    // The credential follows the share and nothing was refreshed.
+    assert_eq!(
+        fx.scalar(&format!(
+            "SELECT count(*) FROM _oo_docs.refs_credential WHERE share_id = '{sid}' AND expires_at = (SELECT expires_at FROM _oo_docs.share WHERE id = '{sid}')"
+        ))
+        .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar(&format!(
+            "SELECT count(*) FROM _oo_docs.share WHERE refreshed_from = '{sid}'"
+        ))
+        .await,
+        0
+    );
+    // An ended share cannot be extended.
+    let rv = e
+        .post(&format!("/v1/docs/shares/{sid}:revoke"), &json!({}))
+        .await;
+    assert_eq!(rv.status, 200);
+    let r = patch(
+        json!({"expires_at": later}),
+        Some(format!("\"r{}\"", rev + 2)),
+    )
+    .await;
+    assert_eq!(
+        (r.status, r.json()["code"].as_str().map(str::to_owned)),
+        (409, Some("DOCS_SHARE_INVALID_TRANSITION".to_owned())),
+        "{}",
+        String::from_utf8_lossy(&r.body)
+    );
+    e.finish().await;
+}
