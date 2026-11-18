@@ -261,7 +261,9 @@ mod tests {
 
     #[test]
     fn the_cache_key_follows_the_template_text() {
-        let ir = parse_markdown("# T\n\n陈子墨负责星图\n".as_bytes()).unwrap().ir;
+        let ir = parse_markdown("# T\n\n陈子墨负责星图\n".as_bytes())
+            .unwrap()
+            .ir;
         let bs = batches(&ir);
         let k = cache_key("m", &[], &[], &bs[0]);
         let t = vec![ConstrainedType {
