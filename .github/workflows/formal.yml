@@ -76,6 +76,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { model: constraints, invariant: invBanHolds }
+          - { model: constraints, invariant: invNoCurrentViolation }
+          - { model: constraints, invariant: invHeldHaveConflict }
+          - { model: constraints, invariant: invPartialBlocking }
+          - { model: constraints, invariant: invHeldHaveViolation }
+          - { model: constraints, invariant: invCertainNotViolation }
+          - { model: constraints, invariant: invPackNeverHeld }
+          - { model: constraints, invariant: invWellFormed }
+          - { model: event_stream, invariant: invNoStrandedClient }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: file_lifecycle, invariant: invResultFromCurrentLease }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: freshness_token, invariant: invRevGapFree }
+          - { model: freshness_token, invariant: invCoversMonotone }
+          - { model: freshness_token, invariant: invLiveCoversSound }
+          - { model: freshness_token, invariant: invCoversSound }
+          - { model: freshness_token, invariant: invCoversMax }
+          - { model: freshness_token, invariant: invCompileWaits }
+          - { model: freshness_token, invariant: invCoverageHonest }
+          - { model: freshness_token, invariant: invCoverageInScope }
+          - { model: freshness_token, invariant: invRequireComplete }
+          - { model: freshness_token, invariant: invOverlayAdvances }
           - { model: jobs, invariant: invLeaseShape }
           - { model: jobs, invariant: invSingleLiveLease }
           - { model: jobs, invariant: invGenerationMonotone }
@@ -86,23 +117,46 @@ jobs:
           - { model: jobs, invariant: invQuarantineAfterCrashes }
           - { model: jobs, invariant: invNoLostJob }
           - { model: jobs, invariant: invAtMostOnceSuccess }
-          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
-          - { model: file_lifecycle, invariant: invPublishedFromLatest }
-          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
-          - { model: file_lifecycle, invariant: invDuplicateSameHash }
-          - { model: file_lifecycle, invariant: invNoDeadEnd }
-          - { model: file_lifecycle, invariant: invQuarantineShape }
-          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: review_decide, invariant: invEvidenceGate }
+          - { model: review_decide, invariant: invBySourceAsOf }
+          - { model: review_decide, invariant: invNoDoubleDecide }
+          - { model: review_decide, invariant: invIfMatch }
+          - { model: review_decide, invariant: invRevMonotone }
+          - { model: review_decide, invariant: invLlmNeverAuto }
+          - { model: review_decide, invariant: invInUseNotice }
+          - { model: review_decide, invariant: invRejectWins }
+          - { model: review_decide, invariant: invOrphanQueued }
+          - { model: share_lifecycle, invariant: invCredentialDead }
+          - { model: share_lifecycle, invariant: invRefreshAtomic }
+          - { model: share_lifecycle, invariant: invPackBytesImmutable }
+          - { model: share_lifecycle, invariant: invDriftMarked }
+          - { model: share_lifecycle, invariant: invChangeDelivered }
+          - { model: share_lifecycle, invariant: invCheckCodes }
+          - { model: share_lifecycle, invariant: invCheckFailClosed }
+          - { model: share_lifecycle, invariant: invGroupSameVersion }
+          - { model: share_lifecycle, invariant: invGroupAllOrNothing }
+          - { model: share_lifecycle, invariant: invRefreshPolicy }
+          - { model: share_lifecycle, invariant: invRetention }
+          - { model: share_lifecycle, invariant: invExtendKeepsContent }
+          - { model: share_lifecycle, invariant: invTerminalAbsorbing }
           - { model: sync_reconcile, invariant: invOnlySweepKills }
           - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invMassHold }
           - { model: sync_reconcile, invariant: invGenerationMonotone }
           - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
           - { model: sync_reconcile, invariant: invRenameCarries }
           - { model: sync_reconcile, invariant: invConverged }
-          - { model: event_stream, invariant: invOutboxGapFree }
-          - { model: event_stream, invariant: invViewMatchesCursor }
-          - { model: event_stream, invariant: invCaughtUpEqualsServer }
-          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: visibility, invariant: invFactsInScope }
+          - { model: visibility, invariant: invEvidenceOnlyInScope }
+          - { model: visibility, invariant: invEntitiesSupported }
+          - { model: visibility, invariant: invAliasesInScope }
+          - { model: visibility, invariant: invNoLeakAliases }
+          - { model: visibility, invariant: invNoLeakFactEnds }
+          - { model: visibility, invariant: invHumanNoBackdoor }
+          - { model: visibility, invariant: invBlockedFactCount }
+          - { model: visibility, invariant: invScopeMonotone }
+          - { model: visibility, invariant: invOutputWithinInput }
+          - { model: visibility, invariant: invBlockedFactsNotVisible }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -139,12 +193,13 @@ jobs:
             postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 \
             -c track_commit_timestamp=on -c fsync=off -c max_connections=200
           for i in $(seq 1 30); do docker exec oo-fv-pg pg_isready -U postgres && break; sleep 1; done
-      - name: replay committed ITF traces (FM1 SQL functions, FM2 state machine, FM3 reconcile, FM4 event log and SSE)
+      - name: replay committed ITF traces (FM1 SQL functions, FM2 state machine, FM3 reconcile, FM4 event log and SSE, FM5 review, FM8 visibility, FM10 freshness, FM11 constraints) and the FM6 share scenarios
         env:
           OO_DOCS_TEST_PG_PORT: "55432"
         run: |
-          cargo test -p oo-docs --locked --test conformance_state
-          cargo test -p oo-docs --locked --test conformance_jobs --test conformance_state --test conformance_sync --test conformance_events -- --ignored --nocapture
+          cargo test -p oo-docs --locked --test conformance_state --test conformance_visibility --test conformance_review_d51
+          cargo test -p oo-docs --locked --test conformance_jobs --test conformance_state --test conformance_sync --test conformance_events --test conformance_review --test conformance_constraints --test conformance_freshness -- --ignored --nocapture --test-threads=1
+          cargo test -p oo-docs --locked --test conformance_share -- --ignored --nocapture --test-threads=1
       - name: remove postgres
         if: always()
         run: docker rm -f oo-fv-pg
@@ -160,6 +215,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { model: constraints, invariant: invBanHolds }
+          - { model: constraints, invariant: invNoCurrentViolation }
+          - { model: constraints, invariant: invHeldHaveConflict }
+          - { model: constraints, invariant: invPartialBlocking }
+          - { model: constraints, invariant: invHeldHaveViolation }
+          - { model: constraints, invariant: invCertainNotViolation }
+          - { model: constraints, invariant: invPackNeverHeld }
+          - { model: constraints, invariant: invWellFormed }
+          - { model: event_stream, invariant: invNoStrandedClient }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: file_lifecycle, invariant: invResultFromCurrentLease }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: freshness_token, invariant: invRevGapFree }
+          - { model: freshness_token, invariant: invCoversMonotone }
+          - { model: freshness_token, invariant: invLiveCoversSound }
+          - { model: freshness_token, invariant: invCoversSound }
+          - { model: freshness_token, invariant: invCoversMax }
+          - { model: freshness_token, invariant: invCompileWaits }
+          - { model: freshness_token, invariant: invCoverageHonest }
+          - { model: freshness_token, invariant: invCoverageInScope }
+          - { model: freshness_token, invariant: invRequireComplete }
+          - { model: freshness_token, invariant: invOverlayAdvances }
           - { model: jobs, invariant: invLeaseShape }
           - { model: jobs, invariant: invSingleLiveLease }
           - { model: jobs, invariant: invGenerationMonotone }
@@ -170,23 +256,46 @@ jobs:
           - { model: jobs, invariant: invQuarantineAfterCrashes }
           - { model: jobs, invariant: invNoLostJob }
           - { model: jobs, invariant: invAtMostOnceSuccess }
-          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
-          - { model: file_lifecycle, invariant: invPublishedFromLatest }
-          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
-          - { model: file_lifecycle, invariant: invDuplicateSameHash }
-          - { model: file_lifecycle, invariant: invNoDeadEnd }
-          - { model: file_lifecycle, invariant: invQuarantineShape }
-          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: review_decide, invariant: invEvidenceGate }
+          - { model: review_decide, invariant: invBySourceAsOf }
+          - { model: review_decide, invariant: invNoDoubleDecide }
+          - { model: review_decide, invariant: invIfMatch }
+          - { model: review_decide, invariant: invRevMonotone }
+          - { model: review_decide, invariant: invLlmNeverAuto }
+          - { model: review_decide, invariant: invInUseNotice }
+          - { model: review_decide, invariant: invRejectWins }
+          - { model: review_decide, invariant: invOrphanQueued }
+          - { model: share_lifecycle, invariant: invCredentialDead }
+          - { model: share_lifecycle, invariant: invRefreshAtomic }
+          - { model: share_lifecycle, invariant: invPackBytesImmutable }
+          - { model: share_lifecycle, invariant: invDriftMarked }
+          - { model: share_lifecycle, invariant: invChangeDelivered }
+          - { model: share_lifecycle, invariant: invCheckCodes }
+          - { model: share_lifecycle, invariant: invCheckFailClosed }
+          - { model: share_lifecycle, invariant: invGroupSameVersion }
+          - { model: share_lifecycle, invariant: invGroupAllOrNothing }
+          - { model: share_lifecycle, invariant: invRefreshPolicy }
+          - { model: share_lifecycle, invariant: invRetention }
+          - { model: share_lifecycle, invariant: invExtendKeepsContent }
+          - { model: share_lifecycle, invariant: invTerminalAbsorbing }
           - { model: sync_reconcile, invariant: invOnlySweepKills }
           - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invMassHold }
           - { model: sync_reconcile, invariant: invGenerationMonotone }
           - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
           - { model: sync_reconcile, invariant: invRenameCarries }
           - { model: sync_reconcile, invariant: invConverged }
-          - { model: event_stream, invariant: invOutboxGapFree }
-          - { model: event_stream, invariant: invViewMatchesCursor }
-          - { model: event_stream, invariant: invCaughtUpEqualsServer }
-          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: visibility, invariant: invFactsInScope }
+          - { model: visibility, invariant: invEvidenceOnlyInScope }
+          - { model: visibility, invariant: invEntitiesSupported }
+          - { model: visibility, invariant: invAliasesInScope }
+          - { model: visibility, invariant: invNoLeakAliases }
+          - { model: visibility, invariant: invNoLeakFactEnds }
+          - { model: visibility, invariant: invHumanNoBackdoor }
+          - { model: visibility, invariant: invBlockedFactCount }
+          - { model: visibility, invariant: invScopeMonotone }
+          - { model: visibility, invariant: invOutputWithinInput }
+          - { model: visibility, invariant: invBlockedFactsNotVisible }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -217,7 +326,7 @@ jobs:
         run: |
           cargo install --locked kani-verifier --version 0.68.0
           cargo kani setup
-      - name: KP1 KP7 KP8 (oo-docs)
+      - name: KP1 KP7 KP8 and KP5 KP6 KP10 (oo-docs)
         run: cargo kani -p oo-docs
       - name: KP2 (oo-core)
         run: cargo kani -p oo-core
