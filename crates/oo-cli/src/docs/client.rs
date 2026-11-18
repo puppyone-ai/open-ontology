@@ -20,6 +20,10 @@ pub mod exit {
     pub const TARGET: u8 = 6;
     pub const GATE: u8 = 7;
     pub const SHARE_STATE: u8 = 8;
+    /// `oo docs wait` / `oo docs upload --wait`: the files did not settle in time.
+    pub const WAIT_TIMEOUT: u8 = 9;
+    /// `oo docs wait`: settled, but at least one file failed or is unsupported.
+    pub const FILES_FAILED: u8 = 10;
 }
 
 /// A failure with the exit code it maps to. The text never carries a token.

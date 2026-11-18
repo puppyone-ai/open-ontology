@@ -886,7 +886,7 @@ fn read_subnets(state: &Path) -> Option<Vec<String>> {
 /// mounts have a file of their own.
 const DRIVE_MOUNTS: &str = "drive-mounts.json";
 
-fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
+pub(super) fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
     // A state directory written before the split keeps its Drive mounts under
     // `mounts.json` with the `oo.docs.mounts/v1` shape; read that when the new file is absent.
     let read = |name: &str| {

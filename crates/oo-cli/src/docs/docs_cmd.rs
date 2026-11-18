@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s]   (`-` reads stdin; no --drive uses the managed folder `default`)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -85,18 +85,18 @@ pub fn parse(args: &[String], valued: &[&str], switch: &[&str]) -> Result<Parsed
     Ok(p)
 }
 
-fn bad(msg: impl Into<String>) -> CliError {
+pub(super) fn bad(msg: impl Into<String>) -> CliError {
     CliError::new(exit::ARGS, "DOCS_ENGINE_BAD_REQUEST", msg)
 }
 
-fn rev_header(rev: i64) -> String {
+pub(super) fn rev_header(rev: i64) -> String {
     format!("\"r{rev}\"")
 }
 
 /// A query value or one path segment: percent-encoded, `/` too; `:` is kept
 /// A query value or one path segment: percent-encoded, `/` too; `:` is kept
 /// for entity keys (`person:abc`), where the engine reads it as part of the key.
-fn q(s: &str) -> String {
+pub(super) fn q(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         if b.is_ascii_alphanumeric() || b"-._~:".contains(&b) {
@@ -108,7 +108,7 @@ fn q(s: &str) -> String {
     out
 }
 
-fn out(p: &Parsed, protocol: &str, mut v: Value, human: String) {
+pub(super) fn out(p: &Parsed, protocol: &str, mut v: Value, human: String) {
     if p.json {
         if v.is_object() {
             v["protocol"] = json!(protocol);
@@ -122,7 +122,7 @@ fn out(p: &Parsed, protocol: &str, mut v: Value, human: String) {
 }
 
 /// A drive by id or name.
-async fn drive_id(d: &Daemon, want: &str) -> Result<String, CliError> {
+pub(super) async fn drive_id(d: &Daemon, want: &str) -> Result<String, CliError> {
     let list = d.get_json("/v1/docs/drives?limit=200").await?;
     list["items"]
         .as_array()
@@ -144,7 +144,7 @@ async fn drive_id(d: &Daemon, want: &str) -> Result<String, CliError> {
         })
 }
 
-fn state_of(p: &Parsed) -> Result<PathBuf, CliError> {
+pub(super) fn state_of(p: &Parsed) -> Result<PathBuf, CliError> {
     p.state_dir
         .clone()
         .or_else(|| std::env::var_os("OO_DOCS_STATE_DIR").map(PathBuf::from))
@@ -159,7 +159,7 @@ pub fn run(rest: &[String]) -> u8 {
         return exit::ARGS;
     };
     // `usage` and `health` have no subcommand: everything after them is flags.
-    let (sub, args) = if matches!(group.as_str(), "usage" | "health") {
+    let (sub, args) = if matches!(group.as_str(), "usage" | "health" | "upload" | "wait") {
         ("", tail)
     } else if let Some((s, a)) = tail.split_first() {
         (s.as_str(), a)
@@ -189,6 +189,10 @@ pub fn run(rest: &[String]) -> u8 {
         "--q",
         "--winner",
         "--day",
+        "--to",
+        "--wait",
+        "--timeout",
+        "--rev",
     ];
     let switches = [
         "--deep",
@@ -198,6 +202,7 @@ pub fn run(rest: &[String]) -> u8 {
         "--reject",
         "--model",
         "--yes",
+        "--non-interactive",
     ];
     let p = match parse(args, &valued, &switches) {
         Ok(p) => p,
@@ -240,9 +245,18 @@ pub fn run(rest: &[String]) -> u8 {
         }
         return super::context::run(&forwarded);
     }
+    let mut final_code = exit::OK;
     let result = rt.block_on(async {
         let d = Daemon::connect(&state_of(&p)?)?;
         match (group.as_str(), sub) {
+            ("upload", _) => {
+                final_code = super::upload::upload(&d, &p).await?;
+                Ok(())
+            }
+            ("wait", _) => {
+                final_code = super::upload::wait(&d, &p).await?;
+                Ok(())
+            }
             ("drive", "add") => drive_add(&d, &p).await,
             ("drive", "ls") => drive_ls(&d, &p).await,
             ("drive", "show") => drive_show(&d, &p).await,
@@ -270,7 +284,7 @@ pub fn run(rest: &[String]) -> u8 {
         }
     });
     match result {
-        Ok(()) => exit::OK,
+        Ok(()) => final_code,
         Err(e) => {
             if p.json {
                 eprintln!(
@@ -285,7 +299,7 @@ pub fn run(rest: &[String]) -> u8 {
     }
 }
 
-fn one<'a>(p: &'a Parsed, what: &str) -> Result<&'a str, CliError> {
+pub(super) fn one<'a>(p: &'a Parsed, what: &str) -> Result<&'a str, CliError> {
     p.pos
         .first()
         .map(String::as_str)

@@ -11,9 +11,11 @@ pub mod docs_cmd;
 pub mod engine;
 pub mod mounts;
 pub mod proxy;
+pub mod s3io;
 pub mod secrets;
 pub mod serve;
 pub mod suggest;
+pub mod upload;
 
 use crate::args::Invocation;
 use crate::outcome::Failure;
