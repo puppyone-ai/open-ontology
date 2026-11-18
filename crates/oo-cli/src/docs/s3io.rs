@@ -270,13 +270,15 @@ impl S3Target {
         Ok(Self::reply(s, &b))
     }
 
-    /// True when the key exists.
+    /// True when the key exists (a 403 counts as not found, see below).
     pub async fn exists(&self, key: &str) -> Result<bool, String> {
         let (s, _) = self.send("HEAD", key, "", Vec::new()).await?;
         match s {
             200 => Ok(true),
             404 => Ok(false),
-            403 => Err("the object store refused the credential (403)".into()),
+            // A credential that may write but not list gets 403 for a missing key
+            // too; the PUT that follows says whether writing is allowed.
+            403 => Ok(false),
             other => Err(format!("the object store answered {other}")),
         }
     }
