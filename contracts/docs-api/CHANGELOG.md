@@ -44,3 +44,19 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `edit.name`); `reprocess_diff` `{gate, prior, added, removed, share_used_removed, version_id}`.
 - `BRIEF.md` of a refreshed Share has a section "自上次以来的变化（vA → vB）" after the head (added, changed,
   retracted, fixed order); not an API field.
+
+## 1.3 (L5, B-S7 and B-S8 cards)
+
+- Suggest endpoints (`since` 1.3): `POST /v1/docs/suggestions` (`SuggestRequest`: one `SuggestionRecord`, `items`, or
+  `documents` read from `.context/suggest/`; a share's `oodr_` credential with scope `suggest:write`, or the engine token with
+  `share_id`; idempotent per share on `idempotency_key` or the content hash, no `Idempotency-Key` header), `GET /suggestions`,
+  `GET /suggestions:digest?day=`, `GET /suggestions/{id}`, `GET /suggestions/{id}/diff` (a file-level draft for the revision mode;
+  OO never writes the Drive, `writer` is `desktop`) and `POST /suggestions/{id}:decide` (`accept`, `reject`, `undo`).
+- The `suggestion` review kind is live: `subject` is `{suggestion_id, share_id, kind}`; deciding the item through `review:decide`
+  does what `:decide` does. Reason codes: `suggestion_manual_kind`, `suggestion_supersede_in_use`, `suggestion_functional_conflict`,
+  `suggestion_no_scope_evidence`, `suggestion_supersedes_unknown`, `suggestion_unresolved_entity`.
+- Refs credentials of `suggester` and `editor` shares carry `suggest:write`; the `editor` role can be created
+  (`DOCS_SHARE_ROLE_UNAVAILABLE` is no longer returned). A credential may call `POST /suggestions` for its own share.
+- `share.update_appended` entries with `summary_key` `suggestion_accepted` tell every live Share that used a superseded fact.
+- `errors.v1.json` adds `DOCS_SUGGEST_NOT_FOUND`, `DOCS_SUGGEST_ROLE_FORBIDDEN`, `DOCS_SUGGEST_SCOPE_MISSING`,
+  `DOCS_SUGGEST_NOT_PENDING`, `DOCS_SUGGEST_NO_EVIDENCE`, `DOCS_SUGGEST_UNRESOLVED_ENTITY`.
