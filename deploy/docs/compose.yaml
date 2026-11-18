@@ -95,6 +95,11 @@ services:
       - ${OO_DOCS_PKI:?pki directory}/ca-cert:/run/oo/ca.crt:ro
       # /drives/<id>: one read-only bind per local Drive, added by the override.
     networks: [docs-internal, docs-egress]
+    # A Drive on an S3-compatible store on this host (RustFS, MinIO) is reached at
+    # http://host.docker.internal:<port>: `oo source add s3 --endpoint http://host.docker.internal:<port> --path-style ...`
+    # (the same name works from the host on Docker Desktop, which maps it in /etc/hosts).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${OO_DOCS_ENGINE_PORT:?loopback port}:7480"
     depends_on:

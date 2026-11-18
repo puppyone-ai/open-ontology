@@ -241,6 +241,21 @@ impl Daemon {
         Ok(serde_json::from_slice(&body).unwrap_or(Value::Null))
     }
 
+    /// `PUT` JSON with a fresh idempotency key and no revision header (the link surface keeps its own revisions).
+    pub async fn put_json(&self, path: &str, body: &Value) -> Result<Value, CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let req = self
+            .http
+            .put(format!("{}{path}", self.base))
+            .header("idempotency-key", key)
+            .header("content-type", "application/json")
+            .body(body.to_string());
+        let (_, body) = self.send(req).await?;
+        Ok(serde_json::from_slice(&body).unwrap_or(Value::Null))
+    }
+
     /// `GET`, raw bytes.
     pub async fn get_bytes(&self, path: &str) -> Result<Vec<u8>, CliError> {
         Ok(self

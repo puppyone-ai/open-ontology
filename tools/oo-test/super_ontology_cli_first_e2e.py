@@ -11,8 +11,8 @@ files of mode 0600.
 
 Stand-ins, stated plainly: PostgreSQL is a private native cluster (initdb/pg_ctl, no container); the Gateway is a
 small HTTPS server with a private CA that runs read-only SQL against that Postgres (the real Gateway needs the
-full `oo up` stack); the link rule, the Agent DB binding and the projection run are engine HTTP calls with the
-control token because `oo source link` belongs to WP1. Everything the Agent does goes through `oo`.
+full `oo up` stack); the Agent DB binding is an engine HTTP call with the
+control token (the link rule and the projection run use `oo source link`). Everything the Agent does goes through `oo`.
 
 Usage: tools/oo-test/super_ontology_cli_first_e2e.py [--skip-build] [--out FILE] [--keep]
 """
@@ -309,11 +309,11 @@ def main():
         drive_id = d["id"] if "id" in d else d["drive"]["id"]
         st, b = api.request("PUT", "/v1/docs/agent-db-binding", {"secret_ref": f"file:{agentdb}"})
         check("agent db bound", st == 200, b)
-        st, b = api.request("PUT", "/v1/docs/link-rules", {"drive_id": drive_id, "db_table": "sales.customers", "key_col": "id",
-                                                             "name_col": "name", "entity_type": "Organization"})
-        check("link rule stored", st in (200, 201), b)
-        st, b = api.request("POST", "/v1/docs/links:project", {"drive_id": drive_id})
-        check("projection ran", st == 200, b)
+        code, b, err = cli.json("source", "link", "add", "--table", "sales.customers", "--key-col", "id", "--name-col", "name",
+                                "--entity-type", "Organization")
+        check("link rule stored", code == 0, (b, err))
+        code, b, err = cli.json("source", "link", "project")
+        check("projection ran", code == 0, (b, err))
 
         # agent tokens through the CLI
         bot, ro, gone = home / "bot.tok", home / "docsonly.tok", home / "gone.tok"

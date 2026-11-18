@@ -23,6 +23,7 @@ pub mod serve;
 pub mod sidecar;
 pub mod source;
 pub mod source_db;
+pub mod source_link;
 pub mod suggest;
 pub mod upload;
 
@@ -51,9 +52,9 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         }
         "mcp" if rest.iter().any(|a| a == "--endpoint") => Some(ontology::mcp(rest)),
         "docs" => std::process::exit(i32::from(docs_cmd::run(rest))),
-        "source" if rest.iter().any(|a| a == "--help" || a == "-h") => {
-            Some(Ok(Invocation::Help(source::HELP.into())))
-        }
+        "source" if rest.iter().any(|a| a == "--help" || a == "-h") => Some(Ok(Invocation::Help(
+            format!("{}{}", source::HELP, source_link::HELP),
+        ))),
         "source" => std::process::exit(i32::from(source::run(rest))),
         "context" => std::process::exit(i32::from(context::run(rest))),
         "serve" if rest.iter().any(|a| a == "--help" || a == "-h") => {
