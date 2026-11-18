@@ -1,0 +1,8059 @@
+{
+ "bomFormat": "CycloneDX",
+ "specVersion": "1.5",
+ "metadata": {
+  "component": {
+   "name": "supabase/postgres:17.6.1.064"
+  }
+ },
+ "components": [
+  {
+   "type": "library",
+   "name": "abseil-cpp",
+   "version": "20240116.1",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "acl",
+   "version": "2.3.2",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "attr",
+   "version": "2.5.2",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "audit",
+   "version": "3.1.2",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bash",
+   "version": "5.2p26",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bash-interactive",
+   "version": "5.2p26",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bison",
+   "version": "3.8.2",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "boost",
+   "version": "1.81.0",
+   "licenses": [
+    {
+     "expression": "BSL-1.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "brotli",
+   "version": "1.1.0-lib",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bzip2",
+   "version": "1.0.8",
+   "licenses": [
+    {
+     "expression": "bzip2-1.0.6"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bzip2",
+   "version": "1.0.8-bin",
+   "licenses": [
+    {
+     "expression": "bzip2-1.0.6"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "coreutils",
+   "version": "9.4",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cracklib",
+   "version": "2.9.11",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cryptsetup",
+   "version": "2.7.0",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "curl",
+   "version": "8.6.0",
+   "licenses": [
+    {
+     "expression": "curl"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "db",
+   "version": "4.8.30",
+   "licenses": [
+    {
+     "expression": "Sleepycat"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dns-root-data",
+   "version": "2023-11-27",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "elfutils",
+   "version": "0.191",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later OR LGPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "expat",
+   "version": "2.6.2",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "find-xml-catalogs-hook",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "flex",
+   "version": "2.6.4",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc",
+   "version": "13.2.0-lib",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc",
+   "version": "13.2.0-libgcc",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gdal",
+   "version": "3.8.5",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "geos",
+   "version": "3.12.1",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "getent-glibc",
+   "version": "2.39-5",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "glibc",
+   "version": "2.39-5",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "glibc",
+   "version": "2.39-5-bin",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "glibc",
+   "version": "2.39-5-getent",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gmp-with-cxx",
+   "version": "6.3.0",
+   "licenses": [
+    {
+     "expression": "LGPL-3.0-or-later OR GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnugrep",
+   "version": "3.11",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnum4",
+   "version": "1.4.19",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg",
+   "version": "2.4.5",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnutar",
+   "version": "1.35",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnutls",
+   "version": "3.8.4",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gtest",
+   "version": "1.14.0",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gzip",
+   "version": "1.13",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "http",
+   "version": "",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "http",
+   "version": "1.6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "hypopg",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "hypopg",
+   "version": "1.4.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "icu4c",
+   "version": "73.2",
+   "licenses": [
+    {
+     "expression": "Unicode-DFS-2016"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "icu4c",
+   "version": "73.2-dev",
+   "licenses": [
+    {
+     "expression": "Unicode-DFS-2016"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "index_advisor",
+   "version": "",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "index_advisor",
+   "version": "0.2.0",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "iptables",
+   "version": "1.8.10",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "json-c",
+   "version": "0.17",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "kbd",
+   "version": "2.6.4",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "kexec-tools",
+   "version": "2.0.26",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "keyutils",
+   "version": "1.6.3-lib",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later AND LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "kmod",
+   "version": "31",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "kmod",
+   "version": "31-lib",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "kytea",
+   "version": "0.4.7",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lerc",
+   "version": "4.0.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libapparmor",
+   "version": "3.1.7",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libargon2",
+   "version": "20190702",
+   "licenses": [
+    {
+     "expression": "CC0-1.0 OR Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libassuan",
+   "version": "2.5.7",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbpf",
+   "version": "1.3.0",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-only OR BSD-2-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap",
+   "version": "2.69-lib",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcbor",
+   "version": "0.11.0",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdeflate",
+   "version": "1.19",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libevent",
+   "version": "2.1.12",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libffi",
+   "version": "3.4.6",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libfido2",
+   "version": "1.14.0",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcrypt",
+   "version": "1.10.3",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgeotiff",
+   "version": "1.7.1",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgpg-error",
+   "version": "1.48",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libidn2",
+   "version": "2.3.7",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later OR LGPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libjpeg-turbo",
+   "version": "3.0.2",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause AND IJG"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5",
+   "version": "1.21.2",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5",
+   "version": "1.21.2-dev",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmicrohttpd",
+   "version": "0.9.77",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmnl",
+   "version": "1.0.5",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnetfilter_conntrack",
+   "version": "1.0.9",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnfnetlink",
+   "version": "1.0.2",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnftnl",
+   "version": "1.2.6",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnl",
+   "version": "3.8.0",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libossp-uuid",
+   "version": "1.6.2",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpcap",
+   "version": "1.10.4",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpsl",
+   "version": "0.21.5",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpwquality",
+   "version": "1.4.5-lib",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libseccomp",
+   "version": "2.5.5-lib",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsodium",
+   "version": "1.0.19",
+   "licenses": [
+    {
+     "expression": "ISC"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libssh2",
+   "version": "1.11.0",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtasn1",
+   "version": "4.19.0",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtiff",
+   "version": "4.6.0",
+   "licenses": [
+    {
+     "expression": "libtiff"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libunistring",
+   "version": "1.1",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later OR LGPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxcrypt",
+   "version": "4.4.36",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxml2",
+   "version": "2.12.6",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxml2",
+   "version": "2.12.6-bin",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxml2",
+   "version": "2.12.6-dev",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxslt",
+   "version": "1.1.39",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxslt",
+   "version": "1.1.39-bin",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxslt",
+   "version": "1.1.39-dev",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "linux-pam",
+   "version": "1.6.0",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lvm2",
+   "version": "2.03.23-lib",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-only AND LGPL-2.1-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lz4",
+   "version": "1.9.4",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lz4",
+   "version": "1.9.4-bin",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lz4",
+   "version": "1.9.4-dev",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mecab",
+   "version": "0.996",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-only OR LGPL-2.1-only OR BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mecab-ipadic",
+   "version": "2.7.0-20070801",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mecab-naist-jdic",
+   "version": "0.6.3b-20111013",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mpfr",
+   "version": "4.2.1",
+   "licenses": [
+    {
+     "expression": "LGPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "msgpack-c",
+   "version": "6.0.0",
+   "licenses": [
+    {
+     "expression": "BSL-1.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses",
+   "version": "6.4",
+   "licenses": [
+    {
+     "expression": "X11"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses",
+   "version": "6.4-dev",
+   "licenses": [
+    {
+     "expression": "X11"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses",
+   "version": "6.4-man",
+   "licenses": [
+    {
+     "expression": "X11"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "nettle",
+   "version": "3.9.1",
+   "licenses": [
+    {
+     "expression": "LGPL-3.0-or-later OR GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "nghttp2",
+   "version": "1.60.0-lib",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "npth",
+   "version": "1.7",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openssl",
+   "version": "3.0.13",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openssl",
+   "version": "3.0.13-bin",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openssl",
+   "version": "3.0.13-dev",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "overlayfs-on-package",
+   "version": "",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "p11-kit",
+   "version": "0.25.3",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pcre2",
+   "version": "10.43",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pcsclite",
+   "version": "2.0.3-lib",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl",
+   "version": "5.38.2",
+   "licenses": [
+    {
+     "expression": "Artistic-1.0-Perl OR GPL-1.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgaudit",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgaudit",
+   "version": "17.0",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgaudit",
+   "version": "17.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_cron",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_cron",
+   "version": "1.6.4",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_graphql",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_graphql",
+   "version": "1.5.11",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_graphql",
+   "version": "1.5.9",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_hashids",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_hashids",
+   "version": "1.2.1",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_hashids",
+   "version": "1.3.0-cd0e1b31d52b394a0df64079406a14a4f7387cd6",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_jsonschema",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_jsonschema",
+   "version": "0.3.3",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgjwt",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgjwt",
+   "version": "0.2.0",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgmq",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgmq",
+   "version": "1.5.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_net",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_net",
+   "version": "0.11.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_net",
+   "version": "0.13.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_net",
+   "version": "0.14.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_net",
+   "version": "0.19.5",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_partman",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_partman",
+   "version": "5.3.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_repack",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_repack",
+   "version": "1.4.8",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_repack",
+   "version": "1.5.0",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_repack",
+   "version": "1.5.1",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_repack",
+   "version": "1.5.2",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgroonga",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgroonga",
+   "version": "3.2.5",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgrouting",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgrouting",
+   "version": "3.4.1",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "3.0.4",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "3.1.5",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "3.1.6",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "3.1.7",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgsodium",
+   "version": "3.1.8",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_stat_monitor",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_stat_monitor",
+   "version": "2.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pgtap",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_tle",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_tle",
+   "version": "1.0.4",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_tle",
+   "version": "1.3.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pg_tle",
+   "version": "1.4.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "plan_filter",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "plan_filter",
+   "version": "0.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "plpgsql_check",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "plpgsql_check",
+   "version": "2.7",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgis",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgis",
+   "version": "3.3.7",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql",
+   "version": "17.6",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql",
+   "version": "17.6-lib",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql-and-plugins",
+   "version": "17.6",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "proj",
+   "version": "9.4.0",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "protobuf",
+   "version": "24.4",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "protobuf-c-unstable",
+   "version": "2023-07-08",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "publicsuffix-list",
+   "version": "0-unstable-2024-01-07",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "qrencode",
+   "version": "4.1.1",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "readline",
+   "version": "8.2p10",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "readline",
+   "version": "8.2p10-dev",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "receipt",
+   "version": "",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "rum",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "rum",
+   "version": "1.3",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "safeupdate",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "safeupdate",
+   "version": "1.4",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sfcgal",
+   "version": "61f3b08ade49493b56c6bafa98c7c1f84addbc10",
+   "licenses": [
+    {
+     "expression": "LGPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sqlite",
+   "version": "3.45.2",
+   "licenses": [
+    {
+     "expression": "blessing"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "supabase-groonga",
+   "version": "14.0.5",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "supabase_vault",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "supabase_vault",
+   "version": "0.2.8",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "supabase_vault",
+   "version": "0.3.1",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "supautils",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "switch-ext-version",
+   "version": "",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "none"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd",
+   "version": "255.4",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd",
+   "version": "255.4-dev",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd-minimal-libs",
+   "version": "255.4",
+   "licenses": [
+    {
+     "expression": "LGPL-2.1-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tpm2-tss",
+   "version": "4.0.1",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tzdata",
+   "version": "2024a",
+   "licenses": [
+    {
+     "expression": "LicenseRef-tzdata-public-domain"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "unbound",
+   "version": "1.19.2-lib",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux-minimal",
+   "version": "2.39.3-lib",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux-minimal",
+   "version": "2.39.3-login",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux-minimal",
+   "version": "2.39.3-mount",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux-minimal",
+   "version": "2.39.3-swap",
+   "licenses": [
+    {
+     "expression": "GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.5.1",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.6.0",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.6.2",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.7.0",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.7.4",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.8.0",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wal2json",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wal2json",
+   "version": "2.6",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.4.4",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.4.5",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.4.6",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.0",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.3",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.4",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.5",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.6",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wrappers",
+   "version": "0.5.7",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xgcc",
+   "version": "13.2.0-libgcc",
+   "licenses": [
+    {
+     "expression": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xxHash",
+   "version": "0.8.2",
+   "licenses": [
+    {
+     "expression": "BSD-2-Clause AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xz",
+   "version": "5.4.6",
+   "licenses": [
+    {
+     "expression": "0BSD AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xz",
+   "version": "5.4.6-bin",
+   "licenses": [
+    {
+     "expression": "0BSD AND GPL-2.0-or-later"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zlib",
+   "version": "1.3.1",
+   "licenses": [
+    {
+     "expression": "Zlib"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zlib",
+   "version": "1.3.1-dev",
+   "licenses": [
+    {
+     "expression": "Zlib"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zstd",
+   "version": "1.5.5",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zstd",
+   "version": "1.5.5-bin",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zstd",
+   "version": "1.5.5-dev",
+   "licenses": [
+    {
+     "expression": "BSD-3-Clause OR GPL-2.0-only"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    },
+    {
+     "name": "oo:licence_source",
+     "value": "upstream licence by name (maintainer assertion)"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "adduser",
+   "version": "3.137ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "appstream",
+   "version": "1.0.2-1build6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "apt",
+   "version": "2.8.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "base-files",
+   "version": "13ubuntu10.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "base-passwd",
+   "version": "3.6.3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bash",
+   "version": "5.2.21-2ubuntu4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "binutils",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "binutils-aarch64-linux-gnu",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "binutils-common",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bsdutils",
+   "version": "1:2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "build-essential",
+   "version": "12.10ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bzip2",
+   "version": "1.0.8-5.1build0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ca-certificates",
+   "version": "20240203",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "checkinstall",
+   "version": "1.6.2+git20170426.d24a630-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cmake",
+   "version": "3.28.3-1build7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cmake-data",
+   "version": "3.28.3-1build7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "coreutils",
+   "version": "9.4-3ubuntu6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cpp",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cpp-13",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cpp-13-aarch64-linux-gnu",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "cpp-aarch64-linux-gnu",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "curl",
+   "version": "8.5.0-2ubuntu10.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dash",
+   "version": "0.5.12-6ubuntu5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus-bin",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus-daemon",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus-session-bus-common",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus-system-bus-common",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dbus-user-session",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "debconf",
+   "version": "1.5.86ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "debianutils",
+   "version": "5.17build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "diffutils",
+   "version": "1:3.10-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dirmngr",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "distro-info-data",
+   "version": "0.60ubuntu0.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dmsetup",
+   "version": "2:1.02.185-3ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dpkg",
+   "version": "1.22.6ubuntu6.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dpkg-dev",
+   "version": "1.22.6ubuntu6.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "e2fsprogs",
+   "version": "1.47.0-2.4~exp1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "file",
+   "version": "1:5.45-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "findutils",
+   "version": "4.9.0-5build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "g++",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "g++-13",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "g++-13-aarch64-linux-gnu",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "g++-aarch64-linux-gnu",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-13",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-13-aarch64-linux-gnu",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-13-base",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-14-base",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-aarch64-linux-gnu",
+   "version": "4:13.2.0-7ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gir1.2-girepository-2.0",
+   "version": "1.80.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gir1.2-glib-2.0",
+   "version": "2.80.0-6ubuntu3.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gir1.2-packagekitglib-1.0",
+   "version": "1.2.8-2ubuntu1.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg-l10n",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg-utils",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg-agent",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg-wks-client",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgconf",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgsm",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgv",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "grep",
+   "version": "3.11-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gzip",
+   "version": "1.12-1ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "hostname",
+   "version": "3.23+nmu2ubuntu2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "init-system-helpers",
+   "version": "1.66ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "iso-codes",
+   "version": "4.16.0-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "keyboxd",
+   "version": "2.4.4-2ubuntu17.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "krb5-locales",
+   "version": "1.20.1-6ubuntu2.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libacl1",
+   "version": "2.3.2-1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libapparmor1",
+   "version": "4.0.1really4.0.1-0ubuntu0.24.04.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libappstream5",
+   "version": "1.0.2-1build6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libapt-pkg6.0t64",
+   "version": "2.8.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libarchive13t64",
+   "version": "3.7.2-2ubuntu0.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libargon2-1",
+   "version": "0~20190702+dfsg-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libasan8",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libassuan0",
+   "version": "2.5.6-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libatomic1",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libattr1",
+   "version": "1:2.5.2-1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libaudit-common",
+   "version": "1:3.1.2-2.1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libaudit1",
+   "version": "1:3.1.2-2.1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbinutils",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libblkid1",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbrotli1",
+   "version": "1.1.0-2build2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbz2-1.0",
+   "version": "1.0.8-5.1build0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc-bin",
+   "version": "2.39-0ubuntu8.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc-dev-bin",
+   "version": "2.39-0ubuntu8.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc6",
+   "version": "2.39-0ubuntu8.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc6-dev",
+   "version": "2.39-0ubuntu8.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap-ng0",
+   "version": "0.8.4-2build2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap2",
+   "version": "1:2.66-5ubuntu2.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap2-bin",
+   "version": "1:2.66-5ubuntu2.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcc1-0",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcom-err2",
+   "version": "1.47.0-2.4~exp1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcrypt-dev",
+   "version": "1:4.4.36-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcrypt1",
+   "version": "1:4.4.36-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcryptsetup12",
+   "version": "2:2.7.0-1ubuntu4.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libctf-nobfd0",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libctf0",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcurl3t64-gnutls",
+   "version": "8.5.0-2ubuntu10.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcurl4t64",
+   "version": "8.5.0-2ubuntu10.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdb5.3t64",
+   "version": "5.3.28+dfsg2-7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdbus-1-3",
+   "version": "1.14.10-4ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdebconfclient0",
+   "version": "0.271ubuntu3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdevmapper1.02.1",
+   "version": "2:1.02.185-3ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdpkg-perl",
+   "version": "1.22.6ubuntu6.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libduktape207",
+   "version": "2.7.0+tests-0ubuntu3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdw1t64",
+   "version": "0.190-1.1ubuntu0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libelf1t64",
+   "version": "0.190-1.1ubuntu0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libexpat1",
+   "version": "2.6.1-2ubuntu0.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libext2fs2t64",
+   "version": "1.47.0-2.4~exp1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libfdisk1",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libffi8",
+   "version": "3.4.6-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcc-13-dev",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcc-s1",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcrypt20",
+   "version": "1.10.3-2build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgdbm-compat4t64",
+   "version": "1.23-5.1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgdbm6t64",
+   "version": "1.23-5.1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgirepository-1.0-1",
+   "version": "1.80.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libglib2.0-0t64",
+   "version": "2.80.0-6ubuntu3.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libglib2.0-bin",
+   "version": "2.80.0-6ubuntu3.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libglib2.0-data",
+   "version": "2.80.0-6ubuntu3.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgmp10",
+   "version": "2:6.3.0+dfsg-2ubuntu6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgnutls30t64",
+   "version": "3.8.3-1.1ubuntu3.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgomp1",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgpg-error0",
+   "version": "1.47-3build2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgprofng0",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgssapi-krb5-2",
+   "version": "1.20.1-6ubuntu2.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgstreamer1.0-0",
+   "version": "1.24.2-1ubuntu0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libhogweed6t64",
+   "version": "3.9.1-2.2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libhwasan0",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libicu74",
+   "version": "74.2-1ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libidn2-0",
+   "version": "2.3.7-2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libisl23",
+   "version": "0.26-3build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libitm1",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libjansson4",
+   "version": "2.14-2build2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libjson-c5",
+   "version": "0.17-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libjsoncpp25",
+   "version": "1.9.5-6build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libk5crypto3",
+   "version": "1.20.1-6ubuntu2.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkeyutils1",
+   "version": "1.6.3-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkmod2",
+   "version": "31+20240202-2ubuntu7.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5-3",
+   "version": "1.20.1-6ubuntu2.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5support0",
+   "version": "1.20.1-6ubuntu2.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libksba8",
+   "version": "1.6.6-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libldap-common",
+   "version": "2.6.7+dfsg-1~exp1ubuntu8.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libldap2",
+   "version": "2.6.7+dfsg-1~exp1ubuntu8.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "liblsan0",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "liblz4-1",
+   "version": "1.9.4-1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "liblzma5",
+   "version": "5.6.1+really5.4.5-1ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmagic-mgc",
+   "version": "1:5.45-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmagic1t64",
+   "version": "1:5.45-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmd0",
+   "version": "1.1.0-2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmount1",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmpc3",
+   "version": "1.3.1-1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmpfr6",
+   "version": "4.2.1-1build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libncursesw6",
+   "version": "6.4+20240113-1ubuntu2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnettle8t64",
+   "version": "3.9.1-2.2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnghttp2-14",
+   "version": "1.59.0-1ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnpth0t64",
+   "version": "1.6-3.1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnss-systemd",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libp11-kit0",
+   "version": "0.25.3-4ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpackagekit-glib2-18",
+   "version": "1.2.8-2ubuntu1.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-cap",
+   "version": "1:2.66-5ubuntu2.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-modules",
+   "version": "1.5.3-5ubuntu5.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-modules-bin",
+   "version": "1.5.3-5ubuntu5.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-runtime",
+   "version": "1.5.3-5ubuntu5.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-systemd",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam0g",
+   "version": "1.5.3-5ubuntu5.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpcre2-8-0",
+   "version": "10.42-4ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libperl5.38t64",
+   "version": "5.38.2-3.2ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpolkit-agent-1-0",
+   "version": "124-2ubuntu1.24.04.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpolkit-gobject-1-0",
+   "version": "124-2ubuntu1.24.04.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libproc2-0",
+   "version": "2:4.0.4-4ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpsl5t64",
+   "version": "0.21.2-1.1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpython3-stdlib",
+   "version": "3.12.3-0ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpython3.12-minimal",
+   "version": "3.12.3-1ubuntu0.9",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpython3.12-stdlib",
+   "version": "3.12.3-1ubuntu0.9",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libreadline8t64",
+   "version": "8.2-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "librhash0",
+   "version": "1.4.3-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "librtmp1",
+   "version": "2.4+20151223.gitfa8646d.1-2build7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsasl2-2",
+   "version": "2.1.28+dfsg1-5ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsasl2-modules",
+   "version": "2.1.28+dfsg1-5ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsasl2-modules-db",
+   "version": "2.1.28+dfsg1-5ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libseccomp2",
+   "version": "2.5.5-1ubuntu3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libselinux1",
+   "version": "3.5-2ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsemanage-common",
+   "version": "3.5-1build5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsemanage2",
+   "version": "3.5-1build5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsepol2",
+   "version": "3.5-2build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsframe1",
+   "version": "2.42-4ubuntu2.7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsmartcols1",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsqlite3-0",
+   "version": "3.45.1-1ubuntu2.5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libss2",
+   "version": "1.47.0-2.4~exp1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libssh-4",
+   "version": "0.10.6-2ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libssl3t64",
+   "version": "3.0.13-0ubuntu3.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libstdc++-13-dev",
+   "version": "13.3.0-6ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libstdc++6",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libstemmer0d",
+   "version": "2.2.0-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsystemd-shared",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsystemd0",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtasn1-6",
+   "version": "4.19.0-3ubuntu0.24.04.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtinfo6",
+   "version": "6.4+20240113-1ubuntu2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtsan2",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libubsan1",
+   "version": "14.2.0-4ubuntu2~24.04",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libudev1",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libunistring5",
+   "version": "1.1-2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libunwind8",
+   "version": "1.6.2-3build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libuuid1",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libuv1t64",
+   "version": "1.48.0-1.1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxml2",
+   "version": "2.9.14+dfsg-1.3ubuntu3.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxmlb2",
+   "version": "0.3.18-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxxhash0",
+   "version": "0.8.2-2build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libyaml-0-2",
+   "version": "0.2.5-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libzstd1",
+   "version": "1.5.5+dfsg2-2build1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "linux-libc-dev",
+   "version": "6.8.0-88.89",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "locales",
+   "version": "2.39-0ubuntu8.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "login",
+   "version": "1:4.13+dfsg1-4ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "logsave",
+   "version": "1.47.0-2.4~exp1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lsb-release",
+   "version": "12.0-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "lto-disabled-list",
+   "version": "47",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "make",
+   "version": "4.3-4.1build2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mawk",
+   "version": "1.3.4.20240123-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "media-types",
+   "version": "10.1.0",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mount",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses-base",
+   "version": "6.4+20240113-1ubuntu2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses-bin",
+   "version": "6.4+20240113-1ubuntu2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "netbase",
+   "version": "6.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "networkd-dispatcher",
+   "version": "2.2.4-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openssl",
+   "version": "3.0.13-0ubuntu3.6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "packagekit",
+   "version": "1.2.8-2ubuntu1.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "packagekit-tools",
+   "version": "1.2.8-2ubuntu1.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "passwd",
+   "version": "1:4.13+dfsg1-4ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "patch",
+   "version": "2.7.6-7build3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl",
+   "version": "5.38.2-3.2ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl-base",
+   "version": "5.38.2-3.2ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl-modules-5.38",
+   "version": "5.38.2-3.2ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pinentry-curses",
+   "version": "1.2.1-3ubuntu5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "polkitd",
+   "version": "124-2ubuntu1.24.04.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "procps",
+   "version": "2:4.0.4-4ubuntu3.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "publicsuffix",
+   "version": "20231001.0357-0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python-apt-common",
+   "version": "2.7.7ubuntu5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3",
+   "version": "3.12.3-0ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-apt",
+   "version": "2.7.7ubuntu5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-blinker",
+   "version": "1.7.0-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-cffi-backend",
+   "version": "1.16.0-2build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-cryptography",
+   "version": "41.0.7-4ubuntu0.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-dbus",
+   "version": "1.3.2-5build3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-distro",
+   "version": "1.9.0-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-distro-info",
+   "version": "1.7build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-gi",
+   "version": "3.48.2-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-httplib2",
+   "version": "0.20.4-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-jwt",
+   "version": "2.7.0-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-launchpadlib",
+   "version": "1.11.0-6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-lazr.restfulclient",
+   "version": "0.14.6-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-lazr.uri",
+   "version": "1.0.6-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-minimal",
+   "version": "3.12.3-0ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-oauthlib",
+   "version": "3.2.2-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-pkg-resources",
+   "version": "68.1.2-2ubuntu1.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-pyparsing",
+   "version": "3.1.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-six",
+   "version": "1.16.0-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-software-properties",
+   "version": "0.99.49.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3-wadllib",
+   "version": "1.3.6-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3.12",
+   "version": "3.12.3-1ubuntu0.9",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python3.12-minimal",
+   "version": "3.12.3-1ubuntu0.9",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "readline-common",
+   "version": "8.2-4build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "rpcsvc-proto",
+   "version": "1.4.2-0ubuntu7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sed",
+   "version": "4.9-2build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sensible-utils",
+   "version": "0.0.22",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sgml-base",
+   "version": "1.31",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "shared-mime-info",
+   "version": "2.4-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "software-properties-common",
+   "version": "0.99.49.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sudo",
+   "version": "1.9.15p5-3ubuntu5.24.04.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd-dev",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd-resolved",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd-sysv",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "systemd-timesyncd",
+   "version": "255.4-1ubuntu8.11",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sysvinit-utils",
+   "version": "3.08-6ubuntu3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tar",
+   "version": "1.35+dfsg-3build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tree",
+   "version": "2.1.1-2ubuntu3.24.04.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tzdata",
+   "version": "2025b-0ubuntu0.24.04.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ubuntu-keyring",
+   "version": "2023.11.28.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ucf",
+   "version": "3.0043+nmu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "unattended-upgrades",
+   "version": "2.9.1+nmu4ubuntu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "unminimize",
+   "version": "0.2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux",
+   "version": "2.39.3-9ubuntu6.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wget",
+   "version": "1.21.4-1ubuntu4.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xdg-user-dirs",
+   "version": "0.18-1build1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xml-core",
+   "version": "0.19",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xz-utils",
+   "version": "5.6.1+really5.4.5-1ubuntu0.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zlib1g",
+   "version": "1:1.3.dfsg-3.1ubuntu2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  }
+ ]
+}
