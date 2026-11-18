@@ -19,6 +19,8 @@ pub(crate) struct GatewayClient {
     port: u16,
     token_file: PathBuf,
     profile: Option<(PathBuf, String)>,
+    /// The docs engine takes `?since=` on its paths; the Gateway data plane never does.
+    allow_query: bool,
 }
 
 pub(crate) struct GatewayReply {
@@ -40,6 +42,17 @@ impl GatewayClient {
             port,
             token_file,
             profile: None,
+            allow_query: false,
+        }
+    }
+
+    /// Client of the docs engine: the bearer is the share's `oodr_` credential file.
+    pub(crate) fn docs(port: u16, credential_file: PathBuf) -> Self {
+        Self {
+            port,
+            token_file: credential_file,
+            profile: None,
+            allow_query: true,
         }
     }
 
@@ -48,6 +61,7 @@ impl GatewayClient {
             port: 0,
             token_file: PathBuf::new(),
             profile: Some((cli, name)),
+            allow_query: false,
         }
     }
 
@@ -67,7 +81,8 @@ impl GatewayClient {
 
 impl GatewayClient {
     async fn exchange(&self, path: &str, body: Option<Vec<u8>>) -> Result<GatewayReply, ()> {
-        if !path.starts_with('/') || path.contains('?') || path.contains('#') {
+        if !path.starts_with('/') || (path.contains('?') && !self.allow_query) || path.contains('#')
+        {
             return Err(());
         }
         if let Some((cli, name)) = &self.profile {
