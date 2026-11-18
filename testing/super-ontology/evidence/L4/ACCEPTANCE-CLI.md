@@ -266,3 +266,22 @@ key 只接受 `file:/绝对路径` 或 `env:NAME`；直接写 key 的值会得�
 ## 已验证的运行
 
 `tools/oo-test/super_ontology_cli_acceptance.py` 把第 1 到 14 步在临时目录里逐条执行并检查了上面的“应看到”（`cli-acceptance-run.json` 是每条命令的退出码和输出，`cli-acceptance-run.txt` 是检查清单）；红队门禁见 `redteam-gate.txt`。已知的差别：脚本用 `--json` 取字段，人读输出与上面一致；第 15 步没有脚本化。
+
+**本树上的重跑（运行编号 `a7-l4cli`，2026-11-18，分支 `so/A-L7-remainder`，`oo` 由该树构建，`--runtime compose`）：58 项检查全部通过。** 每一步的实测结果：
+
+| 步骤 | 命令（节选） | 实测 |
+|---|---|---|
+| 1 启动 | `oo serve --runtime compose --json`、`oo serve --status`、`oo docs health` | 打印本地端口和 compose 项目；`--status` 为 `oo serve is running (pid .., port ..)`；`health` 的 `status` 为 `ok`，`model` 为 `not_configured` |
+| 3 导入 | `oo docs drive add`、`oo docs files ls` | 26 个文件在 **64 秒**内落定：24 `published`、1 `encrypted`、1 `unsupported`；`drive show` 为 `files 26  waiting_review  rev 26` |
+| 4 失败原因 | `files show`、`files retry` | `DOCS_PARSE_ENCRYPTED`、`DOCS_PARSE_LEGACY_OFFICE`；重试两个终态文件和一个已发布文件都是 `not_retryable`（`state:<状态>`） |
+| 5 实体 | `entity search`、`entity show --history` | 1 条 `person:..  Person  林远舟`；19 条事实，每条有出处；别名“老林”解析到同一个 key |
+| 6 待确认 | `review ls`、`review decide accept [--winner]`、`accept-source` | 队列里 1 条 `constraint_conflict`（2 条冲突事实）；不带 `--winner` 为 `accepted 0` 加 `DOCS_REVIEW_CONSTRAINT_CONFLICT`；带 `--winner` 为 `accepted 1`，队列清空；`accept-source` 返回 `accepted 0` |
+| 7 纠错 | `entity split`、`merge`、`correct --mark-wrong` | `split` 得到 1 个新实体，`merge` 并回，事实变为 `retracted` |
+| 8 同步 | `drive sync`、`drive sync --path` | 返回 generation 和 `drive_rev 29`；新文件出现在 `files ls`；定向同步 `~1` |
+| 9 Mount | `context mount`、`context list` | `mounted .. (share .., BRIEF 409/800 tokens, trimmed 0, blocked 168, ..)`；5 行内容行都带 `[src:`；末尾“已拦截”只有数量 |
+| 11 P21 | `context mount --group`、`entity correct`、`context check`、`context refresh --group` | 纠错后 **2.5 秒**内 `UPDATES.md` 出现 block 条目；`check` 退出码 **20**；组内一起刷新后两个目录 `check` 都是 0；示例文件夹的文件哈希不变 |
+| 12 撤销 | `context revoke`、`share ls`、`share show` | `revoked ..; local mount removed. Content already read cannot be taken back.`；共享为 `revoked` |
+| 13 重启 | SIGTERM、再次 `oo serve` | 退出码 0，三个容器 `exited` 未删除；Drive、25 个已发布文件、6 个共享都还在，挂载目录未动 |
+| 14 删除 | `drive rm`、`drive ls`、`oo serve --stop` | Drive 消失；`oo serve stopped`，守护进程退出码 0；清理后没有残留容器、网络、卷 |
+
+**镜像说明**：这台机器上的本地镜像（`oo-docs-engine:dev`、`oo-docs-parser:dev`）已被后来的构建覆盖，摘要和 `deploy/docs/images.lock.json` 里记的不同，`oo serve` 因此按设计退出 4（`digest mismatch`）。本次重跑用一份只改了镜像摘要的 `deploy/docs` 副本（`OO_ACCEPT_DEPLOY_DIR`），其余文件与仓库一致；仓库里的锁文件没有改动，由集成线程在重建镜像后重新锁定。第 15 步（模型）没有重跑。

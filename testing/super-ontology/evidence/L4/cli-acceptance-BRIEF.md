@@ -4,22 +4,22 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "18b668b3bce9c84779b1312badbd41a3e790b6ad08583a5536bb5d8c12abb177/BRIEF.md"
-  ReservedCode1: "18b668b3bce9c84779b1312badbd41a3e790b6ad08583a5536bb5d8c12abb177"
+  ProduceID: "264a3115fc98605a24858c4d75bf17cf72b3bd174eac461c99e096c11fdd0024/BRIEF.md"
+  ReservedCode1: "264a3115fc98605a24858c4d75bf17cf72b3bd174eac461c99e096c11fdd0024"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
 ---
 
 # BRIEF
-> 本体版本 v6（2026-11-18）· 范围 Decisions、Projects · 预算 515/800 tokens · 角色 suggester
+> 本体版本 v6（2026-11-18）· 范围 Decisions、Projects · 预算 526/800 tokens · 角色 suggester
 > 每行末尾的 [src:路径#位置] 是出处；原文片段见 refs/，清单见 INDEX.md。
 > 覆盖：11/11 个文件已处理
 > 一致性承诺：包内一致 是 · 新鲜度下界 是 · 变更必达 是 · 并行同源 是 · 本体无矛盾 是
 
 ## 你在做什么
 > 星图看板用什么图表方案
-- 解析出的对象：星图看板（Project） [src:Projects/星图看板.md#L1-L4]
+- 解析出的对象：星图看板（Project） [src:Decisions/D-2026-02-星图采用自研引擎.md#L8-L8]
 
 ## 相关的人
 - 周若溪：负责 星图看板（2026-06-01起） [src:Projects/星图看板.md#L12-L12]
@@ -39,7 +39,7 @@ AIGC:
 （无）
 
 ## 已拦截
-另有 69 条事实、22 个实体因不在共享范围内未纳入。
+另有 104 条事实、21 个实体因不在共享范围内未纳入。
 
 ## 裁掉了什么
 没有内容被裁掉。

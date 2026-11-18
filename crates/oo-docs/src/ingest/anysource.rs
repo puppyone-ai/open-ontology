@@ -75,6 +75,27 @@ impl DocumentSource for AnySource {
 }
 
 impl HashableSource for AnySource {
+    async fn list_scopes(&self) -> Result<Option<Vec<String>>, DocSourceError> {
+        match self {
+            AnySource::Fs(s) => s.list_scopes().await,
+            #[cfg(feature = "objectstore-s3")]
+            AnySource::S3(s) => s.list_scopes().await,
+        }
+    }
+
+    async fn list_scope(
+        &self,
+        scope: &str,
+        cursor: Option<&ListCursor>,
+        page_size: u32,
+    ) -> Result<ListPage, DocSourceError> {
+        match self {
+            AnySource::Fs(s) => s.list_scope(scope, cursor, page_size).await,
+            #[cfg(feature = "objectstore-s3")]
+            AnySource::S3(s) => s.list_scope(scope, cursor, page_size).await,
+        }
+    }
+
     fn any_source(&self) -> Option<&AnySource> {
         Some(self)
     }

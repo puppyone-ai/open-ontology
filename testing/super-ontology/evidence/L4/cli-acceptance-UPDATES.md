@@ -4,8 +4,8 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "541d7624-fa1a-4f43-a18e-c7fadafbd4bd/UPDATES.md"
-  ReservedCode1: "e88953bd8336e039baf3e8a61c18dce2a3ca36d87ce64ce6292c361e3aa415b7"
+  ProduceID: "4eed9801-1548-49ef-b843-5300eef9bc56/UPDATES.md"
+  ReservedCode1: "2679addb8dc218efbb8ad84afe7b12fabc3de721677da67935aebc0db919cb76"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""

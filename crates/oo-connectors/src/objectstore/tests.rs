@@ -494,3 +494,85 @@ async fn objectstore_fs_unreadable_dir_marks_listing_incomplete() {
         }
     }
 }
+
+// ---- first level scopes (B-S11-03, 10 11.3) ----
+
+async fn scope_all(s: &FsSource, scope: &str, page: u32) -> (Vec<ObjectMeta>, bool) {
+    let mut out = Vec::new();
+    let mut cursor = None;
+    loop {
+        let p = s.list_scope(scope, cursor.as_ref(), page).await.unwrap();
+        out.extend(p.entries);
+        if p.next.is_none() {
+            return (out, p.complete);
+        }
+        cursor = p.next;
+    }
+}
+
+#[tokio::test]
+async fn objectstore_fs_scopes_partition_the_listing() {
+    let t = Tmp::new("scopes");
+    for f in [
+        "a.md",
+        "b/c.md",
+        "b/d/e.txt",
+        "b-x.md",
+        ".git/config",
+        "Thumbs.db",
+        "z/.DS_Store",
+        "计划/x.md",
+        "empty/.keep.tmp",
+    ] {
+        t.put(f, b"x");
+    }
+    let s = src(&t);
+    let scopes = s.list_scopes().await.unwrap().unwrap();
+    // `""` first (files directly under the root), then directories by name; skipped names are not scopes.
+    assert_eq!(scopes, ["", "b", "empty", "z", "计划"]);
+    let (whole, _) = all(&s, 100).await;
+    for page in [1, 2, 100] {
+        let mut union: Vec<String> = Vec::new();
+        for scope in &scopes {
+            let (part, complete) = scope_all(&s, scope, page).await;
+            assert!(complete, "scope {scope:?} page {page}");
+            assert!(
+                part.iter().all(|m| {
+                    let k = String::from_utf8_lossy(&m.raw_key).into_owned();
+                    match k.split_once('/') {
+                        Some((first, _)) => first == scope,
+                        None => scope.is_empty(),
+                    }
+                }),
+                "scope {scope:?} leaked an entry of another scope"
+            );
+            union.extend(keys(&part));
+        }
+        union.sort();
+        let mut want = keys(&whole);
+        want.sort();
+        assert_eq!(
+            union, want,
+            "page size {page}: the scopes together are the whole listing"
+        );
+    }
+    // A scope that no longer exists lists as nothing, and is complete: its files are gone.
+    let (gone, complete) = scope_all(&s, "nope", 10).await;
+    assert!(gone.is_empty() && complete);
+    // Only one level name is a scope.
+    assert!(s.list_scope("b/d", None, 10).await.is_err());
+    assert!(s.list_scope("..", None, 10).await.is_err());
+}
+
+#[tokio::test]
+async fn objectstore_fs_scopes_are_none_for_a_non_utf8_top_level_name() {
+    use std::os::unix::ffi::OsStrExt;
+    let t = Tmp::new("scopes-bad");
+    let s = src(&t);
+    let bad = t.root().join(std::ffi::OsStr::from_bytes(b"\xff-dir"));
+    if std::fs::create_dir_all(&bad).is_err() {
+        return; // the file system refuses the name (macOS APFS): nothing to prove here
+    }
+    std::fs::write(bad.join("a.md"), b"x").unwrap();
+    assert_eq!(s.list_scopes().await.unwrap(), None, "listed whole instead");
+}

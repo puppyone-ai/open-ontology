@@ -8,7 +8,10 @@
 //! * OSS (MNS body or EventBridge CloudEvent): `{"events":[{"eventName":"ObjectCreated:PutObject",
 //!   "eventTime":..,"oss":{"object":{"key":..}}}]}` or `{"type":"oss:ObjectCreated:PutObject",
 //!   "time":..,"data":{"oss":{"object":{"key":..}}}}`
-//! * COS: not confirmed (10 §4.3.7); only the neutral `{"hints":[..]}` form below is accepted.
+//! * COS (event notification delivered to a queue or a function, as Tencent documents it):
+//!   `{"Records":[{"event":{"eventName":"cos:ObjectCreated:Put","eventTime":<unix s>},"cos":{"cosObject":
+//!   {"key":"/<appid>/<bucket>/<key>","vid":..},"cosBucket":{..}}}]}`. Built from the public documentation
+//!   and synthetic fixtures; no real bucket has confirmed it (10 §4.3.7), the key is taken as plain text.
 //! * neutral (local event source, tests): `{"hints":[{"key","op":"put|delete","version_id",
 //!   "sequencer","at_ms"}]}`
 
@@ -116,6 +119,23 @@ fn text<'a>(v: &'a Value, path: &[&str]) -> Option<&'a str> {
     cur.as_str()
 }
 
+/// `/1253970026/examplebkt/dir/a.md` to `dir/a.md`.
+fn cos_object_key(full: &str) -> Option<&str> {
+    let mut it = full.trim_start_matches('/').splitn(3, '/');
+    let (appid, bucket, key) = (it.next()?, it.next()?, it.next()?);
+    (!appid.is_empty() && !bucket.is_empty() && !key.is_empty()).then_some(key)
+}
+
+/// COS gives the event time in Unix seconds, as a number or as text.
+fn cos_time_ms(v: Option<&Value>) -> Option<i64> {
+    let secs = match v? {
+        Value::Number(n) => n.as_i64()?,
+        Value::String(s) => s.trim().parse().ok()?,
+        _ => return None,
+    };
+    secs.checked_mul(1000)
+}
+
 fn key_in(prefix: &str, raw: &str, decode: bool) -> Result<Vec<u8>, ParseError> {
     let bytes = if decode {
         url_decode_key(raw).ok_or(ParseError::BadKey)?
@@ -160,6 +180,22 @@ pub fn parse_hints(body: &str, prefix: &str, now_ms: i64) -> Result<Vec<ChangeHi
     if let Some(records) = v.get("Records").and_then(Value::as_array) {
         known = true;
         for r in records {
+            if r.get("cos").is_some() {
+                // COS: the key reads `/<appid>/<bucket>/<object key>`.
+                let key = text(r, &["cos", "cosObject", "key"])
+                    .and_then(cos_object_key)
+                    .map(|k| key_in(prefix, k, false));
+                if let Some(k) = key {
+                    push(
+                        k,
+                        text(r, &["event", "eventName"]).and_then(op_of),
+                        text(r, &["cos", "cosObject", "vid"]),
+                        None,
+                        cos_time_ms(r.pointer("/event/eventTime")),
+                    );
+                }
+                continue;
+            }
             let k = text(r, &["s3", "object", "key"]).map(|k| key_in(prefix, k, true));
             if let Some(k) = k {
                 push(
@@ -290,6 +326,43 @@ mod tests {
         // A key that climbs out cannot be produced: only the part below the prefix survives and
         // `stat` refuses unsafe keys again.
         assert!(url_decode_key("%zz").is_none());
+    }
+
+    #[test]
+    fn cos_bodies_from_the_fixtures() {
+        let put = include_str!("fixtures/cos-put.json");
+        let h = parse_hints(put, "drive/", 0).unwrap();
+        assert_eq!(h.len(), 1);
+        assert_eq!(h[0].raw_key, b"Projects/plan.md");
+        assert_eq!(
+            (h[0].op, h[0].version_id.clone(), h[0].observed_at_ms),
+            (ChangeOp::Put, None, 1_545_205_770_000),
+            "an empty vid is no version"
+        );
+        let del = include_str!("fixtures/cos-delete-versioned.json");
+        let h = parse_hints(del, "drive/", 0).unwrap();
+        assert_eq!(h[0].raw_key, "Notes/速记.md".as_bytes());
+        assert_eq!(
+            (h[0].op, h[0].version_id.as_deref(), h[0].observed_at_ms),
+            (ChangeOp::Delete, Some("MTg0NDUxNzA2Mzc"), 1_545_205_800_000),
+            "a delete marker is a delete; the time may come as text"
+        );
+        // Several records: other prefix, a folder placeholder key and a restore event.
+        let merged = include_str!("fixtures/cos-merged.json");
+        let h = parse_hints(merged, "drive/", 0).unwrap();
+        let got: Vec<(&[u8], ChangeOp)> = h.iter().map(|x| (x.raw_key.as_slice(), x.op)).collect();
+        assert_eq!(
+            got,
+            [
+                (b"big.pdf".as_slice(), ChangeOp::Put),
+                (b"restored.md".as_slice(), ChangeOp::Put)
+            ]
+        );
+        // Without the drive prefix the same records name other keys.
+        assert_eq!(parse_hints(merged, "", 0).unwrap().len(), 3);
+        // Not a COS key: dropped, not an error (an event only ever accelerates).
+        let odd = r#"{"Records":[{"event":{"eventName":"cos:ObjectCreated:Put"},"cos":{"cosObject":{"key":"nokey"}}}]}"#;
+        assert_eq!(parse_hints(odd, "", 0).unwrap().len(), 0);
     }
 
     #[test]

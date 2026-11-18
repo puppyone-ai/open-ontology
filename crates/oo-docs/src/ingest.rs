@@ -22,7 +22,9 @@ use std::time::Duration;
 use oo_connectors::objectstore::fs::FsSource;
 use oo_connectors::objectstore::hash::DualDigest;
 use oo_connectors::objectstore::path::ExcludeSet;
-use oo_connectors::objectstore::{DocBackend, DocSourceError, DocumentSource, ObjectMeta};
+use oo_connectors::objectstore::{
+    DocBackend, DocSourceError, DocumentSource, ListCursor, ListPage, ObjectMeta,
+};
 use sha2::{Digest, Sha256};
 
 use crate::state::TransitionError;
@@ -58,9 +60,42 @@ pub trait HashableSource: DocumentSource {
     fn any_source(&self) -> Option<&AnySource> {
         None
     }
+
+    /// First level scopes for a parallel listing (10 11.3): every top level directory and `""` for
+    /// files directly under the root. `None` (the default) lists the Drive whole.
+    fn list_scopes(
+        &self,
+    ) -> impl Future<Output = Result<Option<Vec<String>>, DocSourceError>> + Send {
+        async { Ok(None) }
+    }
+
+    /// One page of one scope from [`HashableSource::list_scopes`]; same cursor rules as `list`.
+    fn list_scope(
+        &self,
+        _scope: &str,
+        _cursor: Option<&ListCursor>,
+        _page_size: u32,
+    ) -> impl Future<Output = Result<ListPage, DocSourceError>> + Send {
+        async { Err(DocSourceError::Protocol("scoped listing is not supported")) }
+    }
 }
 
 impl HashableSource for FsSource {
+    fn list_scopes(
+        &self,
+    ) -> impl Future<Output = Result<Option<Vec<String>>, DocSourceError>> + Send {
+        FsSource::list_scopes(self)
+    }
+
+    fn list_scope(
+        &self,
+        scope: &str,
+        cursor: Option<&ListCursor>,
+        page_size: u32,
+    ) -> impl Future<Output = Result<ListPage, DocSourceError>> + Send {
+        FsSource::list_scope(self, scope, cursor, page_size)
+    }
+
     fn hash_object(
         &self,
         raw_key: &[u8],
