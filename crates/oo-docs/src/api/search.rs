@@ -88,15 +88,12 @@ pub fn tsquery(q: &str) -> Option<String> {
     (!terms.is_empty()).then(|| terms.join(" & "))
 }
 
-/// SQL: text folded the way the query is. Every CJK character becomes a token of its own (spaces around it)
-/// and ASCII and CJK punctuation become spaces, so `HT-2026-017` is `ht 2026 017` (the default parser would keep
-/// `2026-017` and `-017` as numbers and a query of three words would never match them).
+/// SQL: the search vector of a text. The folding (every CJK character is a token of its own, ASCII and CJK
+/// punctuation become spaces, so `HT-2026-017` is `ht 2026 017`; the default parser would keep `2026-017` and
+/// `-017` as numbers and a query of three words would never match them) is the IMMUTABLE function of migration
+/// 0153, the one that also fills the stored vectors behind the GIN indexes.
 fn spaced(t: &str) -> String {
-    format!(
-        "regexp_replace(regexp_replace(lower(normalize({t}, NFKC)), \
-         '([\\u3400-\\u4dbf\\u4e00-\\u9fff\\u3040-\\u30ff\\uac00-\\ud7af])', ' \\1 ', 'g'), \
-         '[\\x01-\\x2f\\x3a-\\x40\\x5b-\\x60\\x7b-\\x7f\\u2000-\\u206f\\u3000-\\u3004\\u3008-\\u3020]+', ' ', 'g')"
-    )
+    format!("_oo_docs.fts_tsv({t})")
 }
 
 fn snippet(text: &str) -> String {
@@ -139,21 +136,18 @@ pub async fn search(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, Ap
     };
 
     // ---- facts
-    let fact_text = "concat_ws(' ', s.canonical_name, replace(replace(ft.predicate, '.', ' '), '_', ' '), \
-                    ft.value->>'text', ft.value->>'enum', ft.value->>'date', o.canonical_name)";
-    let vec_expr = format!("to_tsvector('simple', {})", spaced(fact_text));
     let sql = format!(
         "SELECT ft.id::text AS id, ft.fact_key, ft.predicate, ft.confidence_bp, \
                 s.key AS subject_key, s.canonical_name AS subject_name, s.type AS subject_type, \
                 o.key AS object_key, o.canonical_name AS object_name, \
                 COALESCE(ft.value->>'text', ft.value->>'enum', ft.value->>'date') AS value_text, \
-                ts_rank_cd({vec_expr}, query.q, 32)::float8 AS rank \
+                ts_rank_cd(ft.fts, query.q, 32)::float8 AS rank \
            FROM _oo_docs.fact ft \
            JOIN _oo_docs.entity s ON s.id = ft.subject_id \
            LEFT JOIN _oo_docs.entity o ON o.id = ft.object_id, \
                 (SELECT to_tsquery('simple', $1) AS q) query \
           WHERE ft.status = 'published' AND ft.retracted_in IS NULL AND s.status = 'active' \
-            AND {vec_expr} @@ query.q \
+            AND ft.fts @@ query.q \
             AND EXISTS (SELECT 1 FROM _oo_docs.evidence ev \
                           JOIN _oo_docs.file_version fv ON fv.id = ev.version_id \
                           JOIN _oo_docs.file f ON f.id = fv.file_id \
@@ -243,37 +237,123 @@ pub async fn search(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, Ap
         if files.len() as i64 > MAX_FILES {
             truncated = true;
         }
-        let block_sql = format!(
-            "SELECT u.i::int AS i, ts_rank_cd(to_tsvector('simple', {}), query.q, 32)::float8 AS rank \
-               FROM unnest($1::text[]) WITH ORDINALITY AS u(t, i), (SELECT to_tsquery('simple', $2) AS q) query \
-              WHERE to_tsvector('simple', {}) @@ query.q",
-            spaced("u.t"),
-            spaced("u.t")
-        );
-        for f in files.iter().take(MAX_FILES as usize) {
+        let live: Vec<&sqlx::postgres::PgRow> = files.iter().take(MAX_FILES as usize).collect();
+        // The IR of every live file (the newest complete parse of its content), and the vectors of its blocks.
+        let b3s: Vec<String> = live
+            .iter()
+            .map(|f| f.try_get::<String, _>("b3"))
+            .collect::<Result<_, _>>()?;
+        let irs: std::collections::HashMap<String, String> = sqlx::query(
+            "SELECT DISTINCT ON (b3) b3, ir_b3 FROM _oo_docs.parse_result \
+              WHERE b3 = ANY($1) AND status = 'complete' AND ir_b3 IS NOT NULL \
+              ORDER BY b3, finished_at DESC NULLS LAST",
+        )
+        .bind(&b3s)
+        .fetch_all(&mut *conn)
+        .await?
+        .into_iter()
+        .map(|r| Ok((r.try_get("b3")?, r.try_get("ir_b3")?)))
+        .collect::<Result<_, sqlx::Error>>()?;
+        let irs_list: Vec<String> = irs
+            .values()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        let mut counts: std::collections::HashMap<String, i32> =
+            sqlx::query("SELECT ir_b3, blocks FROM _oo_docs.block_fts_done WHERE ir_b3 = ANY($1)")
+                .bind(&irs_list)
+                .fetch_all(&mut *conn)
+                .await?
+                .into_iter()
+                .map(|r| Ok((r.try_get("ir_b3")?, r.try_get("blocks")?)))
+                .collect::<Result<_, sqlx::Error>>()?;
+        // A file the index has not seen yet is read once, from the content store, and indexed for good (the IR is
+        // content addressed, so its vectors never change).
+        let mut parsed: std::collections::HashMap<String, file_detail::Parsed> = Default::default();
+        for f in &live {
             let b3: String = f.try_get("b3")?;
-            let Some(parsed) = file_detail::load_parsed(&mut conn, app, &b3).await? else {
+            let Some(ir_b3) = irs.get(&b3) else { continue };
+            if counts.contains_key(ir_b3) {
+                continue;
+            }
+            let Some(p) = file_detail::load_parsed(&mut conn, app, &b3).await? else {
                 continue;
             };
-            let blocks = &parsed.ir.blocks;
-            if blocks.len() > MAX_BLOCKS_PER_FILE {
+            let total = i32::try_from(p.ir.blocks.len()).unwrap_or(i32::MAX);
+            let texts: Vec<String> =
+                p.ir.blocks
+                    .iter()
+                    .take(MAX_BLOCKS_PER_FILE)
+                    .map(|b| b.text.clone())
+                    .collect();
+            let mut tx = sqlx::Connection::begin(&mut *conn).await?;
+            let fresh = sqlx::query(
+                "INSERT INTO _oo_docs.block_fts_done (ir_b3, blocks) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            )
+            .bind(ir_b3)
+            .bind(total)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected()
+                == 1;
+            if fresh {
+                sqlx::query(sqlx::AssertSqlSafe(format!(
+                    "INSERT INTO _oo_docs.block_fts (ir_b3, ord, tsv) \
+                     SELECT $1, (u.i - 1)::int, {} FROM unnest($2::text[]) WITH ORDINALITY AS u(t, i)",
+                    spaced("u.t")
+                )))
+                .bind(ir_b3)
+                .bind(&texts)
+                .execute(&mut *tx)
+                .await?;
+            }
+            tx.commit().await?;
+            counts.insert(ir_b3.clone(), total);
+            parsed.insert(b3, p);
+        }
+        // The match itself is one indexed query over the vectors of the scope.
+        let matched = sqlx::query(
+            "SELECT bf.ir_b3, bf.ord, ts_rank_cd(bf.tsv, query.q, 32)::float8 AS rank \
+               FROM _oo_docs.block_fts bf, (SELECT to_tsquery('simple', $2) AS q) query \
+              WHERE bf.tsv @@ query.q AND bf.ir_b3 = ANY($1) AND bf.ord < $3",
+        )
+        .bind(&irs_list)
+        .bind(&query)
+        .bind(i32::try_from(MAX_BLOCKS_PER_FILE).unwrap_or(i32::MAX))
+        .fetch_all(&mut *conn)
+        .await?;
+        let mut by_ir: std::collections::HashMap<String, Vec<(usize, f64)>> = Default::default();
+        for r in &matched {
+            by_ir.entry(r.try_get("ir_b3")?).or_default().push((
+                usize::try_from(r.try_get::<i32, _>("ord")?).unwrap_or(0),
+                r.try_get::<f64, _>("rank")?,
+            ));
+        }
+        for f in &live {
+            let b3: String = f.try_get("b3")?;
+            let Some(ir_b3) = irs.get(&b3) else { continue };
+            if counts
+                .get(ir_b3)
+                .is_some_and(|n| usize::try_from(*n).unwrap_or(0) > MAX_BLOCKS_PER_FILE)
+            {
                 truncated = true;
             }
-            let texts: Vec<String> = blocks
-                .iter()
-                .take(MAX_BLOCKS_PER_FILE)
-                .map(|b| b.text.clone())
-                .collect();
-            let ranked = sqlx::query(sqlx::AssertSqlSafe(block_sql.clone()))
-                .bind(&texts)
-                .bind(&query)
-                .fetch_all(&mut *conn)
-                .await?;
+            let Some(rows) = by_ir.get(ir_b3) else {
+                continue;
+            };
+            let p = match parsed.remove(&b3) {
+                Some(p) => p,
+                None => match file_detail::load_parsed(&mut conn, app, &b3).await? {
+                    Some(p) => p,
+                    None => continue,
+                },
+            };
+            let blocks = &p.ir.blocks;
             let path: String = f.try_get("path")?;
-            for r in ranked {
-                let i = usize::try_from(r.try_get::<i32, _>("i")? - 1).unwrap_or(0);
-                let rank: f64 = r.try_get("rank")?;
-                let Some(b) = blocks.get(i) else { continue };
+            for (i, rank) in rows {
+                let Some(b) = blocks.get(*i) else { continue };
+                let rank = *rank;
                 let anchor = serde_json::to_value(&b.anchor).unwrap_or(Value::Null);
                 let id = format!("{}#{}", f.try_get::<String, _>("file_id")?, b.id);
                 hits.push((

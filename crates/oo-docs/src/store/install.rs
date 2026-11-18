@@ -65,8 +65,10 @@ pub const VERSION_DRIVE_SYNC_PREFIX: &str = "docs-drive-sync-prefix/1";
 pub const VERSION_AGENT_TOKENS: &str = "docs-agent-tokens/1";
 /// `docs-link-rules/1`.
 pub const VERSION_LINK_RULES: &str = "docs-link-rules/1";
+/// `docs-search-index/1`.
+pub const VERSION_SEARCH_INDEX: &str = "docs-search-index/1";
 
-const MIGRATIONS: [Migration; 13] = [
+const MIGRATIONS: [Migration; 14] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -132,6 +134,11 @@ const MIGRATIONS: [Migration; 13] = [
         file: "0151_docs_link_rules.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0151_docs_link_rules.sql"),
     },
+    Migration {
+        version: VERSION_SEARCH_INDEX,
+        file: "0153_docs_search_index.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0153_docs_search_index.sql"),
+    },
 ];
 
 /// `docs-vectors/1`, the optional pgvector table (10 11.3).
@@ -146,7 +153,7 @@ pub const VECTORS: Migration = Migration {
 };
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 13] = [
+pub const SCHEMA_MIN: [&str; 14] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -160,6 +167,7 @@ pub const SCHEMA_MIN: [&str; 13] = [
     VERSION_DRIVE_SYNC_PREFIX,
     VERSION_AGENT_TOKENS,
     VERSION_LINK_RULES,
+    VERSION_SEARCH_INDEX,
 ];
 
 /// Migrations compiled into this binary, in install order.
