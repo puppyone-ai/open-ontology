@@ -214,6 +214,9 @@ async fn decision_supersession_candidates_and_shares_in_use() {
     .await;
     let ids = drafts(&mut fx).await;
     let r = reconcile(&mut fx.rt, &ids).await.unwrap();
+    // Decision, not a loosened check: D51 says a used old fact is *prompted once* in the review queue even when
+    // the supersession is rule-certain ("提示一次", a notice, not a block), and D50 needs the cut to happen so the
+    // Share that used the old fact turns `drifted`. So the cut proceeds and exactly one notice is queued.
     assert!(
         !r.ended.is_empty(),
         "the rule-certain cut runs even for a used fact: {r:?}"

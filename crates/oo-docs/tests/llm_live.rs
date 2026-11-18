@@ -231,7 +231,7 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
 
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
-async fn a_broken_reply_is_retried_once_and_then_remembered() {
+async fn a_broken_reply_is_retried_once_and_an_unreachable_model_four_times() {
     let _g = CLUSTER_LOCK.lock().await;
     let db = "oo_docs_llm_schema";
     let mut r = rig(db).await;
@@ -289,7 +289,9 @@ async fn a_broken_reply_is_retried_once_and_then_remembered() {
             .await,
         0
     );
-    // Each unreachable batch is tried four times (retries on the wire), every call counted.
+    // Retry policy (10 5.2.3 step 1 and 4.1.4): a reply that breaks the schema is retried ONCE (two calls, then
+    // remembered as schema_invalid, asserted above); a 5xx/timeout/unreachable model is tried 4 times per batch
+    // (extract_llm row of 4.1.4, `INFRA_TRIES`), every call counted. Two batches x 4 = 8 failed calls.
     assert_eq!(
         r2.fx
             .scalar("SELECT failed::bigint FROM _oo_docs.llm_usage")
