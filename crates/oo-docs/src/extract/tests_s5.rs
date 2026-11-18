@@ -402,3 +402,49 @@ fn extraction_is_deterministic_for_tables() {
     let b = golden_table("Tables/人员表.xlsx");
     assert_eq!(a, b);
 }
+
+#[test]
+fn a_table_row_never_makes_its_person_the_owner_of_the_document() {
+    // Action items of a meeting: the person owns the task in the row, not the file.
+    let mut ir = parse_markdown("# 纪要\n\n负责人：周若溪\n".as_bytes())
+        .unwrap()
+        .ir;
+    let path = "Meetings/2026-01-08-计划会.md";
+    let doc = e(EntityType::Document, path);
+    let owns_doc = |x: &Extraction| {
+        x.facts
+            .iter()
+            .any(|f| f.predicate == Predicate::Owns && f.object.as_ref() == Some(&doc))
+    };
+    assert!(owns_doc(&extract(path, &ir)), "a line states the owner");
+    let table = ir.blocks[0].id.clone();
+    let row = ir
+        .blocks
+        .iter_mut()
+        .find(|b| b.text.contains("周若溪"))
+        .unwrap();
+    row.kind = BlockKind::Kv;
+    row.parent = Some(table);
+    assert!(!owns_doc(&extract(path, &ir)), "a table row does not");
+}
+
+#[test]
+fn a_document_that_states_a_decision_does_not_mention_it_by_name() {
+    let x = extract(
+        "Decisions/D-2026-01-周报每周五发送.md",
+        &parse_markdown(
+            "---\ntype: decision\nowner: 林远舟\n---\n\n# 决定：周报每周五发送\n\n林远舟决定。\n"
+                .as_bytes(),
+        )
+        .unwrap()
+        .ir,
+    );
+    assert!(
+        x.facts.iter().all(|f| f.predicate != Predicate::Mentions
+            || f.object
+                .as_ref()
+                .is_none_or(|o| o.ty != EntityType::Decision)),
+        "{:?}",
+        x.facts
+    );
+}

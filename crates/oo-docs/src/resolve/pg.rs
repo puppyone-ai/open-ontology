@@ -56,6 +56,39 @@ pub fn lookup_names(x: &Extraction) -> (BTreeSet<String>, BTreeSet<String>) {
     (names, surnames)
 }
 
+/// The names of every linkable entity of the Drive with the aliases a text may
+/// use for them (draft and published), for `extract::links` (`doc.link`).
+pub async fn load_lexicon(
+    conn: &mut PgConnection,
+) -> Result<Vec<crate::extract::links::LexEntry>, StoreError> {
+    let rows: Vec<(String, String, String, Option<String>, Option<i32>)> = sqlx::query_as(
+        "SELECT e.key, e.type, e.canonical_name, a.alias, a.confidence_bp \
+           FROM _oo_docs.entity e \
+           LEFT JOIN _oo_docs.alias a ON a.entity_id = e.id AND a.status IN ('draft', 'published') \
+          WHERE e.status = 'active' \
+            AND e.type IN ('Person', 'Organization', 'Project', 'Topic', 'Term', 'Event') \
+          ORDER BY e.key, a.alias",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    let mut out: Vec<crate::extract::links::LexEntry> = Vec::new();
+    let mut last: Option<String> = None;
+    for (key, ty, name, alias, bp) in rows {
+        if last.as_deref() != Some(key.as_str()) {
+            out.push(crate::extract::links::LexEntry {
+                ty: parse_type(&ty)?,
+                name,
+                aliases: Vec::new(),
+            });
+            last = Some(key);
+        }
+        if let (Some(a), Some(bp), Some(e)) = (alias, bp, out.last_mut()) {
+            e.aliases.push((a, bp));
+        }
+    }
+    Ok(out)
+}
+
 fn like_prefix(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {

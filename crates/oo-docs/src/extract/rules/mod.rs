@@ -506,7 +506,13 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
             let ev = EvidenceRef::from_block(b);
             ctx.block_date = block_date(&b.text, year);
             // md.kv and the dated ownership sentence.
+            // A row of a table (docx, pptx, md) describes the item in that row, a
+            // task or a person, never the document that holds the table.
+            let table_row = b.kind == BlockKind::Kv && b.parent.is_some();
             for line in b.text.split('\n') {
+                if table_row {
+                    break;
+                }
                 if let Some((key, value)) = kv::split_kv(line)
                     && let Some(f) = kv::field(&key)
                     && !matches!(f, Field::Type | Field::Date | Field::Tags)
@@ -628,12 +634,13 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
     text_email(&mut ctx, blocks);
 
-    // doc.entity: the Document mentions every other entity found in the file.
+    // doc.entity: the Document mentions every other entity found in the file. A
+    // Decision is a record the document states or defines, not a name it mentions.
     let found: Vec<(EntityRef, EvidenceRef)> = ctx
         .col
         .entities
         .iter()
-        .filter(|(e, _)| e.ty != EntityType::Document)
+        .filter(|(e, _)| !matches!(e.ty, EntityType::Document | EntityType::Decision))
         .filter_map(|(e, evs)| evs.first().map(|ev| (e.clone(), ev.clone())))
         .collect();
     for (e, ev) in found {

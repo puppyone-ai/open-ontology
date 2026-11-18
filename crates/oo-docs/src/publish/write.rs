@@ -73,6 +73,31 @@ pub async fn index_document_with(
     index_extraction(conn, doc, &extraction).await
 }
 
+/// `doc.link`: mentions and `about` links of this file version to the entities the
+/// Drive knows by name (`extract::links`), stored as drafts. Run after the rules
+/// or the model added entities, and again for the other files when new entities
+/// appeared ([`index_links`] is idempotent).
+pub async fn index_links(
+    conn: &mut PgConnection,
+    doc: &DocumentInput<'_>,
+) -> Result<IndexSummary, StoreError> {
+    let lex = crate::resolve::pg::load_lexicon(conn).await?;
+    let stem = doc.path.rsplit('/').next().unwrap_or(doc.path);
+    let stem = stem.rsplit_once('.').map_or(stem, |(s, _)| s);
+    let title = doc
+        .ir
+        .blocks
+        .iter()
+        .find(|b| b.kind == oo_core::docir::BlockKind::Heading && b.level == Some(1))
+        .map(|b| b.text.trim().to_owned())
+        .or_else(|| doc.ir.meta.title.clone());
+    let links = crate::extract::links::doc_links(doc.path, doc.ir, title.as_deref(), stem, &lex);
+    if links.hints.is_empty() {
+        return Ok(IndexSummary::default());
+    }
+    index_extraction(conn, doc, &links).await
+}
+
 /// Store an extraction (rules or LLM supplement) for one file version.
 pub async fn index_extraction(
     conn: &mut PgConnection,
