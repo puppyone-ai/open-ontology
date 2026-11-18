@@ -1714,7 +1714,7 @@ impl PublishHandler {
 }
 
 impl JobHandler for PublishHandler {
-    fn run(&self, _ctx: JobCtx) -> HandlerFuture<'_> {
+    fn run(&self, ctx: JobCtx) -> HandlerFuture<'_> {
         Box::pin(async move {
             // Link, publish; a publish can establish entities (a model fact that
             // published), whose names the other documents then link to: go round
@@ -1754,6 +1754,13 @@ impl JobHandler for PublishHandler {
                     Ok(after) if after != before => {}
                     _ => break,
                 }
+            }
+            // No version came out (a decision with nothing to publish): say the Drives settled, so a client
+            // waiting for "publishing" to end does not wait for a version that never comes.
+            if n.is_none()
+                && let Ok(mut c) = self.pool.acquire().await
+            {
+                let _ = crate::api::freshness::announce_settled(&mut c, &ctx.job.id).await;
             }
             // A person's decision whose evidence is gone becomes an orphaned
             // overlay item (D22), after every publish.

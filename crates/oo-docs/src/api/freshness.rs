@@ -77,6 +77,15 @@ pub async fn compute(
     conn: &mut PgConnection,
     drive_ids: &[String],
 ) -> Result<HashMap<String, Value>, ApiError> {
+    compute_with(conn, drive_ids, None).await
+}
+
+/// [`compute`]; `except_job` leaves one publish job (the caller, about to finish) out of "publishing".
+async fn compute_with(
+    conn: &mut PgConnection,
+    drive_ids: &[String],
+    except_job: Option<&str>,
+) -> Result<HashMap<String, Value>, ApiError> {
     if drive_ids.is_empty() {
         return Ok(HashMap::new());
     }
@@ -98,8 +107,10 @@ pub async fn compute(
     .fetch_one(&mut *conn)
     .await?;
     let publishing: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM _oo_docs.job WHERE kind = 'publish' AND state IN ('queued', 'running'))",
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.job WHERE kind = 'publish' \
+                          AND state IN ('queued', 'running') AND ($1::text IS NULL OR id::text <> $1))",
     )
+    .bind(except_job)
     .fetch_one(&mut *conn)
     .await?;
     let rows = sqlx::query(
@@ -148,6 +159,30 @@ pub async fn compute(
         );
     }
     Ok(out)
+}
+
+/// The terminal signal of a publish that made no version (a decision that changed nothing to publish, 10 4.9):
+/// `drive.freshness_changed` for each active Drive that was "publishing" only because of the finishing job,
+/// with the state it has once that job is done, so a client waiting on "publishing" settles without a
+/// version event. A Drive whose state the job did not decide gets nothing.
+pub async fn announce_settled(
+    conn: &mut PgConnection,
+    finishing_job: &str,
+) -> Result<(), ApiError> {
+    let ids: Vec<String> = sqlx::query_scalar(
+        "SELECT id::text FROM _oo_docs.drive WHERE status IN ('active', 'paused')",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    let during = compute_with(conn, &ids, None).await?;
+    for (id, fresh) in compute_with(conn, &ids, Some(finishing_job)).await? {
+        if during.get(&id).map(|d| &d["state"]) == Some(&fresh["state"]) {
+            continue;
+        }
+        let payload = json!({ "drive_id": id, "freshness": fresh }).to_string();
+        events::append_event(conn, "drive.freshness_changed", Some(&id), None, &payload).await?;
+    }
+    Ok(())
 }
 
 /// Watches every active Drive and appends `drive.freshness_changed` when the
