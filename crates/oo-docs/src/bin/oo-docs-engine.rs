@@ -181,7 +181,8 @@ async fn run() -> ExitCode {
         .with_cas(cas.clone())
         .with_model(model.clone())
         .with_progress(progress.clone())
-        .with_cloud_hosts(cloud_hosts),
+        .with_cloud_hosts(cloud_hosts)
+        .with_agent_db(oo_docs::publish::agentdb::AgentDbConfig::from_env()),
     );
 
     let (stop_tx, stop_rx) = watch::channel(false);
@@ -230,6 +231,7 @@ async fn run() -> ExitCode {
         None => None,
     };
     let cas_for_retention = cas.clone();
+    let cas_for_projector = cas.clone();
     let media = match &cfg.media {
         Some(m) => {
             let Some(token) = read_token(&m.endpoint.token_file) else {
@@ -340,6 +342,17 @@ async fn run() -> ExitCode {
         api::events::spawn_hub(pool.clone(), app.events.clone(), stop_rx.clone()),
         api::freshness::spawn_watcher(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
         api::lifecycle::spawn(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
+        // The projection of published document entities into the Agent DB (D83); idle without a binding.
+        oo_docs::publish::projector::spawn(
+            Arc::new(oo_docs::publish::projector::Projector::new(
+                pool.clone(),
+                cas_for_projector,
+                oo_docs::publish::agentdb::AgentDbConfig::from_env(),
+            )),
+            app.wake.clone(),
+            stop_rx.clone(),
+            oo_docs::publish::projector::TICK,
+        ),
     ];
     health.set_parser(cfg.parser.is_some());
     health.set_ready();

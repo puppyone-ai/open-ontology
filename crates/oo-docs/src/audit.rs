@@ -28,6 +28,11 @@ pub const SHARE_REVOKED: &str = "share.revoked";
 pub const REFS_ACCESSED: &str = "refs.accessed";
 pub const TOKEN_ISSUED: &str = "cloud_token.issued";
 pub const TOKEN_REVOKED: &str = "cloud_token.revoked";
+pub const AGENT_TOKEN_ISSUED: &str = "agent_token.issued";
+pub const AGENT_TOKEN_REVOKED: &str = "agent_token.revoked";
+/// One row per call of an `ooa_` token and one per refused call: route template and Drive, never a value.
+pub const AGENT_READ: &str = "agent.read";
+pub const AGENT_DENIED: &str = "agent.denied";
 
 /// One entry to append.
 #[derive(Clone, Debug)]
