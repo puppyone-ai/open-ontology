@@ -10,21 +10,21 @@
   "python": "3.13",
   "platforms": {
     "linux/arm64": {
-      "image": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26",
+      "image": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b",
       "tag": "oo-docs-parser:dev",
-      "size_bytes": 2888900103,
+      "size_bytes": 2889004821,
       "dockerfile_sha256": "6bb52b44946b65411a09bf1184bb5d0d761533df6b4ce16f565496b7b21e52ec",
       "requirements_lock_sha256": "5c2c12881e5d2dd7f5b3d229adb36652ef09a35724b634c44c33d7175a932bc0",
       "models_lock_sha256": "4a398476b4803f9457e3f071c4c362f2c0880cbaf00280ea97e00106567cb38d",
       "sbom": "testing/super-ontology/evidence/L3/sbom-doc-parser.json",
       "sbom_sha256": "532146b63a85b9529b1b1d6e6de821e8aed76310862a0f52ed6d2d2b7d1df8ae",
       "sbom_gate": "pass: five weak-copyleft components reviewed (supply-chain/doc-parser-license-reviews.json), OpenCV attested FFmpeg-free (see sbom-doc-parser.gate.txt)",
-      "lane": "super-ontology-be2",
-      "built": "2026-11-17",
+      "lane": "super-ontology-bint",
+      "built": "2026-11-18",
       "opencv_build_requirements_lock_sha256": "cf65da4b2f9714acaa0a82cf699c574e8e8ae9a3b6514155dd8eeb49d8b10bd9",
       "notices_sha256": "814ab504827ae4ddb4efb343255e8d1fb66cecde79f66f19c7777ee19b024c3b",
       "opencv": "5.0.0.93 built from the pinned sdist without FFmpeg (Dockerfile stage opencv); table_structure on",
-      "stale_note": "NOT rebuilt: tools/doc-parser sources (meta module, RapidOCR, embedded pictures; requirements.lock sha256 737d0b01...) changed after this image was built, and the python base digest is not in the local store with no route to the registry or PyPI, so it cannot be rebuilt offline. The OCR parser image carries the current doc_parser package and runs the docs engine for scanned and picture content; rebuild this tag when the network allows."
+      "stale_note": "doc_parser/ is overlaid from the tree on the be2 image (one layer, includes the meta module, pictures and /v1/embed). The python dependency set was NOT rebuilt: tools/doc-parser/requirements.lock changed (RapidOCR) after the base layers were built, and the python base digest is not in the local store with no route to the registry or PyPI, so requirements_lock_sha256 above describes the earlier set. Rebuild with tools/doc-parser/Dockerfile when the network allows."
     },
     "linux/amd64": null
   },
@@ -32,31 +32,31 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:e537fa224656b05d330553dac79c2ed95923edb3db84b3926db6cba9ac73e0da",
+        "image": "sha256:a22fe9169bbad8d3a4e10e6aa60b5f5d9a75a4e4d8e329bf673d378156307aea",
         "tag": "oo-docs-engine:dev",
-        "size_bytes": 228536714,
+        "size_bytes": 228527778,
         "dockerfile_sha256": "65bac9211a3543a7ff70235796a4d93c8e543a69cea0f4baf5adbf22e5f43747",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
         "lane": "super-ontology-bint",
         "built": "2026-11-18",
-        "built_from": "so/B-integration (feat/super-ontology 4c01c56fe: L4 quality, L6 remainder, L7 cloud and enterprise, migrations 0147/0148, docs-api 1.4)",
-        "build_note": "the build container has no route to crates.io or the registry, so oo-docs-engine was compiled with cargo build --release --offline --locked in the local rust:1.98.1-bookworm image from the host crate cache (target outside the checkout), put in a layer over the previous oo-docs-engine:dev and the image flattened (docker export | docker import, same ENTRYPOINT, ENV, EXPOSE and labels). The binary in the image has sha256 c99186b35b259f264c666e0148272d1ccc812fbe24c075e3edab10167b3deca2. Rebuild with deploy/docs/Dockerfile.engine when the network allows. This single image replaces the dev and dev-be2 entries."
+        "built_from": "so/B-integration (feat/super-ontology 445d2700b: L4 quality and formal, L6 remainder, L7 cloud and enterprise, L8 vectors, migrations 0147/0148, docs-api 1.4)",
+        "build_note": "the build container has no route to crates.io or the registry, so oo-docs-engine was compiled with cargo build --release --offline --locked in the local rust:1.98.1-bookworm image from the host crate cache (target outside the checkout), put in a layer over the previous oo-docs-engine:dev and the image flattened (docker export | docker import, same ENTRYPOINT, ENV, EXPOSE and labels). The binary in the image has sha256 7aa637a05efe954094e27862dfdce1c51a48676612e9e6bc4703abe855f2b3b2. Rebuild with deploy/docs/Dockerfile.engine when the network allows. This single image replaces the dev and dev-be2 entries."
       },
       "linux/amd64": null
     }
   },
   "ocr_parser": {
-    "image": "sha256:317193d0a5fce80b26abcd38b41033f0b62c0f053668be94b0f31cc047207582",
+    "image": "sha256:3d0587bef2dd82135d75ecfe1b9eeca9458ebf37a1acda2e3dd3069b8647561a",
     "tag": "oo-docs-ocr-parser:dev",
-    "size_bytes": 2840046671,
+    "size_bytes": 2840151386,
     "platform": "linux/arm64",
-    "lane": "super-ontology-be6",
+    "lane": "super-ontology-bint",
     "dockerfile_sha256": "cfcdbbc5fb3db11d7e121feae14bfc57389770a6f0660e5d773e1d45e6a1abf6",
     "requirements_lock_sha256": "799cab4223743091b47fb4f3853359d3e76ccd92b5199071a8ee85e1749532cc",
     "models_lock_sha256": "ce55f2297cb26a1bed83f81181ff05668c1311499d28b496493da9d81b35d430",
     "sbom": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json",
     "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
-    "note": "built before the final notices; rebuild rewrites the digest"
+    "note": "built before the final notices; doc_parser/ re-overlaid from the tree in one layer (adds /v1/embed); rebuild rewrites the digest"
   },
   "media_parser": {
     "image": "sha256:9709aa9a11f6f49194ff9b8dc1b354e539e64f66d87d47175132f4397e138919",
