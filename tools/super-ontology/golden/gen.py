@@ -233,6 +233,9 @@ def build(world=world, seed=SEED, variant="golden"):
         for key, (typ, name, aliases, _x) in world.ENT.items():
             if typ not in MENTION_TYPES:
                 continue
+            # A department word is only a name in the people table's column; elsewhere it is an ordinary word.
+            if key.startswith("dept_") and not d["path"].endswith("人员表.xlsx"):
+                continue
             for i in infos[d["path"]]:
                 if any(nm in i["text"] for nm in [name] + aliases):
                     add_fact("mentions", eid["doc:" + d["path"]], eid[key], d["created"], None, [i["anchor"]])
