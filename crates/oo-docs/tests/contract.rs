@@ -229,6 +229,12 @@ fn engine_routes_match_the_endpoint_table() {
         ("GET", "/v1/docs/drives/{id}/files", false, false),
         ("GET", "/v1/docs/drives/{id}/tree", false, false),
         ("GET", "/v1/docs/events", false, false),
+        ("GET", "/v1/docs/suggestions", false, false),
+        ("POST", "/v1/docs/suggestions", false, false),
+        ("GET", "/v1/docs/suggestions:digest", false, false),
+        ("GET", "/v1/docs/suggestions/{id}", false, false),
+        ("GET", "/v1/docs/suggestions/{id}/diff", false, false),
+        ("POST", "/v1/docs/suggestions/{id}:decide", false, false),
     ] {
         let e = find(m, p);
         assert_eq!(e["idempotency_key"].as_bool().unwrap(), idem, "{m} {p}");

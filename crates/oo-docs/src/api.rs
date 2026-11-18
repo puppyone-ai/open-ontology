@@ -56,6 +56,7 @@ pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_model;
 pub mod routes_review;
+pub mod routes_suggest;
 pub mod routes_usage;
 pub mod shares;
 
@@ -468,6 +469,7 @@ fn cred_allowed(
         (&Method::GET, ["v1", "docs", "shares", sid, "updates"]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "shares", sid]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "entities", _]) => true,
+        (&Method::POST, ["v1", "docs", "suggestions"]) => true,
         _ => false,
     }
 }
@@ -662,6 +664,30 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "review:decide"] => {
             method_allowed(req, &["POST"])?;
             routes_review::decide(app, req).await
+        }
+        ["v1", "docs", "suggestions"] => {
+            method_allowed(req, &["GET", "POST"])?;
+            if req.method == Method::GET {
+                routes_suggest::list(app, req).await
+            } else {
+                routes_suggest::create(app, req).await
+            }
+        }
+        ["v1", "docs", "suggestions:digest"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::digest(app, req).await
+        }
+        ["v1", "docs", "suggestions", last] if last.ends_with(":decide") => {
+            method_allowed(req, &["POST"])?;
+            routes_suggest::decide(app, last.trim_end_matches(":decide"), req).await
+        }
+        ["v1", "docs", "suggestions", id, "diff"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::diff(app, id).await
+        }
+        ["v1", "docs", "suggestions", id] if !id.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::get(app, id).await
         }
         ["v1", "docs", "shares"] => {
             method_allowed(req, &["GET", "POST"])?;

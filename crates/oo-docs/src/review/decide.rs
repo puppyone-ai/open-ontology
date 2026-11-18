@@ -17,6 +17,7 @@
 //! | `reprocess_diff` | the new extraction replaces the old: facts only the old run had are retracted, held new facts are released (DOC-G10) | the old extraction stays, the held new facts are rejected | — |
 //! | `type_promotion` | overlay `type_promote{label, type_name}` (`edit.type_name`, default the label); the prompt version changes and the files holding the label are `outdated` | the item only, never proposed again | — |
 //! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
+//! | `suggestion` | the suggestion is applied (a fact with `origin = suggest`, the old one ended or retracted; Shares that used it get an update entry) | the suggestion is closed | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
 
 use std::collections::BTreeSet;
@@ -763,6 +764,31 @@ async fn apply_one(
             .await?;
             close_item(conn, id, item_status, by, note).await?;
             Ok((ItemResult::ok(id), Some(item_status)))
+        }
+        ("suggestion", d @ (Decision::Accept | Decision::Reject)) => {
+            let Some(sid) = item.subject.get("suggestion_id").and_then(Value::as_str) else {
+                return Ok((invalid(id), None));
+            };
+            let accept = d == Decision::Accept;
+            match crate::suggest::store::decide(
+                conn,
+                sid,
+                if accept { "accept" } else { "reject" },
+                None,
+                by,
+                note,
+            )
+            .await
+            {
+                Ok(_) => {
+                    let status = if accept { "accepted" } else { "rejected" };
+                    Ok((ItemResult::ok(id), Some(status)))
+                }
+                Err(e) if e.code == crate::api::error::code::SUGGEST_NOT_PENDING => {
+                    Ok((ItemResult::fail(id, "conflict", e.code.as_str()), None))
+                }
+                Err(e) => Ok((ItemResult::fail(id, "invalid", e.code.as_str()), None)),
+            }
         }
         _ => Ok((invalid(id), None)),
     }
