@@ -1,5 +1,5 @@
 {
-  "run_id": "be2-l6rem-d",
+  "run_id": "be2-l6rem-final",
   "checks": [
     {
       "check": "compose stack is up and healthy",
@@ -9,7 +9,7 @@
     {
       "check": "ocr-parser and media-parser run beside the engine",
       "ok": true,
-      "detail": "oo-docs-1a39ba57be3b-docs-engine-1 oo-docs-1a39ba57be3b-media-parser-1 oo-docs-1a39ba57be3b-ocr-parser-1 oo-docs-1a39ba57be3b-doc-parser-1 oo-docs-1a39ba57be3b-docs-db-1 oo-be2-l7-pg "
+      "detail": "oo-docs-e401dae2e1bb-docs-engine-1 oo-docs-e401dae2e1bb-media-parser-1 oo-docs-e401dae2e1bb-ocr-parser-1 oo-docs-e401dae2e1bb-doc-parser-1 oo-docs-e401dae2e1bb-docs-db-1 oo-be2-l7-pg "
     },
     {
       "check": "all files left the working states",
@@ -44,17 +44,17 @@
     {
       "check": "A3 nothing is published under a named Person before confirmation",
       "ok": true,
-      "detail": "{\"as_of_seq\": 97, \"items\": [{\"counts\": {\"aliases\": 1, \"facts\": 1}, \"id\": \"838da254-e615-4d21-a56d-e77364ffe251\", \"key\": "
+      "detail": "{\"as_of_seq\": 86, \"items\": [{\"counts\": {\"aliases\": 1, \"facts\": 2}, \"id\": \"d71d5547-c607-41bf-8383-1294d7eb6788\", \"key\": "
     },
     {
       "check": "A3 confirming S1 as 小王 succeeds",
       "ok": true,
-      "detail": "{\"accepted\": 1, \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"46f5a2d9-d133-4f99-8f2a-35b5af0799bf\", \"status\": \"ok\"}]}"
+      "detail": "{\"accepted\": 1, \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"928a7235-01eb-4129-a482-dbd2c2604cd2\", \"status\": \"ok\"}]}"
     },
     {
       "check": "A3 after confirming, the fact's subject is the Person 小王",
       "ok": true,
-      "detail": "[{\"counts\": {\"aliases\": 0, \"facts\": 0}, \"id\": \"259b4a53-8df4-4a34-bfb9-9971937cb2c8\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
+      "detail": "[{\"counts\": {\"aliases\": 1, \"facts\": 0}, \"id\": \"bd732b8b-334b-4561-9887-f7b01a217f85\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
     },
     {
       "check": "A4 the screen recording is published",
@@ -104,7 +104,7 @@
     {
       "check": "A8 the drive has published facts before the bump",
       "ok": true,
-      "detail": "15 facts, 4 sidecar files"
+      "detail": "19 facts, 4 sidecar files"
     },
     {
       "check": "A8 the sidecar files were reprocessed with the new parser version",
@@ -114,17 +114,17 @@
     {
       "check": "A8 the old facts stayed published during the rerun",
       "ok": true,
-      "detail": "min 15 of 15"
+      "detail": "min 19 of 19"
     },
     {
       "check": "A8 no churn: same fact keys after, nothing retracted",
       "ok": true,
-      "detail": "15 facts, retracted 0"
+      "detail": "19 facts, retracted 0"
     },
     {
       "check": "A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it",
       "ok": true,
-      "detail": "0 held: "
+      "detail": "2 held: Meetings/周会 参会=小王、小李.wav diff_over_30_percent, Meetings/录屏.webm diff_over_30_percent"
     },
     {
       "check": "A10 a media job was queued or running when the edit was made",
@@ -134,17 +134,17 @@
     {
       "check": "A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran",
       "ok": true,
-      "detail": "2.43 s (edit to BRIEF 5.2s)"
+      "detail": "3.00 s (edit to BRIEF 6.3s)"
     },
     {
       "check": "A10 the edit reached a new BRIEF within the L2 bound (30 s)",
       "ok": true,
-      "detail": "5.2s"
+      "detail": "6.3s"
     }
   ],
   "timings": {
     "all_files_settled_seconds": 50.1,
-    "a10_edit_to_brief_seconds": 5.18,
-    "a10_detected_to_published_seconds": 2.43
+    "a10_edit_to_brief_seconds": 6.31,
+    "a10_detected_to_published_seconds": 3.0
   }
 }
