@@ -1,0 +1,51 @@
+{
+ "protocol": "oo.bench.nodocker/v1",
+ "ok": true,
+ "files": 22,
+ "seconds_from_start": {
+  "postgres_started": 0.58,
+  "sidecar_env_ready": 2.87,
+  "schema_installed": 3.18,
+  "sidecar_listening": 3.4,
+  "serve_up": 3.46,
+  "drive_registered": 3.47,
+  "all_published": 36.43,
+  "first_brief": 36.46
+ },
+ "host": "macOS arm64, Homebrew PostgreSQL 17 binaries, debug builds of oo and oo-docs-engine",
+ "excludes": "downloading or building the binaries",
+ "sidecar": {
+  "uv_env": "installed in this run",
+  "offline": true,
+  "sandbox_exec": true
+ },
+ "sandbox_selftest": {
+  "sandboxed": {
+   "connect_internet": "blocked:PermissionError",
+   "write_home": "blocked:PermissionError",
+   "write_scratch": "allowed",
+   "read_ssh_dir": "blocked:PermissionError",
+   "loopback_listen_connect": "allowed",
+   "connect_unix_socket_outside_scratch": "blocked:PermissionError"
+  },
+  "unsandboxed": {
+   "connect_internet": "allowed",
+   "write_home": "allowed",
+   "write_scratch": "allowed",
+   "read_ssh_dir": "allowed",
+   "loopback_listen_connect": "allowed",
+   "connect_unix_socket_outside_scratch": "allowed"
+  }
+ },
+ "measured_on": "2026-11-18",
+ "notes": {
+  "files": "20 Markdown, 1 golden docx, 1 golden pdf; the first BRIEF waits for all 22 to publish",
+  "install_cold_pypi_mirror_seconds": 16,
+  "install_cold_note": "uv pip install --no-cache --no-deps of the 84 versions pinned in requirements.lock plus opencv-python-headless 5.0.0.93, 1.2 GB venv, from the Aliyun PyPI mirror. The default PyPI index ran at about 100 KB/s here (torch alone had not finished after 35 minutes, run abandoned), so the cold number depends on the mirror and the network, not on uv",
+  "install_warm_offline_seconds": "2.3 (uv --offline from the uv cache, plus 367 MB of model files copied from the local oo-docs-parser:dev image)",
+  "models": "copied from /opt/models of the local oo-docs-parser:dev image; huggingface.co is not reachable from this host (SSL error), so the real model download was not measured",
+  "parse_time": "all_published minus serve_up is 33 s: the two Office files, one fresh worker process each (spawn start method, torch import per request), with debug builds",
+  "forkserver": "the sidecar default start method (forkserver) died with signal 11 on the pdf on macOS arm64; OO_PARSER_START_METHOD=spawn works and is what the script sets",
+  "opencv": "the PyPI opencv wheel bundles FFmpeg (D65): a development stand-in only"
+ }
+}

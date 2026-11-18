@@ -1,0 +1,88 @@
+SBOM gate: FAIL  components={'native-in-image': 231, 'base-os': 290}
+  FAIL      acl 2.3.2  [native-in-image]  LGPL-2.1-or-later AND GPL-2.0-or-later
+  FAIL      attr 2.5.2  [native-in-image]  LGPL-2.1-or-later AND GPL-2.0-or-later
+  FAIL      audit 3.1.2  [native-in-image]  LGPL-2.1-or-later AND GPL-2.0-or-later
+  FAIL      bash 5.2p26  [native-in-image]  GPL-3.0-or-later
+  FAIL      bash-interactive 5.2p26  [native-in-image]  GPL-3.0-or-later
+  FAIL      bison 3.8.2  [native-in-image]  GPL-3.0-or-later
+  FAIL      coreutils 9.4  [native-in-image]  GPL-3.0-or-later
+  FAIL      cryptsetup 2.7.0  [native-in-image]  GPL-2.0-or-later
+  FAIL      gnugrep 3.11  [native-in-image]  GPL-3.0-or-later
+  FAIL      gnum4 1.4.19  [native-in-image]  GPL-3.0-or-later
+  FAIL      gnupg 2.4.5  [native-in-image]  GPL-3.0-or-later
+  FAIL      gnutar 1.35  [native-in-image]  GPL-3.0-or-later
+  FAIL      gzip 1.13  [native-in-image]  GPL-3.0-or-later
+  FAIL      iptables 1.8.10  [native-in-image]  GPL-2.0-or-later
+  FAIL      kbd 2.6.4  [native-in-image]  GPL-2.0-or-later
+  FAIL      kexec-tools 2.0.26  [native-in-image]  GPL-2.0-only
+  FAIL      keyutils 1.6.3-lib  [native-in-image]  GPL-2.0-or-later AND LGPL-2.1-or-later
+  FAIL      libnetfilter_conntrack 1.0.9  [native-in-image]  GPL-2.0-or-later
+  FAIL      libnfnetlink 1.0.2  [native-in-image]  GPL-2.0-or-later
+  FAIL      libnftnl 1.2.6  [native-in-image]  GPL-2.0-or-later
+  FAIL      lvm2 2.03.23-lib  [native-in-image]  GPL-2.0-only AND LGPL-2.1-only
+  FAIL      lz4 1.9.4  [native-in-image]  BSD-2-Clause AND GPL-2.0-or-later
+  FAIL      lz4 1.9.4-bin  [native-in-image]  BSD-2-Clause AND GPL-2.0-or-later
+  FAIL      lz4 1.9.4-dev  [native-in-image]  BSD-2-Clause AND GPL-2.0-or-later
+  FAIL      pgrouting  [native-in-image]  GPL-2.0-or-later
+  FAIL      pgrouting 3.4.1  [native-in-image]  GPL-2.0-or-later
+  FAIL      postgis  [native-in-image]  GPL-2.0-or-later
+  FAIL      postgis 3.3.7  [native-in-image]  GPL-2.0-or-later
+  FAIL      readline 8.2p10  [native-in-image]  GPL-3.0-or-later
+  FAIL      readline 8.2p10-dev  [native-in-image]  GPL-3.0-or-later
+  FAIL      tzdata 2024a  [native-in-image]  LicenseRef-tzdata-public-domain
+  FAIL      util-linux-minimal 2.39.3-lib  [native-in-image]  GPL-2.0-or-later
+  FAIL      util-linux-minimal 2.39.3-login  [native-in-image]  GPL-2.0-or-later
+  FAIL      util-linux-minimal 2.39.3-mount  [native-in-image]  GPL-2.0-or-later
+  FAIL      util-linux-minimal 2.39.3-swap  [native-in-image]  GPL-2.0-or-later
+  FAIL      xxHash 0.8.2  [native-in-image]  BSD-2-Clause AND GPL-2.0-or-later
+  FAIL      xz 5.4.6  [native-in-image]  0BSD AND GPL-2.0-or-later
+  FAIL      xz 5.4.6-bin  [native-in-image]  0BSD AND GPL-2.0-or-later
+  REVIEW    cracklib 2.9.11  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    elfutils 0.191  [native-in-image]  GPL-2.0-or-later OR LGPL-3.0-or-later
+  REVIEW    gcc 13.2.0-lib  [native-in-image]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEW    gcc 13.2.0-libgcc  [native-in-image]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEW    geos 3.12.1  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    getent-glibc 2.39-5  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    glibc 2.39-5  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    glibc 2.39-5-bin  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    glibc 2.39-5-getent  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    gmp-with-cxx 6.3.0  [native-in-image]  LGPL-3.0-or-later OR GPL-2.0-or-later
+  REVIEW    gnutls 3.8.4  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    kmod 31  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    kmod 31-lib  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    kytea 0.4.7  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libapparmor 3.1.7  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libassuan 2.5.7  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libgcrypt 1.10.3  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libgpg-error 1.48  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libidn2 2.3.7  [native-in-image]  GPL-2.0-or-later OR LGPL-3.0-or-later
+  REVIEW    libmicrohttpd 0.9.77  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libmnl 1.0.5  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libnl 3.8.0  [native-in-image]  LGPL-2.1-only
+  REVIEW    libseccomp 2.5.5-lib  [native-in-image]  LGPL-2.1-only
+  REVIEW    libtasn1 4.19.0  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    libunistring 1.1  [native-in-image]  GPL-3.0-or-later OR LGPL-3.0-or-later
+  REVIEW    libxcrypt 4.4.36  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    mpfr 4.2.1  [native-in-image]  LGPL-3.0-or-later
+  REVIEW    nettle 3.9.1  [native-in-image]  LGPL-3.0-or-later OR GPL-2.0-or-later
+  REVIEW    npth 1.7  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    qrencode 4.1.1  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    sfcgal 61f3b08ade49493b56c6bafa98c7c1f84addbc10  [native-in-image]  LGPL-2.0-or-later
+  REVIEW    supabase-groonga 14.0.5  [native-in-image]  LGPL-2.1-only
+  REVIEW    systemd 255.4  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    systemd 255.4-dev  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    systemd-minimal-libs 255.4  [native-in-image]  LGPL-2.1-or-later
+  REVIEW    xgcc 13.2.0-libgcc  [native-in-image]  GPL-3.0-or-later WITH GCC-exception-3.1
+  UNKNOWN   dns-root-data 2023-11-27  [native-in-image]  None
+  UNKNOWN   http  [native-in-image]  None
+  UNKNOWN   http 1.6.1  [native-in-image]  None
+  UNKNOWN   index_advisor  [native-in-image]  None
+  UNKNOWN   index_advisor 0.2.0  [native-in-image]  None
+  UNKNOWN   mecab-ipadic 2.7.0-20070801  [native-in-image]  None
+  UNKNOWN   mecab-naist-jdic 0.6.3b-20111013  [native-in-image]  None
+  UNKNOWN   nghttp2 1.60.0-lib  [native-in-image]  None
+  UNKNOWN   overlayfs-on-package  [native-in-image]  None
+  UNKNOWN   protobuf-c-unstable 2023-07-08  [native-in-image]  None
+  UNKNOWN   publicsuffix-list 0-unstable-2024-01-07  [native-in-image]  None
+  UNKNOWN   receipt  [native-in-image]  None
+  UNKNOWN   switch-ext-version  [native-in-image]  None

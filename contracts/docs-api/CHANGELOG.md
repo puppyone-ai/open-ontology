@@ -77,3 +77,10 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - Audit (`share.created`, `share.revoked`, `refs.accessed`, token events) in an append-only, hash chained table:
   `GET /v1/docs/audit/shares?drive_id&agent&tenant&since&until` (`AuditShares`: who shared what to which agent, when) and
   `GET /v1/docs/audit/verify` (`AuditVerify`). The agent is the request header `OO-Docs-Agent` of the call that created the share.
+
+## 1.5 (L8, B-S13 vectors)
+
+- `CompileRequest.vector` (optional, `since` 1.5, enum `["hashgram/1"]`): the local vector model version that ranks the
+  "other related" section of BRIEF. The engine rejects an unknown value with `DOCS_ENGINE_BAD_REQUEST` (field pointer `/vector`). When omitted the
+  operator setting `OO_DOCS_VECTORS` still applies, as before. The version is part of the pack parameters, so the same
+  version replays byte for byte. The field is also accepted in `POST /shares` `compile`. Additive; no other change.

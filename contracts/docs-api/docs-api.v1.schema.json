@@ -1822,11 +1822,23 @@
         "require_complete": {
           "type": "boolean",
           "default": false
+        },
+        "vector": {
+          "type": "string",
+          "enum": [
+            "hashgram/1"
+          ],
+          "description": "Since 1.5. Local vector model version used only to rank the 'other related' section of BRIEF (10 11.3). Omitted means the engine default (off unless the operator enabled a model). The version is part of the pack parameters: the same version replays byte for byte, another version is another pack."
         }
       },
       "examples": [
         {
           "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        },
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "task": "prepare the supplier review",
+          "vector": "hashgram/1"
         }
       ]
     },

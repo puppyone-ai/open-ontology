@@ -15,7 +15,7 @@ use crate::compile::persist::{self, PackRecord};
 use crate::compile::{CompileRequest, DEFAULT_BUDGET, MAX_BUDGET, MIN_BUDGET, compile_from_store};
 use crate::store::events;
 
-const COMPILE_KEYS: [&str; 10] = [
+const COMPILE_KEYS: [&str; 11] = [
     "drive_id",
     "scope",
     "task",
@@ -26,6 +26,7 @@ const COMPILE_KEYS: [&str; 10] = [
     "min_drive_rev",
     "wait_ms",
     "require_complete",
+    "vector",
 ];
 
 /// `CompileRequest` (contract `$defs/CompileRequest`) at `pointer`.
@@ -89,12 +90,20 @@ pub fn parse_compile(v: &Value, pointer: &str) -> Result<(String, CompileRequest
                 .ok_or_else(|| ApiError::bad(&at("version"), "version must be >= 1"))?,
         );
     }
-    // Optional local vectors for "other related" (10 11.3): off unless the operator names the model
-    // version, because the compile contract has no such field. The version is part of the pack
-    // parameters, so a pack compiled with vectors replays with them.
-    req.vector = std::env::var("OO_DOCS_VECTORS")
-        .ok()
-        .filter(|v| v == crate::vector::MODEL_VERSION);
+    // Optional local vectors for "other related" (10 11.3, docs-api 1.5): the request field wins; absent, the
+    // operator setting OO_DOCS_VECTORS names the model. The version is part of the pack parameters, so a
+    // pack compiled with vectors replays with them.
+    req.vector = match obj.get("vector") {
+        Some(v) => Some(
+            v.as_str()
+                .filter(|v| *v == crate::vector::MODEL_VERSION)
+                .ok_or_else(|| ApiError::bad(&at("vector"), "unknown vector model version"))?
+                .to_owned(),
+        ),
+        None => std::env::var("OO_DOCS_VECTORS")
+            .ok()
+            .filter(|v| v == crate::vector::MODEL_VERSION),
+    };
     Ok((drive, req))
 }
 
@@ -249,4 +258,23 @@ pub async fn file(app: &AppState, pid: &str, path: &str) -> Result<Response<Body
         .header(header::ETAG, format!("\"{sha}\""))
         .body(Body::from(bytes))
         .unwrap_or_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DRIVE: &str = "0f8fad5b-d9cb-469f-a165-70867728950e";
+
+    #[test]
+    fn vector_field_is_validated_and_kept() {
+        let ok = json!({"drive_id": DRIVE, "vector": "hashgram/1"});
+        let (_, req) = parse_compile(&ok, "").expect("known model");
+        assert_eq!(req.vector.as_deref(), Some("hashgram/1"));
+        let bad = json!({"drive_id": DRIVE, "vector": "other/9"});
+        let err = parse_compile(&bad, "").expect_err("unknown model");
+        assert_eq!(err.body()["details"]["pointer"], "/vector");
+        let num = json!({"drive_id": DRIVE, "vector": 1});
+        assert!(parse_compile(&num, "").is_err());
+    }
 }
