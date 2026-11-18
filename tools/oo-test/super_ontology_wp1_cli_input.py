@@ -27,8 +27,8 @@ Usage: tools/oo-test/super_ontology_wp1_cli_input.py [--no-docker] [--s3 mock|ru
        [--evidence-dir DIR] [--keep] [--serve-timeout 480]
 
 `--no-docker` removes docker from PATH for `oo`, which proves the Docker-free runtime.
-Needs a built `oo` (cargo build -p oo-cli --features docs), `oo-docs-engine` for the
-embedded runtime and PostgreSQL server programs on PATH or OO_DOCS_PG_BIN_DIR.
+Needs a built `oo` (cargo build -p oo-cli --features docs), `oo-docs-engine` built with
+`--features objectstore-s3` for the embedded runtime and the S3 steps and PostgreSQL server programs on PATH or OO_DOCS_PG_BIN_DIR.
 """
 
 import argparse
