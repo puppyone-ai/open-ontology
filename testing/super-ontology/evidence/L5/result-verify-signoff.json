@@ -1,0 +1,244 @@
+{
+  "run_id": "verify-l5-signoff",
+  "status": "pass",
+  "git_head": "acf198b17d813d30ad55d560338bf80d23f1a912",
+  "branch": "so/V1-signoff",
+  "date": "2026-11-18",
+  "signer": "verifier (Haiku 5.5), independent of the executor",
+  "binaries_sha256": {
+    "release": {
+      "oo": "aa512291722b0c5e3b5736c2b6276d91835633ce86cea3ad1b8738ac0d0ba625",
+      "oo-docs-engine": "f13a8c3d3b3684f3cc2a8289b7122941ac327fff59bb2ba04cd7721c3d279e54"
+    },
+    "debug_used_by_harness": {
+      "oo": "5dd656f8387b3185b4473df99c78dfd70e6ea4dda1da9140c67a462a28242254",
+      "oo-docs-engine": "92b03cf692968be85fa4abfac35ff3ce64151b79e815f870d41c30e02864b4e8"
+    }
+  },
+  "images": {
+    "postgres_lock_base": "sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+    "postgres_labelled_ignored_suites": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+    "docs_engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77",
+    "doc_parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b"
+  },
+  "timings": {},
+  "counts": {
+    "pass": 42,
+    "fail": 0
+  },
+  "checks": [
+    {
+      "check": "schema installed (docs-suggest/1 among the migrations)",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:65501\",\"event\":\"listening\",\"worker\":\"engi"
+    },
+    {
+      "check": "drive registered",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "the three files are published",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "step 1 resolve answers the project and the people",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "step 2 oo context mount --role suggester",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "step 3 BRIEF.md names 林川 as the owner, every line sourced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the suggester mount has a writable suggest/ with README.md",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "check": "everything else in the mount is read only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "step 4 oo context collect sends the file and renames it",
+      "ok": true,
+      "detail": "{\"collected\": 1, \"rejected\": 0, \"skipped\": 0}"
+    },
+    {
+      "check": "step 5 the panel holds both revisions, both superseding a fact the Share used",
+      "ok": true,
+      "detail": "[\"supersede_in_use\", \"supersede_in_use\"]"
+    },
+    {
+      "check": "each lists the affected Share",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the same two are suggestion items in the review queue",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "the file-level diff draft names the file and is not writable for a suggester",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "step 5 accept takes at most 2 s (API)",
+      "ok": true,
+      "detail": "0.017s"
+    },
+    {
+      "check": "step 5 accept takes at most 2 s (CLI, process start included)",
+      "ok": true,
+      "detail": "0.021s"
+    },
+    {
+      "check": "the old Share's UPDATES.md has the broadcast entry",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oo context check exits 10 (refresh recommended) or 20 for the old Share",
+      "ok": true,
+      "detail": "exit 10"
+    },
+    {
+      "check": "step 6 next week's Brief: the owner is 小王 and the status 跟进中",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a second suggester Share for the rule cases",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "rule 1 a new fact with evidence in scope is auto accepted",
+      "ok": true,
+      "detail": "{\"status\": \"auto_accepted\", \"rule\": \"new_fact\"}"
+    },
+    {
+      "check": "rule 1 the suggestion remembers the credential that wrote it",
+      "ok": true,
+      "detail": "credential_id set"
+    },
+    {
+      "check": "rule 2 superseding a fact no Share used is silent",
+      "ok": true,
+      "detail": "{\"status\": \"superseded_silently\", \"rule\": \"supersede_unused\"}"
+    },
+    {
+      "check": "rule 3 (A1) superseding a used fact waited for a person and listed the Share",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "rule 4 a preference is always a person's",
+      "ok": true,
+      "detail": "{\"status\": \"pending\", \"rule\": \"manual\"}"
+    },
+    {
+      "check": "the day's digest lists what is in effect and what waits",
+      "ok": true,
+      "detail": "{\"accepted\": 2, \"auto_accepted\": 1, \"duplicate\": 0, \"invalid\": 0, \"pending\": 1, \"rejected\": 0, \"superseded_silently\": 1, \"undone\": 0}"
+    },
+    {
+      "check": "resending the same idempotency_key adds nothing",
+      "ok": true,
+      "detail": "5 -> 5"
+    },
+    {
+      "check": "50 suggestions came in, the rules took the 40 with evidence",
+      "ok": true,
+      "detail": "auto accepted 41, waiting 11"
+    },
+    {
+      "check": "one batch accepts every waiting suggestion",
+      "ok": true,
+      "detail": "11/11"
+    },
+    {
+      "check": "nothing waits afterwards",
+      "ok": true,
+      "detail": "{\"accepted\": 13, \"auto_accepted\": 41, \"duplicate\": 0, \"invalid\": 0, \"pending\": 0, \"rejected\": 0, \"superseded_silently\": 1, \"undone\": 0}"
+    },
+    {
+      "check": "human operations for the day: 2 (limit 5)",
+      "ok": true,
+      "detail": "read the digest; accept everything that waits in one review:decide batch"
+    },
+    {
+      "check": "the accepted suggestions are published facts with origin suggest",
+      "ok": true,
+      "detail": "44 published"
+    },
+    {
+      "check": "every accepted fact leads back to its suggestion, the credential that wrote it and its evidence block",
+      "ok": true,
+      "detail": "43/43"
+    },
+    {
+      "check": "each is asserted by an overlay row naming the suggestion",
+      "ok": true,
+      "detail": "44 overlays"
+    },
+    {
+      "check": "A5 OO wrote nothing into the Drive",
+      "ok": true,
+      "detail": "3 files"
+    },
+    {
+      "check": "suggest_live::a_viewer_cannot_suggest_and_an_editor_can",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "suggest_live::the_four_rules_and_the_broadcast",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "review_live::batch_decisions_report_each_item_and_races_have_one_winner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "review_live::merge_integrity_failure_stops_the_whole_version",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "review_live::overlay_whose_evidence_vanished_becomes_an_orphan_item",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "review_live::reject_edit_and_overlays_survive_re_extraction",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "review_live::thresholds_queue_and_accept_by_source_in_one_operation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "correct_api_live::corrections_take_the_publish_pipeline",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "notes": [
+    "ignored suites: suggest_live, review_live, correct_api_live"
+  ]
+}
