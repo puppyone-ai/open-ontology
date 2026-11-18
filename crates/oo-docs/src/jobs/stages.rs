@@ -1344,6 +1344,8 @@ impl JobHandler for PublishHandler {
             // overlay item (D22), after every publish.
             if let Ok(mut c) = self.pool.acquire().await {
                 let _ = crate::review::overlay::sweep_orphans(&mut c).await;
+                // Open types that reached the thresholds become `type_promotion` items (D16).
+                let _ = crate::review::promotion::propose(&mut c).await;
             }
             let n = match n {
                 Some(n) => Some(n),

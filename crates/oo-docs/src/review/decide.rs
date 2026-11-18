@@ -14,6 +14,7 @@
 //! | `low_confidence_fact` | overlay `fact_assert` (the fact becomes eligible; a `functional_conflict` winner rejects its partner; a `supersede_*` accept ends the old fact) | overlay `fact_reject`, fact `rejected` | overlay `fact_edit`, a new human fact with the new value/dates, the old one `rejected` |
 //! | `entity_merge` | merge the second into the first (`edit.into` picks the target) | the item only | — |
 //! | `alias_conflict` | `edit.entity` (a key) gets the alias (overlay `alias_add`) | overlay `alias_reject` | — |
+//! | `type_promotion` | overlay `type_promote{label, type_name}` (`edit.type_name`, default the label); the prompt version changes and the files holding the label are `outdated` | the item only, never proposed again | — |
 //! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
 
@@ -23,6 +24,7 @@ use serde_json::{Value, json};
 use sqlx::{Connection, PgConnection, Row};
 
 use super::overlay;
+use super::promotion::{self, Promoted};
 use super::speaker::{self, Confirmed};
 use crate::resolve::merge::{MergeError, merge_entities};
 use crate::resolve::normalize::{fact_key, norm};
@@ -453,6 +455,24 @@ async fn apply_one(
                     Ok((ItemResult::ok(id), Some("accepted")))
                 }
             }
+        }
+        ("type_promotion", Decision::Accept) => {
+            let type_name = it
+                .edit
+                .as_ref()
+                .and_then(|e| e.get("type_name"))
+                .and_then(Value::as_str);
+            match promotion::accept(conn, id, &item.subject, type_name, by).await? {
+                Promoted::Done { .. } => {
+                    close_item(conn, id, "accepted", by, note).await?;
+                    Ok((ItemResult::ok(id), Some("accepted")))
+                }
+                Promoted::BadName => Ok((invalid(id), None)),
+            }
+        }
+        ("type_promotion", Decision::Reject) => {
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
         }
         ("speaker_identity", Decision::Accept) => {
             let name = it

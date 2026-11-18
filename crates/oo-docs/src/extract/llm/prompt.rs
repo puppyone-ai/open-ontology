@@ -3,7 +3,7 @@
 use serde_json::{Value, json};
 
 use super::batch::Batch;
-use super::{MAX_TOKENS, PROMPT_VERSION};
+use super::{ConstrainedType, MAX_TOKENS, prompt_version};
 
 /// System text of `extract/1`. Changing a word changes the cache keys of
 /// everything, which is why the prompt version is part of the key.
@@ -81,24 +81,48 @@ pub fn user_message(title: &str, format: &str, known: &[Known], batch: &Batch<'_
     out
 }
 
+/// The system text with the promoted open types appended (B-S9-02): `Thing` labels are constrained to the
+/// confirmed names, and a label that has no match is left empty rather than invented.
+pub fn system_text(types: &[ConstrainedType]) -> String {
+    if types.is_empty() {
+        return SYSTEM.to_owned();
+    }
+    let mut sorted: Vec<&ConstrainedType> = types.iter().collect();
+    sorted.sort();
+    let list = sorted
+        .iter()
+        .map(|t| format!("{}（{}）", t.label, t.type_name))
+        .collect::<Vec<_>>()
+        .join("、");
+    format!(
+        "{SYSTEM}\n已确认的开放类型（type=\"Thing\" 时，label 必须取自这些名称之一；都不合适就不要抽取该对象）：{list}。"
+    )
+}
+
 /// Build the request of a batch.
 pub fn request(
     model: &str,
     title: &str,
     format: &str,
     known: &[Known],
+    types: &[ConstrainedType],
     batch: &Batch<'_>,
 ) -> ChatRequest {
     ChatRequest {
         model: model.to_owned(),
-        system: SYSTEM.to_owned(),
+        system: system_text(types),
         user: user_message(title, format, known, batch),
     }
 }
 
 /// `BLAKE3("oo.docs.llm-extract/v1\0" ‖ prompt_version ‖ "\0" ‖ model ‖ "\0" ‖
 /// canonical(batch blocks [id, hpath, text]) ‖ "\0" ‖ canonical(known))`.
-pub fn cache_key(model: &str, known: &[Known], batch: &Batch<'_>) -> String {
+pub fn cache_key(
+    model: &str,
+    known: &[Known],
+    types: &[ConstrainedType],
+    batch: &Batch<'_>,
+) -> String {
     let blocks: Vec<Value> = batch
         .blocks
         .iter()
@@ -110,7 +134,7 @@ pub fn cache_key(model: &str, known: &[Known], batch: &Batch<'_>) -> String {
     known.truncate(MAX_KNOWN);
     let mut h = blake3::Hasher::new();
     h.update(b"oo.docs.llm-extract/v1\0");
-    h.update(PROMPT_VERSION.as_bytes());
+    h.update(prompt_version(types).as_bytes());
     h.update(b"\0");
     h.update(model.as_bytes());
     h.update(b"\0");
@@ -147,7 +171,7 @@ mod tests {
             "Person:陈子墨".to_owned(),
         ];
         let bi = bs.len() - 1;
-        let req = request("m-1", "T", "md", &known, &bs[bi]);
+        let req = request("m-1", "T", "md", &known, &[], &bs[bi]);
         assert!(req.user.starts_with("文档：T（格式：md）\n已知实体"));
         assert!(req.user.contains("Person:陈子墨、Project:星图"));
         assert!(req.user.contains("<<<BLOCKS\n{\"block_id\":\"blk_"));
@@ -156,17 +180,17 @@ mod tests {
         assert_eq!(body["temperature"], 0);
         assert_eq!(body["max_tokens"], 2048);
         assert_eq!(body["stream"], false);
-        let k1 = cache_key("m-1", &known, &bs[bi]);
+        let k1 = cache_key("m-1", &known, &[], &bs[bi]);
         assert_eq!(k1.len(), 64);
-        assert_eq!(k1, cache_key("m-1", &known, &bs[bi]));
+        assert_eq!(k1, cache_key("m-1", &known, &[], &bs[bi]));
         assert_ne!(
             k1,
-            cache_key("m-2", &known, &bs[bi]),
+            cache_key("m-2", &known, &[], &bs[bi]),
             "the model is part of the key"
         );
         assert_ne!(
             k1,
-            cache_key("m-1", &[], &bs[bi]),
+            cache_key("m-1", &[], &[], &bs[bi]),
             "so are the known entities"
         );
         let other = parse_markdown("# T\n\n## 甲\n\n陈子墨负责灯塔\n".as_bytes())
@@ -174,7 +198,38 @@ mod tests {
             .ir;
         assert_ne!(
             k1,
-            cache_key("m-1", &known, batches(&other).last().unwrap())
+            cache_key("m-1", &known, &[], batches(&other).last().unwrap())
         );
+    }
+
+    #[test]
+    fn a_promoted_type_changes_the_prompt_version_the_cache_key_and_the_system_text() {
+        let t = vec![ConstrainedType {
+            label: "合同".into(),
+            type_name: "Contract".into(),
+        }];
+        assert_eq!(prompt_version(&[]), "extract/1");
+        let v = prompt_version(&t);
+        assert!(v.starts_with("extract/1+t") && v.len() == "extract/1+t".len() + 8);
+        assert_ne!(v, prompt_version(&[]));
+        assert_eq!(system_text(&[]), SYSTEM);
+        assert!(system_text(&t).contains("合同（Contract）"));
+        let ir = parse_markdown("# T\n\n## 甲\n\n甲方合同\n".as_bytes())
+            .unwrap()
+            .ir;
+        let bs = batches(&ir);
+        let b = bs.last().unwrap();
+        assert_ne!(cache_key("m", &[], &[], b), cache_key("m", &[], &t, b));
+        // Order of the set does not matter.
+        let t2 = vec![
+            t[0].clone(),
+            ConstrainedType {
+                label: "发票".into(),
+                type_name: "Invoice".into(),
+            },
+        ];
+        let mut rev = t2.clone();
+        rev.reverse();
+        assert_eq!(prompt_version(&t2), prompt_version(&rev));
     }
 }

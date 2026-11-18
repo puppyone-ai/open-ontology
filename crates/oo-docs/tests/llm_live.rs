@@ -78,10 +78,10 @@ async fn rig(db: &str) -> Rig {
     assert_eq!(bs.len(), 2, "the fixture has two sections");
     let reqs: Vec<_> = bs
         .iter()
-        .map(|b| request(MODEL, "星图项目", "md", &[], b))
+        .map(|b| request(MODEL, "星图项目", "md", &[], &[], b))
         .collect();
     // The prompt is pinned: the keys of the two batches.
-    let keys: Vec<String> = bs.iter().map(|b| cache_key(MODEL, &[], b)).collect();
+    let keys: Vec<String> = bs.iter().map(|b| cache_key(MODEL, &[], &[], b)).collect();
     if replies["pinned_keys"]
         .as_array()
         .is_some_and(|a| !a.is_empty())
@@ -123,6 +123,7 @@ impl Rig {
         oo_docs::extract::llm::run::RunStats,
     ) {
         let input = LlmInput {
+            types: Vec::new(),
             drive_id: DRIVE,
             path: PATH,
             title: "星图项目",
