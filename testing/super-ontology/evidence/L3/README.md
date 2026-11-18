@@ -1,6 +1,6 @@
-# L3 读懂文件 · OO 侧证据（D80 阶段一，**未签收**）
+# L3 读懂文件 · OO 侧签收证据（D80 阶段一）
 
-状态：**未签收**。原因：S3 格子（RustFS、MinIO）与 `download`、`s3_rustfs` 没有被独立复核重跑——所需的固定镜像本机没有，拉取镜像需要 owner 批准（`result-verify-signoff.json` 的 `verify_runs`：在 4cee27056 上 0/2 个格子运行，`download` 与 `s3_rustfs` 无端点）。其余验收项的证据见下表。OO `feat/super-ontology` @ 4390b2cb4。独立复核运行于 `acf198b17`（分支 `so/V1-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：131 项检查，131 通过、0 失败（验收脚本 99/99、faults 9/9、cold1000 8/8、reprocess 4/4）。镜像摘要、二进制 sha256 记录在该文件里；harness 使用 debug 二进制（cold1000 的内存与时间是 debug 构建的数字）。Desktop 部分（30 §3 L3 验收 7 与前端交付）按 30 §7 在阶段二补齐。
+**签收（协调者，2026-11-18）**：此前缺的 S3 格子已由独立验证员在 owner 批准拉取固定镜像后重跑通过（`so/V3s-signoff` @7a8130ae7）：RustFS、MinIO 的“新增 → 修改 → 重命名 → 删除”各 20/20，`s3_rustfs` 8/8，`download` 3/3，无失败无重试；记录在 `result-verify-signoff.json`。下表中验收 5 的 s3 部分以此为准。
 
 ## 30 §L3 验收（OO 侧口径，30 §7.2）
 
