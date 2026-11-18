@@ -12,7 +12,9 @@ release run still executes all of them once.
 import argparse
 import datetime
 import json
+import os
 from pathlib import Path
+import platform
 import subprocess
 import sys
 
@@ -25,25 +27,59 @@ VERSION_ARG = {"postgres": "13,14,15,16,17,18", "mysql": "5.7,8.0,8.4,9",
                "oracle": "23,21,11,19"}
 
 
-def slice_for(day):
+def native_platform():
+    return "linux/arm64" if platform.machine().lower() in ("arm64", "aarch64") else "linux/amd64"
+
+
+def oracle_split(worker_image, native):
+    """Oracle versions this host can run, and the local-only ones it cannot.
+
+    11g needs the thick worker (vendor client, never published) and 19c EE is
+    locked for a locally built arm64 image only. Skips are reported, not hidden.
+    """
+    runnable, local_only = ["23", "21"], {}
+    if worker_image:
+        runnable.append("11")
+    else:
+        local_only["11"] = "thick_worker_image_absent"
+    if native in runner.resolve("oracle", "19")["platforms"]:
+        runnable.append("19")
+    else:
+        local_only["19"] = "platform_absent_from_image_lock"
+    return runnable, local_only
+
+
+def slice_for(day, worker_image=None, native=None):
     engine = ROTATION[day.toordinal() % len(ROTATION)]
     versions = VERSION_ARG[engine]
+    local_only = {}
+    worker = []
+    if engine == "oracle":
+        runnable, local_only = oracle_split(worker_image, native or native_platform())
+        versions = ",".join(runnable)
+        worker = ["--worker-image", worker_image] if "11" in runnable else []
     rid = f"l3-{engine}-{day.isoformat()}"
+    t7_versions = ",".join(v for v in versions.split(",") if v != "19")
     commands = [
         ["tools/oo-test/oo-test", "matrix", "--engine", engine, "--versions",
-         versions.replace("23,21,11", "23ai,21c,11g"), "--suites", "T0,T1,T8",
+         versions.replace("23,21", "23ai,21c").replace(",11", ",11g"), "--suites", "T0,T1,T8",
          "--hook", "T0=tools/oo-test/t0.py", "--hook", "T1=tools/oo-test/t1.py",
          "--min-free-gb", "30"],
         (["python3", "tools/oo-test/t2.py", "--versions", versions, "--run-id", rid + "-t2"]
          if engine == "postgres" else
          ["python3", "tools/oo-test/t2_p0.py", "--engine", engine, "--versions", versions,
-          "--run-id", rid + "-t2"]),
+          "--run-id", rid + "-t2", *worker]),
         ["tools/oo-test/oo-test", "t3t4", "--engine", engine, "--versions", versions,
-         "--run-id", rid + "-t3t4", "--min-free-gb", "30"],
-        ["python3", "tools/oo-test/t7.py", "--engine", engine, "--versions", versions,
-         "--run-id", rid + "-t7"],
+         "--run-id", rid + "-t3t4", "--min-free-gb", "30", *worker],
+        ["python3", "tools/oo-test/t7.py", "--engine", engine, "--versions", t7_versions,
+         "--run-id", rid + "-t7", *worker],
     ]
-    return {"day": day.isoformat(), "engine": engine, "commands": commands}
+    if "19" in versions.split(","):
+        # 19c T7 has its own driver; t7.py accepts 23, 21 and 11 only.
+        commands.append(["python3", "testing/engines/oracle/e19_t7.py", "--engine", "oracle",
+                         "--versions", "19", "--run-id", rid + "-t7-19", *worker])
+    return {"day": day.isoformat(), "engine": engine, "commands": commands,
+            "local_only": local_only}
 
 
 def pairs(fast_path, real_path):
@@ -130,7 +166,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in ("plan", "run"):
         day = datetime.date.fromisoformat(args.day) if args.day else layers.today()
-        plan = slice_for(day)
+        plan = slice_for(day, os.environ.get("OO_TEST_ORACLE_WORKER_IMAGE"))
         if args.command == "plan":
             print(json.dumps(plan, indent=2))
             return 0
