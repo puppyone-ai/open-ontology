@@ -292,14 +292,35 @@ pub fn match_entities(gold: &[Entity], pred: &[Entity]) -> EntityMatching {
     let mut pred_to_gold = HashMap::new();
     let mut outcomes = Vec::new();
     let mut covered = 0;
+    // Two passes, so the result does not depend on the spelling order of the names: first a
+    // prediction whose own name is the gold entity's name takes it, then any alias match.
+    let mut taken: HashMap<usize, usize> = HashMap::new();
+    for pass in 0..2 {
+        for i in order(&keys) {
+            if taken.contains_key(&i) {
+                continue;
+            }
+            let p = &pred[i];
+            let strings: Vec<String> = if pass == 0 {
+                vec![norm(&p.name)]
+            } else {
+                entity_strings(p).into_iter().collect()
+            };
+            let mut cand: Vec<usize> = strings
+                .into_iter()
+                .flat_map(|s| index.get(&(p.typ.clone(), s)).cloned().unwrap_or_default())
+                .filter(|&g| pass == 1 || norm(&gold[g].name) == norm(&p.name))
+                .collect();
+            cand.sort_unstable();
+            if let Some(g) = cand.into_iter().find(|&g| !used[g]) {
+                used[g] = true;
+                taken.insert(i, g);
+            }
+        }
+    }
     for i in order(&keys) {
         let p = &pred[i];
-        let mut cand: Vec<usize> = entity_strings(p)
-            .into_iter()
-            .flat_map(|s| index.get(&(p.typ.clone(), s)).cloned().unwrap_or_default())
-            .collect();
-        cand.sort_unstable();
-        match cand.into_iter().find(|&g| !used[g]) {
+        match taken.get(&i).copied() {
             Some(g) => {
                 used[g] = true;
                 pred_to_gold.insert(p.id.clone(), gold[g].id.clone());
@@ -733,5 +754,31 @@ mod tests {
             ),
             (1, 2, 1)
         );
+    }
+
+    fn ent(id: &str, typ: &str, name: &str, aliases: &[&str]) -> Entity {
+        Entity {
+            id: id.into(),
+            typ: typ.into(),
+            name: name.into(),
+            aliases: aliases.iter().map(|a| (*a).to_string()).collect(),
+            confidence: 1.0,
+            ..Entity::default()
+        }
+    }
+
+    #[test]
+    fn an_entity_named_like_the_gold_name_wins_over_an_alias_duplicate() {
+        // "Kevin" sorts before the real name, and is a gold alias: it must not take the gold entity.
+        let gold = vec![ent("G1", "Person", "吴启明", &["Kevin", "老吴"])];
+        let pred = vec![
+            ent("P1", "Person", "Kevin", &[]),
+            ent("P2", "Person", "吴启明", &["Kevin Wu"]),
+        ];
+        let m = match_entities(&gold, &pred);
+        assert_eq!(m.pred_to_gold.get("P2").map(String::as_str), Some("G1"));
+        assert!(!m.pred_to_gold.contains_key("P1"));
+        let fps = m.outcomes.iter().filter(|o| o.kind == Kind::Fp).count();
+        assert_eq!(fps, 1, "the duplicate is a false positive");
     }
 }
