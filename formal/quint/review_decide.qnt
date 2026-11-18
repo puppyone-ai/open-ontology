@@ -1,4 +1,4 @@
-// formal: main=review_decide inv=inv steps=40 verify-steps=7 deep-steps=8 witnesses="witAutoPublished witQueued witHeld witBySource witBySourceSkippedLate witStaleRefused witAlreadyDecided witLlmMergeQueued witRuleCertainAuto witInUseNotice witOrphaned witOrphanKept witRejectWins" vinv="invEvidenceGate invBySourceAsOf invNoDoubleDecide invIfMatch invRevMonotone invLlmNeverAuto invInUseNotice invThreshold invRejectWins invOverlayNeverRetracted invOrphanQueued"
+// formal: main=review_decide inv=inv steps=40 verify-steps=7 deep-steps=8 witnesses="witAutoPublished witQueued witHeld witBySource witBySourceSkippedLate witStaleRefused witAlreadyDecided witLlmMergeQueued witRuleCertainAuto witInUseNotice witOrphaned witOrphanKept witRejectWins" vinv="invEvidenceGate invBySourceAsOf invNoDoubleDecide invIfMatch invRevMonotone invLlmNeverAuto invInUseNotice invRejectWins invOrphanQueued" dinv="invThreshold invOverlayNeverRetracted"
 // FM5: batch review decisions (10 4.8, 5.3, 8; D22, D24, D51; crates/oo-docs/src/review/{queue,decide,overlay}.rs).
 // A slot is one candidate: a draft fact (kind 0), an LLM entity merge (1), a supersession (2), or the
 // "orphaned overlay" item (3, refers to `tgt`). It has a fact side (`fst`) and a review item side (`ist`).
@@ -35,7 +35,8 @@ module review_decide {
     kind: int, src: int,
     conf: int,            // confidence class 0 low, 1 mid, 2 high (>= auto_publish_bp)
     origin: str,          // llm | rule | human
-    certain: bool,        // rule-certain (identity attribute, frontmatter supersedes)
+    certain: bool,        // derived from (origin, rid) as `certain_supersedes` does
+    rid: str,             // rule id of a rule fact
     inUse: bool,          // a live share used the fact this supersession ends
     tgt: int,             // ORPHAN: the slot whose overlay lost its evidence
     fst: str,             // none | draft | eligible | published | rejected | retracted
@@ -53,7 +54,7 @@ module review_decide {
   var nxt: int
   var last: { act: str, ok: str, i: int, rev: int, src: int, asOf: int }
 
-  pure val EMPTY: Slot = { kind: 0, src: 0, conf: 0, origin: "llm", certain: false, inUse: false, tgt: -1, fst: "none", ist: "none",
+  pure val EMPTY: Slot = { kind: 0, src: 0, conf: 0, origin: "llm", certain: false, rid: "none", inUse: false, tgt: -1, fst: "none", ist: "none",
                            rev: 0, seq: 0, decs: 0, via: "none", asOf: 0, executed: false, notice: false, ov: "none", evid: true }
   pure val NOLAST = { act: "init", ok: "", i: 0, rev: 0, src: 0, asOf: 0 }
 
@@ -68,10 +69,11 @@ module review_decide {
     nondet sr = SRC.oneOf()
     nondet cf = 0.to(2).oneOf()
     nondet og = Set("llm", "rule", "human").oneOf()
-    nondet ce = Set(true, false).oneOf()
+    nondet rid = Set("fm.fields", "md.headings", "name.version", "none").oneOf()
     nondet iu = Set(true, false).oneOf()
-    val certain = ce and og == "rule" and kd != FACT
-    val s0 = { ...EMPTY, kind: kd, src: sr, conf: cf, origin: og, certain: certain, inUse: iu and kd == SUPER, seq: evSeq + 1 }
+    // D51 (temporal::certain_supersedes): a person's supersession is certain; a rule's only for the rules that state it outright
+    val certain = kd != FACT and (og == "human" or (og == "rule" and (rid == "fm.fields" or rid == "md.headings")))
+    val s0 = { ...EMPTY, kind: kd, src: sr, conf: cf, origin: og, certain: certain, rid: rid, inUse: iu and kd == SUPER, seq: evSeq + 1 }
     val s1 =
       if (kd == FACT)
         (if (og == "human") { ...s0, fst: "eligible", ov: "assert" }      // a person's fact always comes with its overlay
@@ -214,7 +216,7 @@ module review_decide {
     ((last.act == "decide" and last.ok == "ok") implies slots.get(last.i).rev == last.rev + 1)
   // D51: a merge or supersession that is not rule-certain only runs after a person accepted it
   val invLlmNeverAuto = SLOTS.forall(i => ((slots.get(i).kind == MERGE or slots.get(i).kind == SUPER) and slots.get(i).executed) implies
-    ((slots.get(i).origin == "rule" and slots.get(i).certain) or (slots.get(i).ist == "accepted" and slots.get(i).via == "item")))
+    (slots.get(i).origin == "human" or (slots.get(i).origin == "rule" and (slots.get(i).rid == "fm.fields" or slots.get(i).rid == "md.headings")) or (slots.get(i).ist == "accepted" and slots.get(i).via == "item")))
   // D51: a rule-certain supersession of a fact a live share used always leaves its notice
   // (a supersession a person accepted from the queue was itself the question)
   val invInUseNotice = SLOTS.forall(i => (slots.get(i).kind == SUPER and slots.get(i).executed and slots.get(i).inUse) implies
