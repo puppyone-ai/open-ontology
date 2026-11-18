@@ -1,0 +1,27 @@
+{
+  "protocol": "oo.license-reviews/v1",
+  "scope": "tools/media-parser image (oo-docs-media-parser): ASR, VAD and speaker diarization models, spec 30 L6 acceptance 2, spec 90 §2.2, D64",
+  "reviewed_on": "2026-11-18",
+  "reviewer_role": "engineering coordinator (Super Ontology integration thread). Not legal advice: every shipped entry is listed for the D67 lawyer gate before any external release.",
+  "source_report": "testing/super-ontology/evidence/L6/asr-bakeoff.md",
+  "selection": {
+    "cpu_tier_default": "Paraformer-zh quantized ONNX (recognizer) + 3D-Speaker CAM++ ONNX (speaker embeddings) + silero VAD",
+    "why": "only combination within the 4 GiB media-parser cap, no torch in the image, RTF 0.04 on CPU; end to end on the synthetic 96 s meeting CER 0.174, DER 0.138",
+    "deferred": "Qwen3-ASR-0.6B for host-accel and gpu tiers (D71) once an own loader and a bf16 or int8 memory fit exist",
+    "not_evaluated": ["FireRedASR2-AED (source unreachable, mirror weights incomplete)", "pyannote community-1 (gated download, no accounts created)", "hot-word gain", "real recordings"]
+  },
+  "reviews": {
+    "paraformer-zh (FunASR model)": {"license": "Apache-2.0", "shipped": true, "verdict": "default usable; keep the model name and notice", "legal_gate": "D67"},
+    "fsmn-vad (FunASR model)": {"license": "Apache-2.0", "shipped": false, "verdict": "default usable; used in the bake-off torch path only"},
+    "FunASR code": {"license": "MIT", "shipped": false, "verdict": "default usable; the image uses its own ONNX front end"},
+    "3D-Speaker CAM++": {"license": "Apache-2.0", "shipped": true, "verdict": "default usable; shipped as our own ONNX export, keep the model name and notice", "legal_gate": "D67"},
+    "silero-vad": {"license": "MIT (LICENSE file; the README badge disagrees, LICENSE snapshot kept)", "shipped": true, "verdict": "default usable", "legal_gate": "D67"},
+    "sherpa-onnx": {"license": "Apache-2.0", "shipped": false, "verdict": "default usable; not in the image"},
+    "Qwen3-ASR-0.6B weights": {"license": "Apache-2.0", "shipped": false, "verdict": "default usable; not shipped now (memory)"},
+    "qwen-asr package": {"license": "depends on GPL-3.0 soynlp", "shipped": false, "verdict": "forbidden in any image (D64)"},
+    "pyannote community-1": {"license": "gated model terms", "shipped": false, "verdict": "comparison only, never in the default image (90 §2.2); not run"},
+    "FireRedASR2 LLM and Punc parts": {"license": "Apache-2.0", "shipped": false, "verdict": "not enabled"},
+    "DiariZen": {"license": "CC-BY-NC", "shipped": false, "verdict": "excluded (D64), not run"},
+    "SenseVoiceSmall": {"license": "conflicting terms", "shipped": false, "verdict": "excluded (D64), not run"}
+  }
+}
