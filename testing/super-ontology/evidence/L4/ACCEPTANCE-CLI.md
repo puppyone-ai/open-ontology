@@ -65,7 +65,7 @@ $OO serve --status --state-dir "$STATE"
 $OO docs health --state-dir "$STATE"
 ```
 
-**应看到**：一份 JSON，**`status` 为 `ok`**（刚启动时可能是 `degraded` 几秒），`components.db.status`、`cas`、`engine` 都是 `ok`，`components.parser.detail.kind` 是 `local+sidecar` 且 `formats` 含 `pdf`、`docx`、`pptx`，`components.model.status` 是 `not_configured`（`oo docs health` 目前不反映模型配置；第一版验收不配模型，配置后用 `GET /v1/docs/usage` 看 `model.status`，见第 15 步）。
+**应看到**：一份 JSON，**`status` 为 `ok`**（刚启动时可能是 `degraded` 几秒），`components.db.status`、`cas`、`engine` 都是 `ok`，`components.parser.detail.kind` 是 `local+sidecar` 且 `formats` 含 `pdf`、`docx`、`pptx`，`components.model.status` 是 `not_configured`（`oo docs health` 目前不反映模型配置；第一版验收不配模型，配置后用 `GET /v1/docs/config/model` 看 `status`，见第 15 步）。
 
 ## 3. 导入示例资料并观察状态
 
@@ -261,7 +261,7 @@ curl -s -X PUT http://127.0.0.1:<port>/v1/docs/config/model -H "Authorization: B
   -d '{"provider":"openai-compatible","base_url":"file:/abs/path/endpoint","model":"<model-id>","key_ref":"file:/abs/path/key"}'
 ```
 
-key 只接受 `file:/绝对路径` 或 `env:NAME`；直接写 key 的值会得到 400 而且不会回显。compose 运行时里，引擎容器自己起模型出口进程（镜像里带 `/opt/oo/model_egress.py`，容器在 `docs-egress` 网络上）：守护进程收到这条配置时，会把 `file:` 引用的两个文件以只读方式绑定到容器里的**同一路径**，重建一次引擎容器，再把配置交给它；`env:NAME` 不行（容器看不到宿主的环境变量）。配置成功后 `GET /v1/docs/usage` 的 `model.status` 是 `ok`。评测里的模型数字见 `eval/README.md`。
+key 只接受 `file:/绝对路径` 或 `env:NAME`；直接写 key 的值会得到 400 而且不会回显。compose 运行时里，引擎容器自己起模型出口进程（镜像里带 `/opt/oo/model_egress.py`，容器在 `docs-egress` 网络上）：守护进程收到这条配置时，会把 `file:` 引用的两个文件以只读方式绑定到容器里的**同一路径**，重建一次引擎容器，再把配置交给它；`env:NAME` 不行（容器看不到宿主的环境变量）。配置成功后 `GET /v1/docs/config/model` 的 `status` 是 `ok`。评测里的模型数字见 `eval/README.md`。
 
 ## 已验证的运行
 

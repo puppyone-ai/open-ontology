@@ -322,8 +322,8 @@ def main():
             st, put = api.request("PUT", "/v1/docs/config/model", body, timeout=300, headers={"If-Match": '"r1"'})
             ev.check("9b PUT /v1/docs/config/model through the daemon: 200 and the egress is up in the engine container",
                      st == 200 and isinstance(put, dict) and put.get("status") == "ok", f"HTTP {st} status {put.get('status') if isinstance(put, dict) else '?'} code {put.get('code') if isinstance(put, dict) else '?'}")
-            st, usage = api.request("GET", "/v1/docs/usage")
-            ev.check("9b GET /v1/docs/usage: model.status is ok", st == 200 and usage.get("model", {}).get("status") == "ok", f"HTTP {st} model {usage.get('model', {}).get('status') if isinstance(usage, dict) else '?'}")
+            st, conf = api.request("GET", "/v1/docs/config/model")
+            ev.check("9b GET /v1/docs/config/model: configured and the egress is up", st == 200 and isinstance(conf, dict) and conf.get("configured") is True and conf.get("status") == "ok", f"HTTP {st} configured {conf.get('configured') if isinstance(conf, dict) else '?'} status {conf.get('status') if isinstance(conf, dict) else '?'}")
             svc = project.by_service().get("docs-engine")
             binds = [m for m in (svc or {}).get("Mounts", []) if m.get("Destination") in (args.endpoint_file, args.key_file)]
             ev.check("9b the two files are bind-mounted read-only at their own path", len(binds) == 2 and all(m.get("RW") is False for m in binds), f"{len(binds)} mounts")

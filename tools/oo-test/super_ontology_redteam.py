@@ -164,6 +164,10 @@ def main():
                 to = work / f"m{i}-{j}"
                 to.mkdir()
                 argv = [str(oo), "context", "mount", "--to", str(to), "--for", task, "--json", "--state-dir", str(state)]
+                if with_rt:
+                    # The control scopes hold the red-team entities the adversarial task names (and every
+                    # document that links to them): their BRIEF frame needs more than the default 800 tokens.
+                    argv += ["--budget", "4000"]
                 for p in pref:
                     argv += ["--scope", p]
                 r = subprocess.run(argv, capture_output=True, text=True, timeout=180)
