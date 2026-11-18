@@ -1,14 +1,14 @@
 {
-  "entities": 123,
-  "facts": 434,
+  "entities": 126,
+  "facts": 449,
   "facts_by_origin": [
     [
       "llm",
-      90
+      100
     ],
     [
       "rule",
-      371
+      376
     ]
   ],
   "files": 51,
@@ -26,22 +26,23 @@
   ],
   "model": true,
   "published_entities": 93,
-  "published_facts": 411,
-  "seconds": 557.074769458,
+  "published_facts": 424,
+  "seconds": 431.145981875,
   "states": {
-    "published": 51
+    "indexed": 1,
+    "published": 50
   },
   "usage": {
     "drives": [
       {
         "cache_hits": 0,
-        "calls": 159,
+        "calls": 86,
         "day": "2026-11-18",
-        "drive_id": "50a495c9-60cf-4a34-bec4-fc7aac121185",
+        "drive_id": "816f0503-5fbc-40af-b989-4a92dcf7f3dd",
         "files_limited": 0,
         "limit": 2000,
-        "tokens_in": 148973,
-        "tokens_out": 57569
+        "tokens_in": 164312,
+        "tokens_out": 64786
       }
     ],
     "model": {

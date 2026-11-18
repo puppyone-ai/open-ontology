@@ -30,49 +30,56 @@ L4 target with the model (30 section L4, acceptance 1): precision >= 0.85 and re
 
 | run | view | entities P / R (all core types) | entities P / R (without Document) | facts P / R | supersede correct/gold | conflict detected/gold | red team hits |
 |---|---|---|---|---|---|---|---|
-| golden, model off (rules) | candidates | 0.908 / 0.850 | 0.778 / 0.667 | 0.928 / 0.639 | 4/4 | 1/1 | 0 |
-| golden, model off (rules) | published | 0.908 / 0.850 | 0.778 / 0.667 | 0.927 / 0.637 | 4/4 | 0/1 | 0 |
-| golden, model on (`gpt-6.1-sol`) | candidates | 0.724 / 0.957 | 0.528 / 0.905 | 0.836 / 0.823 | 4/4 | 1/1 | 0 |
-| golden, model on (`gpt-6.1-sol`) | published | 0.914 / 0.914 | 0.810 / 0.810 | 0.871 / 0.812 | 4/4 | 0/1 | 0 |
-| holdout, model off (rules) | candidates | 0.902 / 0.841 | 0.778 / 0.667 | 0.921 / 0.642 | 4/4 | 1/1 | 0 |
-| holdout, model off (rules) | published | 0.902 / 0.841 | 0.778 / 0.667 | 0.921 / 0.639 | 4/4 | 0/1 | 0 |
-| holdout, model on (`gpt-6.1-sol`) | candidates | 0.726 / 0.932 | 0.537 / 0.857 | 0.816 / 0.806 | 4/4 | 1/1 | 0 |
-| holdout, model on (`gpt-6.1-sol`) | published | 0.906 / 0.875 | 0.795 / 0.738 | 0.852 / 0.798 | 4/4 | 0/1 | 0 |
+| golden, model off (rules) | candidates | 0.908 / 0.850 | 0.778 / 0.667 | 0.929 / 0.648 | 4/4 | 1/1 | 0 |
+| golden, model off (rules) | published | 0.908 / 0.850 | 0.778 / 0.667 | 0.928 / 0.646 | 4/4 | 0/1 | 0 |
+| golden, model on (`gpt-6.1-sol`) | candidates | 0.706 / 0.957 | 0.507 / 0.905 | 0.822 / 0.837 | 4/4 | 1/1 | 0 |
+| golden, model on (`gpt-6.1-sol`) | published | 0.914 / 0.914 | 0.810 / 0.810 | 0.859 / 0.825 | 4/4 | 0/1 | 0 |
+| holdout, model off (rules) | candidates | 0.902 / 0.841 | 0.778 / 0.667 | 0.922 / 0.649 | 4/4 | 1/1 | 0 |
+| holdout, model off (rules) | published | 0.902 / 0.841 | 0.778 / 0.667 | 0.922 / 0.647 | 4/4 | 0/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | candidates | 0.686 / 0.943 | 0.493 / 0.881 | 0.798 / 0.833 | 4/4 | 1/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | published | 0.907 / 0.886 | 0.800 / 0.762 | 0.843 / 0.831 | 4/4 | 0/1 | 0 |
 
 Reading of the table:
 
-* **Target, golden set, model on, published view: met.** Entities (all core types) P 0.914 / R 0.914, facts P 0.871 /
-  R 0.812. On the held-out set, scored once after the tuning, it is met as well: entities 0.906 / 0.875, facts 0.852 / 0.798,
-  so the numbers do not depend on the golden names. The held-out facts precision clears the bar by 0.002 only.
+* **Target, golden set, model on, published view: met.** Entities (all core types) P 0.914 / R 0.914, facts P 0.859 /
+  R 0.825. On the held-out set, scored after the tuning, entities are 0.907 / 0.886 and facts 0.843 / 0.831: **facts
+  precision is 0.007 under the bar there** (an earlier held-out run of the same rules, before the last two changes, gave
+  0.852 / 0.798). The held-out numbers are within 0.02 of the golden ones, so nothing points at fitting to the golden names;
+  the strict target is still not met on the held-out set for facts precision, and the model's run-to-run spread (the golden
+  runs of the last day gave facts P 0.844 to 0.871) is as large as that gap.
 * **Two readings that do not meet it, stated here and not hidden:**
   1. The candidate view (everything the engine produced that was not rejected, the model's proposals that wait in the
-     review queue included): entities P 0.724 / 0.726 (golden / held-out). The published view is what a pack and the
-     entity list show; the candidates are the queue's input.
+     review queue included): entities P 0.706 golden / 0.686 held-out, facts P 0.822 / 0.798. The published view is what a
+     pack and the entity list show; the candidates are the queue's input.
   2. Entities without the `Document` type (the 51 Documents are trivially right and lift every entity number):
-     P 0.810 / R 0.810 on golden, 0.795 / 0.738 on the held-out set. 8 of the 8 false positives are 7 department
+     P 0.810 / R 0.810 on golden, 0.800 / 0.762 on the held-out set. All 8 false positives are 7 department
      Organizations (`rules/1` 5.1 makes a department of a people table an Organization with `member_of`; the labels have no
      department) and 1 Project (a budget row; the labels call it a Topic). They are not model errors. Either the labels
      get the departments or 5.1 changes; neither was done here.
-* Model off (rules only), reported separately and without errors: golden entities 0.908 / 0.850, facts 0.927 / 0.637;
-  held-out 0.902 / 0.841 and 0.921 / 0.639. All files `published`, no failed state.
+* Model off (rules only), reported separately and without errors: golden entities 0.908 / 0.850, facts 0.928 / 0.646;
+  held-out 0.902 / 0.841 and 0.922 / 0.647. All files `published`, no failed state.
 * Supersession (D17): 4 of 4 gold links correct on both sets (before: 0 of 4). Conflict (D57): the engine records the
   integrity violation and keeps both owners out of the published version by design, so the published view has no pair to
   show (0/1); the candidate view finds it (1/1).
 * Red team: 0 canary and 0 red-team-only name hits in every run and view.
-* `about` is the weakest relation (P 0.67 / R 0.58 published on golden): the labels list the subjects the author chose for a
-  document. Of the 48 misses, 27 have a Topic (18) or an Event (9; `about` to an Event is outside the core range of 10
-  DOC-G1) as object, 11 a Term the engine did not establish, 10 a Project or Organization.
+* `about` is the weakest relation (P 0.64 / R 0.59 published on golden): the labels list the subjects the author chose for a
+  document. Of the 46 misses, most have a Topic or an Event (outside the core range of 10 DOC-G1) as object or a Term the
+  engine did not establish; the false positives are mostly projects a meeting minute or a table lists that the labels do not
+  call its subject.
 
-Run facts: model on, golden: 159 calls (daily limit 2,000, per file 20, none limited), 148,973 tokens in and 57,569 out,
-about 9 minutes with 4 `extract_llm` workers, 51 files `published`. Model on, held-out: 167 calls, 46 files `published`.
-The owner's endpoint drops about half of its TLS connections; a call that fails on the wire is retried up to four times
-(`run.json` counts every call).
+Run facts: model on, golden: 86 calls (every call counts, wire retries included; daily limit 2,000, per file 20, none
+limited), 164,312 tokens in and 64,786 out, about 7 minutes with 4 `extract_llm` workers, 50 files `published` and 1
+`indexed` (its model facts wait in the review queue). Held-out: 79 calls, 46 files `published`. The owner's endpoint drops
+about half of its TLS connections on some days; a call that fails on the wire is retried up to four times.
+Model output varies from run to run at temperature 0: which Topic, Event or Term entities get established (they need a
+corroborated model fact) moves facts recall by about 0.05 and precision by about 0.02.
+
 
 ## What moved the numbers (general rules, each from the spec, none from the golden set)
 
 | change | where | effect seen |
 |---|---|---|
-| `doc.link`: a document mentions the entities it names by name or trusted alias, and is `about` the ones in its title, a heading, its file name, or repeated in three blocks (D15) | `extract/links.rs`, linked in front of the publish writer | mentions R 0.29 (published, `extract/1`, model on 0.37) -> 0.80 rules alone -> 0.92 with the model |
+| `doc.link`: a document mentions the entities it names by name or trusted alias, and is `about` the ones in its title, a heading, its file name, or repeated in three blocks (D15) | `extract/links.rs`, linked in front of the publish writer | mentions R 0.29 (published, `extract/1`, model on 0.37) -> 0.80 rules alone -> 0.93 with the model |
 | links only to *established* entities (a rule found it, or a published fact of another source rests on it), the publish job loops while a publish changes the names | `resolve/pg.rs`, `jobs/stages.rs` | model-only entities no longer publish through a name match: entity FP 34 -> 8 |
 | prompt `extract/2`: what counts as each core type, no `Document` entity (the file is `e0`, the subject of `about`), known entities with aliases and verbatim spelling, `confidence` defined by the quote | `extract/llm/prompt.rs` | `about` R 0.20 (rules, after `doc.link`) -> 0.58 (model on); the first model run of `extract/1` had 0.15 |
 | after the reply: generic words dropped, paraphrase or alias of a known entity becomes that entity, a relation whose quote misses an end loses a step (5.3) | `extract/llm/post.rs` | model duplicates of people and decisions gone |

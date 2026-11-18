@@ -1,10 +1,10 @@
 {
   "entities": 87,
-  "facts": 304,
+  "facts": 308,
   "facts_by_origin": [
     [
       "rule",
-      331
+      335
     ]
   ],
   "files": 51,
@@ -17,8 +17,8 @@
   ],
   "model": false,
   "published_entities": 87,
-  "published_facts": 303,
-  "seconds": 157.883800416,
+  "published_facts": 307,
+  "seconds": 221.116853541,
   "states": {
     "published": 51
   },
