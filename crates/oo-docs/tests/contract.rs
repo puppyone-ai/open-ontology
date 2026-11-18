@@ -118,6 +118,12 @@ fn every_route_error_code_is_in_the_contract() {
             code::REVIEW_BATCH_TOO_LARGE,
             code::REVIEW_INVALID_DECISION,
             code::REVIEW_MERGE_CONFLICT,
+            code::SUGGEST_NOT_FOUND,
+            code::SUGGEST_ROLE_FORBIDDEN,
+            code::SUGGEST_SCOPE_MISSING,
+            code::SUGGEST_NOT_PENDING,
+            code::SUGGEST_NO_EVIDENCE,
+            code::SUGGEST_UNRESOLVED_ENTITY,
         ]
         .into_iter()
         .find(|c| c.as_str() == name)
@@ -131,7 +137,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 50);
+    assert_eq!(ALL_CODES.len(), 56);
 }
 
 #[test]
