@@ -15,7 +15,7 @@ use serde_json::{Map as JsonMap, Value, json};
 
 use crate::http::{GatewayClient, parse_loopback_port};
 
-pub(crate) const INSTRUCTIONS: &str = "One ontology over documents and databases. ontology_search finds entities and rows (each item has a urn and a provenance); ontology_entity opens a urn with its facts and links to the other side; ontology_query runs one read-only SELECT; ontology_sources lists what you can reach. Cite the provenance of every answer (file anchor or table row). A refusal is not an empty result.";
+pub(crate) const INSTRUCTIONS: &str = "One ontology over documents and databases. ontology_search finds entities, facts, text blocks and rows (each item has a urn and a provenance); ontology_entity opens a urn with its facts and links to the other side; ontology_query runs one read-only SELECT; ontology_sources lists what you can reach. Cite the provenance of every answer (file anchor or table row). A refusal is not an empty result.";
 
 pub(crate) struct Ontology {
     pub(crate) client: Arc<GatewayClient>,
@@ -79,7 +79,7 @@ pub(crate) fn tools() -> Vec<Tool> {
     vec![
         Tool::new(
             "ontology_search",
-            "Search entities in the documents and rows in the database by name. Every item has a stable urn, a side (doc or db) and a provenance (file anchor or table row); linked items are cross-referenced.",
+            "Search the documents (entity names, facts and text blocks, full text, Chinese and English) and the database rows by name. Each item has a kind (entity, fact or block) and every item has a stable urn, a side (doc or db) and a provenance (file anchor or table row); linked items are cross-referenced.",
             schema(
                 json!({"q":{"type":"string","minLength":1,"maxLength":200},
                        "type":{"type":"string","maxLength":64},

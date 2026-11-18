@@ -293,6 +293,43 @@ pub fn file_prov(drive: &str, ev: &Value) -> Value {
            "block_id": ev["block_id"], "anchor": ev["anchor"]})
 }
 
+/// A full text hit of the engine as an item of the unified result: a fact is named by its subject entity (so
+/// `oo ontology entity` follows it), a block by `<file>#<block>`; both keep the file anchor as provenance. Scores
+/// stay below an exact or prefix name match (0.6 at most), in the order the engine ranked.
+fn fts_item(drive: &str, hit: &Value, ty: &str) -> Option<Value> {
+    let prov = file_prov(drive, hit["evidence"].as_array()?.first()?);
+    let score = hit["score"].as_f64().unwrap_or(0.0) * 0.6;
+    match hit["kind"].as_str()? {
+        "fact" => {
+            let key = hit["subject"]["key"].as_str()?;
+            if !ty.is_empty() && hit["subject"]["type"] != ty {
+                return None;
+            }
+            let text = hit["text"].as_str().unwrap_or("");
+            let name = format!(
+                "{} {} {}",
+                hit["subject"]["name"].as_str().unwrap_or(key),
+                hit["predicate"].as_str().unwrap_or(""),
+                text
+            );
+            Some(
+                json!({"urn": doc_urn(drive, key), "type": "Fact", "kind": "fact", "name": name.trim(),
+                "text": text, "fact_key": hit["fact_key"], "predicate": hit["predicate"],
+                "side": "doc", "score": score, "provenance": prov}),
+            )
+        }
+        "block" if ty.is_empty() => {
+            let id = hit["id"].as_str()?;
+            Some(
+                json!({"urn": doc_urn(drive, id), "type": "Block", "kind": "block",
+                "name": hit["text"], "text": hit["text"],
+                "side": "doc", "score": score, "provenance": prov}),
+            )
+        }
+        _ => None,
+    }
+}
+
 fn first_evidence(entity: &Value) -> Option<Value> {
     for k in ["facts", "aliases"] {
         for it in entity[k].as_array().into_iter().flatten() {
@@ -563,6 +600,25 @@ impl Ctx<'_> {
                         "side": "doc", "score": score(name, q), "provenance": prov}),
                     );
                     docs_n += 1;
+                }
+                // Facts and blocks by full text (engine, docs-api 1.9); the engine ranks, the proxy only maps.
+                let path = format!(
+                    "/v1/docs/search?q={}&drive_id={id}&limit={limit}",
+                    pct_encode(q)
+                );
+                match self.eng.ok(&path, &self.p.bearer).await {
+                    Ok(v) => {
+                        for h in v["items"].as_array().into_iter().flatten() {
+                            if let Some(it) = fts_item(id, h, ty) {
+                                items.push(it);
+                                docs_n += 1;
+                            }
+                        }
+                    }
+                    Err(f) => {
+                        st = "error";
+                        warnings.push(format!("documents (full text): {}", f.2));
+                    }
                 }
             }
             st
@@ -1093,6 +1149,16 @@ mod tests {
                         200,
                         json!({"drives": [{"id": d, "name": "default", "backend": "fs", "status": "ready"}]}),
                     )
+                } else if line.contains("/v1/docs/search?") {
+                    let ev = json!([{"path": "notes/acme.md", "version_id": "v1", "block_id": "blk_1", "anchor": {"kind": "text", "line_start": 3, "line_end": 3}}]);
+                    (
+                        200,
+                        json!({"items": [
+                            {"kind": "fact", "id": "f9", "fact_key": "k9", "predicate": "attr.renewal", "text": "every March",
+                             "subject": {"key": "org:acme", "name": "Acme Ltd", "type": "Organization"}, "score": 0.5, "evidence": ev},
+                            {"kind": "block", "id": "file1#blk_1", "text": "The contract renews every March.", "score": 0.4, "evidence": ev},
+                            {"kind": "block", "id": "file2#blk_2", "text": "no source", "score": 0.3, "evidence": []}]}),
+                    )
                 } else if line.contains("/v1/docs/entities?") {
                     (
                         200,
@@ -1154,6 +1220,31 @@ mod tests {
         );
         assert_eq!(it["provenance"]["path"], "notes/acme.md");
         assert_eq!(v["sides"]["db"]["status"], "skipped");
+        // facts and blocks of the full text route come after the name hit, each with its anchor; a hit
+        // without evidence never reaches the Agent
+        let kinds: Vec<_> = v["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| {
+                (
+                    i["kind"].as_str().unwrap_or("entity"),
+                    i["score"].as_f64().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![("entity", 0.8), ("fact", 0.3), ("block", 0.24)],
+            "{v}"
+        );
+        let f = &v["items"][1];
+        assert_eq!(
+            f["urn"],
+            "oo:doc/0f8fad5b-d9cb-469f-a165-70867728950e/org:acme"
+        );
+        assert_eq!(f["provenance"]["block_id"], "blk_1");
+        assert_eq!(v["items"][2]["provenance"]["path"], "notes/acme.md");
         // no db:read: a query is refused, a write even before that
         let (s, v) = call(addr, "ooa_good", "/v1/ontology/sources").await;
         assert_eq!((s, v["items"][0]["kind"].as_str()), (200, Some("drive")));
