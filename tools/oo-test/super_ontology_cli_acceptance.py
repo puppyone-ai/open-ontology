@@ -50,6 +50,9 @@ import super_ontology_l2 as l2  # noqa: E402
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden/docs"
 comp.LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be4")
+# `OO_ACCEPT_DEPLOY_DIR`: a copy of deploy/docs whose images.lock.json names the image ids present on this host,
+# for a host where the locked ids are not (the lock itself is the integration thread's).
+DEPLOY = Path(os.environ.get("OO_ACCEPT_DEPLOY_DIR", comp.DEPLOY))
 SAMPLE = (
     [f"Decisions/{p.name}" for p in sorted((GOLDEN / "Decisions").glob("*.md"))]
     + [f"People/{p.name}" for p in sorted((GOLDEN / "People").glob("*.md"))]
@@ -123,7 +126,7 @@ def main():
         cli = Cli(ev, oo, state, log)
 
         ev.log("\n## 1. start the compose runtime")
-        daemon = comp.Daemon(ev, oo, state, comp.DEPLOY)
+        daemon = comp.Daemon(ev, oo, state, DEPLOY)
         api = daemon.start()
         ev.check("1 oo serve --runtime compose prints its address and the compose project", daemon.info["engine"]["mode"] == "compose" and daemon.info.get("port"), json.dumps({k: daemon.info[k] for k in ("port",)}))
         cli.run("docs", "health", quiet=True)  # human form, for the manual
@@ -304,7 +307,7 @@ def main():
         ev.check("9 SIGTERM: oo serve exits 0", code == 0, f"exit {code}")
         states_after = {n: i["State"]["Status"] for n, i in project.by_service().items()}
         ev.check("9 the containers are stopped, not removed", states_after and all(s == "exited" for s in states_after.values()), json.dumps(states_after, sort_keys=True))
-        daemon = comp.Daemon(ev, oo, state, comp.DEPLOY)
+        daemon = comp.Daemon(ev, oo, state, DEPLOY)
         api = daemon.start()
         rc, v = cli.json("docs", "drive", "show", "acceptance")
         ev.check("9 the Drive survived the restart", rc == 0 and v.get("name") == "acceptance", f"exit {rc}")
