@@ -806,7 +806,9 @@ async fn postgres_restarted_under_a_running_engine_loses_nothing() {
     let port = std::env::var("OO_DOCS_TEST_PG_PORT").unwrap();
     let (_, mapped) = sidecar_support::docker(&["port", &container, "5432/tcp"]);
     assert!(
-        mapped.lines().any(|l| l.trim().ends_with(&format!(":{port}"))),
+        mapped
+            .lines()
+            .any(|l| l.trim().ends_with(&format!(":{port}"))),
         "the postgres container's host port changed on restart ({mapped:?}, expected {port}): start it with a fixed \
          `-p 127.0.0.1:<port>:5432` for this test"
     );
