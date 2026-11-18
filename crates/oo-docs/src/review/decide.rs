@@ -14,6 +14,7 @@
 //! | `low_confidence_fact` | overlay `fact_assert` (the fact becomes eligible; a `functional_conflict` winner rejects its partner; a `supersede_*` accept ends the old fact) | overlay `fact_reject`, fact `rejected` | overlay `fact_edit`, a new human fact with the new value/dates, the old one `rejected` |
 //! | `entity_merge` | merge the second into the first (`edit.into` picks the target) | the item only | — |
 //! | `alias_conflict` | `edit.entity` (a key) gets the alias (overlay `alias_add`) | overlay `alias_reject` | — |
+//! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
 
 use std::collections::BTreeSet;
@@ -22,6 +23,7 @@ use serde_json::{Value, json};
 use sqlx::{Connection, PgConnection, Row};
 
 use super::overlay;
+use super::speaker::{self, Confirmed};
 use crate::resolve::merge::{MergeError, merge_entities};
 use crate::resolve::normalize::{fact_key, norm};
 use crate::store::StoreError;
@@ -417,6 +419,21 @@ async fn apply_one(
             };
             match d {
                 Decision::Accept => {
+                    // A statement of a speaker nobody confirmed does not publish (D74).
+                    let held: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                        "SELECT EXISTS (SELECT 1 FROM _oo_docs.fact f JOIN _oo_docs.entity s \
+                           ON s.id = f.subject_id WHERE f.id = $1::uuid AND {})",
+                        speaker::HELD_SQL
+                    )))
+                    .bind(fid)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    if held {
+                        return Ok((
+                            ItemResult::fail(id, "conflict", speaker::CODE_UNCONFIRMED),
+                            None,
+                        ));
+                    }
                     let other = other.filter(|o| *o != fid);
                     accept_fact(conn, &fact, &reason, other, by, id).await?;
                     close_item(conn, id, "accepted", by, note).await?;
@@ -436,6 +453,37 @@ async fn apply_one(
                     Ok((ItemResult::ok(id), Some("accepted")))
                 }
             }
+        }
+        ("speaker_identity", Decision::Accept) => {
+            let name = it
+                .edit
+                .as_ref()
+                .and_then(|e| e.get("name"))
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    item.subject
+                        .pointer("/candidates/0/name")
+                        .and_then(Value::as_str)
+                });
+            let Some(name) = name else {
+                return Ok((invalid(id), None));
+            };
+            match speaker::confirm(conn, id, &item.subject, name, by).await? {
+                Confirmed::Done { .. } => {
+                    close_item(conn, id, "accepted", by, note).await?;
+                    Ok((ItemResult::ok(id), Some("accepted")))
+                }
+                Confirmed::BadName => Ok((invalid(id), None)),
+                Confirmed::Ambiguous | Confirmed::Conflict => Ok((
+                    ItemResult::fail(id, "conflict", "DOCS_REVIEW_MERGE_CONFLICT"),
+                    None,
+                )),
+            }
+        }
+        ("speaker_identity", Decision::Reject) => {
+            // "Not any of these": the label stays unknown and its facts stay drafts.
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
         }
         ("entity_merge", Decision::Accept) => {
             let keys: Vec<String> = item

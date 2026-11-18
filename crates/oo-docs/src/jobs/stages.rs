@@ -1046,6 +1046,46 @@ pub struct ExtractHandler {
 }
 
 impl ExtractHandler {
+    /// Text of the minutes file with the same stem next to a recording (`周会.m4a` and `周会.md`), when it has
+    /// been parsed: the attendee list there is layer 1 of the speaker identity (D74).
+    async fn sibling_minutes(&self, s: &Subject) -> Option<String> {
+        let (dir, name) = s.path.rsplit_once('/').unwrap_or(("", s.path.as_str()));
+        let stem = name.rsplit_once('.').map_or(name, |(st, _)| st);
+        let join = |ext: &str| {
+            if dir.is_empty() {
+                format!("{stem}.{ext}")
+            } else {
+                format!("{dir}/{stem}.{ext}")
+            }
+        };
+        let ir_b3: Option<String> = sqlx::query_scalar(
+            "SELECT pr.ir_b3 FROM _oo_docs.file f \
+               JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+               JOIN _oo_docs.parse_result pr ON pr.b3 = fv.b3 AND pr.status = 'complete' \
+              WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND f.path = ANY($2::text[]) \
+                AND pr.ir_b3 IS NOT NULL ORDER BY f.path LIMIT 1",
+        )
+        .bind(&s.drive_id)
+        .bind(vec![join("md"), join("txt")])
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten();
+        let ir = self.load_ir_by_ir_b3(&ir_b3?)?;
+        Some(
+            ir.blocks
+                .iter()
+                .map(|b| b.text.as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
+
+    fn load_ir_by_ir_b3(&self, ir_b3: &str) -> Option<DocIr> {
+        let bytes = self.cas.get(CasKind::Ir, ir_b3).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    }
+
     async fn load_ir(&self, b3: &str) -> Result<Option<DocIr>, Outcome> {
         let ir_b3: Option<String> = sqlx::query_scalar(
             "SELECT ir_b3 FROM _oo_docs.parse_result \
@@ -1134,6 +1174,21 @@ impl JobHandler for ExtractHandler {
                 };
                 if let Err(e) = index_document(&mut conn, &doc).await {
                     return db_fail(e);
+                }
+                // Who is S1? One `speaker_identity` item per speaker label (D74, 17.4).
+                if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
+                    let minutes = self.sibling_minutes(&s).await;
+                    if let Err(e) = crate::review::speaker::propose(
+                        &mut conn,
+                        &s.version_id,
+                        &ir,
+                        &s.path,
+                        minutes.as_deref(),
+                    )
+                    .await
+                    {
+                        return db_fail(e);
+                    }
                 }
             }
             let mut tx = match begin_stage(&self.pool).await {
