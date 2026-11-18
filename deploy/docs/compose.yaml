@@ -60,7 +60,7 @@ services:
     <<: *docs-runtime
     image: ${OO_DOCS_ENGINE_IMAGE:?set to the digest in deploy/docs/images.lock.json}
     user: "${OO_DOCS_UID:?host uid}:${OO_DOCS_GID:?host gid}"
-    mem_limit: 1536m
+    mem_limit: ${OO_DOCS_ENGINE_MEM:-1536m}
     cpus: 2
     pids_limit: 256
     restart: unless-stopped
@@ -72,6 +72,13 @@ services:
       OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
       OO_DOCS_PARSER_URL: http://doc-parser:7481
       OO_DOCS_PARSER_TOKEN_FILE: /run/oo/parser-token
+      # The two optional sidecars (10 17.1): set the URL when the `ocr` / `media` profile is started; empty
+      # means off. They share the parser token file. A media file is read into engine memory (D77: up to
+      # 4 GiB), so raise OO_DOCS_ENGINE_MEM with the `media` profile.
+      OO_DOCS_OCR_URL: ${OO_DOCS_OCR_URL:-}
+      OO_DOCS_OCR_TOKEN_FILE: ${OO_DOCS_OCR_URL:+/run/oo/parser-token}
+      OO_DOCS_MEDIA_URL: ${OO_DOCS_MEDIA_URL:-}
+      OO_DOCS_MEDIA_TOKEN_FILE: ${OO_DOCS_MEDIA_URL:+/run/oo/parser-token}
       HOME: /tmp
       # OO_DOCS_DATABASE_URL and OO_DOCS_ALLOWED_HOSTS come from the generated override.
     volumes:

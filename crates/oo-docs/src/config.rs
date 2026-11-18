@@ -70,6 +70,51 @@ pub struct EngineConfig {
     /// `OO_DOCS_PARSER_TOKEN_FILE`: the Docling sidecar. Without it pdf, docx
     /// and pptx are `unsupported`.
     pub parser: Option<ParserEndpoint>,
+    /// `OO_DOCS_OCR_URL` and `OO_DOCS_OCR_TOKEN_FILE`: the `ocr-parser` (scanned pdf, images, 10 17.1).
+    /// Needs the Docling parser, which probes the pdf and hands scanned ones over.
+    pub ocr: Option<ParserEndpoint>,
+    /// `OO_DOCS_MEDIA_URL` and `OO_DOCS_MEDIA_TOKEN_FILE`: the `media-parser` (audio, video, 17.1).
+    pub media: Option<MediaEndpoint>,
+}
+
+/// The `media-parser` endpoint and the `oo.docs/v1` `media.*` settings.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaEndpoint {
+    /// Sidecar address and token file.
+    pub endpoint: ParserEndpoint,
+    /// `media.external_ffmpeg`: absolute path of the customer's FFmpeg inside the sidecar (Linux, D65).
+    pub external_ffmpeg: Option<String>,
+}
+
+fn endpoint(
+    env: &dyn Fn(&str) -> Option<String>,
+    url_key: &'static str,
+    token_key: &'static str,
+) -> Result<Option<ParserEndpoint>, ConfigError> {
+    // An empty value means off (compose passes the keys through with an empty default).
+    let get = |k: &'static str| env(k).filter(|v| !v.is_empty());
+    match (get(url_key), get(token_key)) {
+        (Some(url), Some(file)) => {
+            let addr = url
+                .strip_prefix("http://")
+                .unwrap_or(&url)
+                .trim_end_matches('/')
+                .to_owned();
+            if addr.is_empty() || addr.contains('/') {
+                return Err(ConfigError::Invalid(
+                    url_key,
+                    "expected http://host:port".into(),
+                ));
+            }
+            Ok(Some(ParserEndpoint {
+                addr,
+                token_file: PathBuf::from(file),
+            }))
+        }
+        (None, None) => Ok(None),
+        (Some(_), None) => Err(ConfigError::Missing(token_key)),
+        (None, Some(_)) => Err(ConfigError::Missing(url_key)),
+    }
 }
 
 /// Where the sidecar is and the file holding its bearer token.
@@ -145,6 +190,23 @@ impl EngineConfig {
             (Some(_), None) => return Err(ConfigError::Missing("OO_DOCS_PARSER_TOKEN_FILE")),
             (None, Some(_)) => return Err(ConfigError::Missing("OO_DOCS_PARSER_URL")),
         };
+        let ocr = endpoint(env, "OO_DOCS_OCR_URL", "OO_DOCS_OCR_TOKEN_FILE")?;
+        if ocr.is_some() && parser.is_none() {
+            return Err(ConfigError::Missing("OO_DOCS_PARSER_URL"));
+        }
+        if ocr.is_some() {
+            ingest.parsers.insert(Format::Image);
+        }
+        let mut media_ep =
+            endpoint(env, "OO_DOCS_MEDIA_URL", "OO_DOCS_MEDIA_TOKEN_FILE")?.map(|endpoint| {
+                MediaEndpoint {
+                    endpoint,
+                    external_ffmpeg: None,
+                }
+            });
+        if media_ep.is_some() {
+            ingest.parsers.extend([Format::Audio, Format::Video]);
+        }
         let mut poll = PollConfig::default();
         let mut concurrency: HashMap<JobKind, usize> = HashMap::from([
             (JobKind::Sync, 1),
@@ -176,6 +238,17 @@ impl EngineConfig {
             if let Some(n) = doc["concurrency"]["hash"].as_u64() {
                 concurrency.insert(JobKind::Hash, (n as usize).clamp(1, 32));
             }
+            if let Some(m) = media_ep.as_mut()
+                && let Some(p) = doc["media"]["external_ffmpeg"].as_str()
+            {
+                if !p.starts_with('/') || p.contains('\0') {
+                    return Err(ConfigError::Invalid(
+                        "docs.json",
+                        "media.external_ffmpeg must be an absolute path".into(),
+                    ));
+                }
+                m.external_ffmpeg = Some(p.to_owned());
+            }
             if let Some(n) = doc["concurrency"]["media"].as_u64() {
                 concurrency.insert(
                     JobKind::ParseMedia,
@@ -194,6 +267,8 @@ impl EngineConfig {
             poll,
             concurrency,
             parser,
+            ocr,
+            media: media_ep,
         })
     }
 }
@@ -345,5 +420,72 @@ mod tests {
             EngineConfig::from_parts(&env, None),
             Err(ConfigError::Invalid("OO_DOCS_LISTEN", _))
         ));
+    }
+
+    #[test]
+    fn ocr_and_media_sidecars_admit_images_audio_and_video() {
+        use crate::ingest::sniff::Format;
+        let env_with = |extra: Vec<(&'static str, &'static str)>| {
+            let all: Vec<(&str, &str)> = BASE.iter().copied().chain(extra).collect();
+            move |k: &str| {
+                all.iter()
+                    .find(|(n, _)| *n == k)
+                    .map(|(_, v)| (*v).to_owned())
+            }
+        };
+        let c = EngineConfig::from_parts(&env_with(vec![]), None).unwrap();
+        assert!(c.ocr.is_none() && c.media.is_none());
+        assert!(!c.ingest.parsers.contains(&Format::Image));
+        assert!(!c.ingest.parsers.contains(&Format::Audio));
+        let parser = [
+            ("OO_DOCS_PARSER_URL", "http://doc-parser:7481"),
+            ("OO_DOCS_PARSER_TOKEN_FILE", "/run/p"),
+        ];
+        let c = EngineConfig::from_parts(
+            &env_with(
+                parser
+                    .into_iter()
+                    .chain([
+                        ("OO_DOCS_OCR_URL", "http://ocr-parser:7481"),
+                        ("OO_DOCS_OCR_TOKEN_FILE", "/run/o"),
+                        ("OO_DOCS_MEDIA_URL", "http://media-parser:7481"),
+                        ("OO_DOCS_MEDIA_TOKEN_FILE", "/run/m"),
+                    ])
+                    .collect(),
+            ),
+            Some(
+                r#"{"version":"oo.docs/v1","media":{"external_ffmpeg":"/opt/ffmpeg/bin/ffmpeg"}}"#,
+            ),
+        )
+        .unwrap();
+        assert_eq!(c.ocr.unwrap().addr, "ocr-parser:7481");
+        let m = c.media.unwrap();
+        assert_eq!(m.endpoint.addr, "media-parser:7481");
+        assert_eq!(m.external_ffmpeg.as_deref(), Some("/opt/ffmpeg/bin/ffmpeg"));
+        for f in [Format::Image, Format::Audio, Format::Video] {
+            assert!(c.ingest.parsers.contains(&f));
+        }
+        // The ocr-parser needs the Docling parser that probes the pdf.
+        assert!(
+            EngineConfig::from_parts(
+                &env_with(vec![
+                    ("OO_DOCS_OCR_URL", "http://ocr-parser:7481"),
+                    ("OO_DOCS_OCR_TOKEN_FILE", "/run/o"),
+                ]),
+                None
+            )
+            .is_err()
+        );
+        // A relative external FFmpeg path is refused.
+        assert!(
+            EngineConfig::from_parts(
+                &env_with(vec![
+                    ("OO_DOCS_MEDIA_URL", "http://media-parser:7481"),
+                    ("OO_DOCS_MEDIA_TOKEN_FILE", "/run/m"),
+                ]),
+                Some(r#"{"version":"oo.docs/v1","media":{"external_ffmpeg":"ffmpeg"}}"#),
+            )
+            .is_err()
+        );
     }
 }

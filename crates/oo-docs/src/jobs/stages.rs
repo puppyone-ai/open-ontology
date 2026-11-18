@@ -43,6 +43,7 @@ use crate::extract::rules::RULESET_VERSION;
 use crate::ingest::HashableSource as _;
 use crate::ingest::files::{self, Extra};
 use crate::ingest::{DriveRef, SourceFactory};
+use crate::parse::media::{MediaKind, MediaOptions};
 use crate::parse::sidecar::{self, SidecarClient, SidecarError};
 use crate::parse::{self, LOCAL_PARSER_VERSION};
 use crate::publish::run::{PublishConfig, PublishOutcome, publish};
@@ -254,6 +255,34 @@ pub struct ParseHandler<F: SourceFactory> {
     cas: Arc<Cas>,
     progress: Option<Bus>,
     sidecar: Option<Arc<SidecarClient>>,
+    media: Option<MediaRuntime>,
+}
+
+/// The `media-parser` client and its `oo.docs/v1` `media.*` settings (10 17.1, 17.2).
+#[derive(Clone)]
+pub struct MediaRuntime {
+    /// Client of the media sidecar.
+    pub client: Arc<SidecarClient>,
+    /// `media.external_ffmpeg` (Linux, D65).
+    pub external_ffmpeg: Option<String>,
+}
+
+/// Audio or video by sniffed format.
+fn media_kind(format: &str) -> Option<MediaKind> {
+    match format {
+        "audio" => Some(MediaKind::Audio),
+        "video" => Some(MediaKind::Video),
+        _ => None,
+    }
+}
+
+/// The job kind a parse of this sniffed format is queued as (D77: media has its own pool).
+pub fn parse_kind_of(format: &str) -> JobKind {
+    if media_kind(format).is_some() {
+        JobKind::ParseMedia
+    } else {
+        JobKind::Parse
+    }
 }
 
 /// Why a parse attempt stopped without an IR.
@@ -284,6 +313,8 @@ fn sidecar_format(format: &str) -> Option<DocFormat> {
         "pdf" => Some(DocFormat::Pdf),
         "docx" => Some(DocFormat::Docx),
         "pptx" => Some(DocFormat::Pptx),
+        // Standalone images go to the ocr-parser through the same client (10 17.6).
+        "image" => Some(DocFormat::Image),
         _ => None,
     }
 }
@@ -361,7 +392,20 @@ impl<F: SourceFactory> ParseHandler<F> {
             return Ok(hit);
         }
         let side = sidecar_format(&s.format);
-        if side.is_none() && !matches!(s.format.as_str(), "md" | "txt" | "csv" | "xlsx") {
+        let media = media_kind(&s.format);
+        if let Some(_kind) = media
+            && let Err(limit) =
+                crate::jobs::media_pool::check_size(u64::try_from(s.size).unwrap_or(0))
+        {
+            return Err(Halt::Park {
+                to: FileState::TooLarge,
+                code: limit.code(),
+            });
+        }
+        if side.is_none()
+            && media.is_none()
+            && !matches!(s.format.as_str(), "md" | "txt" | "csv" | "xlsx")
+        {
             return Err(Halt::Park {
                 to: FileState::Unsupported,
                 code: "DOCS_PARSE_UNSUPPORTED_FORMAT",
@@ -423,9 +467,10 @@ impl<F: SourceFactory> ParseHandler<F> {
         if let Some(ms) = crate::failpoints::sleep_ms("parse_window_mid", &s.b3) {
             tokio::time::sleep(Duration::from_millis(ms)).await;
         }
-        let normalized = match side {
-            Some(doc_format) => self.parse_sidecar(s, bytes, doc_format).await?,
-            None => self.parse_local(ctx, s, bytes).await?,
+        let normalized = match (side, media) {
+            (Some(doc_format), _) => self.parse_sidecar(s, bytes, doc_format).await?,
+            (None, Some(kind)) => self.parse_media(ctx, s, bytes, kind).await?,
+            (None, None) => self.parse_local(ctx, s, bytes).await?,
         };
         let n = normalized;
         let put = self
@@ -537,6 +582,93 @@ impl<F: SourceFactory> ParseHandler<F> {
             Ok(Ok(n)) => Ok(n),
             Ok(Err(e)) => Err(sidecar_halt(&e)),
         }
+    }
+
+    /// The client a format is parsed through.
+    fn client_for(&self, format: &str) -> Option<Arc<SidecarClient>> {
+        if media_kind(format).is_some() {
+            self.media.as_ref().map(|m| m.client.clone())
+        } else {
+            self.sidecar.clone()
+        }
+    }
+
+    /// Audio and video: through the media-parser as a long task, progress in milliseconds of the source
+    /// timeline, cancelled with the job (10 17.1, 17.3).
+    async fn parse_media(
+        &self,
+        ctx: &JobCtx,
+        s: &Subject,
+        bytes: Vec<u8>,
+        kind: MediaKind,
+    ) -> Result<crate::normalize::Normalized, Halt> {
+        let Some(rt) = self.media.clone() else {
+            return Err(Halt::Park {
+                to: FileState::Unsupported,
+                code: "DOCS_PARSE_UNSUPPORTED_FORMAT",
+            });
+        };
+        if blake3::hash(&bytes).to_hex().as_str() != s.b3 {
+            return Err(Outcome::failed(
+                FailureClass::Transient,
+                "DOCS_SOURCE_CHANGED_DURING_READ",
+            )
+            .into());
+        }
+        let opts = MediaOptions {
+            hotwords: self.hotwords().await,
+            external_ffmpeg: rt.external_ffmpeg.clone(),
+            host_decode_dir: None,
+            num_speakers: None,
+        };
+        let handle = tokio::runtime::Handle::current();
+        let pool = self.pool.clone();
+        let bus = self.progress.clone();
+        let (file_id, drive_id) = (s.file_id.clone(), s.drive_id.clone());
+        let stop = ctx.cancel_flag_arc();
+        let done = tokio::task::spawn_blocking(move || {
+            rt.client.parse_media(
+                &bytes,
+                kind,
+                &opts,
+                Duration::from_secs(2),
+                &mut |p: crate::parse::media::MediaProgress| {
+                    if p.total_ms > 0 {
+                        handle.block_on(report_progress(
+                            &pool,
+                            bus.as_ref(),
+                            &file_id,
+                            &drive_id,
+                            "ms",
+                            i64::try_from(p.done_ms).unwrap_or(i64::MAX),
+                            i64::try_from(p.total_ms).ok(),
+                        ));
+                    }
+                    !stop.load(std::sync::atomic::Ordering::Relaxed)
+                },
+            )
+        })
+        .await;
+        match done {
+            Err(_) => Err(Outcome::failed(FailureClass::Crash, "DOCS_PARSE_CRASH").into()),
+            Ok(Ok(n)) => Ok(n),
+            Ok(Err(e)) => Err(sidecar_halt(&e)),
+        }
+    }
+
+    /// Entity names and aliases of this Drive that are already published: they bias recognition only and are
+    /// never written to a Pack (17.3).
+    async fn hotwords(&self) -> Vec<String> {
+        sqlx::query_scalar(
+            "SELECT DISTINCT n FROM (SELECT e.canonical_name AS n FROM _oo_docs.entity e \
+                                       WHERE e.status = 'active' AND e.type <> 'Document' \
+                                     UNION ALL SELECT a.alias FROM _oo_docs.alias a \
+                                       WHERE a.status = 'published') x \
+              WHERE char_length(n) BETWEEN 2 AND 32 ORDER BY n LIMIT 200",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
     }
 
     /// The `file.progress` event and the `progress` column: the unit is the
@@ -812,9 +944,9 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 return Outcome::Cancelled;
             }
             // A sidecar format waits in `queued` while the sidecar is down.
-            if sidecar_format(&s.format).is_some()
+            if (sidecar_format(&s.format).is_some() || media_kind(&s.format).is_some())
                 && s.state == FileState::Queued
-                && let Some(client) = self.sidecar.clone()
+                && let Some(client) = self.client_for(&s.format)
                 && cached_parse(&self.pool, &s.b3)
                     .await
                     .ok()
@@ -845,7 +977,7 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 return db_fail(e);
             }
             s.state = FileState::Parsing;
-            if sidecar_format(&s.format).is_some() {
+            if sidecar_format(&s.format).is_some() || media_kind(&s.format).is_some() {
                 set_blocked_clear(&self.pool, &s.file_id).await;
             }
             let done = match self.parse(&ctx, &s).await {
@@ -1201,17 +1333,33 @@ pub fn handlers_with_sidecar<F: SourceFactory>(
     progress: Option<Bus>,
     sidecar: Option<Arc<SidecarClient>>,
 ) -> HashMap<JobKind, Arc<dyn JobHandler>> {
+    handlers_with_media(pool, factory, cas, progress, sidecar, None)
+}
+
+/// [`handlers_with_sidecar`] plus the media-parser: `parse_media` jobs (own pool, D77) are handled by a
+/// second parse handler, so a recording that parses for hours never holds a document slot.
+pub fn handlers_with_media<F: SourceFactory>(
+    pool: &PgPool,
+    factory: Arc<F>,
+    cas: Arc<Cas>,
+    progress: Option<Bus>,
+    sidecar: Option<Arc<SidecarClient>>,
+    media: Option<MediaRuntime>,
+) -> HashMap<JobKind, Arc<dyn JobHandler>> {
     let mut map: HashMap<JobKind, Arc<dyn JobHandler>> = HashMap::new();
-    map.insert(
-        JobKind::Parse,
-        Arc::new(Contended(ParseHandler {
-            pool: pool.clone(),
-            factory,
-            cas: cas.clone(),
-            progress,
-            sidecar,
-        })),
-    );
+    for kind in [JobKind::Parse, JobKind::ParseMedia] {
+        map.insert(
+            kind,
+            Arc::new(Contended(ParseHandler {
+                pool: pool.clone(),
+                factory: factory.clone(),
+                cas: cas.clone(),
+                progress: progress.clone(),
+                sidecar: sidecar.clone(),
+                media: media.clone(),
+            })),
+        );
+    }
     map.insert(
         JobKind::ExtractRules,
         Arc::new(Contended(ExtractHandler {
@@ -1233,6 +1381,10 @@ pub fn handlers_with_sidecar<F: SourceFactory>(
 pub fn default_concurrency() -> HashMap<JobKind, usize> {
     HashMap::from([
         (JobKind::Parse, 4),
+        (
+            JobKind::ParseMedia,
+            crate::jobs::media_pool::DEFAULT_MEDIA_SLOTS,
+        ),
         (JobKind::ExtractRules, 2),
         (JobKind::Publish, 1),
     ])
@@ -1311,28 +1463,28 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
     // queued / parsing / outdated -> parse. A blob whose parse was
     // quarantined fails every path that carries it, until a parse of that
     // content has succeeded (4.1.6).
-    let rows: Vec<(String, String, String, String, bool, bool, String)> = sqlx::query_as(
+    let rows: Vec<(String, String, String, String, bool, bool, String, Option<String>)> = sqlx::query_as(
         "SELECT f.id::text, f.current_version_id::text, f.drive_id::text, fv.b3, \
-                EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
+                EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                           AND j.version_id = f.current_version_id \
                           AND j.state IN ('failed', 'quarantined') AND j.updated_at >= f.state_since), \
                 (EXISTS (SELECT 1 FROM _oo_docs.job j \
                            JOIN _oo_docs.file_version qv ON qv.id = j.version_id \
-                          WHERE j.kind = 'parse' AND j.state = 'quarantined' AND qv.b3 = fv.b3) \
+                          WHERE j.kind IN ('parse', 'parse_media') AND j.state = 'quarantined' AND qv.b3 = fv.b3) \
                  AND NOT EXISTS (SELECT 1 FROM _oo_docs.parse_result p \
                                   WHERE p.b3 = fv.b3 AND p.status = 'complete' \
                                     AND p.ir_b3 IS NOT NULL)), \
-                f.state \
+                f.state, (SELECT bl.format FROM _oo_docs.blob bl WHERE bl.b3 = fv.b3) \
            FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
           WHERE f.state IN ('queued', 'parsing', 'outdated') AND f.deleted_at IS NULL \
-            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id AND j.state IN ('queued', 'running')) \
           ORDER BY f.state_since, f.id LIMIT $1",
     )
     .bind(PUMP_BATCH)
     .fetch_all(&mut *conn)
     .await?;
-    for (file_id, version_id, drive_id, b3, failed, inherited, state) in rows {
+    for (file_id, version_id, drive_id, b3, failed, inherited, state, format) in rows {
         if failed {
             fail_file(pool, &file_id, &version_id, FileState::ParseFailed, None).await;
             continue;
@@ -1350,7 +1502,7 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
         };
         if enqueue_stage(
             &mut conn,
-            JobKind::Parse,
+            parse_kind_of(format.as_deref().unwrap_or("")),
             &key,
             &drive_id,
             &file_id,
@@ -1539,7 +1691,7 @@ async fn fail_file(
 ) {
     let last: Option<(Option<String>, String)> = sqlx::query_as(
         "SELECT last_error, state FROM _oo_docs.job \
-          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'extract_rules') \
+          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'parse_media', 'extract_rules') \
             AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
     )
     .bind(file_id)
@@ -1653,7 +1805,7 @@ async fn requeue_retrying(pool: &PgPool) {
     let rows: Vec<(String, String, String, i32)> = sqlx::query_as(
         "SELECT f.id::text, f.current_version_id::text, j.last_error, j.attempt \
            FROM _oo_docs.file f \
-           JOIN _oo_docs.job j ON j.kind = 'parse' AND j.file_id = f.id \
+           JOIN _oo_docs.job j ON j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id \
           WHERE f.state = 'parsing' AND f.deleted_at IS NULL \
             AND j.state = 'queued' AND j.attempt > 0 AND j.last_error IS NOT NULL \
@@ -1796,7 +1948,13 @@ pub async fn retry_file(
             .fetch_one(&mut *tx)
             .await?;
     let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}#m{stamp}");
-    let mut job = NewJob::new(JobKind::Parse, &key);
+    let format: Option<String> =
+        sqlx::query_scalar("SELECT format FROM _oo_docs.blob WHERE b3 = $1")
+            .bind(&b3)
+            .fetch_optional(&mut *tx)
+            .await?
+            .flatten();
+    let mut job = NewJob::new(parse_kind_of(format.as_deref().unwrap_or("")), &key);
     job.drive_id = Some(&drive_id);
     job.file_id = Some(file_id);
     job.version_id = Some(&version_id);

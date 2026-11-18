@@ -165,30 +165,67 @@ async fn run() -> ExitCode {
     let mut sched_cfg = SchedulerConfig::new(&worker_id);
     sched_cfg.concurrency = stages::default_concurrency();
     sched_cfg.concurrency.extend(cfg.concurrency.clone());
+    let read_token = |file: &std::path::Path| -> Option<String> {
+        match std::fs::read_to_string(file) {
+            Ok(t) if t.trim().len() >= 16 => Some(t.trim().to_owned()),
+            _ => None,
+        }
+    };
+    use oo_docs::parse::sidecar::{SidecarClient, SidecarConfig};
     let sidecar = match &cfg.parser {
-        Some(ep) => match std::fs::read_to_string(&ep.token_file) {
-            Ok(t) if t.trim().len() >= 16 => {
-                Some(Arc::new(oo_docs::parse::sidecar::SidecarClient::new(
-                    oo_docs::parse::sidecar::SidecarConfig::new(ep.addr.clone(), t.trim()),
-                )))
-            }
-            _ => {
+        Some(ep) => {
+            let Some(token) = read_token(&ep.token_file) else {
                 return fail(
                     2,
                     "config.parser_token_unreadable",
                     "parser token file missing or too short",
                 );
+            };
+            let mut client = SidecarClient::new(SidecarConfig::new(ep.addr.clone(), token));
+            // Scanned pdf and standalone images go to the ocr-parser (10 17.1, 17.6).
+            if let Some(ocr) = &cfg.ocr {
+                let Some(otoken) = read_token(&ocr.token_file) else {
+                    return fail(
+                        2,
+                        "config.ocr_token_unreadable",
+                        "ocr token file missing or too short",
+                    );
+                };
+                client = client.with_ocr(SidecarClient::new(
+                    SidecarConfig::new(ocr.addr.clone(), otoken).for_ocr(),
+                ));
             }
-        },
+            Some(Arc::new(client))
+        }
+        None => None,
+    };
+    let media = match &cfg.media {
+        Some(m) => {
+            let Some(token) = read_token(&m.endpoint.token_file) else {
+                return fail(
+                    2,
+                    "config.media_token_unreadable",
+                    "media token file missing or too short",
+                );
+            };
+            Some(stages::MediaRuntime {
+                client: Arc::new(SidecarClient::new(SidecarConfig::new(
+                    m.endpoint.addr.clone(),
+                    token,
+                ))),
+                external_ffmpeg: m.external_ffmpeg.clone(),
+            })
+        }
         None => None,
     };
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
-    handlers.extend(stages::handlers_with_sidecar(
+    handlers.extend(stages::handlers_with_media(
         &pool,
         Arc::new(AnyFactory::from_env()),
         cas,
         Some(progress),
         sidecar,
+        media,
     ));
     // Low disk pauses hashing, parsing and extraction (4.12, G7).
     oo_docs::obs::disk::guard_handlers(
@@ -197,6 +234,7 @@ async fn run() -> ExitCode {
         &[
             oo_docs::jobs::JobKind::Hash,
             oo_docs::jobs::JobKind::Parse,
+            oo_docs::jobs::JobKind::ParseMedia,
             oo_docs::jobs::JobKind::ExtractRules,
         ],
     );
