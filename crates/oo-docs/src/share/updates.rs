@@ -65,6 +65,13 @@ pub fn text(summary_key: &str, args: &Value) -> String {
             }
         }
         "constraint_conflict" => format!("{}{tail} 出现互相矛盾的取值，冲突未决。", list("labels")),
+        "suggestion_accepted" => {
+            let new = list("labels");
+            format!(
+                "一条建议已被接受，您用过的事实有了新的说法{}{new}。",
+                if new.is_empty() { "" } else { "：" }
+            )
+        }
         "new_facts" => format!("范围内出现了 {count} 条新事实，不影响已用事实。"),
         _ => summary_key.to_owned(),
     }
