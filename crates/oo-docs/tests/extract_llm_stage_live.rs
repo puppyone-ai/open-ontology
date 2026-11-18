@@ -398,3 +398,56 @@ async fn the_model_configuration_takes_references_and_never_a_key() {
     e.finish().await;
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_file_whose_only_facts_wait_for_a_person_is_still_published() {
+    // The rules find nothing in this file; the model's two facts are held for
+    // review (a new entity pair lands under the threshold). The file must not
+    // stay `indexed` for ever: pending_review counts them (10 4.2).
+    let reply = json!({
+        "entities": [
+            {"id": "e1", "type": "Person", "name": "韩立", "block_id": "{{BLOCK:韩立}}", "quote": "韩立负责灯塔", "confidence": "medium"},
+            {"id": "e2", "type": "Project", "name": "灯塔", "block_id": "{{BLOCK:韩立}}", "quote": "灯塔", "confidence": "medium"}],
+        "relations": [
+            {"subject": "e1", "predicate": "owns", "object": "e2", "block_id": "{{BLOCK:韩立}}", "quote": "韩立负责灯塔", "confidence": "medium"}]
+    });
+    let port = Arc::new(Scripted {
+        rules: vec![("韩立", Some(reply.to_string()))],
+        calls: AtomicUsize::new(0),
+    });
+    let e = TestEngine::start("stage_llm_held", engine_opts(port.clone())).await;
+    e.write("note.txt", "韩立负责灯塔。\n");
+    let drive = e.create_drive("llm-held").await;
+    enable_model(&e, &drive).await;
+    e.until("published", || async {
+        state_of(&e, "note.txt").await == "published"
+    })
+    .await;
+    assert_eq!(
+        count(
+            &e,
+            "SELECT count(*) FROM _oo_docs.fact WHERE origin = 'rule'"
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        count(
+            &e,
+            "SELECT count(*) FROM _oo_docs.fact WHERE origin = 'llm' AND status = 'draft'"
+        )
+        .await,
+        1
+    );
+    assert!(
+        count(
+            &e,
+            "SELECT count(*) FROM _oo_docs.review_item WHERE status = 'pending'"
+        )
+        .await
+            >= 1,
+        "the held fact waits for a person"
+    );
+    e.finish().await;
+}

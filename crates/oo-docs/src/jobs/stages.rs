@@ -1304,7 +1304,8 @@ impl PublishHandler {
     async fn promote(&self, n: Option<i64>) -> Result<u32, TransitionError> {
         // `extract_partial` after a failed model batch publishes like `indexed`
         // (the batches that worked stand); one from a failed rules job has no
-        // drafts and stays where it is.
+        // drafts and stays where it is. A draft that waits for a person in the
+        // review queue does not hold the file back (`pending_review` counts it, 4.2).
         let rows: Vec<(String, String, String)> = sqlx::query_as(
             "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
@@ -1315,7 +1316,10 @@ impl PublishHandler {
                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
                                   JOIN _oo_docs.fact ft ON ft.id = e.target_id \
                                  WHERE e.target_kind = 'fact' AND e.version_id = fv.id \
-                                   AND e.withdrawn_at IS NULL AND ft.status = 'draft') \
+                                   AND e.withdrawn_at IS NULL AND ft.status = 'draft' \
+                                   AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
+                                                    WHERE r.status = 'pending' \
+                                                      AND r.subject->>'fact_id' = ft.id::text)) \
                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
                                   JOIN _oo_docs.alias a ON a.id = e.target_id \
                                  WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
