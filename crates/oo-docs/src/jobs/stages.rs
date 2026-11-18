@@ -1035,7 +1035,10 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 sqlx::query(
                     "INSERT INTO _oo_docs.parse_result \
                        (b3, parser_id, parser_version, profile_sha256, status, ir_b3, block_count, finished_at) \
-                     VALUES ($1, $2, $3, $4, 'complete', $5, $6, clock_timestamp()) ON CONFLICT DO NOTHING",
+                     VALUES ($1, $2, $3, $4, 'complete', $5, $6, clock_timestamp()) \
+                     ON CONFLICT (b3, parser_id, parser_version, profile_sha256) DO UPDATE \
+                        SET status = 'complete', ir_b3 = EXCLUDED.ir_b3, block_count = EXCLUDED.block_count, \
+                            error_code = NULL, finished_at = clock_timestamp()",
                 )
                 .bind(&s.b3)
                 .bind(&done.parser_id)
@@ -2072,6 +2075,55 @@ pub async fn mark_outdated_versions(
                 version_id: Some(&version_id),
                 attempt: None,
                 detail_json: None,
+            },
+        )
+        .await
+        {
+            Ok(_) => n += 1,
+            Err(TransitionError::Store(e)) => return Err(e),
+            Err(_) => {}
+        }
+    }
+    Ok(n)
+}
+
+/// The manual full rebuild of one Drive (`POST /drives/{id}:rebuild`, D23): the stored parse results of its files
+/// are set aside and every file that has a result becomes `outdated`. The pump then reprocesses them at priority
+/// 900, two at a time; each new extraction goes through DOC-G10, and the old facts stay valid until then. Returns
+/// how many files were marked.
+pub async fn rebuild_drive(pool: &PgPool, drive_id: &str) -> Result<u32, crate::store::StoreError> {
+    sqlx::query(
+        "UPDATE _oo_docs.parse_result p SET status = 'failed', error_code = 'DOCS_REBUILD_SET_ASIDE' \
+          WHERE p.status = 'complete' AND p.b3 IN (SELECT fv.b3 FROM _oo_docs.file f \
+                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+               WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL)",
+    )
+    .bind(drive_id)
+    .execute(pool)
+    .await?;
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text FROM _oo_docs.file f \
+          WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND f.current_version_id IS NOT NULL \
+            AND f.state IN ('published', 'extract_partial', 'parse_failed', 'unsupported', 'indexed') \
+          ORDER BY f.id",
+    )
+    .bind(drive_id)
+    .fetch_all(pool)
+    .await?;
+    let mut n = 0;
+    for (file_id, version_id) in rows {
+        // `indexed` is not yet `published`: it reaches `outdated` through the table's own edge.
+        match state::transition(
+            pool,
+            &Transition {
+                file_id: &file_id,
+                expect_from: None,
+                to: FileState::Outdated,
+                code: None,
+                retryable: false,
+                version_id: Some(&version_id),
+                attempt: None,
+                detail_json: Some("{\"reason\":\"rebuild\"}"),
             },
         )
         .await
