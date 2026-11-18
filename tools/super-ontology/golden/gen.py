@@ -295,9 +295,18 @@ def write(files, out):
         p.write_bytes(data)
 
 
+# Not produced by this generator: `media/` holds the script and the timings of the synthetic 3 person meeting that the
+# ASR and diarization bake-off (B-S10-06, tools/media-parser) writes. The generator neither writes nor judges it.
+NOT_GENERATED = ("media/",)
+
+
 def disk_files(root):
     root = Path(root)
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    return {
+        str(p.relative_to(root)): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file() and not str(p.relative_to(root)).startswith(NOT_GENERATED)
+    }
 
 
 def main(argv=None):

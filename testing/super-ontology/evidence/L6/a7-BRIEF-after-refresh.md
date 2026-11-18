@@ -4,8 +4,8 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "1b1b0882bb5e36674b67a49355b1e1389fa95aaa55cd1fc1cc40ee924eb8a522/BRIEF.md"
-  ReservedCode1: "1b1b0882bb5e36674b67a49355b1e1389fa95aaa55cd1fc1cc40ee924eb8a522"
+  ProduceID: "46f617c7b499e80f7020d0cf5ae049215ef821f01962a33edfb4d7e7baa80dfc/BRIEF.md"
+  ReservedCode1: "46f617c7b499e80f7020d0cf5ae049215ef821f01962a33edfb4d7e7baa80dfc"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
@@ -17,7 +17,7 @@ AIGC:
 > 覆盖：1/1 个文件已处理
 > 一致性承诺：包内一致 是 · 新鲜度下界 是 · 变更必达 是 · 并行同源 是 · 本体无矛盾 是
 
-## 自上次以来的变化（v5 → v6）
+## 自上次以来的变化（v4 → v6）
 - 改值：星火计划：状态为 进行中 → 星火计划：状态为 已暂停 [src:Projects/星火计划.md#L10-L10]
 
 ## 你在做什么
@@ -41,7 +41,7 @@ AIGC:
 （无）
 
 ## 已拦截
-另有 10 条事实、6 个实体因不在共享范围内未纳入。
+另有 14 条事实、7 个实体因不在共享范围内未纳入。
 
 ## 裁掉了什么
 没有内容被裁掉。

@@ -105,6 +105,46 @@ pub async fn propose(
     Ok(added)
 }
 
+/// A recording that is extracted again (a parser bump, a prompt cycle) gets a fresh placeholder Person
+/// for every label, because the one that was merged is gone. A label a person has already confirmed
+/// (overlay `speaker_map`) must not fall back to a placeholder: merge the new placeholder into the
+/// mapped Person at once, so the statements are judged like any other draft and the file is not held
+/// back by speakers that nobody has to decide again. Returns how many placeholders were merged.
+pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32, StoreError> {
+    let mut merged = 0;
+    for spk in media::speakers(ir) {
+        let mapped: Option<String> = sqlx::query_scalar(
+            "SELECT payload->>'entity_key' FROM _oo_docs.overlay_current \
+              WHERE kind = 'speaker_map' AND binds = $1 AND status = 'active' LIMIT 1",
+        )
+        .bind(binds(&ir.blob_b3, &spk))
+        .fetch_optional(&mut *conn)
+        .await?
+        .flatten();
+        let Some(person_key) = mapped else { continue };
+        let placeholder: Option<String> = sqlx::query_scalar(
+            "SELECT key FROM _oo_docs.entity WHERE type = 'Person' AND canonical_name = $1 AND status = 'active'",
+        )
+        .bind(media::placeholder_name(&ir.blob_b3, &spk))
+        .fetch_optional(&mut *conn)
+        .await?;
+        let Some(from) = placeholder.filter(|f| *f != person_key) else {
+            continue;
+        };
+        let mut sp = conn.begin().await?;
+        match merge_entities(&mut sp, &from, &person_key, "human", None).await {
+            Ok(_) => {
+                sp.commit().await?;
+                merged += 1;
+            }
+            Err(MergeError::Store(e)) => return Err(e),
+            // An identity conflict: the statements stay held and a person looks.
+            Err(_) => sp.rollback().await?,
+        }
+    }
+    Ok(merged)
+}
+
 /// Result of a confirmation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Confirmed {

@@ -139,6 +139,10 @@ def main(argv=None):
     work = Path(tempfile.mkdtemp(prefix=f"oo-l6e2e-{a.run_id}-", dir="/tmp"))
     state, drive_root = work / "state", work / "drive"
     state.mkdir(mode=0o700)
+    # The fs poll is 30 s by default; the edit-to-BRIEF bound of A10 (30 s) is a bound on the work after the
+    # edit is seen, as in L2 (which also polls every 5 s). B-L6rem: 38 s of the first 40.8 s were the poll.
+    (state / "engine").mkdir(mode=0o700)
+    (state / "engine/docs.json").write_text(json.dumps({"version": "oo.docs/v1", "sync": {"fs_poll_seconds": 5}}))
     serve = None
     try:
         if not a.skip_build:
@@ -294,6 +298,13 @@ def main(argv=None):
         el = time.time() - t_edit
         lat = psql("SELECT round(extract(epoch FROM (max(at) FILTER (WHERE to_state = 'published') - min(at)))::numeric, 2) FROM _oo_docs.file_state_history "
                    "WHERE file_id = (SELECT id FROM _oo_docs.file WHERE path = 'Projects/星火计划.md') AND at > to_timestamp(%f) - interval '1 second'" % t_edit)
+        # Where the seconds went: the jobs and the file's states after the edit, relative to the edit (seconds).
+        tl = psql("SELECT round(extract(epoch FROM (created_at - to_timestamp(%f)))::numeric, 2) || 's ' || kind || ' ' || state || ' run_at +' || "
+                  "round(extract(epoch FROM (run_at - to_timestamp(%f)))::numeric, 2) || 's done +' || round(extract(epoch FROM (updated_at - to_timestamp(%f)))::numeric, 2) || 's' "
+                  "FROM _oo_docs.job WHERE created_at > to_timestamp(%f) - interval '1 second' AND kind <> 'parse_media' ORDER BY created_at LIMIT 30" % (t_edit, t_edit, t_edit, t_edit))
+        ev.write("a10-timeline.txt", f"edit at t0; job rows created after it:\n{tl}\n\nfile states of the edited file:\n" + psql(
+            "SELECT round(extract(epoch FROM (at - to_timestamp(%f)))::numeric, 2) || 's ' || to_state FROM _oo_docs.file_state_history "
+            "WHERE file_id = (SELECT id FROM _oo_docs.file WHERE path = 'Projects/星火计划.md') AND at > to_timestamp(%f) - interval '1 second' ORDER BY at" % (t_edit, t_edit)) + "\n")
         ev.timings["a10_edit_to_brief_seconds"] = round(el, 2)
         ev.timings["a10_detected_to_published_seconds"] = float(lat) if lat else None
         ev.check("A10 a media job was queued or running when the edit was made", started is not None and seen["media"] >= 1, f"{media_at_edit} at the edit, max {seen['media']}")
