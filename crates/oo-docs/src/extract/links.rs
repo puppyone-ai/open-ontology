@@ -108,15 +108,60 @@ struct Form {
     trusted: bool,
 }
 
+/// How a person is also called in running text, derived from the names the Drive
+/// holds: the given name of a Latin full name (`Kevin` for `Kevin Wu`) and the
+/// two-character given name of a three-character Han name (`雨桐` for `郑雨桐`).
+/// Only a name that no other entity claims links (see [`forms`]).
+fn given_names(e: &LexEntry) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut full: Vec<&str> = vec![e.name.as_str()];
+    full.extend(
+        e.aliases
+            .iter()
+            .filter(|(_, bp)| *bp >= MIN_ALIAS_BP)
+            .map(|(a, _)| a.as_str()),
+    );
+    for name in full {
+        let words: Vec<&str> = name.split_whitespace().collect();
+        let latin = !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphabetic() || c.is_whitespace() || c == '-');
+        if latin && words.len() >= 2 && words[0].chars().count() >= 3 {
+            out.push(norm(words[0]));
+        }
+        let han: Vec<char> = name.chars().collect();
+        if han.len() == 3 && han.iter().all(|c| ('\u{4e00}'..='\u{9fff}').contains(c)) {
+            out.push(norm(&han[1..].iter().collect::<String>()));
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 fn forms(lex: &[LexEntry]) -> Vec<Form> {
     // Names that more than one entry claims are ambiguous.
     let mut owners: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
+    let derived: Vec<Vec<String>> = lex
+        .iter()
+        .map(|e| {
+            if e.ty == EntityType::Person {
+                given_names(e)
+            } else {
+                Vec::new()
+            }
+        })
+        .collect();
     for (i, e) in lex.iter().enumerate() {
         owners.entry(norm(&e.name)).or_default().insert(i);
         for (a, bp) in &e.aliases {
             if *bp >= MIN_ALIAS_BP {
                 owners.entry(norm(a)).or_default().insert(i);
             }
+        }
+        for d in &derived[i] {
+            owners.entry(d.clone()).or_default().insert(i);
         }
     }
     let mut out = Vec::new();
@@ -129,6 +174,9 @@ fn forms(lex: &[LexEntry]) -> Vec<Form> {
             if *bp >= MIN_ALIAS_BP {
                 names.push((norm(a), false));
             }
+        }
+        for d in &derived[i] {
+            names.push((d.clone(), false));
         }
         names.sort();
         names.dedup_by(|a, b| a.0 == b.0);
@@ -263,6 +311,9 @@ mod tests {
                 "林远舟",
                 &[("老林", 9000), ("远", 9000)],
             ),
+            e(EntityType::Person, "吴启明", &[("Kevin Wu", 9000)]),
+            e(EntityType::Person, "韩立", &[("Leo Han", 9000)]),
+            e(EntityType::Person, "韩雪", &[("Leo Hu", 9000)]),
             e(EntityType::Project, "星图看板", &[]),
             e(EntityType::Topic, "周报", &[]),
             e(EntityType::Organization, "AI", &[]),
@@ -372,5 +423,34 @@ mod tests {
         );
         let y = run("# 记录\n\n星图看板。\n", "Notes/速记.md");
         assert!(y.hints.iter().all(|h| h.valid_from.is_none()));
+    }
+
+    #[test]
+    fn a_person_is_also_called_by_the_given_name_of_a_full_name() {
+        let x = run(
+            "# 记录\n\nKevin 完成了，启明说可以。远舟也同意。\n",
+            "Notes/h.md",
+        );
+        let names: Vec<&str> = x
+            .hints
+            .iter()
+            .filter(|h| h.predicate == Predicate::Mentions)
+            .map(|h| h.target_name.as_str())
+            .collect();
+        assert!(names.contains(&"吴启明"), "{names:?}");
+        assert!(
+            names.contains(&"林远舟"),
+            "the two-character given name of a Han name: {names:?}"
+        );
+        // `Leo` is the given name of two people: no link.
+        let y = run("# 记录\n\nLeo 来了。\n", "Notes/i.md");
+        assert!(
+            y.hints
+                .iter()
+                .all(|h| h.target_name != "韩立" && h.target_name != "韩雪")
+        );
+        // A two-character name has no given-name form.
+        let z = run("# 记录\n\n立来了。\n", "Notes/j.md");
+        assert!(z.hints.iter().all(|h| h.target_name != "韩立"));
     }
 }
