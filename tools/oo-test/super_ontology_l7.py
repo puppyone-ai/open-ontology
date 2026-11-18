@@ -10,7 +10,8 @@ over the same files), the real `oo` CLI and the real cargo test suites. What is 
 * no real OSS, COS or R2 bucket and no account may be created: B-S11-01 is proved against look-alike stores
   (the in-process cloud look-alike of `cloud_mimic.rs`); the real bucket test `cloud_live.rs` (ignored) is ready for
   the owner and is only built here;
-* the event source is the request body of `POST /drives/{id}:events` (a local queue stand-in);
+* the event source is the request body of `POST /drives/{id}:events` (a local queue stand-in); the pull adapters for
+  SQS, Cloudflare Queues and Alibaba MNS run against local fakes only, and the COS event format comes from fixtures;
 * the Agent DB of B-S11-04 is a second database with a `customers` table.
 
 Parts: (1) look-alike clouds, compat table, events, projection and audit suites; (2) two engines, policy through
@@ -34,7 +35,7 @@ sys.path.insert(0, str(HERE))
 import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
-LANE = "oo.lane=super-ontology-be2"
+LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be2")
 
 DRIVE_FILES = {
     "Projects/星火计划.md": "---\ntype: project\nname: 星火计划\nowner: 林川\n---\n# 星火计划\n\n负责人：林川\n\n状态：进行中\n",
@@ -187,10 +188,19 @@ def main(argv=None):
         ev.check("S11-01 oss, cos and r2 against look-alike stores, the compat table, and the s3 mock suite", ok, f"{n} passed, {f} failed")
         ok, n, f, _ = cargo(ev, ["test", "-p", "oo-connectors", "--features", "objectstore-s3", "--locked", "--lib", "events"])
         ev.check("S11-02 events: duplicates, out of order delivery, sequencer order, formats of S3, R2, OSS", ok, f"{n} passed, {f} failed")
+        ok, n, f, _ = cargo(ev, ["test", "-p", "oo-connectors", "--features", "objectstore-s3", "--locked", "--lib", "events::adapter_tests"])
+        ev.check("S11-02 pull adapters for SQS, Cloudflare Queues and Alibaba MNS against local fakes and a local socket (SigV4 vectors, ack after handling, redelivery absorbed)", ok and n >= 12, f"{n} passed, {f} failed")
+        ok, n, f, _ = cargo(ev, ["test", "-p", "oo-connectors", "--features", "objectstore-s3", "--locked", "--lib", "events::parse"])
+        ev.check("S11-02 event formats of S3, R2, OSS and COS (COS from fixtures: public documentation, unconfirmed against a real bucket)", ok and n >= 5, f"{n} passed, {f} failed")
+        ok, n, f, _ = cargo(ev, ["test", "-p", "oo-connectors", "--features", "objectstore-s3", "--locked", "--lib", "objectstore_fs_scopes"])
+        ev.check("S11-03 first level scopes of the fs backend partition the listing", ok and n >= 2, f"{n} passed, {f} failed")
+        ok, n, f, _ = cargo(ev, ["test", "-p", "oo-docs", "--locked", "--lib", "scope_tests"])
+        ev.check("S11-03 bounded parallel listing: at most N scopes in flight, every result returned", ok and n >= 2, f"{n} passed, {f} failed")
         ok, n, f, _ = cargo(ev, ["test", "-p", "oo-connectors", "--features", "objectstore-s3", "--locked", "--test", "cloud_live", "--no-run"])
         ev.check("S11-01 the real bucket test (cloud_live, ignored, secret_ref only) builds and is ready for the owner", ok or "Finished" in _ or "Executable" in _, "built, not run: no real bucket")
         pgenv = {"OO_DOCS_TEST_PG_PORT": str(pg.port), "OO_L7_EVIDENCE_DIR": str(ev.out)}
         suites = [("S11-03 policy in ingest and the visible graph", "policy_live"),
+                  ("S11-03 parallel listing per first level prefix: own generation per prefix, a failed prefix is not swept and does not hold the others", "prefix_sync"),
                   ("S11-02 events over HTTP", "events_live"),
                   ("S11-04 projection and links to database rows", "projection_live"),
                   ("S12-01 cloud tokens, cloud entry and audit", "audit")]
