@@ -10,7 +10,12 @@ use std::time::{Duration, Instant};
 
 use oo_docs::parse::sidecar::{SidecarClient, SidecarConfig};
 
-pub const LANE: &str = "super-ontology-be2";
+/// The lane label of the containers: `OO_TEST_LANE` (as the L2 and L4 scripts), else the old default.
+pub fn lane() -> String {
+    std::env::var("OO_TEST_LANE").unwrap_or_else(|_| "super-ontology-be2".into())
+}
+
+static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 pub fn testing_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testing/super-ontology")
@@ -76,9 +81,15 @@ impl Sidecar {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .subsec_nanos();
-        let name = format!("oo-be2-sidecar-{}-{nanos}", std::process::id());
+        let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let lane = lane();
+        let name = format!(
+            "oo-{}-sidecar-{}-{seq}-{nanos}",
+            lane.trim_start_matches("super-ontology-"),
+            std::process::id()
+        );
         let token = format!("test-token-{nanos}");
-        let label = format!("oo.lane={LANE}");
+        let label = format!("oo.lane={lane}");
         // A fixed host port, so the address survives `docker kill` + `start`.
         let port = free_port();
         let publish = format!("127.0.0.1:{port}:7481");

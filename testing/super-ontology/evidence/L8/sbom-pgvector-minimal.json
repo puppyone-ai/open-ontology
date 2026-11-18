@@ -1,0 +1,1787 @@
+{
+ "bomFormat": "CycloneDX",
+ "specVersion": "1.5",
+ "metadata": {
+  "component": {
+   "name": "oo-docs-pgvector:dev"
+  }
+ },
+ "components": [
+  {
+   "type": "library",
+   "name": "adduser",
+   "version": "3.134",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "apt",
+   "version": "2.6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "base-files",
+   "version": "12.4+deb12u15",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "base-passwd",
+   "version": "3.6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bash",
+   "version": "5.2.15-2+b13",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bsdutils",
+   "version": "1:2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "coreutils",
+   "version": "9.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dash",
+   "version": "0.5.12-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "debconf",
+   "version": "1.5.82",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "debian-archive-keyring",
+   "version": "2023.3+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "debianutils",
+   "version": "5.7-0.5~deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "diffutils",
+   "version": "1:3.8-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dirmngr",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "dpkg",
+   "version": "1.21.23",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "e2fsprogs",
+   "version": "1.47.0-2+b2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "findutils",
+   "version": "4.9.0-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gcc-12-base",
+   "version": "12.2.0-14+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg-l10n",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gnupg-utils",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg-agent",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg-wks-client",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpg-wks-server",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgconf",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgsm",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gpgv",
+   "version": "2.2.40-1.1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "grep",
+   "version": "3.8-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gzip",
+   "version": "1.12-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "hostname",
+   "version": "3.23+nmu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "init-system-helpers",
+   "version": "1.65.2+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "less",
+   "version": "590-2.1~deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libacl1",
+   "version": "2.3.1-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libapt-pkg6.0",
+   "version": "2.6.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libassuan0",
+   "version": "2.5.5-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libattr1",
+   "version": "1:2.5.1-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libaudit-common",
+   "version": "1:3.0.9-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libaudit1",
+   "version": "1:3.0.9-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libblkid1",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbsd0",
+   "version": "0.11.7-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libbz2-1.0",
+   "version": "1.0.8-5+b1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc-bin",
+   "version": "2.36-9+deb12u14",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc-l10n",
+   "version": "2.36-9+deb12u14",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libc6",
+   "version": "2.36-9+deb12u14",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap-ng0",
+   "version": "0.8.3-1+b3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcap2",
+   "version": "1:2.66-4+deb12u3+b1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcom-err2",
+   "version": "1.47.0-2+b2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libcrypt1",
+   "version": "1:4.4.33-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdb5.3",
+   "version": "5.3.28+dfsg2-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libdebconfclient0",
+   "version": "0.270",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libedit2",
+   "version": "3.1-20221030-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libext2fs2",
+   "version": "1.47.0-2+b2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libffi8",
+   "version": "3.4.4-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcc-s1",
+   "version": "12.2.0-14+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgcrypt20",
+   "version": "1.10.1-3+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgdbm-compat4",
+   "version": "1.23-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgdbm6",
+   "version": "1.23-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgmp10",
+   "version": "2:6.2.1+dfsg1-1.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgnutls30",
+   "version": "3.7.9-2+deb12u7",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgpg-error0",
+   "version": "1.46-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libgssapi-krb5-2",
+   "version": "1.20.1-2+deb12u5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libhogweed6",
+   "version": "3.8.1-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libicu72",
+   "version": "72.1-3+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libidn2-0",
+   "version": "2.3.3-1+b1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libjson-perl",
+   "version": "4.10000-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libk5crypto3",
+   "version": "1.20.1-2+deb12u5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkeyutils1",
+   "version": "1.6.3-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5-3",
+   "version": "1.20.1-2+deb12u5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libkrb5support0",
+   "version": "1.20.1-2+deb12u5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libksba8",
+   "version": "1.6.3-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libldap-2.5-0",
+   "version": "2.5.13+dfsg-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libllvm19",
+   "version": "1:19.1.7-3~deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "liblz4-1",
+   "version": "1.9.4-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "liblzma5",
+   "version": "5.4.1-1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmd0",
+   "version": "1.0.4-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libmount1",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libncursesw6",
+   "version": "6.4-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnettle8",
+   "version": "3.8.1-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnpth0",
+   "version": "1.6-3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libnss-wrapper",
+   "version": "1.1.12-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libp11-kit0",
+   "version": "0.24.1-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-modules",
+   "version": "1.5.2-6+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-modules-bin",
+   "version": "1.5.2-6+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam-runtime",
+   "version": "1.5.2-6+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpam0g",
+   "version": "1.5.2-6+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpcre2-8-0",
+   "version": "10.42-1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libperl5.36",
+   "version": "5.36.0-7+deb12u4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libpq5",
+   "version": "18.6-1.pgdg12+2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libreadline8",
+   "version": "8.2-1.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsasl2-2",
+   "version": "2.1.28+dfsg-10",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsasl2-modules-db",
+   "version": "2.1.28+dfsg-10",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libseccomp2",
+   "version": "2.5.4-1+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libselinux1",
+   "version": "3.4-1+b6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsemanage-common",
+   "version": "3.4-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsemanage2",
+   "version": "3.4-1+b5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsepol2",
+   "version": "3.4-2.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsmartcols1",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsqlite3-0",
+   "version": "3.40.1-2+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libss2",
+   "version": "1.47.0-2+b2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libssl3",
+   "version": "3.0.22-1~deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libstdc++6",
+   "version": "12.2.0-14+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libsystemd0",
+   "version": "252.39-1~deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtasn1-6",
+   "version": "4.19.0-2+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libtinfo6",
+   "version": "6.4-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libudev1",
+   "version": "252.39-1~deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libunistring2",
+   "version": "1.0-2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libuuid1",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxml2",
+   "version": "2.9.14+dfsg-1.3~deb12u6",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxslt1.1",
+   "version": "1.1.35-1+deb12u4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libxxhash0",
+   "version": "0.8.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libz3-4",
+   "version": "4.8.12-3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "libzstd1",
+   "version": "1.5.4+dfsg2-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "locales",
+   "version": "2.36-9+deb12u14",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "login",
+   "version": "1:4.13+dfsg1-1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "logsave",
+   "version": "1.47.0-2+b2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mawk",
+   "version": "1.3.4.20200120-3.1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "mount",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses-base",
+   "version": "6.4-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ncurses-bin",
+   "version": "6.4-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "netbase",
+   "version": "6.4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openssl",
+   "version": "3.0.22-1~deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "passwd",
+   "version": "1:4.13+dfsg1-1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl",
+   "version": "5.36.0-7+deb12u4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl-base",
+   "version": "5.36.0-7+deb12u4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "perl-modules-5.36",
+   "version": "5.36.0-7+deb12u4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pinentry-curses",
+   "version": "1.2.1-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql-17",
+   "version": "17.11-1.pgdg12+2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql-client-17",
+   "version": "17.11-1.pgdg12+2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql-client-common",
+   "version": "293.pgdg12+1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "postgresql-common",
+   "version": "293.pgdg12+1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "readline-common",
+   "version": "8.2-1.3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sed",
+   "version": "4.9-1+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sensible-utils",
+   "version": "0.0.17+nmu1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ssl-cert",
+   "version": "1.1.2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sysvinit-utils",
+   "version": "3.06-4",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tar",
+   "version": "1.34+dfsg-1.2+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tzdata",
+   "version": "2026e-0+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ucf",
+   "version": "3.0043+nmu1+deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "usr-is-merged",
+   "version": "37~deb12u1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "util-linux-extra",
+   "version": "2.38.1-5+deb12u3",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "xz-utils",
+   "version": "5.4.1-1+deb12u2",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zlib1g",
+   "version": "1:1.2.13.dfsg-1",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "zstd",
+   "version": "1.5.4+dfsg2-5",
+   "licenses": [],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "base-os"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "vector",
+   "version": "0.8.0",
+   "licenses": [
+    {
+     "expression": "PostgreSQL"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "gosu",
+   "version": "1.19",
+   "licenses": [
+    {
+     "expression": "Apache-2.0"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "docker-library entrypoint scripts",
+   "version": "docker-enforce-initdb.sh, docker-ensure-initdb.sh, docker-entrypoint.sh",
+   "licenses": [
+    {
+     "expression": "MIT"
+    }
+   ],
+   "properties": [
+    {
+     "name": "oo:scope",
+     "value": "native-in-image"
+    }
+   ]
+  }
+ ]
+}

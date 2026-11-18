@@ -75,8 +75,28 @@ async fn max_version(fx: &mut Fx) -> i64 {
         .await
 }
 
+/// Wait until the engine's own pipeline has nothing queued or running (two looks, 200 ms apart). The engine
+/// publishes by itself as parse and extract jobs finish; a test that publishes on top of that while jobs are
+/// still in flight gets one version from its call and another from the pipeline, and the model counts one.
+async fn drain_jobs(fx: &mut Fx) {
+    let t = Instant::now();
+    let mut quiet = 0;
+    while quiet < 2 {
+        let busy = fx
+            .scalar("SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running')")
+            .await;
+        quiet = if busy == 0 { quiet + 1 } else { 0 };
+        assert!(
+            t.elapsed() < Duration::from_secs(30),
+            "the pipeline did not go quiet"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
 async fn publish_now(fx: &mut Fx) {
     let before = max_version(fx).await;
+    drain_jobs(fx).await;
     for _ in 0..100 {
         match fx.publish().await {
             oo_docs::publish::run::PublishOutcome::Busy => {
@@ -86,6 +106,7 @@ async fn publish_now(fx: &mut Fx) {
         }
     }
     wait_version(fx, before + 1).await;
+    drain_jobs(fx).await;
 }
 
 async fn wait_version(fx: &mut Fx, n: i64) {

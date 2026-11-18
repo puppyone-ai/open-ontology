@@ -16,7 +16,10 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection, Row};
 
-const CHAIN_LOCK: i64 = 6_413_202_612;
+/// The advisory lock of the audit chain. It must differ from `publish::run::PUBLISH_LOCK` (6413202612) and the
+/// installer's key: sharing the publisher's key made a share create (event row, then this lock) deadlock with
+/// the publisher (this key, then an event row), SQLSTATE 40P01.
+const CHAIN_LOCK: i64 = 6_413_202_613;
 /// `prev_hash` of the first row.
 pub const GENESIS: &str = "genesis";
 
@@ -308,5 +311,22 @@ mod tests {
                 &json!({"role": "editor"})
             )
         );
+    }
+}
+
+#[cfg(test)]
+mod lock_key_tests {
+    #[test]
+    fn advisory_lock_keys_are_distinct() {
+        let keys = [
+            super::CHAIN_LOCK,
+            crate::publish::run::PUBLISH_LOCK,
+            crate::store::install::MIGRATION_LOCK_KEY,
+        ];
+        for (i, a) in keys.iter().enumerate() {
+            for b in &keys[i + 1..] {
+                assert_ne!(a, b);
+            }
+        }
     }
 }
