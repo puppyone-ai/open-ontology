@@ -14,8 +14,11 @@
 //! a failed or partial listing still records what it saw but never deletes.
 //! A targeted sync never reaches the sweep and never moves the generation.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::task::Poll;
 
 use oo_connectors::objectstore::fs::is_settled;
 use oo_connectors::objectstore::hash::DualDigest;
@@ -421,15 +424,27 @@ struct Listing {
     pages: i32,
     complete: bool,
     error: Option<DocSourceError>,
+    /// Listed per first level scope (10 11.3). `complete` then means every scope listed completely.
+    scoped: bool,
+    /// Scopes that did not list completely (error, cancel or runaway). Files under them are never swept.
+    failed: HashSet<String>,
+}
+
+impl Listing {
+    fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+            pages: 0,
+            complete: false,
+            error: None,
+            scoped: false,
+            failed: HashSet::new(),
+        }
+    }
 }
 
 async fn list_all<S: HashableSource>(source: &S, page_size: u32, cancel: &AtomicBool) -> Listing {
-    let mut out = Listing {
-        entries: Vec::new(),
-        pages: 0,
-        complete: false,
-        error: None,
-    };
+    let mut out = Listing::empty();
     let mut cursor: Option<ListCursor> = None;
     loop {
         if cancel.load(Ordering::Relaxed) {
@@ -458,6 +473,266 @@ async fn list_all<S: HashableSource>(source: &S, page_size: u32, cancel: &Atomic
             }
         }
     }
+}
+
+/// Parallel listings run at most this many scopes at once.
+const MAX_LIST_PARALLEL: usize = 16;
+/// Object store Drives list four scopes at once unless `config.listing.parallel` says otherwise.
+const DEFAULT_REMOTE_LIST_PARALLEL: usize = 4;
+
+/// How many first level scopes are listed at once; 1 lists the Drive whole.
+fn list_parallelism<S: HashableSource>(drive: &DriveRef, source: &S) -> usize {
+    if let Some(n) = drive
+        .config
+        .get("listing")
+        .and_then(|l| l.get("parallel"))
+        .and_then(serde_json::Value::as_u64)
+    {
+        return (n as usize).clamp(1, MAX_LIST_PARALLEL);
+    }
+    if source.any_source().is_some_and(|a| a.is_remote()) {
+        DEFAULT_REMOTE_LIST_PARALLEL
+    } else {
+        1
+    }
+}
+
+/// The first level scope of a source key: the part before the first `/`, `""` for a key at the root.
+fn scope_of(raw_key: &[u8]) -> String {
+    match raw_key.iter().position(|b| *b == b'/') {
+        Some(end) => String::from_utf8_lossy(&raw_key[..end]).into_owned(),
+        None => String::new(),
+    }
+}
+
+type BoxFut<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// Drive `pending` with at most `par` of them in flight, no spawning (the futures borrow the source).
+async fn run_bounded<'a, T: Send>(mut pending: VecDeque<BoxFut<'a, T>>, par: usize) -> Vec<T> {
+    let par = par.max(1);
+    let mut running: Vec<BoxFut<'a, T>> = Vec::new();
+    let mut done: Vec<T> = Vec::new();
+    std::future::poll_fn(|cx| {
+        loop {
+            while running.len() < par {
+                match pending.pop_front() {
+                    Some(f) => running.push(f),
+                    None => break,
+                }
+            }
+            if running.is_empty() {
+                return Poll::Ready(());
+            }
+            let mut progressed = false;
+            let mut i = 0;
+            while i < running.len() {
+                match running[i].as_mut().poll(cx) {
+                    Poll::Ready(v) => {
+                        done.push(v);
+                        drop(running.swap_remove(i));
+                        progressed = true;
+                    }
+                    Poll::Pending => i += 1,
+                }
+            }
+            if !progressed {
+                return Poll::Pending;
+            }
+        }
+    })
+    .await;
+    done
+}
+
+struct ScopeResult {
+    scope: String,
+    entries: Vec<ObjectMeta>,
+    pages: i32,
+    complete: bool,
+    error: Option<DocSourceError>,
+}
+
+async fn list_one_scope<S: HashableSource>(
+    source: &S,
+    scope: &str,
+    page_size: u32,
+    cancel: &AtomicBool,
+) -> ScopeResult {
+    let mut out = ScopeResult {
+        scope: scope.to_owned(),
+        entries: Vec::new(),
+        pages: 0,
+        complete: false,
+        error: None,
+    };
+    let mut cursor: Option<ListCursor> = None;
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return out;
+        }
+        match source.list_scope(scope, cursor.as_ref(), page_size).await {
+            Ok(page) => {
+                out.pages += 1;
+                out.entries.extend(page.entries);
+                match page.next {
+                    Some(next) => {
+                        cursor = Some(next);
+                        if out.entries.len() > MAX_ENTRIES || out.pages > MAX_PAGES {
+                            return out;
+                        }
+                    }
+                    None => {
+                        out.complete = page.complete;
+                        return out;
+                    }
+                }
+            }
+            Err(e) => {
+                out.error = Some(e);
+                return out;
+            }
+        }
+    }
+}
+
+/// Each scope gets its own row in `drive_sync_prefix` with its own generation counter, which moves
+/// only when that scope listed completely. Rows of an earlier attempt of this generation are replaced.
+async fn start_scopes(
+    pool: &PgPool,
+    drive_id: &str,
+    g: i64,
+    scopes: &[String],
+) -> Result<(), IngestError> {
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        "DELETE FROM _oo_docs.drive_sync_prefix WHERE drive_id = $1::uuid AND generation = $2",
+    )
+    .bind(drive_id)
+    .bind(g)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "INSERT INTO _oo_docs.drive_sync_prefix (drive_id, generation, prefix, prefix_generation, status) \
+         SELECT $1::uuid, $2, p.prefix, COALESCE((SELECT max(c.prefix_generation) \
+           FROM _oo_docs.drive_sync_prefix c WHERE c.drive_id = $1::uuid AND c.prefix = p.prefix \
+           AND c.status = 'complete'), 0) + 1, 'running' \
+         FROM unnest($3::text[]) AS p(prefix)",
+    )
+    .bind(drive_id)
+    .bind(g)
+    .bind(scopes)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn finish_scope(
+    pool: &PgPool,
+    drive_id: &str,
+    g: i64,
+    r: &ScopeResult,
+) -> Result<(), IngestError> {
+    let ok = r.complete && r.error.is_none();
+    let code = match (&r.error, ok) {
+        (Some(e), _) => Some(e.code()),
+        (None, false) => Some("DOCS_SOURCE_LIST_INCOMPLETE"),
+        (None, true) => None,
+    };
+    sqlx::query(
+        "UPDATE _oo_docs.drive_sync_prefix SET status = $4, listed = $5, pages = $6, error_code = $7, \
+         finished_at = clock_timestamp() WHERE drive_id = $1::uuid AND generation = $2 AND prefix = $3",
+    )
+    .bind(drive_id)
+    .bind(g)
+    .bind(&r.scope)
+    .bind(if ok { "complete" } else { "failed" })
+    .bind(r.entries.len() as i64)
+    .bind(r.pages)
+    .bind(code)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// List the Drive: per first level scope in parallel when the source offers scopes and parallelism is
+/// above 1, otherwise whole. Entries come back in scope order (`""` first), so the result does not
+/// depend on which scope finished first.
+async fn list_drive<S: HashableSource>(
+    pool: &PgPool,
+    drive: &DriveRef,
+    g: i64,
+    source: &S,
+    page_size: u32,
+    cancel: &AtomicBool,
+) -> Result<Listing, IngestError> {
+    let par = list_parallelism(drive, source);
+    if par > 1 {
+        match source.list_scopes().await {
+            Ok(Some(scopes)) if scopes.len() >= 2 => {
+                return list_scoped(pool, drive, g, source, scopes, par, page_size, cancel).await;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                let mut out = Listing::empty();
+                out.error = Some(e);
+                return Ok(out);
+            }
+        }
+    }
+    Ok(list_all(source, page_size, cancel).await)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn list_scoped<S: HashableSource>(
+    pool: &PgPool,
+    drive: &DriveRef,
+    g: i64,
+    source: &S,
+    mut scopes: Vec<String>,
+    par: usize,
+    page_size: u32,
+    cancel: &AtomicBool,
+) -> Result<Listing, IngestError> {
+    scopes.sort();
+    scopes.dedup();
+    start_scopes(pool, &drive.id, g, &scopes).await?;
+    let drive_id = drive.id.as_str();
+    let futs: VecDeque<BoxFut<'_, Result<ScopeResult, IngestError>>> = scopes
+        .iter()
+        .map(|scope| {
+            let f: BoxFut<'_, Result<ScopeResult, IngestError>> = Box::pin(async move {
+                let r = list_one_scope(source, scope, page_size, cancel).await;
+                finish_scope(pool, drive_id, g, &r).await?;
+                Ok(r)
+            });
+            f
+        })
+        .collect();
+    let mut results = Vec::with_capacity(scopes.len());
+    for r in run_bounded(futs, par).await {
+        results.push(r?);
+    }
+    results.sort_by(|a, b| a.scope.cmp(&b.scope));
+    let mut out = Listing::empty();
+    out.scoped = true;
+    let mut total = 0usize;
+    for r in &results {
+        total += r.entries.len();
+    }
+    let runaway = total > MAX_ENTRIES;
+    for r in results {
+        out.pages += r.pages;
+        if runaway || !r.complete || r.error.is_some() {
+            out.failed.insert(r.scope.clone());
+            if out.error.is_none() {
+                out.error = r.error.clone();
+            }
+        }
+        out.entries.extend(r.entries);
+    }
+    out.complete = out.failed.is_empty();
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -610,12 +885,14 @@ async fn sync_core<S: HashableSource>(
         would_delete: None,
         hash_enqueued: 0,
     };
-    let listing = list_all(source, limits.page_size, cancel).await;
+    let listing = list_drive(pool, drive, g, source, limits.page_size, cancel).await?;
     report.pages = listing.pages;
     // Drive access policy (B-S11-03), first of its two places: what it does not permit is never a file
     // of the Drive. A path that cannot be normalized cannot be judged and is dropped when a policy is set.
     let policy = crate::policy::DrivePolicy::from_config(&drive.config)
         .map_err(|_| IngestError::Protocol("drive policy is not valid".into()))?;
+    let failed_scopes = listing.failed;
+    let scoped = listing.scoped;
     let entries: Vec<ObjectMeta> = listing
         .entries
         .into_iter()
@@ -630,6 +907,13 @@ async fn sync_core<S: HashableSource>(
         files::load_files(&mut conn, &drive.id).await?
     };
     let live_before = existing_rows.iter().filter(|r| !r.deleted).count();
+    // What a sweep may judge: live files not under a scope that failed to list.
+    let swept =
+        |raw_key: &[u8]| failed_scopes.is_empty() || !failed_scopes.contains(&scope_of(raw_key));
+    let live_swept = existing_rows
+        .iter()
+        .filter(|r| !r.deleted && swept(&r.raw_key))
+        .count();
     let existing: HashMap<String, &FileRow> =
         existing_rows.iter().map(|r| (hex(&r.raw_key), r)).collect();
 
@@ -821,12 +1105,16 @@ async fn sync_core<S: HashableSource>(
             None => "DOCS_SOURCE_LIST_INCOMPLETE".to_owned(),
         });
         report.status = SyncStatus::Failed;
-    } else {
+    }
+    // A scoped listing sweeps the scopes that listed completely even when another failed (partial sweep);
+    // the generation then stays uncommitted and the run is reported failed.
+    if full || (scoped && !cancel.load(Ordering::Relaxed)) {
         // Sweep set from the database, not from the snapshot: files that a
         // targeted sync created meanwhile carry generation g already.
-        let missing = load_missing(pool, &drive.id, g).await?;
-        let mass = (missing.len() > limits.mass_delete_min && missing.len() * 2 > live_before)
-            || (entries.is_empty() && live_before > 0 && !missing.is_empty());
+        let mut missing = load_missing(pool, &drive.id, g).await?;
+        missing.retain(|m| swept(&m.raw_key));
+        let mass = (missing.len() > limits.mass_delete_min && missing.len() * 2 > live_swept)
+            || (entries.is_empty() && live_swept > 0 && !missing.is_empty());
         if mass && flavor.confirm != Some(g) {
             report.status = SyncStatus::Held;
             report.would_delete = Some(missing.len() as i64);
@@ -859,7 +1147,9 @@ async fn sync_core<S: HashableSource>(
             }
             // Renames are not additions.
             report.added -= renamed_new.len() as i32;
-            report.status = SyncStatus::Complete;
+            if full {
+                report.status = SyncStatus::Complete;
+            }
             let total = report.added + report.changed + report.removed + report.renamed;
             if total > 200 {
                 bulk_changed(pool, &drive.id, &report).await?;
@@ -928,6 +1218,7 @@ fn new_file_identity(
 #[derive(Clone, Debug)]
 struct Missing {
     id: String,
+    raw_key: Vec<u8>,
     path: String,
     state: String,
     version_id: Option<String>,
@@ -937,7 +1228,7 @@ struct Missing {
 
 async fn load_missing(pool: &PgPool, drive_id: &str, g: i64) -> Result<Vec<Missing>, IngestError> {
     let rows = sqlx::query(
-        "SELECT f.id::text AS id, f.path, f.state, cv.id::text AS vid, cv.b3, \
+        "SELECT f.id::text AS id, f.raw_key AS raw_key, f.path, f.state, cv.id::text AS vid, cv.b3, \
          COALESCE((cv.fp->>'size')::bigint, f.fp_size) AS size \
          FROM _oo_docs.file f LEFT JOIN _oo_docs.file_version cv ON cv.id = f.current_version_id \
          WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND f.last_seen_generation < $2 \
@@ -951,6 +1242,7 @@ async fn load_missing(pool: &PgPool, drive_id: &str, g: i64) -> Result<Vec<Missi
         .map(|r| {
             Ok(Missing {
                 id: r.try_get("id")?,
+                raw_key: r.try_get("raw_key")?,
                 path: r.try_get("path")?,
                 state: r.try_get("state")?,
                 version_id: r.try_get("vid")?,
@@ -1376,5 +1668,42 @@ mod tests {
         ] {
             assert!(raw.contains(&format!("\"{code}\"")), "{code}");
         }
+    }
+}
+
+#[cfg(test)]
+mod scope_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn scope_of_is_the_first_segment() {
+        assert_eq!(scope_of(b"a/b/c.md"), "a");
+        assert_eq!(scope_of(b"c.md"), "");
+        assert_eq!(scope_of("资料/x.md".as_bytes()), "资料");
+    }
+
+    #[tokio::test]
+    async fn run_bounded_keeps_at_most_par_in_flight_and_returns_everything() {
+        let now = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let futs: VecDeque<BoxFut<'static, usize>> = (0..20usize)
+            .map(|i| {
+                let (now, peak) = (now.clone(), peak.clone());
+                let f: BoxFut<'static, usize> = Box::pin(async move {
+                    let n = now.fetch_add(1, Ordering::SeqCst) + 1;
+                    peak.fetch_max(n, Ordering::SeqCst);
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                    now.fetch_sub(1, Ordering::SeqCst);
+                    i
+                });
+                f
+            })
+            .collect();
+        let mut got = run_bounded(futs, 4).await;
+        got.sort();
+        assert_eq!(got, (0..20).collect::<Vec<_>>());
+        assert_eq!(peak.load(Ordering::SeqCst), 4);
     }
 }
