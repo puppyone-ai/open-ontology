@@ -96,6 +96,66 @@ class Oo:
             return p.returncode, {}, p
 
 
+class RustFs:
+    """The RustFS image of the S3 test cell (D9) in one labelled container; same surface as MockS3
+    for what this script reads (`endpoint`, `objects`, `denied`, `stop`)."""
+
+    BUCKET = "oo-wp1"
+
+    def __init__(self, access, secret):
+        import datetime
+        import hashlib
+        import urllib.parse
+        import urllib.request
+        import super_ontology_s3 as s3cell
+
+        self._mods = (datetime, hashlib, urllib.parse, urllib.request)
+        self.access, self.secret, self.denied, self.read_only = access, secret, 0, False
+        cell = s3cell.CELLS["docs-rustfs"]
+        self.name = f"oo-wp1-rustfs-{secrets.token_hex(3)}"
+        vols = [f"{self.name}-v{i}" for i, _ in enumerate(cell["mounts"])]
+        self.vols = vols
+        for v in vols:
+            subprocess.run(["docker", "volume", "create", "--label", f"oo.lane={LANE}", v], check=True, capture_output=True)
+        cmd = ["docker", "run", "-d", "--name", self.name, "--label", f"oo.lane={LANE}", "-p", "127.0.0.1::9000"]
+        for k, v in cell["env"](access, secret).items():
+            cmd += ["-e", f"{k}={v}"]
+        for v, m in zip(vols, cell["mounts"]):
+            cmd += ["-v", f"{v}:{m}"]
+        subprocess.run([*cmd, cell["image"], *cell["args"]], check=True, capture_output=True)
+        port = subprocess.run(["docker", "port", self.name, "9000/tcp"], capture_output=True, text=True, check=True).stdout.split(":")[-1].strip()
+        self.endpoint = f"http://127.0.0.1:{port}"
+        if not s3cell.wait_ready(self.endpoint):
+            raise SystemExit("rustfs did not come up")
+        for attempt in range(40):
+            try:
+                s3cell.make_bucket(self.endpoint, access, secret, self.BUCKET)
+                break
+            except Exception:
+                if attempt == 39:
+                    raise
+                time.sleep(1)
+
+    @property
+    def objects(self):
+        _, hashlib, urlparse, urlrequest = self._mods
+        amz = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        host = self.endpoint.split("//", 1)[1]
+        payload = hashlib.sha256(b"").hexdigest()
+        headers = {"host": host, "x-amz-content-sha256": payload, "x-amz-date": amz}
+        query = "list-type=2&prefix="
+        sig = mock_s3.sign(self.secret, "GET", f"/{self.BUCKET}", query, headers, sorted(headers), payload, amz, "us-east-1")
+        auth = f"AWS4-HMAC-SHA256 Credential={self.access}/{amz[:8]}/us-east-1/s3/aws4_request, SignedHeaders={';'.join(sorted(headers))}, Signature={sig}"
+        req = urlrequest.Request(f"{self.endpoint}/{self.BUCKET}?{query}", headers={**headers, "Authorization": auth})
+        xml = urlrequest.urlopen(req, timeout=15).read().decode()
+        return {urlparse.unquote(k): None for k in re.findall(r"<Key>([^<]*)</Key>", xml)}
+
+    def stop(self):
+        subprocess.run(["docker", "rm", "-f", self.name], capture_output=True)
+        for v in self.vols:
+            subprocess.run(["docker", "volume", "rm", "-f", v], capture_output=True)
+
+
 def free_docker():
     try:
         return subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode == 0
@@ -245,7 +305,7 @@ def main():
             if args.s3 == "rustfs" and not free_docker():
                 rep.check("5 rustfs requested but Docker does not answer", False)
             else:
-                mock = mock_s3.MockS3("oo-wp1", s3_access, s3_secret).start()
+                mock = RustFs(s3_access, s3_secret) if args.s3 == "rustfs" else mock_s3.MockS3("oo-wp1", s3_access, s3_secret).start()
                 cred = json.dumps({"access_key_id": s3_access, "secret_access_key": s3_secret})
                 add = ["source", "add", "s3", "--name", "bucket-docs", "--bucket", "oo-wp1", "--prefix", "inbox",
                        "--endpoint", mock.endpoint, "--path-style", "--credentials-stdin"]
@@ -269,10 +329,11 @@ def main():
                 rep.check("5 the engine read the file back from the bucket and published it", (ub.get("wait") or {}).get("counts", {}).get("published") == 1, json.dumps(ub.get("wait")))
                 rc, ub2, p = oo.json("docs", "upload", str(inbox / "bucket-note.md"), "--drive", "bucket-docs", "--to", "projects")
                 rep.check("5 a second upload to the bucket does not overwrite (name (2))", rc == 0 and "inbox/projects/bucket-note (2).md" in mock.objects, sorted(mock.objects))
-                mock.read_only = True
-                rc, _, p = oo.json("docs", "upload", str(inbox / "林川.md"), "--drive", "bucket-docs")
-                rep.check("5 a read-only credential gives a clear error (exit 1, SO_UPLOAD_BACKEND_READ_ONLY)", rc == 1 and "SO_UPLOAD_BACKEND_READ_ONLY" in p.stderr, p.stderr[-250:])
-                mock.read_only = False
+                if args.s3 == "mock":
+                    mock.read_only = True
+                    rc, _, p = oo.json("docs", "upload", str(inbox / "林川.md"), "--drive", "bucket-docs")
+                    rep.check("5 a read-only credential gives a clear error (exit 1, SO_UPLOAD_BACKEND_READ_ONLY)", rc == 1 and "SO_UPLOAD_BACKEND_READ_ONLY" in p.stderr, p.stderr[-250:])
+                    mock.read_only = False
                 # ps while the daemon runs: no secret in any argument list
                 ps = subprocess.run(["ps", "-axww", "-o", "command"], capture_output=True, text=True).stdout
                 rep.check("6 no secret in any process argument list", s3_secret not in ps and s3_access not in ps)
