@@ -1,0 +1,34 @@
+# Super Ontology L6 end to end (compose), run be2-l6e2e-10
+$ cargo build --locked -p oo-cli --features docs
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l6e2e-be2-l6e2e-10-qhwac04q/state
+[PASS] compose stack is up and healthy - HTTP 200
+[PASS] ocr-parser and media-parser run beside the engine - oo-docs-3a464cdf2f6d-docs-engine-1 oo-docs-3a464cdf2f6d-media-parser-1 oo-docs-3a464cdf2f6d-ocr-parser-1 oo-docs-3a464cdf2f6d-doc-parser-1 oo-docs-3a464cdf2f6d-docs-db-1 oo-be2-l5-pg 
+[PASS] all files left the working states - {"Meetings/周会 参会=小王、小李.wav": "published", "Meetings/录屏.webm": "published", "Meetings/录屏h264.mp4": "unsupported", "Meetings/讲话.m4a": "unsupported", "People/林川.md": "published", "Projects/星火计划.md": "published", "Scans/扫描件.pdf": "published", "Scans/纪要.png": "published"}
+[PASS] A1 Scans/纪要.png published - published None
+[PASS] A1 Scans/扫描件.pdf published - published None
+[PASS] A1 the OCR text carries the planted words - 3/3 words in 48 chars
+[PASS] A3 the meeting is published - published None
+[PASS] A3 one speaker_identity item per speaker label - 4 items
+[PASS] A3 nothing is published under a named Person before confirmation - {"as_of_seq": 70, "items": [{"counts": {"aliases": 1, "facts": 1}, "id": "b60dadbb-a83e-44a1-b6c3-5db48519686c", "key": 
+[PASS] A3 confirming S1 as 小王 succeeds - {"accepted": 1, "publish_pending": true, "rejected": 0, "results": [{"id": "9b05439c-603d-4ac6-85d4-ed9af962c8c3", "status": "ok"}]}
+[PASS] A3 after confirming, the fact's subject is the Person 小王 - [{"counts": {"aliases": 0, "facts": 0}, "id": "80db7abe-1824-45e0-b008-1db61709a4af", "key": "person:d654bb7a63d462ed5e9caa4e", "label": null, "name": "小王", "su
+[PASS] A4 the screen recording is published - published None
+[PASS] A4 one key frame per slide - 2 frame_text blocks
+[PASS] A4 frame text recall >= 0.9 (character level) - 1.00
+[PASS] A4 blocks carry media anchors (t_start_ms) for #t= provenance
+[PASS] A5 Meetings/录屏h264.mp4 is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE - unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+[PASS] A5 Meetings/讲话.m4a is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE - unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+$ <repo>/target/debug/oo context mount --scope Projects --to /tmp/oo-l6e2e-be2-l6e2e-10-qhwac04q/m1 --json --state-dir /tmp/oo-l6e2e-be2-l6e2e-10-qhwac04q/state
+  {"blocked":{"entities":6,"facts":10},"expires_at":"2026-11-25T06:15:24.429191Z","pack_digest":"0e05d08a46b949c13f3cfab45856ac20a1607dfe2046433bb0a00a5703f2fe63","path":"/private/tmp/oo-l6e2e-be2-l6e2e-10-qhwac04q/m1/.context","protocol":"oo.context-mount/v1","share_id":"dcc1a92a-5446-42cb-8dde-c932a398d521","tokens":{"brief":493,"budget":800},"trimmed":{},"warnings":[]}
+[PASS] A7 mount before the change
+[PASS] A7 the share drifted and refresh answers - HTTP 200
+[PASS] A7 BRIEF lists the change after the head - 987 bytes
+[PASS] A8 the drive has published facts before the bump - 15 facts, 4 sidecar files
+[FAIL] A8 the sidecar files were reprocessed with the new parser version - seen outdated
+[PASS] A8 the old facts stayed published during the rerun - min 15 of 15
+[PASS] A8 no churn: same fact keys after, nothing retracted - 15 facts, retracted 0
+[PASS] A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it - 0 held: 
+[PASS] A10 a media job was queued or running when the edit was made - 1 at the edit, max 1
+[PASS] A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran - 2.42 s (edit to BRIEF 40.9s)
+[FAIL] A10 the edit reached a new BRIEF within the L2 bound (30 s) - 40.9s

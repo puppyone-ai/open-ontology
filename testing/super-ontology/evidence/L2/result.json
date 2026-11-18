@@ -1,15 +1,15 @@
 {
-  "run_id": "l2-resume",
+  "run_id": "be2-l6close",
   "status": "pass",
-  "git_head": "cda7592aeb341f7837dd5b7dc2b1c572ea63b2f3",
+  "git_head": "04ed7737ba3c55b13855b353df956e874e6f716e",
   "binaries_sha256": {
-    "oo": "19c996b3629a132b2209d0c2aab3bb8a0f7134f96a8bed9a13d3b79fb0e42661",
-    "oo-docs-engine": "176698fb69a279931f9cf75d83b739f790b385f3682a2aa20ce0cfa2c12cb6bf"
+    "oo": "547c3016be75f72ba60564c0b01131d3ae409e7426a1e4fe35f1f5f0aa1df80a",
+    "oo-docs-engine": "d3ff611a8ff744aef0531494dccf4f5d8566839f18b183e65675279226f0890b"
   },
   "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
   "timings": {
-    "acceptance1_all_published_seconds": 3.72,
-    "acceptance5_edit_to_brief_seconds": 3.79
+    "acceptance1_all_published_seconds": 6.87,
+    "acceptance5_edit_to_brief_seconds": 5.09
   },
   "checks": [
     {
@@ -20,7 +20,7 @@
     {
       "check": "schema installed by the engine installer",
       "ok": true,
-      "detail": "{\"addr\":\"127.0.0.1:54390\",\"event\":\"listening\",\"worker\":\"engine/81741/18e8eb08fd5"
+      "detail": "{\"addr\":\"127.0.0.1:52756\",\"event\":\"listening\",\"worker\":\"engine/38101/18e9090ff34"
     },
     {
       "check": "serve proxies the engine health",
@@ -45,7 +45,7 @@
     {
       "check": "A1 within 60s",
       "ok": true,
-      "detail": "3.7s"
+      "detail": "6.9s"
     },
     {
       "check": "A7 the audit saw the listeners of both processes",
@@ -90,7 +90,7 @@
     {
       "check": "A2 mount_json fields",
       "ok": true,
-      "detail": "{\"protocol\": \"oo.context-mount/v1\", \"tokens\": {\"brief\": 451, \"budget\": 800}}"
+      "detail": "{\"protocol\": \"oo.context-mount/v1\", \"tokens\": {\"brief\": 502, \"budget\": 800}}"
     },
     {
       "check": "A3 same file set",
@@ -115,17 +115,17 @@
     {
       "check": "A3 SHARE.json lists the pack digest",
       "ok": true,
-      "detail": "ef79eae80a86b064..."
+      "detail": "e8f42e56f4e8a352..."
     },
     {
       "check": "A5 BRIEF changed after the edit",
       "ok": true,
-      "detail": "3.8s"
+      "detail": "5.1s"
     },
     {
       "check": "A5 within 30s",
       "ok": true,
-      "detail": "3.8s"
+      "detail": "5.1s"
     },
     {
       "check": "A5 the file went through the whole state chain again",
@@ -135,12 +135,12 @@
     {
       "check": "A5 every step of the chain was announced as a file.state_changed event",
       "ok": true,
-      "detail": "8 events after cursor 151"
+      "detail": "8 events after cursor 152"
     },
     {
       "check": "A5 a new mount's BRIEF differs and shows the new owner",
       "ok": true,
-      "detail": "842 bytes"
+      "detail": "911 bytes"
     },
     {
       "check": "A5 the old owner is gone from the Projects/a BRIEF and the new one is sourced",
@@ -155,7 +155,7 @@
     {
       "check": "A4 the event log has no gap",
       "ok": true,
-      "detail": "1..171"
+      "detail": "1..183"
     },
     {
       "check": "A4 health reports the engine unavailable while it is down",
@@ -190,7 +190,7 @@
     {
       "check": "A4 the replay since the old cursor is gap free",
       "ok": true,
-      "detail": "87..188 (102 events)"
+      "detail": "93..199 (107 events)"
     },
     {
       "check": "A4 the replay ends at the head",

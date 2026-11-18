@@ -1,0 +1,150 @@
+{
+  "run_id": "be2-l6e2e-10",
+  "checks": [
+    {
+      "check": "compose stack is up and healthy",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "ocr-parser and media-parser run beside the engine",
+      "ok": true,
+      "detail": "oo-docs-3a464cdf2f6d-docs-engine-1 oo-docs-3a464cdf2f6d-media-parser-1 oo-docs-3a464cdf2f6d-ocr-parser-1 oo-docs-3a464cdf2f6d-doc-parser-1 oo-docs-3a464cdf2f6d-docs-db-1 oo-be2-l5-pg "
+    },
+    {
+      "check": "all files left the working states",
+      "ok": true,
+      "detail": "{\"Meetings/周会 参会=小王、小李.wav\": \"published\", \"Meetings/录屏.webm\": \"published\", \"Meetings/录屏h264.mp4\": \"unsupported\", \"Meetings/讲话.m4a\": \"unsupported\", \"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\", \"Scans/扫描件.pdf\": \"published\", \"Scans/纪要.png\": \"published\"}"
+    },
+    {
+      "check": "A1 Scans/纪要.png published",
+      "ok": true,
+      "detail": "published None"
+    },
+    {
+      "check": "A1 Scans/扫描件.pdf published",
+      "ok": true,
+      "detail": "published None"
+    },
+    {
+      "check": "A1 the OCR text carries the planted words",
+      "ok": true,
+      "detail": "3/3 words in 48 chars"
+    },
+    {
+      "check": "A3 the meeting is published",
+      "ok": true,
+      "detail": "published None"
+    },
+    {
+      "check": "A3 one speaker_identity item per speaker label",
+      "ok": true,
+      "detail": "4 items"
+    },
+    {
+      "check": "A3 nothing is published under a named Person before confirmation",
+      "ok": true,
+      "detail": "{\"as_of_seq\": 70, \"items\": [{\"counts\": {\"aliases\": 1, \"facts\": 1}, \"id\": \"b60dadbb-a83e-44a1-b6c3-5db48519686c\", \"key\": "
+    },
+    {
+      "check": "A3 confirming S1 as 小王 succeeds",
+      "ok": true,
+      "detail": "{\"accepted\": 1, \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"9b05439c-603d-4ac6-85d4-ed9af962c8c3\", \"status\": \"ok\"}]}"
+    },
+    {
+      "check": "A3 after confirming, the fact's subject is the Person 小王",
+      "ok": true,
+      "detail": "[{\"counts\": {\"aliases\": 0, \"facts\": 0}, \"id\": \"80db7abe-1824-45e0-b008-1db61709a4af\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
+    },
+    {
+      "check": "A4 the screen recording is published",
+      "ok": true,
+      "detail": "published None"
+    },
+    {
+      "check": "A4 one key frame per slide",
+      "ok": true,
+      "detail": "2 frame_text blocks"
+    },
+    {
+      "check": "A4 frame text recall >= 0.9 (character level)",
+      "ok": true,
+      "detail": "1.00"
+    },
+    {
+      "check": "A4 blocks carry media anchors (t_start_ms) for #t= provenance",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A5 Meetings/录屏h264.mp4 is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE",
+      "ok": true,
+      "detail": "unsupported DOCS_PARSE_CODEC_UNAVAILABLE"
+    },
+    {
+      "check": "A5 Meetings/讲话.m4a is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE",
+      "ok": true,
+      "detail": "unsupported DOCS_PARSE_CODEC_UNAVAILABLE"
+    },
+    {
+      "check": "A7 mount before the change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "A7 the share drifted and refresh answers",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "A7 BRIEF lists the change after the head",
+      "ok": true,
+      "detail": "987 bytes"
+    },
+    {
+      "check": "A8 the drive has published facts before the bump",
+      "ok": true,
+      "detail": "15 facts, 4 sidecar files"
+    },
+    {
+      "check": "A8 the sidecar files were reprocessed with the new parser version",
+      "ok": false,
+      "detail": "seen outdated"
+    },
+    {
+      "check": "A8 the old facts stayed published during the rerun",
+      "ok": true,
+      "detail": "min 15 of 15"
+    },
+    {
+      "check": "A8 no churn: same fact keys after, nothing retracted",
+      "ok": true,
+      "detail": "15 facts, retracted 0"
+    },
+    {
+      "check": "A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it",
+      "ok": true,
+      "detail": "0 held: "
+    },
+    {
+      "check": "A10 a media job was queued or running when the edit was made",
+      "ok": true,
+      "detail": "1 at the edit, max 1"
+    },
+    {
+      "check": "A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran",
+      "ok": true,
+      "detail": "2.42 s (edit to BRIEF 40.9s)"
+    },
+    {
+      "check": "A10 the edit reached a new BRIEF within the L2 bound (30 s)",
+      "ok": false,
+      "detail": "40.9s"
+    }
+  ],
+  "timings": {
+    "all_files_settled_seconds": 50.1,
+    "a10_edit_to_brief_seconds": 40.89,
+    "a10_detected_to_published_seconds": 2.42
+  }
+}
