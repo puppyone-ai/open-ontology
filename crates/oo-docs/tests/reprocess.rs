@@ -295,19 +295,19 @@ async fn a_parser_upgrade_marks_files_outdated_and_reprocesses_them_in_small_bat
             .await,
         6
     );
-    // The pump starts at most two reprocess jobs at low priority, never the whole Drive at once.
+    // The pump starts one reprocess job at a time at low priority, never the whole Drive at once.
     pump_once(&pool).await.unwrap();
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.job WHERE kind = 'parse' AND priority = 900 AND state = 'queued'")
             .await,
-        2
+        1
     );
     pump_once(&pool).await.unwrap();
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.job WHERE kind = 'parse' AND priority = 900")
             .await,
-        2,
-        "still two in flight"
+        1,
+        "still one in flight"
     );
     // The version registry is process wide: put it back.
     set_current_parser("docling", "1");
