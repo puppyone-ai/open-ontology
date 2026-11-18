@@ -140,6 +140,7 @@
 | SO-B-S16-04 | D83 | merged | feat/super-ontology (WP1 分支并入) | 1a7ad8a2a → 1a7ad8a2a | — | — | oo serve --runtime auto|compose|embedded|host 与内嵌解析 sidecar |
 | SO-B-S16-05 | D83 | merged | feat/super-ontology (WP1 分支并入) | c25304a5d → 6fe7c5dc1 | — | — | WP1 只用 CLI 的端到端脚本 |
 | SO-B-S16-06 | D83 | merged | feat/super-ontology (WP1 分支并入) | 75b68a54a → bf5df0223 | — | — | 数据库来源登记与 upload 自动启动 serve |
+| SO-B-S16-07 | D83 | merged | feat/super-ontology (WP1b 分支并入) | cc2321e47 → 056d7653a | — | — | 引擎镜像带 objectstore-s3（oo-docs-engine:dev-s3）、host.docker.internal、oo source link |
 | SO-B-S18-01 | D83 | merged | feat/super-ontology (WP3 分支并入) | a0c7e4863 → a0c7e4863 | — | — | docs-api 1.7：统一本体查询接口 |
 | SO-B-S18-02 | D83 | merged | feat/super-ontology (WP3 分支并入) | 53c983147 → 04e772972 | — | — | /v1/ontology/* 代理、oo ontology search/entity/query/sources、oo agent token |
 | SO-B-S18-03 | D83 | merged | feat/super-ontology (WP3 分支并入) | c213e6aeb → c213e6aeb | — | — | MCP 统一工具与 oo mcp --stdio |
