@@ -496,21 +496,44 @@ pub async fn decide(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, Ap
             &json!({"accepted": accepted, "rejected": rejected, "item_ids": ids}).to_string(),
         )
         .await?;
-        let pending: Vec<(String, i64)> = sqlx::query_as(
-            "SELECT kind, count(*)::bigint FROM _oo_docs.review_item WHERE status = 'pending' GROUP BY kind",
+        // One `review.changed` per Drive the decision touched (10 8.5): that Drive's queue by kind and
+        // the files whose items changed.
+        let touched: Vec<Option<String>> = sqlx::query_scalar(
+            "SELECT drive_id::text FROM _oo_docs.review_item WHERE id = ANY($1::text[]::uuid[]) \
+             UNION SELECT drive_id::text FROM _oo_docs.file WHERE id = ANY($2::text[]::uuid[])",
         )
+        .bind(&ids)
+        .bind(&files)
         .fetch_all(&mut *tx)
         .await?;
-        let pending: serde_json::Map<String, Value> =
-            pending.into_iter().map(|(k, n)| (k, json!(n))).collect();
-        events::append_event(
-            &mut tx,
-            "review.changed",
-            None,
-            None,
-            &json!({"drive_id": null, "pending": pending, "by_source_changed": files}).to_string(),
-        )
-        .await?;
+        for drive in touched {
+            let pending: Vec<(String, i64)> = sqlx::query_as(
+                "SELECT kind, count(*)::bigint FROM _oo_docs.review_item \
+                  WHERE status = 'pending' AND drive_id IS NOT DISTINCT FROM $1::uuid GROUP BY kind",
+            )
+            .bind(&drive)
+            .fetch_all(&mut *tx)
+            .await?;
+            let pending: serde_json::Map<String, Value> =
+                pending.into_iter().map(|(k, n)| (k, json!(n))).collect();
+            let changed: Vec<String> = sqlx::query_scalar(
+                "SELECT id::text FROM _oo_docs.file WHERE id = ANY($1::text[]::uuid[]) \
+                   AND drive_id IS NOT DISTINCT FROM $2::uuid ORDER BY id LIMIT 100",
+            )
+            .bind(&files)
+            .bind(&drive)
+            .fetch_all(&mut *tx)
+            .await?;
+            events::append_event(
+                &mut tx,
+                "review.changed",
+                drive.as_deref(),
+                None,
+                &json!({"drive_id": drive, "pending": pending, "by_source_changed": changed})
+                    .to_string(),
+            )
+            .await?;
+        }
         tx.commit().await?;
         app.events.notify_waiters();
         app.wake.notify_waiters();

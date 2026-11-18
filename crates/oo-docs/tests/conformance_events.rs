@@ -582,7 +582,7 @@ async fn fm4_itf_traces_conform_to_the_event_log_and_sse() {
             }
             let _ = rig.admin.close().await;
             let _ = rig.rt.close().await;
-            rig.engine.finish().await;
+            rig.engine.finish_unchecked().await;
             outcome.map(|()| (traces, steps))
         }));
     }

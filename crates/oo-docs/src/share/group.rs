@@ -9,7 +9,6 @@ use crate::api::AppState;
 use crate::api::error::{ApiError, code};
 use crate::api::http::is_uuid;
 use crate::compile::CompileRequest;
-use crate::store::events;
 
 /// `gid` is the group's id or its ticket.
 async fn find(
@@ -160,14 +159,6 @@ pub async fn refresh(app: &AppState, gid: &str, public_host: &str) -> Result<Val
     .bind(&id)
     .bind(latest)
     .execute(&mut *tx)
-    .await?;
-    events::append_event(
-        &mut tx,
-        "share.state_changed",
-        None,
-        Some(&id),
-        &json!({"group_id": id, "to_version": latest, "members": members.len()}).to_string(),
-    )
     .await?;
     tx.commit().await?;
     let mut results = Vec::new();

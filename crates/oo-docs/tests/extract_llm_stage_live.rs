@@ -453,3 +453,95 @@ async fn a_file_whose_only_facts_wait_for_a_person_is_still_published() {
     );
     e.finish().await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn an_accepted_replacement_is_not_raised_again_when_the_file_is_read_again() {
+    // The model proposes that one decision replaces another (D51: never applied by itself). A person
+    // accepts it. Reading the file again (new content, the same sentence) must not queue the same
+    // question again: the accepted decision stands.
+    let (md, replies) = recorded();
+    let port = Arc::new(Scripted {
+        rules: vec![
+            ("陈子墨负责", Some(replies["division"].to_string())),
+            ("2026-03-01", Some(replies["decision"].to_string())),
+        ],
+        calls: AtomicUsize::new(0),
+    });
+    let e = TestEngine::start("stage_llm_again", engine_opts(port.clone())).await;
+    e.write("Projects/星图项目.md", &md);
+    let drive = e.create_drive("llm-again").await;
+    enable_model(&e, &drive).await;
+    e.until("published", || async {
+        state_of(&e, "Projects/星图项目.md").await == "published"
+    })
+    .await;
+    let pending_sql = "SELECT count(*) FROM _oo_docs.review_item WHERE status = 'pending' \
+                       AND reason_code = 'supersede_candidate'";
+    let items: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT id::text, revision FROM _oo_docs.review_item WHERE status = 'pending' \
+         AND reason_code = 'supersede_candidate'",
+    )
+    .fetch_all(&e.pool)
+    .await
+    .unwrap();
+    assert!(!items.is_empty(), "the replacement waits for a person");
+    let decisions: Vec<Value> = items
+        .iter()
+        .map(|(id, rev)| json!({"id": id, "revision": rev, "decision": "accept"}))
+        .collect();
+    let r = e
+        .req(
+            "POST",
+            "/v1/docs/review:decide",
+            &[("Idempotency-Key", "accept-replacement-00000001")],
+            Some(&json!({ "items": decisions })),
+        )
+        .await;
+    assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+    assert_eq!(count(&e, pending_sql).await, 0);
+    let accepted = count(
+        &e,
+        "SELECT count(*) FROM _oo_docs.review_item WHERE status = 'accepted' \
+         AND reason_code = 'supersede_candidate'",
+    )
+    .await;
+    // Read again: the same sentences in a new version of the file.
+    e.write("Projects/星图项目.md", &format!("{md}\n（复核于周五）\n"));
+    let id = drive["id"].as_str().unwrap();
+    let r = e
+        .req(
+            "POST",
+            &format!("/v1/docs/drives/{id}:sync"),
+            &[("Idempotency-Key", "sync-again-00000001")],
+            Some(&json!({})),
+        )
+        .await;
+    assert!(r.status < 300, "{}", String::from_utf8_lossy(&r.body));
+    e.until("read again", || async {
+        count(
+            &e,
+            "SELECT count(*) FROM _oo_docs.file_version v JOIN _oo_docs.file f ON f.id = v.file_id \
+              WHERE f.path = 'Projects/星图项目.md'",
+        )
+        .await
+            >= 2
+            && state_of(&e, "Projects/星图项目.md").await == "published"
+    })
+    .await;
+    assert_eq!(
+        count(&e, pending_sql).await,
+        0,
+        "the accepted replacement was raised again"
+    );
+    assert_eq!(
+        count(
+            &e,
+            "SELECT count(*) FROM _oo_docs.review_item WHERE status = 'accepted' \
+             AND reason_code = 'supersede_candidate'"
+        )
+        .await,
+        accepted
+    );
+    e.finish().await;
+}

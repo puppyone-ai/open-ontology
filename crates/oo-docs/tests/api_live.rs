@@ -1307,3 +1307,88 @@ async fn freshness_changes_are_events() {
     assert_eq!(n, 1);
     e.finish().await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_publish_that_makes_no_version_still_ends_publishing_with_an_event() {
+    // A review decision schedules a publish; when there is nothing to publish no version comes. The
+    // Drive was "publishing" only because of that job, so its end is announced as freshness.
+    let e = TestEngine::start(
+        "api_noop_publish",
+        Opts {
+            workers: true,
+            stages: true,
+            ..Opts::default()
+        },
+    )
+    .await;
+    e.write("a.md", "# A\n\n负责人是陈子墨。\n");
+    let drive = e.create_drive("noop").await;
+    let id = drive["id"].as_str().unwrap().to_owned();
+    e.until("published", || async {
+        let state: Option<String> =
+            sqlx::query_scalar("SELECT state FROM _oo_docs.file WHERE path = 'a.md'")
+                .fetch_optional(&e.pool)
+                .await
+                .unwrap();
+        let open: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM _oo_docs.job WHERE kind = 'publish' AND state IN ('queued', 'running')",
+        )
+        .fetch_one(&e.pool)
+        .await
+        .unwrap();
+        state.as_deref() == Some("published") && open == 0
+    })
+    .await;
+    let count = |sql: &'static str| {
+        let pool = e.pool.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>(sql)
+                .fetch_one(&pool)
+                .await
+                .unwrap()
+        }
+    };
+    let versions =
+        count("SELECT count(*) FROM _oo_docs.event WHERE type = 'ontology.version_published'")
+            .await;
+    let before =
+        count("SELECT count(*) FROM _oo_docs.event WHERE type = 'drive.freshness_changed'").await;
+    let done_before =
+        count("SELECT count(*) FROM _oo_docs.job WHERE kind = 'publish' AND state = 'succeeded'")
+            .await;
+    {
+        let mut conn = e.pool.acquire().await.unwrap();
+        oo_docs::publish::debounce::schedule_publish(&mut conn)
+            .await
+            .unwrap();
+    }
+    e.wake();
+    e.until("the empty publish ran", || async {
+        count("SELECT count(*) FROM _oo_docs.job WHERE kind = 'publish' AND state = 'succeeded'")
+            .await
+            > done_before
+    })
+    .await;
+    assert_eq!(
+        count("SELECT count(*) FROM _oo_docs.event WHERE type = 'ontology.version_published'")
+            .await,
+        versions,
+        "nothing was published"
+    );
+    assert_eq!(
+        count("SELECT count(*) FROM _oo_docs.event WHERE type = 'drive.freshness_changed'").await,
+        before + 1,
+        "the end of publishing is announced once"
+    );
+    let ev: String = sqlx::query_scalar(
+        "SELECT payload::text FROM _oo_docs.event WHERE type = 'drive.freshness_changed' ORDER BY seq DESC LIMIT 1",
+    )
+    .fetch_one(&e.pool)
+    .await
+    .unwrap();
+    let v: Value = serde_json::from_str(&ev).unwrap();
+    assert_eq!(v["drive_id"], id);
+    assert_eq!(v["freshness"]["state"], "up_to_date");
+    e.finish().await;
+}

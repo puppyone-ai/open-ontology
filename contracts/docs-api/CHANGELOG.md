@@ -122,6 +122,22 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   a revoked or expired token is 401 `ONTOLOGY_TOKEN_INVALID`. The proxy forwards an `ooa_` token on `/v1/docs/*` untouched (the engine
   checks it). Proxy codes are local to the surface and not in `errors.v1.json`. Additive; no existing route changes.
 
+## 1.8 (contract defects found against the real engine)
+
+- `events.v1.schema.json` gets a `data` schema per event type (`x-data`, selected by `type`): what the engine sends is now
+  checked field by field, not only the envelope. Shapes follow spec 10 8.5; the three that differed are made exact on the
+  engine side: `share.created` and `share.state_changed` carry `{share: Share}` (the current Share, `drive_id` of the event is
+  the Share's Drive), `review.changed` is sent once per Drive a decision touched with that Drive's `drive_id`, `pending` by
+  kind and `by_source_changed`, and `ontology.version_published` is `{n, as_of, facts_added, facts_retracted, gates}` (the
+  ontology is one history for the engine: the event names no Drive). `drive.freshness_changed` is `{drive_id, freshness}` and
+  `Freshness.pending_review` (G12) is part of it. A review decision that leaves nothing to publish ends with a
+  `drive.freshness_changed` for each Drive that was "publishing" only because of that job (the publish job ran, no version
+  came), so a client waiting for "publishing" settles.
+- Every `Page` answer carries `as_of_seq`: `GET /shares`, `GET /shares/{sid}/updates` and `GET /suggestions` did not.
+- A source mark is `[src:<path>#<frag>]` (spec 10 6.2) in `Block.src`, `Evidence.src` and BRIEF; `POST /suggestions` evidence
+  `ref` also accepts the same text without brackets (`src:<path>#<frag>`).
+- No field or endpoint is added or removed; clients ignore unknown fields as before.
+
 ## 1.9 (D83, WP3b: full text search over facts and blocks)
 
 - Version 1.8 is taken by the engine event shapes lane; this entry is 1.9 so the two do not collide.

@@ -90,6 +90,9 @@ pub fn start_once(spec: &EngineSpec) -> Result<(Child, SocketAddr), String> {
         "OO_DOCS_CLOUD_HOSTS",
         "OO_DOCS_PARSER_URL",
         "OO_DOCS_PARSER_TOKEN_FILE",
+        // The model stays off without an egress script (10 2.7); `oo serve` forwards it like the parser.
+        "OO_DOCS_MODEL_EGRESS",
+        "OO_DOCS_PYTHON",
     ] {
         if let Some(v) = std::env::var_os(k) {
             cmd.env(k, v);
