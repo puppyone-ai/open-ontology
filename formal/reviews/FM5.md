@@ -71,3 +71,25 @@ idempotency keys, event payloads. Liveness (every decision ends in a version) is
 
 `crates/oo-docs/tests/conformance_review.rs` (live PostgreSQL): see the L4 report for trace and step counts.
 `markWrong` is the SQL of `routes_correct.rs` (the handler is HTTP-only).
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. Reviewed: `review_decide.qnt` against 10 4.8, 5.3, 8 and D22, D24, D51, and `crates/oo-docs/src/review/{decide,overlay,queue}.rs`; `tests/conformance_review.rs`. Checks: `quint typecheck` passes; `quint run` (seed 7, 40 steps) finds no violation on the unmodified model.
+
+Mutation checks (copies in /tmp, `--invariant=inv`, 3000 samples, seed 7): every mutant below is caught.
+- D22: evidence loss retracts an overlay fact (no `orphaned` branch in `evidenceGone`): violation.
+- D51: the rule origin dropped from `certain` (an LLM supersession auto-runs): violation.
+- D24: class 1 counts as eligible: violation.
+- If-Match: the revision check removed from `decide`: violation.
+
+Blocking
+1. **B1, the D51 and merge invariants are not conformance-tested.** `conformance_review.rs` replays only the `stepFacts` profile (fact candidates, orphans, batches, corrections; `appearKind(FACT)` only). `invLlmNeverAuto` (MERGE and SUPER) and `invInUseNotice` are therefore checked in the model only; the live code path for supersession and merge (`queue.rs` l.80 `certain_supersedes`, `decide.rs` merge branch l.509 to l.563) is covered by unit tests, not by the trace replay. The header of `review_decide.qnt` says merges "run through the resolver tests", so the claim is consistent, but the D51 invariant then has no code check. Either add a second replay profile with kinds MERGE and SUPER (compare `executed`, `notice`, `ist` for those slots), or move the D51 invariants to an explicit "model-only, covered by unit test X" note in FM5.md.
+2. **B2, the `certain` abstraction hides the rule.** `certain` is a free boolean `ce` gated only by `origin == "rule"`. `certain_supersedes(rule_id, origin)` in `queue.rs` depends on the rule id (`name.version` is never certain, 10 4.8). Model the rule id as a value in `{identity, frontmatter, name_version}` and derive `certain` from it, so `invLlmNeverAuto` is checked against the same table as the code. Otherwise the model proves "uncertain never auto" only for a free variable.
+
+Non-blocking
+3. Bounds: 5 slots, 2 sources, MAXREV = 3. The 3-revision bound means `rescore` stops at 3; a decision with `rv` above the current revision (client sends a future revision) is accepted as `conflict`. Confirm that the code also returns `conflict` for future revisions (not checked here).
+4. `decide` on an item already `superseded` (its fact was corrected away) returns `already_decided` in the model; the code path for a retired item is `not_found` or `already_decided` depending on ordering. Pick one in the model's result table and note it in `compare`.
+5. `invEvidenceGate` is checked only on the step after `publish`, with `prev` as the pre-state. It is correct for the model, but DOC-G2 also applies to any publish path in code; ensure the publish task in `publish/` uses the same guard (not reviewed here).
+6. `invRevMonotone` allows +1 on every slot in one step, but the model moves a single slot per step; `invRevMonotone` could be strengthened to "at most one slot changes revision per step".
+
+Checked and fine: `evidenceGone` keeps the overlay of every asserted/active fact (D22) and creates one orphan item per such fact in id order (`rankOf`), matching `overlay.rs` l.96 to l.136; `orphanFix` maps accept to `active` and reject to `withdrawn` (`decide.rs` l.726 table); `markWrong` beats an earlier assertion (`ov = reject`, `invRejectWins`).
