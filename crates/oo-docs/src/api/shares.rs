@@ -116,12 +116,6 @@ fn parse_create(v: &Value, host: String) -> Result<Create, ApiError> {
             ));
         }
     };
-    if creq.role == "editor" {
-        return Err(ApiError::new(
-            code::SHARE_ROLE_UNAVAILABLE,
-            "the editor role is not available yet",
-        ));
-    }
     Ok(Create {
         drive: drive.clone(),
         plan: Plan {

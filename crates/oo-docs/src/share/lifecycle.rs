@@ -204,7 +204,8 @@ pub async fn insert(
         .await?;
     sqlx::query(
         "INSERT INTO _oo_docs.refs_credential (id, share_id, token_b3, scopes, expires_at) \
-         SELECT gen_random_uuid(), $1::uuid, $2, ARRAY['refs:read'], expires_at \
+         SELECT gen_random_uuid(), $1::uuid, $2, \
+                CASE WHEN role = 'viewer' THEN ARRAY['refs:read'] ELSE ARRAY['refs:read','suggest:write'] END, expires_at \
            FROM _oo_docs.share WHERE id = $1::uuid",
     )
     .bind(&sid)
