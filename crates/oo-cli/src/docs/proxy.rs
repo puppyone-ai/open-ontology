@@ -104,6 +104,22 @@ pub fn rewrite_drive_root(
     }))
 }
 
+/// The `file:` credential of a `POST /v1/docs/drives` body of an object-store
+/// Drive (`config.secret_ref`): the engine reads it itself, so under the
+/// compose runtime the file must be visible there (D83).
+pub fn drive_secret_files(body: &[u8]) -> Vec<String> {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    v.get("config")
+        .and_then(|c| c.get("secret_ref"))
+        .and_then(|r| r.as_str())
+        .and_then(|r| r.strip_prefix("file:"))
+        .filter(|p| p.starts_with('/'))
+        .map(|p| vec![p.to_owned()])
+        .unwrap_or_default()
+}
+
 /// A parsed request head.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Head {
@@ -437,6 +453,16 @@ async fn serve_one(
         && head.method == "POST"
         && head.path() == "/v1/docs/drives"
     {
+        let files = drive_secret_files(&body);
+        if !files.is_empty() {
+            let drives = drives.clone();
+            let mounted = tokio::task::spawn_blocking(move || drives.mount_secret_files(&files))
+                .await
+                .unwrap_or_else(|_| Err("mount task failed".into()));
+            if let Err(why) = mounted {
+                return Err(error(502, "DOCS_ENGINE_UNAVAILABLE", &why, true, &[]));
+            }
+        }
         let b = body.clone();
         let rewritten =
             tokio::task::spawn_blocking(move || rewrite_drive_root(&b, |root| drives.mount(root)))
@@ -576,6 +602,18 @@ pub async fn serve(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_drive_credential_file_is_mounted_but_an_env_or_name_reference_is_not() {
+        assert_eq!(
+            drive_secret_files(br#"{"config":{"bucket":"b","secret_ref":"file:/h/.config/open-ontology/secrets/src_a_s3"}}"#),
+            ["/h/.config/open-ontology/secrets/src_a_s3"]
+        );
+        assert!(drive_secret_files(br#"{"config":{"secret_ref":"env:X"}}"#).is_empty());
+        assert!(drive_secret_files(br#"{"config":{"secret_ref":"name"}}"#).is_empty());
+        assert!(drive_secret_files(br#"{"config":{"root":"/x"}}"#).is_empty());
+        assert!(drive_secret_files(b"nope").is_empty());
+    }
+
     #[test]
     fn model_secret_files_come_from_file_references_only() {
         let body = br#"{"provider":"openai-compatible","base_url":"file:/home/o/.config/e","model":"m","key_ref":"file:/home/o/.config/k"}"#;

@@ -334,13 +334,28 @@ impl Runtime {
 
     /// `file:` references of the saved model configuration (`<state>/engine/model.json`).
     fn saved_secret_files(&self) -> Vec<PathBuf> {
-        let Ok(text) = fs::read_to_string(self.state.join("engine/model.json")) else {
-            return Vec::new();
-        };
-        super::proxy::model_secret_files(text.as_bytes())
-            .into_iter()
-            .map(PathBuf::from)
-            .collect()
+        let mut files: Vec<PathBuf> = fs::read_to_string(self.state.join("engine/model.json"))
+            .map(|text| {
+                super::proxy::model_secret_files(text.as_bytes())
+                    .into_iter()
+                    .map(PathBuf::from)
+                    .collect()
+            })
+            .unwrap_or_default();
+        // Credential files of object-store Drives (D83), kept across restarts.
+        if let Some(v) = fs::read_to_string(self.state.join(DRIVE_SECRETS))
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        {
+            files.extend(
+                v["files"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|p| p.as_str().map(PathBuf::from)),
+            );
+        }
+        files
     }
 
     /// Read-only binds of the model's secret files, at the same absolute path
@@ -378,7 +393,7 @@ impl Runtime {
     }
 
     fn compose(&self) -> Command {
-        let mut c = Command::new("docker");
+        let mut c = super::dockercli::docker();
         c.args([
             "compose",
             "-p",
@@ -601,10 +616,7 @@ impl Runtime {
         if !canonical.is_dir() {
             return Err("source root is missing or not a directory".into());
         }
-        if canonical == Path::new("/")
-            || canonical.starts_with(&self.state)
-            || self.state.starts_with(&canonical)
-        {
+        if !mount_allowed(&canonical, &self.state) {
             return Err("this directory cannot be mounted into the engine".into());
         }
         let id = mount_id(&canonical);
@@ -638,6 +650,17 @@ impl Runtime {
     }
 }
 
+/// May `canonical` be bind-mounted into the engine? Never `/`, an ancestor of the
+/// state directory or the state directory's own files (tokens, PKI, secrets);
+/// the managed Drives under `<state>/drives/<name>` (D83) hold only the user's files.
+pub fn mount_allowed(canonical: &Path, state: &Path) -> bool {
+    let drives = state.join("drives");
+    let managed = canonical.starts_with(&drives) && canonical != drives;
+    canonical != Path::new("/")
+        && (!canonical.starts_with(state) || managed)
+        && !state.starts_with(canonical)
+}
+
 impl DriveMounts for Runtime {
     fn mount(&self, host_root: &str) -> Result<String, String> {
         self.mount_checked(host_root)
@@ -663,10 +686,12 @@ impl DriveMounts for Runtime {
         if wanted.is_subset(&known) {
             return Ok(());
         }
-        self.secret_files
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .extend(wanted);
+        {
+            let mut set = self.secret_files.lock().unwrap_or_else(|p| p.into_inner());
+            set.extend(wanted);
+            let doc = json!({"protocol": "oo.docs.drive-secrets/v1", "files": set.iter().collect::<Vec<_>>()});
+            let _ = secrets::write_secret_atomic(&self.state.join(DRIVE_SECRETS), &doc.to_string());
+        }
         self.write_override().map_err(|f| f.message)?;
         // Recreate the engine with the new binds (the same step as a new Drive).
         let out = self
@@ -703,7 +728,7 @@ pub fn livez(addr: SocketAddr) -> bool {
 }
 
 fn used_subnets() -> Vec<(u32, u32)> {
-    let Ok(ids) = run(Command::new("docker").args(["network", "ls", "-q"])) else {
+    let Ok(ids) = run(super::dockercli::docker().args(["network", "ls", "-q"])) else {
         return Vec::new();
     };
     let ids: Vec<String> = ok_stdout(&ids)
@@ -713,7 +738,7 @@ fn used_subnets() -> Vec<(u32, u32)> {
     if ids.is_empty() {
         return Vec::new();
     }
-    let Ok(out) = run(Command::new("docker")
+    let Ok(out) = run(super::dockercli::docker()
         .args(["network", "inspect", "--format"])
         .arg("{{range .IPAM.Config}}{{.Subnet}} {{end}}")
         .args(&ids))
@@ -752,10 +777,48 @@ pub fn find_deploy_dir(explicit: Option<&Path>) -> Option<PathBuf> {
 }
 
 fn image_id(reference: &str) -> Option<String> {
-    let out =
-        run(Command::new("docker").args(["image", "inspect", "--format", "{{.Id}}", reference]))
-            .ok()?;
+    let out = run(
+        super::dockercli::docker().args(["image", "inspect", "--format", "{{.Id}}", reference])
+    )
+    .ok()?;
     out.status.success().then(|| ok_stdout(&out))
+}
+
+/// Can the compose runtime start here? The same checks as the first steps of
+/// [`prepare`] (Docker answers, the compose plugin, the deploy files, the locked
+/// engine and parser images, the postgres image) without changing anything.
+/// `oo serve` in auto mode uses it to fall back to the Docker-free runtime.
+pub fn usable(deploy_dir: Option<&Path>) -> Result<(), String> {
+    let arch = run(super::dockercli::docker().args(["info", "--format", "{{.Architecture}}"]))
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| ok_stdout(&o))
+        .ok_or("Docker does not answer")?;
+    if !run(super::dockercli::docker().args(["compose", "version"]))
+        .is_ok_and(|o| o.status.success())
+    {
+        return Err("the docker compose plugin is missing".into());
+    }
+    let platform = platform_of(&arch).ok_or("unsupported Docker architecture")?;
+    let deploy = find_deploy_dir(deploy_dir).ok_or("deploy/docs was not found")?;
+    let lock: Value = fs::read_to_string(deploy.join("images.lock.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .ok_or("images.lock.json is unreadable")?;
+    let images = wanted_images(&lock, platform)?;
+    for (name, reference, tag) in [
+        ("docs-engine", &images.engine, &images.engine_tag),
+        ("doc-parser", &images.parser, &images.parser_tag),
+    ] {
+        let local = image_id(reference);
+        let by_tag = tag.as_deref().map(|t| (t, image_id(t)));
+        let by_tag_ref = by_tag.as_ref().map(|(t, id)| (*t, id.as_deref()));
+        judge_image(name, reference, local.as_deref(), by_tag_ref)?;
+    }
+    if image_id(&images.db).is_none() {
+        return Err(format!("postgres image {} is not present", images.db));
+    }
+    Ok(())
 }
 
 /// Everything before `up`: Docker, images, files, tokens, PKI.
@@ -766,15 +829,15 @@ pub fn prepare(
     parser_token: &str,
 ) -> Result<Runtime, Failure> {
     // 1. docker info
-    let info = run(Command::new("docker").args(["info", "--format", "{{.Architecture}}"]))
+    let info = run(super::dockercli::docker().args(["info", "--format", "{{.Architecture}}"]))
         .ok()
         .filter(|o| o.status.success())
         .map(|o| ok_stdout(&o));
     let Some(arch) = info else {
         return fail(exit::DOCKER, "Docker is not available (docker info failed)");
     };
-    let compose_ok =
-        run(Command::new("docker").args(["compose", "version"])).is_ok_and(|o| o.status.success());
+    let compose_ok = run(super::dockercli::docker().args(["compose", "version"]))
+        .is_ok_and(|o| o.status.success());
     if !compose_ok {
         return fail(exit::DOCKER, "docker compose is not available");
     }
@@ -814,7 +877,7 @@ pub fn prepare(
             .or_else(|m| fail(exit::ENGINE_MISSING, m))?;
     }
     if image_id(&images.db).is_none() {
-        let pulled = run(Command::new("docker").args(["pull", "--quiet", &images.db]))
+        let pulled = run(super::dockercli::docker().args(["pull", "--quiet", &images.db]))
             .is_ok_and(|o| o.status.success());
         if !pulled {
             return fail(
@@ -885,8 +948,10 @@ fn read_subnets(state: &Path) -> Option<Vec<String>> {
 /// context mounts (10 7.7 point 4), whose daemon pass rewrites it, so the Drive
 /// mounts have a file of their own.
 const DRIVE_MOUNTS: &str = "drive-mounts.json";
+/// Credential files of object-store Drives that the engine container must see.
+const DRIVE_SECRETS: &str = "drive-secrets.json";
 
-fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
+pub(super) fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
     // A state directory written before the split keeps its Drive mounts under
     // `mounts.json` with the `oo.docs.mounts/v1` shape; read that when the new file is absent.
     let read = |name: &str| {
@@ -937,7 +1002,7 @@ fn ensure_pki(pki: &Path, db_image: &str, uid: u32, gid: u32) -> Result<(String,
     .iter()
     .all(|n| pki.join(n).is_file());
     let fresh = have && {
-        let out = run(Command::new("docker")
+        let out = run(super::dockercli::docker()
             .args(["run", "--rm", "--network", "none", "--user"])
             .arg(format!("{uid}:{gid}"))
             .arg("--entrypoint")
@@ -959,7 +1024,7 @@ fn ensure_pki(pki: &Path, db_image: &str, uid: u32, gid: u32) -> Result<(String,
         for n in ["ca-key", "ca-cert", "docs-db-key", "docs-db-cert"] {
             let _ = fs::remove_file(pki.join(n));
         }
-        let out = run(Command::new("docker")
+        let out = run(super::dockercli::docker()
             .args(["run", "--rm", "--network", "none", "--user"])
             .arg(format!("{uid}:{gid}"))
             .args(["--entrypoint", "sh", "-v"])
@@ -1201,6 +1266,20 @@ mod tests {
             o["networks"]["docs-internal"]["ipam"]["config"][0]["subnet"],
             "10.249.0.0/28"
         );
+    }
+
+    #[test]
+    fn managed_drives_are_mountable_but_the_rest_of_state_is_not() {
+        let st = Path::new("/h/state");
+        assert!(mount_allowed(Path::new("/h/state/drives/default"), st));
+        assert!(mount_allowed(Path::new("/h/state/drives/default/sub"), st));
+        assert!(!mount_allowed(Path::new("/h/state/drives"), st));
+        assert!(!mount_allowed(Path::new("/h/state"), st));
+        assert!(!mount_allowed(Path::new("/h/state/pki"), st));
+        assert!(!mount_allowed(Path::new("/h/state/home"), st));
+        assert!(!mount_allowed(Path::new("/h"), st));
+        assert!(!mount_allowed(Path::new("/"), st));
+        assert!(mount_allowed(Path::new("/data/docs"), st));
     }
 
     #[test]

@@ -20,6 +20,10 @@ pub mod exit {
     pub const TARGET: u8 = 6;
     pub const GATE: u8 = 7;
     pub const SHARE_STATE: u8 = 8;
+    /// `oo docs wait` / `oo docs upload --wait`: the files did not settle in time.
+    pub const WAIT_TIMEOUT: u8 = 9;
+    /// `oo docs wait`: settled, but at least one file failed or is unsupported.
+    pub const FILES_FAILED: u8 = 10;
 }
 
 /// A failure with the exit code it maps to. The text never carries a token.
@@ -213,6 +217,28 @@ impl Daemon {
         let (_, body) = self.send(req).await?;
         serde_json::from_slice(&body)
             .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "response is not JSON"))
+    }
+
+    /// `PUT` or `PATCH` JSON with an `If-Match` header and a fresh idempotency key.
+    pub async fn write_json_if(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: &Value,
+        if_match: &str,
+    ) -> Result<Value, CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let req = self
+            .http
+            .request(method, format!("{}{path}", self.base))
+            .header("idempotency-key", key)
+            .header("if-match", if_match)
+            .header("content-type", "application/json")
+            .body(body.to_string());
+        let (_, body) = self.send(req).await?;
+        Ok(serde_json::from_slice(&body).unwrap_or(Value::Null))
     }
 
     /// `GET`, raw bytes.

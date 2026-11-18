@@ -5,23 +5,31 @@
 //! engine and a token-checking reverse proxy, `oo context` talks to the proxy.
 
 pub mod agent;
+pub mod autostart;
 pub mod client;
 pub mod compose;
 pub mod context;
+pub mod dockercli;
 pub mod docs_cmd;
+pub mod embedded;
 pub mod engine;
 pub mod federate;
 pub mod mounts;
 pub mod ontology;
 pub mod proxy;
+pub mod s3io;
 pub mod secrets;
 pub mod serve;
+pub mod sidecar;
+pub mod source;
+pub mod source_db;
 pub mod suggest;
+pub mod upload;
 
 use crate::args::Invocation;
 use crate::outcome::Failure;
 
-const HELP: &str = "Usage:\n  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text> | --for-file <path>] [--seed <entity-key>]... [--budget <n>] [--role viewer|suggester] [--expires <dur>] [--version <N>] [--group <ticket>] [--refresh-policy manual|at-checkpoint|pinned] [--require-complete] [--wait <dur>] [--strict-budget] [--dry-run] [--json]\n  oo context list [--drive <id|name>] [--status <state>] [--json]\n  oo context status <dir|share-id> [--json]\n  oo context refresh <dir|share-id> | --group <ticket> [--json]\n  oo context revoke <dir|share-id> [--json]\n  oo context check [--dir .context] [--since <seq>] [--json]\n  oo context collect <dir|share-id> [--json]\n  oo docs drive|files|review|entity|share|usage|health ... (see `oo docs --help`)\n  oo serve [--state-dir <dir>] [--port <n>|0] [--runtime host|compose] [--deploy-dir <dir>] [--keep-engine] [--json]\n  oo serve --status [--json]\n  oo serve --stop\n";
+const HELP: &str = "Usage:\n  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text> | --for-file <path>] [--seed <entity-key>]... [--budget <n>] [--role viewer|suggester] [--expires <dur>] [--version <N>] [--group <ticket>] [--refresh-policy manual|at-checkpoint|pinned] [--require-complete] [--wait <dur>] [--strict-budget] [--dry-run] [--json]\n  oo context list [--drive <id|name>] [--status <state>] [--json]\n  oo context status <dir|share-id> [--json]\n  oo context refresh <dir|share-id> | --group <ticket> [--json]\n  oo context revoke <dir|share-id> [--json]\n  oo context check [--dir .context] [--since <seq>] [--json]\n  oo context collect <dir|share-id> [--json]\n  oo docs drive|files|review|entity|share|usage|health ... (see `oo docs --help`)\n  oo serve [--state-dir <dir>] [--port <n>|0] [--runtime auto|compose|embedded|host] [--deploy-dir <dir>] [--keep-engine] [--json]\n  oo serve --status [--json]\n  oo serve --stop\n";
 
 /// `serve` dispatch. Runs the daemon to completion; the process exit code is
 /// the daemon's (10 §8.6 point 9).
@@ -43,6 +51,10 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         }
         "mcp" if rest.iter().any(|a| a == "--endpoint") => Some(ontology::mcp(rest)),
         "docs" => std::process::exit(i32::from(docs_cmd::run(rest))),
+        "source" if rest.iter().any(|a| a == "--help" || a == "-h") => {
+            Some(Ok(Invocation::Help(source::HELP.into())))
+        }
+        "source" => std::process::exit(i32::from(source::run(rest))),
         "context" => std::process::exit(i32::from(context::run(rest))),
         "serve" if rest.iter().any(|a| a == "--help" || a == "-h") => {
             Some(Ok(Invocation::Help(HELP.into())))
