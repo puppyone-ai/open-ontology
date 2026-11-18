@@ -12,6 +12,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod lexical;
+
 /// The only model version this build can compute.
 pub const MODEL_VERSION: &str = "hashgram/1";
 /// Vector length; matches `_oo_docs.block_vector.embedding vector(256)`.
