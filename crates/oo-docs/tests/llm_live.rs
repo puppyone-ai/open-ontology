@@ -288,12 +288,12 @@ async fn a_broken_reply_is_retried_once_and_then_remembered() {
             .await,
         0
     );
-    // Each unreachable batch is tried twice (one retry on the wire), every call counted.
+    // Each unreachable batch is tried four times (retries on the wire), every call counted.
     assert_eq!(
         r2.fx
             .scalar("SELECT failed::bigint FROM _oo_docs.llm_usage")
             .await,
-        4
+        8
     );
     r.fx.finish(db).await;
 }
