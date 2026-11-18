@@ -59,6 +59,39 @@ pub async fn covers_drive_rev_live(conn: &mut PgConnection) -> Result<i64, Store
     .await
 }
 
+/// [`covers_drive_rev_live`] for one Drive and the files of `prefixes` only (empty: the whole Drive, but still this
+/// Drive alone). A pack of a scope waits for the files of its scope, not for a long recording elsewhere in the Drive
+/// (D77): a file outside the scope that is still being parsed does not hold the freshness floor of a share or a
+/// compile that cannot contain it. Corrections (overlays) are Drive wide, as before.
+pub async fn covers_drive_rev_scoped(
+    conn: &mut PgConnection,
+    drive_id: &str,
+    prefixes: &[String],
+) -> Result<i64, StoreError> {
+    let sql = "SELECT LEAST( \
+                 COALESCE( \
+                   (SELECT min(fv.drive_rev) - 1 FROM _oo_docs.file f \
+                      JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+                     WHERE f.drive_id = d.id AND fv.drive_rev IS NOT NULL \
+                       AND f.state <> ALL($2::text[]) \
+                       AND (cardinality($3::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($3::text[]) sp(p) \
+                             WHERE f.path = sp.p OR f.path LIKE replace(replace(replace(sp.p, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '/%'))), \
+                   d.rev), \
+                 COALESCE( \
+                   (SELECT min(o.drive_rev) - 1 FROM _oo_docs.overlay o \
+                     WHERE o.drive_rev IS NOT NULL \
+                       AND o.created_at > COALESCE((SELECT max(v.published_at) FROM _oo_docs.ontology_version v), '-infinity'::timestamptz)), \
+                   d.rev)) \
+               FROM _oo_docs.drive d WHERE d.id = $1::uuid";
+    let covers: Option<i64> = sqlx::query_scalar(sql)
+        .bind(drive_id)
+        .bind(TERMINAL_STATES)
+        .bind(prefixes)
+        .fetch_optional(&mut *conn)
+        .await?;
+    Ok(covers.unwrap_or(0).max(0))
+}
+
 async fn covers(
     conn: &mut PgConnection,
     settling: &[String],
