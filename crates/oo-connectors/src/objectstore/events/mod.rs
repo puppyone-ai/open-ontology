@@ -22,8 +22,14 @@ use crate::objectstore::{
     ChangeCursor, ChangeHint, ChangeOp, DocSourceError, DocumentSource, ObjectMeta,
 };
 
+pub mod cfqueues;
+pub mod crypto;
+pub mod http;
 pub mod local;
+pub mod mns;
 pub mod parse;
+pub mod queue;
+pub mod sqs;
 
 /// Entries the dedupe memory keeps (10 §4.3.6).
 pub const DEDUPE_CAPACITY: usize = 100_000;
@@ -182,5 +188,7 @@ pub async fn apply<S: DocumentSource>(
     Ok((out, counts))
 }
 
+#[cfg(test)]
+mod adapter_tests;
 #[cfg(test)]
 mod tests;
