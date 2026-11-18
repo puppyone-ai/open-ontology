@@ -450,7 +450,7 @@ pub fn decide_runtime(
 
 /// Docker answers `docker info` within a few seconds.
 fn docker_usable() -> bool {
-    let Ok(mut child) = std::process::Command::new("docker")
+    let Ok(mut child) = super::dockercli::docker()
         .args(["info", "--format", "{{.ServerVersion}}"])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

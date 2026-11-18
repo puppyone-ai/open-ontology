@@ -8,6 +8,7 @@ pub mod autostart;
 pub mod client;
 pub mod compose;
 pub mod context;
+pub mod dockercli;
 pub mod docs_cmd;
 pub mod embedded;
 pub mod engine;

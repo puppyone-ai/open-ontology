@@ -324,6 +324,10 @@ def main():
         if compose:
             rep.check("3 docx and pdf are published too (parser sidecar)", all(states.get(k.split('/')[-1], states.get(k)) in OFFICE_STATES_OK
                       for k in [p.name for p in office]), {k: v for k, v in states.items() if not k.endswith('.md')})
+        elif env.get("OO_DOCS_SIDECAR_DIR") and not args.fake_sidecar:
+            rep.check("3 docx and pdf are published with no Docker (uv parser sidecar)",
+                      bool(office) and all(states.get(k.split("/")[-1], states.get(k)) in OFFICE_STATES_OK for k in [p.name for p in office]),
+                      {k: v for k, v in states.items() if not k.endswith(".md")})
         else:
             rep.check("3 docx and pdf reach a terminal state in the Docker-free runtime (parsing needs the sidecar)",
                       all(v not in ("stored", "queued", "parsing") for v in states.values()), {k: v for k, v in states.items() if not k.endswith('.md')})
