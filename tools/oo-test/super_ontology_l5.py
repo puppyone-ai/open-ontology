@@ -210,20 +210,21 @@ def main(argv=None):
         ev_ref = [{"kind": "ref", "ref": "Projects/星火计划.md"}]
         put("r1.json", {"kind": "new_fact", "subject": "星火计划", "predicate": "attr.deadline", "value": "2027-03-31", "rationale": "排期会", "evidence": ev_ref, "idempotency_key": "l5-rule-new-01"})
         st, lst = api.request("GET", "/v1/docs/suggestions?share_id=" + sid3)
-        by_key = {i["payload"].get("idempotency_key") or i["payload"]["predicate"]: i for i in lst["items"]}
         r1 = next((i for i in lst["items"] if i["payload"]["predicate"] == "attr.deadline"), {})
         ev.check("rule 1 a new fact with evidence in scope is auto accepted", r1.get("status") == "auto_accepted" and r1.get("rule") == "new_fact", json.dumps({k: r1.get(k) for k in ("status", "rule")}))
         ev.check("rule 1 the suggestion remembers the credential that wrote it", bool(r1.get("credential_id")), "credential_id set")
+        # the supersession needs the old fact published (the publisher's debounce window), so wait for it
+        l2.wait_until(90, lambda: pg.psql(db, f"SELECT status FROM _oo_docs.fact WHERE id = '{r1.get('fact_id')}'") == "published", step=2)
         deadline_key = pg.psql(db, f"SELECT fact_key FROM _oo_docs.fact WHERE id = '{r1.get('fact_id')}'") if r1.get("fact_id") else ""
         put("r2.json", {"kind": "supersede", "subject": "星火计划", "predicate": "attr.deadline", "value": "2027-04-30", "valid_from": today,
                         "supersedes": deadline_key, "rationale": "延期", "evidence": ev_ref, "idempotency_key": "l5-rule-unused-01"})
         st, lst = api.request("GET", "/v1/docs/suggestions?share_id=" + sid3)
-        r2 = next((i for i in lst["items"] if i["payload"].get("idempotency_key") == "l5-rule-unused-01"), {})
+        r2 = next((i for i in lst["items"] if i["kind"] == "supersede"), {})
         ev.check("rule 2 superseding a fact no Share used is silent", r2.get("status") == "superseded_silently" and r2.get("rule") == "supersede_unused", json.dumps({k: r2.get(k) for k in ("status", "rule")}))
         ev.check("rule 3 (A1) superseding a used fact waited for a person and listed the Share", all(i["rule"] == "supersede_in_use" for i in items))
         put("r4.json", {"kind": "preference", "subject": "团队", "predicate": "prefers", "value": "简短汇报", "rationale": "负责人偏好", "idempotency_key": "l5-rule-pref-01"})
         st, lst = api.request("GET", "/v1/docs/suggestions?share_id=" + sid3)
-        r4 = next((i for i in lst["items"] if i["payload"].get("idempotency_key") == "l5-rule-pref-01"), {})
+        r4 = next((i for i in lst["items"] if i["kind"] == "preference"), {})
         ev.check("rule 4 a preference is always a person's", r4.get("status") == "pending" and r4.get("rule") == "manual", json.dumps({k: r4.get(k) for k in ("status", "rule")}))
         st, dg = api.request("GET", "/v1/docs/suggestions:digest")
         ev.check("the day's digest lists what is in effect and what waits", st == 200 and dg["counts"]["auto_accepted"] >= 1 and dg["counts"]["superseded_silently"] >= 1 and dg["counts"]["pending"] >= 1, json.dumps(dg.get("counts")))
@@ -239,7 +240,7 @@ def main(argv=None):
         human_ops.clear()
         day = []
         for i in range(40):
-            day.append({"kind": "new_fact", "subject": "星火计划", "predicate": f"attr.note_{i:02d}", "value": f"备注{i}", "rationale": "日常观察",
+            day.append({"kind": "new_fact", "subject": "星火计划", "predicate": "attr.note_" + chr(97 + i // 26) + chr(97 + i % 26), "value": f"备注{i}", "rationale": "日常观察",
                         "evidence": ev_ref, "idempotency_key": f"l5-day-new-{i:02d}"})
         for i in range(5):
             day.append({"kind": "preference", "subject": "团队", "predicate": "prefers", "value": f"偏好{i}", "rationale": "说过", "idempotency_key": f"l5-day-pref-{i:02d}"})
