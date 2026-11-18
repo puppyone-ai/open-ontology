@@ -24,6 +24,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::PackError;
+use super::kernels;
 use super::render::{
     Cites, entity_evidence, entity_file_name, entity_with_aliases, fact_text, first_src, md_file,
     src_tags,
@@ -85,10 +86,12 @@ enum Level {
 
 impl Level {
     fn next(self) -> Level {
-        match self {
-            Level::Full => Level::Summary,
-            Level::Summary => Level::Title,
-            Level::Title | Level::Removed => Level::Removed,
+        // the step is `kernels::next_level` (proved in KP6); numbers and variants line up
+        match kernels::next_level(self as u8) {
+            0 => Level::Full,
+            1 => Level::Summary,
+            2 => Level::Title,
+            _ => Level::Removed,
         }
     }
 }
@@ -247,13 +250,18 @@ fn resolve_seeds(g: &VisibleGraph, task: &str, explicit: &[String]) -> Result<Se
     })
 }
 
+fn rank_key(e: &Entry) -> kernels::RankKey<'_> {
+    kernels::RankKey {
+        seed_hit: e.seed_hit,
+        valid_from: e.valid_from.as_deref(),
+        evs: e.evs.len(),
+        subject: &e.subject,
+        fact_key: e.fact_key.as_deref(),
+    }
+}
+
 fn rank_cmp(a: &Entry, b: &Entry) -> std::cmp::Ordering {
-    b.seed_hit
-        .cmp(&a.seed_hit)
-        .then_with(|| b.valid_from.cmp(&a.valid_from))
-        .then_with(|| b.evs.len().cmp(&a.evs.len()))
-        .then_with(|| a.subject.cmp(&b.subject))
-        .then_with(|| a.fact_key.cmp(&b.fact_key))
+    kernels::rank_cmp_keys(&rank_key(a), &rank_key(b))
 }
 
 fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
@@ -568,12 +576,11 @@ impl Frame<'_> {
 }
 
 fn lowest_degradable(entries: &[Entry], sec: Sec) -> Option<usize> {
-    entries
-        .iter()
-        .enumerate()
-        .rev()
-        .find(|(_, e)| e.sec == sec && e.level != Level::Removed)
-        .map(|(i, _)| i)
+    kernels::lowest_degradable_by(
+        entries.len(),
+        |i| (entries[i].sec as u8, entries[i].level as u8),
+        sec as u8,
+    )
 }
 
 /// Build BRIEF.md for `g`.
@@ -676,4 +683,22 @@ pub fn build(g: &VisibleGraph, basis: &str, p: &BriefParams<'_>) -> Result<Brief
         uses,
         cites,
     })
+}
+
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+
+    #[test]
+    fn degradation_order_and_level_steps_are_the_kernels() {
+        assert_eq!(
+            Sec::DEGRADE_ORDER.map(|s| s as u8),
+            kernels::DEGRADE_ORDER,
+            "the order Kani proves is the order BRIEF uses"
+        );
+        for l in [Level::Full, Level::Summary, Level::Title, Level::Removed] {
+            assert_eq!(l.next() as u8, kernels::next_level(l as u8));
+        }
+        assert_eq!(Level::Removed as u8, kernels::REMOVED);
+    }
 }

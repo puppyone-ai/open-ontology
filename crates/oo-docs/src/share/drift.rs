@@ -152,160 +152,193 @@ pub async fn apply(conn: &mut PgConnection, n: i64) -> Result<DriftOutcome, Stor
 
     let mut out = DriftOutcome::default();
     for (sid, pack_version) in live {
-        // (level, section) -> facts
-        let mut groups: BTreeMap<(u8, String, &'static str), Group> = BTreeMap::new();
-
-        let cands = sqlx::query(
-            "SELECT f.id::text AS fid, f.fact_key, f.retracted_in = $2 AS retracted, \
-                    f.superseded_by::text AS sup \
-               FROM _oo_docs.share_fact_use u JOIN _oo_docs.fact f ON f.id = u.fact_id \
-              WHERE u.share_id = $1::uuid \
-                AND (f.retracted_in = $2 OR EXISTS (SELECT 1 FROM _oo_docs.fact x \
-                       WHERE x.id = f.superseded_by AND x.published_in = $2)) \
-              ORDER BY f.fact_key",
-        )
-        .bind(&sid)
-        .bind(n)
-        .fetch_all(&mut *conn)
-        .await?;
-        for r in &cands {
-            let (fid, key): (String, String) = (r.try_get("fid")?, r.try_get("fact_key")?);
-            let sup: Option<String> = r.try_get("sup")?;
-            let new_label = match &sup {
-                Some(s) => visible_new_label(conn, &sid, s).await?,
-                None => None,
-            };
-            let (rank, summary) = if sup.is_some() {
-                (2u8, "facts_superseded")
-            } else {
-                (3u8, "facts_retracted")
-            };
-            let section = section_of(conn, &sid, &key).await?.unwrap_or_default();
-            let g = groups.entry((rank, section, summary)).or_default();
-            g.fact_keys.push(key);
-            g.labels.push(label(conn, &fid).await?);
-            if let Some(l) = new_label {
-                g.new.push(l);
-            }
-        }
-
-        let viol = sqlx::query(
-            "SELECT DISTINCT f.fact_key, e.canonical_name AS entity \
-               FROM _oo_docs.share_fact_use u JOIN _oo_docs.fact f ON f.id = u.fact_id \
-               JOIN _oo_docs.entity e ON e.id = f.subject_id OR e.id = f.object_id \
-               JOIN _oo_docs.constraint_violation cv ON cv.entity_key = e.key \
-                    AND cv.status = 'open' AND cv.detected_in = $2 \
-              WHERE u.share_id = $1::uuid ORDER BY f.fact_key, e.canonical_name",
-        )
-        .bind(&sid)
-        .bind(n)
-        .fetch_all(&mut *conn)
-        .await?;
-        for r in &viol {
-            let (key, entity): (String, String) = (r.try_get("fact_key")?, r.try_get("entity")?);
-            let section = section_of(conn, &sid, &key).await?.unwrap_or_default();
-            let g = groups
-                .entry((3, section, "constraint_conflict"))
-                .or_default();
-            if !g.fact_keys.contains(&key) {
-                g.fact_keys.push(key);
-            }
-            if !g.labels.contains(&entity) {
-                g.labels.push(entity);
-            }
-        }
-
-        let from_version: i64 = sqlx::query_scalar(
-            "SELECT GREATEST($2, COALESCE(max(to_version), 0)) FROM _oo_docs.share_update WHERE share_id = $1::uuid",
-        )
-        .bind(&sid)
-        .bind(pack_version)
-        .fetch_one(&mut *conn)
-        .await?;
-
-        let mut worst = 0u8;
-        // Highest level first, then section, then wording key.
-        for ((rank, section, summary), g) in groups.iter().rev() {
-            worst = worst.max(*rank);
-            let level = if *rank == 3 { "block" } else { "warn" };
-            let shown: Vec<&String> = g.labels.iter().take(5).collect();
-            let args = json!({"labels": shown, "new": g.new.iter().take(5).collect::<Vec<_>>(),
-                              "count": g.fact_keys.len()});
-            let sec = (!section.is_empty()).then_some(section.as_str());
-            updates::append(
-                conn,
-                &NewUpdate {
-                    share_id: &sid,
-                    from_version,
-                    to_version: n,
-                    level,
-                    section: sec,
-                    fact_keys: &g.fact_keys,
-                    summary_key: summary,
-                    summary_args: args,
-                },
-            )
-            .await?;
-            out.updates += 1;
-        }
-
-        // One info per share and version, when something new is in scope.
-        let sql = format!(
-            "SELECT count(DISTINCT f.id) FROM _oo_docs.share s, _oo_docs.fact f \
-               JOIN _oo_docs.evidence e ON e.target_kind = 'fact' AND e.target_id = f.id \
-                    AND e.withdrawn_at IS NULL \
-               JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
-               JOIN _oo_docs.file fl ON fl.id = fv.file_id \
-              WHERE s.id = $1::uuid AND f.published_in = $2 AND fl.drive_id = s.drive_id \
-                AND {} AND NOT EXISTS (SELECT 1 FROM _oo_docs.share_fact_use u \
-                                        WHERE u.share_id = s.id AND u.fact_id = f.id)",
-            in_scope("fv.path_at_version")
-        );
-        let fresh: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
-            .bind(&sid)
-            .bind(n)
-            .fetch_one(&mut *conn)
-            .await?;
-        if fresh > 0 {
-            updates::append(
-                conn,
-                &NewUpdate {
-                    share_id: &sid,
-                    from_version,
-                    to_version: n,
-                    level: "info",
-                    section: None,
-                    fact_keys: &[],
-                    summary_key: "new_facts",
-                    summary_args: json!({"count": fresh}),
-                },
-            )
-            .await?;
-            out.updates += 1;
-        }
-
-        if worst >= 2 {
-            let moved = sqlx::query(
-                "UPDATE _oo_docs.share SET status = 'drifted', drifted_at = clock_timestamp(), \
-                        revision = revision + 1 WHERE id = $1::uuid AND status = 'active'",
-            )
-            .bind(&sid)
-            .execute(&mut *conn)
-            .await?
-            .rows_affected();
-            if moved > 0 {
-                events::append_event(
-                    conn,
-                    "share.state_changed",
-                    None,
-                    Some(&sid),
-                    &json!({"share_id": sid, "from": "active", "to": "drifted", "version": n})
-                        .to_string(),
-                )
-                .await?;
-                out.drifted.push(sid.clone());
-            }
-        }
+        apply_share(conn, &sid, pack_version, n, &mut out).await?;
     }
     Ok(out)
+}
+
+/// A share that is created from an older version than the latest (a task
+/// group pins its version, 16.6) never saw the versions in between: give it the
+/// entries it would have had, version by version, so a change that came before
+/// it existed still reaches it (invChangeDelivered of FM6).
+pub async fn backfill(conn: &mut PgConnection, sid: &str) -> Result<DriftOutcome, StoreError> {
+    let (pack_version, latest): (i64, i64) = sqlx::query_as(
+        "SELECT p.version_n, (SELECT COALESCE(max(n), 0) FROM _oo_docs.ontology_version) \
+           FROM _oo_docs.share s JOIN _oo_docs.context_pack p ON p.id = s.pack_id WHERE s.id = $1::uuid",
+    )
+    .bind(sid)
+    .fetch_one(&mut *conn)
+    .await?;
+    let mut out = DriftOutcome::default();
+    for n in pack_version + 1..=latest {
+        apply_share(conn, sid, pack_version, n, &mut out).await?;
+    }
+    Ok(out)
+}
+
+/// What version `n` means for one live share pinned to `pack_version`.
+async fn apply_share(
+    conn: &mut PgConnection,
+    sid: &str,
+    pack_version: i64,
+    n: i64,
+    out: &mut DriftOutcome,
+) -> Result<(), StoreError> {
+    let sid = sid.to_owned();
+    // (level, section) -> facts
+    let mut groups: BTreeMap<(u8, String, &'static str), Group> = BTreeMap::new();
+
+    let cands = sqlx::query(
+        "SELECT f.id::text AS fid, f.fact_key, f.retracted_in = $2 AS retracted, \
+                f.superseded_by::text AS sup \
+           FROM _oo_docs.share_fact_use u JOIN _oo_docs.fact f ON f.id = u.fact_id \
+          WHERE u.share_id = $1::uuid \
+            AND (f.retracted_in = $2 OR EXISTS (SELECT 1 FROM _oo_docs.fact x \
+                   WHERE x.id = f.superseded_by AND x.published_in = $2)) \
+          ORDER BY f.fact_key",
+    )
+    .bind(&sid)
+    .bind(n)
+    .fetch_all(&mut *conn)
+    .await?;
+    for r in &cands {
+        let (fid, key): (String, String) = (r.try_get("fid")?, r.try_get("fact_key")?);
+        let sup: Option<String> = r.try_get("sup")?;
+        let new_label = match &sup {
+            Some(s) => visible_new_label(conn, &sid, s).await?,
+            None => None,
+        };
+        let (rank, summary) = if sup.is_some() {
+            (2u8, "facts_superseded")
+        } else {
+            (3u8, "facts_retracted")
+        };
+        let section = section_of(conn, &sid, &key).await?.unwrap_or_default();
+        let g = groups.entry((rank, section, summary)).or_default();
+        g.fact_keys.push(key);
+        g.labels.push(label(conn, &fid).await?);
+        if let Some(l) = new_label {
+            g.new.push(l);
+        }
+    }
+
+    let viol = sqlx::query(
+        "SELECT DISTINCT f.fact_key, e.canonical_name AS entity \
+           FROM _oo_docs.share_fact_use u JOIN _oo_docs.fact f ON f.id = u.fact_id \
+           JOIN _oo_docs.entity e ON e.id = f.subject_id OR e.id = f.object_id \
+           JOIN _oo_docs.constraint_violation cv ON cv.entity_key = e.key \
+                AND cv.status = 'open' AND cv.detected_in = $2 \
+          WHERE u.share_id = $1::uuid ORDER BY f.fact_key, e.canonical_name",
+    )
+    .bind(&sid)
+    .bind(n)
+    .fetch_all(&mut *conn)
+    .await?;
+    for r in &viol {
+        let (key, entity): (String, String) = (r.try_get("fact_key")?, r.try_get("entity")?);
+        let section = section_of(conn, &sid, &key).await?.unwrap_or_default();
+        let g = groups
+            .entry((3, section, "constraint_conflict"))
+            .or_default();
+        if !g.fact_keys.contains(&key) {
+            g.fact_keys.push(key);
+        }
+        if !g.labels.contains(&entity) {
+            g.labels.push(entity);
+        }
+    }
+
+    let from_version: i64 = sqlx::query_scalar(
+        "SELECT GREATEST($2, COALESCE(max(to_version), 0)) FROM _oo_docs.share_update WHERE share_id = $1::uuid",
+    )
+    .bind(&sid)
+    .bind(pack_version)
+    .fetch_one(&mut *conn)
+    .await?;
+
+    let mut worst = 0u8;
+    // Highest level first, then section, then wording key.
+    for ((rank, section, summary), g) in groups.iter().rev() {
+        worst = worst.max(*rank);
+        let level = if *rank == 3 { "block" } else { "warn" };
+        let shown: Vec<&String> = g.labels.iter().take(5).collect();
+        let args = json!({"labels": shown, "new": g.new.iter().take(5).collect::<Vec<_>>(),
+                          "count": g.fact_keys.len()});
+        let sec = (!section.is_empty()).then_some(section.as_str());
+        updates::append(
+            conn,
+            &NewUpdate {
+                share_id: &sid,
+                from_version,
+                to_version: n,
+                level,
+                section: sec,
+                fact_keys: &g.fact_keys,
+                summary_key: summary,
+                summary_args: args,
+            },
+        )
+        .await?;
+        out.updates += 1;
+    }
+
+    // One info per share and version, when something new is in scope.
+    let sql = format!(
+        "SELECT count(DISTINCT f.id) FROM _oo_docs.share s, _oo_docs.fact f \
+           JOIN _oo_docs.evidence e ON e.target_kind = 'fact' AND e.target_id = f.id \
+                AND e.withdrawn_at IS NULL \
+           JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
+           JOIN _oo_docs.file fl ON fl.id = fv.file_id \
+          WHERE s.id = $1::uuid AND f.published_in = $2 AND fl.drive_id = s.drive_id \
+            AND {} AND NOT EXISTS (SELECT 1 FROM _oo_docs.share_fact_use u \
+                                    WHERE u.share_id = s.id AND u.fact_id = f.id)",
+        in_scope("fv.path_at_version")
+    );
+    let fresh: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+        .bind(&sid)
+        .bind(n)
+        .fetch_one(&mut *conn)
+        .await?;
+    if fresh > 0 {
+        updates::append(
+            conn,
+            &NewUpdate {
+                share_id: &sid,
+                from_version,
+                to_version: n,
+                level: "info",
+                section: None,
+                fact_keys: &[],
+                summary_key: "new_facts",
+                summary_args: json!({"count": fresh}),
+            },
+        )
+        .await?;
+        out.updates += 1;
+    }
+
+    if worst >= 2 {
+        let moved = sqlx::query(
+            "UPDATE _oo_docs.share SET status = 'drifted', drifted_at = clock_timestamp(), \
+                    revision = revision + 1 WHERE id = $1::uuid AND status = 'active'",
+        )
+        .bind(&sid)
+        .execute(&mut *conn)
+        .await?
+        .rows_affected();
+        if moved > 0 {
+            events::append_event(
+                conn,
+                "share.state_changed",
+                None,
+                Some(&sid),
+                &json!({"share_id": sid, "from": "active", "to": "drifted", "version": n})
+                    .to_string(),
+            )
+            .await?;
+            out.drifted.push(sid.clone());
+        }
+    }
+
+    Ok(())
 }

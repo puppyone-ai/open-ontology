@@ -254,6 +254,9 @@ pub async fn insert(
     .bind(su.iter().map(|x| x.2.clone()).collect::<Vec<_>>())
     .execute(&mut *tx)
     .await?;
+    // A share pinned to an older version (a task group member) gets the entries of the versions it
+    // missed, in the same transaction, so a change that came before it existed still reaches it.
+    super::drift::backfill(tx, &sid).await?;
     if let Some(old) = refreshed_from {
         sqlx::query(
             "UPDATE _oo_docs.share SET status = 'refreshed', revision = revision + 1 WHERE id = $1::uuid",
