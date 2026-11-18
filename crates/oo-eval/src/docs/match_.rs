@@ -436,14 +436,58 @@ pub struct SupersedeScore {
     pub conflicts_detected: usize,
 }
 
+/// A predicted `supersede old -> new` link as the engine exports it can name a `supersedes` fact (Decision S
+/// supersedes Decision X) as the replacement: the engine ends the old `decides` / `about` facts of X with
+/// `superseded_by` = that `supersedes` fact (10 5.5 plan_decision). The labels name instead the replacing
+/// `decides` / `about` fact of S. Rewrite such a link to the equivalent fact link so both views match; a link
+/// whose replacement is no `supersedes` fact, or whose equivalent is not predicted, stays as it is.
+pub fn normalized_supersedes(pred: &LabelSet) -> Vec<(String, String)> {
+    let by_id: HashMap<&str, &Fact> = pred.facts.iter().map(|f| (f.id.as_str(), f)).collect();
+    let mut out: BTreeSet<(String, String)> = BTreeSet::new();
+    for (o, n) in &pred.supersedes {
+        let (Some(of), Some(nf)) = (by_id.get(o.as_str()), by_id.get(n.as_str())) else {
+            out.insert((o.clone(), n.clone()));
+            continue;
+        };
+        let mut link = (o.clone(), n.clone());
+        if nf.predicate == "supersedes"
+            && of.predicate != "supersedes"
+            && let Some(old_end) = nf.object.as_deref()
+        {
+            let new_end = nf.subject.as_str();
+            // The fact of the replacing decision with the same shape as the old one.
+            let twin = pred.facts.iter().find(|x| {
+                x.predicate == of.predicate
+                    && match of.predicate.as_str() {
+                        "decides" => {
+                            of.object.as_deref() == Some(old_end)
+                                && x.subject == of.subject
+                                && x.object.as_deref() == Some(new_end)
+                        }
+                        "about" => {
+                            of.subject == old_end && x.subject == new_end && x.object == of.object
+                        }
+                        _ => false,
+                    }
+            });
+            if let Some(t) = twin {
+                link = (o.clone(), t.id.clone());
+            }
+        }
+        out.insert(link);
+    }
+    out.into_iter().collect()
+}
+
 pub fn score_supersede(
     gold: &LabelSet,
     pred: &LabelSet,
     fact_map: &HashMap<String, String>,
 ) -> SupersedeScore {
     let gset: BTreeSet<(String, String)> = gold.supersedes.iter().cloned().collect();
+    let links = normalized_supersedes(pred);
     let mut hit = BTreeSet::new();
-    for (o, n) in &pred.supersedes {
+    for (o, n) in &links {
         if let (Some(go), Some(gn)) = (fact_map.get(o), fact_map.get(n)) {
             let pair = (go.clone(), gn.clone());
             if gset.contains(&pair) {
@@ -467,7 +511,7 @@ pub fn score_supersede(
     }
     SupersedeScore {
         gold: gset.len(),
-        predicted: pred.supersedes.len(),
+        predicted: links.len(),
         correct: hit.len(),
         conflicts_gold: gc.len(),
         conflicts_predicted: pred.conflicts.len(),
@@ -610,5 +654,84 @@ mod tests {
         let m = metric(&items);
         assert!(m.f1_ci.0 <= m.f1 + 1e-9 || m.f1_ci.0 <= m.f1_ci.1);
         assert_eq!(metric(&[]).f1, 0.0);
+    }
+
+    fn fact(id: &str, s: &str, p: &str, o: &str) -> Fact {
+        Fact {
+            id: id.into(),
+            subject: s.into(),
+            predicate: p.into(),
+            object: Some(o.into()),
+            ..Fact::default()
+        }
+    }
+
+    #[test]
+    fn a_supersedes_fact_as_replacement_counts_as_the_replacing_decides_fact() {
+        // The engine ends the decides fact of the old decision with `superseded_by` = the supersedes fact.
+        let pred = LabelSet {
+            facts: vec![
+                fact("p1", "A", "decides", "D1"),
+                fact("p2", "A", "decides", "D2"),
+                fact("p3", "D2", "supersedes", "D1"),
+            ],
+            supersedes: vec![("p1".into(), "p3".into())],
+            ..LabelSet::default()
+        };
+        assert_eq!(
+            normalized_supersedes(&pred),
+            vec![("p1".to_string(), "p2".to_string())]
+        );
+        let gold = LabelSet {
+            supersedes: vec![("g1".into(), "g2".into())],
+            ..LabelSet::default()
+        };
+        let map: HashMap<String, String> = [("p1", "g1"), ("p2", "g2"), ("p3", "g3")]
+            .into_iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        let sc = score_supersede(&gold, &pred, &map);
+        assert_eq!((sc.gold, sc.predicted, sc.correct), (1, 1, 1));
+    }
+
+    #[test]
+    fn a_link_between_two_facts_of_the_same_kind_is_left_alone() {
+        let pred = LabelSet {
+            facts: vec![fact("o1", "A", "owns", "P"), fact("o2", "B", "owns", "P")],
+            supersedes: vec![("o1".into(), "o2".into())],
+            ..LabelSet::default()
+        };
+        assert_eq!(
+            normalized_supersedes(&pred),
+            vec![("o1".to_string(), "o2".to_string())]
+        );
+    }
+
+    #[test]
+    fn a_conflict_is_detected_when_its_facts_map_to_a_gold_conflict() {
+        let gold = LabelSet {
+            conflicts: vec![vec!["g1".into(), "g2".into()]],
+            ..LabelSet::default()
+        };
+        let pred = LabelSet {
+            conflicts: vec![
+                vec!["p2".into(), "p1".into()],
+                vec!["p1".into(), "p9".into()],
+            ],
+            ..LabelSet::default()
+        };
+        let map: HashMap<String, String> = [("p1", "g1"), ("p2", "g2")]
+            .into_iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect();
+        let sc = score_supersede(&gold, &pred, &map);
+        assert_eq!(
+            (
+                sc.conflicts_gold,
+                sc.conflicts_predicted,
+                sc.conflicts_detected
+            ),
+            (1, 2, 1)
+        );
     }
 }
