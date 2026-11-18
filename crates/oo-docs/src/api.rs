@@ -62,6 +62,7 @@ pub mod routes_model;
 pub mod routes_review;
 pub mod routes_suggest;
 pub mod routes_usage;
+pub mod search;
 pub mod shares;
 
 use error::{ApiError, code};
@@ -892,6 +893,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "entities"] => {
             method_allowed(req, &["GET"])?;
             routes_entities::list(app, req).await
+        }
+        ["v1", "docs", "search"] => {
+            method_allowed(req, &["GET"])?;
+            search::search(app, req).await
         }
         ["v1", "docs", "ontology", "versions"] => {
             method_allowed(req, &["GET"])?;

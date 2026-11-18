@@ -223,6 +223,14 @@ fn is_table(t: &str) -> bool {
         .is_some_and(|(a, b)| is_ident(a) && is_ident(b))
 }
 
+/// Is this a plain integer a numeric SQL literal can carry (no leading zero, at most 18 digits)?
+pub fn is_int_literal(s: &str) -> bool {
+    let d = s.strip_prefix('-').unwrap_or(s);
+    (1..=18).contains(&d.len())
+        && d.bytes().all(|b| b.is_ascii_digit())
+        && (d.len() == 1 || !d.starts_with('0'))
+}
+
 /// A SQL string literal; control characters are dropped.
 pub fn sql_lit(s: &str) -> String {
     let clean: String = s.chars().filter(|c| !c.is_control()).collect();
@@ -291,6 +299,43 @@ pub fn score(name: &str, q: &str) -> f64 {
 pub fn file_prov(drive: &str, ev: &Value) -> Value {
     json!({"kind": "file", "drive_id": drive, "path": ev["path"], "file_version": ev["version_id"],
            "block_id": ev["block_id"], "anchor": ev["anchor"]})
+}
+
+/// A full text hit of the engine as an item of the unified result: a fact is named by its subject entity (so
+/// `oo ontology entity` follows it), a block by `<file>#<block>`; both keep the file anchor as provenance. Scores
+/// stay below an exact or prefix name match (0.6 at most), in the order the engine ranked.
+fn fts_item(drive: &str, hit: &Value, ty: &str) -> Option<Value> {
+    let prov = file_prov(drive, hit["evidence"].as_array()?.first()?);
+    let score = hit["score"].as_f64().unwrap_or(0.0) * 0.6;
+    match hit["kind"].as_str()? {
+        "fact" => {
+            let key = hit["subject"]["key"].as_str()?;
+            if !ty.is_empty() && hit["subject"]["type"] != ty {
+                return None;
+            }
+            let text = hit["text"].as_str().unwrap_or("");
+            let name = format!(
+                "{} {} {}",
+                hit["subject"]["name"].as_str().unwrap_or(key),
+                hit["predicate"].as_str().unwrap_or(""),
+                text
+            );
+            Some(
+                json!({"urn": doc_urn(drive, key), "type": "Fact", "kind": "fact", "name": name.trim(),
+                "text": text, "fact_key": hit["fact_key"], "predicate": hit["predicate"],
+                "side": "doc", "score": score, "provenance": prov}),
+            )
+        }
+        "block" if ty.is_empty() => {
+            let id = hit["id"].as_str()?;
+            Some(
+                json!({"urn": doc_urn(drive, id), "type": "Block", "kind": "block",
+                "name": hit["text"], "text": hit["text"],
+                "side": "doc", "score": score, "provenance": prov}),
+            )
+        }
+        _ => None,
+    }
 }
 
 fn first_evidence(entity: &Value) -> Option<Value> {
@@ -564,6 +609,25 @@ impl Ctx<'_> {
                     );
                     docs_n += 1;
                 }
+                // Facts and blocks by full text (engine, docs-api 1.9); the engine ranks, the proxy only maps.
+                let path = format!(
+                    "/v1/docs/search?q={}&drive_id={id}&limit={limit}",
+                    pct_encode(q)
+                );
+                match self.eng.ok(&path, &self.p.bearer).await {
+                    Ok(v) => {
+                        for h in v["items"].as_array().into_iter().flatten() {
+                            if let Some(it) = fts_item(id, h, ty) {
+                                items.push(it);
+                                docs_n += 1;
+                            }
+                        }
+                    }
+                    Err(f) => {
+                        st = "error";
+                        warnings.push(format!("documents (full text): {}", f.2));
+                    }
+                }
             }
             st
         } else {
@@ -586,7 +650,7 @@ impl Ctx<'_> {
                 }
                 seen.push(r.table.clone());
                 let sql = format!(
-                    "SELECT {k}, {n} FROM {t} WHERE LOWER({n}) LIKE {pat} LIMIT {limit}",
+                    "SELECT {k}, {n} FROM {t} WHERE {n} ILIKE {pat} LIMIT {limit}",
                     k = r.key_col,
                     n = r.name_col,
                     t = r.table,
@@ -660,11 +724,28 @@ impl Ctx<'_> {
         key_col: &str,
         pk: &str,
     ) -> Result<Option<Value>, Fail> {
-        let sql = format!(
-            "SELECT * FROM {table} WHERE {key_col} = {} LIMIT 1",
-            sql_lit(pk)
-        );
-        let rows = gw_query(profile, &sql, 1).await?;
+        // The Gateway types literals: `id = '1'` on a bigint key is refused, `id = 1` on a text key too. An
+        // integer-looking key is tried as a number first and as text when the Gateway refuses the signature.
+        let mut tries = Vec::new();
+        if is_int_literal(pk) {
+            tries.push(pk.to_owned());
+        }
+        tries.push(sql_lit(pk));
+        let mut rows = None;
+        for (n, lit) in tries.iter().enumerate() {
+            let sql = format!("SELECT * FROM {table} WHERE {key_col} = {lit} LIMIT 1");
+            match gw_query(profile, &sql, 1).await {
+                Ok(r) => {
+                    rows = Some(r);
+                    break;
+                }
+                Err(f) if n + 1 < tries.len() && f.2.contains("FUNCTION_NOT_ALLOWED") => {}
+                Err(f) => return Err(f),
+            }
+        }
+        let Some(rows) = rows else {
+            return Ok(None);
+        };
         let Some(obj) = rows.objects().into_iter().next() else {
             return Ok(None);
         };
@@ -1048,6 +1129,24 @@ mod tests {
     }
 
     #[test]
+    fn integer_keys_are_told_from_text_keys() {
+        for ok in ["1", "42", "-7", "123456789012345678"] {
+            assert!(is_int_literal(ok), "{ok}");
+        }
+        for no in [
+            "",
+            "007",
+            "1.5",
+            "a1",
+            "-",
+            "1234567890123456789",
+            "1; DROP",
+        ] {
+            assert!(!is_int_literal(no), "{no}");
+        }
+    }
+
+    #[test]
     fn literals_and_scores() {
         assert_eq!(sql_lit("O'Neil"), "'O''Neil'");
         assert!(score("Acme Ltd", "acme ltd") > score("Acme Ltd", "acme"));
@@ -1092,6 +1191,16 @@ mod tests {
                     (
                         200,
                         json!({"drives": [{"id": d, "name": "default", "backend": "fs", "status": "ready"}]}),
+                    )
+                } else if line.contains("/v1/docs/search?") {
+                    let ev = json!([{"path": "notes/acme.md", "version_id": "v1", "block_id": "blk_1", "anchor": {"kind": "text", "line_start": 3, "line_end": 3}}]);
+                    (
+                        200,
+                        json!({"items": [
+                            {"kind": "fact", "id": "f9", "fact_key": "k9", "predicate": "attr.renewal", "text": "every March",
+                             "subject": {"key": "org:acme", "name": "Acme Ltd", "type": "Organization"}, "score": 0.5, "evidence": ev},
+                            {"kind": "block", "id": "file1#blk_1", "text": "The contract renews every March.", "score": 0.4, "evidence": ev},
+                            {"kind": "block", "id": "file2#blk_2", "text": "no source", "score": 0.3, "evidence": []}]}),
                     )
                 } else if line.contains("/v1/docs/entities?") {
                     (
@@ -1154,6 +1263,31 @@ mod tests {
         );
         assert_eq!(it["provenance"]["path"], "notes/acme.md");
         assert_eq!(v["sides"]["db"]["status"], "skipped");
+        // facts and blocks of the full text route come after the name hit, each with its anchor; a hit
+        // without evidence never reaches the Agent
+        let kinds: Vec<_> = v["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| {
+                (
+                    i["kind"].as_str().unwrap_or("entity"),
+                    i["score"].as_f64().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![("entity", 0.8), ("fact", 0.3), ("block", 0.24)],
+            "{v}"
+        );
+        let f = &v["items"][1];
+        assert_eq!(
+            f["urn"],
+            "oo:doc/0f8fad5b-d9cb-469f-a165-70867728950e/org:acme"
+        );
+        assert_eq!(f["provenance"]["block_id"], "blk_1");
+        assert_eq!(v["items"][2]["provenance"]["path"], "notes/acme.md");
         // no db:read: a query is refused, a write even before that
         let (s, v) = call(addr, "ooa_good", "/v1/ontology/sources").await;
         assert_eq!((s, v["items"][0]["kind"].as_str()), (200, Some("drive")));

@@ -9,10 +9,15 @@ Negatives: a docs-only token cannot query the database, a write is refused, an A
 engine, a revoked token is 401 on the CLI, on MCP and on the raw route, and the token text is on disk only in
 files of mode 0600.
 
-Stand-ins, stated plainly: PostgreSQL is a private native cluster (initdb/pg_ctl, no container); the Gateway is a
-small HTTPS server with a private CA that runs read-only SQL against that Postgres (the real Gateway needs the
-full `oo up` stack); the Agent DB binding is an engine HTTP call with the
-control token (the link rule and the projection run use `oo source link`). Everything the Agent does goes through `oo`.
+The database side is the real OO Gateway of this repo (tools/oo-test/super_ontology_gateway.py): `oo-gateway` over HTTPS with a
+private CA, a role pack from `role-pack-bundle`, a client token from `issue-token`, SQL guard, per-role session and audit WAL,
+on a private TLS PostgreSQL cluster. The table the engine links by is a second, plain table whose `credit_limit` differs on
+purpose, so a number that reaches the Agent can only have come through the Gateway.
+
+Stand-ins, stated plainly: both PostgreSQL clusters are private native clusters (initdb/pg_ctl, no container: the host already
+runs two container stacks); the published cut of the Gateway is built by hand (no Builder run); the engine's read-only
+login (Agent DB binding) is an engine HTTP call with the control token; the link rule and the projection run use `oo source link`.
+Everything the Agent does goes through `oo`.
 
 Usage: tools/oo-test/super_ontology_cli_first_e2e.py [--skip-build] [--out FILE] [--keep]
 """
@@ -23,23 +28,21 @@ import json
 import os
 import shutil
 import signal
-import ssl
 import subprocess
 import sys
 import tempfile
-import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.dont_write_bytecode = True
 import super_ontology_l2 as l2  # noqa: E402
+import super_ontology_gateway as realgw  # noqa: E402
 import super_ontology_nodocker as nd  # noqa: E402
 
 REPO = l2.REPO
-LANE = os.environ.get("OO_TEST_LANE", "super-ontology-wp3")
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-wp3b")
 CHECKS = []
 
 
@@ -65,76 +68,6 @@ class Oo:
             return code, json.loads(out.strip().splitlines()[0]) if out.strip() else None, err
         except ValueError:
             return code, None, err + out
-
-
-class Gateway(threading.Thread):
-    """Read-only SQL over HTTPS, a private CA, one bearer token; records every call."""
-
-    def __init__(self, work, pg, db, token):
-        super().__init__(daemon=True)
-        def ssl_(*a):
-            subprocess.run(["openssl", *a], check=True, capture_output=True, cwd=work)
-
-        # a private CA and a leaf for localhost (a CA certificate cannot serve as the end entity)
-        ssl_("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-days", "2", "-subj", "/CN=oo-e2e-ca")
-        ssl_("req", "-newkey", "rsa:2048", "-nodes", "-keyout", "gw.key", "-out", "gw.csr", "-subj", "/CN=localhost")
-        (work / "leaf.ext").write_text("subjectAltName=DNS:localhost\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n")
-        ssl_("x509", "-req", "-in", "gw.csr", "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial", "-out", "gw.crt", "-days", "2", "-extfile", "leaf.ext")
-        self.crt, self.calls = work / "ca.crt", []
-        outer = self
-
-        class H(BaseHTTPRequestHandler):
-            def log_message(self, *a):
-                pass
-
-            def _send(self, status, body, extra=None):
-                raw = json.dumps(body).encode()
-                self.send_response(status)
-                self.send_header("content-type", "application/json")
-                self.send_header("content-length", str(len(raw)))
-                for k, v in (extra or {}).items():
-                    self.send_header(k, v)
-                self.end_headers()
-                self.wfile.write(raw)
-
-            def _auth(self):
-                return self.headers.get("authorization") == f"Bearer {token}"
-
-            def do_GET(self):
-                outer.calls.append(("GET", self.path))
-                if not self._auth():
-                    return self._send(401, {"error": {"code": "UNAUTHENTICATED"}})
-                self._send(200, {"publication": "live", "tables": []}, {"x-oo-publication-id": "pub-e2e-1"})
-
-            def do_POST(self):
-                body = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))) or b"{}")
-                outer.calls.append(("POST", self.path, body.get("sql")))
-                if not self._auth():
-                    return self._send(401, {"error": {"code": "UNAUTHENTICATED"}})
-                if self.path != "/v1/query":
-                    return self._send(404, {"error": {"code": "NOT_FOUND"}})
-                sql = body["sql"].strip().rstrip(";")
-                wrapped = f"SELECT coalesce(json_agg(row_to_json(t)), '[]'::json) FROM ({sql}) t"
-                p = subprocess.run(["psql", "-h", "127.0.0.1", "-p", str(pg.port), "-U", "postgres", "-d", db, "-tA", "-c", wrapped],
-                                   capture_output=True, text=True, env=dict(os.environ, PGOPTIONS="-c default_transaction_read_only=on"))
-                if p.returncode:
-                    return self._send(422, {"error": {"code": "SQL_REFUSED"}})
-                rows = json.loads(p.stdout)
-                cols = list(rows[0].keys()) if rows else []
-                cell = lambda v: None if v is None else (v if isinstance(v, bool) else str(v))  # noqa: E731
-                self._send(200, {"query_id": f"q-{len(outer.calls)}", "columns": [{"name": c, "type": "text"} for c in cols],
-                                 "rows": [[cell(r[c]) for c in cols] for r in rows], "returned_rows": len(rows), "truncated": False,
-                                 "freshness": [], "sources": [], "warnings": []},
-                           {"x-oo-publication-id": "pub-e2e-1", "x-oo-data-vector-sha256": "ab" * 32})
-
-        self.srv = HTTPServer(("127.0.0.1", 0), H)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(work / "gw.crt"), str(work / "gw.key"))
-        self.srv.socket = ctx.wrap_socket(self.srv.socket, server_side=True)
-        self.port = self.srv.server_address[1]
-
-    def run(self):
-        self.srv.serve_forever()
 
 
 def raw_call(port, token, method, path, body=None):
@@ -213,6 +146,8 @@ def main():
         subprocess.run(["cargo", "build", "--locked", "-p", "oo-cli", "--features", "docs"], cwd=REPO, check=True)
         subprocess.run(["cargo", "build", "--locked", "-p", "oo-docs", "--bin", "oo-docs-engine"], cwd=REPO, check=True)
         subprocess.run(["cargo", "build", "--locked"], cwd=REPO / "tools/mcp-gateway", check=True)
+        subprocess.run(["cargo", "build", "--locked", "-p", "oo-gateway", "--bins", "-p", "oo-builder", "--bin", "role-pack-bundle"],
+                       cwd=REPO, check=True)
     work = Path(tempfile.mkdtemp(prefix="oo-e2e-", dir="/tmp"))
     work.chmod(0o700)
     home = work / "home"
@@ -227,9 +162,10 @@ def main():
     try:
         pg.start()
         pg.psql("postgres", "CREATE DATABASE oo_docs_e2e")
-        pg.psql("postgres", "CREATE DATABASE agentdb")
-        pg.psql("agentdb", "CREATE SCHEMA sales; CREATE TABLE sales.customers(id int primary key, name text, credit_limit int);"
-                           "INSERT INTO sales.customers VALUES (1,'Acme Ltd',50000),(2,'Globex',12000)")
+        # the table the engine links by: same keys and names as the Gateway's cut, other credit limits on purpose
+        pg.psql("postgres", "CREATE DATABASE srcdb")
+        pg.psql("srcdb", "CREATE SCHEMA sales; CREATE TABLE sales.customers(id int primary key, name text, credit_limit int);"
+                         "INSERT INTO sales.customers VALUES (1,'Acme Ltd',1),(2,'Globex',2)")
         admin = pg.url("postgres", "oo_docs_e2e")
         tok = work / "install.token"
         tok.write_text("oodi_install_only_0123456789abcdef")
@@ -249,25 +185,28 @@ def main():
         (cfg / "secrets").mkdir(parents=True, mode=0o700)
         for d in (home / ".config", cfg):
             d.chmod(0o700)
-        agentdb = cfg / "secrets/agentdb"
-        agentdb.write_text(pg.url("postgres", "agentdb"))
-        agentdb.chmod(0o600)
+        srcdb = cfg / "secrets/srcdb"
+        srcdb.write_text(pg.url("postgres", "srcdb"))
+        srcdb.chmod(0o600)
 
-        # the Gateway stand-in and the profile the Agent token will name
-        gwtoken = "ooct_" + os.urandom(22).hex()[:43]
-        gw = Gateway(work, pg, "agentdb", gwtoken)
-        gw.start()
+        # the real Gateway, and the profiles the Agent tokens will name
+        gw = realgw.RealGateway(work, target, [(1, "Acme Ltd", 50000), (2, "Globex", 12000)])
+        gtf = cfg / "gw.token"
+        gw_url = gw.start(gtf)
+        gwtoken = gtf.read_text().strip()
+        check("the real oo-gateway is up over TLS", gw_url.startswith("https://localhost:") and len(gwtoken) > 20, gw_url)
         (cfg / "profiles").mkdir(mode=0o700)
         (cfg / "profiles").chmod(0o700)
-        gtf = cfg / "gw.token"
-        gtf.write_text(gwtoken + "\n")
-        gtf.chmod(0o600)
         ca = cfg / "gw-ca.pem"
-        shutil.copy(gw.crt, ca)
+        shutil.copy(gw.ca, ca)
         ca.chmod(0o600)
-        prof = cfg / "profiles/salesgw.json"
-        prof.write_text(json.dumps({"schema_version": 1, "gateway": f"https://localhost:{gw.port}", "token_file": str(gtf), "ca_file": str(ca)}))
-        prof.chmod(0o600)
+        bad = cfg / "gw-bad.token"
+        bad.write_text("ooct_" + "x" * 43 + "\n")
+        bad.chmod(0o600)
+        for name, tokfile in (("salesgw", gtf), ("wrongtok", bad)):
+            prof = cfg / f"profiles/{name}.json"
+            prof.write_text(json.dumps({"schema_version": 1, "gateway": gw_url, "token_file": str(tokfile), "ca_file": str(ca)}))
+            prof.chmod(0o600)
 
         # the engine and oo serve, fresh state
         state = work / "state"
@@ -291,13 +230,14 @@ def main():
         (drive / "Customers/acme.md").write_text(
             "---\ntype: organization\n---\n\n# Acme Ltd\n\nAcme Ltd is our largest customer. Contact: Jane Roe.\n\n## Contract\n\nThe contract renews every March.\n")
         (drive / "Customers/globex.md").write_text("---\ntype: organization\n---\n\n# Globex\n\nGlobex is a small reseller.\n")
+        (drive / "Customers/澄海物流.md").write_text("---\ntype: organization\n---\n\n# 澄海物流\n\n合同每年三月续约，联系人：王芳。\n")
         code, d, err = cli.json("docs", "drive", "add", "--name", "default", "--root", str(drive))
         check("drive registered", code == 0 and d, err)
         deadline = time.time() + 120
         while time.time() < deadline:
             code, files, _ = cli.json("docs", "files", "ls", "--drive", "default")
             items = (files or {}).get("files", [])
-            if len(items) == 2 and all(i["state"] == "published" for i in items):
+            if len(items) == 3 and all(i["state"] == "published" for i in items):
                 break
             time.sleep(0.5)
         else:
@@ -307,8 +247,8 @@ def main():
         # database source: link rule, Agent DB binding, projection (engine calls with the control token)
         api = l2.Api(port, control)
         drive_id = d["id"] if "id" in d else d["drive"]["id"]
-        st, b = api.request("PUT", "/v1/docs/agent-db-binding", {"secret_ref": f"file:{agentdb}"})
-        check("agent db bound", st == 200, b)
+        st, b = api.request("PUT", "/v1/docs/agent-db-binding", {"secret_ref": f"file:{srcdb}"})
+        check("link source bound", st == 200, b)
         code, b, err = cli.json("source", "link", "add", "--table", "sales.customers", "--key-col", "id", "--name-col", "name",
                                 "--entity-type", "Organization")
         check("link rule stored", code == 0, (b, err))
@@ -337,22 +277,58 @@ def main():
         code, s, err = ag.json("ontology", "search", "Acme", env=aenv, state=False)
         sides = {i["side"] for i in (s or {}).get("items", [])}
         check("search answers from both sources", code == 0 and sides == {"doc", "db"}, (s, err))
-        doc = next(i for i in s["items"] if i["side"] == "doc")
+        doc = next(i for i in s["items"] if i["side"] == "doc" and i.get("kind", "entity") == "entity")
         db = next(i for i in s["items"] if i["side"] == "db")
         check("doc item cites a file", doc["provenance"]["kind"] == "file" and doc["provenance"]["path"].endswith("acme.md"))
         check("db item cites a table row", db["provenance"]["kind"] == "table_row" and db["provenance"]["table"] == "sales.customers"
-              and db["provenance"]["pk"] == "1" and db["provenance"]["publication_id"] == "pub-e2e-1")
+              and db["provenance"]["pk"] == "1" and str(db["provenance"]["publication_id"]).startswith("pub"), db)
+        pub_id = db["provenance"]["publication_id"]
         check("urns are stable", doc["urn"].startswith("oo:doc/") and db["urn"] == "oo:db/salesgw/sales.customers/1")
         code, e, err = ag.json("ontology", "entity", doc["urn"], env=aenv, state=False)
         link = next((link for link in (e or {}).get("links", []) if link.get("db_table") == "sales.customers"), None)
         check("doc entity: facts cited, linked to the row", code == 0 and e["facts"] and all(f["provenance"] for f in e["facts"]) and link, (e, err))
         check("linked row comes with its provenance", link["row"]["columns"]["name"] == "Acme Ltd" and link["row"]["provenance"]["kind"] == "table_row")
+        check("the linked row came through the Gateway, not the engine's table", link["row"]["columns"]["credit_limit"] == "50000"
+              and link["row"]["provenance"]["publication_id"] == pub_id, link["row"])
         code, e, err = ag.json("ontology", "entity", db["urn"], env=aenv, state=False)
         check("row entity links back to the document", code == 0 and any(l["target"]["urn"].startswith("oo:doc/") for l in e["links"]), (e, err))
         code, q, err = ag.json("ontology", "query", "SELECT credit_limit FROM sales.customers WHERE name='Acme Ltd'", env=aenv, state=False)
-        check("query cites the publication", code == 0 and q["rows"] == [["50000"]] and q["provenance"]["publication_id"] == "pub-e2e-1", (q, err))
+        check("query cites the publication", code == 0 and q["rows"] == [["50000"]] and q["provenance"]["publication_id"] == pub_id, (q, err))
         code, out, err = ag.run("ontology", "search", "Acme", env=aenv, state=False)
         check("human output has [source] lines", code == 0 and out.count("[source]") >= 2, out)
+
+        # full text over facts and blocks: English and Chinese, each hit with its file anchor
+        code, s3, err = ag.json("ontology", "search", "contract renews March", env=aenv, state=False)
+        blk = next((i for i in (s3 or {}).get("items", []) if i.get("kind") == "block"), None)
+        check("full text finds a block by its words, with the file anchor", code == 0 and blk and blk["provenance"]["kind"] == "file"
+              and blk["provenance"]["path"].endswith("acme.md") and blk["provenance"]["block_id"].startswith("blk_")
+              and "renews every March" in blk["text"], (s3, err))
+        code, s4, err = ag.json("ontology", "search", "三月续约", env=aenv, state=False)
+        blk = next((i for i in (s4 or {}).get("items", []) if i.get("kind") == "block"), None)
+        check("full text finds Chinese text", code == 0 and blk and blk["provenance"]["path"].endswith("澄海物流.md")
+              and blk["provenance"]["anchor"] and "三月续约" in blk["text"], (s4, err))
+        code, s5, err = ag.json("ontology", "search", "续约三月", env=aenv, state=False)
+        check("a Chinese phrase is not a bag of characters", code == 0 and not [i for i in s5["items"] if i.get("kind") == "block"], (s5, err))
+        code, s6, err = ag.json("ontology", "search", "澄海物流", env=aenv, state=False)
+        kinds = {i.get("kind", "entity") for i in (s6 or {}).get("items", [])}
+        check("a Chinese name finds the entity, its facts and its blocks", code == 0 and {"entity", "fact", "block"} <= kinds, (kinds, err))
+        check("every document hit cites a file", all(i["provenance"]["kind"] == "file" and i["provenance"].get("path")
+                                                        for i in s6["items"] if i["side"] == "doc"))
+        code, s7, err = ag.json("ontology", "search", "contract renews March", env=aenv, state=False)
+        check("the same query ranks the same way", code == 0 and [i["urn"] for i in s7["items"]] == [i["urn"] for i in s3["items"]])
+
+        # the Gateway profile of the token decides which Gateway token the database side uses
+        badp = home / "badprofile.tok"
+        check("token naming a profile with a wrong Gateway token", cli.json(
+            "agent", "token", "create", "--name", "badprofile", "--scope", "docs:read", "--scope", "db:read", "--gw-profile", "wrongtok",
+            "--drive", "default", "--output-file", str(badp))[0] == 0)
+        benv = {"OO_ENDPOINT": endpoint, "OO_AGENT_TOKEN_FILE": str(badp)}
+        code, s8, err = ag.json("ontology", "search", "Acme", env=benv, state=False)
+        check("the wrong profile gets no rows, the documents still answer", code == 0 and s8["sides"]["db"]["status"] == "error"
+              and s8["sides"]["docs"]["status"] == "ok" and {i["side"] for i in s8["items"]} == {"doc"}, (s8, err))
+        code, o, err = ag.json("ontology", "query", "SELECT credit_limit FROM sales.customers", env=benv, state=False)
+        check("the wrong profile cannot query", code != 0 and "ONTOLOGY_GATEWAY_REFUSED" in err, err)
+        cli.json("agent", "token", "revoke", "badprofile")
 
         # MCP, the same tools, the same token
         mcp = Mcp(bindir / "oo", {"PATH": base["PATH"], "HOME": str(work / "agent-home")}, endpoint, bot)
@@ -360,15 +336,19 @@ def main():
         check("mcp lists the unified tools", [t["name"] for t in r["result"]["tools"]] == ["ontology_search", "ontology_entity", "ontology_sources", "ontology_query"])
         err_flag, res = mcp.tool("ontology_search", {"q": "Acme"})
         check("mcp search answers from both sources", not err_flag and {i["side"] for i in res["items"]} == {"doc", "db"}, res)
+        err_flag, res = mcp.tool("ontology_search", {"q": "三月续约"})
+        check("mcp full text finds Chinese blocks with the file anchor", not err_flag and any(
+            i.get("kind") == "block" and i["provenance"]["path"].endswith("澄海物流.md") for i in res["items"]), res)
         err_flag, res = mcp.tool("ontology_query", {"sql": "SELECT credit_limit FROM sales.customers WHERE name='Acme Ltd'"})
-        check("mcp query cites its source", not err_flag and res["provenance"]["publication_id"] == "pub-e2e-1", res)
+        check("mcp query cites its source", not err_flag and res["provenance"]["publication_id"] == pub_id, res)
 
         # negatives
         code, o, err = ag.json("ontology", "query", "DELETE FROM sales.customers", env=aenv, state=False)
         check("a write is refused", code != 0 and "ONTOLOGY_READ_ONLY" in err, err)
         code, o, err = ag.json("ontology", "query", "SELECT 1; DROP TABLE sales.customers", env=aenv, state=False)
         check("a second statement is refused", code != 0 and "ONTOLOGY_READ_ONLY" in err, err)
-        check("the database is untouched", pg.psql("agentdb", "SELECT count(*) FROM sales.customers") == "2")
+        check("the databases are untouched", gw.psql(f"SELECT count(*) FROM _oo.{realgw.PHYSICAL}").strip() == "2"
+              and pg.psql("srcdb", "SELECT count(*) FROM sales.customers") == "2")
         denv = {"OO_ENDPOINT": endpoint, "OO_AGENT_TOKEN_FILE": str(ro)}
         code, o, err = ag.json("ontology", "query", "SELECT 1", env=denv, state=False)
         check("docs-only token cannot query the database", code != 0 and "ONTOLOGY_SCOPE_DENIED" in err, err)
@@ -396,10 +376,14 @@ def main():
         cli.json("agent", "token", "revoke", "bot")
         err_flag, res = mcp.tool("ontology_search", {"q": "Acme"})
         check("revoked token fails on MCP", err_flag and "ONTOLOGY_TOKEN_INVALID" in json.dumps(res), res)
-        check("the Gateway saw only the proxy's calls", all(c[1] in ("/v1/query", "/v1/freshness") for c in gw.calls) and len(gw.calls) > 0)
+        log = (gw.work / "gateway.stderr").read_text()
+        paths = {ln.split("path=")[1].split()[0] for ln in log.splitlines() if "path=" in ln}
+        check("the Gateway saw only the proxy's calls", paths and paths <= {"/v1/query", "/v1/freshness"}, paths)
+        check("the Gateway admitted the queries in its audit WAL", gw.audit_records() > 0)
+        check("no secret in the Gateway log", gwtoken not in log and gw.password not in log)
 
         # secrets on disk
-        needles = [tok.read_text().strip(), gwtoken, bot.read_text().strip(), ro.read_text().strip(), gtok, control]
+        needles = [tok.read_text().strip(), gwtoken, gw.password, bot.read_text().strip(), ro.read_text().strip(), gtok, control]
         hits = tree_secrets(work, needles)
         bad = [h for h in hits if h[1] != 0o600]
         check("secrets appear only in 0600 files", not bad, bad)
@@ -414,6 +398,8 @@ def main():
                 serve.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 serve.kill()
+        if gw:
+            gw.stop()
         pg.stop()
         if not args.keep:
             shutil.rmtree(work, ignore_errors=True)

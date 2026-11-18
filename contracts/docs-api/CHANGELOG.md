@@ -121,3 +121,15 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `POST /query` accepts one read-only SELECT (403 `ONTOLOGY_READ_ONLY` otherwise) and needs `db:read` (403 `ONTOLOGY_SCOPE_DENIED`);
   a revoked or expired token is 401 `ONTOLOGY_TOKEN_INVALID`. The proxy forwards an `ooa_` token on `/v1/docs/*` untouched (the engine
   checks it). Proxy codes are local to the surface and not in `errors.v1.json`. Additive; no existing route changes.
+
+## 1.9 (D83, WP3b: full text search over facts and blocks)
+
+- Version 1.8 is taken by the engine event shapes lane; this entry is 1.9 so the two do not collide.
+- `GET /v1/docs/search?q&drive_id&limit` (`since` 1.9, `SearchResult`, `SearchHit`): PostgreSQL full text search (`simple`
+  configuration, so it needs no language dictionary) over published facts and the blocks of live file versions. A CJK character is one
+  token and a Chinese phrase is a phrase match, so the same query works for Chinese and English; words are prefixes and all terms must
+  match. Each hit carries `evidence` (file, version, block, anchor), so a hit is never without its source. Order is `score` descending,
+  then fact before block, then id (deterministic). `truncated` says when `limit` or a scan bound cut the answer. An `ooa_` token needs
+  `docs:read` and a `drive_id` of its set (`all_drives` may omit it); an unknown drive is 403 as on `/entities`.
+- `OntologySearchResult` items add the optional `kind` (`entity` | `fact` | `block`), `text`, `fact_key` and `predicate`; absent `kind`
+  means `entity`, as in 1.7. Fact and block items keep their file anchor in `provenance`. No new error code. Additive.

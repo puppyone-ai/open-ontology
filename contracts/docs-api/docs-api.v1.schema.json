@@ -5111,6 +5111,161 @@
         }
       ]
     },
+    "SearchHit": {
+      "type": "object",
+      "description": "One hit of `GET /v1/docs/search` (1.9). `kind` `fact`: a published fact whose subject name, predicate words, value text or object name matches; `kind` `block`: a block of a live file version. `score` is `ts_rank_cd(..., 32)` in [0, 1). Every hit has at least one `evidence` object (the file anchor).",
+      "required": [
+        "kind",
+        "id",
+        "text",
+        "score",
+        "evidence"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "block"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "The fact id, or `<file_id>#<block_id>` for a block."
+        },
+        "text": {
+          "type": "string",
+          "description": "Fact: the value text or the object name. Block: the block text, flattened and cut at 240 characters."
+        },
+        "score": {
+          "type": "number"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "description": "Where a hit comes from: the file, its version, the block and the anchor inside it.",
+            "required": [
+              "file_id",
+              "drive_id",
+              "version_id",
+              "path",
+              "block_id",
+              "anchor"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "version_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "block_id": {
+                "type": "string"
+              },
+              "anchor": {
+                "type": "object"
+              },
+              "src": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "fact_key": {
+          "type": "string"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "hpath": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "block_kind": {
+          "type": "string"
+        }
+      }
+    },
+    "SearchResult": {
+      "type": "object",
+      "description": "Answer of `GET /v1/docs/search?q&drive_id&limit` (1.9): full text search (PostgreSQL `simple` configuration; a CJK character is one token, a Chinese phrase is a phrase match; words are prefixes; all terms must match) over facts and blocks. Order: `score` descending, then fact before block, then id. `truncated` is true when `limit` or a scan bound (300 files, 20000 blocks per file) cut the result. An `ooa_` token needs `docs:read` and a `drive_id` of its set (or all Drives).",
+      "required": [
+        "items",
+        "as_of_seq",
+        "truncated"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "as_of_seq": {
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "kind": "block",
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e#blk_0123456789abcdef0123",
+              "text": "The contract renews every March.",
+              "score": 0.0909,
+              "evidence": [
+                {
+                  "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "drive_id": "adcec46c-ab67-4c93-8f5b-000000000001",
+                  "version_id": "0f8fad5b-d9cb-469f-a165-70867728950f",
+                  "path": "Customers/acme.md",
+                  "block_id": "blk_0123456789abcdef0123",
+                  "anchor": {
+                    "kind": "text",
+                    "line_start": 11,
+                    "line_end": 11,
+                    "char_start": 107,
+                    "char_end": 139
+                  }
+                }
+              ]
+            }
+          ],
+          "as_of_seq": 42,
+          "truncated": false
+        }
+      ]
+    },
     "OntologySearchResult": {
       "type": "object",
       "description": "Answer of `GET /v1/ontology/search` (CLI proxy surface, 1.7): one merged result set over documents (engine) and databases (Gateway). Every item has a stable URN and a provenance; `sides` says which side answered.",
@@ -5162,6 +5317,25 @@
                 "items": {
                   "type": "object"
                 }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "entity",
+                  "fact",
+                  "block"
+                ],
+                "description": "1.9: what matched. Absent means `entity` (a name or alias, 1.7)."
+              },
+              "text": {
+                "type": "string",
+                "description": "1.9: the matched fact value or block text."
+              },
+              "fact_key": {
+                "type": "string"
+              },
+              "predicate": {
+                "type": "string"
               }
             }
           }
@@ -5504,6 +5678,15 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/search",
+      "request": null,
+      "response": "SearchResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.9"
     },
     {
       "method": "POST",
