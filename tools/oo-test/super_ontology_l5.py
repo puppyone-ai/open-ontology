@@ -121,7 +121,7 @@ def main(argv=None):
         # ------------------------------------------------------------ A1: the six steps
         ev.log("\n## A1 section 4 of the idea document")
         st, r = api.request("POST", "/v1/docs/resolve", {"text": "星火计划 林川 小王", "drive_id": did})
-        ev.check("step 1 resolve answers the project and the people", st == 200 and len(r.get("items", r.get("candidates", []))) >= 1, f"HTTP {st}")
+        ev.check("step 1 resolve answers the project and the people", st == 200 and len(r.get("mentions", [])) >= 2, f"HTTP {st}")
         ticket = work / "ticket-123"
         ticket.mkdir()
         p = l2.run(ev, oo_args("context", "mount", "--scope", "Projects", "--scope", "People", "--to", str(ticket), "--role", "suggester", "--for", "星火计划 负责人", "--json"), check=False)
@@ -198,7 +198,7 @@ def main(argv=None):
         tag = src_tag(b2 or brief, "星火计划") or "[src:Projects/星火计划.md]"
         ticket3 = work / "ticket-125"
         ticket3.mkdir()
-        p3 = l2.run(ev, oo_args("context", "mount", "--scope", "Projects", "--to", str(ticket3), "--role", "suggester", "--json"), check=False)
+        p3 = l2.run(ev, oo_args("context", "mount", "--scope", "Projects", "--scope", "People", "--to", str(ticket3), "--role", "suggester", "--json"), check=False)
         sid3 = json.loads(p3.stdout.strip().splitlines()[-1])["share_id"] if p3.returncode == 0 else None
         ev.check("a second suggester Share for the rule cases", bool(sid3))
         sdir3 = ticket3 / ".context/suggest"
