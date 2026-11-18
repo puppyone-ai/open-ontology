@@ -108,7 +108,8 @@ def sh(cmd, **kw):
 def wait_for_free():
     while True:
         names = sh(["docker", "ps", "--filter", "label=oo.lane", "--format", "{{.Names}} {{.Label \"oo.lane\"}}"]).stdout
-        if not [l for l in names.splitlines() if "super-ontology" in l.split(" ")[-1] and "be6" not in l]:
+        # A compose stack of another lane (engine or sidecar containers) blocks us; a lone database container does not.
+        if not [l for l in names.splitlines() if "super-ontology" in l.split(" ")[-1] and "be6" not in l and "-pg" not in l.split(" ")[0]]:
             return
         time.sleep(20)
 
@@ -176,12 +177,16 @@ def run_cell(name, run_id, evidence, keep):
 def _page(tmp):
     from PIL import Image, ImageDraw, ImageFont
 
-    img = Image.new("RGB", (1240, 400), "white")
+    img = Image.new("RGB", (1240, 1754), "white")  # A4 at 150 dpi
     d = ImageDraw.Draw(img)
     for f in ("/System/Library/Fonts/Songti.ttc", "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"):
-        if Path(f).exists():
-            d.text((60, 120), "2026年度计划会纪要", font=ImageFont.truetype(f, 60), fill="black")
-            break
+        try:
+            font = ImageFont.truetype(f, 56)
+        except OSError:
+            continue
+        d.text((100, 200), "2026年度计划会纪要", font=font, fill="black")
+        d.text((100, 300), "参会人员：林远舟、周若溪", font=font, fill="black")
+        break
     p = tmp / "page.png"
     img.save(p)
     return p

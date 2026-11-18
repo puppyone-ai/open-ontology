@@ -1,0 +1,11 @@
+{
+  "run_id": "l6-ocr3",
+  "cells": [
+    {
+      "cell": "docs-ocr",
+      "status": "passed",
+      "seconds": 195,
+      "image": "oo-docs-ocr-parser:dev"
+    }
+  ]
+}
