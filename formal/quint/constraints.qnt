@@ -1,4 +1,4 @@
-// formal: main=constraints inv=inv steps=30 verify-steps=5 deep-steps=6 witnesses="witHeld witPartial witCertainSupersede witResolved witIdentityHeld witRejectedAdopted witReleasedAfterRetract witPackWithConflict" vinv="invNoCurrentViolation invHeldHaveConflict invPartialBlocking invHeldHaveViolation invCertainNotViolation invPackNeverHeld invWellFormed"
+// formal: main=constraints inv=inv steps=30 verify-steps=5 deep-steps=6 witnesses="witHeld witPartial witCertainSupersede witResolved witIdentityHeld witRejectedAdopted witReleasedAfterRetract witPackWithConflict" vinv="invBanHolds invNoCurrentViolation invHeldHaveConflict invPartialBlocking invHeldHaveViolation invCertainNotViolation invPackNeverHeld invWellFormed"
 // FM11: integrity constraints over time slices (D57, 10 16.7, publish/constraints.rs).
 // One functional-dependency shape covers the four core constraints (kind 0 project_single_owner:
 // key = project, val = owner; kind 1 decision_single_status: key = decision, val = status;
@@ -32,6 +32,8 @@ module constraints {
     st: str,              // absent | draft | held | published | retracted | rejected
     supBy: int,           // id of the fact whose supersession ended this one (-1: none)
     confl: Set[int],       // ids it conflicted with when it was held
+    pubAt: int,           // logical clock of the publish run that published it (-1: never)
+    banAt: int,           // logical clock of the person's decision that banned its content (-1: never)
     ban: bool,            // a person decided against this content (resolve loser): the same content is rejected on arrival (DOC-G4)
   }
   type Key = { kind: int, key: int }
@@ -41,9 +43,10 @@ module constraints {
   var viol: Set[Key]         // open constraint_violation rows
   var pack: Set[int]         // ids in the last compiled pack
   var packConflicts: Set[Key]// "conflict pending" entities of that pack
+  var clock: int             // logical time: one tick per publish run and per person's decision
   var lastAct: str
 
-  pure val ABSENT: F = { kind: 0, key: 0, v: 0, lo: 0, hi: 1, certain: false, st: "absent", supBy: -1, confl: Set(), ban: false }
+  pure val ABSENT: F = { kind: 0, key: 0, v: 0, lo: 0, hi: 1, certain: false, st: "absent", supBy: -1, confl: Set(), ban: false, pubAt: -1, banAt: -1 }
 
   pure def overlap(a: F, b: F): bool = a.lo < b.hi and b.lo < a.hi
   pure def conflict(a: F, b: F): bool =
@@ -57,7 +60,7 @@ module constraints {
     overlap(a, d) and a.lo < d.lo
 
   action init = all {
-    facts' = IDS.mapBy(i => ABSENT), nxt' = 0, viol' = Set(), pack' = Set(), packConflicts' = Set(), lastAct' = "init",
+    facts' = IDS.mapBy(i => ABSENT), nxt' = 0, clock' = 0, viol' = Set(), pack' = Set(), packConflicts' = Set(), lastAct' = "init",
   }
 
   // a draft fact appears (extraction, human overlay assertion, rule-certain supersedes)
@@ -75,8 +78,8 @@ module constraints {
       nxt < NF,
       tt > fr,
       facts' = facts.set(nxt, { kind: kd, key: ky, v: if (kd == 3) vl % 2 else vl, lo: fr, hi: tt,
-                                 certain: ce and kd != 2, st: "draft", supBy: -1, confl: Set(), ban: false }),
-      nxt' = nxt + 1, viol' = viol, pack' = pack, packConflicts' = packConflicts, lastAct' = "addDraft",
+                                 certain: ce and kd != 2, st: "draft", supBy: -1, confl: Set(), ban: false, pubAt: -1, banAt: -1 }),
+      nxt' = nxt + 1, clock' = clock, viol' = viol, pack' = pack, packConflicts' = packConflicts, lastAct' = "addDraft",
     }
   }
 
@@ -85,7 +88,7 @@ module constraints {
   // an equal start), each against the facts published so far (this run's acceptances included).
   // `foldl` over a list: the order is part of the model, not an accident of set iteration.
   pure val ROUNDS: List[int] = [0, 1, 2, 3, 4, 5]
-  pure def publishRun(fs: int -> F, vs: Set[Key]): { fs: int -> F, vs: Set[Key] } = {
+  pure def publishRun(fs: int -> F, vs: Set[Key], c: int): { fs: int -> F, vs: Set[Key] } = {
     val cand = IDS.filter(i => fs.get(i).st == "draft" or fs.get(i).st == "held")
     pure def keyOf(m: int -> F, i: int): int = m.get(i).lo * 100 + i
     ROUNDS.foldl({ fs: fs, vs: vs }, (acc, r) => {
@@ -105,7 +108,7 @@ module constraints {
           // f is cut where the earliest certain newer value starts (a backfilled older value is a history row)
           val cut = supNew.fold(f.hi, (m, o) => if (acc.fs.get(o).lo < m) acc.fs.get(o).lo else m)
           val by = supNew.filter(o => acc.fs.get(o).lo == cut).fold(-1, (m, o) => o)
-          val fs2 = acc.fs.set(d, { ...f, st: "published", confl: Set(), hi: cut, supBy: if (supNew.size() > 0) by else f.supBy })
+          val fs2 = acc.fs.set(d, { ...f, st: "published", pubAt: c, confl: Set(), hi: cut, supBy: if (supNew.size() > 0) by else f.supBy })
           { fs: IDS.mapBy(o => if (supOld.contains(o)) { ...fs2.get(o), hi: f.lo, supBy: d } else fs2.get(o)), vs: acc.vs }
         } else
           { fs: acc.fs.set(d, { ...f, st: "held", confl: bad }), vs: acc.vs.union(Set({ kind: f.kind, key: f.key })) }
@@ -114,10 +117,10 @@ module constraints {
   }
 
   action publish = {
-    val r = publishRun(facts, viol)
+    val r = publishRun(facts, viol, clock + 1)
     all {
       IDS.exists(i => facts.get(i).st == "draft" or facts.get(i).st == "held"),
-      facts' = r.fs, viol' = r.vs, nxt' = nxt, pack' = pack, packConflicts' = packConflicts, lastAct' = "publish",
+      facts' = r.fs, viol' = r.vs, nxt' = nxt, clock' = clock + 1, pack' = pack, packConflicts' = packConflicts, lastAct' = "publish",
     }
   }
 
@@ -127,7 +130,7 @@ module constraints {
     all {
       facts.get(i).st == "published",
       facts' = facts.set(i, { ...facts.get(i), st: "retracted" }),
-      nxt' = nxt, viol' = viol, pack' = pack, packConflicts' = packConflicts, lastAct' = "retract",
+      nxt' = nxt, clock' = clock, viol' = viol, pack' = pack, packConflicts' = packConflicts, lastAct' = "retract",
     }
   }
 
@@ -142,14 +145,14 @@ module constraints {
       facts' = IDS.mapBy(o => {
         val fo = facts.get(o)
         if (o == w) { ...fo, st: "draft", confl: Set() }       // asserted by the person; the next publish run takes it
-        else if (conflict(fw, fo) and fo.st == "published") { ...fo, st: "retracted", ban: true }
-        else if (conflict(fw, fo) and (fo.st == "held" or fo.st == "draft")) { ...fo, st: "rejected", ban: true }
+        else if (conflict(fw, fo) and fo.st == "published") { ...fo, st: "retracted", ban: true, banAt: clock + 1 }
+        else if (conflict(fw, fo) and (fo.st == "held" or fo.st == "draft")) { ...fo, st: "rejected", ban: true, banAt: clock + 1 }
         // held facts of the key that do not conflict with the winner wait for the next run again
         else if (fo.st == "held" and fo.kind == fw.kind and fo.key == fw.key) { ...fo, st: "draft", confl: Set() }
         else fo
       }),
       viol' = viol.exclude(Set({ kind: fw.kind, key: fw.key })),
-      nxt' = nxt, pack' = pack, packConflicts' = packConflicts, lastAct' = "resolve",
+      nxt' = nxt, clock' = clock + 1, pack' = pack, packConflicts' = packConflicts, lastAct' = "resolve",
     }
   }
 
@@ -157,7 +160,7 @@ module constraints {
   action compilePack = all {
     pack' = IDS.filter(i => facts.get(i).st == "published"),
     packConflicts' = viol,
-    facts' = facts, nxt' = nxt, viol' = viol, lastAct' = "compilePack",
+    facts' = facts, nxt' = nxt, clock' = clock, viol' = viol, lastAct' = "compilePack",
   }
 
   action step = any { addDraft, publish, retract, resolve, compilePack }
@@ -192,7 +195,13 @@ module constraints {
   val invPackNeverHeld = pack.forall(i => facts.get(i).st == "published" or facts.get(i).st == "retracted")
   val invWellFormed = IDS.forall(i => facts.get(i).st == "absent" or (facts.get(i).lo < facts.get(i).hi and facts.get(i).hi <= TMAX))
 
-  val inv = invNoCurrentViolation and invHeldHaveConflict and invPartialBlocking and invHeldHaveViolation and
+  // DOC-G4, stated precisely (review B1): a publish run never publishes content whose twin (same constraint, key, value and start) was
+  // banned by a person's decision earlier. Twins published BEFORE the ban stay (two sources said the same thing, the person's decision names
+  // the facts in conflict at that moment); a person's later assertion of banned content is overridden by the rejection (rejected beats asserted).
+  // Independent of `publishRun`: it reads only the logical clocks.
+  val invBanHolds = IDS.forall(i => IDS.forall(o => (o != i and facts.get(o).banAt >= 0 and facts.get(i).pubAt > facts.get(o).banAt) implies
+    not(facts.get(o).kind == facts.get(i).kind and facts.get(o).key == facts.get(i).key and facts.get(o).v == facts.get(i).v and facts.get(o).lo == facts.get(i).lo)))
+  val inv = invBanHolds and invNoCurrentViolation and invHeldHaveConflict and invPartialBlocking and invHeldHaveViolation and
             invCertainNotViolation and invPackNeverHeld and invWellFormed
 
   // ---- witnesses ----
