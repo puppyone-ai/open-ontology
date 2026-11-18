@@ -335,3 +335,127 @@ async fn one_scope_or_no_parallelism_lists_the_drive_whole() {
     );
     e.finish().await;
 }
+
+/// The same through an S3 Drive on a real MinIO or RustFS (`OO_S3_*`): object stores list in scopes by
+/// default, and a scope whose objects are all gone is swept.
+///
+/// `OO_S3_ENDPOINT=.. OO_S3_ACCESS=.. OO_S3_SECRET=.. OO_S3_BUCKET=.. OO_DOCS_TEST_PG_PORT=.. cargo test -p oo-docs
+///  --locked --features objectstore-s3 --test prefix_sync -- --ignored`
+#[cfg(feature = "objectstore-s3")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT and a RustFS or MinIO (OO_S3_*)"]
+async fn an_s3_drive_lists_by_scope_by_default() {
+    use oo_connectors::objectstore_s3::opendal::{S3Config, S3Credentials, S3Source};
+    use oo_docs::ingest::AnyFactory;
+
+    let var = |k: &str| std::env::var(k).unwrap_or_else(|_| panic!("{k} is not set"));
+    let name = "prefix_s3";
+    {
+        let _g = CLUSTER_LOCK.lock().await;
+        installed_db(name).await;
+    }
+    let pool = pool_runtime(name, 12).await;
+    let dir = std::env::temp_dir().join(format!("oo-docs-{name}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let secret = dir.join("cred.json");
+    std::fs::write(
+        &secret,
+        serde_json::json!({"access_key_id": var("OO_S3_ACCESS"), "secret_access_key": var("OO_S3_SECRET")}).to_string(),
+    )
+    .unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&secret, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let prefix = format!("t-prefix-sync-{}/", std::process::id());
+    let config = serde_json::json!({
+        "bucket": var("OO_S3_BUCKET"), "prefix": prefix, "endpoint": var("OO_S3_ENDPOINT"),
+        "region": "us-east-1", "path_style": true, "secret_ref": format!("file:{}", secret.display()),
+    });
+    let drive: String = sqlx::query_scalar(
+        "INSERT INTO _oo_docs.drive (id, name, backend, config, max_files) \
+         VALUES (gen_random_uuid(), 'it', 's3', $1::jsonb, 1000) RETURNING id::text",
+    )
+    .bind(config.to_string())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let cfg = S3Config {
+        provider: Default::default(),
+        bucket: var("OO_S3_BUCKET"),
+        prefix: prefix.clone(),
+        endpoint: Some(var("OO_S3_ENDPOINT")),
+        region: "us-east-1".into(),
+        path_style: true,
+        excludes: vec![],
+        credentials: S3Credentials::new(&var("OO_S3_ACCESS"), &var("OO_S3_SECRET"), None).unwrap(),
+    };
+    let store = S3Source::open(&cfg).unwrap();
+    let op = store.operator_for_tests();
+    for (k, v) in [
+        ("root.md", "r"),
+        ("a/x.md", "x"),
+        ("a/y.md", "y"),
+        ("b/p.md", "p"),
+        ("c/q.md", "q"),
+    ] {
+        op.write(k, v.as_bytes().to_vec()).await.unwrap();
+    }
+    let limits = IngestLimits {
+        settle: Duration::ZERO,
+        page_size: 2,
+        ..IngestLimits::default()
+    };
+    let factory = AnyFactory {
+        secrets_dir: dir.clone(),
+    };
+    let run = || async {
+        run_sync(
+            &pool,
+            &factory,
+            &drive,
+            SyncFlavor::POLL,
+            &limits,
+            &AtomicBool::new(false),
+        )
+        .await
+        .unwrap()
+    };
+    let rows = |g: i64| {
+        let (pool, drive) = (pool.clone(), drive.clone());
+        async move {
+            sqlx::query_as::<_, (String, i64, String)>(
+                "SELECT prefix, prefix_generation, status FROM _oo_docs.drive_sync_prefix \
+                 WHERE drive_id = $1::uuid AND generation = $2 ORDER BY prefix",
+            )
+            .bind(drive)
+            .bind(g)
+            .fetch_all(&pool)
+            .await
+            .unwrap()
+        }
+    };
+    let r = run().await;
+    assert_eq!(
+        (r.status, r.listed, r.added),
+        (SyncStatus::Complete, 5, 5),
+        "{r:?}"
+    );
+    let want: Vec<(String, i64, String)> = ["", "a", "b", "c"]
+        .iter()
+        .map(|p| (p.to_string(), 1, "complete".to_string()))
+        .collect();
+    assert_eq!(rows(1).await, want);
+
+    op.delete("a/x.md").await.unwrap();
+    op.delete("c/q.md").await.unwrap();
+    let r = run().await;
+    assert_eq!((r.status, r.removed), (SyncStatus::Complete, 2), "{r:?}");
+    // c has no objects left: it is not a scope any more, and its file is still swept.
+    let names: Vec<String> = rows(2).await.into_iter().map(|x| x.0).collect();
+    assert_eq!(names, ["", "a", "b"]);
+    for k in ["root.md", "a/y.md", "b/p.md"] {
+        op.delete(k).await.unwrap();
+    }
+    pool.close().await;
+    let _ = std::fs::remove_dir_all(&dir);
+    drop_db(name).await;
+}
