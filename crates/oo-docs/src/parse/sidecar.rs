@@ -79,6 +79,21 @@ pub enum SidecarError {
     ScannedPdf,
     /// The response was valid HTTP but not a document the normalizer accepts.
     Normalize(String),
+    /// `PARSER_CODEC_UNAVAILABLE`: H.264, HEVC, AAC or another codec our FFmpeg does not decode, and neither a
+    /// host decode helper nor `media.external_ffmpeg` is available (D65). `how_to` says how to configure.
+    CodecUnavailable { codecs: Vec<String>, how_to: String },
+    /// `PARSER_MEDIA_TOO_LONG`: over 4 GiB or 4 hours (`too_large`).
+    MediaTooLong,
+    /// `PARSER_HOST_DECODE_MISMATCH`: host decode output belongs to another version of the file.
+    HostDecodeMismatch,
+    /// `PARSER_ASR_FAILED`.
+    AsrFailed,
+    /// `PARSER_DIARIZATION_FAILED`.
+    DiarizationFailed,
+    /// `PARSER_DISK_LOW`: the job waits (`blocked_reason = disk_low`), the file does not change state.
+    DiskLow,
+    /// The caller cancelled the task.
+    Cancelled,
 }
 
 impl SidecarError {
@@ -96,6 +111,11 @@ impl SidecarError {
             Self::ScannedPdf => "DOCS_PARSE_SCANNED_PDF",
             Self::LimitPages { .. } => "DOCS_PARSE_LIMIT_PAGES",
             Self::Normalize(_) => "DOCS_PARSE_IR_INVALID",
+            Self::CodecUnavailable { .. } => "DOCS_PARSE_CODEC_UNAVAILABLE",
+            Self::MediaTooLong => "DOCS_SOURCE_MEDIA_TOO_LONG",
+            Self::HostDecodeMismatch => "DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+            Self::AsrFailed => "DOCS_PARSE_ASR_FAILED",
+            Self::DiarizationFailed => "DOCS_PARSE_DIARIZATION_FAILED",
             _ => return None,
         })
     }
@@ -288,9 +308,9 @@ impl SidecarStats {
     }
 }
 
-struct Response {
-    status: u16,
-    body: Vec<u8>,
+pub(crate) struct Response {
+    pub(crate) status: u16,
+    pub(crate) body: Vec<u8>,
 }
 
 /// Progress of one parse: pages are PDF pages; other formats report 0 of 0.
@@ -442,7 +462,7 @@ impl SidecarClient {
     }
 
     /// One call through the breaker, with typed error mapping.
-    fn call(
+    pub(crate) fn call(
         &self,
         method: &str,
         path: &str,
@@ -771,7 +791,7 @@ fn poisoned() -> SidecarError {
 }
 
 /// `{"error":{"code":..}}` of a typed response.
-fn typed_code(body: &[u8]) -> Option<String> {
+pub(crate) fn typed_code(body: &[u8]) -> Option<String> {
     let v: Value = serde_json::from_slice(body).ok()?;
     v.get("error")?.get("code")?.as_str().map(str::to_owned)
 }
@@ -784,7 +804,7 @@ fn decode(r: &Response, want: u16) -> Result<Value, SidecarError> {
 }
 
 /// Typed sidecar failure from a non-success response.
-fn map_error(r: &Response) -> SidecarError {
+pub(crate) fn map_error(r: &Response) -> SidecarError {
     let v: Value = serde_json::from_slice(&r.body).unwrap_or(Value::Null);
     let err = v.get("error");
     let code = err
