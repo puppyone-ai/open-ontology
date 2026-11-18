@@ -5,52 +5,79 @@
   "component": "pgvector",
   "purpose": "optional vector storage for docs-db (docs-vectors/1); ranking is computed in the engine from integer vectors, so the extension is a store and filter, never the source of truth for order",
   "image": {
-    "name": "supabase/postgres",
-    "tag": "17.6.1.064",
-    "digest": "sha256:4c6d67181e482549bab276e8ae933f807be59ea1c371c225d85c189b0c14b9de",
-    "size_bytes": 4602240633,
-    "source": "image already present in the local store; the registry is not reachable from this host, so nothing was pulled",
-    "base": "Ubuntu 24.04, PostgreSQL 17.6 built with nix, pgvector 0.8.0 (vector.control default_version 0.8.0)"
+    "name": "oo-docs-pgvector",
+    "tag": "dev",
+    "build": "deploy/docs/pgvector/Dockerfile",
+    "digest": "sha256:69e200637d00744f889cb619d4a3cc9b233086d011131604c3d17cbf8905a97b",
+    "size_bytes": 640882491,
+    "base": "postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (official image, already in the local store)",
+    "pgvector": "0.8.0 compiled from https://github.com/pgvector/pgvector/archive/refs/tags/v0.8.0.tar.gz, sha256 867a2c328d4928a5a9d6f052cd3bc78c7d60228a9b914ad32aa3db88e9de27b0 (checked in the build); compiler and headers stay in the build stage"
   },
   "licenses": {
     "pgvector": "PostgreSQL License (permissive)",
     "postgresql": "PostgreSQL License (permissive)",
-    "image_other_layers": "gate run 2026-11-18: FAIL (see sbom_gate)"
+    "image_other_layers": "gate run 2026-11-18 on the minimal image: PASS (see sbom_gate)"
   },
   "verified": {
-    "create_extension_vector": "works as the superuser; the installer creates it in schema public, then docs-vectors/1 creates _oo_docs.block_vector as oo_docs_owner",
+    "create_extension_vector": "works on this image (CREATE EXTENSION vector gives 0.8.0, cosine distance query answers) as the superuser",
     "install_tests": "cargo test -p oo-docs --test install -- --ignored: 9 passed on this image and on the stock postgres 17.10 image (where the optional step is skipped)",
     "exact_cosine": "ORDER BY embedding <=> query on vector(256) ranks like crates/oo-docs/src/vector.rs cosine_bp for the test pair"
   },
-  "not_a_replacement_for_stock": "docs-db keeps the stock image (deploy/lite pin) by default. The vector image is used only when vectors are switched on; it ships its own entrypoint, so deploy/docs/postgres.sh (TLS and SCRAM wrapper around docker-entrypoint.sh) does not apply to it as is",
+  "not_a_replacement_for_stock": "docs-db keeps the stock image by default; this image is used only when vectors are switched on. It keeps the official entrypoint, so deploy/docs/postgres.sh applies unchanged.",
   "open_items": [
-    "a slim image (stock postgres bookworm plus the pgvector package or a pinned source build) once a registry or the pgvector source is reachable; this image is 4.6 GB",
-    "compose wiring of the vector image with the TLS entrypoint",
-    "replace the image by stock postgres plus a pinned pgvector 0.8.0 build, then re-run the gate (expected pass: only PostgreSQL-licensed code added to the stock base)"
+    "install tests and the vector-on compile path against this image (this lane ran the functional check only)",
+    "registry push and digest pin of a release build (the image id above is the local build)",
+    "compose wiring with the TLS entrypoint (the base entrypoint is unchanged, so deploy/docs/postgres.sh should work as is)"
   ],
   "legal_gate": "D67",
   "sbom_gate": {
     "ran_on": "2026-11-18",
-    "tool": "tools/super-ontology/sbom_nix_image.py (nix-store -qR closure of postgresql-and-plugins-17.6 plus dpkg list) then tools/doc-parser/sbom_gate.py",
+    "tool": "tools/super-ontology/sbom_debian_pg_image.py then tools/doc-parser/sbom_gate.py",
     "evidence": [
-      "testing/super-ontology/evidence/L8/sbom-pgvector-image.json",
-      "testing/super-ontology/evidence/L8/sbom-pgvector-image.gate.txt"
+      "testing/super-ontology/evidence/L8/sbom-pgvector-minimal.json",
+      "testing/super-ontology/evidence/L8/sbom-pgvector-minimal.gate.txt"
     ],
     "components": {
-      "native-in-image": 231,
-      "base-os": 290
+      "base-os": 144,
+      "native-in-image": 3
     },
-    "verdict": "FAIL",
-    "counts": {
-      "fail": 38,
-      "review": 36,
-      "unknown": 13,
-      "reviewed": 0
-    },
-    "forbidden_licences": "GPL-2.0/3.0 components in the closure: postgis, pgrouting, bash, coreutils, gnupg, gnutar, gzip, gnugrep, readline, cryptsetup, iptables, util-linux, lvm2 and others (the gate also fails 'X AND GPL' dual-part tools such as lz4 and xz). Licences are upstream licences asserted by package name; nix store paths carry no licence metadata.",
-    "missing_audit": "13 components have no licence assertion (dns-root-data, http, index_advisor, mecab dictionaries, nghttp2, publicsuffix-list, switch-ext-version and others).",
-    "pgvector_itself": "vector 0.8.0 is PostgreSQL License and passes alone; the failure comes from the other Supabase extensions and OS tools in the image, not from pgvector.",
-    "ffmpeg_opencv": "none present"
+    "verdict": "PASS",
+    "added_on_top_of_base": "pgvector 0.8.0 (PostgreSQL License), gosu 1.19 (Apache-2.0, shipped by the official base), docker-library entrypoint scripts (MIT)",
+    "caveat": "the gate lists the 144 Debian packages of the base as base-os and does not gate them; the base is the official image pinned by digest and its Debian packages (bash, coreutils, tar and others under GPL) are not distributed by us beyond the image itself. A legal review of redistributing the image is still the D67 gate."
   },
-  "decision": "This 4.6 GB image is local-development only. It must not be distributed or used as a release image until a slim stock postgres plus pgvector 0.8.0 image replaces it. The gate result is recorded, not suppressed."
+  "decision": "Use oo-docs-pgvector:dev for vectors. The supabase image is not used. deploy/docs/images.lock.json change is in patches/C-L8-images-lock-pgvector-minimal.patch (integration lane applies it).",
+  "previous_image_rejected": {
+    "image": {
+      "name": "supabase/postgres",
+      "tag": "17.6.1.064",
+      "digest": "sha256:4c6d67181e482549bab276e8ae933f807be59ea1c371c225d85c189b0c14b9de",
+      "size_bytes": 4602240633,
+      "source": "image already present in the local store; the registry is not reachable from this host, so nothing was pulled",
+      "base": "Ubuntu 24.04, PostgreSQL 17.6 built with nix, pgvector 0.8.0 (vector.control default_version 0.8.0)"
+    },
+    "sbom_gate": {
+      "ran_on": "2026-11-18",
+      "tool": "tools/super-ontology/sbom_nix_image.py (nix-store -qR closure of postgresql-and-plugins-17.6 plus dpkg list) then tools/doc-parser/sbom_gate.py",
+      "evidence": [
+        "testing/super-ontology/evidence/L8/sbom-pgvector-image.json",
+        "testing/super-ontology/evidence/L8/sbom-pgvector-image.gate.txt"
+      ],
+      "components": {
+        "native-in-image": 231,
+        "base-os": 290
+      },
+      "verdict": "FAIL",
+      "counts": {
+        "fail": 38,
+        "review": 36,
+        "unknown": 13,
+        "reviewed": 0
+      },
+      "forbidden_licences": "GPL-2.0/3.0 components in the closure: postgis, pgrouting, bash, coreutils, gnupg, gnutar, gzip, gnugrep, readline, cryptsetup, iptables, util-linux, lvm2 and others (the gate also fails 'X AND GPL' dual-part tools such as lz4 and xz). Licences are upstream licences asserted by package name; nix store paths carry no licence metadata.",
+      "missing_audit": "13 components have no licence assertion (dns-root-data, http, index_advisor, mecab dictionaries, nghttp2, publicsuffix-list, switch-ext-version and others).",
+      "pgvector_itself": "vector 0.8.0 is PostgreSQL License and passes alone; the failure comes from the other Supabase extensions and OS tools in the image, not from pgvector.",
+      "ffmpeg_opencv": "none present"
+    },
+    "reason": "gate FAIL (GPL tools and extensions, 13 unasserted licences)"
+  }
 }
