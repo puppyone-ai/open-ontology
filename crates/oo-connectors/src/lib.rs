@@ -62,6 +62,10 @@ pub mod objectstore;
 #[cfg(feature = "objectstore-s3")]
 #[path = "objectstore/compat.rs"]
 pub mod objectstore_compat;
+/// Bucket event notifications as change hints (B-S11-02, 10 4.3.6). Needs only the trait, no OpenDAL.
+#[cfg(feature = "objectstore")]
+#[path = "objectstore/events/mod.rs"]
+pub mod objectstore_events;
 #[cfg(feature = "objectstore-s3")]
 #[path = "objectstore/opendal.rs"]
 pub mod objectstore_opendal;
