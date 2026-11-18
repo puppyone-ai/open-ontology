@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s]   (`-` reads stdin; no --drive uses the managed folder `default`)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s]   (`-` reads stdin; no --drive uses the managed folder `default`)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]\n  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)\n  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify\n  oo docs versions | constraints\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -159,7 +159,10 @@ pub fn run(rest: &[String]) -> u8 {
         return exit::ARGS;
     };
     // `usage` and `health` have no subcommand: everything after them is flags.
-    let (sub, args) = if matches!(group.as_str(), "usage" | "health" | "upload" | "wait") {
+    let (sub, args) = if matches!(
+        group.as_str(),
+        "usage" | "health" | "upload" | "wait" | "versions" | "constraints"
+    ) {
         ("", tail)
     } else if let Some((s, a)) = tail.split_first() {
         (s.as_str(), a)
@@ -193,6 +196,18 @@ pub fn run(rest: &[String]) -> u8 {
         "--wait",
         "--timeout",
         "--rev",
+        "--provider",
+        "--base-url",
+        "--key-ref",
+        "--tenant",
+        "--agent",
+        "--since",
+        "--until",
+        "--output",
+        "--page",
+        "--llm-daily-calls",
+        "--auto-publish-bp",
+        "--exclude",
     ];
     let switches = [
         "--deep",
@@ -203,6 +218,12 @@ pub fn run(rest: &[String]) -> u8 {
         "--model",
         "--yes",
         "--non-interactive",
+        "--key-stdin",
+        "--pause",
+        "--resume",
+        "--clear-exclude",
+        "--enable-model",
+        "--disable-model",
     ];
     let p = match parse(args, &valued, &switches) {
         Ok(p) => p,
@@ -257,6 +278,32 @@ pub fn run(rest: &[String]) -> u8 {
                 final_code = super::upload::wait(&d, &p).await?;
                 Ok(())
             }
+            ("drive", "set") => drive_set(&d, &p).await,
+            ("drive", "rebuild") => drive_rebuild(&d, &p).await,
+            ("drive", "tree") => drive_tree(&d, &p).await,
+            ("files", "blocks") => files_blocks(&d, &p).await,
+            ("files", "content") => files_content(&d, &p).await,
+            ("model", "show") => {
+                simple_get(&d, &p, "/v1/docs/config/model", "oo.docs-model/v1").await
+            }
+            ("model", "set") => model_set(&d, &p).await,
+            ("audit", "shares") => audit_shares(&d, &p).await,
+            ("audit", "verify") => {
+                simple_get(&d, &p, "/v1/docs/audit/verify", "oo.docs-audit-verify/v1").await
+            }
+            ("versions", _) => {
+                simple_get(
+                    &d,
+                    &p,
+                    "/v1/docs/ontology/versions?limit=100",
+                    "oo.docs-versions/v1",
+                )
+                .await
+            }
+            ("constraints", _) => {
+                simple_get(&d, &p, "/v1/docs/constraints", "oo.docs-constraints/v1").await
+            }
+            ("entity", "resolve") => entity_resolve(&d, &p).await,
             ("drive", "add") => drive_add(&d, &p).await,
             ("drive", "ls") => drive_ls(&d, &p).await,
             ("drive", "show") => drive_show(&d, &p).await,
@@ -915,6 +962,302 @@ async fn suggestion_decide(d: &Daemon, p: &Parsed, decision: &str) -> Result<(),
         human,
     );
     Ok(())
+}
+
+// -------------------------------------------------- D83 (WP1) additions ---
+
+async fn drive_set(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let id = drive_id(d, one(p, "<drive>")?).await?;
+    let cur = d.get_json(&format!("/v1/docs/drives/{id}")).await?;
+    let mut body = json!({});
+    if let Some(n) = p.opt("--name") {
+        body["name"] = json!(n);
+    }
+    if p.has("--enable-model") && p.has("--disable-model") {
+        return Err(bad("--enable-model and --disable-model exclude each other"));
+    }
+    if p.has("--enable-model") {
+        body["model_enabled"] = json!(true);
+    }
+    if p.has("--disable-model") {
+        body["model_enabled"] = json!(false);
+    }
+    if let Some(n) = p.opt("--llm-daily-calls") {
+        body["llm_daily_calls"] = json!(
+            n.parse::<i64>()
+                .map_err(|_| bad("--llm-daily-calls is a number"))?
+        );
+    }
+    if p.has("--pause") && p.has("--resume") {
+        return Err(bad("--pause and --resume exclude each other"));
+    }
+    if p.has("--pause") {
+        body["paused"] = json!(true);
+    }
+    if p.has("--resume") {
+        body["paused"] = json!(false);
+    }
+    let ex = p.all("--exclude");
+    if p.has("--clear-exclude") {
+        body["exclude"] = json!([]);
+    } else if !ex.is_empty() {
+        body["exclude"] = json!(ex);
+    }
+    if let Some(n) = p.opt("--auto-publish-bp") {
+        body["review"] = json!({"auto_publish_bp": n.parse::<i64>().map_err(|_| bad("--auto-publish-bp is a number (5000..10000)"))?});
+    }
+    if body.as_object().is_some_and(serde_json::Map::is_empty) {
+        return Err(bad("nothing to change: give at least one option"));
+    }
+    let rev = cur["revision"].as_i64().unwrap_or(1);
+    d.write_json_if(
+        reqwest::Method::PATCH,
+        &format!("/v1/docs/drives/{id}"),
+        &body,
+        &rev_header(rev),
+    )
+    .await?;
+    let v = d.get_json(&format!("/v1/docs/drives/{id}")).await?;
+    out(
+        p,
+        "oo.docs-drive/v1",
+        v.clone(),
+        format!("updated {}", drive_line(&v)),
+    );
+    Ok(())
+}
+
+async fn drive_rebuild(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let id = drive_id(d, one(p, "<drive>")?).await?;
+    if !p.has("--yes") {
+        return Err(bad(
+            "a rebuild re-reads every file of the Drive; add --yes to confirm",
+        ));
+    }
+    let v = d
+        .post_json(
+            &format!("/v1/docs/drives/{id}:rebuild"),
+            &json!({"confirm": id}),
+        )
+        .await?;
+    out(
+        p,
+        "oo.docs-rebuild/v1",
+        v,
+        format!("rebuild of {id} started"),
+    );
+    Ok(())
+}
+
+async fn drive_tree(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let id = drive_id(d, one(p, "<drive>")?).await?;
+    let mut path = format!("/v1/docs/drives/{id}/tree?limit=200");
+    if let Some(s) = p.opt("--path") {
+        path.push_str(&format!("&path={}", q(s)));
+    }
+    let v = d.get_json(&path).await?;
+    let human = serde_json::to_string_pretty(&v).unwrap_or_default();
+    out(p, "oo.docs-tree/v1", v, human);
+    Ok(())
+}
+
+async fn files_blocks(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let id = one(p, "<file-id>")?;
+    let mut path = format!("/v1/docs/files/{}/blocks?limit=200", q(id));
+    if let Some(n) = p.opt("--page") {
+        path.push_str(&format!("&page={}", q(n)));
+    }
+    let v = d.get_json(&path).await?;
+    let human = serde_json::to_string_pretty(&v).unwrap_or_default();
+    out(p, "oo.docs-blocks/v1", v, human);
+    Ok(())
+}
+
+async fn files_content(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    use std::io::Write;
+    let id = one(p, "<file-id>")?;
+    let bytes = d
+        .get_bytes(&format!("/v1/docs/files/{}/content", q(id)))
+        .await?;
+    if let Some(f) = p.opt("--output") {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(f)
+            .map_err(|_| bad("--output must be a file that does not exist yet"))?;
+        file.write_all(&bytes).map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "cannot write --output")
+        })?;
+        out(
+            p,
+            "oo.docs-content/v1",
+            json!({"file_id": id, "bytes": bytes.len(), "output": f}),
+            format!("wrote {} bytes to {f}", bytes.len()),
+        );
+    } else {
+        std::io::stdout().write_all(&bytes).map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "cannot write stdout")
+        })?;
+    }
+    Ok(())
+}
+
+async fn audit_shares(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let mut path = String::from("/v1/docs/audit/shares?limit=200");
+    if let Some(v) = p.opt("--drive") {
+        path.push_str(&format!("&drive_id={}", q(&drive_id(d, v).await?)));
+    }
+    for (flag, key) in [
+        ("--agent", "agent"),
+        ("--tenant", "tenant"),
+        ("--since", "since"),
+        ("--until", "until"),
+    ] {
+        if let Some(v) = p.opt(flag) {
+            path.push_str(&format!("&{key}={}", q(v)));
+        }
+    }
+    let v = d.get_json(&path).await?;
+    let human = v["items"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|r| {
+            format!(
+                "{}  {}  {}  agent {}  role {}",
+                r["seq"],
+                r["at"].as_str().unwrap_or(""),
+                r["actor"].as_str().unwrap_or(""),
+                r["agent"].as_str().unwrap_or("-"),
+                r["role"].as_str().unwrap_or("-")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    out(p, "oo.docs-audit-shares/v1", v, human);
+    Ok(())
+}
+
+async fn entity_resolve(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let text = one(p, "<text>")?;
+    let mut body = json!({"text": text});
+    if let Some(t) = p.opt("--type") {
+        body["types"] = json!([t]);
+    }
+    if let Some(v) = p.opt("--drive") {
+        body["drive_id"] = json!(drive_id(d, v).await?);
+    }
+    let v = d.post_json("/v1/docs/resolve", &body).await?;
+    let human = serde_json::to_string_pretty(&v).unwrap_or_default();
+    out(p, "oo.docs-resolve/v1", v, human);
+    Ok(())
+}
+
+/// `oo docs model set`: the key goes into a 0600 file; the engine only ever
+/// receives the `file:` reference (D19).
+async fn model_set(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let provider = p
+        .opt("--provider")
+        .ok_or_else(|| bad("--provider is required"))?;
+    let base_url = p
+        .opt("--base-url")
+        .ok_or_else(|| bad("--base-url is required"))?;
+    let model = p.opt("--model").ok_or_else(|| bad("--model is required"))?;
+    let mut created = None;
+    let key_ref = match (p.opt("--key-ref"), p.has("--key-stdin")) {
+        (Some(_), true) => return Err(bad("--key-ref and --key-stdin exclude each other")),
+        (Some(r), false) => {
+            if !oo_stack::stack::secret_reference(r)
+                || !(r.starts_with("env:") || r.starts_with("file:"))
+            {
+                return Err(bad("--key-ref is env:NAME or file:/absolute/path"));
+            }
+            r.to_owned()
+        }
+        (None, stdin) => {
+            use std::io::{IsTerminal, Read};
+            let key = if stdin {
+                let mut s = String::new();
+                std::io::stdin()
+                    .take(65_537)
+                    .read_to_string(&mut s)
+                    .map_err(|_| bad("cannot read the key from stdin"))?;
+                s.trim().to_owned()
+            } else if std::io::stdin().is_terminal() && !p.has("--non-interactive") {
+                super::source::prompt_hidden("Model API key")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_owned()
+            } else {
+                return Err(bad(
+                    "no key given and no terminal to ask: use --key-stdin or --key-ref",
+                ));
+            };
+            if key.is_empty() {
+                return Err(bad("the key is empty"));
+            }
+            let (store, dir) = super::source::open_store()?;
+            let mut n = 1;
+            let name = loop {
+                let name = if n == 1 {
+                    "model_docs".to_owned()
+                } else {
+                    format!("model_docs_{n}")
+                };
+                if !dir.join(&name).exists() {
+                    break name;
+                }
+                n += 1;
+                if n > 99 {
+                    return Err(CliError::new(
+                        exit::OTHER,
+                        "SO_MODEL_SECRET_EXISTS",
+                        "too many old model key files; remove some",
+                    ));
+                }
+            };
+            store.write_new(&name, key.as_bytes()).map_err(|c| {
+                CliError::new(
+                    exit::OTHER,
+                    "SO_MODEL_SECRET_WRITE",
+                    format!("cannot write the key file ({c})"),
+                )
+            })?;
+            let path = dir.join(&name);
+            created = Some(path.clone());
+            format!("file:{}", path.display())
+        }
+    };
+    let cur = d.get_json("/v1/docs/config/model").await?;
+    let rev = cur["revision"].as_i64().unwrap_or(1);
+    let body =
+        json!({"provider": provider, "base_url": base_url, "model": model, "key_ref": key_ref});
+    let r = d
+        .write_json_if(
+            reqwest::Method::PUT,
+            "/v1/docs/config/model",
+            &body,
+            &rev_header(rev),
+        )
+        .await;
+    match r {
+        Ok(_) => {
+            let v = d.get_json("/v1/docs/config/model").await?;
+            out(
+                p,
+                "oo.docs-model/v1",
+                v,
+                format!("model set: {provider} {model} (key by reference)"),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            if let Some(f) = created {
+                let _ = std::fs::remove_file(f);
+            }
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]

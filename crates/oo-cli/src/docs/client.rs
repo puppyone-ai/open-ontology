@@ -219,6 +219,28 @@ impl Daemon {
             .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "response is not JSON"))
     }
 
+    /// `PUT` or `PATCH` JSON with an `If-Match` header and a fresh idempotency key.
+    pub async fn write_json_if(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: &Value,
+        if_match: &str,
+    ) -> Result<Value, CliError> {
+        let key = secrets::new_token("").map_err(|_| {
+            CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "no randomness source")
+        })?;
+        let req = self
+            .http
+            .request(method, format!("{}{path}", self.base))
+            .header("idempotency-key", key)
+            .header("if-match", if_match)
+            .header("content-type", "application/json")
+            .body(body.to_string());
+        let (_, body) = self.send(req).await?;
+        Ok(serde_json::from_slice(&body).unwrap_or(Value::Null))
+    }
+
     /// `GET`, raw bytes.
     pub async fn get_bytes(&self, path: &str) -> Result<Vec<u8>, CliError> {
         Ok(self
