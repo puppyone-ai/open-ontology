@@ -443,6 +443,10 @@ struct Rule {
 }
 
 impl Ctx<'_> {
+    fn src(&self) -> &str {
+        self.profile.as_deref().unwrap_or("default")
+    }
+
     fn docs(&self) -> bool {
         self.p.has("docs:read")
     }
@@ -637,8 +641,11 @@ impl Ctx<'_> {
                     }
                     None => Vec::new(),
                 };
-                it["links"] =
-                    Value::Array(l.iter().map(|x| link_item(x, it["side"] == "db")).collect());
+                it["links"] = Value::Array(
+                    l.iter()
+                        .map(|x| link_item(x, it["side"] == "db", self.src()))
+                        .collect(),
+                );
             }
         }
         Ok(json!({"protocol": SEARCH, "query": q, "items": items,
@@ -715,7 +722,7 @@ impl Ctx<'_> {
                 };
                 let mut links = Vec::new();
                 for l in &raw {
-                    let mut it = link_item(l, false);
+                    let mut it = link_item(l, false, self.src());
                     if let Some(profile) = self.db()
                         && let (Some(t), Some(k)) = (l["db_table"].as_str(), l["db_key"].as_str())
                         && let Some(r) = rules.iter().find(|r| r.table == t)
@@ -760,7 +767,7 @@ impl Ctx<'_> {
                     self.links(&format!("db_table={table}&db_key={}", pct_encode(&pk)))
                         .await
                         .iter()
-                        .map(|l| link_item(l, true))
+                        .map(|l| link_item(l, true, self.src()))
                         .collect()
                 } else {
                     Vec::new()
@@ -825,12 +832,12 @@ fn cell(v: Option<&Value>) -> String {
 }
 
 /// One engine link as the other end sees it: `to_db` is false when seen from the document.
-fn link_item(l: &Value, from_db: bool) -> Value {
+fn link_item(l: &Value, from_db: bool, source: &str) -> Value {
     let drive = l["drive_id"].as_str().unwrap_or("");
     let target = if from_db {
         json!({"urn": doc_urn(drive, l["doc_entity_key"].as_str().unwrap_or("")), "name": l["canonical_name"], "type": l["doc_entity_type"]})
     } else {
-        json!({"urn": db_urn("default", l["db_table"].as_str().unwrap_or(""), l["db_key"].as_str().unwrap_or(""))})
+        json!({"urn": db_urn(source, l["db_table"].as_str().unwrap_or(""), l["db_key"].as_str().unwrap_or(""))})
     };
     json!({"target": target, "db_table": l["db_table"], "db_key": l["db_key"], "status": l["status"],
         "confidence_bp": l["confidence_bp"], "matched_via": l["matched_via"], "inferred": l["status"] == "auto",
@@ -1167,7 +1174,7 @@ mod tests {
     #[test]
     fn links_cite_both_ends() {
         let l = json!({"drive_id":"d","doc_entity_key":"org:a","canonical_name":"A","db_table":"s.t","db_key":"1","status":"auto","provenance":{"file":[]}});
-        assert_eq!(link_item(&l, true)["target"]["urn"], "oo:doc/d/org:a");
-        assert_eq!(link_item(&l, false)["inferred"], true);
+        assert_eq!(link_item(&l, true, "s")["target"]["urn"], "oo:doc/d/org:a");
+        assert_eq!(link_item(&l, false, "s")["inferred"], true);
     }
 }
