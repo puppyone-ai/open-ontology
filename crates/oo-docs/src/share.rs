@@ -5,6 +5,7 @@
 //! belongs to the `oo` CLI and the `oo serve` daemon. Everything here is
 //! database state plus the pack bytes in the CAS.
 
+pub mod changes;
 pub mod check;
 pub mod coverage;
 pub mod credential;
