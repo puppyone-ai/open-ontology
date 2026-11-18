@@ -34,6 +34,7 @@ pub const SYSTEM: &str = "你是信息抽取器。只抽取文本中明确陈述
   mentions: Document → 任意\n\
   about: Document|Decision|Event → Project|Topic|Term|Organization\n\
   tried_and_failed: Person|Organization|Project → Topic|Term|Event\n\
+owns 和 member_of 只在原文明确写出“谁负责/拥有什么”“谁属于哪里”时使用；只是列出某组织的项目、成员清单，不算。\n\
 必须为 e0 输出 about 关系：宾语是文档最核心的 1 到 3 个 Project、Topic、Term 或 Organization，quote 取该对象出现的原文（只需包含宾语）；mentions 不必输出。\n\
 不属于以上任何核心类型的重要对象，用 type=\"Thing\" 并给出简短 label（≤20 字，名词）。\n\
 已知实体中的对象（含简称、别名）必须逐字使用已知实体的写法作为 name，不得另起新名。\n\

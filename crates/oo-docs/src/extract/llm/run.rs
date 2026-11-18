@@ -280,6 +280,7 @@ pub async fn extract_llm(
             }
         }
     }
+    super::post::cap_doc_about(&mut col, input.ir);
     keys.sort();
     let mut h = blake3::Hasher::new();
     h.update(b"oo.docs.llm-extraction/v1\0");

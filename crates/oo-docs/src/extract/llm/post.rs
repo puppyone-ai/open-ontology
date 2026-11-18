@@ -270,6 +270,39 @@ pub fn snap_to_known(ty: EntityType, name: &str, known: &[String]) -> Option<Str
     best.map(|(_, kn)| kn.to_owned())
 }
 
+/// Most `about` links the model may give one document over all its batches: a
+/// document is about its few main subjects, and each batch is asked for three.
+pub const MAX_ABOUT_PER_DOC: usize = 3;
+
+/// Keep the first [`MAX_ABOUT_PER_DOC`] `about` facts of the document itself (by
+/// the position of their evidence in the text); the rest were not its subject.
+pub(crate) fn cap_doc_about(col: &mut Collector, ir: &DocIr) {
+    let order: BTreeMap<&str, usize> = ir
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| (b.id.as_str(), i))
+        .collect();
+    let mut about: Vec<(usize, _)> = col
+        .facts
+        .iter()
+        .filter(|(_, f)| f.predicate == Predicate::About && f.subject.ty == EntityType::Document)
+        .map(|(slot, f)| {
+            let at = f
+                .evidence
+                .iter()
+                .filter_map(|e| order.get(e.block_id.as_str()).copied())
+                .min()
+                .unwrap_or(usize::MAX);
+            (at, slot.clone())
+        })
+        .collect();
+    about.sort();
+    for (_, slot) in about.into_iter().skip(MAX_ABOUT_PER_DOC) {
+        col.facts.remove(&slot);
+    }
+}
+
 /// What a reply is mapped against: the file and what the Drive knows.
 #[derive(Clone, Copy, Debug)]
 pub struct MapCtx<'a> {
@@ -766,5 +799,33 @@ mod tests {
             x.facts[0].confidence_bp, 7000,
             "the quote writes an alias, not the name a pack shows"
         );
+    }
+
+    #[test]
+    fn a_document_keeps_its_first_three_about_links() {
+        let ir = parse_markdown("# 星图\n\n甲。乙。丙。丁。\n".as_bytes())
+            .unwrap()
+            .ir;
+        let id = ir.blocks.last().unwrap().id.clone();
+        let mut ents = String::new();
+        let mut rels = String::new();
+        for (i, n) in ["甲", "乙", "丙", "丁"].iter().enumerate() {
+            let k = i + 1;
+            ents += &format!(
+                r#"{{"id":"e{k}","type":"Project","name":"{n}","block_id":"{id}","quote":"{n}","confidence":"high"}},"#
+            );
+            rels += &format!(
+                r#"{{"subject":"e0","predicate":"about","object":"e{k}","block_id":"{id}","quote":"{n}","confidence":"high"}},"#
+            );
+        }
+        let json = format!(
+            r#"{{"entities":[{{"id":"e0","type":"Document","name":"d","block_id":"{id}","quote":"甲","confidence":"high"}},{}],"relations":[{}]}}"#,
+            ents.trim_end_matches(','),
+            rels.trim_end_matches(',')
+        );
+        let (mut col, _) = run(&ir, &json);
+        assert_eq!(col.facts.len(), 4);
+        cap_doc_about(&mut col, &ir);
+        assert_eq!(col.facts.len(), MAX_ABOUT_PER_DOC);
     }
 }
