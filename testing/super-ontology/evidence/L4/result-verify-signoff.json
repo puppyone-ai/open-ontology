@@ -94,5 +94,60 @@
   "download target skipped: needs --with-s3 RustFS/MinIO, not run",
   "no machine-readable last-signed L4 baseline for the regression gate",
   "CLI acceptance at 5f9061df6 recorded 57/58 (check 9 'its files are still published - 25 files' FAIL, expected 24); the earlier 10/10 entry was wrong and is corrected here. Fixed in 516b239c8; rerun at b2386f379 gives 58/58."
- ]
+ ],
+  "verify_signoff_runs": [
+    {
+      "run_id": "v48-stock-L4",
+      "git_head": "acb32a6b4",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (stock, 17.11-bookworm)",
+        "args": "--with-s3"
+      },
+      "status": "superseded_by_v48-stock-rerun",
+      "summary": "Run A incomplete: 19 targets passed incl. download (s3). Failed: eval_live (PoolTimedOut sidecar stack.rs:108 after 248s), events_live and extract_llm_stage_live (admin connect ConnectionRefused). Runner aborted at faults target: docker run 500 'Docker Desktop is unable to start' (Docker Desktop backend down, host log 2026-11-18 19:56 UTC). Not run: faults and remaining targets, run B, 10x conformance_share. Failed targets not rerun (no daemon)."
+    }
+  ],
+  "verify_signoff_runs_v48": [
+    {
+      "run_id": "v48-stock-rerun",
+      "git_head": "acb32a6b4",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (stock, 17.11-bookworm)",
+        "args": "--with-s3"
+      },
+      "status": "pass",
+      "tests": "53/53 targets passed, 0 failed, 0 skipped, exit 0",
+      "note": "Supersedes the interrupted first attempt (status blocked_docker_desktop_down above). That attempt's 3 failures (eval_live, events_live, extract_llm_stage_live) came from the Docker Desktop daemon dying and were not reproduced on the rerun."
+    },
+    {
+      "run_id": "v48-vectors-on",
+      "git_head": "acb32a6b4",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "OO_DOCS_VECTORS": "hashgram/1",
+        "postgres_image": "oo-docs-pgvector:dev (locked; track_commit_timestamp=on)",
+        "args": "--with-s3 (wrapper sets l2.PG_IMAGE to oo-docs-pgvector:dev)"
+      },
+      "status": "pass",
+      "tests": "53/53 targets passed, 0 failed, 0 skipped, exit 0"
+    },
+    {
+      "run_id": "v48-conformance-share-x10",
+      "git_head": "acb32a6b4",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "OO_DOCS_VECTORS": "hashgram/1",
+        "postgres_image": "oo-docs-pgvector:dev (locked; track_commit_timestamp=on)",
+        "args": "--with-s3 (wrapper sets l2.PG_IMAGE to oo-docs-pgvector:dev)"
+      },
+      "status": "pass",
+      "tests": "cargo test -p oo-docs --test conformance_share -- --ignored: 10 of 10 runs ok, 4 passed 0 failed each"
+    }
+  ]
 }
