@@ -84,8 +84,9 @@ pub async fn bounds(conn: &mut PgConnection) -> Result<(i64, i64), ApiError> {
 }
 
 /// Turn stored events into `Event` objects (`{seq,type,at,drive_id,data}`);
-/// `file.state_changed` carries the current `FileSummary` of its file, as the
-/// contract says, so clients need no second request.
+/// `file.state_changed` carries the current `FileSummary` of its file and
+/// `share.created` / `share.state_changed` the current `Share` (`{share}`),
+/// as the contract says, so clients need no second request.
 pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Value>, ApiError> {
     let file_ids: Vec<String> = rows
         .iter()
@@ -93,21 +94,42 @@ pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Val
         .filter_map(|r| r.subject.clone())
         .collect();
     let summaries = super::files::summaries(conn, &file_ids).await?;
+    let mut shares: std::collections::HashMap<String, Value> = Default::default();
+    for r in rows {
+        if matches!(r.kind.as_str(), "share.created" | "share.state_changed")
+            && let Some(id) = r.subject.as_ref()
+            && !shares.contains_key(id)
+            && let Some(v) = crate::share::lifecycle::share_value(conn, id).await?
+        {
+            shares.insert(id.clone(), v);
+        }
+    }
     Ok(rows
         .iter()
         .map(|r| {
+            let share = r.subject.as_ref().and_then(|id| shares.get(id));
             let data = match (r.kind.as_str(), r.subject.as_ref()) {
                 ("file.state_changed", Some(id)) => match summaries.get(id) {
                     Some(file) => json!({ "file": file }),
                     None => r.payload.clone(),
                 },
+                ("share.created" | "share.state_changed", _) if share.is_some() => {
+                    json!({ "share": share })
+                }
                 _ => r.payload.clone(),
+            };
+            // A share event names the Drive of its share even when the writer did not.
+            let drive_id = match (&r.drive_id, share) {
+                (None, Some(s)) if r.kind.starts_with("share.") => {
+                    s["drive_id"].as_str().map(str::to_owned)
+                }
+                (d, _) => d.clone(),
             };
             json!({
                 "seq": r.seq,
                 "type": r.kind,
                 "at": r.at,
-                "drive_id": r.drive_id,
+                "drive_id": drive_id,
                 "data": data,
             })
         })
