@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-LANE = "oo.lane=super-ontology-be1"
+LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be1")
 PG_IMAGE = "postgres:17.11-bookworm"
 EVIDENCE = REPO / "testing/super-ontology/evidence/L3"
 

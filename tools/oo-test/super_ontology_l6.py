@@ -25,7 +25,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-LANE = "super-ontology-be6"
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be6")
 TOKEN = "l6-" + secrets.token_hex(12)
 
 CLIENT = r'''

@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 import super_ontology_l2 as l2  # noqa: E402  (Evidence, Api, run, wait_until, remove_tree, tree_hashes)
 
 REPO = l2.REPO
-LANE = "super-ontology-be2"
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be2")
 D49_MD_SECONDS = 7.0  # D49 as calibrated at L3 (2026-11-17): md/txt detected to published, p95
 D49_EDIT_SECONDS = 30.0  # md edit to new BRIEF while a media job runs (the L2 bound, 30 section L2 acceptance 5)
 
