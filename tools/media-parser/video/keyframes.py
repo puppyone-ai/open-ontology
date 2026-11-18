@@ -42,6 +42,12 @@ def scenedetect_cuts(frames, hash_threshold=0.1, content_threshold=27.0):
     Both run; a cut from either counts. Frames are BGR arrays like OpenCV's.
     """
     try:
+        import cv2
+
+        if not hasattr(cv2, "VideoCapture"):
+            # This OpenCV has no video reader on purpose (built without FFmpeg, see the Dockerfile); scenedetect's
+            # backends module names the type at import time but the detectors below never open a video.
+            cv2.VideoCapture = type("VideoCapture", (), {})
         from scenedetect import ContentDetector, FrameTimecode, HashDetector
     except ImportError:
         return None

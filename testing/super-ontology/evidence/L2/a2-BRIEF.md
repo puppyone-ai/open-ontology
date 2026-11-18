@@ -4,16 +4,18 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "8c71fe04559245f944859606915873d79e170401fc3872fb5e89a80613667412/BRIEF.md"
-  ReservedCode1: "8c71fe04559245f944859606915873d79e170401fc3872fb5e89a80613667412"
+  ProduceID: "7b06c8e3cc9286957e56a4f8cf38b6390ff4037dc6cb35cbeba240a6b2404cb6/BRIEF.md"
+  ReservedCode1: "7b06c8e3cc9286957e56a4f8cf38b6390ff4037dc6cb35cbeba240a6b2404cb6"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
 ---
 
 # BRIEF
-> 本体版本 v1（2026-11-17）· 范围 Projects/a · 预算 451/800 tokens · 角色 suggester
+> 本体版本 v2（2026-11-18）· 范围 Projects/a · 预算 502/800 tokens · 角色 suggester
 > 每行末尾的 [src:路径#位置] 是出处；原文片段见 refs/，清单见 INDEX.md。
+> 覆盖：1/1 个文件已处理
+> 一致性承诺：包内一致 是 · 新鲜度下界 是 · 变更必达 是 · 并行同源 是 · 本体无矛盾 是
 
 ## 你在做什么
 > （未指定任务）
@@ -36,7 +38,7 @@ AIGC:
 （无）
 
 ## 已拦截
-另有 83 条事实、43 个实体因不在共享范围内未纳入。
+另有 87 条事实、43 个实体因不在共享范围内未纳入。
 
 ## 裁掉了什么
 没有内容被裁掉。

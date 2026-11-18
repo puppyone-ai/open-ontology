@@ -347,6 +347,14 @@ pub fn set_current_parser(id: &str, version: &str) {
 
 /// The `(id, version)` of the parser a `/v1/info` answer describes.
 pub fn parser_of_info(info: &serde_json::Value) -> Option<(String, String)> {
+    // `oo.doc-parser/v1` `/v1/info` has `parser_id` and `parser_version` at the top; a parse result header nests them.
+    if let (Some(id), Some(version)) = (
+        info.get("parser_id").and_then(serde_json::Value::as_str),
+        info.get("parser_version")
+            .and_then(serde_json::Value::as_str),
+    ) {
+        return Some((id.to_owned(), version.to_owned()));
+    }
     let p = info.get("parser")?;
     Some((
         p.get("id")?.as_str()?.to_owned(),
