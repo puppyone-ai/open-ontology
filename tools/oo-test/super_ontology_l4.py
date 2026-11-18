@@ -54,7 +54,7 @@ from super_ontology_l2 import (  # noqa: E402
 
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden"
-l2.LANE = "oo.lane=super-ontology-be4"
+l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 LOCAL_EXT = {".md", ".txt", ".csv"}
 DECISION_OLD = "Decisions/D-2026-05-星图改用开源图表库.md"
 SUPERSEDER = "Decisions/D-2026-09-恢复自研图表引擎.md"

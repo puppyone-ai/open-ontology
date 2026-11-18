@@ -43,7 +43,7 @@ import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden"
-comp.LANE = "super-ontology-be4"
+comp.LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 PUBLISH_DEADLINE = 900.0
 ADVERSARIAL = 2  # index in TASKS of the query that names the secret material
 TASKS = [

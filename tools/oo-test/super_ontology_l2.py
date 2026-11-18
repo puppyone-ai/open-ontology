@@ -51,7 +51,7 @@ PG_IMAGE = (
     "docker.io/library/postgres@sha256:"
     "839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
 )
-LANE = "oo.lane=super-ontology-be5"
+LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be5")
 PUBLISH_DEADLINE = 60.0
 EDIT_DEADLINE = 30.0
 EXTRA_FILES = {

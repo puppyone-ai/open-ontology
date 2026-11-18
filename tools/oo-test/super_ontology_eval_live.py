@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
-l2.LANE = "oo.lane=super-ontology-be4"
+l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 
 
 def main():

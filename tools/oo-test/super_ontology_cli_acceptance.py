@@ -49,7 +49,7 @@ import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden/docs"
-comp.LANE = "super-ontology-be4"
+comp.LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 SAMPLE = (
     [f"Decisions/{p.name}" for p in sorted((GOLDEN / "Decisions").glob("*.md"))]
     + [f"People/{p.name}" for p in sorted((GOLDEN / "People").glob("*.md"))]
