@@ -563,6 +563,8 @@ SSE 事件（10 §8.5）对接见 §1.7.3；错误码（10 §8.4）对接见 §4
 
 ## 2. 设计规范落地
 
+> **D82（2026-11-18）优先于本节其余内容**：先复用 Puppyone App 已有组件与交互（同类页面怎么做，这里就怎么做），再谈 token；`super-drive-tokens.css` 只做到现有 token 的别名，不再自定义间距刻度、时长或任何视觉数值；原 App 没有的组件用现有原语按现有样式构建。每个页面的验收增加“与原 App 同类页面亮暗并排截图一致”。组件映射表见 `execution/super-ontology/ui-design-audit.md`（协调者笔记目录）。
+
 依据：`puppy-issues/document/puppyone-desktop/platform/design-guidelines.md`（按钮、Tooltip、文案与状态克制、稳定内边距）、`renderer-style-architecture.md`、代码中的 token 定义。规则：**颜色只能用 `--po-*` 语义 token；尺寸、圆角、阴影、字号、动效时长只能用 `var(--…)`**；字面量只允许出现在 `super-drive-tokens.css` 一个文件里，并且能映射到现有 token 的必须映射。
 
 ### 2.1 现有 token 使用表
