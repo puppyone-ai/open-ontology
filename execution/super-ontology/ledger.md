@@ -134,6 +134,10 @@
 | SO-B-S11-04 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 12c8c1d6b → 8532d1d0e | — | evidence/L7/ | 已发布文档实体投影到 Agent DB 并关联行；投影迁移 |
 | SO-B-S12-01 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 28f63af34 → 044983b7d | — | evidence/L7/ | 云入口、共享审计、事件提示路由；审计迁移 |
 | SO-B-S12-02 | L7 | merged | feat/super-ontology (车道 B 分支并入) | f3321e53e → f2d36e157 | — | evidence/L7/ | --remote 挂载远端 OO serve；L7 端到端脚本 |
+| SO-B-S18-01 | D83 | merged | feat/super-ontology (WP3 分支并入) | a0c7e4863 → a0c7e4863 | — | — | docs-api 1.7：统一本体查询接口 |
+| SO-B-S18-02 | D83 | merged | feat/super-ontology (WP3 分支并入) | 53c983147 → 04e772972 | — | — | /v1/ontology/* 代理、oo ontology search/entity/query/sources、oo agent token |
+| SO-B-S18-03 | D83 | merged | feat/super-ontology (WP3 分支并入) | c213e6aeb → c213e6aeb | — | — | MCP 统一工具与 oo mcp --stdio |
+| SO-B-S18-04 | D83 | merged | feat/super-ontology (WP3 分支并入) | 414a465b6 → 4462e873a | — | — | 只用 CLI 的端到端脚本（文档与数据库两边、负例） |
 | SO-B-S17-01 | D83 | merged | feat/super-ontology (WP2 分支并入) | 77c2e4e87 → 88463bde4 | — | — | 投影作业：已发布文档实体与事实增量投影到共享实体命名空间，带出处 |
 | SO-B-S17-02 | D83 | merged | feat/super-ontology (WP2 分支并入) | 45626acf9 → a7c00590c | — | — | ooa_ Agent 令牌、scope 校验、审计、吊销；链接路由；迁移 0150、0151 |
 | SO-B-S17-03 | D83 | merged | feat/super-ontology (WP2 分支并入) | 766f2900c → 766f2900c | — | — | 装入器接入 0150–0152 |
