@@ -367,15 +367,17 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     assert_eq!(r.status, 201, "{}", String::from_utf8_lossy(&r.body));
     let t0 = Instant::now();
     // Settled: every file is past the pipeline (a file whose facts wait for a person
-    // may stay `indexed`) and no model job is open, for three polls in a row.
+    // may stay `indexed`) and no parse, extract or publish job is open, for five polls in
+    // a row (the publish job runs the link pass of the last files: it is debounced by 2 s
+    // and takes seconds, and the export must come after it).
     let limit = Duration::from_secs(if with_model { 3000 } else { 900 });
     let mut quiet = 0;
     let mut st = s.states().await;
-    while quiet < 3 && t0.elapsed() < limit {
+    while quiet < 5 && t0.elapsed() < limit {
         tokio::time::sleep(Duration::from_millis(1000)).await;
         st = s.states().await;
         let open: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm')",
+            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm', 'publish')",
         )
         .fetch_one(&s.pool)
         .await
