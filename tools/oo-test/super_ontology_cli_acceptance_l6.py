@@ -54,6 +54,7 @@ DEPLOY = Path(os.environ.get("OO_ACCEPT_DEPLOY_DIR", REPO / "deploy/docs"))
 WORKING = {"stored", "queued", "parsing", "parsed", "extracting", "indexed", "outdated"}
 MEETING = "Meetings/周会 参会=小王、小李.wav"
 D49_EDIT_SECONDS = 30.0
+D49_MD_SECONDS = 7.0  # D49 as calibrated at L3 (2026-11-17): md/txt detected to published, p95
 
 
 class Cli:
@@ -144,7 +145,14 @@ def main():
         rc, h = cli.json("docs", "health")
         parser = (h.get("components") or {}).get("parser", {})
         ev.write("cli-acceptance-l6-health.json", json.dumps(h, ensure_ascii=False, indent=1) + "\n")
-        ev.check("1 oo docs health is ok", rc == 0 and h.get("status") in ("ok", "degraded"), f"exit {rc} status {h.get('status')}")
+        # No model is configured and every sidecar was started by `oo serve`: nothing is degraded here (spec 10 4.12: degraded
+        # only for an unavailable parser/db/cas). The parsers may need a moment after the engine answers, so wait for ok.
+        def health_ok():
+            nonlocal rc, h
+            rc, h = cli.json("docs", "health", quiet=True)
+            return rc == 0 and h.get("status") == "ok"
+        l2.wait_until(60, health_ok, step=3)
+        ev.check("1 oo docs health is ok", rc == 0 and h.get("status") == "ok", f"exit {rc} status {h.get('status')}")
 
         ev.log("\n## 2. register the Drive and watch the states")
         rc, d = cli.json("docs", "drive", "add", "--name", "l6", "--root", str(drive))
@@ -282,7 +290,13 @@ def main():
         el = time.time() - t_edit
         still = [f["state"] for f in files_of(cli).values() if f["path"].endswith("周会2 参会=小王、小李.wav")]
         ev.timings["edit_to_brief_seconds"] = round(el, 1)
-        ev.check("8 the edit is in a BRIEF within 30 s while the media job runs", bool(done) and el <= D49_EDIT_SECONDS, f"{el:.1f}s; long recording state {still}")
+        ev.check("8 edit to BRIEF round trip (edit, detect, publish, new mount; not the per-file latency) within 30 s while the media job runs", bool(done) and el <= D49_EDIT_SECONDS, f"{el:.1f}s; long recording state {still}")
+        # D49 (calibrated at L3): md/txt detected to published, p95 <= 7 s. Per-file `latency_ms.total_ms` of each md/txt
+        # file's latest cycle (the edited file, measured while the long recording is processed, and the other file).
+        lat = {k: (f.get("latency_ms") or {}).get("total_ms") for k, f in files_of(cli).items() if k.endswith((".md", ".txt")) and f["state"] == "published"}
+        worst = max((v for v in lat.values() if v is not None), default=None)
+        ev.timings["d49_md_txt_total_ms"] = lat
+        ev.check("8 D49: every md/txt file went from detected to published within 7 s (p95)", len(lat) >= 2 and None not in lat.values() and worst <= D49_MD_SECONDS * 1000, json.dumps(lat, ensure_ascii=False))
 
         ev.log("\n## 9. revoke and stop")
         for t in (t1, t3, mnt_m, mnt_s):
