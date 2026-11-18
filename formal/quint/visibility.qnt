@@ -124,12 +124,18 @@ module visibility {
   }
 
   // ---- invariants: D26 restated from the unfiltered graph ----
+  // INDEPENDENT of the compile helpers (liveEv, scopedEv, aliasScoped, ends): spelled out on the raw maps, so a
+  // mutation of a helper cannot change both the compile and its invariants (review B1).
+  pure def evInScope(gr: Graph, sc: Set[int], f: int): bool =
+    gr.ev.get(f).exists(x => sc.contains(x) and not(gr.wd.get(f).contains(x)))
+  pure def aliasEvInScope(gr: Graph, sc: Set[int], a: int): bool =
+    gr.aev.get(a).exists(x => sc.contains(x) and not(gr.awd.get(a).contains(x)))
   pure def supported(gr: Graph, sc: Set[int], e: int): bool =
-    FACTS.exists(f => scopedEv(gr, sc, f).size() > 0 and ends(gr, f).contains(e)) or
-    ALIASES.exists(a => gr.aowner.get(a) == e and aliasScoped(gr, sc, a).size() > 0)
+    FACTS.exists(f => evInScope(gr, sc, f) and (gr.subj.get(f) == e or gr.obj.get(f) == e)) or
+    ALIASES.exists(a => gr.aowner.get(a) == e and aliasEvInScope(gr, sc, a))
 
   // every fact of the pack has at least one in-scope live evidence row
-  val invFactsInScope = out.facts.forall(f => scopedEv(g, scope, f).size() > 0)
+  val invFactsInScope = out.facts.forall(f => evInScope(g, scope, f))
   // and carries exactly its in-scope live evidence, nothing else
   val invEvidenceOnlyInScope = out.facts.forall(f =>
     out.ev.get(f).size() > 0 and out.ev.get(f).subseteq(scope) and out.ev.get(f).subseteq(g.ev.get(f)) and
@@ -137,7 +143,7 @@ module visibility {
   // an entity is in the pack only through in-scope evidence
   val invEntitiesSupported = out.ents.forall(e => supported(g, scope, e))
   // an alias is in the pack only through its own in-scope evidence, on a pack entity
-  val invAliasesInScope = out.aliases.forall(a => aliasScoped(g, scope, a).size() > 0 and out.ents.contains(g.aowner.get(a)))
+  val invAliasesInScope = out.aliases.forall(a => aliasEvInScope(g, scope, a) and out.ents.contains(g.aowner.get(a)))
   // names that exist only out of scope appear nowhere: no entity, alias, or fact end
   pure def hiddenEnts(gr: Graph, sc: Set[int]): Set[int] = ENT.filter(e => not(supported(gr, sc, e)))
   // no entity that exists only out of scope is in the pack
@@ -145,7 +151,7 @@ module visibility {
   // no alias of such an entity is in the pack
   val invNoLeakAliases = out.aliases.forall(a => not(hiddenEnts(g, scope).contains(g.aowner.get(a))))
   // no fact of the pack has such an entity at an end
-  val invNoLeakFactEnds = out.facts.forall(f => ends(g, f).intersect(hiddenEnts(g, scope)) == Set())
+  val invNoLeakFactEnds = out.facts.forall(f => not(hiddenEnts(g, scope).contains(g.subj.get(f))) and not(hiddenEnts(g, scope).contains(g.obj.get(f))))
   // all three (simulation; Apalache checks them one by one, the conjunction exceeds the FAST budget)
   val invNoLeak = invNoLeakEntities and invNoLeakAliases and invNoLeakFactEnds
   // a human overlay fact without in-scope evidence is invisible too

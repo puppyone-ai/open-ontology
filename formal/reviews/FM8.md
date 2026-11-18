@@ -50,7 +50,12 @@ reviewer 1 (the author, lane A, 2026-11-17). Reviewer 2 (independent, run by the
 | M2 | withdrawn evidence still counts | `invEvidenceOnlyInScope` |
 | M3 | an alias is visible whenever its owner is | `invAliasesInScope` |
 | M4 | the pack attaches all live evidence, not only in-scope | `invEvidenceOnlyInScope` |
-| M5 | blocked facts counted one hop from the seeds | `invBlockedCounts` |
+| M5 | blocked facts counted one hop from the seeds | `invBlockedFactCount` |
+| M6 | alias scope ignored in the helper (reviewer M5) | `invAliasesInScope`, `invNoLeakAliases`, `invNoLeakEntities`, `invEntitiesSupported` |
+| M7 | fact scope ignored in the helper | `invFactsInScope`, `invEvidenceOnlyInScope` |
+| M8 | alias withdrawal ignored in the helper | `invAliasesInScope` |
+
+After review B1 (2026-11-17) the invariants `invFactsInScope`, `invAliasesInScope` and `supported` (hence `invEntitiesSupported`, `invNoLeak*`) are written on the raw graph maps (`evInScope`, `aliasEvInScope`), not on the compile's helpers, so M6 to M8 fail where before they passed.
 
 ## 5. Where to attack (for reviewer 2)
 
