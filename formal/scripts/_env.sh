@@ -35,9 +35,10 @@ command -v quint >/dev/null 2>&1 || { echo "quint not found; see formal/TOOLCHAI
 # `quint verify` checks one by one (Apalache is far faster per invariant than on one big conjunction).
 # `verify-steps` is the FAST bound: every (model, invariant) must finish inside the 15 minute CI job
 # (80 section 6). `deep-steps` (default max(verify-steps, 10)) is the nightly bound of formal-verify-deep.
+# `dinv` (optional) lists extra invariants checked only by formal-verify-deep (too slow for the 15 minute FAST job).
 # formal_models prints "file<TAB>main<TAB>inv<TAB>steps<TAB>verify-steps<TAB>witnesses<TAB>vinv<TAB>deep-steps".
 formal_models() {
-  local f line main inv steps vsteps wit vinv dsteps
+  local f line main inv steps vsteps wit vinv dsteps dinv
   for f in "$FORMAL_ROOT"/formal/quint/*.qnt; do
     [ -e "$f" ] || continue
     line="$(grep -m1 '^// formal:' "$f" || true)"
@@ -49,9 +50,10 @@ formal_models() {
     wit="$(sed -n 's/.* witnesses="\([^"]*\)".*/\1/p' <<<"$line")"
     vinv="$(sed -n 's/.* vinv="\([^"]*\)".*/\1/p' <<<"$line")"
     dsteps="$(sed -n 's/.* deep-steps=\([^ ]*\).*/\1/p' <<<"$line")"
+    dinv="$(sed -n 's/.* dinv="\([^"]*\)".*/\1/p' <<<"$line")"
     vsteps="${vsteps:-10}"
     if [ -z "$dsteps" ]; then dsteps=$(( vsteps > 10 ? vsteps : 10 )); fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$main" "$inv" "${steps:-40}" "$vsteps" "$wit" "${vinv:-$inv}" "$dsteps"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$main" "$inv" "${steps:-40}" "$vsteps" "$wit" "${vinv:-$inv}" "$dsteps" "$dinv"
   done
 }
 

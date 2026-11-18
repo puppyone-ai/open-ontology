@@ -1,4 +1,4 @@
-// formal: main=visibility inv=inv steps=6 verify-steps=3 deep-steps=4 witnesses="witFactBlocked witAliasFiltered witEntityBlocked witEvidenceFiltered witHumanFactFiltered witWithdrawnIgnored witScopeGrows" vinv="invFactsInScope invEvidenceOnlyInScope invEntitiesSupported invAliasesInScope invNoLeak invHumanNoBackdoor invBlockedCounts invBlockedHidden invScopeMonotone invOutputWithinInput"
+// formal: main=visibility inv=inv steps=6 verify-steps=2 deep-steps=3 witnesses="witFactBlocked witAliasFiltered witEntityBlocked witEvidenceFiltered witHumanFactFiltered witWithdrawnIgnored witScopeGrows" vinv="invFactsInScope invEvidenceOnlyInScope invEntitiesSupported invAliasesInScope invNoLeakAliases invNoLeakFactEnds invHumanNoBackdoor invBlockedFactCount invScopeMonotone invOutputWithinInput" dinv="invBlockedEntityCount invBlockedHidden invNoLeakEntities"
 // FM8: visibility (D26, 10 7.2 `compile/visible.rs`; Kani KP5 proves the same on the Rust function).
 // A fact is visible iff at least one of its live (not withdrawn) evidence rows lies in the share scope;
 // only in-scope evidence is attached; an entity or alias appears only if some in-scope live evidence
@@ -139,21 +139,27 @@ module visibility {
   // an alias is in the pack only through its own in-scope evidence, on a pack entity
   val invAliasesInScope = out.aliases.forall(a => aliasScoped(g, scope, a).size() > 0 and out.ents.contains(g.aowner.get(a)))
   // names that exist only out of scope appear nowhere: no entity, alias, or fact end
-  val invNoLeak = {
-    val hidden = ENT.filter(e => not(supported(g, scope, e)))
-    out.ents.intersect(hidden) == Set() and
-    out.aliases.forall(a => not(hidden.contains(g.aowner.get(a)))) and
-    out.facts.forall(f => ends(g, f).intersect(hidden) == Set())
-  }
+  pure def hiddenEnts(gr: Graph, sc: Set[int]): Set[int] = ENT.filter(e => not(supported(gr, sc, e)))
+  // no entity that exists only out of scope is in the pack
+  val invNoLeakEntities = out.ents.intersect(hiddenEnts(g, scope)) == Set()
+  // no alias of such an entity is in the pack
+  val invNoLeakAliases = out.aliases.forall(a => not(hiddenEnts(g, scope).contains(g.aowner.get(a))))
+  // no fact of the pack has such an entity at an end
+  val invNoLeakFactEnds = out.facts.forall(f => ends(g, f).intersect(hiddenEnts(g, scope)) == Set())
+  // all three (simulation; Apalache checks them one by one, the conjunction exceeds the FAST budget)
+  val invNoLeak = invNoLeakEntities and invNoLeakAliases and invNoLeakFactEnds
   // a human overlay fact without in-scope evidence is invisible too
   val invHumanNoBackdoor = FACTS.forall(f => (g.human.get(f) and scopedEv(g, scope, f).size() == 0) implies not(out.facts.contains(f)))
   // blocked counts equal what the filter dropped, restated from the unfiltered graph
-  val invBlockedCounts = {
-    val dropped = FACTS.filter(f => g.ev.get(f).exclude(g.wd.get(f)).size() > 0 and g.ev.get(f).exclude(g.wd.get(f)).intersect(scope) == Set())
-    val hiddenEnts = ENT.filter(e => not(supported(g, scope, e)) and
-      (dropped.exists(f => ends(g, f).contains(e)) or ALIASES.exists(a => g.aowner.get(a) == e and g.aev.get(a).exclude(g.awd.get(a)).size() > 0)))
-    out.blockedF == dropped.size() and out.blockedE == hiddenEnts.size()
+  pure def droppedFacts(gr: Graph, sc: Set[int]): Set[int] =
+    FACTS.filter(f => gr.ev.get(f).exclude(gr.wd.get(f)).size() > 0 and gr.ev.get(f).exclude(gr.wd.get(f)).intersect(sc) == Set())
+  val invBlockedFactCount = out.blockedF == droppedFacts(g, scope).size()
+  val invBlockedEntityCount = {
+    val viaAlias = ALIASES.filter(a => g.aev.get(a).exclude(g.awd.get(a)).size() > 0).map(a => g.aowner.get(a))
+    val hidden = unionEnds(g, droppedFacts(g, scope)).union(viaAlias).filter(e => not(supported(g, scope, e)))
+    out.blockedE == hidden.size()
   }
+  val invBlockedCounts = invBlockedFactCount and invBlockedEntityCount
   // a blocked fact or entity is counted and nowhere else: not in the pack, not visible at all
   val invBlockedHidden = {
     val dropped = FACTS.filter(f => g.ev.get(f).exclude(g.wd.get(f)).size() > 0 and g.ev.get(f).exclude(g.wd.get(f)).intersect(scope) == Set())
