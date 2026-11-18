@@ -1,6 +1,6 @@
-# L8 规模与轻量 · OO 侧证据（D80 阶段一，**未签收**）
+# L8 规模与轻量 · OO 侧签收证据（D80 阶段一）
 
-状态：**未签收**。原因：与 L4 相同的 `conformance_share` 偶发失败（向量开启的全量运行里失败 1 次，单独重跑通过）；`download` 与 L3 一样被阻塞（S3 镜像不在本机）。**L8 自身的验收项全部通过。** OO `feat/super-ontology` @ 4390b2cb4。独立复核运行于 `e1242d241`（验证分支 `so/V8-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：**该次记录的状态是 fail**：10 项检查中 9 项通过，1 项失败（向量开启时 `speaker_live` 的 D63 检查被 0144 新增的 `block_vector.embedding` 命中，首次与复跑都失败），`e877ac64d` 把该检查改为仍拒绝声纹与嵌入列、但允许块文本向量表。之后在 4cee27056 上复跑向量开启的全部 53 个 ignored 目标（`vectors_on_runs`，`oo-docs-pgvector:dev`，`OO_DOCS_VECTORS=hashgram/1`）：首次 51 通过、1 失败（`conformance_share`）、1 跳过（`download`，S3 镜像不在本机）；`conformance_share` 单独重跑通过。因此 `speaker_live` 在向量下已通过，剩下的偶发失败与阻塞就是未签收的原因。Desktop 部分（1 万文件首屏、虚拟滚动）按 30 §7 在阶段二补齐。
+**签收（协调者，2026-11-18）**：此前的阻塞已解除：`conformance_share` 偶发失败已按 L4 所述修复；`download` 在拉取固定 S3 镜像后通过。独立复核（`so/V48-signoff`）：向量开启（`oo-docs-pgvector:dev`，`hashgram/1`）的全量 live 套件 53/53（含 S3、`speaker_live`），`conformance_share` 连续 10/10；1 万文件、安装、免 Docker 首个 BRIEF 的数字见下文。
 
 ## 30 §L8 验收（OO 侧口径，30 §7.2）
 
