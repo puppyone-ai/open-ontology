@@ -55,3 +55,21 @@ action, so a write between two hash jobs of one drain is not explored.
 Per invariant at 8 steps on a loaded 16 core machine (see FM1.md): invOnlySweepKills 48 s, invSweepOnlyUnseen 52 s,
 invHeldAfterMassOnly 57 s, invGenerationMonotone 58 s, invRenameCarries 92 s, invConverged 499 s. FAST bound
 `verify-steps=8`; nightly `deep-steps=10` (not measured).
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. Reviewed: `sync_reconcile.qnt` against 10 4.3.4 to 4.3.5, `ingest/reconcile.rs` (`start_sync` marks reset, `sync_core` sweep, `load_missing`, `detect_renames`, `targeted_sync`), and `tests/conformance_sync.rs` (`compare`, `replay_steps`). Checks: `quint typecheck` passes. `quint run` (seed 7, 40 steps) on the unmodified model finds no violation. The FM3-001 mutant (`RETRY_RESETS_MARKS = false`) is caught by `inv`.
+
+Blocking
+1. **B1, the header claim "a listing overtaken by writes does not delete what was written" is not checked, and the model violates it.** `finishSync` sweeps `missing` = live rows with `seen < g`, with no test that the folder still lacks the key. A key written after the snapshot, with no targeted hint, is swept. Probe (copy in /tmp, not committed): `not(lastKind == "sweep" and KEYS.exists(k => rows.get(k).st == 2 and src.get(k) != 0))` gives "Invariant violated" in 40 ms. The code does the same (`load_missing` is the DB set, `reconcile.rs` ~l.822 to l.833), so the row is deleted while the file exists and is only revived by the next sync. Either (a) the claim is narrowed to "the sweep does not delete a key written with a targeted hint (D46/D47)" and the invariant is written with that precondition (track a ghost `hinted` per key), or (b) the code gains a current-existence check before deleting. Choose one and state it in the header; as written, the header promises something the model contradicts.
+2. **B2, the mass-delete hold has no invariant.** The branch `mass and not(ls.confirm)` is the only protection for "mass delete is held until confirmed", but mutating it to `else if (false)` leaves `inv` at "No violation found" (seed 7, 3000 samples). Add a ghost set in the sweep branch (for example `sweptMass = mass and not(ls.confirm)`) and the invariant `not(sweptMass)`; or `lastKind == "sweep" implies not(massUnconfirmed)`.
+3. **B3, `invSweepOnlyUnseen` (= `sweptSeenOk`) is tautological against the code.** `missing` is defined as `seen < g` after `upsert`, so `missing.forall(seen < g)` holds by construction. It fails only for a mutant that changes `missing` itself, which is not what the header calls "only unseen". Replace it with the real claim: a key is swept only if its row was not marked by this generation and (per B1) not written in the listing window.
+
+Non-blocking
+4. `v` (fingerprint version) is not compared in `conformance_sync.rs::compare` (only `st`, `seen`, content, pending hash, generation, held). Change detection (`upsert` `r.v != snapV`) is therefore not conformance-tested. Add `v` or document why the content hash suffices.
+5. `invConverged` is only checked when `quiet`; `quiet` is false after any write during the listing, so the convergence claim is weak exactly in the window where B1 happens. Acceptable if B1 is resolved as (a).
+6. The `held` flag is compared only for generation `gen + 1` (`conformance_sync.rs` ~l.380). That matches the model; note it.
+7. Bounds: K=4 keys, C=3 contents, MAXW=6 writes, MAXP=1 partial listing, MAXT=2 targeted syncs, MASSMIN=1 (the test configuration, not the production 100). The mass rule is exercised only with a threshold of 1; the production threshold (100) is not reached by any model run. State this in the bounds.
+8. The fingerprint and `rows.v` change model is abstracted; `ver` is per-key, not per-object identity. Say so, since rename detection (`detect_renames`) depends on the hash of a file taken "now", which the model reads from `cur`.
+
+Checked and fine: the FM3-001 fix (`start_sync` marks reset in `reconcile.rs` l.323 to l.350) matches `RETRY_RESETS_MARKS` (model resets only live rows with `seen >= g`, code does the same); `partial` never sweeps (`invOnlySweepKills` holds on a mutant that sweeps on partial would fail it, not run); `targeted` never changes `gen` (matches code: no generation move on targeted).

@@ -66,3 +66,25 @@ reviewer 1 (the author, lane A, 2026-11-17). Reviewer 2 (independent, run by the
 `conformance_visibility.rs` (no database): every model state is rebuilt in a `MemoryReader`, loaded through `VisibleGraph::load`, and the
 pack facts, evidence files, entities, aliases and both blocked counts are compared; a whole pack is compiled and scanned.
 KP5 (`compile/proofs.rs`, `kernels.rs::visible_decide`): the same statements proved by Kani on the function the compiler calls.
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. This is the second review required for FM8 (80 section 7). Reviewed: `visibility.qnt` against 00 D26, 10 7.2, `compile/visible.rs` (alias scoping l.173 to l.228), and `tests/conformance_visibility.rs` (`check_state` compares pack facts, evidence files, entities, aliases and blocked counts). Checks: `quint typecheck` passes; `quint run` (seed 7, 6 steps) finds no violation for `inv` on the unmodified model.
+
+Mutation checks (copies in /tmp, not committed), each run with `quint run --invariant=inv --max-samples=3000 --max-steps=6 --seed=7`:
+- M1, withdrawn evidence counted (`liveEv` ignores `wd`): violation (caught by `invEvidenceOnlyInScope`).
+- M2, scope ignored for facts (`scopedEv = liveEv`): violation.
+- M3, compile keeps every touching fact (`hop1 = touch`, no visibility filter): violation.
+- M4, human overlay facts pass the filter (`hop1` includes `human` facts): violation (caught).
+- M5, alias scope ignored (`aliasScoped` without `.intersect(sc)`): **no violation** (`inv` holds on 627 traces/s). Blocking, see B1.
+
+Blocking
+1. **B1, the alias-scope invariants are vacuous.** `invAliasesInScope` and `invNoLeak` (through `supported`) and `invEntitiesSupported` call `aliasScoped` / `scopedEv`, the same helpers the compile uses. A mutation in a helper therefore changes the invariant and the compile together, and M5 survives. The header says the invariants "restate D26 from the unfiltered graph", but for aliases and for `supported` they do not. Fix: write the alias and entity invariants in direct terms over `g` and `scope`, for example `out.aliases.forall(a => g.aev.get(a).exclude(g.awd.get(a)).intersect(scope).size() > 0 and out.ents.contains(g.aowner.get(a)))` and `invEntitiesSupported` as `out.ents.forall(e => FACTS.exists(f => g.ev.get(f).exclude(g.wd.get(f)).intersect(scope).size() > 0 and ends(g, f).contains(e)) or ALIASES.exists(a => g.aowner.get(a) == e and g.aev.get(a).exclude(g.awd.get(a)).intersect(scope).size() > 0))`. Then rerun M1 to M5; all five must fail.
+2. **B2, the scope rule for aliases is not in the mutation list of FM8.md section 4.** Add M5 and the other helper-level mutants to that list, so the review record shows they were tried. The conformance test is the only independent check of alias scoping in the real code (it compares `aliases` with the model on the bulk traces). State in FM8.md that the bulk trace run covers it, with the count.
+
+Non-blocking
+3. The model still collapses a file to one version; the rename case (`scope_versions` CTE in `pg.rs`) is outside the model, as FM8.md section 5 says. Keep the claim "the scope rule is per path" out of the safety statement until that is modelled or proved by the conformance test.
+4. Blocked counts: the model and the code count over the whole Drive, while 10 7.2 says "one hop from the seeds". The model comment records this. Ask the spec owner to align 10 7.2 (spec 00 D26 says "blocked count", no hop limit) so the reviewer does not have to rely on the note.
+5. The compile is run with a fixed graph per trace (`g` is constant in `step`). Changes of graph (new evidence, withdrawal between compiles) are the FM2 and FM3 territory; say so.
+6. KP5 (Kani) proves `visible_decide` on indices. The model's `compile` is a second copy of that rule; the conformance test links the two. Keep both, and note that a helper mutation in the Rust `visible.rs` (not the kernel) is only caught by conformance.
+7. Concern to re-check after B1: with a deterministic 4-file, 10-fact graph, the witnesses `witAliasFiltered` and `witScopeGrows` are the only ones that reach alias filtering; confirm they are true in the bulk run, not only in the simulation.
