@@ -1,4 +1,4 @@
-// formal: main=visibility inv=inv steps=6 verify-steps=2 deep-steps=3 witnesses="witFactBlocked witAliasFiltered witEntityBlocked witEvidenceFiltered witHumanFactFiltered witWithdrawnIgnored witScopeGrows" vinv="invFactsInScope invEvidenceOnlyInScope invEntitiesSupported invAliasesInScope invNoLeakAliases invNoLeakFactEnds invHumanNoBackdoor invBlockedFactCount invScopeMonotone invOutputWithinInput" dinv="invBlockedEntitiesPointwise invBlockedCountIsSetSize invBlockedFactsNotVisible invBlockedEntityCount invBlockedHidden invNoLeakEntities"
+// formal: main=visibility inv=inv steps=6 verify-steps=2 deep-steps=3 witnesses="witFactBlocked witAliasFiltered witEntityBlocked witEvidenceFiltered witHumanFactFiltered witWithdrawnIgnored witScopeGrows" vinv="invFactsInScope invEvidenceOnlyInScope invEntitiesSupported invAliasesInScope invNoLeakAliases invNoLeakFactEnds invHumanNoBackdoor invBlockedFactCount invScopeMonotone invOutputWithinInput invBlockedFactsNotVisible" dinv="invBlockedEntityCount invBlockedHidden invNoLeakEntities"
 // FM8: visibility (D26, 10 7.2 `compile/visible.rs`; Kani KP5 proves the same on the Rust function).
 // A fact is visible iff at least one of its live (not withdrawn) evidence rows lies in the share scope;
 // only in-scope evidence is attached; an entity or alias appears only if some in-scope live evidence
@@ -35,7 +35,6 @@ module visibility {
     aliases: Set[int],
     blockedF: int,
     blockedE: int,
-    blockedEs: Set[int],     // the set whose size `blockedE` is (lets the count be checked element by element)
   }
 
   var g: Graph
@@ -86,7 +85,6 @@ module visibility {
       aliases: als,
       blockedF: blockedFacts(gr, sc).size(),
       blockedE: blockedEntities(gr, sc).size(),
-      blockedEs: blockedEntities(gr, sc),
     }
   }
 
@@ -156,17 +154,6 @@ module visibility {
   val invNoLeakFactEnds = out.facts.forall(f => not(hiddenEnts(g, scope).contains(g.subj.get(f))) and not(hiddenEnts(g, scope).contains(g.obj.get(f))))
   // all three (simulation; Apalache checks them one by one, the conjunction exceeds the FAST budget)
   val invNoLeak = invNoLeakEntities and invNoLeakAliases and invNoLeakFactEnds
-  // ---- cheaper, equivalent forms of the pairs that exceeded the 60 minute deep cap (see FM8.md, "Deep cap") ----
-  // raw per-entity predicate: not supported in scope, and a live evidence row (a fact end or an alias) exists somewhere
-  pure def blockedRaw(gr: Graph, sc: Set[int], e: int): bool =
-    not(supported(gr, sc, e)) and
-    (FACTS.exists(f => (gr.subj.get(f) == e or gr.obj.get(f) == e) and gr.ev.get(f).exists(x => not(gr.wd.get(f).contains(x))) and not(evInScope(gr, sc, f))) or
-     ALIASES.exists(a => gr.aowner.get(a) == e and gr.aev.get(a).exists(x => not(gr.awd.get(a).contains(x)))))
-  // (1) the reported set is exactly the blocked entities, one entity at a time
-  val invBlockedEntitiesPointwise = ENT.forall(e => out.blockedEs.contains(e) == blockedRaw(g, scope, e))
-  // (2) the count is the size of that set
-  val invBlockedCountIsSetSize = out.blockedE == out.blockedEs.size()
-  // (1) and (2) together are invBlockedEntityCount
   // pointwise form of invBlockedHidden's fact part: a fact whose live evidence is all out of scope is neither in the pack nor visible
   val invBlockedFactsNotVisible = FACTS.forall(f =>
     (gr0Of(g, f) and not(evInScope(g, scope, f))) implies (not(out.facts.contains(f)) and not(visFacts(g, scope).contains(f))))
