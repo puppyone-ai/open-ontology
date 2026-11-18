@@ -114,6 +114,20 @@
 | SO-B-S10-02 | L6 | merged | so/B-L6-2-engine-wiring | — | — | evidence/L6/ | outdated 重跑与 DOC-G10；并发 1 |
 | SO-B-S10-03 | L6 | merged | so/B-L6-2-engine-wiring | — | — | evidence/L6/ | `:rebuild`（docs-api 1.2） |
 | SO-B-S10-08 | L6 | merged | so/B-L6-2-engine-wiring | — | — | evidence/L6/ | 说话人身份三层 |
+| SO-B-S7-01 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 93276ee08 → 27af5ace2 | — | evidence/L5/ | docs-api 1.3 的 Suggest 接口与示例 |
+| SO-B-S7-02 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 9804a7f10 → 9804a7f10 | — | evidence/L5/ | suggest/ 目录收集与 oo docs suggestion |
+| SO-B-S7-03 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 22f16218e → cfbe78bea | — | evidence/L5/ | 建议记录、四条影响规则、存储与日摘要；PG 实测 |
+| SO-B-S7-04 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 06c5041ab → 06c5041ab | — | evidence/L5/ | MCP suggest、context_check 工具与 share updates 资源 |
+| SO-B-S7-05 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 8f64feffa → 8f64feffa | — | evidence/L5/ | suggester、editor Share 的 suggest:write 作用域 |
+| SO-B-S7-06 | L5 | merged | feat/super-ontology (车道 B 分支并入) | ad0c3fbc0 → 7e510090d | — | evidence/L5/ | 代理接口列出 suggest 工具；源基线 revision 33 |
+| SO-B-S8-02 | L5 | merged | feat/super-ontology (车道 B 分支并入) | 7836d9a65 → ef30a3341 | — | evidence/L5/ | L5 Suggest 端到端脚本与证据 |
+| SO-B-S10-04 | L6 | merged | feat/super-ontology (车道 B 分支并入) | 808238251 → dc3591c59 | — | evidence/L6/ | media-parser 两处缺陷修复；L6 余项（A8、长媒体、OCR 子集、包滞后）并入 |
+| SO-B-S11-01 | L7 | merged | feat/super-ontology (车道 B 分支并入) | c3d33649b → 7d24d670a | — | evidence/L7/ | oss、cos、r2 Drive 走 S3 兼容路径；连接器特性开关 |
+| SO-B-S11-02 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 908c8c781 → 4c01c56fe | — | evidence/L7/ | 桶事件通知转变更提示；docs-api 1.4 |
+| SO-B-S11-03 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 5d49d9649 → 5d49d9649 | — | evidence/L7/ | Drive 访问策略在入库与可见图中生效 |
+| SO-B-S11-04 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 12c8c1d6b → 8532d1d0e | — | evidence/L7/ | 已发布文档实体投影到 Agent DB 并关联行；投影迁移 |
+| SO-B-S12-01 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 28f63af34 → 044983b7d | — | evidence/L7/ | 云入口、共享审计、事件提示路由；审计迁移 |
+| SO-B-S12-02 | L7 | merged | feat/super-ontology (车道 B 分支并入) | f3321e53e → f2d36e157 | — | evidence/L7/ | --remote 挂载远端 OO serve；L7 端到端脚本 |
 
 ## 签收
 
