@@ -270,9 +270,10 @@ pub async fn list(app: &AppState, req: &Req) -> Result<Response<Body>, ApiError>
     )
     .await?;
     let next = next.map(|(ts, id)| super::cursor::encode(&[json!(ts), json!(id)], &filters));
+    let as_of_seq = super::files::head_seq(&mut conn).await?;
     Ok(json_with(
         200,
-        &json!({"items": items, "next_cursor": next}),
+        &json!({"items": items, "next_cursor": next, "as_of_seq": as_of_seq}),
         &[],
     ))
 }
@@ -374,9 +375,10 @@ pub async fn updates(app: &AppState, sid: &str, req: &Req) -> Result<Response<Bo
     } else {
         None
     };
+    let as_of_seq = super::files::head_seq(&mut conn).await?;
     Ok(json_with(
         200,
-        &json!({"items": items, "next_cursor": next.map(|n| n.to_string())}),
+        &json!({"items": items, "next_cursor": next.map(|n| n.to_string()), "as_of_seq": as_of_seq}),
         &[],
     ))
 }
