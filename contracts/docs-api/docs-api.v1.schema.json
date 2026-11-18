@@ -3056,7 +3056,7 @@
     },
     "SuggestRequest": {
       "type": "object",
-      "description": "One record, or items (at most 50 records), or documents (at most 200 files read from suggest/: name, format md|json, text). Idempotent per share on idempotency_key or the content hash; no Idempotency-Key header.",
+      "description": "One record, or items (at most 50 records), or documents (at most 200 files read from suggest/: name, format md|json, text). Idempotent per share on idempotency_key or the content hash; no Idempotency-Key header. The single-record form carries the SuggestionRecord fields at the top level; the request is closed like every request object.",
       "properties": {
         "share_id": {
           "$ref": "#/$defs/Uuid"
@@ -3095,9 +3095,80 @@
               }
             }
           }
+        },
+        "protocol": {
+          "const": "oo.suggest/v1"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "predicate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "valid_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "supersedes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "a [src:...] tag of the BRIEF or a fact_key"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "brief_line",
+                  "ref",
+                  "external"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
         }
       },
-      "additionalProperties": true,
+      "additionalProperties": false,
       "examples": [
         {
           "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
@@ -3259,7 +3330,31 @@
             "null"
           ]
         }
-      }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "new_fact",
+          "status": "pending",
+          "rule": "new_fact",
+          "revision": 0,
+          "payload": {
+            "protocol": "oo.suggest/v1",
+            "kind": "new_fact",
+            "subject": "星火计划",
+            "predicate": "attr.status",
+            "value": "进行中",
+            "rationale": "周会确认",
+            "evidence": [
+              {
+                "kind": "brief_line",
+                "ref": "[src:Projects/a/周会.md#L3-L3]"
+              }
+            ]
+          }
+        }
+      ]
     },
     "SuggestResult": {
       "type": "object",
@@ -3286,7 +3381,15 @@
             "description": "A Suggestion, or {status: invalid, error, document?, code?} for a record or document that was refused."
           }
         }
-      }
+      },
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "accepted": 0,
+          "rejected": 0,
+          "results": []
+        }
+      ]
     },
     "SuggestionDecideRequest": {
       "type": "object",
@@ -3353,7 +3456,16 @@
         "human_operations": {
           "type": "object"
         }
-      }
+      },
+      "examples": [
+        {
+          "day": "x",
+          "counts": {},
+          "total": 0,
+          "in_effect": [],
+          "pending": []
+        }
+      ]
     },
     "SuggestionDiff": {
       "type": "object",
@@ -3444,7 +3556,18 @@
         "impact": {
           "type": "object"
         }
-      }
+      },
+      "examples": [
+        {
+          "suggestion_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "x",
+          "writable": false,
+          "writer": "desktop",
+          "changes": [],
+          "ontology_effect": {}
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
