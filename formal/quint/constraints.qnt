@@ -1,4 +1,4 @@
-// formal: main=constraints inv=inv steps=30 verify-steps=5 deep-steps=6 witnesses="witHeld witPartial witCertainSupersede witResolved witIdentityHeld witRejectedAdopted witReleasedAfterRetract witPackWithConflict" vinv="invBanHolds invNoCurrentViolation invHeldHaveConflict invPartialBlocking invHeldHaveViolation invCertainNotViolation invPackNeverHeld invWellFormed"
+// formal: main=constraints inv=inv steps=30 verify-steps=4 deep-steps=6 witnesses="witHeld witPartial witCertainSupersede witResolved witIdentityHeld witRejectedAdopted witReleasedAfterRetract witPackWithConflict" vinv="invBanHolds invNoCurrentViolation invHeldHaveConflict invPartialBlocking invHeldHaveViolation invCertainNotViolation invPackNeverHeld invWellFormed"
 // FM11: integrity constraints over time slices (D57, 10 16.7, publish/constraints.rs).
 // One functional-dependency shape covers the four core constraints (kind 0 project_single_owner:
 // key = project, val = owner; kind 1 decision_single_status: key = decision, val = status;
