@@ -788,61 +788,6 @@ async fn entity_split(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn a(v: &[&str]) -> Vec<String> {
-        v.iter().map(|s| (*s).to_owned()).collect()
-    }
-
-    #[test]
-    fn flags_switches_and_positionals_split() {
-        let p = parse(
-            &a(&[
-                "--json", "--name", "资料", "x", "--deep", "--path=a", "--path", "b", "y",
-            ]),
-            &["--name", "--path"],
-            &["--deep"],
-        )
-        .unwrap();
-        assert!(p.json && p.has("--deep"));
-        assert_eq!(p.opt("--name"), Some("资料"));
-        assert_eq!(p.all("--path"), ["a", "b"]);
-        assert_eq!(p.pos, ["x", "y"]);
-        assert!(parse(&a(&["--bogus"]), &[], &[]).is_err());
-        assert!(parse(&a(&["--name"]), &["--name"], &[]).is_err());
-    }
-
-    #[test]
-    fn a_winner_flag_is_a_valued_option() {
-        let p = parse(
-            &[
-                "accept".into(),
-                "id1".into(),
-                "--winner".into(),
-                "f1".into(),
-            ],
-            &["--winner"],
-            &[],
-        )
-        .unwrap();
-        assert_eq!(p.opt("--winner"), Some("f1"));
-        assert_eq!(p.pos, ["accept", "id1"]);
-    }
-
-    #[test]
-    fn revisions_are_quoted_for_if_match() {
-        assert_eq!(rev_header(3), "\"r3\"");
-    }
-
-    #[test]
-    fn query_values_are_escaped() {
-        assert_eq!(q("a b:c/d"), "a%20b:c%2Fd");
-        assert_eq!(q("person:abc"), "person:abc");
-    }
-}
-
 // ------------------------------------------------------------- suggestion ---
 
 fn suggestion_line(v: &Value) -> String {
@@ -901,7 +846,7 @@ async fn suggestion_show(d: &Daemon, p: &Parsed, diff: bool) -> Result<(), CliEr
     let id = one(p, "<suggestion-id>")?;
     let path = format!(
         "/v1/docs/suggestions/{}{}",
-        q(&id),
+        q(id),
         if diff { "/diff" } else { "" }
     );
     let v = d.get_json(&path).await?;
@@ -946,4 +891,59 @@ async fn suggestion_decide(d: &Daemon, p: &Parsed, decision: &str) -> Result<(),
         human,
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn a(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn flags_switches_and_positionals_split() {
+        let p = parse(
+            &a(&[
+                "--json", "--name", "资料", "x", "--deep", "--path=a", "--path", "b", "y",
+            ]),
+            &["--name", "--path"],
+            &["--deep"],
+        )
+        .unwrap();
+        assert!(p.json && p.has("--deep"));
+        assert_eq!(p.opt("--name"), Some("资料"));
+        assert_eq!(p.all("--path"), ["a", "b"]);
+        assert_eq!(p.pos, ["x", "y"]);
+        assert!(parse(&a(&["--bogus"]), &[], &[]).is_err());
+        assert!(parse(&a(&["--name"]), &["--name"], &[]).is_err());
+    }
+
+    #[test]
+    fn a_winner_flag_is_a_valued_option() {
+        let p = parse(
+            &[
+                "accept".into(),
+                "id1".into(),
+                "--winner".into(),
+                "f1".into(),
+            ],
+            &["--winner"],
+            &[],
+        )
+        .unwrap();
+        assert_eq!(p.opt("--winner"), Some("f1"));
+        assert_eq!(p.pos, ["accept", "id1"]);
+    }
+
+    #[test]
+    fn revisions_are_quoted_for_if_match() {
+        assert_eq!(rev_header(3), "\"r3\"");
+    }
+
+    #[test]
+    fn query_values_are_escaped() {
+        assert_eq!(q("a b:c/d"), "a%20b:c%2Fd");
+        assert_eq!(q("person:abc"), "person:abc");
+    }
 }
