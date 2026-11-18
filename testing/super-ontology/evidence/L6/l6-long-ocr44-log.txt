@@ -1,0 +1,18 @@
+# Super Ontology L6 long run ocr44, run be2-l6long-ocr44
+rendered 56 page images into /pages
+44 pdfs
+[PASS] ocr44 the subset has 44 files - 44 image only pdfs
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (3 containers), waiting
+  another stack is up (1 containers), waiting
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l6ocr-be2-l6long-ocr44-d2di0kb2/state
+[PASS] ocr44 compose stack is up and healthy - HTTP 200
+[PASS] ocr44 every file reached a final state - {"published": 44}
+[PASS] ocr44 every file is published - {"published": 44}
+[PASS] ocr44 core recall >= 0.65 end to end - 74/86 = 0.8605; missed ['客户满意度', '客户沙龙', '星图看板产品方案', '灯塔迁移方案', '知了客服方案', '官网改版方案', '澄海物流合作方案', '年度客户调研方案']

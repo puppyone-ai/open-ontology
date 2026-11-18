@@ -1,0 +1,16 @@
+edit at t0; job rows created after it:
+2.24s sync succeeded run_at +2.24s done +2.40s
+2.39s hash succeeded run_at +2.39s done +2.48s
+2.71s parse succeeded run_at +2.71s done +2.81s
+2.96s extract_rules succeeded run_at +2.96s done +3.39s
+3.47s publish succeeded run_at +4.49s done +4.92s
+
+file states of the edited file:
+2.48s superseded
+2.48s stored
+2.48s queued
+2.81s parsing
+2.81s parsed
+3.38s extracting
+3.39s indexed
+4.91s published
