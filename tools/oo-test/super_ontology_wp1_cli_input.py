@@ -204,6 +204,8 @@ def main():
     ap.add_argument("--no-docker", action="store_true")
     ap.add_argument("--fake-sidecar", action="store_true",
                     help="put a stand-in parser (a listener) in OO_DOCS_SIDECAR_DIR to check that oo serve starts it, wires the engine to it and stops it")
+    ap.add_argument("--no-runtime-install", action="store_true",
+                    help="OO_DOCS_RUNTIME_AUTOINSTALL=0: oo does not install the parser runtime, docx and pdf stay unsupported without Docker")
     ap.add_argument("--autostart", action="store_true", help="do not start oo serve: the first `oo docs upload` must start it")
     ap.add_argument("--db", default="listener", choices=["listener", "container", "skip"],
                     help="the database of step 8: a local listener (no Docker) or a labelled Postgres container")
@@ -225,6 +227,8 @@ def main():
         path = ":".join(p for p in path.split(":") if p and not (Path(p) / "docker").exists())
     env = {"HOME": str(home), "PATH": path, "TMPDIR": os.environ.get("TMPDIR", "/tmp"), "OO_DOCS_LANE": LANE,
            "OO_DOCS_ENGINE_BIN": str(engine)}
+    if args.no_runtime_install:
+        env["OO_DOCS_RUNTIME_AUTOINSTALL"] = "0"
     fake_pid_file = None
     if args.fake_sidecar:
         sc = work / "fake-sidecar"
@@ -239,6 +243,8 @@ def main():
         fake_pid_file = home / ".local/state/open-ontology/docs/sidecar-scratch/fake-sidecar.pid"
     elif os.environ.get("OO_DOCS_SIDECAR_DIR"):
         env["OO_DOCS_SIDECAR_DIR"] = os.environ["OO_DOCS_SIDECAR_DIR"]
+    if os.environ.get("UV_CACHE_DIR"):  # a shared download cache; the environment itself is still built under the fresh HOME
+        env["UV_CACHE_DIR"] = os.environ["UV_CACHE_DIR"]
     if os.environ.get("OO_DOCS_DEPLOY_DIR"):
         env["OO_DOCS_DEPLOY_DIR"] = os.environ["OO_DOCS_DEPLOY_DIR"]
     if os.environ.get("OO_DOCS_PG_BIN_DIR"):
@@ -311,6 +317,10 @@ def main():
         if args.fake_sidecar:
             rep.check("2 oo serve started the parser sidecar from the uv-style directory and the engine is configured with it",
                       parser.get("mode") == "configured" and fake_pid_file.exists(), parser)
+        elif not compose and not os.environ.get("OO_DOCS_SIDECAR_DIR") and not args.no_runtime_install:
+            rep.check("2 oo installed the parser runtime itself (uv, under the state dir) and docx and pdf are published",
+                      parser.get("mode") == "configured" and (state / "sidecar/.oo-runtime.json").is_file()
+                      and w.get("counts", {}).get("published") == len(MD) + len(office), (parser, w.get("counts")))
         elif not compose and not os.environ.get("OO_DOCS_SIDECAR_DIR"):
             rep.check("2 without a sidecar environment wait says why docx and pdf are unsupported",
                       parser.get("mode") == "none" and "no parser sidecar" in w.get("unsupported_reason", ""), w.get("unsupported_reason"))
