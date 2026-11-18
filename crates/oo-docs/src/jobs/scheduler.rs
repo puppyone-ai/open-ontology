@@ -95,6 +95,11 @@ impl JobCtx {
         self.cancel_requested() || self.lease_lost()
     }
 
+    /// The cancel flag as a shared handle, for a blocking task that outlives the borrow.
+    pub fn cancel_flag_arc(&self) -> Arc<AtomicBool> {
+        self.cancel.clone()
+    }
+
     /// The cancel flag itself, for code that polls an `&AtomicBool`.
     pub fn cancel_flag(&self) -> &AtomicBool {
         &self.cancel
@@ -191,14 +196,16 @@ impl Scheduler {
         let (stop_tx, stop_rx) = watch::channel(false);
         let wake = Arc::new(Notify::new());
         let mut tasks = Vec::new();
+        let mut semaphores = slot_pools(&self.cfg, self.handlers.keys().copied());
         for (kind, handler) in self.handlers {
-            let slots = self.cfg.concurrency.get(&kind).copied().unwrap_or(2).max(1);
             tasks.push(tokio::spawn(claim_loop(
                 self.pool.clone(),
                 kind,
                 handler,
                 self.cfg.clone(),
-                Arc::new(Semaphore::new(slots)),
+                semaphores
+                    .remove(&kind)
+                    .unwrap_or_else(|| Arc::new(Semaphore::new(1))),
                 stop_rx.clone(),
                 wake.clone(),
             )));
@@ -209,6 +216,23 @@ impl Scheduler {
             tasks,
         }
     }
+}
+
+/// Slots of one job kind: `concurrency.*`, 2 when unset, never 0.
+pub fn slots_for(cfg: &SchedulerConfig, kind: JobKind) -> usize {
+    cfg.concurrency.get(&kind).copied().unwrap_or(2).max(1)
+}
+
+/// One semaphore per kind. Every kind has its own pool; in particular `ParseMedia` (default 1) shares nothing
+/// with `Parse`, so a long recording never holds a document slot (D77).
+pub fn slot_pools(
+    cfg: &SchedulerConfig,
+    kinds: impl IntoIterator<Item = JobKind>,
+) -> HashMap<JobKind, Arc<Semaphore>> {
+    kinds
+        .into_iter()
+        .map(|k| (k, Arc::new(Semaphore::new(slots_for(cfg, k)))))
+        .collect()
 }
 
 async fn claim_loop(

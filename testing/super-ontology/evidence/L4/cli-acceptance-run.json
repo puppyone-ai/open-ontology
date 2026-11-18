@@ -1,0 +1,847 @@
+{
+ "run_id": "final8",
+ "ok": true,
+ "checks": [
+  {
+   "check": "1 oo serve --runtime compose prints its address and the compose project",
+   "ok": true,
+   "detail": "{\"port\": 61463}"
+  },
+  {
+   "check": "1 oo docs health exits 0 and the engine is up",
+   "ok": true,
+   "detail": "exit 0 status ok"
+  },
+  {
+   "check": "1 oo serve --status says it is running",
+   "ok": true,
+   "detail": "oo serve is running (pid 47356, port 61463)"
+  },
+  {
+   "check": "2 oo docs drive add exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "2 every readable sample file is published or waits for review (md, txt, csv, xlsx, docx, pptx, pdf)",
+   "ok": true,
+   "detail": "64s {\"encrypted\": 1, \"indexed\": 1, \"published\": 23, \"unsupported\": 1}"
+  },
+  {
+   "check": "2 the two broken files say why (encrypted, legacy office)",
+   "ok": true,
+   "detail": "{\"legacy.doc\": [\"unsupported\", \"DOCS_PARSE_LEGACY_OFFICE\"], \"pdf-encrypted.pdf\": [\"encrypted\", \"DOCS_PARSE_ENCRYPTED\"]}"
+  },
+  {
+   "check": "3 oo docs drive ls lists the Drive",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "3 oo docs drive show has drive_rev and freshness",
+   "ok": true,
+   "detail": "drive_rev 26"
+  },
+  {
+   "check": "3 oo docs files ls --state published",
+   "ok": true,
+   "detail": "23 files (the file of the conflict waits in indexed)"
+  },
+  {
+   "check": "3 oo docs files show gives the reason of the encrypted pdf",
+   "ok": true,
+   "detail": "encrypted DOCS_PARSE_ENCRYPTED"
+  },
+  {
+   "check": "3 oo docs files show names the docx and its state",
+   "ok": true,
+   "detail": "state published"
+  },
+  {
+   "check": "3 oo docs usage answers (model not configured: 0 calls)",
+   "ok": true,
+   "detail": "{\"status\": \"not_configured\"}"
+  },
+  {
+   "check": "4 oo docs review ls shows the real owner conflict of the sample (one project, two owners)",
+   "ok": true,
+   "detail": "1 pending {\"constraint_conflict\": 1}"
+  },
+  {
+   "check": "4 the conflict names the facts that disagree",
+   "ok": true,
+   "detail": "2 facts"
+  },
+  {
+   "check": "4 oo docs review decide accept without --winner is refused for a conflict",
+   "ok": true,
+   "detail": "{\"accepted\": 0, \"protocol\": \"oo.docs-decide/v1\", \"publish_pending\": false, \"rejected\": 0, \"results\": [{\"code\": \"DOCS_REVIEW_CONSTRAINT_CONFLICT\", \"id\": \"01ac428"
+  },
+  {
+   "check": "4 oo docs review decide accept --winner settles it",
+   "ok": true,
+   "detail": "{\"accepted\": 1, \"protocol\": \"oo.docs-decide/v1\", \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"01ac428d-8202-43c9-8913-00384d625faa\", \"status\": \"o"
+  },
+  {
+   "check": "4 oo docs review accept-source answers (it touches low-confidence items only)",
+   "ok": true,
+   "detail": "{\"accepted\": 0, \"protocol\": \"oo.docs-decide/v1\", \"publish_pending\": false, \"rejected\": 0, \"results\": []}"
+  },
+  {
+   "check": "4 the queue is empty afterwards",
+   "ok": true,
+   "detail": "0 pending"
+  },
+  {
+   "check": "5 oo docs entity search finds 林远舟",
+   "ok": true,
+   "detail": "1 hits"
+  },
+  {
+   "check": "5 an alias (老林) resolves to the same person",
+   "ok": true,
+   "detail": "1 hits"
+  },
+  {
+   "check": "5 oo docs entity show --history lists facts with evidence",
+   "ok": true,
+   "detail": "16 facts"
+  },
+  {
+   "check": "5 oo docs entity split creates a new entity",
+   "ok": true,
+   "detail": "exit 0 {\"protocol\": \"oo.docs-split/v1\", \"results\": [{\"id\": \"person:f3f149ed1b4955f67386dcd1\", \"status\": \"ok\"}]}"
+  },
+  {
+   "check": "5 oo docs entity merge puts it back",
+   "ok": true,
+   "detail": "exit 0 {\"aliases\": [], \"facts\": [], \"id\": \"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\", \"identity\": {}, \"key\": \"person:0fe33753fbab8f8dd3b6d22c\", \"label\": null, \"merged_into"
+  },
+  {
+   "check": "5 oo docs entity correct --mark-wrong",
+   "ok": true,
+   "detail": "exit 0 retracted"
+  },
+  {
+   "check": "6 oo docs files retry answers per file (a published file is not retryable)",
+   "ok": true,
+   "detail": "{\"code\": \"state:published\", \"id\": \"f3b4a3b3-a37f-460c-a0ed-8c2adc31af72\", \"status\": \"not_retryable\"}"
+  },
+  {
+   "check": "6 oo docs files retry on the two unreadable files says why or requeues them",
+   "ok": true,
+   "detail": "[{\"code\": \"state:unsupported\", \"id\": \"287b97e5-309f-48c3-bce9-f0e9f2858eb2\", \"status\": \"not_retryable\"}, {\"code\": \"state:encrypted\", \"id\": \"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\", \"status\": \"not_retryable\"}]"
+  },
+  {
+   "check": "6 oo docs drive sync answers with the generation",
+   "ok": true,
+   "detail": "{\"added\": 0, \"changed\": 0, \"drive_rev\": 29, \"error_code\": null, \"finished_at\": null, \"generation\": 5, \"protocol\": \"oo.docs-sync/v1\", \"removed\": 0, \"renamed\": 0,"
+  },
+  {
+   "check": "6 the new file shows up in oo docs files ls after the sync",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "6 oo docs drive sync --path (targeted) exits 0",
+   "ok": true,
+   "detail": "{\"added\": 0, \"changed\": 1, \"drive_rev\": 29, \"error_code\": null, \"finished_at\": \"2026-11-18T02:02:10.448623Z\", \"generation\": 5, \"maybe_deleted\": [], \"protocol\": "
+  },
+  {
+   "check": "7 oo context mount exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "7 BRIEF has coverage in its header and every content line has [src:",
+   "ok": true,
+   "detail": "5 content lines"
+  },
+  {
+   "check": "7 BRIEF ends with the blocked section: a count, no names",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "7 oo context list shows the share active",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "7 oo context mount (human output) exits 0",
+   "ok": true,
+   "detail": "mounted /private/tmp/oo-cliacc-final8-askdocg7/work-human/.context (share 0bf7fed9-aa38-4969-ba25-2df5acc46d98, BRIEF 79"
+  },
+  {
+   "check": "8 two mounts of one task group",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 oo context check in agent-a exits 0 before the correction",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "8 oo context check in agent-b exits 0 before the correction",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "8 the decision's fact is marked wrong",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "8 UPDATES.md of agent-a has the block entry",
+   "ok": true,
+   "detail": "1.0s from the correction"
+  },
+  {
+   "check": "8 oo context check exits 20 (do not commit)",
+   "ok": true,
+   "detail": "exit 20"
+  },
+  {
+   "check": "8 the group refreshes together",
+   "ok": true,
+   "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"541d7624-fa1a-4f43-a18e-c7fadafbd4bd\", \"path\": \"/private/tmp/oo-cliacc-final8-askdocg7/agent-a/.context\", \"share_id\": \"f3b80a"
+  },
+  {
+   "check": "8 oo context check in agent-a exits 0 after the refresh",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "8 oo context check in agent-b exits 0 after the refresh",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "8 the Drive's files are unchanged",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "9 SIGTERM: oo serve exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "9 the containers are stopped, not removed",
+   "ok": true,
+   "detail": "{\"doc-parser\": \"exited\", \"docs-db\": \"exited\", \"docs-engine\": \"exited\"}"
+  },
+  {
+   "check": "9 the Drive survived the restart",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "9 its files are still published",
+   "ok": true,
+   "detail": "25 files"
+  },
+  {
+   "check": "9 the shares are still listed",
+   "ok": true,
+   "detail": "6 shares"
+  },
+  {
+   "check": "9 the mounted directories were not touched",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "10 oo context revoke deletes the mount and says so",
+   "ok": true,
+   "detail": "{\"local_removed\": true, \"notice_code\": \"DOCS_SHARE_READ_CONTENT_IRREVOCABLE\", \"protocol\": \"oo.context-revoke/v1\", \"share_id\": \"4d1d0022-bb78-4836-a31a-3910b5f67"
+  },
+  {
+   "check": "10 oo docs share ls shows the revoked share",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "10 oo docs share show",
+   "ok": true,
+   "detail": "state revoked"
+  },
+  {
+   "check": "10 oo docs drive rm starts the deletion",
+   "ok": true,
+   "detail": "{\"backend\": \"fs\", \"bytes_total\": 59085, \"config\": {\"root\": \"/drives/f9a36982d7cd612e\"}, \"counts\": {\"encrypted\": 1, \"published\": 25, \"unsupported\": 1}, \"created_"
+  },
+  {
+   "check": "10 the Drive is gone from oo docs drive ls",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "11 oo serve --stop: it says stopped and the daemon exits 0",
+   "ok": true,
+   "detail": "oo serve stopped / exit 0"
+  },
+  {
+   "check": "11 the containers are stopped",
+   "ok": true,
+   "detail": "{\"doc-parser\": \"exited\", \"docs-db\": \"exited\", \"docs-engine\": \"exited\"}"
+  },
+  {
+   "check": "cleanup left nothing",
+   "ok": true,
+   "detail": "0 left"
+  }
+ ],
+ "timings": {
+  "publish_seconds": 63.6
+ },
+ "commands": [
+  {
+   "command": "oo docs health",
+   "exit": 0,
+   "stdout": "{\n  \"api_version\": \"1.0\",\n  \"components\": {\n    \"cas\": {\n      \"status\": \"ok\"\n    },\n    \"db\": {\n      \"latency_ms\": 0,\n      \"status\": \"ok\"\n    },\n    \"engine\": {\n      \"status\": \"ok\"\n    },\n    \"model\": {\n      \"status\": \"not_configured\"\n    },\n    \"parser\": {\n      \"detail\": {\n        \"formats\": [\n          \"md\",\n          \"txt\"\n        ],\n        \"kind\": \"local\"\n      },\n      \"status\": \"ok\"\n    }\n  },\n  \"disk\": {\n    \"cas_sample\": {\n      \"checked\": 0,\n      \"corrupt\": 0\n    },\n    \"cas_used_bytes\": 15,\n    \"free_bytes\": 20503498752,\n    \"original_cache_bytes\": 0\n  },\n  \"engine_version\": \"0.1.0\",\n  \"events_head\": 0,\n  \"freshness\": \"up_to_date\",\n  \"queue\": {\n    \"blocked\": 0,\n    \"failed_manual\": 0,\n    \"quarantined\": 0,\n    \"queued\": 0,\n    \"running\": 0,\n    \"stuck\": 0\n  },\n  \"schema_versions\": [\n    \"docs-bootstrap/1\",\n    \"docs-sources-jobs/1\",\n    \"docs-index/1\",\n    \"docs-packs-shares/1\",\n    \"docs-llm/1\",\n    \"docs-consistency/1\",\n    \"docs-share-consistency/1\"\n  ],\n  \"status\": \"ok\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs health --json",
+   "exit": 0,
+   "stdout": "{\"api_version\":\"1.0\",\"components\":{\"cas\":{\"status\":\"ok\"},\"db\":{\"latency_ms\":0,\"status\":\"ok\"},\"engine\":{\"status\":\"ok\"},\"model\":{\"status\":\"not_configured\"},\"parser\":{\"detail\":{\"formats\":[\"md\",\"txt\"],\"kind\":\"local\"},\"status\":\"ok\"}},\"disk\":{\"cas_sample\":{\"checked\":0,\"corrupt\":0},\"cas_used_bytes\":15,\"free_bytes\":20503498752,\"original_cache_bytes\":0},\"engine_version\":\"0.1.0\",\"events_head\":0,\"freshness\":\"up_to_date\",\"protocol\":\"oo.docs-health/v1\",\"queue\":{\"blocked\":0,\"failed_manual\":0,\"quarantined\":0,\"queued\":0,\"running\":0,\"stuck\":0},\"schema_versions\":[\"docs-bootstrap/1\",\"docs-sources-jobs/1\",\"docs-index/1\",\"docs-packs-shares/1\",\"docs-llm/1\",\"docs-consistency/1\",\"docs-share-consistency/1\"],\"status\":\"ok\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo serve --status",
+   "exit": 0,
+   "stdout": "oo serve is running (pid 47356, port 61463)\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive add --name acceptance --root /tmp/oo-cliacc-final8-askdocg7/drive --json",
+   "exit": 0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":0,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":0,\"files_total\":0,\"freshness\":{\"as_of\":\"2026-11-18T02:01:04.476382Z\",\"covers_drive_rev\":0,\"ontology_version\":0,\"pending_review\":0,\"processing\":0,\"reason_code\":null,\"state\":\"up_to_date\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":0,\"protocol\":\"oo.docs-drive/v1\",\"revision\":1,\"status\":\"active\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive ls",
+   "exit": 0,
+   "stdout": "7a7b61af-71a8-4667-8dfc-212bd5888f42  acceptance  active  files 0  syncing  rev 0\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[],\"next_cursor\":null,\"protocol\":\"oo.docs-files/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"queue_ms\":495},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":6,\"size\":325,\"state\":\"indexed\",\"state_since\":",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance",
+   "exit": 0,
+   "stdout": "287b97e5-309f-48c3-bce9-f0e9f2858eb2  unsupported    Broken/legacy.doc\n55094cb4-39d3-4cfd-a9fc-e4ed073addb1  encrypted      Broken/pdf-encrypted.pdf\n88112f3c-954f-4693-b2e1-069347874f53  published      Data/任务清单.csv\nfdeea3da-fe0f-4338-a7e3-54b80a69306a  published      Decisions/D-2026-01-周报每周五发送.md\n82e5a18e-1d17-4a3d-8557-80d5893f0b37  published      Decisions/D-2026-02-星图采用自研引擎.md\n09ef6cf3-d5af-49b9-bf9a-c7f418b38853  published      Decisions/D-2026-03-知了客服采购外部模型.md\n879fd1d5-29fe-4d03-a775-b051de5d71cf  published      Decisions/D-2026-04-周报改为每周四发送.md\n3030a21c-415a-4e3e-949d-d1eded9afaef  published      Decisions/D-2026-05-星图改用开源图表库.md\n7079fd22-c6e6-4818-9a89-06ae6c005efa  published      Decisions/D-2026-06-办公迁至滨江.md\nce6f4941-b67e-475a-83c2-456d8d6c6130  published      Decisions/D-2026-08-取消周报.md\ne2d90ee8-1b0a-4b1b-91c5-c6255bc0b384  published      Meetings/2026-01-08-年度计划会.docx\nf3b4a3b3-a37f-460c-a0ed-8c2adc31af72  published      Meetings/2026-02-15-星图技术评审.docx\nbc29a6a7-ce43-4ffa-9b65-1818f6061539  published      Meetings/2026-06-01-项目分工调整.docx\nb1f87f43-1fc3-4963-88f7-81a70183021a  published      Notes/速记-0412.txt\n084155fa-d1da-4892-ab7d-c73372526527  published      People/周若溪.md\n6e9812a3-fa41-4697-aefd-af88c99598e3  published      People/孙晓棠.md\n5574919d-3b0c-4618-824d-e6c269e4104e  published      People/林远舟.md\nd01a6682-f763-4c5f-8d2b-23466fe5c6b6  published      People/陈子墨.md\n5feb91db-3a48-46a8-9462-1088f78c69a4  published      Projects/官网改版.md\n81035552-b66d-40b0-87c6-95161",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive ls --json",
+   "exit": 0,
+   "stdout": "{\"drives\":[{\"backend\":\"fs\",\"bytes_total\":59047,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{\"encrypted\":1,\"indexed\":1,\"published\":23,\"unsupported\":1},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":26,\"files_total\":26,\"freshness\":{\"as_of\":\"2026-11-18T02:01:40.086305Z\",\"covers_drive_rev\":25,\"ontology_version\":3,\"pending_review\":1,\"processing\":0,\"reason_code\":null,\"state\":\"publishing\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"last_sync\":{\"added\":0,\"changed\":0,\"error_code\":null,\"finished_at\":\"2026-11-18T02:02:05.819746Z\",\"generation\":4,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:05.814939Z\",\"status\":\"complete\",\"trigger\":\"poll\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":1,\"revision\":1,\"status\":\"active\",\"status_code\":null}],\"protocol\":\"oo.docs-drives/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive show acceptance",
+   "exit": 0,
+   "stdout": "7a7b61af-71a8-4667-8dfc-212bd5888f42  acceptance  active  files 26  publishing  rev 26\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive show acceptance --json",
+   "exit": 0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":59047,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{\"encrypted\":1,\"indexed\":1,\"published\":23,\"unsupported\":1},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":26,\"files_total\":26,\"freshness\":{\"as_of\":\"2026-11-18T02:01:40.086305Z\",\"covers_drive_rev\":25,\"ontology_version\":3,\"pending_review\":1,\"processing\":0,\"reason_code\":null,\"state\":\"publishing\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"last_sync\":{\"added\":0,\"changed\":0,\"error_code\":null,\"finished_at\":\"2026-11-18T02:02:05.819746Z\",\"generation\":4,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:05.814939Z\",\"status\":\"complete\",\"trigger\":\"poll\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":1,\"protocol\":\"oo.docs-drive/v1\",\"revision\":1,\"status\":\"active\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --state published --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"size\":325,\"state\":\"published\",\"state_since\":\"2026-11-18T02:01:08.278532Z\"},{\"b3\":\"fb646fdd424caea840b100d6845c1e7fd31528ed312539a09e3a162dbf5392b9\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"md\",\"id\":\"fdeea3da-fe0f-4338-a7e3-54b80a69306a\",\"latency_ms\":{\"extract_ms\":9,\"extract_queue_ms\":494,\"hash_ms\":514,\"llm_wait_ms\":0,\"parse_ms\":10,\"publish_wait_ms\":2039,\"queue_ms\":495,\"total_ms\":3561},\"modified_at\":\"2026-11-18T02:00:47.447045Z\",\"name\":\"D-2026-01-周报每周五发送.md\",\"path\":\"Decisions/D-2026-01-周报每周五发送.md\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"size\":333,\"state\":\"published\",\"state_since\":\"2026-11-18T02:01:08.280804Z\"},{\"b3\":\"53bbb123b49281e530115479778900a474281d791f1ce326e6b2ba5cc3c1a2ad\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"md\",\"id\":\"82e5a18e-1d17-4a3d-8557-80d5893f0b37\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":505,\"hash_ms\":515,\"llm_wait_ms\":0,\"parse_ms\":8,\"publish_wait_ms\":2028,\"queue_ms\":496,\"total_ms\":3558},\"modified_at\":\"2026-11-18T02:00:47.447412Z",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files show 55094cb4-39d3-4cfd-a9fc-e4ed073addb1 --json",
+   "exit": 0,
+   "stdout": "{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"history\":[{\"at\":\"2026-11-18T02:01:04.719328Z\",\"seq\":1,\"to\":\"stored\"},{\"at\":\"2026-11-18T02:01:05.229544Z\",\"duration_ms\":510,\"from\":\"stored\",\"seq\":2,\"to\":\"queued\",\"version_id\":\"f0c64bd2-2b34-4da2-bc68-4607ad9cd458\"},{\"at\":\"2026-11-18T02:01:05.230152Z\",\"code\":\"DOCS_PARSE_ENCRYPTED\",\"duration_ms\":1,\"from\":\"queued\",\"seq\":3,\"to\":\"encrypted\",\"version_id\":\"f0c64bd2-2b34-4da2-bc68-4607ad9cd458\"}],\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"llm\":{\"cache_hits\":0,\"calls\":0,\"status\":\"skipped_not_configured\"},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"parse\":null,\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"protocol\":\"oo.docs-file/v1\",\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\",\"versions\":[{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"created_at\":\"2026-11-18T02:01:05.225863Z\",\"id\":\"f0c64bd2-2b34-4da2-bc68-4607ad9cd458\",\"superseded_at\":null}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files show e2d90ee8-1b0a-4b1b-91c5-c6255bc0b384 --json",
+   "exit": 0,
+   "stdout": "{\"b3\":\"ee567572658134e9d61e2b2b8f8849d5759c73416718dff54dfb1f311b09f771\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"docx\",\"history\":[{\"at\":\"2026-11-18T02:01:04.721077Z\",\"seq\":1,\"to\":\"stored\"},{\"at\":\"2026-11-18T02:01:05.245167Z\",\"duration_ms\":524,\"from\":\"stored\",\"seq\":2,\"to\":\"queued\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"},{\"at\":\"2026-11-18T02:01:05.749082Z\",\"attempt\":1,\"duration_ms\":504,\"from\":\"queued\",\"seq\":3,\"to\":\"parsing\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"},{\"at\":\"2026-11-18T02:01:07.421190Z\",\"attempt\":1,\"duration_ms\":1672,\"from\":\"parsing\",\"seq\":4,\"to\":\"parsed\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"},{\"at\":\"2026-11-18T02:01:07.835959Z\",\"attempt\":1,\"duration_ms\":415,\"from\":\"parsed\",\"seq\":5,\"to\":\"extracting\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"},{\"at\":\"2026-11-18T02:01:07.845051Z\",\"attempt\":1,\"duration_ms\":9,\"from\":\"extracting\",\"seq\":6,\"to\":\"indexed\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"},{\"at\":\"2026-11-18T02:01:08.280297Z\",\"duration_ms\":435,\"from\":\"indexed\",\"seq\":7,\"to\":\"published\",\"version_id\":\"b67198bb-93c7-43a2-849c-2054efa2bec8\"}],\"id\":\"e2d90ee8-1b0a-4b1b-91c5-c6255bc0b384\",\"latency_ms\":{\"extract_ms\":9,\"extract_queue_ms\":415,\"hash_ms\":524,\"llm_wait_ms\":0,\"parse_ms\":1672,\"publish_wait_ms\":435,\"queue_ms\":504,\"total_ms\":3559},\"llm\":{\"cache_hits\":0,\"calls\":0,\"status\":\"skipped_not_configured\"},\"modified_at\":\"2026-11-18T02:00:47.449791Z\",\"name\":\"2026-01-08-年度计划会.docx\",\"parse\":{\"block_coun",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs usage",
+   "exit": 0,
+   "stdout": "{\n  \"drives\": [],\n  \"model\": {\n    \"status\": \"not_configured\"\n  },\n  \"per_file_limit\": 20\n}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs usage --json",
+   "exit": 0,
+   "stdout": "{\"drives\":[],\"model\":{\"status\":\"not_configured\"},\"per_file_limit\":20,\"protocol\":\"oo.docs-usage/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --status pending",
+   "exit": 0,
+   "stdout": "01ac428d-8202-43c9-8913-00384d625faa  r1  constraint_conflict    pending   Projects/官网改版.md\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --status pending --json",
+   "exit": 0,
+   "stdout": "{\"groups\":null,\"items\":[{\"confidence_bp\":null,\"created_at\":\"2026-11-18T02:01:08.256075Z\",\"decided_at\":null,\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"evidence\":[],\"id\":\"01ac428d-8202-43c9-8913-00384d625faa\",\"kind\":\"constraint_conflict\",\"reason_code\":\"constraint:project_single_owner\",\"revision\":1,\"source\":{\"file_id\":\"5feb91db-3a48-46a8-9462-1088f78c69a4\",\"path\":\"Projects/官网改版.md\"},\"status\":\"pending\",\"subject\":{\"constraint\":\"project_single_owner\",\"details\":{\"blocked\":\"171db7a5-7d69-4077-ac8b-27fe9a9bd097\",\"kept\":\"6f43281e-bdb4-47de-afd6-f1e953087bd0\"},\"entity_key\":\"project:b5d0f18ee96a929150c078ff\",\"fact_ids\":[\"6f43281e-bdb4-47de-afd6-f1e953087bd0\",\"171db7a5-7d69-4077-ac8b-27fe9a9bd097\"]}}],\"protocol\":\"oo.docs-review/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review decide accept 01ac428d-8202-43c9-8913-00384d625faa --json",
+   "exit": 0,
+   "stdout": "{\"accepted\":0,\"protocol\":\"oo.docs-decide/v1\",\"publish_pending\":false,\"rejected\":0,\"results\":[{\"code\":\"DOCS_REVIEW_CONSTRAINT_CONFLICT\",\"id\":\"01ac428d-8202-43c9-8913-00384d625faa\",\"status\":\"invalid\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review decide accept 01ac428d-8202-43c9-8913-00384d625faa --winner 6f43281e-bdb4-47de-afd6-f1e953087bd0 --json",
+   "exit": 0,
+   "stdout": "{\"accepted\":1,\"protocol\":\"oo.docs-decide/v1\",\"publish_pending\":true,\"rejected\":0,\"results\":[{\"id\":\"01ac428d-8202-43c9-8913-00384d625faa\",\"status\":\"ok\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review accept-source 5feb91db-3a48-46a8-9462-1088f78c69a4 --json",
+   "exit": 0,
+   "stdout": "{\"accepted\":0,\"protocol\":\"oo.docs-decide/v1\",\"publish_pending\":false,\"rejected\":0,\"results\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --status pending --json",
+   "exit": 0,
+   "stdout": "{\"groups\":null,\"items\":[],\"protocol\":\"oo.docs-review/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 林远舟 --type Person",
+   "exit": 0,
+   "stdout": "person:0fe33753fbab8f8dd3b6d22c  Person  林远舟\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 林远舟 --type Person --json",
+   "exit": 0,
+   "stdout": "{\"entities\":[{\"counts\":{\"aliases\":2,\"facts\":16},\"id\":\"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\",\"key\":\"person:0fe33753fbab8f8dd3b6d22c\",\"label\":null,\"name\":\"林远舟\",\"subkind\":null,\"type\":\"Person\"}],\"protocol\":\"oo.docs-entities/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:0fe33753fbab8f8dd3b6d22c --history",
+   "exit": 0,
+   "stdout": "person:0fe33753fbab8f8dd3b6d22c  Person  林远舟 (r1)\n  alias Evan Lin\n  alias 老林\n  4380b375-162e-4711-bbb7-fa60128e7d2b published  mentions 林远舟 (r1)\n  3a5b0d1a-c59b-4e64-b579-6b32fb6bd153 published  mentions 林远舟 (r1)\n  62786975-086d-4dd4-ae9a-94822f93f11c published  attr.role {\"text\":\"CEO\"} (r1)\n  fcc001d1-d28d-4bd9-b8d7-4a02fd8480be published  member_of 管理 (r1)\n  7e58435a-e792-4baf-a6e2-52e5140ce425 published  decides 周报每周五发送 (r1)\n  6b0a8ffc-6124-42bb-80c6-027fce3c9d2b published  mentions 林远舟 (r1)\n  75080f0c-1e70-4dfe-b3a2-2ea0562adce8 published  mentions 林远舟 (r1)\n  b1d5ec6b-cadb-4ec1-abd4-a28edb7ddd63 published  decides 星图看板采用自研图表引擎 (r1)\n  cfe3accd-c1b8-400e-8df8-6030b2373a3b published  decides 周报改为每周四发送 (r1)\n  ec4e9cab-921e-47cd-81cb-203eedf18a91 published  mentions 林远舟 (r1)\n  7c297dfd-1096-4c82-a0e7-6569eac73ff9 published  mentions 林远舟 (r1)\n  cae6c52d-7f59-4153-9473-ad670aef202a published  decides 星图看板改用开源图表库 (r1)\n  ddb0371c-2384-40bb-8a9b-ae37e3456dc3 published  decides 办公室迁至滨江园区 (r1)\n  2e1df9a4-0ace-4dda-a3f7-a1f258dd2461 published  mentions 林远舟 (r1)\n  b506fd82-acb5-4820-97fb-e62bff3bc808 published  decides 取消周报改用看板自动汇总 (r1)\n  880ad86b-3e9f-4d1a-8ce0-72e76ca53ede published  mentions 林远舟 (r1)\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:0fe33753fbab8f8dd3b6d22c --history --json",
+   "exit": 0,
+   "stdout": "{\"aliases\":[{\"alias\":\"Evan Lin\",\"confidence_bp\":9500,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"3198189d-b80b-419a-afd7-74f84d1c7a6f\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"origin\":\"rule\",\"status\":\"published\"},{\"alias\":\"老林\",\"confidence_bp\":9500,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"8a8d6c4b-96cc-414a-b2b9-8a6e86648691\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"origin\":\"rule\",\"status\":\"published\"}],\"facts\":[],\"files\":[\"Decisions/D-2026-01-周报每周五发送.md\",\"Decisions/D-2026-02-星图采用自研引擎.md\",\"Decisions/D-2026-04-周报改为每周四发送.md\",\"Decisions/D-2026-05-星图改用开源图表库.md\",\"Decisions/D-2026-06-办公迁至滨江.md\",\"Decisions/D-2026-08-取消周报.md\",\"People/林远舟.md\",\"Tables/人员表.xlsx\"],\"history\":[{\"confidence_bp\":10000,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"e0706a5d-1da0-49d1-8f77-e5735d95d254\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"fact_key\":\"0c815f0ea9afa853a44ffedc044c44",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 老林 --json",
+   "exit": 0,
+   "stdout": "{\"entities\":[{\"counts\":{\"aliases\":2,\"facts\":16},\"id\":\"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\",\"key\":\"person:0fe33753fbab8f8dd3b6d22c\",\"label\":null,\"name\":\"林远舟\",\"subkind\":null,\"type\":\"Person\"}],\"protocol\":\"oo.docs-entities/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity split person:0fe33753fbab8f8dd3b6d22c --groups [{\"aliases\": [\"老林\", \"林总\"]}, {\"aliases\": [\"Evan Lin\"]}] --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.docs-split/v1\",\"results\":[{\"id\":\"person:f3f149ed1b4955f67386dcd1\",\"status\":\"ok\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity merge --into person:0fe33753fbab8f8dd3b6d22c person:f3f149ed1b4955f67386dcd1 --json",
+   "exit": 0,
+   "stdout": "{\"aliases\":[],\"facts\":[],\"id\":\"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\",\"identity\":{},\"key\":\"person:0fe33753fbab8f8dd3b6d22c\",\"label\":null,\"merged_into\":null,\"name\":\"林远舟\",\"protocol\":\"oo.docs-entity/v1\",\"redirect_from\":[\"person:f3f149ed1b4955f67386dcd1\"],\"revision\":2,\"status\":\"active\",\"subkind\":null,\"type\":\"Person\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:0fe33753fbab8f8dd3b6d22c --json",
+   "exit": 0,
+   "stdout": "{\"aliases\":[{\"alias\":\"Evan Lin\",\"confidence_bp\":9500,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"3198189d-b80b-419a-afd7-74f84d1c7a6f\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"origin\":\"rule\",\"status\":\"published\"},{\"alias\":\"老林\",\"confidence_bp\":9500,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"8a8d6c4b-96cc-414a-b2b9-8a6e86648691\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"origin\":\"rule\",\"status\":\"published\"}],\"facts\":[{\"confidence_bp\":10000,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"e0706a5d-1da0-49d1-8f77-e5735d95d254\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"fact_key\":\"0c815f0ea9afa853a44ffedc044c44a39392c4bfe504a4e8fff81b1a2d384d9a\",\"id\":\"4380b375-162e-4711-bbb7-fa60128e7d2b\",\"object\":{\"id\":\"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\",\"key\":\"person:0fe33753fbab8f8dd3b6d22c\",\"name\":\"林远舟\",\"type\":\"Person\"},\"origin\":\"rule\",\"predicate\":\"mentions\",\"published_in",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity correct 4380b375-162e-4711-bbb7-fa60128e7d2b --mark-wrong --reason acceptance --entity person:0fe33753fbab8f8dd3b6d22c --json",
+   "exit": 0,
+   "stdout": "{\"confidence_bp\":10000,\"evidence\":[{\"anchor\":{\"kind\":\"cells\",\"range\":\"A2:F2\",\"sheet\":\"人员表\"},\"block_id\":\"blk_33a35c57861796049040\",\"file_id\":\"260a8a91-0b70-4e2e-a6f2-72c5a746f937\",\"id\":\"e0706a5d-1da0-49d1-8f77-e5735d95d254\",\"origin\":\"rule\",\"path\":\"Tables/人员表.xlsx\",\"src\":\"[src:Tables/人员表.xlsx#人员表!A2:F2]\",\"version_id\":\"ce747e13-1ab7-4c9c-9d85-bb275039dafc\"}],\"evidence_total\":1,\"fact_key\":\"0c815f0ea9afa853a44ffedc044c44a39392c4bfe504a4e8fff81b1a2d384d9a\",\"id\":\"4380b375-162e-4711-bbb7-fa60128e7d2b\",\"object\":{\"id\":\"c9cb9f2c-f8bd-4ded-8cd1-3e916980033a\",\"key\":\"person:0fe33753fbab8f8dd3b6d22c\",\"name\":\"林远舟\",\"type\":\"Person\"},\"origin\":\"rule\",\"predicate\":\"mentions\",\"protocol\":\"oo.docs-fact/v1\",\"published_in\":1,\"recorded_at\":\"2026-11-18T02:01:06.320687Z\",\"retracted_at\":\"2026-11-18T02:02:08.363335Z\",\"revision\":2,\"status\":\"retracted\",\"subject\":{\"id\":\"35ad7095-fcf6-43d6-85ae-cedb6236145b\",\"key\":\"document:b2ed775ee63ac3fd380e6d1e\",\"name\":\"Tables/人员表.xlsx\",\"type\":\"Document\"}}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files retry f3b4a3b3-a37f-460c-a0ed-8c2adc31af72 --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.docs-retry/v1\",\"results\":[{\"code\":\"state:published\",\"id\":\"f3b4a3b3-a37f-460c-a0ed-8c2adc31af72\",\"status\":\"not_retryable\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files retry 287b97e5-309f-48c3-bce9-f0e9f2858eb2 55094cb4-39d3-4cfd-a9fc-e4ed073addb1 --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.docs-retry/v1\",\"results\":[{\"code\":\"state:unsupported\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"status\":\"not_retryable\"},{\"code\":\"state:encrypted\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"status\":\"not_retryable\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive sync acceptance --json",
+   "exit": 0,
+   "stdout": "{\"added\":0,\"changed\":0,\"drive_rev\":29,\"error_code\":null,\"finished_at\":null,\"generation\":5,\"protocol\":\"oo.docs-sync/v1\",\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:08.398077Z\",\"status\":\"running\",\"trigger\":\"manual\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive sync acceptance --path Notes/刚放进去.md --json",
+   "exit": 0,
+   "stdout": "{\"added\":0,\"changed\":1,\"drive_rev\":29,\"error_code\":null,\"finished_at\":\"2026-11-18T02:02:10.448623Z\",\"generation\":5,\"maybe_deleted\":[],\"protocol\":\"oo.docs-sync/v1\",\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:10.446495Z\",\"status\":\"complete\",\"targeted\":true,\"trigger\":\"manual\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"74fc6e18e1ccd8ca852f1b11fcb9cd99935508c93cd6988949d8e88fbb5138e7\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"legacy_office\",\"id\":\"287b97e5-309f-48c3-bce9-f0e9f2858eb2\",\"latency_ms\":{\"hash_ms\":508,\"llm_wait_ms\":0,\"queue_ms\":1},\"modified_at\":\"2026-11-18T02:00:47.452245Z\",\"name\":\"legacy.doc\",\"path\":\"Broken/legacy.doc\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":5632,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_LEGACY_OFFICE\",\"state_since\":\"2026-11-18T02:01:05.227865Z\"},{\"b3\":\"262656cf313fa2bfe48ced7a6c08ec253b13b35455e6d85e9141a47461192062\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"pdf\",\"id\":\"55094cb4-39d3-4cfd-a9fc-e4ed073addb1\",\"latency_ms\":{\"hash_ms\":511,\"llm_wait_ms\":0,\"queue_ms\":0},\"modified_at\":\"2026-11-18T02:00:47.452053Z\",\"name\":\"pdf-encrypted.pdf\",\"path\":\"Broken/pdf-encrypted.pdf\",\"pending_review\":0,\"retryable\":false,\"revision\":3,\"size\":384,\"state\":\"encrypted\",\"state_code\":\"DOCS_PARSE_ENCRYPTED\",\"state_since\":\"2026-11-18T02:01:05.229995Z\"},{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"siz",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc-final8-askdocg7/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json",
+   "exit": 0,
+   "stdout": "{\"blocked\":{\"entities\":22,\"facts\":69},\"expires_at\":\"2026-11-25T02:02:12.590998Z\",\"pack_digest\":\"e88953bd8336e039baf3e8a61c18dce2a3ca36d87ce64ce6292c361e3aa415b7\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/work/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"4d1d0022-bb78-4836-a31a-3910b5f67e34\",\"tokens\":{\"brief\":515,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context list",
+   "exit": 0,
+   "stdout": "4d1d0022-bb78-4836-a31a-3910b5f67e34  active    v6  expires 2026-11-25T02:02:12.590998Z  /private/tmp/oo-cliacc-final8-askdocg7/work\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context list --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":30,\"drive_rev\":30,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:12.590998Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:12.590998Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"4d1d0022-bb78-4836-a31a-3910b5f67e34\",\"mount\":{\"present\":false},\"pack_digest\":\"e88953bd8336e039baf3e8a61c18dce2a3ca36d87ce64ce6292c361e3aa415b7\",\"pack_id\":\"41194084-c68d-40a3-a3f8-2115607f1e16\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/work\",\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"Projects\"],\"state\":\"active\",\"task\":\"星图看板用什么图表方案\",\"version\":6}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc-final8-askdocg7/work-human --scope Decisions --for 星图看板用什么图表方案",
+   "exit": 0,
+   "stdout": "mounted /private/tmp/oo-cliacc-final8-askdocg7/work-human/.context (share 0bf7fed9-aa38-4969-ba25-2df5acc46d98, BRIEF 793/800 tokens, trimmed 9, blocked 135, expires 2026-11-25T02:02:12.991291Z)\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc-final8-askdocg7/work-human",
+   "exit": 0,
+   "stdout": "revoked 0bf7fed9-aa38-4969-ba25-2df5acc46d98; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc-final8-askdocg7/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json",
+   "exit": 0,
+   "stdout": "{\"blocked\":{\"entities\":22,\"facts\":69},\"expires_at\":\"2026-11-25T02:02:13.220485Z\",\"pack_digest\":\"e88953bd8336e039baf3e8a61c18dce2a3ca36d87ce64ce6292c361e3aa415b7\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-a/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"541d7624-fa1a-4f43-a18e-c7fadafbd4bd\",\"tokens\":{\"brief\":515,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc-final8-askdocg7/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json",
+   "exit": 0,
+   "stdout": "{\"blocked\":{\"entities\":30,\"facts\":95},\"expires_at\":\"2026-11-25T02:02:13.604474Z\",\"pack_digest\":\"ca3e619079d0b9841649bc01aa6cfd8ac3fe8a1501dd5f4ef933aebe2fdc09a0\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-b/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"e04ddca2-2724-420e-8e72-826da7d75db8\",\"tokens\":{\"brief\":772,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc-final8-askdocg7/agent-a/.context",
+   "exit": 0,
+   "stdout": "share 541d7624-fa1a-4f43-a18e-c7fadafbd4bd: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc-final8-askdocg7/agent-b/.context",
+   "exit": 0,
+   "stdout": "share e04ddca2-2724-420e-8e72-826da7d75db8: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 开源图表库 --type Decision --json",
+   "exit": 0,
+   "stdout": "{\"entities\":[{\"counts\":{\"aliases\":0,\"facts\":5},\"id\":\"af391d04-1054-40b7-99bb-bb9fdbd39a9c\",\"key\":\"decision:8752aa38cd80070d66db95eb\",\"label\":null,\"name\":\"星图看板改用开源图表库\",\"subkind\":null,\"type\":\"Decision\"}],\"protocol\":\"oo.docs-entities/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show decision:8752aa38cd80070d66db95eb --json",
+   "exit": 0,
+   "stdout": "{\"aliases\":[],\"facts\":[{\"confidence_bp\":8500,\"evidence\":[{\"anchor\":{\"char_end\":145,\"char_start\":118,\"kind\":\"text\",\"line_end\":12,\"line_start\":12},\"block_id\":\"blk_2f9ae5aaa768f5bccbef\",\"file_id\":\"3030a21c-415a-4e3e-949d-d1eded9afaef\",\"id\":\"adc54122-5803-48a0-b64f-c3a79e26c543\",\"origin\":\"rule\",\"path\":\"Decisions/D-2026-05-星图改用开源图表库.md\",\"src\":\"[src:Decisions/D-2026-05-星图改用开源图表库.md#L12-L12]\",\"version_id\":\"41f90cc7-d18a-4719-9724-3d97ea8cf594\"}],\"fact_key\":\"14670bcedc3d4463f00d386d36735d5e6f3cd1bda2cf15b651963af7139e4cf7\",\"id\":\"ef010549-3d5a-4f2f-af39-96f91040c5fa\",\"object\":{\"id\":\"536d766f-db64-4ddc-a6f3-5ca2ec555afe\",\"key\":\"decision:db0a3c6b4e2e83beb9f6fc8e\",\"name\":\"星图看板采用自研图表引擎\",\"type\":\"Decision\"},\"origin\":\"rule\",\"predicate\":\"supersedes\",\"published_in\":1,\"recorded_at\":\"2026-11-18T02:01:06.262202Z\",\"revision\":1,\"status\":\"published\",\"subject\":{\"id\":\"af391d04-1054-40b7-99bb-bb9fdbd39a9c\",\"key\":\"decision:8752aa38cd80070d66db95eb\",\"name\":\"星图看板改用开源图表库\",\"type\":\"Decision\"},\"valid_from\":\"2026-05-20\",\"valid_precision\":\"day\"},{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"char_end\":206,\"char_start\":176,\"kind\":\"text\",\"line_end\":16,\"line_start\":16},\"block_id\":\"blk_fe49f6c23bb247cfbe85\",\"file_id\":\"3030a21c-415a-4e3e-949d-d1eded9afaef\",\"id\":\"31424a14-78cc-4abf-b01e-3001135524ec\",\"origin\":\"rule\",\"path\":\"Decisions/D-2026-05-星图改用开源图表库.md\",\"src\":\"[src:Decisions/D-2026-05-星图改用开源图表库.md#L16-L16]\",\"version_id\":\"41f90cc7-d18a-4719-9724-3d97ea8cf594\"}],\"fact_key\":\"44eee82a2eca0f6909cee9d4fcdd41165df8fb4ea2",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity correct 172ee989-9e92-4025-a9a5-97f6ad15ecf7 --mark-wrong --reason 决定被推翻 --entity decision:8752aa38cd80070d66db95eb --json",
+   "exit": 0,
+   "stdout": "{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"char_end\":206,\"char_start\":176,\"kind\":\"text\",\"line_end\":16,\"line_start\":16},\"block_id\":\"blk_fe49f6c23bb247cfbe85\",\"file_id\":\"3030a21c-415a-4e3e-949d-d1eded9afaef\",\"id\":\"31424a14-78cc-4abf-b01e-3001135524ec\",\"origin\":\"rule\",\"path\":\"Decisions/D-2026-05-星图改用开源图表库.md\",\"src\":\"[src:Decisions/D-2026-05-星图改用开源图表库.md#L16-L16]\",\"version_id\":\"41f90cc7-d18a-4719-9724-3d97ea8cf594\"}],\"evidence_total\":1,\"fact_key\":\"44eee82a2eca0f6909cee9d4fcdd41165df8fb4ea2151900edad966fed7fb18d\",\"id\":\"172ee989-9e92-4025-a9a5-97f6ad15ecf7\",\"object\":{\"id\":\"5fc401b1-11b3-4286-9ef9-4e068972b387\",\"key\":\"term:ccf7fe95ad9fb6e3dcffbb62\",\"name\":\"自研图表引擎\",\"type\":\"Term\"},\"origin\":\"rule\",\"predicate\":\"rejects\",\"protocol\":\"oo.docs-fact/v1\",\"published_in\":1,\"recorded_at\":\"2026-11-18T02:01:06.262358Z\",\"retracted_at\":\"2026-11-18T02:02:13.880969Z\",\"revision\":2,\"status\":\"retracted\",\"subject\":{\"id\":\"af391d04-1054-40b7-99bb-bb9fdbd39a9c\",\"key\":\"decision:8752aa38cd80070d66db95eb\",\"name\":\"星图看板改用开源图表库\",\"type\":\"Decision\"},\"valid_from\":\"2026-05-20\",\"valid_precision\":\"day\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc-final8-askdocg7/agent-a/.context",
+   "exit": 20,
+   "stdout": "share 541d7624-fa1a-4f43-a18e-c7fadafbd4bd: BLOCK, a fact you used was withdrawn or conflicts; do not commit, refresh or ask a person\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context refresh --group TICKET-P21 --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.context-refresh/v1\",\"shares\":[{\"mounted\":true,\"old\":\"541d7624-fa1a-4f43-a18e-c7fadafbd4bd\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-a/.context\",\"share_id\":\"f3b80a64-5c4d-4511-940d-3b7a6110d626\",\"version\":7},{\"mounted\":true,\"old\":\"e04ddca2-2724-420e-8e72-826da7d75db8\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-b/.context\",\"share_id\":\"ee90001c-7e80-4c85-8ca2-9ad95a44f743\",\"version\":7}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc-final8-askdocg7/agent-a/.context",
+   "exit": 0,
+   "stdout": "share f3b80a64-5c4d-4511-940d-3b7a6110d626: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc-final8-askdocg7/agent-b/.context",
+   "exit": 0,
+   "stdout": "share ee90001c-7e80-4c85-8ca2-9ad95a44f743: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive show acceptance --json",
+   "exit": 0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":59085,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{\"encrypted\":1,\"published\":25,\"unsupported\":1},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":31,\"files_total\":27,\"freshness\":{\"as_of\":\"2026-11-18T02:02:14.458911Z\",\"covers_drive_rev\":31,\"ontology_version\":7,\"pending_review\":0,\"processing\":0,\"reason_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"state\":\"degraded\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"last_sync\":{\"added\":0,\"changed\":0,\"error_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"finished_at\":\"2026-11-18T02:02:41.452809Z\",\"generation\":6,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:41.450784Z\",\"status\":\"failed\",\"trigger\":\"startup\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":0,\"protocol\":\"oo.docs-drive/v1\",\"revision\":1,\"status\":\"active\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive acceptance --state published --json",
+   "exit": 0,
+   "stdout": "{\"files\":[{\"b3\":\"05812fad53f5f0fcba395f5a43dda49669b13aba1cfd8a66a3591947bedd695b\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"csv\",\"id\":\"88112f3c-954f-4693-b2e1-069347874f53\",\"latency_ms\":{\"extract_ms\":13,\"extract_queue_ms\":493,\"hash_ms\":512,\"llm_wait_ms\":0,\"parse_ms\":12,\"publish_wait_ms\":2034,\"queue_ms\":495,\"total_ms\":3559},\"modified_at\":\"2026-11-18T02:00:47.451507Z\",\"name\":\"任务清单.csv\",\"path\":\"Data/任务清单.csv\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"size\":325,\"state\":\"published\",\"state_since\":\"2026-11-18T02:01:08.278532Z\"},{\"b3\":\"fb646fdd424caea840b100d6845c1e7fd31528ed312539a09e3a162dbf5392b9\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"md\",\"id\":\"fdeea3da-fe0f-4338-a7e3-54b80a69306a\",\"latency_ms\":{\"extract_ms\":9,\"extract_queue_ms\":494,\"hash_ms\":514,\"llm_wait_ms\":0,\"parse_ms\":10,\"publish_wait_ms\":2039,\"queue_ms\":495,\"total_ms\":3561},\"modified_at\":\"2026-11-18T02:00:47.447045Z\",\"name\":\"D-2026-01-周报每周五发送.md\",\"path\":\"Decisions/D-2026-01-周报每周五发送.md\",\"pending_review\":0,\"retryable\":false,\"revision\":7,\"size\":333,\"state\":\"published\",\"state_since\":\"2026-11-18T02:01:08.280804Z\"},{\"b3\":\"53bbb123b49281e530115479778900a474281d791f1ce326e6b2ba5cc3c1a2ad\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"format\":\"md\",\"id\":\"82e5a18e-1d17-4a3d-8557-80d5893f0b37\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":505,\"hash_ms\":515,\"llm_wait_ms\":0,\"parse_ms\":8,\"publish_wait_ms\":2028,\"queue_ms\":496,\"total_ms\":3558},\"modified_at\":\"2026-11-18T02:00:47.447412Z",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs share ls --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:14.981200Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:14.981200Z\",\"group_id\":\"e1cb7766-337c-41d9-b86e-9fafe87e2ea5\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"ee90001c-7e80-4c85-8ca2-9ad95a44f743\",\"mount\":{\"present\":false},\"pack_digest\":\"a138b63d0cc378e5e20a8ca5765c1985650ff1e86dcbb9fc2fbe14959664b26c\",\"pack_id\":\"b57e5574-5539-4acd-8212-a7f28ff7d34e\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"e04ddca2-2724-420e-8e72-826da7d75db8\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":7},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:14.978621Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:14.978621Z\",\"group_id\":\"e1cb7766-337c-41d9-b86e-9fafe87e2ea5\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"f3b80a64-5c4d-4511-940d-3b7a6110d626\",\"mount\":{\"present\":false},\"pack_digest\":\"c905a8449fef602c71c1d112a05338e424bd95c7327",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc-final8-askdocg7/work --json",
+   "exit": 0,
+   "stdout": "{\"local_removed\":true,\"notice_code\":\"DOCS_SHARE_READ_CONTENT_IRREVOCABLE\",\"protocol\":\"oo.context-revoke/v1\",\"share_id\":\"4d1d0022-bb78-4836-a31a-3910b5f67e34\",\"state\":\"revoked\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs share ls --json",
+   "exit": 0,
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:14.981200Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:14.981200Z\",\"group_id\":\"e1cb7766-337c-41d9-b86e-9fafe87e2ea5\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"ee90001c-7e80-4c85-8ca2-9ad95a44f743\",\"mount\":{\"present\":false},\"pack_digest\":\"a138b63d0cc378e5e20a8ca5765c1985650ff1e86dcbb9fc2fbe14959664b26c\",\"pack_id\":\"b57e5574-5539-4acd-8212-a7f28ff7d34e\",\"path\":\"/private/tmp/oo-cliacc-final8-askdocg7/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"e04ddca2-2724-420e-8e72-826da7d75db8\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":7},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:14.978621Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:14.978621Z\",\"group_id\":\"e1cb7766-337c-41d9-b86e-9fafe87e2ea5\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"f3b80a64-5c4d-4511-940d-3b7a6110d626\",\"mount\":{\"present\":false},\"pack_digest\":\"c905a8449fef602c71c1d112a05338e424bd95c7327",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs share show 4d1d0022-bb78-4836-a31a-3910b5f67e34 --json",
+   "exit": 0,
+   "stdout": "{\"budget\":800,\"coverage\":{\"covered_rev\":30,\"drive_rev\":30,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T02:02:12.590998Z\",\"drive_id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"expires_at\":\"2026-11-25T02:02:12.590998Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"4d1d0022-bb78-4836-a31a-3910b5f67e34\",\"mount\":{\"present\":false},\"pack_digest\":\"e88953bd8336e039baf3e8a61c18dce2a3ca36d87ce64ce6292c361e3aa415b7\",\"pack_id\":\"41194084-c68d-40a3-a3f8-2115607f1e16\",\"protocol\":\"oo.context-status/v1\",\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"revision\":3,\"revoked_at\":\"2026-11-18T02:02:46.325490Z\",\"role\":\"suggester\",\"scope\":[\"Decisions\",\"Projects\"],\"state\":\"revoked\",\"task\":\"星图看板用什么图表方案\",\"updates\":{\"count\":1,\"highest_level\":\"block\"},\"version\":6}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc-final8-askdocg7/agent-a",
+   "exit": 0,
+   "stdout": "revoked f3b80a64-5c4d-4511-940d-3b7a6110d626; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc-final8-askdocg7/agent-b",
+   "exit": 0,
+   "stdout": "revoked ee90001c-7e80-4c85-8ca2-9ad95a44f743; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive rm acceptance --json",
+   "exit": 0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":59085,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{\"encrypted\":1,\"published\":25,\"unsupported\":1},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":31,\"files_total\":27,\"freshness\":{\"as_of\":\"2026-11-18T02:02:14.458911Z\",\"covers_drive_rev\":31,\"ontology_version\":7,\"pending_review\":0,\"processing\":0,\"reason_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"state\":\"degraded\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"last_sync\":{\"added\":0,\"changed\":0,\"error_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"finished_at\":\"2026-11-18T02:02:41.452809Z\",\"generation\":6,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:41.450784Z\",\"status\":\"failed\",\"trigger\":\"startup\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":0,\"protocol\":\"oo.docs-drive/v1\",\"revision\":2,\"status\":\"deleting\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive ls --json",
+   "exit": 0,
+   "stdout": "{\"drives\":[{\"backend\":\"fs\",\"bytes_total\":59085,\"config\":{\"root\":\"/drives/f9a36982d7cd612e\"},\"counts\":{\"encrypted\":1,\"published\":25,\"unsupported\":1},\"created_at\":\"2026-11-18T02:01:04.474836Z\",\"drive_rev\":31,\"files_total\":27,\"freshness\":{\"as_of\":\"2026-11-18T02:02:14.458911Z\",\"covers_drive_rev\":31,\"ontology_version\":7,\"pending_review\":0,\"processing\":0,\"reason_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"state\":\"degraded\"},\"id\":\"7a7b61af-71a8-4667-8dfc-212bd5888f42\",\"last_sync\":{\"added\":0,\"changed\":0,\"error_code\":\"DOCS_SOURCE_ROOT_MISSING\",\"finished_at\":\"2026-11-18T02:02:41.452809Z\",\"generation\":6,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T02:02:41.450784Z\",\"status\":\"failed\",\"trigger\":\"startup\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":0,\"revision\":2,\"status\":\"deleting\",\"status_code\":null}],\"protocol\":\"oo.docs-drives/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive ls --json",
+   "exit": 0,
+   "stdout": "{\"drives\":[],\"protocol\":\"oo.docs-drives/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo serve --stop",
+   "exit": 0,
+   "stdout": "oo serve stopped\n",
+   "stderr": ""
+  }
+ ]
+}

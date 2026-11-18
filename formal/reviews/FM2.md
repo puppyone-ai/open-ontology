@@ -56,3 +56,19 @@ invOnlyTableTransitions 82 s, invPublishedFromLatest 94 s, invDuplicateSameHash 
 invOnlyTableTransitions 51 s, invDuplicateSameHash 111 s, invQuarantinePoison 142 s, invQuarantineShape 206 s,
 invNoStaleOverwrite 403 s. FAST bound `verify-steps=8`; nightly `deep-steps=10` (the full model at 10 steps is not
 measured).
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. Reviewed: `file_lifecycle.qnt`, `state.rs` (`EDGES`, `is_legal`), `conformance_state.rs`, spec 00 section 5.1, 10 section 4.1.1 and 4.2. Checked: `quint typecheck` on all 9 models passes; `quint run --max-samples=2000 --seed=7` on `inv` finds no violation (no bound changed).
+
+Blocking
+1. **B1, the stale-result invariant does not see the real stale-overwrite case.** `finishParse` guards on `jobVer == ver` only inside `parsing`. But `ver` changes only through `supersede`, which also leaves `parsing`, so inside `parsing` `jobVer == ver` always holds. Mutant check: dropping the guard (`file_lifecycle.qnt` finishParse, first branch) and also stamping `resVer: fl.jobVer` both still give "No violation" for `inv`. The dangerous path is: job for v1 running, file superseded to v2, restored, leased again (`toParsing` overwrites the single `jobVer` slot with v2), then the v1 job completes and is accepted as current. The model cannot express that because it holds one job slot per file. Spec 10 4.1.1 closes this with the `(owner, generation)` CAS (`lost_lease`), which is FM1 (`jobs.qnt`) territory, not FM2. Required change: either (a) add a `leaseGen` counter to `File` that `toParsing` bumps and `finishParse` compares, with an invariant that a parsed result carries the generation of the lease that produced it, or (b) state in the FM2 header that the stale-after-relaunch case is discharged by FM1 and add that cross-reference to the invariant list. Option (a) is preferred.
+2. **B2, the conformance test does not compare the version state.** `replay` compares only `st` and the `parse_failed` code. It passes `version_id: None` and `attempt: None` to `state::transition`, and it skips steps where state does not change (`finishParse` discards, `jobVer` changes). So `ver`, `hash`, `jobVer`, `resVer`, `pubVer`, `dupHash`, `poison` and `discards` are never compared with the database, and the version fence in `transition` is never exercised. Required: compare `ver`/`resVer`/`pubVer`/`dupHash` from the DB, and replay the discard steps (they can be detected from `discards` changing or from a new `jobVer` field in the trace).
+
+Non-blocking
+3. The guards of `toDuplicate` (another file with the same hash is `indexed` or `published`) and `toQueued` from `stored` (no completed blob) are model preconditions only. `is_legal` does not encode them and the conformance replay does not check them, so code that moves a file to `duplicate` without a completed blob would still pass. Suggest a note in the conformance doc, or a check in the replay that the blob precondition holds in the model state before the step.
+4. `restore` from `deleted` requires `ver + 1 <= V`. At the bound a deleted file can never come back in the model. Say so in "Not covered" (the bound is V = 3).
+5. `invNoStaleOverwrite` is only meaningful together with item 1; as written it holds by construction for every mutant I tried. Name it in the review as weak until item 1 is fixed.
+6. The model's `EDGES` copy is re-read by the test from the `.qnt` text; that is good. Keep the 16 x 17 loop, but it currently checks `state.rs` only, not the `stored -> parse_failed` row in the spec (already noted by the author).
+
+Checked and fine: `legal()` in the model and `is_legal` agree on `absent`, `superseded` and `deleted`; `supersede` from `absent` is blocked by `legal`; `plain` cannot reach `stored`, `queued`, `parsing`, `published`, `outdated`, `superseded`, `deleted`; the `unreadable` code only from `stored`.

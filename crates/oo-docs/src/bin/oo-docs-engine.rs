@@ -142,6 +142,13 @@ async fn run() -> ExitCode {
         cfg.ingest.clone(),
     ));
     let progress = oo_docs::api::progress::Bus::new();
+    // The model (G3): its configuration lives in the state directory; the egress
+    // script is `OO_DOCS_MODEL_EGRESS` (the model stays off without one).
+    let model = oo_docs::extract::llm::config::ModelRuntime::open(
+        cfg.state_dir.clone(),
+        env("OO_DOCS_MODEL_EGRESS").map(std::path::PathBuf::from),
+        env("OO_DOCS_PYTHON"),
+    );
     let app = Arc::new(
         AppState::new(
             pool.clone(),
@@ -151,6 +158,7 @@ async fn run() -> ExitCode {
             health.clone(),
         )
         .with_cas(cas.clone())
+        .with_model(model.clone())
         .with_progress(progress.clone()),
     );
 
@@ -165,30 +173,95 @@ async fn run() -> ExitCode {
     let mut sched_cfg = SchedulerConfig::new(&worker_id);
     sched_cfg.concurrency = stages::default_concurrency();
     sched_cfg.concurrency.extend(cfg.concurrency.clone());
+    let read_token = |file: &std::path::Path| -> Option<String> {
+        match std::fs::read_to_string(file) {
+            Ok(t) if t.trim().len() >= 16 => Some(t.trim().to_owned()),
+            _ => None,
+        }
+    };
+    use oo_docs::parse::sidecar::{SidecarClient, SidecarConfig};
     let sidecar = match &cfg.parser {
-        Some(ep) => match std::fs::read_to_string(&ep.token_file) {
-            Ok(t) if t.trim().len() >= 16 => {
-                Some(Arc::new(oo_docs::parse::sidecar::SidecarClient::new(
-                    oo_docs::parse::sidecar::SidecarConfig::new(ep.addr.clone(), t.trim()),
-                )))
-            }
-            _ => {
+        Some(ep) => {
+            let Some(token) = read_token(&ep.token_file) else {
                 return fail(
                     2,
                     "config.parser_token_unreadable",
                     "parser token file missing or too short",
                 );
+            };
+            let mut client = SidecarClient::new(SidecarConfig::new(ep.addr.clone(), token));
+            // Scanned pdf and standalone images go to the ocr-parser (10 17.1, 17.6).
+            if let Some(ocr) = &cfg.ocr {
+                let Some(otoken) = read_token(&ocr.token_file) else {
+                    return fail(
+                        2,
+                        "config.ocr_token_unreadable",
+                        "ocr token file missing or too short",
+                    );
+                };
+                client = client.with_ocr(SidecarClient::new(
+                    SidecarConfig::new(ocr.addr.clone(), otoken).for_ocr(),
+                ));
             }
-        },
+            Some(Arc::new(client))
+        }
         None => None,
     };
+    let cas_for_retention = cas.clone();
+    let media = match &cfg.media {
+        Some(m) => {
+            let Some(token) = read_token(&m.endpoint.token_file) else {
+                return fail(
+                    2,
+                    "config.media_token_unreadable",
+                    "media token file missing or too short",
+                );
+            };
+            Some(stages::MediaRuntime {
+                client: Arc::new(SidecarClient::new(SidecarConfig::new(
+                    m.endpoint.addr.clone(),
+                    token,
+                ))),
+                external_ffmpeg: m.external_ffmpeg.clone(),
+            })
+        }
+        None => None,
+    };
+    // What the sidecars say they are now: a result of another version is not reused (D23).
+    {
+        let clients: Vec<Arc<SidecarClient>> = sidecar.iter().cloned().collect();
+        let ocr_info = sidecar
+            .as_ref()
+            .and_then(|c| c.ocr_client().map(|_| c.clone()));
+        let media_client = media.as_ref().map(|m| m.client.clone());
+        let versions = tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            for c in clients {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = ocr_info.as_ref().and_then(|c| c.ocr_client()) {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = media_client {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            out
+        })
+        .await
+        .unwrap_or_default();
+        for (id, version) in versions {
+            stages::set_current_parser(&id, &version);
+        }
+    }
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
-    handlers.extend(stages::handlers_with_sidecar(
+    handlers.extend(stages::handlers_with_runtime(
         &pool,
         Arc::new(AnyFactory::from_env()),
         cas,
         Some(progress),
         sidecar,
+        media,
+        model.clone(),
     ));
     // Low disk pauses hashing, parsing and extraction (4.12, G7).
     oo_docs::obs::disk::guard_handlers(
@@ -197,7 +270,9 @@ async fn run() -> ExitCode {
         &[
             oo_docs::jobs::JobKind::Hash,
             oo_docs::jobs::JobKind::Parse,
+            oo_docs::jobs::JobKind::ParseMedia,
             oo_docs::jobs::JobKind::ExtractRules,
+            oo_docs::jobs::JobKind::ExtractLlm,
         ],
     );
     let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
@@ -207,7 +282,27 @@ async fn run() -> ExitCode {
     {
         obs::log("info", "files.outdated", json!({ "count": n }));
     }
+    {
+        let types = match pool.acquire().await {
+            Ok(mut c) => oo_docs::review::promotion::constrained_types(&mut c)
+                .await
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        let pv = oo_docs::extract::llm::prompt_version(&types);
+        if let Ok(n) = stages::mark_outdated_versions(&pool, &pv, cfg.ocr.is_some()).await
+            && n > 0
+        {
+            obs::log("info", "files.outdated_by_version", json!({ "count": n }));
+        }
+    }
     let tasks = vec![
+        oo_docs::store::retention::spawn(
+            pool.clone(),
+            cas_for_retention,
+            oo_docs::store::retention::SWEEP_EVERY,
+            stop_rx.clone(),
+        ),
         stages::spawn_pump_guarded(
             pool.clone(),
             app.wake.clone(),
@@ -224,6 +319,7 @@ async fn run() -> ExitCode {
         api::freshness::spawn_watcher(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
         api::lifecycle::spawn(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
     ];
+    health.set_parser(cfg.parser.is_some());
     health.set_ready();
     println!(
         "{}",
@@ -243,6 +339,7 @@ async fn run() -> ExitCode {
     for t in tasks {
         let _ = t.await;
     }
+    model.stop();
     pool.close().await;
     match served {
         Ok(()) => ExitCode::SUCCESS,

@@ -22,6 +22,7 @@ pub mod dirs;
 pub mod frontmatter;
 pub mod headings;
 pub mod kv;
+pub mod media;
 pub mod tables;
 pub mod text;
 
@@ -627,13 +628,15 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     }
     name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
     text_email(&mut ctx, blocks);
+    // What speakers say about what they own (the subject is a placeholder until the speaker is confirmed).
+    media::apply(&mut ctx, ir);
 
     // doc.entity: the Document mentions every other entity found in the file.
     let found: Vec<(EntityRef, EvidenceRef)> = ctx
         .col
         .entities
         .iter()
-        .filter(|(e, _)| e.ty != EntityType::Document)
+        .filter(|(e, _)| e.ty != EntityType::Document && !media::is_placeholder(&e.name))
         .filter_map(|(e, evs)| evs.first().map(|ev| (e.clone(), ev.clone())))
         .collect();
     for (e, ev) in found {

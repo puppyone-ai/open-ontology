@@ -106,7 +106,10 @@ fn opt_string(
     max: usize,
 ) -> Result<Option<String>, String> {
     match o.get(k) {
+        // A model that has nothing for an optional field often writes "" (seen with
+        // the owner's model on the golden set): that is absent, not invalid.
         None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) if s.is_empty() => Ok(None),
         Some(Value::String(s)) if s.chars().count() <= max => Ok(Some(s.clone())),
         _ => Err(format!("{k} must be a string of at most {max} characters")),
     }
@@ -267,6 +270,24 @@ mod tests {
         assert_eq!(o.relations[0].valid_from.as_deref(), Some("2026-01-01"));
         assert_eq!(o.entities[1].confidence.bp(), 7000);
         assert!(parse("  {\"entities\":[],\"relations\":[]}\n").is_ok());
+    }
+
+    #[test]
+    fn empty_strings_in_optional_fields_are_absent_not_invalid() {
+        // Written by the owner's model for "nothing here": "" for dates, object, value, label.
+        let r = r#"{"entities":[{"id":"e1","type":"Person","label":"","name":"陈子墨","aliases":[],"block_id":"blk_00000000000000000001","quote":"陈子墨","confidence":"high"}],
+         "relations":[{"subject":"e1","predicate":"decides","object":"","value":"","valid_from":"2026-05-20","valid_to":"",
+          "block_id":"blk_00000000000000000001","quote":"陈子墨","confidence":"high"}]}"#;
+        let o = parse(r).unwrap();
+        assert_eq!(o.entities[0].label, None);
+        let rel = &o.relations[0];
+        assert_eq!(
+            (rel.valid_to.clone(), rel.value.clone(), rel.object.clone()),
+            (None, None, None)
+        );
+        assert_eq!(rel.valid_from.as_deref(), Some("2026-05-20"));
+        // A malformed date is still invalid.
+        assert!(parse(&r.replace("2026-05-20", "2026-5-20")).is_err());
     }
 
     #[test]

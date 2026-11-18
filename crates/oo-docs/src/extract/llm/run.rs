@@ -18,7 +18,7 @@ use super::post::{Dropped, map_into};
 use super::prompt::{Known, cache_key, request};
 use super::schema::{LlmOutput, parse};
 use super::usage::{Outcome, Reserve, record, reserve};
-use super::{FILE_CALL_LIMIT, PROMPT_VERSION};
+use super::{ConstrainedType, FILE_CALL_LIMIT, prompt_version};
 use crate::cas::{Cas, CasError, CasKind};
 use crate::extract::model::{Collector, Extraction, LlmMeta};
 use crate::store::StoreError;
@@ -58,6 +58,11 @@ impl From<CasError> for RunError {
     }
 }
 
+/// Wait before the next try of a call that failed on the wire.
+const INFRA_RETRY_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+/// Calls of one batch that may fail on the wire before the batch is given up.
+const INFRA_TRIES: u32 = 4;
+
 /// Limits of one run.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -84,6 +89,9 @@ pub struct LlmInput<'a> {
     pub ir: &'a DocIr,
     /// Entities the Drive already knows, `Type:name` (at most 50 are sent).
     pub known: Vec<Known>,
+    /// Open types a person promoted (`review::promotion::constrained_types`); they constrain the prompt and are
+    /// part of the prompt version.
+    pub types: Vec<ConstrainedType>,
     /// Calls this file version already used (from the checkpoint).
     pub calls_used: u32,
 }
@@ -122,6 +130,7 @@ async fn cache_get(
 async fn cache_put(
     conn: &mut PgConnection,
     key: &str,
+    version: &str,
     model: &str,
     b3: &str,
     outcome: &str,
@@ -131,7 +140,7 @@ async fn cache_put(
          VALUES ($1, $2, $3, $4, $5) ON CONFLICT (key) DO NOTHING",
     )
     .bind(key)
-    .bind(PROMPT_VERSION)
+    .bind(version)
     .bind(model)
     .bind(b3)
     .bind(outcome)
@@ -150,6 +159,7 @@ pub async fn extract_llm(
     input: &LlmInput<'_>,
 ) -> Result<(Extraction, RunStats), RunError> {
     let model = port.model().to_owned();
+    let version = prompt_version(&input.types);
     let mut stats = RunStats::default();
     let mut col = Collector::default();
     let mut used = input.calls_used;
@@ -158,7 +168,7 @@ pub async fn extract_llm(
     let format = format!("{:?}", input.ir.format).to_lowercase();
     'batches: for batch in batches(input.ir) {
         stats.batches += 1;
-        let key = cache_key(&model, &input.known, &batch);
+        let key = cache_key(&model, &input.known, &input.types, &batch);
         let ids: BTreeSet<&str> = batch.blocks.iter().map(|b| b.id.as_str()).collect();
         // 1. cache
         if let Some((b3, outcome)) = cache_get(conn, &key).await? {
@@ -176,10 +186,23 @@ pub async fn extract_llm(
             continue;
         }
         // 2. the request, up to two attempts
-        let req = request(&model, input.title, &format, &input.known, &batch);
+        let req = request(
+            &model,
+            input.title,
+            &format,
+            &input.known,
+            &input.types,
+            &batch,
+        );
         let mut parsed: Option<LlmOutput> = None;
         let mut last_reply: Option<ChatReply> = None;
-        for attempt in 0..2 {
+        // Up to two schema attempts; an unreachable or erroring model is tried
+        // again after a short wait, up to INFRA_TRIES calls (10 §4.1.4: 5xx and
+        // timeouts retry), every call counted against the caps.
+        let mut infra_tries = 0u32;
+        let mut attempt = 0u32;
+        while attempt < 2 {
+            attempt += 1;
             if used >= limits.per_file {
                 if !stats.file_limited {
                     record(conn, input.drive_id, Outcome::FileLimited).await?;
@@ -217,7 +240,6 @@ pub async fn extract_llm(
                         Err(_) => {
                             stats.schema_invalid += 1;
                             last_reply = Some(reply);
-                            let _ = attempt;
                         }
                     }
                 }
@@ -229,8 +251,14 @@ pub async fn extract_llm(
                 }
                 Err(_) => {
                     record(conn, input.drive_id, Outcome::Failed).await?;
-                    infra_errors += 1;
+                    infra_tries += 1;
                     last_reply = None;
+                    if infra_tries < INFRA_TRIES {
+                        tokio::time::sleep(INFRA_RETRY_WAIT).await;
+                        attempt -= 1; // an infrastructure failure is not a schema attempt
+                        continue;
+                    }
+                    infra_errors += 1;
                     break;
                 }
             }
@@ -238,14 +266,14 @@ pub async fn extract_llm(
         match (parsed, last_reply) {
             (Some(out), Some(reply)) => {
                 let b3 = cas.put(CasKind::Llm, reply.content.as_bytes())?.b3;
-                cache_put(conn, &key, &model, &b3, "ok").await?;
+                cache_put(conn, &key, &version, &model, &b3, "ok").await?;
                 keys.push(key);
                 stats.dropped.add(&map_into(&mut col, input.ir, &ids, &out));
             }
             (None, Some(reply)) => {
                 // Both attempts broke the schema: remembered, so it is not paid again.
                 let b3 = cas.put(CasKind::Llm, reply.content.as_bytes())?.b3;
-                cache_put(conn, &key, &model, &b3, "schema_invalid").await?;
+                cache_put(conn, &key, &version, &model, &b3, "schema_invalid").await?;
                 stats.failed_batches += 1;
             }
             _ => {
@@ -264,7 +292,7 @@ pub async fn extract_llm(
     }
     let mut x = col.finish(input.path);
     x.llm = Some(LlmMeta {
-        prompt_version: PROMPT_VERSION.to_owned(),
+        prompt_version: version,
         extraction_key: h.finalize().to_hex().to_string(),
     });
     Ok((x, stats))

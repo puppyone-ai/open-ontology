@@ -100,6 +100,10 @@ impl Fx {
             DocFormat::Docx => "docx",
             DocFormat::Pptx => "pptx",
             DocFormat::Pdf => "pdf",
+            DocFormat::Audio => "audio",
+            DocFormat::Video => "video",
+            DocFormat::Image => "image",
+            DocFormat::PdfScanned => "pdf_scanned",
         };
         let put = self
             .cas
@@ -270,6 +274,14 @@ impl Fx {
         publish(&mut self.rt, &self.cas, &PublishConfig::default())
             .await
             .expect("publish")
+    }
+
+    /// Run one statement as the administrator.
+    pub async fn admin_sql(&mut self, sql: &str) {
+        self.admin
+            .execute(sqlx::AssertSqlSafe(sql.to_owned()))
+            .await
+            .unwrap();
     }
 
     pub async fn scalar(&mut self, sql: &str) -> i64 {

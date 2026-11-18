@@ -1,0 +1,4 @@
+# docs-media image oo-docs-media-parser:dev
+RESULT {"ffmpeg_gate": "FFMPEG GATE: PASS", "egress_blocked": true, "codec_unavailable": ["aac"], "speech": {"seconds": 2.5, "utterances": 1, "speakers": ["S1"], "decode": "builtin", "text": "各位好现在开始本周的项目例会今天主要讨论星图看板的上线安排"}}
+mem 48.17MiB / 4GiB
+# status passed in 30s

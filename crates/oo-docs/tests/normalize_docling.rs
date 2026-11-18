@@ -36,7 +36,9 @@ fn normalize_docling_pdf_anchors_use_top_left_hundredths_of_a_point() {
         Anchor::Pdf {
             page: 1,
             bbox: [7200, 8392, 16800, 9992],
-            charspan: Some([0, 6])
+            charspan: Some([0, 6]),
+            page_w: None,
+            page_h: None,
         }
     );
     assert_eq!(h.hpath, vec!["灯塔迁移方案".to_owned()]);

@@ -102,6 +102,10 @@ pub async fn refresh(app: &AppState, gid: &str, public_host: &str) -> Result<Val
         };
         let mut creq: CompileRequest = lifecycle::request_of(&old.params);
         creq.version = Some(latest);
+        {
+            let mut conn = app.pool.acquire().await?;
+            creq.changes = crate::share::changes::compute(&mut conn, sid, Some(latest)).await?;
+        }
         let mut p = lifecycle::prepare(
             app,
             Plan {

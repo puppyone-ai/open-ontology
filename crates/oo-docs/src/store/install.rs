@@ -53,8 +53,10 @@ pub const VERSION_LLM: &str = "docs-llm/1";
 pub const VERSION_CONSISTENCY: &str = "docs-consistency/1";
 /// `docs-share-consistency/1`.
 pub const VERSION_SHARE_CONSISTENCY: &str = "docs-share-consistency/1";
+/// `docs-parse-media/1`.
+pub const VERSION_PARSE_MEDIA: &str = "docs-parse-media/1";
 
-const MIGRATIONS: [Migration; 7] = [
+const MIGRATIONS: [Migration; 8] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -90,10 +92,15 @@ const MIGRATIONS: [Migration; 7] = [
         file: "0145_docs_share_consistency.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0145_docs_share_consistency.sql"),
     },
+    Migration {
+        version: VERSION_PARSE_MEDIA,
+        file: "0146_docs_parse_media.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0146_docs_parse_media.sql"),
+    },
 ];
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 7] = [
+pub const SCHEMA_MIN: [&str; 8] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -101,6 +108,7 @@ pub const SCHEMA_MIN: [&str; 7] = [
     VERSION_LLM,
     VERSION_CONSISTENCY,
     VERSION_SHARE_CONSISTENCY,
+    VERSION_PARSE_MEDIA,
 ];
 
 /// Migrations compiled into this binary, in install order.

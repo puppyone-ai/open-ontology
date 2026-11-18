@@ -7,6 +7,7 @@
 //! in those functions; the Rust wrappers in `store::jobs` never bypass it.
 
 pub mod backoff;
+pub mod media_pool;
 pub mod reuse;
 pub mod scheduler;
 pub mod stages;
@@ -32,6 +33,8 @@ pub enum JobKind {
     Hash,
     /// Parser run.
     Parse,
+    /// Audio and video parse (D77): its own pool, so a long recording never holds a document slot.
+    ParseMedia,
     /// Doc-IR normalization.
     Normalize,
     /// Deterministic extraction.
@@ -56,10 +59,11 @@ pub enum JobKind {
 
 impl JobKind {
     /// Every kind, in the CHECK constraint order.
-    pub const ALL: [JobKind; 13] = [
+    pub const ALL: [JobKind; 14] = [
         Self::Sync,
         Self::Hash,
         Self::Parse,
+        Self::ParseMedia,
         Self::Normalize,
         Self::ExtractRules,
         Self::ExtractLlm,
@@ -78,6 +82,7 @@ impl JobKind {
             Self::Sync => "sync",
             Self::Hash => "hash",
             Self::Parse => "parse",
+            Self::ParseMedia => "parse_media",
             Self::Normalize => "normalize",
             Self::ExtractRules => "extract_rules",
             Self::ExtractLlm => "extract_llm",
@@ -104,7 +109,7 @@ impl JobKind {
             Self::Sync => (32, 5_000, 2, 5 * MIN),
             Self::Hash => (6, 2_000, 4, 10 * MIN),
             // 3 attempts, then manual (4.1.6).
-            Self::Parse => (3, 30_000, 4, 30 * MIN),
+            Self::Parse | Self::ParseMedia => (3, 30_000, 4, 30 * MIN),
             Self::Normalize | Self::ExtractRules => (3, 10_000, 4, 10 * MIN),
             Self::ExtractLlm => (5, 5_000, 3, 5 * MIN),
             Self::Publish => (32, 1_000, 2, 30_000),

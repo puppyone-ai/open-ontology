@@ -17,6 +17,7 @@ pub mod frontmatter;
 pub mod lines;
 pub mod local;
 pub mod markdown;
+pub mod media;
 pub mod sidecar;
 pub mod table;
 pub mod text;
@@ -113,6 +114,7 @@ pub(crate) fn parser_info(id: ParserId, profile: &str) -> ParserInfo {
         version: LOCAL_PARSER_VERSION.to_owned(),
         adapter_version: None,
         profile_sha256: hex,
+        profile: None,
     }
 }
 

@@ -18,11 +18,14 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub use anchor::{Anchor, AnchorError, a1_from_cell, a1_parse};
-pub use validate::{IrViolation, validate};
+pub use anchor::{Anchor, AnchorError, a1_from_cell, a1_parse, is_speaker_label};
+pub use validate::{IrViolation, needs_v11, validate};
 
 /// Protocol tag written into every IR document.
 pub const PROTOCOL: &str = "oo.doc-ir/v1";
+/// v1.1 (spec 10 §17.7, D70): backward compatible; adds audio, video, image
+/// and scanned-pdf documents. Every v1 document is still valid.
+pub const PROTOCOL_V11: &str = "oo.doc-ir/v1.1";
 /// Maximum blocks per document (`limits.max_blocks_per_file`).
 pub const MAX_BLOCKS: usize = 200_000;
 /// Maximum UTF-8 length of one block text, in characters.
@@ -42,6 +45,11 @@ pub enum DocFormat {
     Docx,
     Pptx,
     Pdf,
+    /// v1.1
+    Audio,
+    Video,
+    Image,
+    PdfScanned,
 }
 
 #[derive(
@@ -58,6 +66,12 @@ pub enum ParserId {
     OoXlsx,
     #[serde(rename = "docling")]
     Docling,
+    /// v1.1
+    #[serde(rename = "paddleocr")]
+    PaddleOcr,
+    /// v1.1
+    #[serde(rename = "media")]
+    Media,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -68,6 +82,34 @@ pub struct ParserInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adapter_version: Option<String>,
     pub profile_sha256: String,
+    /// v1.1: compute tier, models (name and sha256) and CPU instruction-set fingerprint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<ParserProfile>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum ComputeTier {
+    #[serde(rename = "cpu")]
+    Cpu,
+    #[serde(rename = "gpu")]
+    Gpu,
+    #[serde(rename = "host-accel")]
+    HostAccel,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParserModel {
+    pub name: String,
+    pub sha256: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParserProfile {
+    pub tier: ComputeTier,
+    pub models: Vec<ParserModel>,
+    pub isa: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -107,6 +149,18 @@ pub struct DocMeta {
     pub encoding: Option<TextEncoding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub has_macros: Option<bool>,
+    /// v1.1 media and image facts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    /// Speaker labels only (`S1`...); never a name or a voice feature.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub speakers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codec: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
 }
 
 #[derive(
@@ -129,6 +183,13 @@ pub enum BlockKind {
     PageHeader,
     PageFooter,
     Footnote,
+    /// v1.1: one speaker's continuous speech.
+    Utterance,
+    /// v1.1: a video scene (merged frame text).
+    Scene,
+    FrameText,
+    ImageText,
+    ImageCaption,
 }
 
 #[derive(
@@ -142,6 +203,8 @@ pub enum BlockFlag {
     FormulaNoCache,
     LowTextConfidence,
     TruncatedCell,
+    /// v1.1: text produced by a generative model (captions); facts need review.
+    ModelGenerated,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

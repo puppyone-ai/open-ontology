@@ -14,7 +14,7 @@
 //! Every response, errors included, carries `OO-Docs-Api: 1.0`.
 //!
 //! L2 serves: `livez`, `health`, drives (list, create, get, patch, delete),
-//! `:sync` (full, deep, confirm, targeted), files, tree and the event stream.
+//! `:sync` (full, deep, confirm, targeted), `:rebuild` (confirmed full rebuild), files, tree and the event stream.
 //! Other documented routes answer `404 DOCS_ENGINE_NOT_FOUND` until their
 //! boards land.
 
@@ -54,6 +54,7 @@ pub mod progress;
 pub mod refs;
 pub mod routes_correct;
 pub mod routes_entities;
+pub mod routes_model;
 pub mod routes_review;
 pub mod routes_usage;
 pub mod shares;
@@ -213,6 +214,8 @@ pub struct AppState {
     pub rate_per_second: u32,
     /// Transient `file.progress` events from the stages.
     pub progress: progress::Bus,
+    /// The engine's model (`GET/PUT /config/model`); rules only until configured.
+    pub model: Arc<crate::extract::llm::config::ModelRuntime>,
     stop: watch::Sender<bool>,
     buckets: Mutex<HashMap<[u8; 32], Bucket>>,
 }
@@ -239,6 +242,7 @@ impl AppState {
             sse: events::SseConfig::default(),
             rate_per_second: RATE_PER_SECOND,
             progress: progress::Bus::new(),
+            model: crate::extract::llm::config::ModelRuntime::disabled(),
             stop: watch::channel(false).0,
             buckets: Mutex::new(HashMap::new()),
         }
@@ -247,6 +251,12 @@ impl AppState {
     /// Use `bus` for `file.progress` (the stages publish on the same bus).
     pub fn with_progress(mut self, bus: progress::Bus) -> Self {
         self.progress = bus;
+        self
+    }
+
+    /// Use `model` (the same runtime the stage handlers call).
+    pub fn with_model(mut self, model: Arc<crate::extract::llm::config::ModelRuntime>) -> Self {
+        self.model = model;
         self
     }
 
@@ -493,7 +503,30 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         }
         ["v1", "docs", "health"] => {
             method_allowed(req, &["GET"])?;
-            Ok(http::json(200, &app.health.snapshot().await))
+            let mut snap = app.health.snapshot().await;
+            // The model component follows the runtime, not the static default.
+            if let Some(m) = snap["components"]
+                .get_mut("model")
+                .and_then(Value::as_object_mut)
+            {
+                m.insert("status".into(), json!(app.model.status()));
+                if let Some(code) = app
+                    .model
+                    .last_error()
+                    .filter(|_| app.model.status() == "unavailable")
+                {
+                    m.insert("code".into(), json!(code));
+                }
+            }
+            Ok(http::json(200, &snap))
+        }
+        ["v1", "docs", "config", "model"] => {
+            method_allowed(req, &["GET", "PUT"])?;
+            if req.method == Method::GET {
+                routes_model::get(app)
+            } else {
+                routes_model::put(app, req).await
+            }
         }
         ["v1", "docs", "drives"] => {
             method_allowed(req, &["GET", "POST"])?;
@@ -507,6 +540,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             if let Some(id) = last.strip_suffix(":sync") {
                 method_allowed(req, &["POST"])?;
                 return drives::sync(app, id, req).await;
+            }
+            if let Some(id) = last.strip_suffix(":rebuild") {
+                method_allowed(req, &["POST"])?;
+                return drives::rebuild(app, id, req).await;
             }
             if last.contains(':') {
                 return Err(ApiError::not_found("route"));
@@ -651,8 +688,12 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             shares::updates(app, sid, req).await
         }
         ["v1", "docs", "shares", sid] if !sid.contains(':') => {
-            method_allowed(req, &["GET"])?;
-            shares::get(app, sid).await
+            method_allowed(req, &["GET", "PATCH"])?;
+            if req.method == Method::PATCH {
+                shares::patch(app, sid, req).await
+            } else {
+                shares::get(app, sid).await
+            }
         }
         s if known_unserved(s) => Err(ApiError::not_found("route")),
         _ => Err(ApiError::not_found("route")),

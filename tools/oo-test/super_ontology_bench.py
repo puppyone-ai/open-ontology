@@ -10,9 +10,16 @@ memory of every container is sampled once a second with `docker stats`.
 
 Targets: cold parse <= 30 min; engine <= 1.5 GiB, sidecar <= 3 GiB, PG <= 1 GiB.
 
-Usage: tools/oo-test/super_ontology_bench.py [--files 1000] [--run-id ID]
-       [--evidence-dir DIR] [--skip-build] [--keep]
-Evidence: bench-cold1000.md and bench-cold1000.json in the evidence directory.
+`--bench compile` runs the other bench of the board instead (B-S6-07, 30 L4
+acceptance 5): the pack compile p95 on a 1000 file Drive with budget 800 in the
+release build against a labelled Postgres container, p95 < 2 s (alarm +20 %,
+block +50 %). It wraps `cargo test -p oo-docs --release --test bench_compile`
+and writes `bench-compile.json` / `bench-compile.md`.
+
+Usage: tools/oo-test/super_ontology_bench.py [--bench cold|compile] [--files 1000]
+       [--run-id ID] [--evidence-dir DIR] [--skip-build] [--keep]
+Evidence: bench-cold1000.md and bench-cold1000.json (cold), bench-compile.json
+and bench-compile.md (compile) in the evidence directory.
 """
 
 import argparse
@@ -97,8 +104,46 @@ def build_files(root, total):
     return made
 
 
+def compile_bench(args):
+    """The pack compile bench: a labelled PG container and the release Rust bench."""
+    l2.LANE = "oo.lane=super-ontology-be4"
+    ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
+    ev.log(f"# compile bench, run {args.run_id}")
+    pg = l2.Postgres(ev, args.run_id)
+    out = Path(tempfile.mkdtemp(prefix="oo-bench-compile-", dir="/tmp")) / "bench.json"
+    ok = False
+    try:
+        pg.start()
+        env = dict(os.environ, OO_DOCS_TEST_PG_PORT=str(pg.port), OO_BENCH_OUT=str(out),
+                   CARGO_BUILD_JOBS=os.environ.get("CARGO_BUILD_JOBS", "6"))
+        argv = ["cargo", "test", "-p", "oo-docs", "--locked", "--release", "--test", "bench_compile",
+                "--", "--ignored", "--nocapture", "--test-threads=1"]
+        ev.log("$ " + " ".join(argv))
+        p = subprocess.run(argv, cwd=REPO, env=env, capture_output=True, text=True, timeout=3600)
+        tail = (p.stdout + p.stderr).strip().splitlines()[-6:]
+        ev.log("\n".join("  " + t for t in tail))
+        ev.check("the Rust bench passed", p.returncode == 0, f"exit {p.returncode}")
+        doc = json.loads(out.read_text()) if out.is_file() else {}
+        ev.check("release build", doc.get("build") == "release", str(doc.get("build")))
+        p95 = doc.get("p95_s")
+        ev.check("compile p95 under 2 s on 1000 files, budget 800", p95 is not None and p95 < doc.get("limit_s", 2.0), f"p95 {p95}")
+        ev.write("bench-compile.json", json.dumps(doc, indent=2, sort_keys=True) + "\n")
+        ev.write("bench-compile.md", "# Compile bench\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in sorted(doc.items())) + "\n")
+        ok = all(c["ok"] for c in ev.checks)
+    finally:
+        pg.stop()
+        shutil.rmtree(out.parent, ignore_errors=True)
+        left = subprocess.run(["docker", "ps", "-aq", "--filter", f"name={pg.name}"], capture_output=True, text=True).stdout.split()
+        ev.check("cleanup left nothing", not left, f"{len(left)} left")
+        ok = ok and all(c["ok"] for c in ev.checks)
+    passed = sum(1 for c in ev.checks if c["ok"])
+    print(f"# {passed}/{len(ev.checks)} checks passed")
+    sys.exit(0 if ok else 1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--bench", choices=["cold", "compile"], default="cold")
     ap.add_argument("--files", type=int, default=1000)
     ap.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S"))
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L3"))
@@ -106,6 +151,10 @@ def main():
     ap.add_argument("--skip-build", action="store_true")
     ap.add_argument("--keep", action="store_true")
     args = ap.parse_args()
+    if args.bench == "compile":
+        if args.evidence_dir.endswith("evidence/L3"):
+            args.evidence_dir = str(REPO / "testing/super-ontology/evidence/L4")
+        return compile_bench(args)
 
     ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
     ev.log(f"# cold parse bench, {args.files} files, run {args.run_id}")

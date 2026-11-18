@@ -1,0 +1,140 @@
+{
+  "protocol": "oo.doc-parser.models-lock/v1",
+  "note": "media-parser models (B-S10-05..07). silero VAD: the ONNX file of the silero-vad 6.2.3 wheel (MIT), pinned by wheel and member sha256. Paraformer-zh: FunASR ONNX export on ModelScope (Apache-2.0), every file pinned by sha256. CAM++: 3D-Speaker (Apache-2.0) weights exported to ONNX by tools/media-parser/export_campplus_onnx.py from iic/speech_campplus_sv_zh-cn_16k-common; the ONNX is built by us and placed in the build context (kind local), cosine to the PyTorch embedding >= 0.9999. Not in this lock on purpose: Qwen3-ASR (selected only after an own loader and a memory fit, D72), pyannote (gated, comparison only), SenseVoiceSmall, DiariZen. Frame and picture text: the RapidOCR PP-OCRv5 det/rec ONNX files of the doc-parser lock (same pins).",
+  "sources": [
+    {
+      "name": "silero-vad",
+      "kind": "wheel-member",
+      "local_dir": "silero-vad",
+      "license": "MIT",
+      "url": "https://files.pythonhosted.org/packages/84/ef/9099037ed6f180ea33220178df4107112c0ce2bf5fb4d6f6ab19db2844ed/silero_vad-6.2.3-py3-none-any.whl",
+      "wheel_sha256": "7b7f5436cfcb02fae583a05b512ea96467fd449fe54cb49a5e4f06c51a1e43b8",
+      "members": [
+        {
+          "member": "silero_vad/data/silero_vad.onnx",
+          "local": "silero_vad.onnx",
+          "sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"
+        }
+      ]
+    },
+    {
+      "name": "paraformer-zh-onnx",
+      "kind": "url",
+      "local_dir": "paraformer-zh",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "model_quant.onnx",
+          "local": "model_quant.onnx",
+          "url": "https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx/resolve/master/model_quant.onnx",
+          "sha256": "c3a06538f867c8e3d9bb9c9e1b44b126a50d732862f6c428b1b5896ee9be65c5"
+        },
+        {
+          "path": "am.mvn",
+          "local": "am.mvn",
+          "url": "https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx/resolve/master/am.mvn",
+          "sha256": "29b3c740a2c0cfc6b308126d31d7f265fa2be74f3bb095cd2f143ea970896ae5"
+        },
+        {
+          "path": "tokens.json",
+          "local": "tokens.json",
+          "url": "https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx/resolve/master/tokens.json",
+          "sha256": "2b20c2b12572d682afff84ce1c8d560f67b8b32a4c1f21567411d141ed352127"
+        },
+        {
+          "path": "config.yaml",
+          "local": "config.yaml",
+          "url": "https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx/resolve/master/config.yaml",
+          "sha256": "bfd424b9f61846aac63591e96fe24d66b35f4643bddcb4b9bb759db8f987ab79"
+        }
+      ]
+    },
+    {
+      "name": "campplus-3dspeaker",
+      "kind": "local",
+      "local_dir": "campplus",
+      "license": "Apache-2.0",
+      "rebuild": "python3 tools/media-parser/export_campplus_onnx.py <iic--speech_campplus_sv_zh-cn_16k-common dir> tools/media-parser/models-local/campplus.onnx",
+      "files": [
+        {
+          "local": "campplus.onnx",
+          "sha256": "5775b43497ac98a397c8437b8e64feb0a8a39a758d6906278705bb16038967bc"
+        }
+      ]
+    },
+    {
+      "name": "rapidocr-ppocrv5",
+      "kind": "url",
+      "local_dir": "rapidocr-ppocrv5",
+      "license": "Apache-2.0",
+      "note": "RapidAI/RapidOCR on ModelScope, tag v3.10.0 (Apache-2.0), PP-OCRv5 mobile det and rec in ONNX with the recognition dictionary; every file is pinned by sha256.",
+      "files": [
+        {
+          "path": "onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+          "local": "det.onnx",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+          "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae"
+        },
+        {
+          "path": "onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+          "local": "rec.onnx",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+          "sha256": "5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5"
+        },
+        {
+          "path": "paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile/ppocrv5_dict.txt",
+          "local": "rec_keys.txt",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile/ppocrv5_dict.txt",
+          "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "name": "campplus/campplus.onnx",
+      "sha256": "5775b43497ac98a397c8437b8e64feb0a8a39a758d6906278705bb16038967bc",
+      "size": 28283915
+    },
+    {
+      "name": "paraformer-zh/am.mvn",
+      "sha256": "29b3c740a2c0cfc6b308126d31d7f265fa2be74f3bb095cd2f143ea970896ae5",
+      "size": 11203
+    },
+    {
+      "name": "paraformer-zh/config.yaml",
+      "sha256": "bfd424b9f61846aac63591e96fe24d66b35f4643bddcb4b9bb759db8f987ab79",
+      "size": 2509
+    },
+    {
+      "name": "paraformer-zh/model_quant.onnx",
+      "sha256": "c3a06538f867c8e3d9bb9c9e1b44b126a50d732862f6c428b1b5896ee9be65c5",
+      "size": 238380216
+    },
+    {
+      "name": "paraformer-zh/tokens.json",
+      "sha256": "2b20c2b12572d682afff84ce1c8d560f67b8b32a4c1f21567411d141ed352127",
+      "size": 93676
+    },
+    {
+      "name": "rapidocr-ppocrv5/det.onnx",
+      "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae",
+      "size": 4819576
+    },
+    {
+      "name": "rapidocr-ppocrv5/rec.onnx",
+      "sha256": "5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5",
+      "size": 16631306
+    },
+    {
+      "name": "rapidocr-ppocrv5/rec_keys.txt",
+      "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
+      "size": 74012
+    },
+    {
+      "name": "silero-vad/silero_vad.onnx",
+      "sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+      "size": 2327524
+    }
+  ]
+}

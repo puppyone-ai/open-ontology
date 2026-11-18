@@ -8,13 +8,15 @@
 
 use oo_core::docir::{
     Anchor, Block, BlockFlag, BlockKind, DocFormat, DocIr, DocMeta, IrViolation, MAX_BLOCK_TEXT,
-    MAX_BLOCKS, PROTOCOL, ParserInfo, TableGrid, validate,
+    MAX_BLOCKS, PROTOCOL, PROTOCOL_V11, ParserInfo, TableGrid, needs_v11, validate,
 };
 use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
 mod canonical;
 pub mod docling;
+pub mod media;
+pub mod paddle;
 #[cfg(test)]
 mod tests;
 
@@ -76,7 +78,13 @@ pub struct Normalized {
 ///
 /// Same anchor and text always give the same id, across versions of a file.
 pub fn block_id(anchor: &Anchor, text: &str) -> String {
-    let anchor_json = serde_json::to_value(anchor).unwrap_or(Value::Null);
+    let mut anchor_json = serde_json::to_value(anchor).unwrap_or(Value::Null);
+    // v1.1: the page size describes the page, not where the block is, so it
+    // never changes a block id (v1 pdf blocks keep their ids).
+    if let Value::Object(map) = &mut anchor_json {
+        map.remove("page_w");
+        map.remove("page_h");
+    }
     let mut h = blake3::Hasher::new();
     h.update(b"oo.doc-ir/v1 block\0");
     h.update(canonical_json(&anchor_json).as_bytes());
@@ -229,7 +237,7 @@ pub fn finish(fragment: IrFragment) -> Result<Normalized, NormalizeError> {
     }
     warnings.truncate(1000);
 
-    let ir = DocIr {
+    let mut ir = DocIr {
         protocol: PROTOCOL.to_owned(),
         blob_b3,
         format,
@@ -238,6 +246,9 @@ pub fn finish(fragment: IrFragment) -> Result<Normalized, NormalizeError> {
         blocks,
         warnings,
     };
+    if needs_v11(&ir) {
+        ir.protocol = PROTOCOL_V11.to_owned();
+    }
     seal(ir)
 }
 
