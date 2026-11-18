@@ -57,8 +57,10 @@ pub const VERSION_SUGGEST: &str = "docs-suggest/1";
 pub const VERSION_SHARE_CONSISTENCY: &str = "docs-share-consistency/1";
 /// `docs-parse-media/1`.
 pub const VERSION_PARSE_MEDIA: &str = "docs-parse-media/1";
+/// `docs-cloud-audit/1`.
+pub const VERSION_CLOUD_AUDIT: &str = "docs-cloud-audit/1";
 
-const MIGRATIONS: [Migration; 9] = [
+const MIGRATIONS: [Migration; 10] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -104,10 +106,15 @@ const MIGRATIONS: [Migration; 9] = [
         file: "0146_docs_parse_media.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0146_docs_parse_media.sql"),
     },
+    Migration {
+        version: VERSION_CLOUD_AUDIT,
+        file: "0148_docs_cloud_audit.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0148_docs_cloud_audit.sql"),
+    },
 ];
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 9] = [
+pub const SCHEMA_MIN: [&str; 10] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -117,6 +124,7 @@ pub const SCHEMA_MIN: [&str; 9] = [
     VERSION_SUGGEST,
     VERSION_SHARE_CONSISTENCY,
     VERSION_PARSE_MEDIA,
+    VERSION_CLOUD_AUDIT,
 ];
 
 /// Migrations compiled into this binary, in install order.
