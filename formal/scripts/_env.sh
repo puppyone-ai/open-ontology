@@ -66,7 +66,9 @@ formal_verify_one() {
   local file="$1" main="$2" inv="$3" steps="$4" work rc=0 endpoint=()
   work="$(mktemp -d)"
   if [ -n "${FORMAL_APALACHE_PORT:-}" ]; then endpoint=(--server-endpoint="localhost:$FORMAL_APALACHE_PORT"); fi
-  (cd "$work" && quint verify "$file" --main="$main" --invariant="$inv" --max-steps="$steps" ${endpoint[@]+"${endpoint[@]}"} \
+  # FORMAL_PAIR_TIMEOUT (seconds, e.g. 3600 for the deep run): a pair that runs longer is killed (rc 124)
+  local lim=(); if [ -n "${FORMAL_PAIR_TIMEOUT:-}" ]; then lim=(timeout "$FORMAL_PAIR_TIMEOUT"); fi
+  (cd "$work" && ${lim[@]+"${lim[@]}"} quint verify "$file" --main="$main" --invariant="$inv" --max-steps="$steps" ${endpoint[@]+"${endpoint[@]}"} \
      >"$work/out.txt" 2>&1) || rc=$?
   grep -E '^\[|violation|rror:' "$work/out.txt" | tail -n 3
   rm -rf "$work"

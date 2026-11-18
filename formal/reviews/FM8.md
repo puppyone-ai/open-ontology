@@ -93,3 +93,20 @@ Non-blocking
 5. The compile is run with a fixed graph per trace (`g` is constant in `step`). Changes of graph (new evidence, withdrawal between compiles) are the FM2 and FM3 territory; say so.
 6. KP5 (Kani) proves `visible_decide` on indices. The model's `compile` is a second copy of that rule; the conformance test links the two. Keep both, and note that a helper mutation in the Rust `visible.rs` (not the kernel) is only caught by conformance.
 7. Concern to re-check after B1: with a deterministic 4-file, 10-fact graph, the witnesses `witAliasFiltered` and `witScopeGrows` are the only ones that reach alias filtering; confirm they are true in the bulk run, not only in the simulation.
+
+## Deep cap (lane A, 2026-11-18): cheaper equivalent forms
+
+The deep run caps every Apalache pair at 60 minutes. Three FM8 pairs did not finish inside 1,000 s at 2 steps: `invBlockedEntityCount`, `invBlockedHidden`
+and `invNoLeakEntities` (the cost is the cardinality of, and the nested quantifiers over, set comprehensions). They stay in the deep list with the cap; the
+results are in `evidence/L4/formal.md`. Each also has a cheaper form that Apalache checks, and the argument that the cheaper form is equivalent:
+
+- **`invNoLeakEntities` = `invEntitiesSupported`.** `hiddenEnts = {e | not supported(e)}`, so `out.ents ∩ hiddenEnts = ∅` iff every `e in out.ents` is
+  supported, which is the definition of `invEntitiesSupported` (checked FAST at 2 steps and deep at 3). No new invariant is needed.
+- **`invBlockedEntityCount` = `invBlockedEntitiesPointwise` and `invBlockedCountIsSetSize`.** The compile now reports the blocked-entity set `blockedEs` and defines
+  `blockedE = |blockedEs|`. (1) For every entity `e`, `e in blockedEs` iff `blockedRaw(e)` (not supported in scope, and a live evidence row exists for it somewhere through a fact end
+  or an alias), written on the raw graph maps; one quantifier over six entities, no set construction. (2) `blockedE = |blockedEs|`. From (1) the set equals the
+  independently stated set, and (2) gives the count; together they are the original equality `blockedE = |{e | blockedRaw(e)}|`.
+- **`invBlockedHidden` = `invBlockedFactsNotVisible`, `invNoLeakEntities`, `invNoLeakAliases`.** Its four conjuncts: dropped facts are not in the pack and not visible
+  (pointwise per fact, `invBlockedFactsNotVisible`); hidden entities are not in the pack (`invNoLeakEntities`, above); aliases of hidden entities are not in the pack
+  (`invNoLeakAliases`, FAST and deep green); hidden entities are not visible (follows from the second).
+Simulation (10,000 traces) holds for all of them and the original forms.
