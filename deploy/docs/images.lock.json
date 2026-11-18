@@ -70,5 +70,17 @@
     "sbom": "testing/super-ontology/evidence/L6/sbom-media-parser.json",
     "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
     "note": "dev-be2 = the day-one image plus a one layer rebuild of media_parser/ and video/ (ffmpeg 9 dropped -vsync; scenedetect needs a cv2.VideoCapture name that the FFmpeg-free OpenCV lacks)"
+  },
+  "docs_db_vectors": {
+    "image": "sha256:4c6d67181e482549bab276e8ae933f807be59ea1c371c225d85c189b0c14b9de",
+    "tag": "supabase/postgres:17.6.1.064",
+    "platform": "linux/arm64",
+    "size_bytes": 4602240633,
+    "pgvector": "0.8.0",
+    "postgresql": "17.6",
+    "lane": "super-ontology-c8",
+    "admitted": "2026-11-18",
+    "admission": "supply-chain/pgvector-admission.json",
+    "note": "optional; used only with vectors on (docs-vectors/1). Not pulled: already in the local store. Stock docs-db above stays the default."
   }
 }

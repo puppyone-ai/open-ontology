@@ -106,6 +106,17 @@ const MIGRATIONS: [Migration; 9] = [
     },
 ];
 
+/// `docs-vectors/1`, the optional pgvector table (10 11.3).
+pub const VERSION_VECTORS: &str = "docs-vectors/1";
+
+/// Optional migration: applied only when the server ships the `vector` extension and the session
+/// is an administrator. It is never in [`SCHEMA_MIN`]; readiness checks its checksum when stored.
+pub const VECTORS: Migration = Migration {
+    version: VERSION_VECTORS,
+    file: "0144_docs_vectors.sql",
+    sql: include_str!("../../../oo-pipeline/migrations/0144_docs_vectors.sql"),
+};
+
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
 pub const SCHEMA_MIN: [&str; 9] = [
     VERSION_BOOTSTRAP,
@@ -270,7 +281,7 @@ async fn is_owner_member(conn: &mut PgConnection) -> Result<bool, InstallError> 
 }
 
 fn check_rows(rows: &[Stored]) -> Result<(), InstallError> {
-    for migration in &MIGRATIONS {
+    for migration in MIGRATIONS.iter().chain(std::iter::once(&VECTORS)) {
         if let Some(row) = rows
             .iter()
             .find(|r| r.version == migration.version && r.sha256 != migration.sha256())
@@ -281,10 +292,11 @@ fn check_rows(rows: &[Stored]) -> Result<(), InstallError> {
             });
         }
     }
-    if let Some(row) = rows
-        .iter()
-        .find(|r| r.compat == "breaking" && !MIGRATIONS.iter().any(|m| m.version == r.version))
-    {
+    if let Some(row) = rows.iter().find(|r| {
+        r.compat == "breaking"
+            && !MIGRATIONS.iter().any(|m| m.version == r.version)
+            && r.version != VERSION_VECTORS
+    }) {
         return Err(InstallError::Refused(format!(
             "database has unknown breaking migration {}",
             row.version
@@ -376,11 +388,55 @@ async fn run(conn: &mut PgConnection, superuser: bool) -> Result<InstallOutcome,
         exec(conn, "RESET ROLE").await?;
         applied.push(migration.version);
     }
+    if !rows.iter().any(|r| r.version == VERSION_VECTORS)
+        && vectors_available(conn, superuser).await?
+    {
+        // The administrator creates the extension; the owner creates the table.
+        exec(
+            conn,
+            "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public",
+        )
+        .await?;
+        exec(conn, "SET LOCAL ROLE oo_docs_owner").await?;
+        sqlx::raw_sql(VECTORS.sql)
+            .execute(&mut *conn)
+            .await
+            .map_err(db)?;
+        sqlx::query("INSERT INTO _oo_docs.schema_migrations (version, sha256) VALUES ($1, $2)")
+            .bind(VECTORS.version)
+            .bind(VECTORS.sha256())
+            .execute(&mut *conn)
+            .await
+            .map_err(db)?;
+        exec(conn, "RESET ROLE").await?;
+        applied.push(VECTORS.version);
+    }
     if applied.is_empty() {
         Ok(InstallOutcome::Replay)
     } else {
         Ok(InstallOutcome::Applied(applied))
     }
+}
+
+async fn vectors_available(conn: &mut PgConnection, superuser: bool) -> Result<bool, InstallError> {
+    let present: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'vector')",
+    )
+    .fetch_one(&mut *conn)
+    .await
+    .map_err(db)?;
+    if present {
+        return Ok(true);
+    }
+    if !superuser {
+        return Ok(false);
+    }
+    sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_available_extensions WHERE name = 'vector')",
+    )
+    .fetch_one(&mut *conn)
+    .await
+    .map_err(db)
 }
 
 /// Readiness proven against the compiled digests.
@@ -463,11 +519,19 @@ pub async fn verify_readiness(conn: &mut PgConnection) -> Result<VerifiedSchema,
             Some(_) => known.push(migration.version),
         }
     }
-    let mut unknown_additive = Vec::new();
-    for row in rows
+    if let Some(row) = rows
         .iter()
-        .filter(|r| !MIGRATIONS.iter().any(|m| m.version == r.version))
+        .find(|r| r.version == VERSION_VECTORS && r.sha256 != VECTORS.sha256())
     {
+        return Err(ReadinessError::ChecksumMismatch {
+            version: row.version.clone(),
+            stored: row.sha256.clone(),
+        });
+    }
+    let mut unknown_additive = Vec::new();
+    for row in rows.iter().filter(|r| {
+        !MIGRATIONS.iter().any(|m| m.version == r.version) && r.version != VERSION_VECTORS
+    }) {
         if row.compat == "breaking" {
             return Err(ReadinessError::SchemaMismatch {
                 version: row.version.clone(),
