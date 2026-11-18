@@ -98,3 +98,18 @@ Non-blocking
 6. `check` with `auto` refreshes at `V` even when the caller's `since` shows nothing new (`code == 0`); this is the at-checkpoint rule (D62), so it is correct. Keep the witness `witAtCheckpoint` tied to a `code == 0` case as well as `10`.
 
 Checked and fine: the group version rule (`gver` set at group creation and on each group refresh; `invGroupSameVersion` over unexpired members); `invPackBytesImmutable` (digest, ver, uses, pol, grp, src fixed) matches the `refreshed_from` and immutable-pack design; `invTerminalAbsorbing` holds on all transitions; S1 (the pinned guard) is the single point that the code checks at both the single and group level (`lifecycle.rs` l.740, `group.rs` l.75).
+
+## Trace replay (lane A, 2026-11-17, answering the review request for an ITF replay)
+
+`fm6_itf_traces_conform_to_the_share_engine` (`conformance_share.rs`) replays ITF traces of the model profile `stepReplay` on the live engine, one fresh engine per
+trace: publishes only add facts (a share's `uses` then do not matter: every in-scope share gets an info entry), no extension (PATCH /shares is not implemented),
+no daemon or gc steps. Mount (with policy and group), publish (a real new decision file and publish run), refresh, group refresh (success, and the rolled-back
+case by making one member's compile fail), check (exit code and the at-checkpoint upgrade of a share or its group), revoke, expiry (the model's clock is mapped onto
+`expires_at`; the sweep is `expire_due`) and refs-credential reads are each an HTTP call or a store call; after every step each model share is compared with the engine:
+state, version (offset by the engine's settled version number), policy, `refreshed_from`, number and order of UPDATES entries, and the check exit code and credential
+validity at the steps that read them.
+
+Found by the replay: a share past its end date that the sweep has not run on got an UPDATES entry in the model but not in the engine (`drift::apply` skips shares with
+`expires_at <= now`). The engine's behaviour is harmless (such a share answers 30), so the **model was changed**: a publish only writes entries for shares within their
+end date, and `invDriftMarked` and `invChangeDelivered` apply to those. Drift and block entries (RETRACT, SUPERSEDE, VIOLATE) are not replayed: they depend on the
+share's `uses`, which the engine decides (the three scenarios of this file cover retract). `extend` stays model-only (G6 is not implemented).

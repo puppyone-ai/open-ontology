@@ -29,6 +29,7 @@ mod common;
 #[path = "itf_support/mod.rs"]
 mod itf;
 
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use common::engine::{Opts, TestEngine, key};
@@ -112,12 +113,33 @@ async fn mk_share(e: &TestEngine, scope: &[&str], extra: Value) -> Value {
     r.json()
 }
 
+/// GET that waits out the engine's own rate limiter (`DOCS_ENGINE_RATE_LIMITED`).
+async fn get_retry(e: &TestEngine, path: &str) -> common::http::Resp {
+    loop {
+        let r = e.get(path).await;
+        if r.status != 429 {
+            return r;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+async fn post_retry(e: &TestEngine, path: &str, body: &Value) -> common::http::Resp {
+    loop {
+        let r = e.post(path, body).await;
+        if r.status != 429 {
+            return r;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
 async fn share(e: &TestEngine, sid: &str) -> Value {
-    e.get(&format!("/v1/docs/shares/{sid}")).await.json()
+    get_retry(e, &format!("/v1/docs/shares/{sid}")).await.json()
 }
 
 async fn updates(e: &TestEngine, sid: &str) -> Vec<Value> {
-    e.get(&format!("/v1/docs/shares/{sid}/updates"))
+    get_retry(e, &format!("/v1/docs/shares/{sid}/updates"))
         .await
         .json()["items"]
         .as_array()
@@ -439,5 +461,346 @@ fn fm6_traces_exercise_every_rule_the_scenarios_check() {
     assert!(
         codes.contains(&0) && codes.contains(&40),
         "check codes in samples: {codes:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// ITF trace replay (profile `stepReplay` of the model): publishes only add facts, so a share's `uses` do not matter.
+// ---------------------------------------------------------------------------------------------
+
+struct ReplayRig {
+    e: TestEngine,
+    fx: Fx,
+    /// model slot -> share id
+    sid: BTreeMap<i64, String>,
+    /// model slot -> its refs credential (from the creation or refresh payload)
+    cred: BTreeMap<i64, String>,
+    group_made: bool,
+    added: usize,
+    /// engine version number minus the model's at the start of the trace
+    v0: i64,
+}
+
+fn cred_of_payload(v: &Value) -> Option<String> {
+    let sj: Value = serde_json::from_str(v["share_json"].as_str()?).ok()?;
+    sj["refs"]["credential"].as_str().map(str::to_owned)
+}
+
+impl ReplayRig {
+    async fn new_share(&mut self, slot: i64, v: &Value) {
+        self.sid.insert(slot, v["id"].as_str().unwrap().to_owned());
+        if let Some(c) = cred_of_payload(v) {
+            self.cred.insert(slot, c);
+        }
+    }
+
+    /// Set `expires_at` of every share the model has to the model's view of the clock.
+    async fn sync_clock(&mut self, st: &Value) {
+        let now = int(&st["now"]);
+        for (slot, s) in map_values(&st["sh"]) {
+            let (Some(id), "active" | "drifted") = (self.sid.get(&slot), text(&s["st"])) else {
+                continue;
+            };
+            let past = now >= int(&s["exp"]);
+            let sql = if past {
+                format!(
+                    "UPDATE _oo_docs.share SET expires_at = clock_timestamp() - interval '1 second' WHERE id = '{id}'"
+                )
+            } else {
+                format!(
+                    "UPDATE _oo_docs.share SET expires_at = clock_timestamp() + interval '1 day' WHERE id = '{id}'"
+                )
+            };
+            self.fx
+                .admin
+                .execute(sqlx::AssertSqlSafe(sql))
+                .await
+                .unwrap();
+        }
+    }
+
+    /// New shares the model created in this step (slots `first..now_n`) are the successors of `old` slots, in order.
+    async fn adopt_successors(&mut self, old: &[i64], first: i64, refreshed: &[Value]) {
+        for (k, o) in old.iter().enumerate() {
+            let want = self.sid[o].clone();
+            let new = refreshed
+                .iter()
+                .find(|r| r["refreshed_from"] == json!(want))
+                .unwrap_or_else(|| panic!("no successor of {want} in {refreshed:?}"));
+            self.new_share(first + i64::try_from(k).unwrap(), new).await;
+        }
+    }
+}
+
+async fn replay_share_trace(name: &str, t: &Value) -> (usize, usize) {
+    let mut truncated = 0usize;
+    let (e, fx) = world(&format!("fm6_rep_{}", name.replace(['.', '-'], "_"))).await;
+    let mut fx = fx;
+    // the engine's own publisher may add a version of its own right after start: wait until the number is stable
+    let mut v0 = max_version(&mut fx).await;
+    loop {
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let now = max_version(&mut fx).await;
+        if now == v0 {
+            break;
+        }
+        v0 = now;
+    }
+    let mut rig = ReplayRig {
+        v0: v0 - 1,
+        e,
+        fx,
+        sid: BTreeMap::new(),
+        cred: BTreeMap::new(),
+        group_made: false,
+        added: 0,
+    };
+    let states = t["states"].as_array().unwrap();
+    let mut steps = 0usize;
+    for (i, st) in states.iter().enumerate().skip(1) {
+        let who = format!("{name} step {i}");
+        let prev = &states[i - 1];
+        let picks = &st["mbt::nondetPicks"];
+        let pick =
+            |k: &str| -> Option<&Value> { (picks[k]["tag"] == "Some").then(|| &picks[k]["value"]) };
+        let act = text(&st["lastAct"]).to_owned();
+        let nsh_prev = int(&prev["nsh"]);
+        match act.as_str() {
+            "mount" | "mountLate" => {
+                let pol = ["manual", "at-checkpoint", "pinned"]
+                    [usize::try_from(int(pick("pol0").unwrap())).unwrap()];
+                let grp = int(pick("g0").unwrap()) == 0;
+                let mut extra = json!({"refresh_policy": pol});
+                if grp {
+                    extra["group"] = json!("TICKET-FM6");
+                }
+                let v = mk_share(&rig.e, &["Decisions"], extra).await;
+                rig.new_share(nsh_prev, &v).await;
+                rig.group_made = rig.group_made || grp;
+            }
+            "publish" => {
+                rig.added += 1;
+                publish_extra(
+                    &rig.e,
+                    &mut rig.fx,
+                    &format!("Decisions/新决定-rep-{}.md", rig.added),
+                )
+                .await;
+            }
+            "refresh" => {
+                let s = int(pick("s").unwrap());
+                let r = post_retry(
+                    &rig.e,
+                    &format!("/v1/docs/shares/{}:refresh", rig.sid[&s]),
+                    &json!({}),
+                )
+                .await;
+                assert_eq!(r.status, 200, "{who}: {}", String::from_utf8_lossy(&r.body));
+                let v = r.json();
+                rig.new_share(nsh_prev, &v).await;
+            }
+            "groupRefresh" | "groupRefreshRolledBack" => {
+                let ms: Vec<i64> = map_values(&prev["sh"])
+                    .into_iter()
+                    .filter(|(_, s)| {
+                        matches!(text(&s["st"]), "active" | "drifted")
+                            && int(&s["grp"]) == 0
+                            && int(&prev["now"]) < int(&s["exp"])
+                    })
+                    .map(|(k, _)| k)
+                    .collect();
+                if act == "groupRefreshRolledBack" {
+                    // one member cannot compile: the whole refresh rolls back
+                    let first = rig.sid[&ms[0]].clone();
+                    rig.fx.admin.execute(sqlx::AssertSqlSafe(format!("UPDATE _oo_docs.share SET compile_params = jsonb_set(compile_params, '{{scope}}', '[\"Nowhere\"]') WHERE id = '{first}'"))).await.unwrap();
+                    let bad = post_retry(
+                        &rig.e,
+                        "/v1/docs/share-groups/TICKET-FM6:refresh",
+                        &json!({}),
+                    )
+                    .await;
+                    assert!(
+                        bad.status >= 400,
+                        "{who}: rolled back refresh answered {}",
+                        bad.status
+                    );
+                    rig.fx.admin.execute(sqlx::AssertSqlSafe(format!("UPDATE _oo_docs.share SET compile_params = jsonb_set(compile_params, '{{scope}}', '[\"Decisions\"]') WHERE id = '{first}'"))).await.unwrap();
+                } else {
+                    let r = post_retry(
+                        &rig.e,
+                        "/v1/docs/share-groups/TICKET-FM6:refresh",
+                        &json!({}),
+                    )
+                    .await;
+                    assert_eq!(r.status, 200, "{who}: {}", String::from_utf8_lossy(&r.body));
+                    let v = r.json();
+                    let refreshed = v["refreshed"].as_array().unwrap().clone();
+                    rig.adopt_successors(&ms, nsh_prev, &refreshed).await;
+                }
+            }
+            "check" => {
+                let s = int(pick("s").unwrap());
+                let since = int(pick("since0").unwrap());
+                let unr = pick("unr").unwrap().as_bool().unwrap();
+                let chk = &st["chk"];
+                if !unr {
+                    let c = post_retry(
+                        &rig.e,
+                        &format!("/v1/docs/shares/{}:check?since={since}", rig.sid[&s]),
+                        &json!({}),
+                    )
+                    .await
+                    .json();
+                    assert_eq!(c["exit_code"], int(&chk["code"]), "{who}: exit code {c}");
+                    if chk["refreshed"].as_bool().unwrap() {
+                        // at-checkpoint: the share (or its whole group) was upgraded
+                        let ms: Vec<i64> = if int(&map_values(&prev["sh"])[&s]["grp"]) == 0 {
+                            map_values(&prev["sh"])
+                                .into_iter()
+                                .filter(|(_, m)| {
+                                    matches!(text(&m["st"]), "active" | "drifted")
+                                        && int(&m["grp"]) == 0
+                                        && int(&prev["now"]) < int(&m["exp"])
+                                })
+                                .map(|(k, _)| k)
+                                .collect()
+                        } else {
+                            vec![s]
+                        };
+                        let refreshed: Vec<Value> = if ms.len() > 1 || c["refreshed"].is_array() {
+                            c["refreshed"].as_array().cloned().unwrap_or_default()
+                        } else {
+                            vec![c["refreshed"].clone()]
+                        };
+                        let all: Vec<Value> = if refreshed.is_empty() {
+                            vec![c["refreshed"].clone()]
+                        } else {
+                            refreshed
+                        };
+                        rig.adopt_successors(&ms, nsh_prev, &all).await;
+                    } else if !c["refreshed_to"].is_null() {
+                        // the model refuses a refresh only when it has no free share slot (NS = 4, a bound of the
+                        // model); the engine has no such limit: the trace ends here
+                        assert!(
+                            nsh_prev >= 4 - 1,
+                            "{who}: engine refreshed, model did not, with free slots: {c}"
+                        );
+                        truncated += 1;
+                        rig.e.finish().await;
+                        return (steps, truncated);
+                    }
+                }
+            }
+            "revoke" => {
+                let s = int(pick("s").unwrap());
+                let r = post_retry(
+                    &rig.e,
+                    &format!("/v1/docs/shares/{}:revoke", rig.sid[&s]),
+                    &json!({}),
+                )
+                .await;
+                assert_eq!(r.status, 200, "{who}");
+            }
+            "tick" => {}
+            "expireSweep" => {
+                rig.sync_clock(prev).await;
+                oo_docs::share::lifecycle::expire_due(&rig.e.pool)
+                    .await
+                    .unwrap();
+            }
+            "refsRead" => {
+                let s = int(pick("s").unwrap());
+                if let Some(c) = rig.cred.get(&s) {
+                    let auth = format!("Bearer {c}");
+                    let r = common::http::request(
+                        rig.e.addr,
+                        "GET",
+                        &format!("/v1/docs/shares/{}", rig.sid[&s]),
+                        &[("Authorization", &auth)],
+                        None,
+                    )
+                    .await;
+                    let ok = int(&st["chk"]["code"]) == 1;
+                    assert_eq!(
+                        r.status == 200,
+                        ok,
+                        "{who}: credential read answered {} model says valid={ok}",
+                        r.status
+                    );
+                }
+            }
+            other => panic!("{who}: unexpected action {other}"),
+        }
+        rig.sync_clock(st).await;
+        // compare every slot the model has
+        for (slot, m) in map_values(&st["sh"]) {
+            if text(&m["st"]) == "absent" {
+                continue;
+            }
+            let sid = rig
+                .sid
+                .get(&slot)
+                .unwrap_or_else(|| panic!("{who}: slot {slot} has no engine share"));
+            let g = share(&rig.e, sid).await;
+            let want_state = text(&m["st"]);
+            // a share past its end date reads `active` until the sweep, as in the model
+            assert_eq!(g["state"], want_state, "{who}: slot {slot} state {g}");
+            assert_eq!(
+                g["version"],
+                int(&m["ver"]) + rig.v0,
+                "{who}: slot {slot} version"
+            );
+            assert_eq!(
+                g["refresh_policy"],
+                ["manual", "at-checkpoint", "pinned"][usize::try_from(int(&m["pol"])).unwrap()],
+                "{who}: slot {slot} policy"
+            );
+            let src = int(&m["src"]);
+            if src >= 0 {
+                assert_eq!(
+                    g["refreshed_from"],
+                    json!(rig.sid[&src]),
+                    "{who}: slot {slot} refreshed_from"
+                );
+            } else {
+                assert!(
+                    g["refreshed_from"].is_null(),
+                    "{who}: slot {slot} has refreshed_from {g}"
+                );
+            }
+            let ups = updates(&rig.e, sid).await;
+            assert_eq!(
+                ups.len() as i64,
+                int(&m["nupd"]),
+                "{who}: slot {slot} UPDATES entries"
+            );
+            for (k, u) in ups.iter().enumerate() {
+                assert_eq!(u["seq"], (k + 1) as i64);
+                assert_eq!(u["level"], "info", "{who}: only adds were published");
+            }
+        }
+        steps += 1;
+    }
+    rig.e.finish().await;
+    (steps, truncated)
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn fm6_itf_traces_conform_to_the_share_engine() {
+    let traces = load_traces("share_lifecycle", "OO_FM6_TRACES_DIR");
+    let max: usize = std::env::var("OO_FM6_MAX")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(usize::MAX);
+    let (mut n, mut steps, mut truncated) = (0usize, 0usize, 0usize);
+    for (name, t) in traces.iter().take(max) {
+        let (st, tr) = replay_share_trace(name, t).await;
+        steps += st;
+        truncated += tr;
+        n += 1;
+    }
+    eprintln!(
+        "FM6 conformance: {n} traces, {steps} steps; share state, version, policy, refreshed_from, UPDATES count, check codes and credential validity equal at every step; {truncated} trace(s) ended where the model had no free share slot"
     );
 }
