@@ -48,7 +48,7 @@ class FastSuite(unittest.TestCase):
             return {"name": name, "exit": 0, "status": "passed", "seconds": 0.0}
 
         with tempfile.TemporaryDirectory() as tmp, patch.object(fast, "timed_command", fake):
-            rows = fast.run_super_ontology_l2(Path(tmp), SimpleNamespace(run_id="x1"))
+            rows = fast.run_super_ontology_l2(Path(tmp), SimpleNamespace(run_id="x1", cells=None))
         self.assertEqual(rows[0]["suite"], "super-ontology")
         self.assertEqual(rows[0]["status"], "passed")
         self.assertIn("super_ontology_l2.py", seen["command"][2])
