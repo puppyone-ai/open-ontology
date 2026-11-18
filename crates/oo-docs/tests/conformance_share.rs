@@ -249,9 +249,19 @@ async fn fm6_drift_delivery_check_codes_and_immutable_pack() {
         .iter()
         .find(|u| u["level"] == "block")
         .expect("block entry");
+    // The block runs from the version the share was made on to the version that retracted the fact. Their
+    // numbers are the engine's, not 1 and 2: under load the engine's own debounced publisher can publish the
+    // part of the corpus that `world` has indexed so far before the test's publish, which makes two versions.
+    let from = version.as_i64().expect("share version");
+    let retracted_at: i64 = fx
+        .scalar(&format!(
+            "SELECT min(n) FROM _oo_docs.ontology_version WHERE n > {from} AND facts_retracted > 0"
+        ))
+        .await;
+    assert!(retracted_at > from, "no version retracted the fact");
     assert_eq!(
         (block["from_version"].as_i64(), block["to_version"].as_i64()),
-        (Some(1), Some(2))
+        (Some(from), Some(retracted_at))
     );
     // invCheckCodes: a block above `since` is 20, never 0 or 10; past the last seq it is 0
     let c = check(&e, &sid, json!({})).await;
