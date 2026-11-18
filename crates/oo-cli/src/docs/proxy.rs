@@ -211,7 +211,7 @@ fn reason(status: u16) -> &'static str {
     }
 }
 
-fn response(status: u16, body: &str, extra: &[(&str, &str)]) -> Vec<u8> {
+pub(super) fn response(status: u16, body: &str, extra: &[(&str, &str)]) -> Vec<u8> {
     let mut out = format!(
         "HTTP/1.1 {status} {}\r\ncontent-type: application/json; charset=utf-8\r\ncontent-length: {}\r\noo-docs-api: {}\r\nconnection: close\r\n",
         reason(status),
@@ -226,7 +226,7 @@ fn response(status: u16, body: &str, extra: &[(&str, &str)]) -> Vec<u8> {
     out.into_bytes()
 }
 
-fn error(
+pub(super) fn error(
     status: u16,
     code: &str,
     message: &str,
@@ -264,10 +264,14 @@ pub fn credential_call(head: &Head) -> bool {
         .and_then(|h| h.strip_prefix("Bearer "))
         .map(str::trim)
         .unwrap_or("");
-    if !bearer.starts_with("oodr_") {
+    if !bearer.starts_with("oodr_") && !bearer.starts_with("ooa_") {
         return false;
     }
     let p = head.path();
+    // An Agent token (`ooa_`) is authenticated and scope-checked by the engine on every route.
+    if bearer.starts_with("ooa_") {
+        return p.starts_with("/v1/docs/");
+    }
     let segs: Vec<&str> = p.trim_start_matches('/').split('/').collect();
     match (head.method.as_str(), segs.as_slice()) {
         ("GET", ["v1", "docs", "refs", _]) => true,
@@ -368,7 +372,14 @@ async fn serve_one(
             b"HTTP/1.1 204 No Content\r\noo-docs-api: 1.0\r\nconnection: close\r\n\r\n".to_vec(),
         );
     }
-    if !token_ok(head.header("authorization"), &cfg.token_sha256) && !credential_call(&head) {
+    let ontology = head.path().starts_with("/v1/ontology/");
+    let agent = head
+        .header("authorization")
+        .is_some_and(|h| h.starts_with("Bearer ooa_"));
+    if !(ontology && agent)
+        && !token_ok(head.header("authorization"), &cfg.token_sha256)
+        && !credential_call(&head)
+    {
         return Err(error(
             401,
             "DOCS_ENGINE_UNAUTHENTICATED",
@@ -418,6 +429,9 @@ async fn serve_one(
         body.extend_from_slice(&chunk[..n]);
     }
 
+    if ontology {
+        return Err(super::federate::serve(&head, &body, cfg).await);
+    }
     let mut head = head;
     if let Some(drives) = cfg.drives.clone()
         && head.method == "POST"

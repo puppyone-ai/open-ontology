@@ -371,6 +371,18 @@ impl Http {
         token: Option<&str>,
         form: bool,
     ) -> Result<(u16, Value)> {
+        self.call_meta(path, body, token, form)
+            .await
+            .map(|(status, v, _)| (status, v))
+    }
+    /// Like `call`, also returning the publication receipt headers.
+    pub(crate) async fn call_meta(
+        &self,
+        path: &str,
+        body: Option<Value>,
+        token: Option<&str>,
+        form: bool,
+    ) -> Result<(u16, Value, Vec<(String, String)>)> {
         let url = format!("{}{path}", self.base);
         let mut r = if body.is_some() {
             self.client.post(url)
@@ -402,6 +414,13 @@ impl Http {
         }
         let mut response = r.send().await.map_err(|_| transport())?;
         let status = response.status().as_u16();
+        let meta: Vec<(String, String)> = ["x-oo-publication-id", "x-oo-data-vector-sha256"]
+            .iter()
+            .filter_map(|n| {
+                let v = response.headers().get(*n)?.to_str().ok()?;
+                Some(((*n).to_owned(), v.to_owned()))
+            })
+            .collect();
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|_| transport())? {
             if bytes.len() + chunk.len() > 4 * 1024 * 1024 {
@@ -413,7 +432,7 @@ impl Http {
         if !v.is_object() {
             return Err(protocol());
         }
-        Ok((status, v))
+        Ok((status, v, meta))
     }
 }
 pub(crate) fn success((status, v): (u16, Value)) -> Result<Value> {

@@ -5081,6 +5081,272 @@
           "revoked": true
         }
       ]
+    },
+    "OntologyProvenance": {
+      "type": "object",
+      "description": "A file anchor (`kind` file: drive_id, path, file_version, block_id, anchor) or a table row (`kind` table_row: source, table, pk, key_column, publication_id, data_vector_sha256) or a Gateway query (`kind` gateway_query).",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "file",
+            "table_row",
+            "gateway_query"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "kind": "file",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "notes/acme.md",
+          "file_version": "v1",
+          "block_id": "b1",
+          "anchor": {
+            "heading": "Acme"
+          }
+        }
+      ]
+    },
+    "OntologySearchResult": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/search` (CLI proxy surface, 1.7): one merged result set over documents (engine) and databases (Gateway). Every item has a stable URN and a provenance; `sides` says which side answered.",
+      "required": [
+        "protocol",
+        "items",
+        "sides"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.search/v1"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "side",
+              "name",
+              "score",
+              "provenance"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "doc",
+                  "db"
+                ]
+              },
+              "type": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "provenance": {
+                "$ref": "#/$defs/OntologyProvenance"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "sides": {
+          "type": "object"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.search/v1",
+          "items": [],
+          "sides": {
+            "docs": {
+              "status": "ok",
+              "count": 0
+            },
+            "db": {
+              "status": "skipped",
+              "count": 0
+            }
+          },
+          "warnings": []
+        }
+      ]
+    },
+    "OntologyEntity": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/entities/{urn}` (1.7): the entity with facts (each cited) or the table row, and its links to the other side (a linked row or document carries its own provenance).",
+      "required": [
+        "protocol",
+        "urn",
+        "side"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.entity/v1"
+        },
+        "urn": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "doc",
+            "db"
+          ]
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "row": {
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/OntologyProvenance"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.entity/v1",
+          "urn": "oo:doc/0f8fad5b-d9cb-469f-a165-70867728950e/org:acme",
+          "side": "doc",
+          "facts": [],
+          "links": []
+        }
+      ]
+    },
+    "OntologySources": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/sources` (1.7): the Drives and the database the token reaches.",
+      "required": [
+        "protocol",
+        "items"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.sources/v1"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.sources/v1",
+          "items": []
+        }
+      ]
+    },
+    "OntologyQueryRequest": {
+      "type": "object",
+      "description": "Body of `POST /v1/ontology/query` (1.7): one read-only SELECT. Anything else is 403 `ONTOLOGY_READ_ONLY`.",
+      "required": [
+        "sql"
+      ],
+      "properties": {
+        "sql": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000
+        }
+      },
+      "examples": [
+        {
+          "sql": "SELECT 1"
+        }
+      ]
+    },
+    "OntologyQueryResult": {
+      "type": "object",
+      "description": "Answer of `POST /v1/ontology/query` (1.7), read through the Gateway profile of the token (`db:read`).",
+      "required": [
+        "protocol",
+        "columns",
+        "rows",
+        "provenance"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.query/v1"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        },
+        "row_count": {
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "provenance": {
+          "$ref": "#/$defs/OntologyProvenance"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.query/v1",
+          "columns": [
+            "n"
+          ],
+          "rows": [
+            [
+              "1"
+            ]
+          ],
+          "row_count": 1,
+          "truncated": false,
+          "provenance": {
+            "kind": "gateway_query"
+          }
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -5724,6 +5990,42 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/search",
+      "request": null,
+      "response": "OntologySearchResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/entities/{urn}",
+      "request": null,
+      "response": "OntologyEntity",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/sources",
+      "request": null,
+      "response": "OntologySources",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/ontology/query",
+      "request": "OntologyQueryRequest",
+      "response": "OntologyQueryResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
     }
   ]
 }
