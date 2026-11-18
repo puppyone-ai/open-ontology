@@ -128,6 +128,10 @@
 | SO-B-S11-04 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 12c8c1d6b → 8532d1d0e | — | evidence/L7/ | 已发布文档实体投影到 Agent DB 并关联行；投影迁移 |
 | SO-B-S12-01 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 28f63af34 → 044983b7d | — | evidence/L7/ | 云入口、共享审计、事件提示路由；审计迁移 |
 | SO-B-S12-02 | L7 | merged | feat/super-ontology (车道 B 分支并入) | f3321e53e → f2d36e157 | — | evidence/L7/ | --remote 挂载远端 OO serve；L7 端到端脚本 |
+| SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
+| SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
+| SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
+| SO-B-S14-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 7c02efdac → 7c02efdac | — | testing/super-ontology/evidence/L8/ | 无 Docker 运行时评审与原型测量（ADR-S14） |
 
 ## 签收
 
