@@ -224,7 +224,7 @@ pub async fn reconcile(
     for e in &applied {
         sqlx::query(
             "UPDATE _oo_docs.fact SET valid_to = $2::date, superseded_by = $3::uuid \
-              WHERE id = $1::uuid AND (valid_to IS NULL OR valid_to > $2::date)",
+              WHERE id = $1::uuid AND (valid_to IS NULL OR valid_to >= $2::date)",
         )
         .bind(&e.fact_id)
         .bind(&e.valid_to)
