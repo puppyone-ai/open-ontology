@@ -582,3 +582,162 @@ fn argument_errors_exit_2() {
         assert_eq!(f.run(bad).status.code(), Some(2), "{bad:?}");
     }
 }
+
+// ---- `oo context mount --remote` (10 §11.3, B-S12-02): the same mount from another OO serve's cloud entry.
+
+fn token_file(f: &Fx, mode: u32) -> PathBuf {
+    let p = f.dir.join("remote.token");
+    fs::write(&p, TOKEN).unwrap();
+    fs::set_permissions(&p, fs::Permissions::from_mode(mode)).unwrap();
+    p
+}
+
+fn remote_run(f: &Fx, port: u16, token: &Path, extra: &[&str]) -> std::process::Output {
+    let url = format!("http://127.0.0.1:{port}");
+    let mut args = vec![
+        "mount",
+        "--remote",
+        &url,
+        "--remote-token-file",
+        token.to_str().unwrap(),
+        "--drive",
+        DRIVE,
+        "--agent",
+        "agent-7",
+    ];
+    args.extend_from_slice(extra);
+    f.run(&args)
+}
+
+#[test]
+fn remote_mount_writes_the_same_bytes_as_a_local_mount_without_a_local_engine() {
+    let local_fake = start_fake();
+    let remote_fake = start_fake();
+    let local = fx("rm-local", Some(local_fake.port));
+    let remote = fx("rm-remote", None); // no serve.json: there is no local engine at all
+    let (a, b) = (local.target("t"), remote.target("t"));
+    let o = local.run(&[
+        "mount",
+        "--scope",
+        "Projects/a",
+        "--to",
+        a.to_str().unwrap(),
+    ]);
+    assert_eq!(o.status.code(), Some(0), "{:?}", text(&o));
+    let tok = token_file(&remote, 0o600);
+    let o = remote_run(
+        &remote,
+        remote_fake.port,
+        &tok,
+        &[
+            "--scope",
+            "Projects/a",
+            "--to",
+            b.to_str().unwrap(),
+            "--pack-digest",
+            &"ab".repeat(32),
+            "--json",
+        ],
+    );
+    assert_eq!(o.status.code(), Some(0), "{:?}", text(&o));
+    let v: Value = serde_json::from_slice(&o.stdout).unwrap();
+    assert_eq!(v["pack_digest"], "ab".repeat(32).as_str());
+    let (ta, tb) = (tree(&a.join(".context")), tree(&b.join(".context")));
+    assert_eq!(ta.keys().collect::<Vec<_>>(), tb.keys().collect::<Vec<_>>());
+    for (path, bytes) in &ta {
+        if path != "SHARE.json" {
+            assert_eq!(
+                bytes, &tb[path],
+                "{path} differs between the local and the remote mount"
+            );
+        }
+    }
+    // The remote token is in no output and no mounted file.
+    let (so, se) = text(&o);
+    assert!(!so.contains(TOKEN) && !se.contains(TOKEN));
+    assert!(
+        tb.values()
+            .all(|b| !String::from_utf8_lossy(b).contains(TOKEN))
+    );
+    // A remote share is not the local daemon's: it keeps no record of it.
+    assert!(!remote.state.join("mounts.json").exists());
+    // The calls went to the remote, in the order of a mount, and never listed drives.
+    let calls: Vec<String> = remote_fake
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|r| format!("{} {}", r.0, r.1.split('?').next().unwrap()))
+        .collect();
+    assert!(
+        calls.iter().any(|c| c == "POST /v1/docs/shares"),
+        "{calls:?}"
+    );
+    assert!(
+        !calls.iter().any(|c| c == "GET /v1/docs/drives"),
+        "the cloud entry does not list drives: {calls:?}"
+    );
+}
+
+#[test]
+fn remote_mount_needs_a_private_token_file_a_drive_id_and_the_right_digest() {
+    let fake = start_fake();
+    let f = fx("rm-refusals", None);
+    let t = f.target("t");
+    let to = ["--to", t.to_str().unwrap()];
+    // A token file others can read is refused (exit 2) and nothing is created.
+    let o = remote_run(&f, fake.port, &token_file(&f, 0o644), &to);
+    assert_eq!(o.status.code(), Some(2), "{:?}", text(&o));
+    assert!(
+        fake.requests.lock().unwrap().is_empty(),
+        "no request left the machine"
+    );
+    // No token at all.
+    let o = f.run(&[
+        "mount",
+        "--remote",
+        &format!("http://127.0.0.1:{}", fake.port),
+        "--drive",
+        DRIVE,
+        to[0],
+        to[1],
+    ]);
+    assert_eq!(o.status.code(), Some(2), "{:?}", text(&o));
+    // A drive name is not enough: the cloud entry does not resolve names.
+    let tok = token_file(&f, 0o600);
+    let o = f.run(&[
+        "mount",
+        "--remote",
+        &format!("http://127.0.0.1:{}", fake.port),
+        "--remote-token-file",
+        tok.to_str().unwrap(),
+        "--drive",
+        "drv",
+        to[0],
+        to[1],
+    ]);
+    assert_eq!(o.status.code(), Some(2), "{:?}", text(&o));
+    // Not an http URL.
+    let o = f.run(&["mount", "--remote", "ftp://x", to[0], to[1]]);
+    assert_eq!(o.status.code(), Some(2));
+    // A pack with another digest than the one asked for mounts nothing.
+    let o = remote_run(
+        &f,
+        fake.port,
+        &tok,
+        &[
+            "--to",
+            t.to_str().unwrap(),
+            "--pack-digest",
+            &"cd".repeat(32),
+        ],
+    );
+    assert_eq!(o.status.code(), Some(1), "{:?}", text(&o));
+    assert!(
+        text(&o).1.contains("DOCS_PACK_DIGEST_MISMATCH")
+            || text(&o).0.contains("DOCS_PACK_DIGEST_MISMATCH"),
+        "{:?}",
+        text(&o)
+    );
+    assert!(!t.join(".context").exists(), "nothing was mounted");
+}
