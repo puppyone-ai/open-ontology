@@ -5,6 +5,7 @@
 | 卡号 | 闭环 | 状态 | 分支 | 提交（首 → 末） | PR | 证据 | 备注 |
 |---|---|---|---|---|---|---|---|
 | SO-SIGN-L2 | L2 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L2/ | OO 侧（D80 阶段一）；标签 super-ontology/L2（本地） |
+| SO-SIGN-L3 | L3 | review | so/sign-v2 | 证据提交（未签收） | — | testing/super-ontology/evidence/L3/ | OO 侧证据已记录，未签收：S3 格子（RustFS、MinIO）、download、s3_rustfs 未独立重跑（固定镜像不在本机，拉取需 owner 批准） |
 | SO-SIGN-L1 | L1 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L1/ | 标签 super-ontology/L1（本地） |
 | SO-SIGN-L4 | L4 | review | feat/super-ontology (主线程) | f53c8ed73 → 5ef32bb19 | — | testing/super-ontology/evidence/L4/ | 提交为 L4 CLI 验收包，使用了签收 Plan；L4 尚未签收，签收归主线程 |
 | SO-SIGN-L6 | L6 | review | feat/super-ontology (主线程) | 8c566f3a2 → d777341cf | — | testing/super-ontology/evidence/L6/ | 提交为 L6 CLI 验收包，使用了签收 Plan；L6 尚未签收，签收归主线程 |
