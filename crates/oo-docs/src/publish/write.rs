@@ -135,8 +135,36 @@ pub async fn index_extraction(
     if let Some((_, same)) = super::hashes::store_assertion_hash(&mut tx, doc.version_id).await? {
         summary.early_cutoff = same;
     }
+    share_evidence_with_duplicates(&mut tx, doc.version_id).await?;
     tx.commit().await?;
     Ok(summary)
+}
+
+/// Every path keeps its own evidence rows (10 4.7.1), but a duplicate copies them
+/// when its twin is only indexed, before the link pass and the model supplement add
+/// theirs. Copy again whatever this version gained to the live duplicates of it;
+/// [`crate::ingest::files::copy_evidence`] skips rows the duplicate already has.
+async fn share_evidence_with_duplicates(
+    conn: &mut PgConnection,
+    version_id: &str,
+) -> Result<(), StoreError> {
+    let duplicates: Vec<String> = sqlx::query_scalar(
+        "SELECT fv.id::text FROM _oo_docs.file_version fv \
+           JOIN _oo_docs.file f ON f.id = fv.file_id \
+          WHERE fv.duplicate_of = $1::uuid AND fv.superseded_at IS NULL \
+            AND fv.deleted_at IS NULL AND f.deleted_at IS NULL \
+            AND f.current_version_id = fv.id \
+          ORDER BY fv.id",
+    )
+    .bind(version_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    for duplicate in duplicates {
+        crate::ingest::files::copy_evidence(&mut *conn, version_id, &duplicate)
+            .await
+            .map_err(|e| StoreError::Protocol(e.to_string()))?;
+    }
+    Ok(())
 }
 
 /// Identity attributes, identity merges and merge proposals of one file.

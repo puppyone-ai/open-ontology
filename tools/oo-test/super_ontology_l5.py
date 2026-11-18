@@ -32,7 +32,7 @@ sys.path.insert(0, str(HERE))
 import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
-LANE = "oo.lane=super-ontology-be2"
+LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be2")
 ACCEPT_SECONDS = 2.0
 HUMAN_OPERATION_LIMIT = 5
 
