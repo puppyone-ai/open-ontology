@@ -304,6 +304,32 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
         "published",
         "the recording returns to published after the rerun"
     );
+    // The same for a new extraction that DOC-G10 holds for a person: its draft facts are listed as `added` in a
+    // pending reprocess_diff item, the old extraction stays live, and the file is published (the item waits).
+    fx.admin_sql(&format!(
+        "WITH f AS (INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, value, status, origin, confidence_bp) \
+            SELECT gen_random_uuid(), repeat('c', 64), e.id, e.id, 'owns', '\"y\"'::jsonb, 'draft', 'rule', 9000 FROM _oo_docs.entity e \
+             WHERE e.canonical_name = '小王' RETURNING id), \
+          ev AS (INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, quote_b3, origin, block_id, anchor) \
+            SELECT gen_random_uuid(), 'fact', f.id, fv.id, fv.b3, fv.b3, 'rule', 'blk_' || repeat('c', 20), '{{}}'::jsonb FROM f, _oo_docs.file_version fv \
+             WHERE fv.id = '{vid}'::uuid) \
+         INSERT INTO _oo_docs.review_item (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, reason_code) \
+            SELECT gen_random_uuid(), 'reprocess_diff', 'a8-held-diff', fl.drive_id, fl.id, fv.id, \
+                   jsonb_build_object('gate', 'DOC-G10', 'added', jsonb_build_array(repeat('c', 64)), 'removed', '[]'::jsonb), 'diff_over_30_percent' \
+              FROM _oo_docs.file_version fv JOIN _oo_docs.file fl ON fl.id = fv.file_id WHERE fv.id = '{vid}'::uuid",
+        vid = planted.version_id
+    ))
+    .await;
+    fx.admin_sql(&format!(
+        "UPDATE _oo_docs.file SET state = 'indexed' WHERE path = '{path}'"
+    ))
+    .await;
+    assert_eq!(
+        h.promote(None).await.unwrap(),
+        1,
+        "a held reprocess does not keep the file from published"
+    );
+    assert_eq!(file_state(&mut fx).await, "published");
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
