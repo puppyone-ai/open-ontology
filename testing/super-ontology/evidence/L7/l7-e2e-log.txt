@@ -1,0 +1,165 @@
+# Super Ontology L7 end to end, run be2-l7-final
+$ cargo build --locked -p oo-cli --features docs
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s
+$ cargo build --locked -p oo-docs --bin oo-docs-engine
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s
+$ docker run -d --name oo-l2-pg-be2-l7-final --label oo.lane=super-ontology-be2 -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 docker.io/library/postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 -c track_commit_timestamp=on
+  ace03c05578f53e5b641baa28762737a5f3a956ce0bab865624e36b160536cd8
+
+## Part 1: suites
+$ cargo test -p oo-connectors --features objectstore-s3 --locked --test cloud_mimic --test s3_mock --lib
+  test without_a_crc64_there_is_nothing_to_verify ... ok
+  test a_corrupt_transfer_is_downloaded_again_by_crc64 ... ok
+  test three_corrupt_transfers_end_in_a_checksum_error ... ok
+  test a_5xx_is_retried_and_the_object_is_read ... ok
+  test a_429_surfaces_as_throttled_after_the_retries ... ok
+  
+  test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+       Running unittests src/lib.rs (target/debug/deps/oo_connectors-ff407180aa37d508)
+       Running tests/cloud_mimic.rs (target/debug/deps/cloud_mimic-1bb3af11b5ed4fb2)
+       Running tests/s3_mock.rs (target/debug/deps/s3_mock-f30624afb68fc2e3)
+[PASS] S11-01 oss, cos and r2 against look-alike stores, the compat table, and the s3 mock suite - 188 passed, 0 failed
+$ cargo test -p oo-connectors --features objectstore-s3 --locked --lib events
+  test objectstore_events::tests::a_restored_watermark_never_moves_back ... ok
+  test objectstore_events::parse::tests::r2_and_oss_bodies ... ok
+  test objectstore_events::tests::the_memory_is_bounded_and_forgets_the_oldest ... ok
+  test objectstore_events::tests::a_repeat_and_an_older_event_do_not_ask_for_a_second_look ... ok
+  test objectstore_events::tests::one_look_per_key_per_batch_and_counts_add_up ... ok
+  test objectstore_events::local::tests::drain_reads_in_order_consumes_and_keeps_what_it_cannot_read ... ok
+  test objectstore_events::tests::out_of_order_and_duplicate_events_leave_the_store_state ... ok
+  
+  test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 164 filtered out; finished in 0.04s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+       Running unittests src/lib.rs (target/debug/deps/oo_connectors-ff407180aa37d508)
+[PASS] S11-02 events: duplicates, out of order delivery, sequencer order, formats of S3, R2, OSS - 11 passed, 0 failed
+$ cargo test -p oo-connectors --features objectstore-s3 --locked --test cloud_live --no-run
+  Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+    Executable tests/cloud_live.rs (target/debug/deps/cloud_live-21b8654f73d7c299)
+[PASS] S11-01 the real bucket test (cloud_live, ignored, secret_ref only) builds and is ready for the owner - built, not run: no real bucket
+$ cargo test -p oo-docs --locked --test policy_live -- --ignored --test-threads=1
+  running 2 tests
+  test ingest_never_lists_a_denied_path_and_sweeps_one_that_became_denied ... ok
+  test the_visible_graph_drops_a_denied_path_before_any_sweep ... ok
+  
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+       Running tests/policy_live.rs (target/debug/deps/policy_live-2a26613884434f3c)
+[PASS] S11-03 policy in ingest and the visible graph - 2 passed, 0 failed
+$ cargo test -p oo-docs --locked --test events_live -- --ignored --test-threads=1
+  running 1 test
+  test events_find_a_new_file_once_and_never_decide_deletions ... ok
+  
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+       Running tests/events_live.rs (target/debug/deps/events_live-7c93d97e24785546)
+[PASS] S11-02 events over HTTP - 1 passed, 0 failed
+$ cargo test -p oo-docs --locked --test projection_live -- --ignored --test-threads=1
+  running 2 tests
+  test a_contract_is_linked_to_its_customer_row_and_the_projection_is_idempotent_and_rebuildable ... ok
+  test link_rules_cannot_reach_what_is_not_a_data_table ... ok
+  
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+       Running tests/projection_live.rs (target/debug/deps/projection_live-51b4bec6f3b68ace)
+[PASS] S11-04 projection and links to database rows - 2 passed, 0 failed
+$ cargo test -p oo-docs --locked --test audit -- --ignored --test-threads=1
+  running 2 tests
+  test a_cloud_token_is_bound_to_the_cloud_entry_and_its_drives ... ok
+  test the_audit_says_who_shared_what_to_which_agent_when_and_cannot_be_edited ... ok
+  
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+       Running tests/audit.rs (target/debug/deps/audit-81b4148329e695dd)
+[PASS] S12-01 cloud tokens, cloud entry and audit - 2 passed, 0 failed
+$ cargo test -p oo-docs --locked --lib policy
+  test jobs::tests::parse_policy_is_three_attempts ... ok
+  test policy::tests::no_policy_is_open ... ok
+  test policy::tests::top_prefixes_of_allow ... ok
+  test policy::tests::nfd_and_nfc_are_the_same_prefix ... ok
+  test policy::tests::deny_alone_keeps_the_rest_open ... ok
+  test policy::tests::allow_and_deny_are_whole_segment_prefixes_and_deny_wins ... ok
+  test policy::tests::bad_policies_are_refused ... ok
+  
+  test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 352 filtered out; finished in 0.01s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+       Running unittests src/lib.rs (target/debug/deps/oo_docs-485eb888409f0436)
+[PASS] S11-03 policy unit tests - 7 passed, 0 failed
+$ cargo test -p oo-docs --locked --lib publish::projection
+  running 3 tests
+  test publish::projection::tests::rules_only_accept_plain_identifiers_of_data_tables ... ok
+  test publish::projection::tests::the_migration_is_a_copy_of_the_ddl_when_it_exists ... ok
+  test publish::projection::tests::digest_depends_on_content_and_version_only ... ok
+  
+  test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 356 filtered out; finished in 0.00s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+       Running unittests src/lib.rs (target/debug/deps/oo_docs-485eb888409f0436)
+[PASS] S11-04 projection unit tests - 3 passed, 0 failed
+$ cargo test -p oo-cli --features docs --locked --test docs_context remote_mount
+  running 2 tests
+  test remote_mount_needs_a_private_token_file_a_drive_id_and_the_right_digest ... ok
+  test remote_mount_writes_the_same_bytes_as_a_local_mount_without_a_local_engine ... ok
+  
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.64s
+  
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+       Running tests/docs_context.rs (target/debug/deps/docs_context-b383d617c396e005)
+[PASS] S12-02 remote mount against a stand-in cloud entry - 2 passed, 0 failed
+
+## Part 2: two engines over the same files
+[PASS] a: schema installed, docs-cloud-audit/1 among the migrations - {"addr":"127.0.0.1:65275","event":"listening","worker":"engi
+$ <repo>/target/debug/oo serve --json --port 0 --state-dir /tmp/oo-l7-be2-l7-final-yhmw0ric/a/state
+  {"api_version": "1.0", "engine": {"images": {}, "mode": "host_process", "pid": 67398, "project": "host"}, "pid": 67397, "port": 65293, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T09:13:16Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] b: schema installed, docs-cloud-audit/1 among the migrations - {"addr":"127.0.0.1:65296","event":"listening","worker":"engi
+$ <repo>/target/debug/oo serve --json --port 0 --state-dir /tmp/oo-l7-be2-l7-final-yhmw0ric/b/state
+  {"api_version": "1.0", "engine": {"images": {}, "mode": "host_process", "pid": 67444, "project": "host"}, "pid": 67443, "port": 65315, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T09:13:16Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] a: drive registered with policy deny Payroll - HTTP 201
+[PASS] b: drive registered with policy deny Payroll - HTTP 201
+[PASS] a S11-03: only the two allowed files are in the drive and published, Payroll was never listed - {"People/林川.md": "published", "Projects/星火计划.md": "published"}
+[PASS] b S11-03: only the two allowed files are in the drive and published, Payroll was never listed - {"People/林川.md": "published", "Projects/星火计划.md": "published"}
+$ <repo>/target/debug/oo context mount --to /tmp/oo-l7-be2-l7-final-yhmw0ric/whole --json --state-dir /tmp/oo-l7-be2-l7-final-yhmw0ric/a/state
+  {"blocked":{"entities":0,"facts":0},"expires_at":"2026-11-25T09:13:20.711679Z","pack_digest":"cf7f1965bc171e2945cea9a22c9990961094c96f9c43d6bbc202c8e84b066b9d","path":"/private/tmp/oo-l7-be2-l7-final-yhmw0ric/whole/.context","protocol":"oo.context-mount/v1","share_id":"f72b824f-07bb-4664-8c53-bcecafa25a27","tokens":{"brief":493,"budget":800},"trimmed":{},"warnings":[]}
+[PASS] S11-03 a mount of the whole drive carries nothing of the denied Payroll file - exit 0
+
+## Part 4: cloud proxy token and the audit (engine B)
+[PASS] S12-01 an oodc_ token is issued on the local entry - HTTP 201
+[PASS] S12-01 the loopback entry refuses the cloud token - HTTP 401
+[PASS] S12-01 the cloud entry refuses the control token - HTTP 401
+[PASS] S12-01 the cloud token cannot list drives (route not allowed) - HTTP 403
+[PASS] S12-01 a Drive outside the token's set is refused - HTTP 403
+
+## Part 5: oo context mount --remote equals the local mount
+$ <repo>/target/debug/oo context mount --scope Projects --scope People --to /tmp/oo-l7-be2-l7-final-yhmw0ric/m-local --json --state-dir /tmp/oo-l7-be2-l7-final-yhmw0ric/b/state
+  {"blocked":{"entities":0,"facts":0},"expires_at":"2026-11-25T09:13:20.918454Z","pack_digest":"40b7c812aa390eb88b7726c345e696f4338ed016fee28c82d32001484c34c8fc","path":"/private/tmp/oo-l7-be2-l7-final-yhmw0ric/m-local/.context","protocol":"oo.context-mount/v1","share_id":"397c4f58-3a1f-4830-a8ec-a0303ce21112","tokens":{"brief":494,"budget":800},"trimmed":{},"warnings":[]}
+[PASS] S12-02 local mount on engine B (the engine behind the cloud entry) - exit 0
+$ <repo>/target/debug/oo context mount --remote http://127.0.0.1:<cloud port> --remote-token-file <file> ...
+  {"blocked":{"entities":0,"facts":0},"expires_at":"2026-11-25T09:13:21.127432Z","pack_digest":"40b7c812aa390eb88b7726c345e696f4338ed016fee28c82d32001484c34c8fc","path":"/private/tmp/oo-l7-be2-l7-final-yhmw0ric/m-remote/.context","protocol":"oo.context-mount/v1","share_id":"af1d2db3-9f5d-4c09-9157-d1f9175897a3","tokens":{"brief":494,"budget":800},"trimmed":{},"warnings":[]}
+[PASS] S12-02 remote mount from engine B's cloud entry, the pack digest asked for is the local one - exit 0 
+[PASS] S12-02 the pack digests are equal - 40b7c812aa390eb8 == 40b7c812aa390eb8
+[PASS] S12-02 every file of the pack is byte-identical to the local mount (SHARE.json differs by share id, times and credential only) - 14 files, differing: []
+$ <repo>/target/debug/oo context mount --scope Projects --scope People --to /tmp/oo-l7-be2-l7-final-yhmw0ric/m-a --json --state-dir /tmp/oo-l7-be2-l7-final-yhmw0ric/a/state
+  {"blocked":{"entities":0,"facts":0},"expires_at":"2026-11-25T09:13:21.318295Z","pack_digest":"0735542a89c4a3ac2d35745805021ccdf92c998c98705b4a97548654cb90f14a","path":"/private/tmp/oo-l7-be2-l7-final-yhmw0ric/m-a/.context","protocol":"oo.context-mount/v1","share_id":"989f77eb-8701-4da1-9d8a-df2de2e60715","tokens":{"brief":494,"budget":800},"trimmed":{},"warnings":[]}
+  informational: engine A (own Drive and ontology history) differs from B in ['BRIEF.md', 'INDEX.md', 'decisions.md', 'manifest.json', 'people/林川-5666dae9.md', 'projects/星火计划-3b1d6411.md', 'refs/0001.md', 'refs/0002.md', 'refs/0003.md', 'refs/0004.md', 'refs/0005.md', 'terms.md']
+  diff manifest.json: --- A | +++ B | @@ -1 +1 @@ | -{"aigc":{"ContentProducer":"<COMPANY>","ContentPropagator":"","Label":"1","ProduceID":"8b014b14f50463e871f600ecc2480b552cf4eb8b119bfcfaabfc | +{"aigc":{"ContentProducer":"<COMPANY>","ContentPropagator":"","Label":"1","ProduceID":"7e5aef134676eef9a32f39c13b31e2e707815b6edb7f63c78812
+  diff BRIEF.md: --- A | +++ B | @@ -7,2 +7,2 @@ | -  ProduceID: "8b014b14f50463e871f600ecc2480b552cf4eb8b119bfcfaabfca7852abc6940/BRIEF.md" | -  ReservedCode1: "8b014b14f50463e871f600ecc2480b552cf4eb8b119bfcfaabfca7852abc6940" | +  ProduceID: "7e5aef134676eef9a32f39c13b31e2e707815b6edb7f63c7881277b075827114/BRIEF.md" | +  ReservedCode1: "7e5aef134676eef9a32f39c13b31e2e707815b6edb7f63c7881277b075827114"
+[PASS] S12-02 the cloud token is in no mounted file and no output
+
+## Part 6: events find a new file (poll interval 3600 s)
+[PASS] S11-02 the events were accepted: one look, the repeats counted - {"added": 1, "changed": 0, "denied_by_policy": 0, "duplicates": 2, "fresh": 1, "looked_at": 1, "maybe_deleted": [], "received": 3, "rejected": 0, "stale": 0}
+[PASS] S11-02 the new file is published through the event, with the poll off - 5.2 s
+[PASS] S11-02 an older event delivered late is dropped (stale) - {"added": 0, "changed": 0, "denied_by_policy": 0, "duplicates": 0, "fresh": 0, "looked_at": 0, "maybe_deleted": [], "received": 1, "rejected": 0, "stale": 1}
+[PASS] S12-01 the audit answers who shared what to which agent, and when (agent-7 through the cloud entry of tenant acme) - [{"actor": "cloud:a8a9cbfa-3d65-4905-8a2a-056683c7aa13", "agent": "agent-7", "at": "2026-11-18 09:13:21.133779+00", "drive_id": "4fef4a42-c718-4fea-8748-cad2c70125a6", "grantor": "owner", "refs_reads": 0, "revoked_at": null, "role": "suggester", "scope": ["Projects", "People"], "seq": 3, "share_id":
+[PASS] S12-01 the share is revoked through the cloud entry - HTTP 200
+[PASS] S12-01 the revocation is part of the answer - {"actor": "cloud:a8a9cbfa-3d65-4905-8a2a-056683c7aa13", "agent": "agent-7", "at": "2026-11-18 09:13:21.133779+00", "drive_id": "4fef4a42-c718-4fea-8748-cad2c70125a6", "grantor": "owner", "refs_reads":
+[PASS] S12-01 the audit chain is intact - {"intact": true, "rows": 4}
+[PASS] S12-01 audit rows exist for the token issue, the share and its revocation - 4 rows
+[PASS] S12-01 the audit table cannot be deleted from, even by the database owner - ERROR:  insert-only table
+CONTEXT:  PL/pgSQL function _oo_docs.reject_mutation()
