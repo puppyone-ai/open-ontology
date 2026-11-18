@@ -16,7 +16,7 @@ release build against a labelled Postgres container, p95 < 2 s (alarm +20 %,
 block +50 %). It wraps `cargo test -p oo-docs --release --test bench_compile`
 and writes `bench-compile.json` / `bench-compile.md`.
 
-Usage: tools/oo-test/super_ontology_bench.py [--bench cold|compile] [--files 1000]
+Usage: tools/oo-test/super_ontology_bench.py [--bench cold|compile|scale] [--files 1000]
        [--run-id ID] [--evidence-dir DIR] [--skip-build] [--keep]
 Evidence: bench-cold1000.md and bench-cold1000.json (cold), bench-compile.json
 and bench-compile.md (compile) in the evidence directory.
@@ -141,9 +141,60 @@ def compile_bench(args):
     sys.exit(0 if ok else 1)
 
 
+def scale_bench(args):
+    """The 10,000 file bench (B-S13-03, 10 11.3): list + stat, cold index without an LLM, file list
+    p95 and memory. Synthetic Markdown through the real write path against a labelled Postgres
+    container; the binary formats and the parser sidecar are covered by the 1000 file compose
+    bench (cold1000), whose rate extrapolates linearly."""
+    l2.LANE = "oo.lane=super-ontology-c8"
+    ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
+    ev.log(f"# scale10k bench, run {args.run_id}")
+    free = shutil.disk_usage("/").free / 2 ** 30
+    ev.check("disk: at least 20 GiB free", free >= 20, f"{free:.0f} GiB")
+    pg = l2.Postgres(ev, args.run_id)
+    out = Path(tempfile.mkdtemp(prefix="oo-bench-scale-", dir="/tmp")) / "bench.json"
+    sampler = None
+    ok = False
+    try:
+        pg.start()
+        sampler = Sampler([pg.name])
+        sampler.start()
+        env = dict(os.environ, OO_DOCS_TEST_PG_PORT=str(pg.port), OO_BENCH_OUT=str(out),
+                   OO_SCALE_FILES=str(args.files), CARGO_BUILD_JOBS=os.environ.get("CARGO_BUILD_JOBS", "6"))
+        argv = ["cargo", "test", "-p", "oo-docs", "--locked", "--release", "--test", "bench_scale",
+                "--", "--ignored", "--nocapture", "--test-threads=1"]
+        ev.log("$ " + " ".join(argv))
+        p = subprocess.run(argv, cwd=REPO, env=env, capture_output=True, text=True, timeout=6 * 3600)
+        ev.log("\n".join("  " + t for t in (p.stdout + p.stderr).strip().splitlines()[-6:]))
+        ev.check("the Rust bench passed", p.returncode == 0, f"exit {p.returncode}")
+        doc = json.loads(out.read_text()) if out.is_file() else {}
+        sampler.stop()
+        pg_peak = max(sampler.peak.values(), default=0)
+        doc["pg_peak_memory_bytes"] = pg_peak
+        ev.check("release build", doc.get("build") == "release", str(doc.get("build")))
+        ev.check("list + stat of the files within 60 s", doc.get("list_stat_s", 1e9) <= 60, f"{doc.get('list_stat_s')}")
+        ev.check("cold index within 5 h", doc.get("index_s", 1e9) + doc.get("publish_s", 0) <= 5 * 3600, f"{doc.get('index_s')} s")
+        ev.check("file list p95 under 100 ms", doc.get("list_ms", {}).get("p95", 1e9) < 100, f"{doc.get('list_ms', {}).get('p95')} ms")
+        ev.check("engine memory within 1.5 GiB", doc.get("engine_rss_mib", 1e9) <= 1536, f"{doc.get('engine_rss_mib')} MiB")
+        ev.check("docs-db memory sampled", pg_peak > 0, f"{pg_peak / 2 ** 20:.0f} MiB (the 1 GiB container limit applies in compose; this container is unlimited)")
+        ev.write("bench-scale10k.json", json.dumps(doc, indent=2, sort_keys=True) + "\n")
+        ev.write("bench-scale10k.md", "# Scale bench, synthetic Markdown\n\n" + "\n".join(f"- `{k}`: {v}" for k, v in sorted(doc.items())) + "\n")
+        ok = all(c["ok"] for c in ev.checks)
+    finally:
+        if sampler:
+            sampler.stop()
+        pg.stop()
+        shutil.rmtree(out.parent, ignore_errors=True)
+        left = subprocess.run(["docker", "ps", "-aq", "--filter", f"name={pg.name}"], capture_output=True, text=True).stdout.split()
+        ev.check("cleanup left nothing", not left, f"{len(left)} left")
+        ok = ok and all(c["ok"] for c in ev.checks)
+    print(f"# {sum(1 for c in ev.checks if c['ok'])}/{len(ev.checks)} checks passed")
+    sys.exit(0 if ok else 1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--bench", choices=["cold", "compile"], default="cold")
+    ap.add_argument("--bench", choices=["cold", "compile", "scale"], default="cold")
     ap.add_argument("--files", type=int, default=1000)
     ap.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S"))
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L3"))
@@ -151,6 +202,12 @@ def main():
     ap.add_argument("--skip-build", action="store_true")
     ap.add_argument("--keep", action="store_true")
     args = ap.parse_args()
+    if args.bench == "scale":
+        if args.files == 1000:
+            args.files = 10000
+        if args.evidence_dir.endswith("evidence/L3"):
+            args.evidence_dir = str(REPO / "testing/super-ontology/evidence/L8")
+        return scale_bench(args)
     if args.bench == "compile":
         if args.evidence_dir.endswith("evidence/L3"):
             args.evidence_dir = str(REPO / "testing/super-ontology/evidence/L4")
