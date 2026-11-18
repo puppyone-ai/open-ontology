@@ -304,6 +304,76 @@ fn event_types_written_by_the_engine_exist_in_the_event_schema() {
     }
 }
 
+#[test]
+fn every_event_type_has_a_data_schema_and_every_written_type_is_in_the_schema() {
+    let schema = load("contracts/docs-api/events.v1.schema.json");
+    let types: BTreeSet<String> = schema["properties"]["type"]["enum"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
+    let data: BTreeSet<String> = schema["x-data"]
+        .as_object()
+        .expect("x-data")
+        .keys()
+        .cloned()
+        .collect();
+    assert_eq!(types, data, "each event type has exactly one data schema");
+    // Every `append_event` literal anywhere in the engine is a known type.
+    let pat = regex_lite_events();
+    let mut stack = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")];
+    let mut written = BTreeSet::new();
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|x| x == "rs") {
+                let text = std::fs::read_to_string(&path).unwrap();
+                for lit in pat(&text) {
+                    assert!(types.contains(&lit), "{}: {lit}", path.display());
+                    written.insert(lit);
+                }
+            }
+        }
+    }
+    assert!(written.len() >= 12, "{written:?}");
+}
+
+/// What the schema wants of a type's `data`: the Share events, `review.changed` and
+/// `ontology.version_published` are checked field by field (the three shapes that once differed).
+#[test]
+fn the_data_schemas_reject_the_shapes_that_used_to_be_sent() {
+    let schema = load("contracts/docs-api/events.v1.schema.json");
+    let v = oo_core::schema_util::compile_schema(&schema).expect("events schema");
+    let ev = |t: &str, data: Value| json!({"seq": 1, "type": t, "at": "2026-11-17T00:00:00Z", "drive_id": null, "data": data});
+    for (t, data) in [
+        ("share.created", json!({"share_id": "x", "pack_id": "y"})),
+        (
+            "share.state_changed",
+            json!({"share_id": "x", "to": "revoked"}),
+        ),
+        (
+            "review.changed",
+            json!({"pending": {}, "by_source_changed": []}),
+        ),
+        (
+            "ontology.version_published",
+            json!({"n": 1, "as_of": "2026-11-17", "facts_added": 1, "facts_retracted": 0, "gates": {}, "changed_entities": 1}),
+        ),
+    ] {
+        assert!(!v.is_valid(&ev(t, data.clone())), "{t} {data}");
+    }
+    let share =
+        json!({"id": "a", "drive_id": "b", "state": "active", "pack_id": "c", "revision": 1});
+    assert!(v.is_valid(&ev("share.created", json!({"share": share}))));
+    assert!(v.is_valid(&ev(
+        "review.changed",
+        json!({"drive_id": "d", "pending": {"low_confidence_fact": 2}, "by_source_changed": ["f"]})
+    )));
+}
+
 /// `"<domain>.<name>"` literals passed to `append_event` or `sync_event`.
 fn regex_lite_events() -> impl Fn(&str) -> Vec<String> {
     |text| {

@@ -296,7 +296,17 @@ impl TestEngine {
         panic!("timed out waiting for {what}");
     }
 
-    pub async fn finish(mut self) {
+    pub async fn finish(self) {
+        self.finish_with(true).await;
+    }
+
+    /// [`finish`](Self::finish) for a test that writes made-up events into the log itself (the
+    /// conformance traces): those are not what the engine sends, so they are not held to the contract.
+    pub async fn finish_unchecked(self) {
+        self.finish_with(false).await;
+    }
+
+    async fn finish_with(mut self, check_events: bool) {
         self.app.shutdown();
         let _ = self.stop.send(true);
         if let Some(s) = self.sched.take() {
@@ -305,7 +315,15 @@ impl TestEngine {
         for t in self.tasks.drain(..) {
             let _ = t.await;
         }
+        // Every event this engine stored must be what the contract says (events.v1 envelope and the
+        // `data` schema of its type), whatever the test was about.
+        let bad = if check_events {
+            event_contract_violations(&self.pool).await
+        } else {
+            Vec::new()
+        };
         self.pool.close().await;
+        assert!(bad.is_empty(), "events vs events.v1:\n{}", bad.join("\n"));
         let _ = std::fs::remove_dir_all(&self.root);
         let _ = std::fs::remove_dir_all(&self.cas);
         drop_db(&self.name).await;
@@ -380,4 +398,30 @@ impl ChildEngine {
             .status();
         self.child.wait().expect("wait")
     }
+}
+
+/// Each stored event as the API sends it, checked against `contracts/docs-api/events.v1.schema.json`.
+pub async fn event_contract_violations(pool: &PgPool) -> Vec<String> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../contracts/docs-api/events.v1.schema.json");
+    let schema: Value =
+        serde_json::from_str(&std::fs::read_to_string(path).expect("events schema"))
+            .expect("events schema json");
+    let validator = oo_core::schema_util::compile_schema(&schema).expect("events schema");
+    let Ok(mut conn) = pool.acquire().await else {
+        return Vec::new();
+    };
+    let Ok(rows) = api::events::read(&mut conn, 0, 1_000_000).await else {
+        return Vec::new();
+    };
+    let events = api::events::envelopes(&mut conn, &rows)
+        .await
+        .expect("envelopes");
+    let mut out = Vec::new();
+    for ev in &events {
+        for e in validator.iter_errors(ev) {
+            out.push(format!("{} at {}: {ev}", e, e.instance_path()));
+        }
+    }
+    out
 }
