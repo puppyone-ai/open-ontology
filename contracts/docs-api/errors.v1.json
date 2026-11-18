@@ -1100,6 +1100,56 @@
       "meaning_zh": "文件仍在写入",
       "details": [],
       "i18n_key": "super-drive.errors.DOCS_SOURCE_UNSTABLE"
+    },
+    {
+      "code": "DOCS_SOURCE_MEDIA_TOO_LONG",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "媒体超过 4 GiB 或 4 小时（`too_large`，D77）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_MEDIA_TOO_LONG",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "宿主机解码产物与文件版本不符（D65），重新解析",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_ASR_FAILED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "语音识别失败（可重试）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_ASR_FAILED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_DIARIZATION_FAILED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "说话人分离失败（可重试）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_DIARIZATION_FAILED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_REVIEW_SPEAKER_UNCONFIRMED",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "说话人身份未确认，其发言的事实不能发布（D74）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_SPEAKER_UNCONFIRMED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
     }
   ]
 }

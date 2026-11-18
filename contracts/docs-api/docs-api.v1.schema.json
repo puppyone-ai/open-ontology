@@ -827,7 +827,8 @@
                 "page",
                 "sheet",
                 "line",
-                "batch"
+                "batch",
+                "ms"
               ]
             },
             "done": {
@@ -2903,6 +2904,39 @@
           ]
         }
       ]
+    },
+    "RebuildRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirm"
+      ],
+      "properties": {
+        "confirm": {
+          "type": "string",
+          "description": "The id of the drive to rebuild. A full rebuild is manual and needs this confirmation (10 4.2, D23)."
+        }
+      }
+    },
+    "RebuildInfo": {
+      "type": "object",
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "queued"
+          ]
+        },
+        "files": {
+          "type": "integer",
+          "description": "Files marked outdated; they are reprocessed at priority 900, two at a time, each new extraction judged by DOC-G10."
+        },
+        "priority": {
+          "type": "integer"
+        }
+      }
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -2979,6 +3013,15 @@
       "idempotency_key": true,
       "if_match": false,
       "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:rebuild",
+      "request": "RebuildRequest",
+      "response": "RebuildInfo",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.2"
     },
     {
       "method": "GET",

@@ -25,3 +25,22 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `GET /ontology/versions` items carry `covers_drive_rev` (already in the schema); `pinned_by` is always 0
   until the share lifecycle cards maintain it.
 - 2026-11-17 (still 1.0-draft): `Fact.revision` (optional, for If-Match on corrections); `DOCS_REVIEW_MERGE_CONFLICT` gets HTTP 409.
+
+## 1.2 (L6, B-S10 cards)
+
+- `POST /v1/docs/drives/{id}:rebuild` (`since` 1.2): the one manual full rebuild (10 4.2, D23). Body `RebuildRequest`
+  `{"confirm": "<drive id>"}`, required; without it or with another id the answer is 400 `DOCS_ENGINE_BAD_REQUEST`
+  (`/confirm`). Answer 202 `RebuildInfo`. Every file with a result becomes `outdated`; the engine reprocesses them
+  at priority 900, two at a time, and each new extraction goes through DOC-G10 (a `reprocess_diff` review item when
+  it changes more than 30% of the file's facts or drops a fact a live Share uses).
+- `FileSummary.progress.unit` and the `file.progress` event add `ms` (done and total are milliseconds of the source
+  timeline of an audio or video file, 10 17.3).
+- `errors.v1.json` adds `DOCS_SOURCE_MEDIA_TOO_LONG`, `DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH`,
+  `DOCS_PARSE_ASR_FAILED`, `DOCS_PARSE_DIARIZATION_FAILED` (state codes) and `DOCS_REVIEW_SPEAKER_UNCONFIRMED`
+  (item level code of `review:decide`: accepting a fact whose speaker is unconfirmed).
+- `ReviewKind` values `type_promotion`, `speaker_identity` and `reprocess_diff` are now written by the engine
+  (enum unchanged, reserved since 1.0). Items carry: `type_promotion` `{label, instances, files, examples}`;
+  `speaker_identity` `{b3, speaker, placeholder, candidates:[{name, source, block_id, quote}]}` (accept with
+  `edit.name`); `reprocess_diff` `{gate, prior, added, removed, share_used_removed, version_id}`.
+- `BRIEF.md` of a refreshed Share has a section "自上次以来的变化（vA → vB）" after the head (added, changed,
+  retracted, fixed order); not an API field.
