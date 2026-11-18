@@ -23,7 +23,7 @@ Desktop, no API call from this script except the S3 test double):
   6  secrets: the S3 key and secret appear in no file under HOME except the one 0600
      file in the secrets directory, in no `ps` argument list and in no command output
 
-Usage: tools/oo-test/super_ontology_wp1_cli_input.py [--no-docker] [--s3 mock|rustfs|skip]
+Usage: tools/oo-test/super_ontology_wp1_cli_input.py [--no-docker] [--autostart] [--db listener|container|skip] [--s3 mock|rustfs|skip]
        [--evidence-dir DIR] [--keep] [--serve-timeout 480]
 
 `--no-docker` removes docker from PATH for `oo`, which proves the Docker-free runtime.
@@ -156,6 +156,24 @@ class RustFs:
             subprocess.run(["docker", "volume", "rm", "-f", v], capture_output=True)
 
 
+class LabelledPostgres:
+    """One labelled Postgres container (the L2 image) used only as a reachable database."""
+
+    def __init__(self):
+        import super_ontology_l2 as l2
+        self.name = f"oo-wp1-pg-{secrets.token_hex(3)}"
+        subprocess.run(["docker", "run", "-d", "--name", self.name, "--label", l2.LANE, "-e", "POSTGRES_PASSWORD=" + secrets.token_hex(8),
+                        "-p", "127.0.0.1::5432", l2.PG_IMAGE], check=True, capture_output=True)
+        self.port = int(subprocess.run(["docker", "port", self.name, "5432/tcp"], capture_output=True, text=True, check=True).stdout.split(":")[-1])
+        for _ in range(60):
+            if subprocess.run(["docker", "exec", self.name, "pg_isready", "-U", "postgres"], capture_output=True).returncode == 0:
+                break
+            time.sleep(1)
+
+    def stop(self):
+        subprocess.run(["docker", "rm", "-f", self.name], capture_output=True)
+
+
 def free_docker():
     try:
         return subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode == 0
@@ -184,6 +202,11 @@ def scan_for(root, needles, skip_dirs=(), skip_files=()):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--no-docker", action="store_true")
+    ap.add_argument("--fake-sidecar", action="store_true",
+                    help="put a stand-in parser (a listener) in OO_DOCS_SIDECAR_DIR to check that oo serve starts it, wires the engine to it and stops it")
+    ap.add_argument("--autostart", action="store_true", help="do not start oo serve: the first `oo docs upload` must start it")
+    ap.add_argument("--db", default="listener", choices=["listener", "container", "skip"],
+                    help="the database of step 8: a local listener (no Docker) or a labelled Postgres container")
     ap.add_argument("--s3", default="mock", choices=["mock", "rustfs", "skip"])
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/WP1"))
     ap.add_argument("--keep", action="store_true")
@@ -202,6 +225,20 @@ def main():
         path = ":".join(p for p in path.split(":") if p and not (Path(p) / "docker").exists())
     env = {"HOME": str(home), "PATH": path, "TMPDIR": os.environ.get("TMPDIR", "/tmp"), "OO_DOCS_LANE": LANE,
            "OO_DOCS_ENGINE_BIN": str(engine)}
+    fake_pid_file = None
+    if args.fake_sidecar:
+        sc = work / "fake-sidecar"
+        (sc / "venv/bin").mkdir(parents=True)
+        (sc / "app/doc_parser").mkdir(parents=True)
+        (sc / "models").mkdir()
+        py = sc / "venv/bin/python"
+        py.write_text("#!/usr/bin/python3\nimport os, socket\ns = socket.socket()\ns.bind(('127.0.0.1', int(os.environ['OO_PARSER_PORT'])))\ns.listen(8)\n"
+                      "open(os.environ['OO_PARSER_SCRATCH'] + '/fake-sidecar.pid', 'w').write(str(os.getpid()))\nwhile True:\n    s.accept()[0].close()\n")
+        py.chmod(0o755)
+        env["OO_DOCS_SIDECAR_DIR"] = str(sc)
+        fake_pid_file = home / ".local/state/open-ontology/docs/sidecar-scratch/fake-sidecar.pid"
+    elif os.environ.get("OO_DOCS_SIDECAR_DIR"):
+        env["OO_DOCS_SIDECAR_DIR"] = os.environ["OO_DOCS_SIDECAR_DIR"]
     if os.environ.get("OO_DOCS_DEPLOY_DIR"):
         env["OO_DOCS_DEPLOY_DIR"] = os.environ["OO_DOCS_DEPLOY_DIR"]
     if os.environ.get("OO_DOCS_PG_BIN_DIR"):
@@ -215,27 +252,36 @@ def main():
     s3_secret = secrets.token_urlsafe(30)
     try:
         # ------------------------------------------------------------ 1 serve
-        argv = [str(oo_exe), "serve", "--json", "--port", "0"]
-        serve = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        deadline = time.time() + args.serve_timeout
-        line = ""
-        while time.time() < deadline:
-            line = serve.stdout.readline()
-            if line or serve.poll() is not None:
-                break
-        try:
-            info = json.loads(line)
-        except ValueError:
-            info = {}
-        if not rep.check("1 oo serve starts with no OO_DOCS_DATABASE_URL and no flags", bool(info.get("port")),
-                         (serve.stderr.read()[-600:] if serve.poll() is not None else line)):
-            raise SystemExit("serve did not start")
-        mode = info.get("engine", {}).get("mode")
-        compose = mode == "compose"
-        rep.check("1 the runtime was chosen by oo (compose with Docker, else embedded host)",
-                  (compose and not args.no_docker) or (mode == "host_process" and (args.no_docker or not free_docker())), mode)
-        s_json = json.loads((state / "serve.json").read_text()) if (state / "serve.json").exists() else {}
-        rep.check("1 serve.json exists in the default state dir of the fresh HOME", s_json.get("port") == info["port"])
+        info, mode, compose = {}, None, False
+
+        def check_runtime(info_):
+            nonlocal mode, compose
+            mode = info_.get("engine", {}).get("mode")
+            compose = mode == "compose"
+            rep.check("1 the runtime was chosen by oo (compose with Docker, else embedded host)",
+                      (compose and not args.no_docker) or (mode == "host_process" and (args.no_docker or not free_docker())), mode)
+
+        if args.autostart:
+            rep.check("1 no oo serve is running before the first upload", not (state / "serve.json").exists())
+        else:
+            argv = [str(oo_exe), "serve", "--json", "--port", "0"]
+            serve = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            deadline = time.time() + args.serve_timeout
+            line = ""
+            while time.time() < deadline:
+                line = serve.stdout.readline()
+                if line or serve.poll() is not None:
+                    break
+            try:
+                info = json.loads(line)
+            except ValueError:
+                info = {}
+            if not rep.check("1 oo serve starts with no OO_DOCS_DATABASE_URL and no flags", bool(info.get("port")),
+                             (serve.stderr.read()[-600:] if serve.poll() is not None else line)):
+                raise SystemExit("serve did not start")
+            check_runtime(info)
+            s_json = json.loads((state / "serve.json").read_text()) if (state / "serve.json").exists() else {}
+            rep.check("1 serve.json exists in the default state dir of the fresh HOME", s_json.get("port") == info["port"])
 
         # ---------------------------------------------------------- 2 upload
         inbox = work / "inbox"
@@ -243,10 +289,14 @@ def main():
         for n, t in MD.items():
             (inbox / n).write_text(t)
         office = [GOLDEN / "Meetings/2026-01-08-年度计划会.docx", GOLDEN / "Proposals/星图看板产品方案.pdf"]
-        office = [p for p in office if p.exists()]
+        office = [p for p in office if p.exists() and not args.fake_sidecar]  # the stand-in parser parses nothing
         t0 = time.time()
         rc, up, p = oo.json("docs", "upload", str(inbox), *map(str, office))
         total = len(MD) + len(office)
+        if args.autostart:
+            rep.check("2 oo docs upload started oo serve itself (serve.json now exists)", (state / "serve.json").exists() and "starting one" in p.stderr, p.stderr[-300:])
+            info = json.loads((state / "serve.json").read_text())
+            check_runtime(info)
         rep.check("2 oo docs upload (no Drive exists) exits 0 and creates the managed Drive",
                   rc == 0 and up.get("created_drive") is True and up.get("managed") is True and up.get("uploaded") == total, p.stderr[-300:] or up.get("uploaded"))
         managed = state / "drives/default"
@@ -257,6 +307,15 @@ def main():
         rc, w, p = oo.json("docs", "wait", "--timeout", "600s")
         settled = w.get("settled") is True
         rep.check("2 oo docs wait settles", settled, json.dumps(w.get("counts")))
+        parser = json.loads((state / "serve.json").read_text())["engine"].get("parser", {})
+        if args.fake_sidecar:
+            rep.check("2 oo serve started the parser sidecar from the uv-style directory and the engine is configured with it",
+                      parser.get("mode") == "configured" and fake_pid_file.exists(), parser)
+        elif not compose and not os.environ.get("OO_DOCS_SIDECAR_DIR"):
+            rep.check("2 without a sidecar environment wait says why docx and pdf are unsupported",
+                      parser.get("mode") == "none" and "no parser sidecar" in w.get("unsupported_reason", ""), w.get("unsupported_reason"))
+            human = oo.run("docs", "wait", "--drive", "default").stdout
+            rep.check("2 the human wait output carries the reason too", "unsupported because: no parser sidecar" in human, human[-200:])
         rep.check("2 wait exit code is 0 (all fine) or 10 (a file the runtime cannot parse)", rc in (0, 10), rc)
         rc, files, _ = oo.json("docs", "files", "ls", "--drive", "default")
         states = {f["path"]: f["state"] for f in files.get("files", [])}
@@ -346,15 +405,105 @@ def main():
                 rc, ls, _ = oo.json("source", "ls")
                 rep.check("5 the bucket is gone from oo source ls (or is being deleted)", [s["name"] for s in ls.get("sources", []) if s.get("status") != "deleting"] == ["default"])
 
+        # ------------------------------------------------- 8 database sources
+        if args.db != "skip":
+            db_pw = "pw" + secrets.token_urlsafe(18)
+            listener = None
+            if args.db == "container" and free_docker():
+                db = LabelledPostgres()
+                db_port = db.port
+            else:
+                import socket
+                listener = socket.socket()
+                listener.bind(("127.0.0.1", 0))
+                listener.listen(8)
+                db_port, db = listener.getsockname()[1], None
+            stack_file = work / "stack.json"
+            (work / "ca.pem").write_text("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n")
+            (work / "seed.pw").write_text("seedpw")
+            (work / "seed.pw").chmod(0o600)
+            stack_file.write_text(json.dumps({
+                "version": "oo.stack/v1",
+                "sources": [{"id": "seed", "engine": "postgres", "host": "127.0.0.1", "port": db_port, "database": "app", "user": "ro",
+                             "password": {"secret_ref": f"file:{work / 'seed.pw'}"}, "tls_ca": {"secret_ref": f"file:{work / 'ca.pem'}"},
+                             "scope": {"include": ["public.t"]}}],
+                "model": {"provider": "openai-compatible", "base_url": "https://llm.example.test/v1", "model": "m", "key": {"secret_ref": "env:OO_MODEL_KEY"}},
+            }))
+            cfg = ["--config", str(stack_file)]
+            base = ["--name", "erp", "--host", "127.0.0.1", "--port", str(db_port), "--database", "app", "--user", "ro"]
+            tls = ["--tls-ca-file", str(work / "ca.pem"), "--include", "public.orders"]
+            rc, a, p = oo.json("source", "add", "postgres", *base, *tls, *cfg, "--password-stdin", input_text=db_pw + "\n")
+            pwfile = secrets_dir / "src_erp_pw"
+            rep.check("8 oo source add postgres --password-stdin exits 0 and registers it in the stack file", rc == 0 and a.get("credential_file_created") is True, p.stderr[-300:])
+            rep.check("8 the password is one 0600 file in the secrets directory", pwfile.exists() and oct(pwfile.stat().st_mode & 0o777) == "0o600" and pwfile.read_text() == db_pw)
+            sf = stack_file.read_text()
+            rep.check("8 the stack file names the source with a file: reference and no password", '"erp"' in sf and db_pw not in sf and f"file:{pwfile.resolve()}" in sf, sf[-200:])
+            rep.check("8 the stack file is still a valid stack and keeps the other source and the model", json.loads(sf)["sources"][0]["id"] == "seed" and json.loads(sf)["model"]["model"] == "m")
+            rep.check("8 stack file mode 0600", oct(stack_file.stat().st_mode & 0o777) == "0o600")
+            rc, ls, _ = oo.json("source", "ls", *cfg)
+            live = [x for x in ls.get("sources", []) if x.get("status") != "deleting"]
+            names = sorted(x["name"] for x in live)
+            kinds = {x["name"]: x["backend"] for x in live}
+            rep.check("8 oo source ls lists the folder and both database sources", names == ["default", "erp", "seed"] and kinds["erp"] == "postgres", kinds)
+            rep.check("8 ls shows no reference path", str(pwfile) not in json.dumps(ls) and db_pw not in json.dumps(ls))
+            rc, t, p = oo.json("source", "test", "erp", *cfg)
+            rep.check("8 oo source test reports the database reachable", rc == 0 and t.get("reachable") is True, p.stderr[-200:])
+            rc, _, p = oo.json("source", "add", "postgres", *base[2:], "--name", "erp2", *cfg, "--password-stdin", input_text="x")
+            rep.check("8 postgres without trust anchor and scope exits 2 and writes nothing", rc == 2 and "trust anchor" in p.stderr and not (secrets_dir / "src_erp2_pw").exists(), p.stderr[-200:])
+            rc, _, p = oo.json("source", "add", "postgres", *base[2:], "--name", "erp3", *tls, *cfg, input_text="")
+            rep.check("8 no terminal and no password flag exits 2 without waiting", rc == 2 and "no password given" in p.stderr, p.stderr[-200:])
+            rc, _, p = oo.json("source", "add", "postgres", *base, *tls, *cfg, "--password-stdin", input_text="x")
+            rep.check("8 a second source of the same name is refused (exit 2)", rc == 2 and "SO_SOURCE_EXISTS" in p.stderr, p.stderr[-200:])
+            rc, _, p = oo.json("source", "add", "postgres", *base[2:], "--name", "x1", *tls, "--config", str(work / "none.yaml"), "--password-stdin", input_text="x")
+            rep.check("8 without a stack file it says to run oo init (exit 2)", rc == 2 and "oo init" in p.stderr, p.stderr[-200:])
+            rc, _, p = oo.json("source", "add", "mysql", "--name", "shop", "--host", "127.0.0.1", "--port", str(db_port), "--database", "shop", "--user", "ro", *tls, *cfg, "--password-env", "OO_WP1_DBPW", env_extra={"OO_WP1_DBPW": "mysqlpw-" + db_pw})
+            rep.check("8 oo source add mysql --password-env exits 0", rc == 0 and (secrets_dir / "src_shop_pw").exists(), p.stderr[-200:])
+            ps = subprocess.run(["ps", "-axww", "-o", "command"], capture_output=True, text=True).stdout
+            own = {str(f) for f in (pwfile, secrets_dir / "src_shop_pw")} | {str(f.resolve()) for f in (pwfile, secrets_dir / "src_shop_pw")}
+            hits = scan_for(work, [db_pw], skip_files=own)
+            rep.check("8 the database password is in no process list, command output or file but its 0600 file", db_pw not in ps and not any(db_pw in o for o in oo.outputs) and not hits, hits[:3])
+            rc, _, p = oo.json("source", "rm", "erp", *cfg)
+            rep.check("8 oo source rm removes the entry and the password file", rc == 0 and not pwfile.exists() and '"erp"' not in stack_file.read_text(), p.stderr[-200:])
+            rc, _, p = oo.json("source", "rm", "shop", *cfg)
+            rc2, _, p2 = oo.json("source", "rm", "seed", *cfg)
+            rep.check("8 the last database source cannot be removed (exit 2)", rc2 == 2 and "SO_SOURCE_LAST" in p2.stderr, p2.stderr[-200:])
+            if listener:
+                listener.close()
+            if db:
+                db.stop()
+
         # ------------------------------------------------------------- stop
-        serve.send_signal(signal.SIGTERM)
-        try:
-            code = serve.wait(timeout=120)
-        except subprocess.TimeoutExpired:
-            serve.kill()
-            code = serve.wait()
-        serve = None
-        rep.check("7 oo serve stops on SIGTERM with exit 0", code == 0, code)
+        if args.autostart:
+            pid = int(json.loads((state / "serve.json").read_text())["pid"])
+            os.kill(pid, signal.SIGTERM)
+            for _ in range(240):
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    break
+                time.sleep(0.5)
+            else:
+                os.kill(pid, signal.SIGKILL)
+            code = 0 if not (state / "serve.json").exists() else 1
+            rep.check("7 the auto-started oo serve stops on SIGTERM and removes serve.json", code == 0)
+        else:
+            serve.send_signal(signal.SIGTERM)
+            try:
+                code = serve.wait(timeout=120)
+            except subprocess.TimeoutExpired:
+                serve.kill()
+                code = serve.wait()
+            serve = None
+            rep.check("7 oo serve stops on SIGTERM with exit 0", code == 0, code)
+        if args.fake_sidecar:
+            sc_pid = int(fake_pid_file.read_text())
+            time.sleep(1)
+            try:
+                os.kill(sc_pid, 0)
+                gone = False
+            except OSError:
+                gone = True
+            rep.check("7 the parser sidecar stopped with oo serve", gone, sc_pid)
         if not compose:
             pg = subprocess.run(["pgrep", "-f", f"{state}/pg/data"], capture_output=True, text=True)
             rep.check("7 the embedded PostgreSQL stopped with it", pg.returncode != 0, pg.stdout.strip())
