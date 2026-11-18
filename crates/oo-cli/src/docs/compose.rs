@@ -334,13 +334,28 @@ impl Runtime {
 
     /// `file:` references of the saved model configuration (`<state>/engine/model.json`).
     fn saved_secret_files(&self) -> Vec<PathBuf> {
-        let Ok(text) = fs::read_to_string(self.state.join("engine/model.json")) else {
-            return Vec::new();
-        };
-        super::proxy::model_secret_files(text.as_bytes())
-            .into_iter()
-            .map(PathBuf::from)
-            .collect()
+        let mut files: Vec<PathBuf> = fs::read_to_string(self.state.join("engine/model.json"))
+            .map(|text| {
+                super::proxy::model_secret_files(text.as_bytes())
+                    .into_iter()
+                    .map(PathBuf::from)
+                    .collect()
+            })
+            .unwrap_or_default();
+        // Credential files of object-store Drives (D83), kept across restarts.
+        if let Some(v) = fs::read_to_string(self.state.join(DRIVE_SECRETS))
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        {
+            files.extend(
+                v["files"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|p| p.as_str().map(PathBuf::from)),
+            );
+        }
+        files
     }
 
     /// Read-only binds of the model's secret files, at the same absolute path
@@ -663,10 +678,12 @@ impl DriveMounts for Runtime {
         if wanted.is_subset(&known) {
             return Ok(());
         }
-        self.secret_files
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .extend(wanted);
+        {
+            let mut set = self.secret_files.lock().unwrap_or_else(|p| p.into_inner());
+            set.extend(wanted);
+            let doc = json!({"protocol": "oo.docs.drive-secrets/v1", "files": set.iter().collect::<Vec<_>>()});
+            let _ = secrets::write_secret_atomic(&self.state.join(DRIVE_SECRETS), &doc.to_string());
+        }
         self.write_override().map_err(|f| f.message)?;
         // Recreate the engine with the new binds (the same step as a new Drive).
         let out = self
@@ -885,6 +902,8 @@ fn read_subnets(state: &Path) -> Option<Vec<String>> {
 /// context mounts (10 7.7 point 4), whose daemon pass rewrites it, so the Drive
 /// mounts have a file of their own.
 const DRIVE_MOUNTS: &str = "drive-mounts.json";
+/// Credential files of object-store Drives that the engine container must see.
+const DRIVE_SECRETS: &str = "drive-secrets.json";
 
 pub(super) fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
     // A state directory written before the split keeps its Drive mounts under

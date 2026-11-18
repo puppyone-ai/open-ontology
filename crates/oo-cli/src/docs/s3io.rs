@@ -281,6 +281,16 @@ impl S3Target {
         }
     }
 
+    /// One-key listing under the Drive prefix: proves the credential reads.
+    pub async fn probe_read(&self) -> Result<S3Reply, String> {
+        let q = format!(
+            "list-type=2&max-keys=1&prefix={}",
+            uri_encode_all(&self.prefix)
+        );
+        let (s, b) = self.send("GET", "", &q, Vec::new()).await?;
+        Ok(Self::reply(s, &b))
+    }
+
     /// The full key of a Drive-relative path.
     pub fn key(&self, rel: &str) -> String {
         format!("{}{rel}", self.prefix)
@@ -302,6 +312,11 @@ fn uri_encode(s: &str) -> String {
         }
     }
     out
+}
+
+/// RFC 3986 encoding that encodes `/` too (query values).
+fn uri_encode_all(s: &str) -> String {
+    uri_encode(s).replace('/', "%2F")
 }
 
 fn hmac(key: &[u8], msg: &[u8]) -> [u8; 32] {

@@ -14,6 +14,7 @@ pub mod proxy;
 pub mod s3io;
 pub mod secrets;
 pub mod serve;
+pub mod source;
 pub mod suggest;
 pub mod upload;
 
@@ -34,6 +35,10 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
             Some(Ok(Invocation::Help(docs_cmd::HELP.into())))
         }
         "docs" => std::process::exit(i32::from(docs_cmd::run(rest))),
+        "source" if rest.iter().any(|a| a == "--help" || a == "-h") => {
+            Some(Ok(Invocation::Help(source::HELP.into())))
+        }
+        "source" => std::process::exit(i32::from(source::run(rest))),
         "context" => std::process::exit(i32::from(context::run(rest))),
         "serve" if rest.iter().any(|a| a == "--help" || a == "-h") => {
             Some(Ok(Invocation::Help(HELP.into())))
