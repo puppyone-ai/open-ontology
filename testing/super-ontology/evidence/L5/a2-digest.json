@@ -1,0 +1,115 @@
+{
+  "counts": {
+    "accepted": 2,
+    "auto_accepted": 1,
+    "duplicate": 0,
+    "invalid": 0,
+    "pending": 1,
+    "rejected": 0,
+    "superseded_silently": 1,
+    "undone": 0
+  },
+  "day": "2026-11-18",
+  "human_operations": {
+    "review_pending_in_one_call": true,
+    "undo_per_item": true
+  },
+  "in_effect": [
+    {
+      "created_at": "2026-11-18T05:41:05.039573Z",
+      "credential_id": "4c53e8bf-b0f0-41b9-9009-dbf59db55457",
+      "decided_at": "2026-11-18T05:41:05.044366Z",
+      "decided_by": "suggest:auto",
+      "drive_id": "c1cf0904-5394-4117-aa6e-a3c4d3b67286",
+      "fact_id": "d118882a-5350-4de8-8943-f4bbc89f946b",
+      "id": "b7e54d91-9601-42bf-a657-048ce41166c0",
+      "kind": "new_fact",
+      "old_fact_id": null,
+      "payload": {
+        "evidence": [
+          {
+            "kind": "ref",
+            "ref": "Projects/星火计划.md"
+          }
+        ],
+        "kind": "new_fact",
+        "predicate": "attr.deadline",
+        "protocol": "oo.suggest/v1",
+        "rationale": "排期会",
+        "subject": "星火计划",
+        "value": "2027-03-31"
+      },
+      "reason": null,
+      "review_id": null,
+      "revision": 1,
+      "rule": "new_fact",
+      "share_id": "56c80126-a33f-4760-b8cd-cc2f14c21664",
+      "status": "auto_accepted",
+      "submitted_by": "credential"
+    },
+    {
+      "created_at": "2026-11-18T05:41:07.226123Z",
+      "credential_id": "4c53e8bf-b0f0-41b9-9009-dbf59db55457",
+      "decided_at": "2026-11-18T05:41:07.230151Z",
+      "decided_by": "suggest:auto",
+      "drive_id": "c1cf0904-5394-4117-aa6e-a3c4d3b67286",
+      "fact_id": "07704b17-bd21-499a-8106-0d8b4327342c",
+      "id": "91d0dd16-215f-4909-aa22-cf2900a9e17c",
+      "kind": "supersede",
+      "old_fact_id": "d118882a-5350-4de8-8943-f4bbc89f946b",
+      "payload": {
+        "evidence": [
+          {
+            "kind": "ref",
+            "ref": "Projects/星火计划.md"
+          }
+        ],
+        "kind": "supersede",
+        "predicate": "attr.deadline",
+        "protocol": "oo.suggest/v1",
+        "rationale": "延期",
+        "subject": "星火计划",
+        "supersedes": "e114debcd54150aeaccd66aba8abeb0ad300b31ce6486cf8252b0b728b4d875e",
+        "valid_from": "2026-11-18",
+        "value": "2027-04-30"
+      },
+      "reason": null,
+      "review_id": null,
+      "revision": 1,
+      "rule": "supersede_unused",
+      "share_id": "56c80126-a33f-4760-b8cd-cc2f14c21664",
+      "status": "superseded_silently",
+      "submitted_by": "credential"
+    }
+  ],
+  "pending": [
+    {
+      "created_at": "2026-11-18T05:41:07.245598Z",
+      "credential_id": "4c53e8bf-b0f0-41b9-9009-dbf59db55457",
+      "decided_at": null,
+      "decided_by": null,
+      "drive_id": "c1cf0904-5394-4117-aa6e-a3c4d3b67286",
+      "fact_id": null,
+      "id": "a267aa99-fabe-42b7-9de3-9ce50e1a51a0",
+      "kind": "preference",
+      "old_fact_id": null,
+      "payload": {
+        "evidence": [],
+        "kind": "preference",
+        "predicate": "prefers",
+        "protocol": "oo.suggest/v1",
+        "rationale": "负责人偏好",
+        "subject": "团队",
+        "value": "简短汇报"
+      },
+      "reason": "suggestion_manual_kind",
+      "review_id": "51b5ccb4-9b5e-40ec-b131-4378009e48e0",
+      "revision": 1,
+      "rule": "manual",
+      "share_id": "56c80126-a33f-4760-b8cd-cc2f14c21664",
+      "status": "pending",
+      "submitted_by": "credential"
+    }
+  ],
+  "total": 5
+}
