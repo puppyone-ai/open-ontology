@@ -60,3 +60,20 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `share.update_appended` entries with `summary_key` `suggestion_accepted` tell every live Share that used a superseded fact.
 - `errors.v1.json` adds `DOCS_SUGGEST_NOT_FOUND`, `DOCS_SUGGEST_ROLE_FORBIDDEN`, `DOCS_SUGGEST_SCOPE_MISSING`,
   `DOCS_SUGGEST_NOT_PENDING`, `DOCS_SUGGEST_NO_EVIDENCE`, `DOCS_SUGGEST_UNRESOLVED_ENTITY`.
+
+## 1.4 (L7, B-S11 and B-S12 cards)
+
+- Drive config `policy` `{allow, deny}` (`DrivePolicy`) on every backend: whole segment path prefixes, `deny` wins, an empty `allow` is
+  the whole Drive. Enforced in ingest (a denied path is never listed, hashed or parsed) and in the visible graph (denied files are not
+  in any snapshot a pack or projection is built from).
+- Backends `oss`, `cos` and `r2` are served (the S3 compatible path, `DriveConfigCloud`): `region` (oss, cos), `account_id` (r2),
+  `internal`, `endpoint` override. `s3` takes the same object. Keys are never inline (`secret_ref`).
+- `POST /v1/docs/drives/{id}:events` (`since` 1.4, `EventsRequest`, `EventsResult`): bucket event notifications as change hints.
+  Duplicates and older events of a key are dropped, each remaining key gets one targeted sync; deletions are only reported.
+- Cloud proxy mode (local entry only): `POST /v1/docs/cloud-tokens` issues an `oodc_` token bound to a tenant and a set of Drives
+  (shown once); `DELETE /v1/docs/cloud-tokens/{id}` revokes it. The token works on the cloud entry (a second listener,
+  `OO_DOCS_CLOUD_LISTEN`, own `Host` list) only, never on the loopback API; the cloud entry accepts nothing else and calls only shares
+  (create, get, `:revoke`), `context-packs:compile` and the packs' files, on the token's Drives.
+- Audit (`share.created`, `share.revoked`, `refs.accessed`, token events) in an append-only, hash chained table:
+  `GET /v1/docs/audit/shares?drive_id&agent&tenant&since&until` (`AuditShares`: who shared what to which agent, when) and
+  `GET /v1/docs/audit/verify` (`AuditVerify`). The agent is the request header `OO-Docs-Agent` of the call that created the share.

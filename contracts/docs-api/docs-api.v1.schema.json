@@ -406,6 +406,9 @@
             "type": "string",
             "maxLength": 256
           }
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
         }
       },
       "examples": [
@@ -3568,6 +3571,392 @@
           "ontology_effect": {}
         }
       ]
+    },
+    "DrivePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Drive access policy (10 11.3): whole-segment path prefixes. Empty allow means the whole Drive; deny always wins. Applied in ingest and in the visible graph.",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "deny": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      },
+      "examples": [
+        {
+          "allow": [
+            "Projects"
+          ],
+          "deny": [
+            "Projects/Payroll"
+          ]
+        }
+      ]
+    },
+    "DriveConfigCloud": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bucket",
+        "secret_ref"
+      ],
+      "description": "Drives of backend s3, r2, oss and cos (S3 compatible). region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline.",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "prefix": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "endpoint": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "path_style": {
+          "type": "boolean"
+        },
+        "account_id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "secret_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
+        }
+      },
+      "examples": [
+        {
+          "bucket": "team-drive",
+          "region": "cn-hangzhou",
+          "secret_ref": "file:/home/example/.config/oo/oss.json"
+        }
+      ]
+    },
+    "EventsRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "messages"
+      ],
+      "properties": {
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "description": "Bucket event notification bodies as the cloud's queue delivered them (S3 Records, R2 Queues message, OSS MNS or EventBridge, or the neutral {hints:[...]} form), objects or JSON text.",
+          "items": {}
+        }
+      },
+      "examples": [
+        {
+          "messages": [
+            {
+              "hints": [
+                {
+                  "key": "Notes/a.md",
+                  "op": "put",
+                  "sequencer": "0A",
+                  "at_ms": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "EventsResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "received",
+        "fresh",
+        "duplicates",
+        "stale",
+        "rejected",
+        "denied_by_policy",
+        "looked_at",
+        "added",
+        "changed",
+        "maybe_deleted"
+      ],
+      "properties": {
+        "received": {
+          "type": "integer"
+        },
+        "fresh": {
+          "type": "integer"
+        },
+        "duplicates": {
+          "type": "integer"
+        },
+        "stale": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "denied_by_policy": {
+          "type": "integer"
+        },
+        "looked_at": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "maybe_deleted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "received": 1,
+          "fresh": 1,
+          "duplicates": 0,
+          "stale": 0,
+          "rejected": 0,
+          "denied_by_policy": 0,
+          "looked_at": 1,
+          "added": 1,
+          "changed": 0,
+          "maybe_deleted": []
+        }
+      ]
+    },
+    "CloudTokenRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant",
+        "drive_ids"
+      ],
+      "properties": {
+        "tenant": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "drive_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 2592000
+        }
+      },
+      "examples": [
+        {
+          "tenant": "acme",
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ]
+        }
+      ]
+    },
+    "CloudToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "token",
+        "tenant",
+        "drive_ids",
+        "expires_in_seconds"
+      ],
+      "description": "The oodc_ token is shown once. Valid on the cloud entry only.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^oodc_"
+        },
+        "tenant": {
+          "type": "string"
+        },
+        "drive_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expires_in_seconds": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "token": "oodc_example",
+          "tenant": "acme",
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "expires_in_seconds": 604800
+        }
+      ]
+    },
+    "AuditShares": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "at",
+              "actor",
+              "share_id",
+              "scope",
+              "refs_reads"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer"
+              },
+              "at": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string",
+                "description": "local, cloud:<token id>"
+              },
+              "tenant": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "drive_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "share_id": {
+                "type": "string"
+              },
+              "agent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "grantor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scope": {},
+              "revoked_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "refs_reads": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AuditVerify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intact"
+      ],
+      "properties": {
+        "intact": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "integer"
+        },
+        "broken_at_seq": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "intact": true,
+          "rows": 3
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -4031,6 +4420,51 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:events",
+      "request": "EventsRequest",
+      "response": "EventsResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/cloud-tokens",
+      "request": "CloudTokenRequest",
+      "response": "CloudToken",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/cloud-tokens/{id}",
+      "request": null,
+      "response": null,
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/shares",
+      "request": null,
+      "response": "AuditShares",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/verify",
+      "request": null,
+      "response": "AuditVerify",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
     }
   ]
 }
