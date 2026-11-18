@@ -7,6 +7,7 @@
 
 mod docs;
 mod http;
+mod ontology;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -34,6 +35,8 @@ struct GatewayServer {
     client: GatewayClient,
     /// L5: the docs engine side (suggest, context_check, the updates resource).
     docs: Option<docs::Docs>,
+    /// D83: the unified ontology tools over `oo serve` (`OO_MCP_ONTOLOGY_URL`).
+    ontology: Option<ontology::Ontology>,
     /// The Gateway data plane tools are advertised (`OO_MCP_GATEWAY_URL` or a profile is set).
     gateway: bool,
 }
@@ -63,7 +66,7 @@ pub fn run() -> i32 {
 
 impl GatewayServer {
     fn config(&self) -> ServerConfig {
-        server_config(self.docs.is_some())
+        server_config(self.docs.is_some(), self.ontology.is_some())
     }
 
     fn from_env() -> Result<Self, &'static str> {
@@ -82,8 +85,17 @@ impl GatewayServer {
             }
             return Ok(Self {
                 client: GatewayClient::profile(cli, name),
+                ontology: None,
                 docs: docs::Docs::from_env()?,
                 gateway: true,
+            });
+        }
+        if let Some(ontology) = ontology::Ontology::from_env()? {
+            return Ok(Self {
+                client: GatewayClient::new(0, PathBuf::new()),
+                docs: None,
+                ontology: Some(ontology),
+                gateway: false,
             });
         }
         let docs = docs::Docs::from_env()?;
@@ -91,6 +103,7 @@ impl GatewayServer {
             return Ok(Self {
                 client: GatewayClient::new(0, PathBuf::new()),
                 docs,
+                ontology: None,
                 gateway: false,
             });
         }
@@ -103,6 +116,7 @@ impl GatewayServer {
         Ok(Self {
             client: GatewayClient::new(port, PathBuf::from(token_file)),
             docs,
+            ontology: None,
             gateway: true,
         })
     }
@@ -148,9 +162,18 @@ impl GatewayServer {
         path: &str,
         body: Option<Value>,
     ) -> Result<CallToolResult, McpError> {
+        self.gateway_tool_with(&self.client, path, body).await
+    }
+
+    async fn gateway_tool_with(
+        &self,
+        client: &GatewayClient,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<CallToolResult, McpError> {
         let reply = match body {
-            None => self.client.get(path).await,
-            Some(body) => self.client.post_json(path, &body).await,
+            None => client.get(path).await,
+            Some(body) => client.post_json(path, &body).await,
         };
         match reply {
             Ok(reply) => {
@@ -221,6 +244,9 @@ impl ServerHandler for GatewayServer {
         if self.docs.is_some() {
             tools.extend(docs::tools());
         }
+        if self.ontology.is_some() {
+            tools.extend(ontology::tools());
+        }
         Ok(ListToolsResult::with_all_items(tools)
             .with_ttl_ms(0)
             .with_cache_scope(CacheScope::Private))
@@ -231,6 +257,16 @@ impl ServerHandler for GatewayServer {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, McpError> {
+        if let Some(o) = &self.ontology
+            && ontology::names().contains(&request.name.as_ref())
+        {
+            let (path, body) =
+                ontology::request(request.name.as_ref(), request.arguments.as_ref())?;
+            return self
+                .gateway_tool_with(&o.client, &path, body)
+                .await
+                .map(CallToolResponse::from);
+        }
         if let Some(docs) = &self.docs
             && matches!(request.name.as_ref(), "suggest" | "context_check")
         {
@@ -300,6 +336,11 @@ impl ServerHandler for GatewayServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
         reject_cursor("resources/list", &request)?;
+        if self.ontology.is_some() {
+            return Ok(ListResourcesResult::with_all_items(Vec::new())
+                .with_ttl_ms(0)
+                .with_cache_scope(CacheScope::Private));
+        }
         if let Some(docs) = &self.docs {
             let mut resources = Vec::new();
             if self.gateway {
@@ -490,19 +531,22 @@ fn query_body(sql: &str, profile: bool) -> Value {
     body
 }
 
-fn server_config(subscribe: bool) -> ServerConfig {
+fn server_config(subscribe: bool, unified: bool) -> ServerConfig {
     let mut capabilities = ServerCapabilities::builder()
         .enable_tools()
         .enable_resources();
     if subscribe {
         capabilities = capabilities.enable_resources_subscribe();
     }
+    let instructions = if unified {
+        ontology::INSTRUCTIONS
+    } else {
+        "First check_readiness, then check_answerable (advisory, never blocks queries). Discover only the role's published semantic tables with list_tables, describe_table and read_knowledge; resolve entities and code values before validate_sql and query. Cite query_id and freshness. Report gaps and refusals honestly; no raw-database browsing or export. OAuth is not implemented."
+    };
     ServerConfig::new(capabilities.enable_prompts().build())
-    .with_protocol_version(ProtocolVersion::V_2025_11_25)
-    .with_server_info(Implementation::new("oo-mcp-gateway", "0.1.0"))
-    .with_instructions(
-        "First check_readiness, then check_answerable (advisory, never blocks queries). Discover only the role's published semantic tables with list_tables, describe_table and read_knowledge; resolve entities and code values before validate_sql and query. Cite query_id and freshness. Report gaps and refusals honestly; no raw-database browsing or export. OAuth is not implemented.",
-    )
+        .with_protocol_version(ProtocolVersion::V_2025_11_25)
+        .with_server_info(Implementation::new("oo-mcp-gateway", "0.1.0"))
+        .with_instructions(instructions)
 }
 
 fn tool_list() -> Vec<Tool> {
