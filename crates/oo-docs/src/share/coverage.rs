@@ -72,7 +72,7 @@ pub async fn measure(
         .unwrap_or(0);
     // Live, not the number stored at the last publish: a file that became
     // `duplicate` or `superseded` after it settles without a publish.
-    let covered_rev = crate::store::rev::covers_drive_rev(conn, &[])
+    let covered_rev = crate::store::rev::covers_drive_rev_live(conn)
         .await
         .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
     let sql = format!(
