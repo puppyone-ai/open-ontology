@@ -7,11 +7,13 @@
 //! * [`run`]: the publisher transaction that turns eligible drafts into
 //!   ontology version `vN` with `gate_report` rows.
 
+pub mod agentdb;
 pub mod constraints;
 pub mod debounce;
 pub mod gates;
 pub mod hashes;
 pub mod projection;
+pub mod projector;
 pub mod reprocess;
 pub mod run;
 pub mod write;

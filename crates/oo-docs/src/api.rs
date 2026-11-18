@@ -37,6 +37,7 @@ use crate::ingest::reconcile::{TargetedReport, targeted_sync};
 use crate::ingest::{DriveRef, IngestError, IngestLimits, SourceFactory};
 use oo_connectors::objectstore::DocSourceError;
 
+pub mod agent_tokens;
 pub mod auth;
 pub mod cloud_tokens;
 pub mod cursor;
@@ -50,6 +51,7 @@ pub mod hints;
 pub mod http;
 pub mod idem;
 pub mod lifecycle;
+pub mod links;
 pub mod metrics;
 pub mod packs;
 pub mod progress;
@@ -89,7 +91,9 @@ pub struct Req {
     pub cred: Option<crate::share::credential::ShareCred>,
     /// Set when the caller presented a cloud proxy token on the cloud entry.
     pub cloud: Option<crate::cloud::CloudPrincipal>,
-    /// `local`, `cloud:<token id>` or `cred:<credential id>`: the actor of the audit log.
+    /// Set when the caller presented an Agent token (`ooa_`) on the local entry.
+    pub agent_token: Option<crate::agent::AgentPrincipal>,
+    /// `local`, `cloud:<token id>`, `cred:<credential id>` or `agent:<name>`: the actor of the audit log.
     pub actor: String,
     /// `OO-Docs-Agent` header: who a share is for (audit only), at most 200 characters.
     pub agent: Option<String>,
@@ -238,6 +242,8 @@ pub struct AppState {
     pub hint_dedupe: Mutex<HashMap<String, oo_connectors::objectstore_events::Deduper>>,
     /// Accepted `Host` values of the cloud entry (empty: the cloud entry refuses everything).
     pub cloud_hosts: Vec<String>,
+    /// Where the Agent DB of the projection is (D83); `None`: the link routes answer "unbound".
+    pub agent_db: Option<crate::publish::agentdb::AgentDbConfig>,
     stop: watch::Sender<bool>,
     buckets: Mutex<HashMap<[u8; 32], Bucket>>,
 }
@@ -267,6 +273,7 @@ impl AppState {
             model: crate::extract::llm::config::ModelRuntime::disabled(),
             hint_dedupe: Mutex::new(HashMap::new()),
             cloud_hosts: Vec::new(),
+            agent_db: None,
             stop: watch::channel(false).0,
             buckets: Mutex::new(HashMap::new()),
         }
@@ -287,6 +294,12 @@ impl AppState {
     /// The `Host` values the cloud entry answers to (a public name and port).
     pub fn with_cloud_hosts(mut self, hosts: Vec<String>) -> Self {
         self.cloud_hosts = hosts.into_iter().map(|h| h.to_ascii_lowercase()).collect();
+        self
+    }
+
+    /// Where the projection finds its Agent DB (secret reference and secrets directory).
+    pub fn with_agent_db(mut self, cfg: crate::publish::agentdb::AgentDbConfig) -> Self {
+        self.agent_db = Some(cfg);
         self
     }
 
@@ -459,6 +472,7 @@ async fn route(
     let presented = auth::bearer(headers.get("authorization").and_then(|v| v.to_str().ok()));
     let mut cred = None;
     let mut cloud = None;
+    let mut agent_token = None;
     let mut actor = "local".to_owned();
     let token = match (which, presented) {
         // The cloud entry takes cloud tokens and nothing else; the local entry never takes one.
@@ -467,6 +481,13 @@ async fn route(
             let p = crate::cloud::authenticate(&mut conn, t).await?;
             actor = p.actor();
             cloud = Some(p);
+            t
+        }
+        (Entry::Local, Some(t)) if t.starts_with(crate::agent::PREFIX) => {
+            let mut conn = app.pool.acquire().await?;
+            let p = crate::agent::authenticate(&mut conn, t, true).await?;
+            actor = p.actor();
+            agent_token = Some(p);
             t
         }
         (Entry::Local, Some(t)) if t.starts_with("oodr_") => {
@@ -513,11 +534,40 @@ async fn route(
         body,
         cred,
         cloud,
+        agent_token,
         actor,
         agent: headers_agent,
     };
     if let Some(p) = &req.cloud {
         cloud_guard(app, p, &req).await?;
+    }
+    if let Some(p) = &req.agent_token {
+        // Every call of an Agent token is one audit row, and so is every refusal.
+        let verdict = agent_tokens::guard(app, p, &req).await;
+        let mut conn = app.pool.acquire().await?;
+        let (action, drive) = match &verdict {
+            Ok(d) => (crate::audit::AGENT_READ, d.clone()),
+            Err(_) => (crate::audit::AGENT_DENIED, None),
+        };
+        crate::audit::record(
+            &mut conn,
+            &crate::audit::Entry {
+                action,
+                actor: &req.actor,
+                tenant: None,
+                drive_id: drive.as_deref(),
+                share_id: None,
+                agent: Some(&p.name),
+                detail: json!({
+                    "route": format!("{} {}", req.method, agent_tokens::audit_route(&req.path)),
+                    "token_id": p.id,
+                    "reason": verdict.as_ref().err().and_then(|e| e.details["reason"].as_str()),
+                }),
+            },
+        )
+        .await?;
+        drop(conn);
+        verdict?;
     }
     dispatch(app, &req).await
 }
@@ -651,6 +701,64 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "cloud-tokens", id] => {
             method_allowed(req, &["DELETE"])?;
             cloud_tokens::revoke(app, id, req).await
+        }
+        ["v1", "docs", "agent-tokens"] => {
+            method_allowed(req, &["GET", "POST"])?;
+            if req.method == Method::GET {
+                agent_tokens::list(app, req).await
+            } else {
+                agent_tokens::issue(app, req).await
+            }
+        }
+        ["v1", "docs", "agent-tokens:introspect"] => {
+            method_allowed(req, &["POST"])?;
+            agent_tokens::introspect(app, req).await
+        }
+        ["v1", "docs", "agent-tokens", "self"] => {
+            method_allowed(req, &["GET"])?;
+            match &req.agent_token {
+                Some(p) => agent_tokens::myself(app, p).await,
+                None => Err(ApiError::new(
+                    code::NOT_FOUND,
+                    "only an agent token has a self",
+                )),
+            }
+        }
+        ["v1", "docs", "agent-tokens", id] => {
+            method_allowed(req, &["DELETE"])?;
+            agent_tokens::revoke(app, id, req).await
+        }
+        ["v1", "docs", "audit", "agents"] => {
+            method_allowed(req, &["GET"])?;
+            agent_tokens::audit(app, req).await
+        }
+        ["v1", "docs", "links"] => {
+            method_allowed(req, &["GET"])?;
+            links::list(app, req).await
+        }
+        ["v1", "docs", "links:decide"] => {
+            method_allowed(req, &["POST"])?;
+            links::decide(app, req).await
+        }
+        ["v1", "docs", "links:project"] => {
+            method_allowed(req, &["POST"])?;
+            links::project(app, req).await
+        }
+        ["v1", "docs", "link-rules"] => {
+            method_allowed(req, &["GET", "PUT", "DELETE"])?;
+            match req.method {
+                Method::GET => links::rules_list(app, req).await,
+                Method::PUT => links::rules_put(app, req).await,
+                _ => links::rules_delete(app, req).await,
+            }
+        }
+        ["v1", "docs", "agent-db-binding"] => {
+            method_allowed(req, &["GET", "PUT", "DELETE"])?;
+            match req.method {
+                Method::GET => links::binding_get(app).await,
+                Method::PUT => links::binding_put(app, req).await,
+                _ => links::binding_delete(app).await,
+            }
         }
         ["v1", "docs", "audit", "shares"] => {
             method_allowed(req, &["GET"])?;

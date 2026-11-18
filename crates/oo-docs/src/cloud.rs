@@ -36,7 +36,7 @@ impl CloudPrincipal {
     }
 }
 
-fn hash(token: &str) -> String {
+pub(crate) fn hash(token: &str) -> String {
     blake3::hash(token.as_bytes()).to_hex().to_string()
 }
 
@@ -82,7 +82,7 @@ pub async fn authenticate(
     }
     let row: Option<(String, String, Vec<String>, bool, bool)> = sqlx::query_as(
         "SELECT id::text, tenant, drive_ids::text[], revoked_at IS NOT NULL, expires_at <= clock_timestamp() \
-           FROM _oo_docs.cloud_token WHERE token_b3 = $1",
+           FROM _oo_docs.cloud_token WHERE token_b3 = $1 AND kind = 'cloud'",
     )
     .bind(hash(token))
     .fetch_optional(&mut *conn)
@@ -112,7 +112,7 @@ pub async fn authenticate(
 /// Revoke; true when a live token was revoked.
 pub async fn revoke(conn: &mut PgConnection, id: &str) -> Result<bool, sqlx::Error> {
     let done = sqlx::query(
-        "UPDATE _oo_docs.cloud_token SET revoked_at = clock_timestamp() WHERE id = $1::uuid AND revoked_at IS NULL",
+        "UPDATE _oo_docs.cloud_token SET revoked_at = clock_timestamp() WHERE id = $1::uuid AND kind = 'cloud' AND revoked_at IS NULL",
     )
     .bind(id)
     .execute(&mut *conn)

@@ -584,6 +584,13 @@ pub async fn resolve(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, A
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
+    // An Agent token only sees candidates that have evidence in its Drives.
+    let keys = match &req.agent_token {
+        Some(a) if !a.all_drives => {
+            super::agent_tokens::keys_in_drives(&mut conn, &keys, &a.drive_ids).await?
+        }
+        _ => keys,
+    };
     let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
         "SELECT e.key AS k, {}::text AS j FROM _oo_docs.entity e WHERE e.key = ANY($1::text[])",
         entity_ref_sql("e")

@@ -22,6 +22,7 @@ pub const CONTEXT_PACK_PROTOCOL: &str = "oo.context-pack/v1";
 /// Engine configuration protocol (10 §2.8).
 pub const CONFIG_PROTOCOL: &str = "oo.docs/v1";
 
+pub mod agent;
 pub mod api;
 pub mod audit;
 pub mod cas;
