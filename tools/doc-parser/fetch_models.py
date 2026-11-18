@@ -27,6 +27,16 @@ def sha256_file(path):
     return h.hexdigest()
 
 
+def fetch(url, sha, local_dir):
+    """Bytes of `url`, from a builder-provided cache `<local_dir>/by-sha256/<sha>` when present (offline builds), else
+    downloaded; either way the sha256 must equal the lock."""
+    cached = Path(local_dir) / "by-sha256" / sha
+    data = cached.read_bytes() if cached.is_file() else urllib.request.urlopen(url, timeout=300).read()
+    if hashlib.sha256(data).hexdigest() != sha:
+        sys.exit(f"{url}: sha256 differs from the lock")
+    return data
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dest", required=True)
@@ -37,17 +47,13 @@ def main():
     lock_path = Path(a.lock)
     lock = json.loads(lock_path.read_text())
     dest = Path(a.dest)
-    from huggingface_hub import snapshot_download
-
     files = []
     for src in lock["sources"]:
         if src.get("kind") == "url":
             target = dest / src["local_dir"]
             target.mkdir(parents=True, exist_ok=True)
             for f in src["files"]:
-                data = urllib.request.urlopen(f["url"], timeout=300).read()
-                if hashlib.sha256(data).hexdigest() != f["sha256"]:
-                    sys.exit(f"{f['url']}: sha256 differs from the lock")
+                data = fetch(f["url"], f["sha256"], a.local_dir)
                 (target / f["local"]).write_bytes(data)
             for p in sorted(target.rglob("*")):
                 if p.is_file():
@@ -60,9 +66,7 @@ def main():
 
             target = dest / src["local_dir"]
             target.mkdir(parents=True, exist_ok=True)
-            data = urllib.request.urlopen(src["url"], timeout=300).read()
-            if hashlib.sha256(data).hexdigest() != src["wheel_sha256"]:
-                sys.exit(f"{src['url']}: wheel sha256 differs from the lock")
+            data = fetch(src["url"], src["wheel_sha256"], a.local_dir)
             z = zipfile.ZipFile(io.BytesIO(data))
             for m in src["members"]:
                 blob = z.read(m["member"])
@@ -88,6 +92,8 @@ def main():
                     files.append({"name": f"{src['local_dir']}/{p.relative_to(target).as_posix()}",
                                   "sha256": sha256_file(p), "size": p.stat().st_size})
             continue
+        from huggingface_hub import snapshot_download
+
         rev = src["revision"]
         if len(rev) != 40 or any(c not in "0123456789abcdef" for c in rev):
             sys.exit(f"{src['repo_id']}: revision must be a full commit sha")

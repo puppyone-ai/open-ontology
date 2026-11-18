@@ -70,6 +70,11 @@ SOURCES = {
         "url": "https://ftp.gnu.org/gnu/gcc/",
         "how": "Unmodified GCC runtime library shipped inside a wheel as a shared object.",
     },
+    "ffmpeg-lgpl-own-build": {
+        "kind": "lgpl",
+        "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+        "how": "Built from the unmodified source tarball (sha256 pinned in tools/media-parser/Dockerfile) with --disable-gpl --disable-nonfree --disable-everything and a decode-only allow-list (no H.264, HEVC or AAC decoder); dynamically linked shared objects in /opt/ffmpeg/lib, replaceable. The LGPL text, the configure line and the source tarball are in /usr/share/licenses/ffmpeg/ (90 section 4).",
+    },
     "crc32c": {
         "kind": "lgpl",
         "url": "https://github.com/ICRAR/crc32c",
@@ -172,7 +177,7 @@ def generate(sbom):
 
     # --- obligations
     needed = []
-    for scope in ("python", "native-in-wheel"):
+    for scope in ("python", "native-in-wheel", "own-build"):
         for c in by_scope.get(scope, []):
             if needs_source(lic_of(c)):
                 needed.append(c)

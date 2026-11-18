@@ -99,6 +99,14 @@
    "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
    "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
    "legal_gate": "D67"
+  },
+  "ffmpeg-lgpl-own-build": {
+   "license": "LGPL-2.1-or-later",
+   "use": "decoding of Opus, Vorbis, FLAC, MP3, VP8, VP9 and PCM inside media-parser; no encoder but pcm_s16le and png; no H.264, HEVC or AAC decoder",
+   "obligation": "LGPL: dynamic linking, source and configure line offered, allow replacement and relinking, no EULA ban on debugging reverse engineering (90 section 4); patent questions for MP3 decode and decode-only use go to the lawyer gate (90 section 4, L6)",
+   "how_met": "shared objects under /opt/ffmpeg/lib replaceable by another build; LICENSE, COPYING.LGPLv2.1, configure line and the source tarball in /usr/share/licenses/ffmpeg/; CI runs ffmpeg_gate on every build (no gpl, nonfree, forbidden decoder)",
+   "evidence": "testing/super-ontology/evidence/L6/sbom-media-parser.json; tools/media-parser/media_parser/ffmpeg_gate.py",
+   "legal_gate": "D67"
   }
  }
 }

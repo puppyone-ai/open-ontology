@@ -142,6 +142,7 @@ class Pipeline:
             raw = pcm[a:b]
             key = chunk_key(raw.tobytes(), s, e, self.engine.revision, self.params())
             hit = self.cache.get(key)
+            was_cached = hit is not None
             if hit is None:
                 words = self.engine.transcribe(_f32(raw), self.hotwords)
                 words = [{"text": w["text"], "start_ms": int(w["start_ms"]) + s, "end_ms": int(w["end_ms"]) + s,
@@ -161,7 +162,7 @@ class Pipeline:
             win_vecs += [m[j] for j in range(len(spans))]
             all_words += hit["words"]
             self.stats["chunks"] += 1
-            self.on_chunk(e, total_ms, i, len(chunk_list), hit is not None)
+            self.on_chunk(e, total_ms, i, len(chunk_list), was_cached)
         if win_vecs:
             raw_labels = dz.cluster(np.stack(win_vecs), self.cluster_threshold, self.num_speakers)
             win_labels = dz.relabel_by_first_appearance(raw_labels, [s for s, _ in win_spans])

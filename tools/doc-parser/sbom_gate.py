@@ -75,6 +75,9 @@ def main():
             state = next((p["value"] for p in c.get("properties", []) if p["name"] == "oo:opencv_ffmpeg"), "missing")
             if state not in ("NO", "absent"):
                 ffmpeg.append(f"{name} (oo:opencv_ffmpeg={state})")
+        if name == "ffmpeg-lgpl-own-build" and next((p["value"] for p in c.get("properties", []) if p["name"] == "oo:ffmpeg_decode_only_lgpl"), "") != "YES":
+            findings["fail"].append({"component": name, "scope": scope, "license": "configure line is not --disable-gpl --disable-nonfree (D65)"})
+            continue
         if v == "pass":
             continue
         entry = {"component": f"{name} {c.get('version', '')}".strip(), "scope": scope, "license": expr}
