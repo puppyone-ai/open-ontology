@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -555,9 +555,19 @@ async fn review_decide(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
                 .and_then(|i| i["revision"].as_i64())
                 .ok_or_else(|| bad(format!("{id} is not a pending item")))?;
             let mut item = json!({"id": id, "revision": rev, "decision": decision});
-            // A constraint conflict is accepted by naming the fact that stays.
-            if let (Some(w), "accept") = (p.opt("--winner"), decision) {
-                item["edit"] = json!({"winner": w});
+            // A constraint conflict is accepted by naming the fact that stays; a speaker label is
+            // confirmed by naming the person who spoke.
+            if decision == "accept" {
+                let mut edit = serde_json::Map::new();
+                if let Some(w) = p.opt("--winner") {
+                    edit.insert("winner".into(), json!(w));
+                }
+                if let Some(n) = p.opt("--name") {
+                    edit.insert("name".into(), json!(n));
+                }
+                if !edit.is_empty() {
+                    item["edit"] = Value::Object(edit);
+                }
             }
             Ok(item)
         })
