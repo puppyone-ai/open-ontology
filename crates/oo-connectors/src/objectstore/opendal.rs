@@ -465,6 +465,114 @@ struct Inner {
 }
 
 impl S3Source {
+    /// First level scopes (10 11.3): every top level "directory" of the Drive's prefix, plus `""` when
+    /// objects sit directly under it. `None` when a top level name is odd (empty segment): the Drive is
+    /// then listed whole, because an object under a scope nobody lists would look deleted.
+    pub async fn list_scopes(&self) -> Result<Option<Vec<String>>, DocSourceError> {
+        let i = &self.inner;
+        let (dirs, root_files, odd) = retry(|| async {
+            let mut lister = i.op.lister_with("/").recursive(false).limit(1000).await?;
+            let mut dirs: Vec<String> = Vec::new();
+            let mut root_files = false;
+            let mut odd = false;
+            while let Some(entry) = lister.next().await {
+                let (path, meta) = entry?.into_parts();
+                let key = path.trim_start_matches('/').to_owned();
+                if meta.is_file() {
+                    if !self.skipped(&key) {
+                        root_files = true;
+                    }
+                } else if let Some(name) = key.strip_suffix('/') {
+                    if name.is_empty() || name.contains('/') {
+                        odd = true;
+                    } else if !is_skipped_path(name) {
+                        dirs.push(name.to_owned());
+                    }
+                }
+            }
+            Ok((dirs, root_files, odd))
+        })
+        .await
+        .map_err(|e| map_error(&i.seen, &e))?;
+        if odd {
+            return Ok(None);
+        }
+        let mut scopes = dirs;
+        scopes.sort();
+        scopes.dedup();
+        if root_files {
+            scopes.insert(0, String::new());
+        }
+        Ok(Some(scopes))
+    }
+
+    /// One page of one first level scope, listed under its own key prefix. `""` is the objects directly
+    /// under the Drive's prefix. The cursor is the last key, as in [`DocumentSource::list`].
+    pub async fn list_scope(
+        &self,
+        scope: &str,
+        cursor: Option<&ListCursor>,
+        page_size: u32,
+    ) -> Result<ListPage, DocSourceError> {
+        if scope.contains('/') || scope == "." || scope == ".." {
+            return Err(DocSourceError::InvalidConfig(
+                "scope is not a first level name",
+            ));
+        }
+        let page = page_size.clamp(1, 1000) as usize;
+        let after = cursor.map(|c| c.0.clone());
+        let path = if scope.is_empty() {
+            "/".to_owned()
+        } else {
+            format!("/{scope}/")
+        };
+        let recursive = !scope.is_empty();
+        let i = &self.inner;
+        let (last, keys, done) = retry(|| {
+            let after = after.clone();
+            let path = path.clone();
+            async move {
+                let mut b = i.op.lister_with(&path).recursive(recursive).limit(page);
+                if let Some(a) = &after {
+                    b = b.start_after(a);
+                }
+                let mut lister = b.await?;
+                let mut out: Vec<(String, opendal::Metadata)> = Vec::new();
+                let mut last = after;
+                let mut seen_count = 0usize;
+                let mut done = true;
+                while let Some(entry) = lister.next().await {
+                    let (p, meta) = entry?.into_parts();
+                    let key = p.trim_start_matches('/').to_owned();
+                    last = Some(key.clone());
+                    seen_count += 1;
+                    if meta.is_file() {
+                        out.push((key, meta));
+                    }
+                    if seen_count >= page {
+                        done = false;
+                        break;
+                    }
+                }
+                Ok((last, out, done))
+            }
+        })
+        .await
+        .map_err(|e| map_error(&i.seen, &e))?;
+        let entries = keys
+            .iter()
+            .filter(|(k, _)| !self.skipped(k))
+            .map(|(k, m)| self.meta_of(k, m, None))
+            .collect();
+        Ok(ListPage {
+            entries,
+            next: if done { None } else { last.map(ListCursor) },
+            complete: done,
+        })
+    }
+}
+
+impl S3Source {
     pub fn open(config: &S3Config) -> Result<Self, DocSourceError> {
         let (op, seen) = build_operator(config)?;
         Ok(Self::from_parts(op, seen, config))
