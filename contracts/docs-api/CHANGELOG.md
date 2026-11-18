@@ -109,3 +109,15 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `POST /links:project` (run the job now, `ProjectRuns`), `GET|PUT|DELETE /link-rules` (`LinkRule`: which columns of which table match which entity type),
   `GET|PUT|DELETE /agent-db-binding` (`AgentDbBinding`: a secret reference to the Agent DB login, never a URL; also `OO_DOCS_AGENT_DATABASE_URL_REF`).
 - No new error code. Additive; no existing route changes.
+
+## 1.7 (D83, WP3: the unified query surface)
+
+- `/v1/ontology/*` (`since` 1.7, served by the `oo serve` proxy, not the engine): `GET /search?q&type&limit`, `GET /entities/{urn}`,
+  `GET /sources`, `POST /query` (`OntologySearchResult`, `OntologyEntity`, `OntologySources`, `OntologyQueryRequest`,
+  `OntologyQueryResult`). One merged result set over the document ontology (engine, scoped by the `ooa_` token's Drives and scopes)
+  and the database ontology (Gateway, through the Gateway profile the token names; the Agent never holds a Gateway token).
+  URNs: `oo:doc/<drive_id>/<entity_key>` and `oo:db/<source>/<schema.table>/<pk>`. Every item and fact carries `provenance`
+  (`OntologyProvenance`: a file anchor or a table row with `publication_id`). One side missing is a normal state (`sides.*.status`).
+- `POST /query` accepts one read-only SELECT (403 `ONTOLOGY_READ_ONLY` otherwise) and needs `db:read` (403 `ONTOLOGY_SCOPE_DENIED`);
+  a revoked or expired token is 401 `ONTOLOGY_TOKEN_INVALID`. The proxy forwards an `ooa_` token on `/v1/docs/*` untouched (the engine
+  checks it). Proxy codes are local to the surface and not in `errors.v1.json`. Additive; no existing route changes.
