@@ -64,3 +64,25 @@ def test_golden_check_mode(tmp_path):
     assert gen.main(["--out", str(tmp_path / "g"), "--check"]) == 0
     (tmp_path / "g" / "canaries.txt").write_text("x\n")
     assert gen.main(["--out", str(tmp_path / "g"), "--check"]) == 1
+
+
+def test_holdout_is_a_different_cast_with_the_same_label_schema_and_is_deterministic():
+    import world
+    import world_holdout
+
+    a, sa = gen.build(world_holdout.build(7), seed=7, variant="holdout")
+    b, _ = gen.build(world_holdout.build(7), seed=7, variant="holdout")
+    assert a == b
+    other, _ = gen.build(world_holdout.build(8), seed=8, variant="holdout")
+    assert a != other
+    assert sa["supersedes"] == 4 and sa["conflicts"] == 1 and sa["docs"] >= 40
+    ents = lines(a, "labels/entities.jsonl")
+    assert {e["type"] for e in ents} <= CORE
+    golden_names = {n for t, name, al, _x in world.ENT.values() for n in [name, *al] if t != "Decision"}
+    held_names = {e["name"] for e in ents if e["type"] in ("Person", "Organization", "Project", "Topic", "Term", "Event")}
+    assert not (held_names & golden_names), "no golden name survives in the held-out set"
+    facts = lines(a, "labels/facts.jsonl")
+    assert {f["predicate"] for f in facts} <= PRED
+    assert all(f["anchors"] for f in facts)
+    text = b"".join(v for k, v in a.items() if k.startswith("docs/") and k.rsplit(".", 1)[1] in ("md", "txt", "csv")).decode()
+    assert not any(n in text for n in golden_names if len(n) > 2), "no golden name in the held-out documents"
