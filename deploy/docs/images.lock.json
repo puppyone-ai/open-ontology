@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:a22fe9169bbad8d3a4e10e6aa60b5f5d9a75a4e4d8e329bf673d378156307aea",
+        "image": "sha256:a79e36947a164ac945c2e737fb7b269fe78afb40410542223863e87bab5a2276",
         "tag": "oo-docs-engine:dev",
-        "size_bytes": 228527778,
+        "size_bytes": 228694408,
         "dockerfile_sha256": "65bac9211a3543a7ff70235796a4d93c8e543a69cea0f4baf5adbf22e5f43747",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
         "lane": "super-ontology-bint",
         "built": "2026-11-18",
-        "built_from": "so/B-integration (feat/super-ontology 445d2700b: L4 quality and formal, L6 remainder, L7 cloud and enterprise, L8 vectors, migrations 0147/0148, docs-api 1.4)",
-        "build_note": "the build container has no route to crates.io or the registry, so oo-docs-engine was compiled with cargo build --release --offline --locked in the local rust:1.98.1-bookworm image from the host crate cache (target outside the checkout), put in a layer over the previous oo-docs-engine:dev and the image flattened (docker export | docker import, same ENTRYPOINT, ENV, EXPOSE and labels). The binary in the image has sha256 7aa637a05efe954094e27862dfdce1c51a48676612e9e6bc4703abe855f2b3b2. Rebuild with deploy/docs/Dockerfile.engine when the network allows. This single image replaces the dev and dev-be2 entries."
+        "built_from": "so/B-integration (feat/super-ontology 4eea713f1 plus the integration fixes: L4 quality and formal, L6 remainder, L7 and its remainder, L8 vectors, migrations 0147-0149, docs-api 1.4)",
+        "build_note": "the build container has no route to crates.io or the registry, so oo-docs-engine was compiled with cargo build --release --offline --locked in the local rust:1.98.1-bookworm image from the host crate cache (target outside the checkout), put in a layer over the previous oo-docs-engine:dev and the image flattened (docker export | docker import, same ENTRYPOINT, ENV, EXPOSE and labels). The binary in the image has sha256 97d8794d98176dd4df5b3afcecc653d6e11e36357f83246f4881919dae6b7f4a. Rebuild with deploy/docs/Dockerfile.engine when the network allows. This single image replaces the dev and dev-be2 entries."
       },
       "linux/amd64": null
     }
