@@ -141,6 +141,11 @@
 | SO-B-S16-05 | D83 | merged | feat/super-ontology (WP1 分支并入) | c25304a5d → 6fe7c5dc1 | — | — | WP1 只用 CLI 的端到端脚本 |
 | SO-B-S16-06 | D83 | merged | feat/super-ontology (WP1 分支并入) | 75b68a54a → bf5df0223 | — | — | 数据库来源登记与 upload 自动启动 serve |
 | SO-B-S16-07 | D83 | merged | feat/super-ontology (WP1b 分支并入) | cc2321e47 → 056d7653a | — | — | 引擎镜像带 objectstore-s3（oo-docs-engine:dev-s3）、host.docker.internal、oo source link |
+| SO-B-S18-05 | D83 | merged | feat/super-ontology (WP3b 分支并入) | 37ade531f → 37ade531f | — | — | Add docs-api 1.9 for full text search over facts and blocks |
+| SO-B-S18-06 | D83 | merged | feat/super-ontology (WP3b 分支并入) | be054d583 → be054d583 | — | — | Serve full text search over facts and blocks from the docs engine |
+| SO-B-S18-07 | D83 | merged | feat/super-ontology (WP3b 分支并入) | 591eed52c → 591eed52c | — | — | Search facts and blocks through the unified ontology search |
+| SO-B-S18-08 | D83 | merged | feat/super-ontology (WP3b 分支并入) | ce5d422e6 → ce5d422e6 | — | — | Make the unified search fit the Gateway SQL guard |
+| SO-B-S18-09 | D83 | merged | feat/super-ontology (WP3b 分支并入) | ab7ee3d1e → 5d5abe689 | — | — | Run the CLI-first end to end against the real OO Gateway |
 | SO-B-S18-01 | D83 | merged | feat/super-ontology (WP3 分支并入) | a0c7e4863 → a0c7e4863 | — | — | docs-api 1.7：统一本体查询接口 |
 | SO-B-S18-02 | D83 | merged | feat/super-ontology (WP3 分支并入) | 53c983147 → 04e772972 | — | — | /v1/ontology/* 代理、oo ontology search/entity/query/sources、oo agent token |
 | SO-B-S18-03 | D83 | merged | feat/super-ontology (WP3 分支并入) | c213e6aeb → c213e6aeb | — | — | MCP 统一工具与 oo mcp --stdio |
