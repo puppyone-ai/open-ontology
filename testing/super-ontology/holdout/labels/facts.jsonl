@@ -266,7 +266,7 @@
 {"kind":"fact","id":"F266","subject":"E078","predicate":"mentions","object":"E015","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A3:F3"}]}
 {"kind":"fact","id":"F267","subject":"E078","predicate":"mentions","object":"E016","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A4:F4"}]}
 {"kind":"fact","id":"F268","subject":"E078","predicate":"mentions","object":"E017","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A5:F5"}]}
-{"kind":"fact","id":"F269","subject":"E078","predicate":"mentions","object":"E018","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A7:F7"}]}
+{"kind":"fact","id":"F269","subject":"E078","predicate":"mentions","object":"E018","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A6:F6"}]}
 {"kind":"fact","id":"F270","subject":"E078","predicate":"mentions","object":"E019","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A8:F8"}]}
 {"kind":"fact","id":"F271","subject":"E078","predicate":"mentions","object":"E020","valid_from":"2027-01-06","anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A9:F9"}]}
 {"kind":"fact","id":"F272","subject":"E079","predicate":"mentions","object":"E002","valid_from":"2027-07-02","anchors":[{"file":"docs/Tables/项目负责人表.xlsx","frag":"#'项目负责人表'!A2:D2"}]}

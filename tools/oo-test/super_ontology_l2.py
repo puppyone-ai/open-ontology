@@ -128,13 +128,14 @@ class Postgres:
         self.name = f"oo-l2-pg-{run_id}"
         self.port = None
 
-    def start(self):
+    def start(self, host_port=None):
         run(
             self.ev,
             [
                 "docker", "run", "-d", "--name", self.name, "--label", LANE,
                 "-e", "POSTGRES_HOST_AUTH_METHOD=trust",
-                "-p", "127.0.0.1::5432", PG_IMAGE, "-c", "track_commit_timestamp=on",
+                "-p", f"127.0.0.1:{host_port}:5432" if host_port else "127.0.0.1::5432", PG_IMAGE, "-c", "track_commit_timestamp=on",
+                *(["-c", "max_connections=300", "-c", "fsync=off"] if host_port else []),
             ],
         )
         out = subprocess.check_output(["docker", "port", self.name, "5432/tcp"], text=True)

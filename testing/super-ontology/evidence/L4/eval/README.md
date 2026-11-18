@@ -13,10 +13,18 @@ below plus the L5/L6 wiring; the LLM cache key now hashes the whole system text.
 | golden, model off | published | 0.989 / 0.860 | 0.980 / 0.635 | 4/4 | 0/1 | 0 |
 | golden, model on (`gpt-6.1-sol`) | candidates | 0.744 / 0.960 | 0.862 / 0.832 | 4/4 | 1/1 | 0 |
 | golden, model on (`gpt-6.1-sol`) | published | 0.989 / 0.920 | 0.900 / 0.827 | 4/4 | 0/1 | 0 |
-| holdout, model off | candidates | 0.988 / 0.853 | 0.978 / 0.643 | 4/4 | 1/1 | 0 |
+| holdout, model off | candidates | 0.988 / 0.853 | 0.978 / 0.644 | 4/4 | 1/1 | 0 |
 | holdout, model off | published | 0.988 / 0.853 | 0.978 / 0.641 | 4/4 | 0/1 | 0 |
-| holdout, model on (`gpt-6.1-sol`) | candidates | 0.724 / 0.937 | 0.843 / 0.809 | 4/4 | 1/1 | 0 |
-| holdout, model on (`gpt-6.1-sol`) | published | 0.988 / 0.884 | 0.896 / 0.801 | 4/4 | 0/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | candidates | 0.726 / 0.947 | 0.849 / 0.818 | 4/4 | 1/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | published | 0.988 / 0.895 | 0.893 / 0.816 | 4/4 | 0/1 | 0 |
+
+**Held-out independence fix (V2 audit, 2026-11-18).** The department labels added for 5.1 gave the held-out set the same seven department
+words as the golden set (`test_gen.py` failed: "no golden name survives in the held-out set"). The held-out world now names its own
+departments (`world_holdout.py`: whole-cell replacement from a seeded pool, 7 distinct words), the held-out tree was regenerated
+(seed 20270301, `--check` 0 mismatches) and the held-out rows of the table above were re-run live (model off and on, `gpt-6.1-sol`) on
+the regenerated set. The rows above are those new numbers; the previous run (shared department names) was published 0.988 / 0.884 and
+0.896 / 0.801 with the model on. The new run clears the target (P >= 0.85, R >= 0.75) on the published view for entities and facts;
+the difference to the old run is model variance plus the new department words, not a tuning change.
 
 The numbers of the section below were measured against the earlier labels (without the departments) and are kept as history.
 
