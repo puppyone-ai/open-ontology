@@ -73,15 +73,20 @@
     "note": "dev = the day-one image plus one layer with media_parser/, video/ and asr/ copied from the tree (asr/pipeline.py gained the cached-chunk flag fix after the dev-be2 layer); the image's *.py files match tools/media-parser byte for byte"
   },
   "docs_db_vectors": {
-    "image": "sha256:4c6d67181e482549bab276e8ae933f807be59ea1c371c225d85c189b0c14b9de",
-    "tag": "supabase/postgres:17.6.1.064",
+    "image": "sha256:69e200637d00744f889cb619d4a3cc9b233086d011131604c3d17cbf8905a97b",
+    "tag": "oo-docs-pgvector:dev",
+    "base": "postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+    "build": "deploy/docs/pgvector/Dockerfile",
     "platform": "linux/arm64",
-    "size_bytes": 4602240633,
+    "size_bytes": 640882491,
     "pgvector": "0.8.0",
-    "postgresql": "17.6",
+    "pgvector_source_sha256": "867a2c328d4928a5a9d6f052cd3bc78c7d60228a9b914ad32aa3db88e9de27b0",
+    "postgresql": "17.11",
     "lane": "super-ontology-c8",
     "admitted": "2026-11-18",
     "admission": "supply-chain/pgvector-admission.json",
-    "note": "optional; used only with vectors on (docs-vectors/1). Not pulled: already in the local store. Stock docs-db above stays the default."
+    "sbom": "testing/super-ontology/evidence/L8/sbom-pgvector-minimal.json",
+    "sbom_gate": "pass (base-os packages listed, not gated)",
+    "note": "optional; used only with vectors on (docs-vectors/1). Keeps the official entrypoint, so deploy/docs/postgres.sh applies. Replaces the 4.6 GB supabase/postgres image, whose gate failed."
   }
 }
