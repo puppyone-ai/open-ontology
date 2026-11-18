@@ -292,11 +292,12 @@ fn check_state(g: &Graph, st: &Value, trace: &str, i: usize) -> usize {
         };
         let pack = match compile(&r, &req) {
             Ok(p) => p,
-            // nothing in scope is visible: the compiler refuses to write an empty pack
+            // no visible fact (an entity may still be visible through an alias): the compiler refuses
+            // to write a pack that says nothing
             Err(oo_docs::compile::PackError::NothingVisible) => {
                 assert!(
-                    vg.facts().next().is_none() && vg.entities().next().is_none(),
-                    "{who}: NothingVisible but the graph shows something"
+                    vg.facts().next().is_none(),
+                    "{who}: NothingVisible but the graph shows a fact"
                 );
                 return facts.len();
             }
