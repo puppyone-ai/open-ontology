@@ -182,6 +182,28 @@ pub async fn reconcile(
         };
         let decisions = f.object_type.as_deref() == Some("Decision");
         if !certain {
+            // A person already answered for this fact (the same `fact_key`, in this or an earlier read of
+            // the file): the answer stands, the question is not asked again. A rejection still keeps the
+            // fact out of the publish.
+            let answered: Option<String> = sqlx::query_scalar(
+                "SELECT ri.status FROM _oo_docs.review_item ri \
+                   JOIN _oo_docs.fact d ON d.id = (ri.subject->>'fact_id')::uuid \
+                   JOIN _oo_docs.fact me ON me.fact_key = d.fact_key \
+                  WHERE me.id = $1::uuid AND ri.kind = 'low_confidence_fact' \
+                    AND ri.status IN ('accepted', 'rejected') \
+                  ORDER BY (ri.status = 'rejected') DESC LIMIT 1",
+            )
+            .bind(&f.id)
+            .fetch_optional(&mut *conn)
+            .await?;
+            match answered.as_deref() {
+                Some("accepted") => continue,
+                Some(_) => {
+                    out.excluded.insert(f.id.clone());
+                    continue;
+                }
+                None => {}
+            }
             out.held.push(Held {
                 fact_id: f.id.clone(),
                 other_id: f.id.clone(),
