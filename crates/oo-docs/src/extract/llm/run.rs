@@ -58,8 +58,17 @@ impl From<CasError> for RunError {
     }
 }
 
-/// Wait before the next try of a call that failed on the wire.
-const INFRA_RETRY_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+/// Wait before try `tries + 1` of a call that failed on the wire: the
+/// `extract_llm` schedule of 10 §4.1.4, 5 s x 3 per try, capped at 5 min.
+/// Tests with the `failpoints` feature shorten it like every job backoff.
+fn infra_retry_wait(tries: u32) -> std::time::Duration {
+    let backoff = crate::jobs::JobKind::ExtractLlm.policy().backoff;
+    #[cfg(feature = "failpoints")]
+    if let Some(ms) = crate::failpoints::backoff_ms() {
+        return std::time::Duration::from_millis(ms.max(0) as u64);
+    }
+    std::time::Duration::from_millis(backoff.raw_ms(tries))
+}
 /// Calls of one batch that may fail on the wire before the batch is given up.
 const INFRA_TRIES: u32 = 4;
 
@@ -260,7 +269,7 @@ pub async fn extract_llm(
                     infra_tries += 1;
                     last_reply = None;
                     if infra_tries < INFRA_TRIES {
-                        tokio::time::sleep(INFRA_RETRY_WAIT).await;
+                        tokio::time::sleep(infra_retry_wait(infra_tries)).await;
                         attempt -= 1; // an infrastructure failure is not a schema attempt
                         continue;
                     }
@@ -305,4 +314,15 @@ pub async fn extract_llm(
         extraction_key: h.finalize().to_hex().to_string(),
     });
     Ok((x, stats))
+}
+
+#[cfg(all(test, not(feature = "failpoints")))]
+mod infra_retry_tests {
+    use super::infra_retry_wait;
+
+    #[test]
+    fn infra_retries_follow_the_extract_llm_schedule() {
+        let secs: Vec<u64> = (1..=6).map(|t| infra_retry_wait(t).as_secs()).collect();
+        assert_eq!(secs, vec![5, 15, 45, 135, 300, 300]);
+    }
 }
