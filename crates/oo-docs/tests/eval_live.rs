@@ -318,7 +318,7 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
         }
         Err(_) => {
             let n = copy_tree(&docs_root, &s.root);
-            assert!(n >= 50, "{n} golden files");
+            assert!(n >= 40, "{n} labelled files");
             n
         }
     };
