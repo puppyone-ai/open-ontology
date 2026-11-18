@@ -133,3 +133,45 @@ def test_detection_is_bounded_and_threads_are_one():
 
     assert adapter.DET_MAX_SIDE <= 1280
     assert os.environ["OMP_NUM_THREADS"] == "1" and os.environ["OPENBLAS_NUM_THREADS"] == "1"
+
+
+def _blk(text, y=0):
+    return {"label": "text", "kind": "paragraph", "text": text, "bbox_px": [0, y, 50, y + 10], "score": 0.9}
+
+
+def test_blank_ocr_is_filled_from_the_text_layer():
+    lines = [("灯塔迁移方案", [10, 10, 90, 30]), ("目标：2026年第三季度前迁移", [10, 60, 300, 80])]
+    got = adapter._supplement([], lines)
+    assert [b["text"] for b in got] == ["灯塔迁移方案", "目标：2026年第三季度前迁移"]
+    assert all(b["score"] == 1.0 and b["kind"] == "paragraph" for b in got)
+
+
+def test_healthy_ocr_is_left_alone_and_partial_ocr_gets_only_the_missing_lines():
+    lines = [("alpha beta", [0, 0, 50, 10]), ("gamma delta", [0, 40, 50, 50])]
+    healthy = [_blk("alpha  beta", 0), _blk("gamma delta", 40)]
+    assert adapter._supplement(healthy, lines) is healthy
+    assert adapter._supplement(healthy, []) is healthy
+    partial = [_blk("gamma delta", 40)]
+    # OCR holds 10 of 19 characters: above half, untouched
+    assert adapter._supplement(partial, lines) is partial
+    short = [_blk("gam", 40)]
+    got = adapter._supplement(short, lines)
+    assert {b["text"] for b in got} == {"alpha beta", "gamma delta", "gam"}
+
+
+def test_the_golden_proposal_pdf_has_a_readable_text_layer():
+    pdfium = pytest.importorskip("pypdfium2")
+    pdf = HERE.parents[1] / "testing/super-ontology/golden/docs/Proposals/灯塔迁移方案.pdf"
+    if not pdf.exists():
+        pytest.skip("golden set not in this checkout")
+    doc = pdfium.PdfDocument(str(pdf))
+    try:
+        page = doc[0]
+        w, h = page.get_size()
+        lines = adapter._text_layer_lines(page, round(w * 200 / 72), round(h * 200 / 72))
+        page.close()
+    finally:
+        doc.close()
+    assert lines and lines[0][0] == "灯塔迁移方案"
+    assert "".join(t for t, _ in lines).count("陈子墨") == 1
+    assert all(0 <= b[0] < b[2] and 0 <= b[1] < b[3] for _, b in lines)
