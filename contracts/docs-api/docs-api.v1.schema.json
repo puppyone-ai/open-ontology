@@ -5215,7 +5215,62 @@
         "block_kind": {
           "type": "string"
         }
-      }
+      },
+      "examples": [
+        {
+          "kind": "fact",
+          "id": "f-0193",
+          "text": "Acme Ltd",
+          "score": 0.42,
+          "evidence": [
+            {
+              "file_id": "fl-12",
+              "drive_id": "dr-1",
+              "version_id": "v-3",
+              "path": "Projects/alpha.md",
+              "block_id": "b-7",
+              "anchor": {
+                "kind": "text",
+                "start": 10,
+                "end": 18
+              },
+              "src": "[src:Projects/alpha.md#b-7]"
+            }
+          ],
+          "fact_key": "fk-88",
+          "predicate": "customer_of",
+          "subject": {
+            "key": "e-4",
+            "name": "Alpha",
+            "type": "Project"
+          }
+        },
+        {
+          "kind": "block",
+          "id": "fl-12#b-9",
+          "text": "Kickoff with Acme on 3 March",
+          "score": 0.31,
+          "evidence": [
+            {
+              "file_id": "fl-12",
+              "drive_id": "dr-1",
+              "version_id": "v-3",
+              "path": "Projects/alpha.md",
+              "block_id": "b-9",
+              "anchor": {
+                "kind": "text",
+                "start": 0,
+                "end": 28
+              }
+            }
+          ],
+          "hpath": [
+            "Alpha",
+            "Timeline"
+          ],
+          "block_kind": "paragraph"
+        }
+      ]
     },
     "SearchResult": {
       "type": "object",
@@ -5470,7 +5525,8 @@
         {
           "sql": "SELECT 1"
         }
-      ]
+      ],
+      "additionalProperties": false
     },
     "OntologyQueryResult": {
       "type": "object",
