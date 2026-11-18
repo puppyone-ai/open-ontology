@@ -1,5 +1,26 @@
 # L4 evaluation through the real pipeline, model off and on
 
+## Results after the merge with feat/super-ontology and the department labels
+
+The labels now carry the seven department Organizations of the people table and a `member_of` fact per person (spec 10 5.1,
+`xlsx.people`: the labels were wrong, the engine was right; the budget row the labels call a Topic is unchanged). Same engine as
+below plus the L5/L6 wiring; the LLM cache key now hashes the whole system text. L4 target (P >= 0.85, R >= 0.75), published view:
+**met on both sets** (golden entities and facts, held-out entities and facts).
+
+| run | view | entities P / R | facts P / R | supersede | conflict | red team hits |
+|---|---|---|---|---|---|---|
+| golden, model off | candidates | 0.989 / 0.860 | 0.980 / 0.637 | 4/4 | 1/1 | 0 |
+| golden, model off | published | 0.989 / 0.860 | 0.980 / 0.635 | 4/4 | 0/1 | 0 |
+| golden, model on (`gpt-6.1-sol`) | candidates | 0.744 / 0.960 | 0.862 / 0.832 | 4/4 | 1/1 | 0 |
+| golden, model on (`gpt-6.1-sol`) | published | 0.989 / 0.920 | 0.900 / 0.827 | 4/4 | 0/1 | 0 |
+| holdout, model off | candidates | 0.988 / 0.853 | 0.978 / 0.643 | 4/4 | 1/1 | 0 |
+| holdout, model off | published | 0.988 / 0.853 | 0.978 / 0.641 | 4/4 | 0/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | candidates | 0.724 / 0.937 | 0.843 / 0.809 | 4/4 | 1/1 | 0 |
+| holdout, model on (`gpt-6.1-sol`) | published | 0.988 / 0.884 | 0.896 / 0.801 | 4/4 | 0/1 | 0 |
+
+The numbers of the section below were measured against the earlier labels (without the departments) and are kept as history.
+
+
 `tools/oo-test/super_ontology_eval_live.py` (wrapping `cargo test -p oo-docs --test eval_live`): a real
 `oo-docs-engine`, the Docling sidecar container and, for the ON run, the real model egress configured through
 `PUT /v1/docs/config/model` with `file:` references only (the owner's endpoint and key files, never read or
