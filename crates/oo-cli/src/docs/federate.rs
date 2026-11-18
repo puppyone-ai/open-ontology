@@ -223,6 +223,14 @@ fn is_table(t: &str) -> bool {
         .is_some_and(|(a, b)| is_ident(a) && is_ident(b))
 }
 
+/// Is this a plain integer a numeric SQL literal can carry (no leading zero, at most 18 digits)?
+pub fn is_int_literal(s: &str) -> bool {
+    let d = s.strip_prefix('-').unwrap_or(s);
+    (1..=18).contains(&d.len())
+        && d.bytes().all(|b| b.is_ascii_digit())
+        && (d.len() == 1 || !d.starts_with('0'))
+}
+
 /// A SQL string literal; control characters are dropped.
 pub fn sql_lit(s: &str) -> String {
     let clean: String = s.chars().filter(|c| !c.is_control()).collect();
@@ -642,7 +650,7 @@ impl Ctx<'_> {
                 }
                 seen.push(r.table.clone());
                 let sql = format!(
-                    "SELECT {k}, {n} FROM {t} WHERE LOWER({n}) LIKE {pat} LIMIT {limit}",
+                    "SELECT {k}, {n} FROM {t} WHERE {n} ILIKE {pat} LIMIT {limit}",
                     k = r.key_col,
                     n = r.name_col,
                     t = r.table,
@@ -716,11 +724,28 @@ impl Ctx<'_> {
         key_col: &str,
         pk: &str,
     ) -> Result<Option<Value>, Fail> {
-        let sql = format!(
-            "SELECT * FROM {table} WHERE {key_col} = {} LIMIT 1",
-            sql_lit(pk)
-        );
-        let rows = gw_query(profile, &sql, 1).await?;
+        // The Gateway types literals: `id = '1'` on a bigint key is refused, `id = 1` on a text key too. An
+        // integer-looking key is tried as a number first and as text when the Gateway refuses the signature.
+        let mut tries = Vec::new();
+        if is_int_literal(pk) {
+            tries.push(pk.to_owned());
+        }
+        tries.push(sql_lit(pk));
+        let mut rows = None;
+        for (n, lit) in tries.iter().enumerate() {
+            let sql = format!("SELECT * FROM {table} WHERE {key_col} = {lit} LIMIT 1");
+            match gw_query(profile, &sql, 1).await {
+                Ok(r) => {
+                    rows = Some(r);
+                    break;
+                }
+                Err(f) if n + 1 < tries.len() && f.2.contains("FUNCTION_NOT_ALLOWED") => {}
+                Err(f) => return Err(f),
+            }
+        }
+        let Some(rows) = rows else {
+            return Ok(None);
+        };
         let Some(obj) = rows.objects().into_iter().next() else {
             return Ok(None);
         };
@@ -1100,6 +1125,24 @@ mod tests {
             "select 'x",
         ] {
             assert!(!read_only_sql(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn integer_keys_are_told_from_text_keys() {
+        for ok in ["1", "42", "-7", "123456789012345678"] {
+            assert!(is_int_literal(ok), "{ok}");
+        }
+        for no in [
+            "",
+            "007",
+            "1.5",
+            "a1",
+            "-",
+            "1234567890123456789",
+            "1; DROP",
+        ] {
+            assert!(!is_int_literal(no), "{no}");
         }
     }
 
