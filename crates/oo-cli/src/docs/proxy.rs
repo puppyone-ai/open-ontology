@@ -252,6 +252,7 @@ pub fn credential_call(head: &Head) -> bool {
         ("GET", ["v1", "docs", "shares", _, "updates"]) => true,
         ("GET", ["v1", "docs", "shares", _]) => true,
         ("GET", ["v1", "docs", "entities", _]) => true,
+        ("POST", ["v1", "docs", "suggestions"]) => true,
         _ => false,
     }
 }

@@ -39,6 +39,7 @@ pub mod review;
 pub mod share;
 pub mod state;
 pub mod store;
+pub mod suggest;
 pub mod temporal;
 
 #[cfg(feature = "failpoints")]

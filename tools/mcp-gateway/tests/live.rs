@@ -14,15 +14,17 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use oo_gateway::http_gateway::{
-    harness_install, harness_issue, CurrentTuple, Endpoint, IssueGrant, TokenKind,
+    CurrentTuple, Endpoint, IssueGrant, TokenKind, harness_install, harness_issue,
 };
+use rmcp::ClientLifecycleMode;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ClientCapabilities, ClientConfig, ErrorCode,
     Implementation, ProtocolVersion, ReadResourceRequestParams, ResourceContents,
 };
-use rmcp::service::{ClientInitializeError, ClientServiceExt, RoleClient, RunningService, ServiceError};
+use rmcp::service::{
+    ClientInitializeError, ClientServiceExt, RoleClient, RunningService, ServiceError,
+};
 use rmcp::transport::TokioChildProcess;
-use rmcp::ClientLifecycleMode;
 use serde_json::{Map as JsonMap, Value};
 use tokio::io::AsyncReadExt;
 use zeroize::Zeroize;
@@ -59,7 +61,10 @@ impl Session {
 #[ignore = "requires OO_A388_LIVE=1, private PostgreSQL, oo-gateway, and role-pack-bundle"]
 async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     let live = std::env::var("OO_A388_LIVE").unwrap_or_default();
-    assert_eq!(live, "1", "OO_A388_LIVE=1 is required; refusing a green skip");
+    assert_eq!(
+        live, "1",
+        "OO_A388_LIVE=1 is required; refusing a green skip"
+    );
     const { assert!(cfg!(target_os = "linux"), "the proc checks run on linux") };
 
     let host = required_env("OO_A388_PG_HOST");
@@ -75,9 +80,18 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     let work = std::env::temp_dir().join(format!("oo-a388-live-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work).expect("work dir");
-    let (picker_text, picker_digest) = compile_pack(&work, &fixture_dir, "visibility-picker.json", "picker.json");
-    let (auditor_text, auditor_digest) = compile_pack(&work, &fixture_dir, "visibility-auditor.json", "auditor.json");
-    assert_ne!(picker_digest, auditor_digest, "the two roles sealed the same digest");
+    let (picker_text, picker_digest) =
+        compile_pack(&work, &fixture_dir, "visibility-picker.json", "picker.json");
+    let (auditor_text, auditor_digest) = compile_pack(
+        &work,
+        &fixture_dir,
+        "visibility-auditor.json",
+        "auditor.json",
+    );
+    assert_ne!(
+        picker_digest, auditor_digest,
+        "the two roles sealed the same digest"
+    );
     assert!(!picker_text.contains("unclassified_pii"));
     assert!(!auditor_text.contains("unclassified_pii"));
     assert!(!picker_text.contains("auditor_phone"));
@@ -134,9 +148,21 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     let gateway_port = addr.port();
     let url = format!("http://127.0.0.1:{gateway_port}");
 
-    let (status, picker_http) = http(gateway_port, "GET", "/v1/pack/metadata", Some(picker.0.as_str()), None);
+    let (status, picker_http) = http(
+        gateway_port,
+        "GET",
+        "/v1/pack/metadata",
+        Some(picker.0.as_str()),
+        None,
+    );
     assert_eq!(status, 200, "picker http metadata");
-    let (status, auditor_http) = http(gateway_port, "GET", "/v1/pack/metadata", Some(auditor.0.as_str()), None);
+    let (status, auditor_http) = http(
+        gateway_port,
+        "GET",
+        "/v1/pack/metadata",
+        Some(auditor.0.as_str()),
+        None,
+    );
     assert_eq!(status, 200, "auditor http metadata");
     let (status, picker_session_http) = http(
         gateway_port,
@@ -161,7 +187,13 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
         &format!("{{\"sql\":\"{SQL_MARKER}\"}}"),
     );
     assert_eq!(status, 501, "sql http");
-    assert_role(&picker_http, &picker_digest, "picker-user", "oo_r_picker", &["order_id", "picker_note"]);
+    assert_role(
+        &picker_http,
+        &picker_digest,
+        "picker-user",
+        "oo_r_picker",
+        &["order_id", "picker_note"],
+    );
     assert_role(
         &auditor_http,
         &auditor_digest,
@@ -176,9 +208,18 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     assert!(!body_text(&picker_http).contains("does not authenticate"));
     assert_error_envelope(&session_http, "UNAUTHENTICATED");
     assert_error_envelope(&sql_http, "SQL_UNSUPPORTED");
-    assert!(!body_text(&sql_http).contains(SQL_MARKER), "sql body echoed");
-    assert!(!body_text(&picker_http).contains(&picker.0), "bearer echoed");
-    assert!(!body_text(&session_http).contains(&session_token.0), "session bearer echoed");
+    assert!(
+        !body_text(&sql_http).contains(SQL_MARKER),
+        "sql body echoed"
+    );
+    assert!(
+        !body_text(&picker_http).contains(&picker.0),
+        "bearer echoed"
+    );
+    assert!(
+        !body_text(&session_http).contains(&session_token.0),
+        "session bearer echoed"
+    );
 
     let token_path = work.join("token");
     publish_token(&token_path, &picker.0);
@@ -232,7 +273,10 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
         .expect("resources");
     assert_eq!(listed.ttl_ms, Some(0));
     assert_eq!(listed.cache_scope, Some(rmcp::model::CacheScope::Private));
-    let http_files = body_json(&auditor_http)["files"].as_array().expect("files").clone();
+    let http_files = body_json(&auditor_http)["files"]
+        .as_array()
+        .expect("files")
+        .clone();
     assert_eq!(listed.resources.len(), http_files.len());
     let first = http_files.first().expect("pack file");
     let path = first["path"].as_str().expect("path");
@@ -247,7 +291,11 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     assert_eq!(read.ttl_ms, Some(0));
     assert_eq!(read.cache_scope, Some(rmcp::model::CacheScope::Private));
     match read.contents.as_slice() {
-        [ResourceContents::TextResourceContents { mime_type, text, .. }] => {
+        [
+            ResourceContents::TextResourceContents {
+                mime_type, text, ..
+            },
+        ] => {
             assert_eq!(mime_type.as_deref(), Some("application/json"));
             let parsed: Value = serde_json::from_str(text).expect("resource json");
             assert_eq!(&parsed, first);
@@ -280,7 +328,10 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     std::fs::write(&canary, CANARY.as_bytes()).expect("canary");
     let export_args = {
         let mut args = JsonMap::new();
-        args.insert("path".to_owned(), Value::String(canary.display().to_string()));
+        args.insert(
+            "path".to_owned(),
+            Value::String(canary.display().to_string()),
+        );
         args
     };
     let export = initialized
@@ -306,7 +357,10 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
         ServiceError::McpError(error) => assert_eq!(error.code, ErrorCode::INVALID_PARAMS),
         other => panic!("file uri error was {other}"),
     }
-    assert_eq!(std::fs::read(&canary).expect("canary remains"), CANARY.as_bytes());
+    assert_eq!(
+        std::fs::read(&canary).expect("canary remains"),
+        CANARY.as_bytes()
+    );
 
     let init_stderr = initialized.finish().await;
     assert_stderr(&init_stderr, &runtime, SQL_MARKER);
@@ -328,7 +382,11 @@ async fn stdio_matches_live_gateway_for_both_protocol_versions() {
     )
     .await
     .expect("discover 2026-07-28");
-    let info = discovered.running.peer().peer_info().expect("discover peer");
+    let info = discovered
+        .running
+        .peer()
+        .peer_info()
+        .expect("discover peer");
     assert_eq!(info.protocol_version, ProtocolVersion::V_2026_07_28);
     let discovered_meta = discovered
         .running
@@ -440,7 +498,9 @@ fn assert_absent(haystack: &[u8], needle: &str) {
         return;
     }
     assert!(
-        !haystack.windows(needle.len()).any(|window| window == needle),
+        !haystack
+            .windows(needle.len())
+            .any(|window| window == needle),
         "secret material appeared on a process surface"
     );
 }
@@ -471,11 +531,15 @@ async fn spawn_mcp(
     let token_bytes = trim_secret(std::str::from_utf8(&file).expect("token utf8")).as_bytes();
     assert!(!token_bytes.is_empty(), "empty token");
     assert!(
-        !cmdline.windows(token_bytes.len()).any(|window| window == token_bytes),
+        !cmdline
+            .windows(token_bytes.len())
+            .any(|window| window == token_bytes),
         "token file contents in argv"
     );
     assert!(
-        !environ.windows(token_bytes.len()).any(|window| window == token_bytes),
+        !environ
+            .windows(token_bytes.len())
+            .any(|window| window == token_bytes),
         "token file contents in environ"
     );
     file.zeroize();
@@ -513,7 +577,12 @@ fn publish_token(path: &Path, token: &str) {
     std::fs::rename(&tmp, path).expect("token rename");
 }
 
-fn compile_pack(work: &Path, fixture_dir: &Path, visibility: &str, output_name: &str) -> (String, String) {
+fn compile_pack(
+    work: &Path,
+    fixture_dir: &Path,
+    visibility: &str,
+    output_name: &str,
+) -> (String, String) {
     let output = work.join(output_name);
     let digest_path = work.join(format!("{output_name}.digest"));
     let produced = Command::new(required_env("OO_A388_FIXTURE_BIN"))
@@ -532,9 +601,15 @@ fn compile_pack(work: &Path, fixture_dir: &Path, visibility: &str, output_name: 
         .output()
         .expect("fixture spawn");
     let tool_stderr = String::from_utf8_lossy(&produced.stderr);
-    assert!(produced.status.success(), "compile {visibility} failed: {tool_stderr}");
+    assert!(
+        produced.status.success(),
+        "compile {visibility} failed: {tool_stderr}"
+    );
     let text = std::fs::read_to_string(&output).expect("compiled pack");
-    let digest = std::fs::read_to_string(&digest_path).expect("digest").trim().to_owned();
+    let digest = std::fs::read_to_string(&digest_path)
+        .expect("digest")
+        .trim()
+        .to_owned();
     assert_eq!(digest.len(), 64, "compiler digest length");
     (text, digest)
 }
@@ -555,9 +630,15 @@ fn refuse_hidden(work: &Path, fixture_dir: &Path) {
         .output()
         .expect("fixture spawn");
     let tool_stderr = String::from_utf8_lossy(&produced.stderr);
-    assert!(produced.status.success(), "hidden visibility was not refused: {tool_stderr}");
+    assert!(
+        produced.status.success(),
+        "hidden visibility was not refused: {tool_stderr}"
+    );
     let compiler = std::fs::read_to_string(&stderr_path).unwrap_or_default();
-    assert!(compiler.contains("classification.unknown_pii"), "compiler stderr missed unknown PII");
+    assert!(
+        compiler.contains("classification.unknown_pii"),
+        "compiler stderr missed unknown PII"
+    );
 }
 
 fn write_config(
@@ -623,8 +704,15 @@ fn wait_addr(dir: &Path) -> std::net::SocketAddr {
     }
 }
 
-fn http(port: u16, method: &str, path: &str, bearer: Option<&str>, extra: Option<(&str, &str)>) -> (u16, Vec<u8>) {
-    let mut request = format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
+fn http(
+    port: u16,
+    method: &str,
+    path: &str,
+    bearer: Option<&str>,
+    extra: Option<(&str, &str)>,
+) -> (u16, Vec<u8>) {
+    let mut request =
+        format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
     if let Some(token) = bearer {
         request.push_str("Authorization: Bearer ");
         request.push_str(token);
@@ -657,8 +745,12 @@ fn post(port: u16, path: &str, bearer: Option<&str>, body: &str) -> (u16, Vec<u8
 
 fn exchange(port: u16, request: &[u8]) -> (u16, Vec<u8>) {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect");
-    stream.set_read_timeout(Some(Duration::from_secs(8))).expect("read timeout");
-    stream.set_write_timeout(Some(Duration::from_secs(8))).expect("write timeout");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(8)))
+        .expect("read timeout");
+    stream
+        .set_write_timeout(Some(Duration::from_secs(8)))
+        .expect("write timeout");
     stream.write_all(request).expect("write");
     let mut bytes = Vec::new();
     let _ = stream.read_to_end(&mut bytes);
