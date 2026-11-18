@@ -155,7 +155,11 @@ pub async fn list(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
     let limit = req.query.limit()?;
     let mut conn = app.pool.acquire().await?;
     let items = store::list(&mut conn, status, share, day, limit).await?;
-    Ok(http::json(200, &json!({"items": items})))
+    let as_of_seq = super::files::head_seq(&mut conn).await?;
+    Ok(http::json(
+        200,
+        &json!({"items": items, "next_cursor": null, "as_of_seq": as_of_seq}),
+    ))
 }
 
 /// `GET /v1/docs/suggestions:digest`.
