@@ -480,8 +480,8 @@ async fn proxy_adding(upstream: &str, name: &'static str, value: &str) -> String
                 for l in lines {
                     if let Some((k, v)) = l.split_once(':') {
                         let k = k.trim();
-                        if !k.eq_ignore_ascii_case("host")
-                            && !k.eq_ignore_ascii_case("connection")
+                        // The Host header stays the client's: it is part of what the request signature covers.
+                        if !k.eq_ignore_ascii_case("connection")
                             && !k.eq_ignore_ascii_case("content-length")
                         {
                             req = req.header(k, v.trim());
