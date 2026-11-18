@@ -94,12 +94,18 @@ pub async fn asserted_keys(
 
 /// Active overlays bound to a fact whose evidence has all disappeared become
 /// `orphaned` (a new row) and queue an `orphaned_overlay` item (D22: a person's
-/// decision is never retracted by itself). Returns the items queued.
+/// decision is never retracted by itself). An overlay a person kept after such
+/// an item (`orphan_decision` in its payload) is not asked about again.
+/// Returns the items queued.
 pub async fn sweep_orphans(conn: &mut PgConnection) -> Result<u32, StoreError> {
     let rows: Vec<(String, String, String)> = sqlx::query_as(
         "SELECT o.id::text, o.kind, o.binds FROM _oo_docs.overlay_current o \
           WHERE o.status = 'active' AND o.kind IN ('fact_assert', 'fact_edit') \
-            AND EXISTS (SELECT 1 FROM _oo_docs.fact f WHERE f.fact_key = o.binds) \
+            AND NOT (o.payload ? 'orphan_decision') \
+            AND EXISTS (SELECT 1 FROM _oo_docs.fact f WHERE f.fact_key = o.binds \
+                         AND f.status IN ('draft', 'published')) \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.overlay_current r WHERE r.binds = o.binds \
+                             AND r.kind = 'fact_reject' AND r.status = 'active') \
             AND NOT EXISTS (SELECT 1 FROM _oo_docs.fact f \
                              JOIN _oo_docs.evidence e ON e.target_kind = 'fact' AND e.target_id = f.id \
                             WHERE f.fact_key = o.binds AND e.withdrawn_at IS NULL) \
