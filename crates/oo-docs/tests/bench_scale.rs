@@ -29,7 +29,8 @@ fn files() -> usize {
     std::env::var("OO_SCALE_FILES")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(10_000)
+        // A debug build only smoke-tests the bench; the product size is for the release build.
+        .unwrap_or(if cfg!(debug_assertions) { 500 } else { 10_000 })
 }
 
 fn doc(i: usize) -> (String, String) {
