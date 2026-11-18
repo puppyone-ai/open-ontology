@@ -72,3 +72,19 @@ Non-blocking
 6. The model's `EDGES` copy is re-read by the test from the `.qnt` text; that is good. Keep the 16 x 17 loop, but it currently checks `state.rs` only, not the `stored -> parse_failed` row in the spec (already noted by the author).
 
 Checked and fine: `legal()` in the model and `is_legal` agree on `absent`, `superseded` and `deleted`; `supersede` from `absent` is blocked by `legal`; `plain` cannot reach `stored`, `queued`, `parsing`, `published`, `outdated`, `superseded`, `deleted`; the `unreadable` code only from `stored`.
+
+## Response to the independent review (lane A, 2026-11-17)
+
+- **B1:** reviewer option (a). `File` has a lease generation `gen`, the accepted result's `accGen`, and `jobs`, the parse jobs in flight as `(ver, gen)`
+  pairs (a worker that lost its lease keeps running). `toParsing` raises `gen` and adds a job; `finishParse` picks one in-flight job and accepts it only when
+  the file is `parsing` and the job's `(ver, gen)` is the file's (the CAS of 10 4.1.1), else discards it. Invariant `invResultFromCurrentLease`: a `parsed`
+  file's result has the file's generation and version. Mutation M1 (accept on the version alone, a stale lease of the same version) and M3 (accept any
+  job while parsing) are caught. M2 (accept on the generation alone) is **equivalent**, not a gap: a lease's generation already fixes its version, because a
+  supersede always leaves `parsing` and the next lease takes a new generation.
+- **B2:** the replay keeps one `file_version` row per model version (`ver` is the index of the current one) and checks the model's `resVer <= ver` and
+  `pubVer in {-1, ver}`; for every `finishParse` step it runs the stage fence (`jobs/stages.rs::load_subject`: the job's version is still the file's current,
+  not superseded, not deleted version) and asserts it equals the model's `j.ver == ver`. **Finding:** `state::transition` itself has no version fence
+  (`version_id` is only logged); the fence is the stage's SQL, which the replay now exercises (copied query, the function is private). The generation half
+  is FM1's `(owner, generation)` CAS, not replayed here. 300 traces, 8,344 steps, 84,036 probes pass.
+- Not done: 3 (guards of `toDuplicate` / `toQueued` as replay preconditions), 6. 4: at the bound `V = 3` a deleted file whose `ver + 1 > V` cannot be
+  restored in the model. 5: `invNoStaleOverwrite` stays weak on its own; `invResultFromCurrentLease` is the strong one.

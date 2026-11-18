@@ -114,6 +114,10 @@ fn fm2_transition_table_equals_is_legal() {
 struct ModelFile {
     st: String,
     pfc: String,
+    ver: i64,
+    res_ver: i64,
+    pub_ver: i64,
+    dup_hash: i64,
 }
 
 fn int(v: &Value) -> i64 {
@@ -139,6 +143,10 @@ fn parse_files(s: &Value) -> BTreeMap<i64, ModelFile> {
                 ModelFile {
                     st: p[1]["st"].as_str().unwrap().to_owned(),
                     pfc: p[1]["pfc"].as_str().unwrap().to_owned(),
+                    ver: int(&p[1]["ver"]),
+                    res_ver: int(&p[1]["resVer"]),
+                    pub_ver: int(&p[1]["pubVer"]),
+                    dup_hash: int(&p[1]["dupHash"]),
                 },
             )
         })
@@ -154,6 +162,8 @@ fn code_of(pfc: &str) -> Option<&'static str> {
     }
 }
 
+static VER_SEQ: AtomicUsize = AtomicUsize::new(1);
+
 struct Rig {
     pool: PgPool,
     drive: String,
@@ -168,6 +178,59 @@ async fn db_state(pool: &PgPool, id: &str) -> (String, Option<String>) {
         .unwrap()
 }
 
+/// One `file_version` row per model version: the model's `ver` is the index of the file's current version.
+async fn ensure_versions(rig: &Rig, id: &str, ver: i64, made: &mut BTreeMap<String, Vec<String>>) {
+    let rows = made.entry(id.to_owned()).or_default();
+    while (rows.len() as i64) <= ver {
+        let n = rows.len();
+        let vid = format!(
+            "00000000-0000-4000-8000-{:012x}",
+            0xf000_0000_0000u64 + VER_SEQ.fetch_add(1, Ordering::SeqCst) as u64
+        );
+        let b3 = format!("{:064x}", n + 1);
+        sqlx::query("INSERT INTO _oo_docs.blob (b3, sha256, size, format) VALUES ($1, $2, 1, 'md') ON CONFLICT DO NOTHING")
+            .bind(&b3)
+            .bind("0".repeat(64))
+            .execute(&rig.pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE _oo_docs.file_version SET superseded_at = now() WHERE file_id = $1::uuid AND superseded_at IS NULL")
+            .bind(id)
+            .execute(&rig.pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO _oo_docs.file_version (id, file_id, b3, path_at_version, fp) VALUES ($1::uuid, $2::uuid, $3, 'p', '{}'::jsonb)")
+            .bind(&vid)
+            .bind(id)
+            .bind(&b3)
+            .execute(&rig.pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE _oo_docs.file SET current_version_id = $2::uuid WHERE id = $1::uuid")
+            .bind(id)
+            .bind(&vid)
+            .execute(&rig.pool)
+            .await
+            .unwrap();
+        rows.push(vid);
+    }
+}
+
+/// The version fence of the parse stage (`jobs/stages.rs::load_subject`): a job for `version_id` is
+/// current only while it is the file's current, not superseded, not deleted version.
+async fn fence_passes(rig: &Rig, id: &str, version_id: &str) -> bool {
+    sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+          WHERE f.id = $1::uuid AND f.current_version_id = $2::uuid AND f.deleted_at IS NULL \
+            AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL)",
+    )
+    .bind(id)
+    .bind(version_id)
+    .fetch_one(&rig.pool)
+    .await
+    .unwrap()
+}
+
 async fn replay(rig: &mut Rig, trace: &Value) -> Result<(usize, usize), String> {
     let edges = model_edges(&model_text());
     let states = trace["states"].as_array().ok_or("states")?;
@@ -176,6 +239,8 @@ async fn replay(rig: &mut Rig, trace: &Value) -> Result<(usize, usize), String> 
     let mut ids: BTreeMap<i64, String> = BTreeMap::new();
     let mut prev = parse_files(&states[0]);
     let mut probes = 0usize;
+    let mut made: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut fences = 0usize;
     for (i, st) in states.iter().enumerate().skip(1) {
         let cur = parse_files(st);
         let changed: Vec<i64> = cur
@@ -258,6 +323,37 @@ async fn replay(rig: &mut Rig, trace: &Value) -> Result<(usize, usize), String> 
                 .map_err(|e| format!("step {i}: {from} -> {to} refused: {e:?}"))?;
             }
         }
+        // versions: one file_version row per model version, then the stage fence for a finishParse step
+        for (k, mf) in &cur {
+            if let Some(id) = ids.get(k) {
+                ensure_versions(rig, id, mf.ver, &mut made).await;
+                if mf.res_ver > mf.ver || (mf.pub_ver != -1 && mf.pub_ver != mf.ver) {
+                    return Err(format!(
+                        "step {i}: file {k} version fields ver {} resVer {} pubVer {} dupHash {}",
+                        mf.ver, mf.res_ver, mf.pub_ver, mf.dup_hash
+                    ));
+                }
+            }
+        }
+        if st["mbt::actionTaken"] == "finishParse" {
+            let picks = &st["mbt::nondetPicks"];
+            let f = int(&picks["f"]["value"]);
+            let jv = int(&picks["j"]["value"]["ver"]);
+            if let Some(id) = ids.get(&f)
+                && prev[&f].st != "deleted"
+                && prev[&f].st != "absent"
+            {
+                let vid = made[id][usize::try_from(jv).unwrap()].clone();
+                let fence = fence_passes(rig, id, &vid).await;
+                if fence != (jv == prev[&f].ver) {
+                    return Err(format!(
+                        "step {i}: stage fence {fence} for job version {jv} of file at version {}",
+                        prev[&f].ver
+                    ));
+                }
+                fences += 1;
+            }
+        }
         // compare every file
         for (k, mf) in &cur {
             match ids.get(k) {
@@ -286,6 +382,7 @@ async fn replay(rig: &mut Rig, trace: &Value) -> Result<(usize, usize), String> 
         }
         prev = cur;
     }
+    eprintln!("fm2 fence checks: {fences}");
     Ok((states.len() - 1, probes))
 }
 
