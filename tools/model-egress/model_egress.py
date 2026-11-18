@@ -4,6 +4,7 @@ import argparse
 from collections import deque
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import ipaddress
 import io
 import json
@@ -556,7 +557,12 @@ def server(egress, host, port):
         def do_GET(self):
             self.send_json(404, {'error': {'code': 'NOT_FOUND'}})
 
-    class LocalServer(HTTPServer):
+    class LocalServer(ThreadingMixIn, HTTPServer):
+        # One thread per request: a slow upstream call must not stall the rest
+        # (the docs engine runs several extraction workers). The rate limiter and
+        # the meter take the Egress lock, so admission stays exact.
+        daemon_threads = True
+        request_queue_size = 64
         address_family = socket.AF_INET6 if ':' in host else socket.AF_INET
 
         def handle_error(self, _request, _address):
