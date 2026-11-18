@@ -36,6 +36,19 @@ pub async fn get(
     let mut conn = app.pool.acquire().await?;
     let (drive, raw_key, size) = credential::locate(&mut conn, cred, b3).await?;
     credential::touch(&mut conn, &cred.cred_id).await?;
+    crate::audit::record(
+        &mut conn,
+        &crate::audit::Entry {
+            action: crate::audit::REFS_ACCESSED,
+            actor: &req.actor,
+            tenant: None,
+            drive_id: Some(&drive),
+            share_id: Some(&cred.share_id),
+            agent: None,
+            detail: json!({"b3": &b3[..8.min(b3.len())]}),
+        },
+    )
+    .await?;
     events::append_event(
         &mut conn,
         "refs.accessed",

@@ -11,6 +11,7 @@ pub mod constraints;
 pub mod debounce;
 pub mod gates;
 pub mod hashes;
+pub mod projection;
 pub mod reprocess;
 pub mod run;
 pub mod write;

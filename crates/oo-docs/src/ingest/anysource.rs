@@ -118,9 +118,12 @@ impl SourceFactory for AnyFactory {
         match drive.backend.as_str() {
             "fs" => FsFactory.open(drive).map(AnySource::Fs),
             #[cfg(feature = "objectstore-s3")]
-            "s3" => {
+            // oss, cos and r2 are the same S3 compatible path with the cloud's endpoint
+            // and addressing defaults (10 4.3.7, B-S11-01).
+            "s3" | "oss" | "cos" | "r2" => {
                 use oo_connectors::objectstore_s3::opendal::{S3Config, S3Source, SecretResolver};
-                let cfg = S3Config::from_drive_config(
+                let cfg = S3Config::from_drive_config_for(
+                    &drive.backend,
                     &drive.config,
                     &SecretResolver {
                         secrets_dir: self.secrets_dir.clone(),

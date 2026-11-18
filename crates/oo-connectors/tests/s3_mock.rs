@@ -146,6 +146,7 @@ fn behaviour(body: Vec<u8>) -> Behaviour {
 
 fn source(endpoint: String) -> S3Source {
     let cfg = S3Config {
+        provider: Default::default(),
         bucket: "bkt".into(),
         prefix: String::new(),
         endpoint: Some(endpoint),
@@ -235,7 +236,7 @@ async fn three_corrupt_transfers_end_in_a_checksum_error() {
     b.corrupt_gets.store(100, Ordering::SeqCst);
     let src = source(serve(b).await);
     let err = src.stream_object(b"a.md", |_| Ok(())).await.unwrap_err();
-    assert_eq!(err, DocSourceError::Protocol("checksum mismatch"));
+    assert_eq!(err, DocSourceError::ChecksumMismatch);
 }
 
 #[tokio::test(flavor = "multi_thread")]

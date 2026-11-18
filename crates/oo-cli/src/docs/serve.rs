@@ -488,7 +488,7 @@ async fn reconcile_loop(state: PathBuf, mut stop: watch::Receiver<bool>) {
         {
             let _ = super::mounts::reconcile(&d, &state).await;
             // suggest/ directories every 10 s (10 §11.1)
-            if tick % 10 == 0 {
+            if tick.is_multiple_of(10) {
                 let _ = super::suggest::collect_all(&d, &state).await;
             }
         }

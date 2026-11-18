@@ -107,6 +107,21 @@ pub fn read_connection(state: &Path) -> Result<(u16, String), CliError> {
     Ok((port, token))
 }
 
+fn agent_headers(agent: &str) -> Result<reqwest::header::HeaderMap, CliError> {
+    let mut h = reqwest::header::HeaderMap::new();
+    h.insert(
+        "oo-docs-agent",
+        reqwest::header::HeaderValue::from_str(agent).map_err(|_| {
+            CliError::new(
+                exit::ARGS,
+                "DOCS_ENGINE_BAD_REQUEST",
+                "--agent has characters a header cannot carry",
+            )
+        })?,
+    );
+    Ok(h)
+}
+
 impl Daemon {
     /// Connect using the state directory.
     pub fn connect(state: &Path) -> Result<Self, CliError> {
@@ -206,6 +221,36 @@ impl Daemon {
             .send(self.http.get(format!("{}{path}", self.base)))
             .await?
             .1)
+    }
+
+    /// The engine's cloud entry at `base` (`http(s)://host:port`) with an `oodc_` token; `agent` is sent as
+    /// `OO-Docs-Agent` so the engine's audit log says who a share is for (B-S12-02).
+    pub fn remote(base: &str, token: &str, agent: Option<&str>) -> Result<Self, CliError> {
+        let mut b = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(120));
+        if let Some(a) = agent {
+            b = b.default_headers(agent_headers(a)?);
+        }
+        let http = b
+            .build()
+            .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "http client"))?;
+        Ok(Self {
+            base: base.trim_end_matches('/').to_owned(),
+            token: token.to_owned(),
+            http,
+        })
+    }
+
+    /// The same client, sending `OO-Docs-Agent: <agent>` with every request.
+    pub fn with_agent(self, agent: &str) -> Result<Self, CliError> {
+        let http = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(120))
+            .default_headers(agent_headers(agent)?)
+            .build()
+            .map_err(|_| CliError::new(exit::OTHER, "DOCS_ENGINE_INTERNAL", "http client"))?;
+        Ok(Self { http, ..self })
     }
 
     /// A client that authenticates with a share's refs credential at `base`
