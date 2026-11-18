@@ -251,7 +251,7 @@
 | T1 真实点击场景、T2 打包 App 黑盒场景全绿，交付文件 sha256 与被测一致（60 分册 §7） | L2 | 是 |
 | T3 Agent 探索式测试无未处理的阻断级问题 | L3 | 阻断交付 owner |
 | 形式化：`formal-typecheck`、`formal-simulate`、`formal-conformance` 全绿；改动被覆盖协议时 `formal-verify-fast`、`kani-fast` 全绿（80 §6） | L2 | 是 |
-| 形式化：该闭环的模型与证明清单全绿，`formal-verify-deep` 报告进入证据目录（80 §8） | L2 | 阻断签收 |
+| 形式化：该闭环在 80 §8 列出的快速检查全绿，结果进入证据目录；`formal-verify-deep` 不阻断（D81） | L2 | 阻断签收 |
 
 ## 5. 角色与并行
 
