@@ -35,6 +35,9 @@ EVENTS = ["季度战略会", "产品发布会", "技术开放日", "年终答谢
 PARKS = ["湖畔", "云谷", "海岸", "山麓", "江北"]
 ENG_ORG = ["Zenith", "Orbit", "Cobalt", "Ember", "Quartz", "Helix", "Nimbus", "Vertex"]
 ENG_PROJ = ["Compass", "Beacon", "Granite", "Pinecone", "Sailor", "Loom", "Bedrock", "Zephyr"]
+# Department words are whole-cell values in the people table and entity names; the held-out set gets its own
+# so no golden name survives (a global replace would garble ordinary words such as "数据看板").
+DEPT_POOL = ["总办", "策划", "工程", "创意", "分析", "营销", "后勤", "运维", "法务", "采购", "品控", "市场"]
 ROOMS = [("A会议室", "东会议室"), ("B会议室", "西会议室")]
 
 
@@ -156,7 +159,10 @@ def build(seed):
     mapping = {**mapping, **_words(r)}
     # Years move one on (hire dates one more), in the same single pass.
     mapping.update({"2026": "2027", "2025": "2026"})
-    t = _compile(mapping)
+    base = _compile(mapping)
+    dept_keys = [k for k in golden.ENT if k.startswith("dept_")]
+    dept_new = dict(zip((golden.ENT[k][1] for k in dept_keys), random.Random(seed + 2).sample(DEPT_POOL, len(dept_keys))))
+    t = lambda x: dept_new.get(x) or base(x)  # noqa: E731  exact whole-string match first
     ent = _walk(copy.deepcopy(golden.ENT), t)
     docs = _walk(copy.deepcopy(golden.DOCS), t)
     # Documents that no fact points at may be left out, as long as every entity still appears somewhere.
