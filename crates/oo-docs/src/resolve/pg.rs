@@ -56,6 +56,39 @@ pub fn lookup_names(x: &Extraction) -> (BTreeSet<String>, BTreeSet<String>) {
     (names, surnames)
 }
 
+/// The canonical names of every linkable entity of the Drive, for
+/// `extract::links` (`doc.link`).
+///
+/// Only *established* entities: one a rule found, or one a published fact of
+/// another source rests on. An entity only the model proposed, and nothing
+/// corroborated, is not published through the back door of a name match in
+/// other files (5.3: a single source waits for a person).
+pub async fn load_lexicon(
+    conn: &mut PgConnection,
+) -> Result<Vec<crate::extract::links::LexEntry>, StoreError> {
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT e.type, e.canonical_name FROM _oo_docs.entity e \
+          WHERE e.status = 'active' \
+            AND e.type IN ('Person', 'Organization', 'Project', 'Topic', 'Term', 'Event') \
+            AND EXISTS (SELECT 1 FROM _oo_docs.fact f \
+                         WHERE e.id IN (f.subject_id, f.object_id) \
+                           AND COALESCE(f.rule_id, '') NOT IN ('doc.link', 'doc.about') \
+                           AND ((f.origin = 'rule' AND f.status IN ('draft', 'published')) \
+                                OR (f.origin IN ('llm', 'human', 'suggest') AND f.status = 'published'))) \
+          ORDER BY e.key",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    rows.into_iter()
+        .map(|(ty, name)| {
+            Ok(crate::extract::links::LexEntry {
+                ty: parse_type(&ty)?,
+                name,
+            })
+        })
+        .collect()
+}
+
 fn like_prefix(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {

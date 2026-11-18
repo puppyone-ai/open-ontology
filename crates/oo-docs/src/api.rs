@@ -38,6 +38,7 @@ use crate::ingest::{DriveRef, IngestError, IngestLimits, SourceFactory};
 use oo_connectors::objectstore::DocSourceError;
 
 pub mod auth;
+pub mod cloud_tokens;
 pub mod cursor;
 pub mod drives;
 pub mod error;
@@ -45,6 +46,7 @@ pub mod events;
 pub mod file_detail;
 pub mod files;
 pub mod freshness;
+pub mod hints;
 pub mod http;
 pub mod idem;
 pub mod lifecycle;
@@ -56,6 +58,7 @@ pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_model;
 pub mod routes_review;
+pub mod routes_suggest;
 pub mod routes_usage;
 pub mod shares;
 
@@ -84,6 +87,21 @@ pub struct Req {
     /// Set when the caller presented a share's refs credential instead of the
     /// control token (task-time calls only, see `cred_allowed`).
     pub cred: Option<crate::share::credential::ShareCred>,
+    /// Set when the caller presented a cloud proxy token on the cloud entry.
+    pub cloud: Option<crate::cloud::CloudPrincipal>,
+    /// `local`, `cloud:<token id>` or `cred:<credential id>`: the actor of the audit log.
+    pub actor: String,
+    /// `OO-Docs-Agent` header: who a share is for (audit only), at most 200 characters.
+    pub agent: Option<String>,
+}
+
+/// Which listener a request came in on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Entry {
+    /// The loopback control API: control token and `oodr_` credentials only.
+    Local,
+    /// The cloud entry: `oodc_` tokens only, an allow list of routes, Drive bound (`cloud_guard`).
+    Cloud,
 }
 
 type SyncFuture<'a> =
@@ -216,6 +234,10 @@ pub struct AppState {
     pub progress: progress::Bus,
     /// The engine's model (`GET/PUT /config/model`); rules only until configured.
     pub model: Arc<crate::extract::llm::config::ModelRuntime>,
+    /// Per Drive memory of the event notifications seen (`:events`, B-S11-02).
+    pub hint_dedupe: Mutex<HashMap<String, oo_connectors::objectstore_events::Deduper>>,
+    /// Accepted `Host` values of the cloud entry (empty: the cloud entry refuses everything).
+    pub cloud_hosts: Vec<String>,
     stop: watch::Sender<bool>,
     buckets: Mutex<HashMap<[u8; 32], Bucket>>,
 }
@@ -243,6 +265,8 @@ impl AppState {
             rate_per_second: RATE_PER_SECOND,
             progress: progress::Bus::new(),
             model: crate::extract::llm::config::ModelRuntime::disabled(),
+            hint_dedupe: Mutex::new(HashMap::new()),
+            cloud_hosts: Vec::new(),
             stop: watch::channel(false).0,
             buckets: Mutex::new(HashMap::new()),
         }
@@ -257,6 +281,12 @@ impl AppState {
     /// Use `model` (the same runtime the stage handlers call).
     pub fn with_model(mut self, model: Arc<crate::extract::llm::config::ModelRuntime>) -> Self {
         self.model = model;
+        self
+    }
+
+    /// The `Host` values the cloud entry answers to (a public name and port).
+    pub fn with_cloud_hosts(mut self, hosts: Vec<String>) -> Self {
+        self.cloud_hosts = hosts.into_iter().map(|h| h.to_ascii_lowercase()).collect();
         self
     }
 
@@ -301,6 +331,22 @@ pub fn router(app: Arc<AppState>) -> Router {
     Router::new().fallback(entry).with_state(app)
 }
 
+/// The cloud entry (10 11.3, B-S12-01): the same handler chain on a second listener, with cloud tokens only.
+pub fn cloud_router(app: Arc<AppState>) -> Router {
+    Router::new().fallback(cloud_entry).with_state(app)
+}
+
+/// Serve the cloud entry until `shutdown` completes.
+pub async fn serve_cloud(
+    listener: tokio::net::TcpListener,
+    app: Arc<AppState>,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> std::io::Result<()> {
+    axum::serve(listener, cloud_router(app))
+        .with_graceful_shutdown(shutdown)
+        .await
+}
+
 /// Serve until `shutdown` completes.
 pub async fn serve(
     listener: tokio::net::TcpListener,
@@ -314,11 +360,19 @@ pub async fn serve(
 }
 
 async fn entry(State(app): State<Arc<AppState>>, req: Request) -> Response<Body> {
+    entry_for(app, req, Entry::Local).await
+}
+
+async fn cloud_entry(State(app): State<Arc<AppState>>, req: Request) -> Response<Body> {
+    entry_for(app, req, Entry::Cloud).await
+}
+
+async fn entry_for(app: Arc<AppState>, req: Request, which: Entry) -> Response<Body> {
     let started = Instant::now();
     // Only the template of the route is ever logged, never the path or query.
     let route_text = crate::obs::debug_enabled()
         .then(|| crate::obs::route_template(req.method().as_str(), req.uri().path()));
-    let mut resp = match route(&app, req).await {
+    let mut resp = match route(&app, req, which).await {
         Ok(r) => r,
         Err(e) => e.into_response(),
     };
@@ -357,7 +411,11 @@ fn method_allowed(req: &Req, allowed: &[&str]) -> Result<(), ApiError> {
     }
 }
 
-async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiError> {
+async fn route(
+    app: &Arc<AppState>,
+    req: Request,
+    which: Entry,
+) -> Result<Response<Body>, ApiError> {
     let (parts, body) = req.into_parts();
     let headers = parts.headers;
     if headers.contains_key("origin") {
@@ -366,10 +424,14 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
             "requests with an Origin header are refused",
         ));
     }
+    let allowed_hosts = match which {
+        Entry::Local => &app.hosts,
+        Entry::Cloud => &app.cloud_hosts,
+    };
     let host_ok = headers
         .get("host")
         .and_then(|h| h.to_str().ok())
-        .is_some_and(|h| app.hosts.iter().any(|a| a.eq_ignore_ascii_case(h)));
+        .is_some_and(|h| allowed_hosts.iter().any(|a| a.eq_ignore_ascii_case(h)));
     if !host_ok {
         return Err(ApiError::new(code::BAD_HOST, "Host is not allowed"));
     }
@@ -396,13 +458,25 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
     }
     let presented = auth::bearer(headers.get("authorization").and_then(|v| v.to_str().ok()));
     let mut cred = None;
-    let token = match presented {
-        Some(t) if t.starts_with("oodr_") => {
+    let mut cloud = None;
+    let mut actor = "local".to_owned();
+    let token = match (which, presented) {
+        // The cloud entry takes cloud tokens and nothing else; the local entry never takes one.
+        (Entry::Cloud, Some(t)) if t.starts_with(crate::cloud::PREFIX) => {
             let mut conn = app.pool.acquire().await?;
-            cred = Some(crate::share::credential::authenticate(&mut conn, t).await?);
+            let p = crate::cloud::authenticate(&mut conn, t).await?;
+            actor = p.actor();
+            cloud = Some(p);
             t
         }
-        Some(t) if auth::token_matches(&app.tokens, t) => t,
+        (Entry::Local, Some(t)) if t.starts_with("oodr_") => {
+            let mut conn = app.pool.acquire().await?;
+            let c = crate::share::credential::authenticate(&mut conn, t).await?;
+            actor = format!("cred:{}", c.cred_id);
+            cred = Some(c);
+            t
+        }
+        (Entry::Local, Some(t)) if auth::token_matches(&app.tokens, t) => t,
         _ => {
             return Err(
                 ApiError::new(code::UNAUTHENTICATED, "a valid bearer token is required")
@@ -426,6 +500,11 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
     } else {
         Bytes::new()
     };
+    let headers_agent = headers
+        .get("oo-docs-agent")
+        .and_then(|v| v.to_str().ok())
+        .filter(|a| !a.is_empty() && a.chars().count() <= 200 && !a.chars().any(char::is_control))
+        .map(str::to_owned);
     let req = Req {
         method: parts.method,
         path,
@@ -433,7 +512,13 @@ async fn route(app: &Arc<AppState>, req: Request) -> Result<Response<Body>, ApiE
         headers,
         body,
         cred,
+        cloud,
+        actor,
+        agent: headers_agent,
     };
+    if let Some(p) = &req.cloud {
+        cloud_guard(app, p, &req).await?;
+    }
     dispatch(app, &req).await
 }
 
@@ -468,7 +553,65 @@ fn cred_allowed(
         (&Method::GET, ["v1", "docs", "shares", sid, "updates"]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "shares", sid]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "entities", _]) => true,
+        (&Method::POST, ["v1", "docs", "suggestions"]) => true,
         _ => false,
+    }
+}
+
+/// What a cloud token may call, and on which Drives (B-S12-01). Everything else on the cloud entry is 403,
+/// including every route that is not about shares, packs and their files. The Drive of the call (a body field, a
+/// share, a pack) must be in the token's set.
+async fn cloud_guard(
+    app: &Arc<AppState>,
+    p: &crate::cloud::CloudPrincipal,
+    req: &Req,
+) -> Result<(), ApiError> {
+    let denied = |why: &'static str| {
+        ApiError::new(
+            code::SHARE_REFS_OUT_OF_SCOPE,
+            "a cloud token cannot do this",
+        )
+        .details(json!({"reason": why}))
+    };
+    let segs: Vec<&str> = req.path.trim_start_matches('/').split('/').collect();
+    let mut conn = app.pool.acquire().await?;
+    let drive_of_share = |sid: String| async move {
+        let mut c = app.pool.acquire().await?;
+        let d: Option<String> =
+            sqlx::query_scalar("SELECT drive_id::text FROM _oo_docs.share WHERE id::text = $1")
+                .bind(sid)
+                .fetch_optional(&mut *c)
+                .await?;
+        Ok::<_, ApiError>(d)
+    };
+    let drive: Option<String> = match (&req.method, segs.as_slice()) {
+        (&Method::POST, ["v1", "docs", "shares"]) => {
+            let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+            body["compile"]["drive_id"].as_str().map(str::to_owned)
+        }
+        (&Method::POST, ["v1", "docs", "context-packs:compile"]) => {
+            let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+            body["drive_id"].as_str().map(str::to_owned)
+        }
+        (&Method::GET, ["v1", "docs", "shares", sid]) => drive_of_share((*sid).to_owned()).await?,
+        (&Method::POST, ["v1", "docs", "shares", last]) if last.ends_with(":revoke") => {
+            drive_of_share(last.trim_end_matches(":revoke").to_owned()).await?
+        }
+        (&Method::GET, ["v1", "docs", "context-packs", pid, ..]) => {
+            sqlx::query_scalar(
+                "SELECT drive_id::text FROM _oo_docs.context_pack WHERE id::text = $1",
+            )
+            .bind(*pid)
+            .fetch_optional(&mut *conn)
+            .await?
+        }
+        _ => return Err(denied("route")),
+    };
+    match drive {
+        Some(d) if p.allows_drive(&d) => Ok(()),
+        Some(_) => Err(denied("drive")),
+        None if req.method == Method::GET => Err(ApiError::new(code::NOT_FOUND, "not found")),
+        None => Err(denied("drive")),
     }
 }
 
@@ -500,6 +643,22 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "share-groups", gid] if !gid.contains(':') => {
             method_allowed(req, &["GET"])?;
             shares::group_get(app, gid).await
+        }
+        ["v1", "docs", "cloud-tokens"] => {
+            method_allowed(req, &["POST"])?;
+            cloud_tokens::issue(app, req).await
+        }
+        ["v1", "docs", "cloud-tokens", id] => {
+            method_allowed(req, &["DELETE"])?;
+            cloud_tokens::revoke(app, id, req).await
+        }
+        ["v1", "docs", "audit", "shares"] => {
+            method_allowed(req, &["GET"])?;
+            cloud_tokens::shares(app, req).await
+        }
+        ["v1", "docs", "audit", "verify"] => {
+            method_allowed(req, &["GET"])?;
+            cloud_tokens::verify(app).await
         }
         ["v1", "docs", "health"] => {
             method_allowed(req, &["GET"])?;
@@ -540,6 +699,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             if let Some(id) = last.strip_suffix(":sync") {
                 method_allowed(req, &["POST"])?;
                 return drives::sync(app, id, req).await;
+            }
+            if let Some(id) = last.strip_suffix(":events") {
+                method_allowed(req, &["POST"])?;
+                return hints::post(app, id, req).await;
             }
             if let Some(id) = last.strip_suffix(":rebuild") {
                 method_allowed(req, &["POST"])?;
@@ -662,6 +825,30 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "review:decide"] => {
             method_allowed(req, &["POST"])?;
             routes_review::decide(app, req).await
+        }
+        ["v1", "docs", "suggestions"] => {
+            method_allowed(req, &["GET", "POST"])?;
+            if req.method == Method::GET {
+                routes_suggest::list(app, req).await
+            } else {
+                routes_suggest::create(app, req).await
+            }
+        }
+        ["v1", "docs", "suggestions:digest"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::digest(app, req).await
+        }
+        ["v1", "docs", "suggestions", last] if last.ends_with(":decide") => {
+            method_allowed(req, &["POST"])?;
+            routes_suggest::decide(app, last.trim_end_matches(":decide"), req).await
+        }
+        ["v1", "docs", "suggestions", id, "diff"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::diff(app, id).await
+        }
+        ["v1", "docs", "suggestions", id] if !id.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::get(app, id).await
         }
         ["v1", "docs", "shares"] => {
             method_allowed(req, &["GET", "POST"])?;

@@ -299,6 +299,52 @@ pub struct Siblings<'a> {
     pub paths: &'a [String],
 }
 
+/// The default `valid_from` of the facts of one file, with its precision:
+/// the frontmatter date, else a date in the file name, else the document's
+/// creation date. `stem` is the file name without extension, `fm_date` the
+/// frontmatter `date` value.
+pub fn default_valid_from(
+    stem: &str,
+    ir: &DocIr,
+    fm_date: Option<&String>,
+) -> Option<(String, &'static str)> {
+    fm_date
+        .and_then(|v| kv::date_value(v))
+        .or_else(|| {
+            dates::scan(stem, false)
+                .into_iter()
+                .next()
+                .map(|(d, _, _)| d)
+        })
+        .map(|d| (d.iso, d.precision))
+        .or_else(|| {
+            ir.meta
+                .created
+                .as_deref()
+                .and_then(|c| dates::parse_exact(c.get(..10).unwrap_or(c)))
+                .map(|d| (d.iso, "doc_date"))
+        })
+}
+
+/// [`default_valid_from`] of a file as the rules see it, for facts made later
+/// from the same file (`doc.link`).
+pub fn file_default_valid_from(path: &str, ir: &DocIr) -> Option<(String, &'static str)> {
+    let path = nfc(path);
+    let info = dirs::path_info(&path);
+    let is_text = matches!(ir.format, DocFormat::Md | DocFormat::Txt);
+    let fm_map = ir.meta.frontmatter.clone().unwrap_or_default();
+    let fm_fields = if is_text {
+        frontmatter::fields(&fm_map)
+    } else {
+        Vec::new()
+    };
+    let fm_date = fm_fields
+        .iter()
+        .find(|(k, _)| *k == Field::Date)
+        .and_then(|(_, v)| v.first());
+    default_valid_from(&info.stem, ir, fm_date)
+}
+
 /// Run `rules/1` on one parsed file. `path` is the drive-relative path.
 pub fn extract(path: &str, ir: &DocIr) -> Extraction {
     extract_in(path, ir, &Siblings::default())
@@ -352,23 +398,11 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         .filter(|t| !t.is_empty());
 
     // Default valid_from: frontmatter date > file name date > document date.
-    let default_from: Option<(String, &'static str)> = fm_value(Field::Date)
-        .and_then(|v| v.first())
-        .and_then(|v| kv::date_value(v))
-        .or_else(|| {
-            dates::scan(&info.stem, false)
-                .into_iter()
-                .next()
-                .map(|(d, _, _)| d)
-        })
-        .map(|d| (d.iso, d.precision))
-        .or_else(|| {
-            ir.meta
-                .created
-                .as_deref()
-                .and_then(|c| dates::parse_exact(c.get(..10).unwrap_or(c)))
-                .map(|d| (d.iso, "doc_date"))
-        });
+    let default_from = default_valid_from(
+        &info.stem,
+        ir,
+        fm_value(Field::Date).and_then(|v| v.first()),
+    );
 
     let year: Option<u32> = default_from
         .as_ref()
@@ -423,10 +457,7 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
                 items = text_blocks(&|k| k == BlockKind::Paragraph);
             }
             for b in items {
-                let name = clip(
-                    b.text.trim().trim_end_matches(['。', '.', '；', ';']),
-                    MAX_NAME_CHARS,
-                );
+                let name = kv::preference_name(&b.text, MAX_NAME_CHARS);
                 if name.is_empty() {
                     continue;
                 }
@@ -507,7 +538,13 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
             let ev = EvidenceRef::from_block(b);
             ctx.block_date = block_date(&b.text, year);
             // md.kv and the dated ownership sentence.
+            // A row of a table (docx, pptx, md) describes the item in that row, a
+            // task or a person, never the document that holds the table.
+            let table_row = b.kind == BlockKind::Kv && b.parent.is_some();
             for line in b.text.split('\n') {
+                if table_row {
+                    break;
+                }
                 if let Some((key, value)) = kv::split_kv(line)
                     && let Some(f) = kv::field(&key)
                     && !matches!(f, Field::Type | Field::Date | Field::Tags)
@@ -592,6 +629,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
             // Replacement sentences in a decision file.
             if is_decision_file && let Some(title) = headings::replaced_title(&b.text) {
                 let old = EntityRef::new(EntityType::Decision, dirs::strip_decision_prefix(&title));
+                // A date in "本决定取代 2026年1月10日 的决定" belongs to the replaced
+                // decision; the replacement starts on this decision's own date.
+                let block_date = ctx.block_date.take();
                 for m in ctx.mains.clone() {
                     if m.ty == EntityType::Decision && m.norm() != old.norm() {
                         ctx.fact(
@@ -607,6 +647,7 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
                         );
                     }
                 }
+                ctx.block_date = block_date;
             }
         }
     }
@@ -631,12 +672,16 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     // What speakers say about what they own (the subject is a placeholder until the speaker is confirmed).
     media::apply(&mut ctx, ir);
 
-    // doc.entity: the Document mentions every other entity found in the file.
+    // doc.entity: the Document mentions every other entity found in the file. A
+    // Decision is a record the document states or defines, not a name it mentions.
     let found: Vec<(EntityRef, EvidenceRef)> = ctx
         .col
         .entities
         .iter()
-        .filter(|(e, _)| e.ty != EntityType::Document && !media::is_placeholder(&e.name))
+        .filter(|(e, _)| {
+            !matches!(e.ty, EntityType::Document | EntityType::Decision)
+                && !media::is_placeholder(&e.name)
+        })
         .filter_map(|(e, evs)| evs.first().map(|ev| (e.clone(), ev.clone())))
         .collect();
     for (e, ev) in found {

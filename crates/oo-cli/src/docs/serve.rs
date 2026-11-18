@@ -478,6 +478,7 @@ async fn serve_loop(
 /// directories of expired and revoked shares and append new `UPDATES.md`
 /// entries. Quiet when the engine is down; it simply tries again.
 async fn reconcile_loop(state: PathBuf, mut stop: watch::Receiver<bool>) {
+    let mut tick: u64 = 0;
     loop {
         if *stop.borrow() {
             return;
@@ -486,7 +487,12 @@ async fn reconcile_loop(state: PathBuf, mut stop: watch::Receiver<bool>) {
             && let Ok(d) = super::client::Daemon::connect(&state)
         {
             let _ = super::mounts::reconcile(&d, &state).await;
+            // suggest/ directories every 10 s (10 §11.1)
+            if tick.is_multiple_of(10) {
+                let _ = super::suggest::collect_all(&d, &state).await;
+            }
         }
+        tick = tick.wrapping_add(1);
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {}
             _ = stop.changed() => {}

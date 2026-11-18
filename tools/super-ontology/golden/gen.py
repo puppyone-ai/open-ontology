@@ -7,6 +7,9 @@ no clocks, fixed seed for canaries, ZIP_STORED containers with a fixed timestamp
   gen.py                 write into <repo>/testing/super-ontology/golden
   gen.py --out DIR       write into DIR
   gen.py --check         regenerate into a temp dir and compare bytes with the committed tree
+  gen.py --variant holdout --seed N [--out DIR] [--check]
+                         the held-out set (a different cast, same formats and label schema),
+                         default <repo>/testing/super-ontology/holdout
 """
 import argparse
 import hashlib
@@ -21,11 +24,15 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import world  # noqa: E402
+import world_holdout  # noqa: E402
+import writers  # noqa: E402
 from writers import WRITERS  # noqa: E402
 
+DEFAULT_CREATOR = writers.CREATOR
 SEED = 20261117
 REPO = Path(__file__).resolve().parents[3]
 DEFAULT_OUT = REPO / "testing" / "super-ontology" / "golden"
+HOLDOUT_OUT = REPO / "testing" / "super-ontology" / "holdout"
 MENTION_TYPES = {"Person", "Organization", "Project", "Topic", "Term", "Event"}
 
 LABELS_README = """# Golden labels (oo.eval.docs-labels/v1)
@@ -115,8 +122,24 @@ def render(docs, base):
     return files, infos
 
 
-def build():
-    rng = random.Random(SEED)
+def holdout_generator_md(seed):
+    return f"""# Held-out set generator
+
+A second synthetic company for checking that extraction rules and prompts do not depend on the golden set's names.
+`python3 -B tools/super-ontology/golden/gen.py --variant holdout --seed {seed}` rewrites this tree; add `--check` to compare.
+
+* Same formats, block structure and label schema as `../golden/`; a different cast: every person, organisation, project,
+  topic, term, event and place has a new invented name (and nicknames, English names), the calendar is one year on,
+  weekday words differ and five documents that no label needs are left out (`world_holdout.py`, seed {seed}).
+* The labels are derived by the same code as the golden labels, so they stay consistent with the files.
+* Never used for tuning: it is scored once at the end of a change.
+* Red team files and canaries are regenerated from the seed; they are not part of the evaluated `docs/` tree.
+"""
+
+
+def build(world=world, seed=SEED, variant="golden"):
+    writers.CREATOR = getattr(world, "CREATOR", DEFAULT_CREATOR)
+    rng = random.Random(seed)
     canaries = ["OOCANARY-%032x" % rng.getrandbits(128) for _ in range(4)]
     subst = {f"{{C{i + 1}}}": c for i, c in enumerate(canaries)}
 
@@ -136,7 +159,7 @@ def build():
     files, infos = render(world.DOCS, "docs")
     rt_files, rt_infos = render(rt_docs, "redteam/docs")
     files.update(rt_files)
-    assert len(world.DOCS) >= 50
+    assert len(world.DOCS) >= getattr(world, 'MIN_DOCS', 50)
 
     # ---- entities
     eid, ent_rows, kmap = {}, [], {}
@@ -210,6 +233,9 @@ def build():
         for key, (typ, name, aliases, _x) in world.ENT.items():
             if typ not in MENTION_TYPES:
                 continue
+            # A department word is only a name in the people table's column; elsewhere it is an ordinary word.
+            if key.startswith("dept_") and not d["path"].endswith("人员表.xlsx"):
+                continue
             for i in infos[d["path"]]:
                 if any(nm in i["text"] for nm in [name] + aliases):
                     add_fact("mentions", eid["doc:" + d["path"]], eid[key], d["created"], None, [i["anchor"]])
@@ -239,6 +265,8 @@ def build():
     files["labels/supersedes.jsonl"] = jl(sup_rows).encode()
     files["labels/conflicts.jsonl"] = jl(con_rows).encode()
     files["labels/README.md"] = LABELS_README.encode()
+    if variant == "holdout":
+        files["GENERATOR.md"] = holdout_generator_md(seed).encode()
     files["redteam/redteam-entities.jsonl"] = jl(rt_rows).encode()
     files["redteam/README.md"] = ("# Red team files\n\nFiles under `docs/` carry canary strings and red-team-only names (see `redteam-entities.jsonl`: "
                                   "`redteam_only:true` names and aliases must never appear in output for a scope without these files; the record with "
@@ -252,7 +280,7 @@ def build():
         calib.append({"path": rel, "bytes": len(b), "cjk_chars": sum(1 for c in txt if ord(c) >= 0x2E80),
                       "ascii_chars": sum(1 for c in txt if ord(c) < 128), "tokens": None})
     files["token-calibration.json"] = (json.dumps({"protocol": "oo.eval.token-calibration/v1", "note": "tokens is null until calibrated against a tokenizer; cjk/ascii counts are for text formats only", "files": calib}, ensure_ascii=False, indent=2) + "\n").encode()
-    files["GENERATOR.md"] = GENERATOR_MD.encode()
+    files.setdefault("GENERATOR.md", GENERATOR_MD.encode())
     man = "".join(f"{hashlib.sha256(files[k]).hexdigest()}  {k}\n" for k in sorted(files))
     files["MANIFEST.sha256"] = man.encode()
     stats = {"docs": len(world.DOCS), "entities": len(ent_rows), "facts": len(fact_rows), "supersedes": len(sup_rows), "conflicts": len(con_rows), "redteam_docs": len(rt_docs)}
@@ -267,17 +295,35 @@ def write(files, out):
         p.write_bytes(data)
 
 
+# Not produced by this generator: `media/` holds the script and the timings of the synthetic 3 person meeting that the
+# ASR and diarization bake-off (B-S10-06, tools/media-parser) writes. The generator neither writes nor judges it.
+NOT_GENERATED = ("media/",)
+
+
 def disk_files(root):
     root = Path(root)
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    return {
+        str(p.relative_to(root)): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file() and not str(p.relative_to(root)).startswith(NOT_GENERATED)
+    }
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument("--out")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--variant", choices=["golden", "holdout"], default="golden")
+    ap.add_argument("--seed", type=int, default=None, help="holdout only")
     a = ap.parse_args(argv)
-    files, stats = build()
+    if a.variant == "holdout":
+        if a.seed is None:
+            ap.error("--variant holdout needs --seed")
+        files, stats = build(world_holdout.build(a.seed), seed=a.seed, variant="holdout")
+        a.out = a.out or str(HOLDOUT_OUT)
+    else:
+        files, stats = build()
+        a.out = a.out or str(DEFAULT_OUT)
     if a.check:
         with tempfile.TemporaryDirectory() as t:
             write(files, t)

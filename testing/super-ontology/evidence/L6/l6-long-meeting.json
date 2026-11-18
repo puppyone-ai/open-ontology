@@ -1,0 +1,41 @@
+{
+  "run_id": "be2-l6long-2h-final",
+  "core_type_recall": 1.0,
+  "names_expected": {
+    "吴启明": "Person",
+    "星图看板": "Document",
+    "灯塔迁移": "Document",
+    "知了客服": "Document",
+    "官网改版": "Document",
+    "灰度发布": "Term"
+  },
+  "names_found": [
+    "吴启明",
+    "官网改版",
+    "星图看板",
+    "灯塔迁移",
+    "灰度发布",
+    "知了客服"
+  ],
+  "rule_fact_recall_of_planted_statements": 0.1667,
+  "planted": 12,
+  "planted_found": [
+    "青云计划",
+    "远航项目"
+  ],
+  "golden_meeting_seconds": 96.8,
+  "golden_copies_per_gap": 5,
+  "state": "published",
+  "timings": {
+    "meeting_hours": 2.0,
+    "opus_bytes": 15413998,
+    "pipeline_wall_seconds": 580.5,
+    "peak_memory_mib": {
+      "doc-parser-1": 34,
+      "docs-db-1": 67,
+      "docs-engine-1": 38,
+      "media-parser-1": 1382,
+      "ocr-parser-1": 34
+    }
+  }
+}

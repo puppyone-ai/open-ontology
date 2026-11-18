@@ -748,7 +748,7 @@ async fn a_file_that_kills_the_sidecar_worker_is_quarantined_and_the_rest_flows(
 }
 
 #[tokio::test]
-#[ignore = "needs OO_DOCS_TEST_PG_PORT, docker and OO_DOCS_TEST_PG_CONTAINER (the labelled postgres container)"]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT, docker and OO_DOCS_TEST_PG_CONTAINER (the labelled postgres container, started with a fixed host port)"]
 async fn postgres_restarted_under_a_running_engine_loses_nothing() {
     let container = std::env::var("OO_DOCS_TEST_PG_CONTAINER")
         .expect("OO_DOCS_TEST_PG_CONTAINER names the postgres container");
@@ -800,23 +800,32 @@ async fn postgres_restarted_under_a_running_engine_loses_nothing() {
     let (ok, out) = sidecar_support::docker(&["restart", "-t", "1", &container]);
     assert!(ok, "docker restart: {out}");
     eprintln!("postgres restarted in {:?}", t_down.elapsed());
-    // Wait for the server to accept connections again.
+    // The engine and this test reach the server by `OO_DOCS_TEST_PG_PORT`: a container started with a random host
+    // port (`-p 127.0.0.1::5432`) gets another one when it restarts and nothing can reconnect, so say that at once
+    // instead of retrying against a dead port.
+    let port = std::env::var("OO_DOCS_TEST_PG_PORT").unwrap();
+    let (_, mapped) = sidecar_support::docker(&["port", &container, "5432/tcp"]);
+    assert!(
+        mapped
+            .lines()
+            .any(|l| l.trim().ends_with(&format!(":{port}"))),
+        "the postgres container's host port changed on restart ({mapped:?}, expected {port}): start it with a fixed \
+         `-p 127.0.0.1:<port>:5432` for this test"
+    );
+    // Wait for the server to accept connections again: every attempt and the whole wait are bounded.
     let mut up = false;
-    for _ in 0..120 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(90);
+    while std::time::Instant::now() < deadline {
         if sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
+            .acquire_timeout(Duration::from_secs(3))
             .connect_with(
                 sqlx::postgres::PgConnectOptions::new()
                     .host(
                         &std::env::var("OO_DOCS_TEST_PG_HOST")
                             .unwrap_or_else(|_| "127.0.0.1".into()),
                     )
-                    .port(
-                        std::env::var("OO_DOCS_TEST_PG_PORT")
-                            .unwrap()
-                            .parse()
-                            .unwrap(),
-                    )
+                    .port(port.parse().unwrap())
                     .username(common::RUNTIME_LOGIN)
                     .database(db)
                     .ssl_mode(sqlx::postgres::PgSslMode::Disable),

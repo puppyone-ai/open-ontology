@@ -243,9 +243,15 @@ pub fn plan_group(group: &[TFact]) -> Plan {
         });
         let Some(g) = next else { continue };
         let to = g.valid_from.as_deref().unwrap_or_default();
-        if f.valid_to.as_deref().is_some_and(|have| have <= to) {
+        // A value that already ended on its own (an owner "until 05-31") is still
+        // replaced by the next one: the link is recorded and its end stays. Only a
+        // certain successor does that; for anyone else there is nothing to decide,
+        // the old value is over.
+        let ended = f.valid_to.as_deref().filter(|have| *have <= to);
+        if ended.is_some() && !(g.origin.certain() && f.origin != Origin::Human) {
             continue;
         }
+        let end_at = ended.unwrap_or(to);
         if f.origin == Origin::Human && g.origin != Origin::Human {
             // A person's value is not ended by an extraction (16.8).
             plan.held.push(Held {
@@ -256,7 +262,7 @@ pub fn plan_group(group: &[TFact]) -> Plan {
         } else if g.origin.certain() {
             plan.end.push(EndFact {
                 fact_id: f.id.clone(),
-                valid_to: to.to_owned(),
+                valid_to: end_at.to_owned(),
                 superseded_by: g.id.clone(),
             });
         } else {

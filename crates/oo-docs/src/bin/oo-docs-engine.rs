@@ -149,6 +149,27 @@ async fn run() -> ExitCode {
         env("OO_DOCS_MODEL_EGRESS").map(std::path::PathBuf::from),
         env("OO_DOCS_PYTHON"),
     );
+    // The cloud entry (B-S12-01): a second listener for `oodc_` tokens only. Off unless asked for; it never
+    // widens the loopback listener above.
+    let cloud_listener = match env("OO_DOCS_CLOUD_LISTEN") {
+        None => None,
+        Some(a) => match tokio::net::TcpListener::bind(&a).await {
+            Ok(l) => Some(l),
+            Err(e) => return fail(2, "cloud.listen_failed", e),
+        },
+    };
+    let cloud_hosts: Vec<String> = match (&cloud_listener, env("OO_DOCS_CLOUD_HOSTS")) {
+        (Some(_), Some(h)) => h
+            .split(',')
+            .map(|x| x.trim().to_owned())
+            .filter(|x| !x.is_empty())
+            .collect(),
+        (Some(l), None) => l
+            .local_addr()
+            .map(|a| vec![a.to_string()])
+            .unwrap_or_default(),
+        (None, _) => Vec::new(),
+    };
     let app = Arc::new(
         AppState::new(
             pool.clone(),
@@ -159,7 +180,8 @@ async fn run() -> ExitCode {
         )
         .with_cas(cas.clone())
         .with_model(model.clone())
-        .with_progress(progress.clone()),
+        .with_progress(progress.clone())
+        .with_cloud_hosts(cloud_hosts),
     );
 
     let (stop_tx, stop_rx) = watch::channel(false);
@@ -333,7 +355,26 @@ async fn run() -> ExitCode {
             app.shutdown();
         }
     };
+    let cloud_task = cloud_listener.map(|l| {
+        if let Ok(a) = l.local_addr() {
+            println!(
+                "{}",
+                json!({ "event": "cloud_listening", "addr": a.to_string() })
+            );
+        }
+        let app = app.clone();
+        let mut stop = app.stop_signal();
+        tokio::spawn(async move {
+            let _ = api::serve_cloud(l, app, async move {
+                let _ = stop.wait_for(|v| *v).await;
+            })
+            .await;
+        })
+    });
     let served = api::serve(listener, app, shutdown).await;
+    if let Some(t) = cloud_task {
+        let _ = t.await;
+    }
     let _ = stop_tx.send(true);
     scheduler.shutdown().await;
     for t in tasks {

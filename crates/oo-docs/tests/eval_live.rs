@@ -241,6 +241,30 @@ async fn export(s: &Stack, dir: &std::path::Path, published_only: bool) -> (usiz
             .unwrap();
         }
     }
+    // D57: every integrity violation of the engine (`constraint_violation`) is a conflict between
+    // the facts it names; only violations whose facts are all exported are written.
+    let violations = sqlx::query(
+        "SELECT constraint_id, fact_ids::text[] AS fids FROM _oo_docs.constraint_violation ORDER BY dedupe_key",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    for (i, v) in violations.iter().enumerate() {
+        let named: Option<Vec<&String>> = v
+            .get::<Vec<String>, _>("fids")
+            .iter()
+            .map(|id| fid.get(id))
+            .collect();
+        if let Some(named) = named.filter(|n| n.len() >= 2) {
+            writeln!(
+                lines,
+                "{}",
+                json!({"kind": "conflict", "id": format!("C{}", i + 1),
+                       "constraint": v.get::<String, _>("constraint_id"), "facts": named})
+            )
+            .unwrap();
+        }
+    }
     std::fs::create_dir_all(dir).unwrap();
     std::fs::write(dir.join("entities.jsonl"), ents_text).unwrap();
     std::fs::write(dir.join("facts.jsonl"), lines).unwrap();
@@ -275,6 +299,11 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     }
     s.spawn_engine(&[("OO_DOCS_MODEL_EGRESS", script_s.as_str())]);
 
+    // OO_EVAL_GOLDEN=<dir> evaluates another labelled set (the held-out one) with the same layout.
+    let docs_root = std::env::var("OO_EVAL_GOLDEN").map_or_else(
+        |_| testing_root().join("golden/docs"),
+        |d| PathBuf::from(d).join("docs"),
+    );
     // OO_EVAL_SUBSET=a/b.md,c/d.docx limits the run to those golden files (debugging).
     let n = match std::env::var("OO_EVAL_SUBSET") {
         Ok(list) => {
@@ -282,14 +311,14 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
             for rel in list.split(',').filter(|r| !r.is_empty()) {
                 let dest = s.root.join(rel);
                 std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
-                std::fs::copy(testing_root().join("golden/docs").join(rel), dest).unwrap();
+                std::fs::copy(docs_root.join(rel), dest).unwrap();
                 n += 1;
             }
             n
         }
         Err(_) => {
-            let n = copy_tree(&testing_root().join("golden/docs"), &s.root);
-            assert!(n >= 50, "{n} golden files");
+            let n = copy_tree(&docs_root, &s.root);
+            assert!(n >= 40, "{n} labelled files");
             n
         }
     };
@@ -338,15 +367,17 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     assert_eq!(r.status, 201, "{}", String::from_utf8_lossy(&r.body));
     let t0 = Instant::now();
     // Settled: every file is past the pipeline (a file whose facts wait for a person
-    // may stay `indexed`) and no model job is open, for three polls in a row.
+    // may stay `indexed`) and no parse, extract or publish job is open, for five polls in
+    // a row (the publish job runs the link pass of the last files: it is debounced by 2 s
+    // and takes seconds, and the export must come after it).
     let limit = Duration::from_secs(if with_model { 3000 } else { 900 });
     let mut quiet = 0;
     let mut st = s.states().await;
-    while quiet < 3 && t0.elapsed() < limit {
+    while quiet < 5 && t0.elapsed() < limit {
         tokio::time::sleep(Duration::from_millis(1000)).await;
         st = s.states().await;
         let open: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm')",
+            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm', 'publish')",
         )
         .fetch_one(&s.pool)
         .await

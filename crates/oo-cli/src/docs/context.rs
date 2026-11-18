@@ -37,6 +37,14 @@ pub struct MountArgs {
     pub refresh_policy: Option<String>,
     pub require_complete: bool,
     pub wait_ms: Option<u64>,
+    /// `--remote <url>`: mount from a remote OO serve's cloud entry instead of the local engine (B-S12-02).
+    pub remote: Option<String>,
+    /// `--remote-token-file <path>`: the `oodc_` token (a private file); `OO_REMOTE_TOKEN` is the fallback.
+    pub remote_token_file: Option<PathBuf>,
+    /// `--agent <label>`: who the share is for, recorded in the audit log of the engine.
+    pub agent: Option<String>,
+    /// `--pack-digest <sha256>`: refuse a pack whose digest is another one.
+    pub expect_digest: Option<String>,
 }
 
 /// `7d`, `24h`, `90m` or plain seconds.
@@ -84,8 +92,8 @@ pub fn parse_mount_args(rest: &[String]) -> Result<MountArgs, String> {
             }
             "--role" => {
                 let r = value("--role")?;
-                if !matches!(r.as_str(), "viewer" | "suggester") {
-                    return Err("--role must be viewer or suggester".into());
+                if !matches!(r.as_str(), "viewer" | "suggester" | "editor") {
+                    return Err("--role must be viewer, suggester or editor".into());
                 }
                 a.role = Some(r);
             }
@@ -105,6 +113,30 @@ pub fn parse_mount_args(rest: &[String]) -> Result<MountArgs, String> {
                 );
             }
             "--state-dir" => a.state_dir = Some(PathBuf::from(value("--state-dir")?)),
+            "--remote" => {
+                let u = value("--remote")?;
+                if !(u.starts_with("http://") || u.starts_with("https://")) {
+                    return Err("--remote must be an http:// or https:// URL".into());
+                }
+                a.remote = Some(u);
+            }
+            "--remote-token-file" => {
+                a.remote_token_file = Some(PathBuf::from(value("--remote-token-file")?))
+            }
+            "--agent" => {
+                let g = value("--agent")?;
+                if g.is_empty() || g.chars().count() > 200 || g.chars().any(char::is_control) {
+                    return Err("--agent must be 1..=200 characters".into());
+                }
+                a.agent = Some(g);
+            }
+            "--pack-digest" => {
+                let d = value("--pack-digest")?;
+                if d.len() != 64 || !d.bytes().all(|b| b.is_ascii_hexdigit()) {
+                    return Err("--pack-digest must be 64 hex characters".into());
+                }
+                a.expect_digest = Some(d.to_ascii_lowercase());
+            }
             "--group" => {
                 let g = value("--group")?;
                 if g.is_empty()
@@ -191,7 +223,7 @@ pub fn run(rest: &[String]) -> u8 {
                 Err(e) => fail(&e, args.json),
             }
         }
-        "list" | "status" | "refresh" | "revoke" | "check" => {
+        "list" | "status" | "refresh" | "revoke" | "check" | "collect" => {
             let a = match parse_simple(sub, tail) {
                 Ok(a) => a,
                 Err(e) => {
@@ -204,6 +236,7 @@ pub fn run(rest: &[String]) -> u8 {
                 "status" => rt.block_on(status(&a)),
                 "refresh" => rt.block_on(refresh(&a)),
                 "revoke" => rt.block_on(revoke(&a)),
+                "collect" => rt.block_on(collect(&a)),
                 _ => return rt.block_on(check(&a)),
             };
             match out {
@@ -275,13 +308,13 @@ pub fn parse_simple(sub: &str, rest: &[String]) -> Result<SimpleArgs, String> {
             }
             ("refresh", "--group") => a.group = Some(value("--group")?),
             (_, f) if f.starts_with("--") => return Err(format!("unknown option {f}")),
-            ("status" | "refresh" | "revoke", _) if a.target.is_none() => {
+            ("status" | "refresh" | "revoke" | "collect", _) if a.target.is_none() => {
                 a.target = Some(arg.clone());
             }
             _ => return Err(format!("unexpected argument {arg}")),
         }
     }
-    if matches!(sub, "status" | "revoke") && a.target.is_none() {
+    if matches!(sub, "status" | "revoke" | "collect") && a.target.is_none() {
         return Err("expected <share-id|dir>".into());
     }
     if sub == "refresh" && a.target.is_none() && a.group.is_none() {
@@ -401,6 +434,33 @@ async fn list(a: &SimpleArgs) -> Result<(), CliError> {
     Ok(())
 }
 
+/// `oo context collect <dir|share-id>`: collect `.context/suggest/` once, by hand.
+async fn collect(a: &SimpleArgs) -> Result<(), CliError> {
+    let state = state_of(a)?;
+    let d = Daemon::connect(&state)?;
+    let target = a.target.clone().unwrap_or_default();
+    let (sid, dir) = resolve_target(&state, &target)?;
+    let dir = dir.ok_or_else(|| {
+        CliError::new(
+            exit::SHARE_STATE,
+            "DOCS_SHARE_NOT_FOUND",
+            "this share has no mount directory on this machine",
+        )
+    })?;
+    let v = super::suggest::collect_dir(
+        &d,
+        &sid,
+        &dir.join(mounts::MOUNT_DIR).join(super::suggest::DIR),
+    )
+    .await?;
+    let human = format!(
+        "collected {}, rejected {}, left alone {}",
+        v["collected"], v["rejected"], v["skipped"]
+    );
+    emit(a.json, "oo.context-collect/v1", v, human);
+    Ok(())
+}
+
 async fn status(a: &SimpleArgs) -> Result<(), CliError> {
     let state = state_of(a)?;
     let target = a.target.as_deref().unwrap_or("");
@@ -438,7 +498,10 @@ async fn remount(
 ) -> Result<PathBuf, CliError> {
     let files = pack_files(d, new_share).await?;
     let sid = str_of(new_share, "id")?;
+    let mut files = files;
+    super::suggest::add_dir(&mut files, new_share["role"].as_str().unwrap_or("viewer"));
     let at = mounts::replace(dir, &sid, old, &files).map_err(|e| target_error(&e))?;
+    super::suggest::open_dir(&at);
     if let Some(mref) = new_share["mount_ref"].as_str() {
         let _ = mounts::register(state, mref, &sid, dir);
     }
@@ -675,15 +738,17 @@ async fn check(a: &SimpleArgs) -> u8 {
             return report(code, out, human);
         };
         match pack_files(control, new).await {
-            Ok(files) => {
+            Ok(mut files) => {
                 let nsid = new["id"].as_str().unwrap_or("");
+                super::suggest::add_dir(&mut files, new["role"].as_str().unwrap_or("viewer"));
                 match mounts::replace(
                     &std::fs::canonicalize(&target).unwrap_or(target),
                     nsid,
                     sid,
                     &files,
                 ) {
-                    Ok(_) => {
+                    Ok(at) => {
+                        super::suggest::open_dir(&at);
                         out["refreshed_to"] = json!(nsid);
                         out["upgraded_to_version"] = body["upgraded_to_version"].clone();
                         human.push_str(&format!(
@@ -828,10 +893,59 @@ fn target_error(e: &MountError) -> CliError {
     }
 }
 
+/// The engine this mount talks to: the local one, or with `--remote` another OO serve's cloud entry
+/// (B-S12-02). The remote token is read from a private file, never from the command line.
+fn engine_for(args: &MountArgs, state: &Path) -> Result<Daemon, CliError> {
+    let Some(url) = &args.remote else {
+        let d = Daemon::connect(state)?;
+        return match &args.agent {
+            Some(a) => d.with_agent(a),
+            None => Ok(d),
+        };
+    };
+    let token = match &args.remote_token_file {
+        Some(f) => {
+            use std::os::unix::fs::PermissionsExt;
+            let meta = std::fs::metadata(f).map_err(|_| {
+                CliError::new(
+                    exit::ARGS,
+                    "DOCS_ENGINE_BAD_REQUEST",
+                    "--remote-token-file cannot be read",
+                )
+            })?;
+            if !meta.is_file() || meta.permissions().mode() & 0o077 != 0 {
+                return Err(CliError::new(
+                    exit::ARGS,
+                    "DOCS_ENGINE_BAD_REQUEST",
+                    "--remote-token-file must be a private regular file (0600)",
+                ));
+            }
+            std::fs::read_to_string(f)
+                .map_err(|_| {
+                    CliError::new(
+                        exit::ARGS,
+                        "DOCS_ENGINE_BAD_REQUEST",
+                        "--remote-token-file cannot be read",
+                    )
+                })?
+                .trim()
+                .to_owned()
+        }
+        None => std::env::var("OO_REMOTE_TOKEN").map_err(|_| {
+            CliError::new(
+                exit::ARGS,
+                "DOCS_ENGINE_BAD_REQUEST",
+                "--remote needs --remote-token-file (or OO_REMOTE_TOKEN)",
+            )
+        })?,
+    };
+    Daemon::remote(url, &token, args.agent.as_deref())
+}
+
 async fn mount(args: &MountArgs) -> Result<(), CliError> {
     let state = state_dir(args)?;
     let task = read_task(args)?;
-    let daemon = Daemon::connect(&state)?;
+    let daemon = engine_for(args, &state)?;
 
     // Validate the target before asking the engine to create anything.
     let target = match &args.to {
@@ -847,7 +961,21 @@ async fn mount(args: &MountArgs) -> Result<(), CliError> {
         None => None,
     };
 
-    let drive = resolve_drive(&daemon, args.drive.as_deref()).await?;
+    // The cloud entry does not list Drives: a remote mount names its Drive by id.
+    let drive = if args.remote.is_some() {
+        match args.drive.as_deref() {
+            Some(d) if is_uuid(d) => d.to_owned(),
+            _ => {
+                return Err(CliError::new(
+                    exit::ARGS,
+                    "DOCS_ENGINE_BAD_REQUEST",
+                    "--remote needs --drive <drive id>",
+                ));
+            }
+        }
+    } else {
+        resolve_drive(&daemon, args.drive.as_deref()).await?
+    };
     let compile = compile_body(args, &drive, task.as_deref());
 
     // Compile first when it decides what happens next: a dry run, or a strict
@@ -884,8 +1012,23 @@ async fn mount(args: &MountArgs) -> Result<(), CliError> {
     }
     let share = daemon.post_json("/v1/docs/shares", &body).await?;
     let sid = str_of(&share, "id")?;
+    if let Some(want) = &args.expect_digest
+        && share["pack_digest"].as_str() != Some(want.as_str())
+    {
+        let _ = daemon
+            .post_json(&format!("/v1/docs/shares/{sid}:revoke"), &json!({}))
+            .await;
+        return Err(CliError::new(
+            exit::OTHER,
+            "DOCS_PACK_DIGEST_MISMATCH",
+            "the pack digest is not the expected one; nothing was mounted",
+        ));
+    }
     let files = match pack_files(&daemon, &share).await {
-        Ok(f) => f,
+        Ok(mut f) => {
+            super::suggest::add_dir(&mut f, share["role"].as_str().unwrap_or("viewer"));
+            f
+        }
         Err(e) => {
             // Nothing was mounted: do not leave a live share behind.
             let _ = daemon
@@ -903,7 +1046,11 @@ async fn mount(args: &MountArgs) -> Result<(), CliError> {
             return Err(target_error(&e));
         }
     };
-    if let Some(mref) = share["mount_ref"].as_str() {
+    super::suggest::open_dir(&mounted);
+    // A remote share is not the local daemon's to maintain: it keeps no mount record for it.
+    if args.remote.is_none()
+        && let Some(mref) = share["mount_ref"].as_str()
+    {
         let _ = mounts::register(&state, mref, &sid, &target);
     }
     report_done(args, &share, &mounted);
@@ -1054,7 +1201,7 @@ mod tests {
             &["--scope", "a"][..],
             &["--to", "/tmp/x", "--budget", "10"],
             &["--to", "/tmp/x", "--budget", "x"],
-            &["--to", "/tmp/x", "--role", "editor"],
+            &["--to", "/tmp/x", "--role", "admin"],
             &["--to", "/tmp/x", "--expires", "5m"],
             &["--to", "/tmp/x", "--expires", "90d"],
             &["--to", "/tmp/x", "--for", "a", "--for-file", "b"],

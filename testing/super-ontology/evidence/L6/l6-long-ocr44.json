@@ -1,0 +1,44 @@
+{
+  "run_id": "be2-l6long-ocr44",
+  "files": 44,
+  "by_state": {
+    "published": 44
+  },
+  "entities_scored": 86,
+  "entities_found": 74,
+  "core_type_recall": 0.8605,
+  "by_type": {
+    "Decision": "10/10",
+    "Document": "34/44",
+    "Event": "4/5",
+    "Organization": "4/4",
+    "Person": "9/9",
+    "Project": "4/4",
+    "Term": "5/5",
+    "Topic": "4/5"
+  },
+  "missed": [
+    "客户满意度",
+    "客户沙龙",
+    "星图看板产品方案",
+    "灯塔迁移方案",
+    "知了客服方案",
+    "官网改版方案",
+    "澄海物流合作方案",
+    "年度客户调研方案",
+    "办公迁址方案",
+    "速记0412",
+    "速记0601",
+    "速记0828"
+  ],
+  "timings": {
+    "pipeline_wall_seconds": 1501.8,
+    "peak_memory_mib": {
+      "doc-parser-1": 295,
+      "docs-db-1": 106,
+      "docs-engine-1": 42,
+      "media-parser-1": 32,
+      "ocr-parser-1": 6833
+    }
+  }
+}

@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -188,6 +188,7 @@ pub fn run(rest: &[String]) -> u8 {
         "--kinds",
         "--q",
         "--winner",
+        "--day",
     ];
     let switches = [
         "--deep",
@@ -250,6 +251,11 @@ pub fn run(rest: &[String]) -> u8 {
             ("files", "ls") => files_ls(&d, &p).await,
             ("files", "show") => files_show(&d, &p).await,
             ("files", "retry") => files_retry(&d, &p).await,
+            ("suggestion", "ls") => suggestion_ls(&d, &p).await,
+            ("suggestion", "digest") => suggestion_digest(&d, &p).await,
+            ("suggestion", "show") => suggestion_show(&d, &p, false).await,
+            ("suggestion", "diff") => suggestion_show(&d, &p, true).await,
+            ("suggestion", "accept" | "reject" | "undo") => suggestion_decide(&d, &p, sub).await,
             ("review", "ls") => review_ls(&d, &p).await,
             ("review", "decide") => review_decide(&d, &p).await,
             ("review", "accept-source") => review_source(&d, &p).await,
@@ -778,6 +784,111 @@ async fn entity_split(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+    );
+    Ok(())
+}
+
+// ------------------------------------------------------------- suggestion ---
+
+fn suggestion_line(v: &Value) -> String {
+    let p = &v["payload"];
+    format!(
+        "{}  {:<19} {:<16} {} {} {}",
+        v["id"].as_str().unwrap_or(""),
+        v["status"].as_str().unwrap_or(""),
+        v["rule"].as_str().unwrap_or(""),
+        p["subject"].as_str().unwrap_or(""),
+        p["predicate"].as_str().unwrap_or(""),
+        p["object"]
+            .as_str()
+            .or_else(|| p["value"].as_str())
+            .unwrap_or("")
+    )
+}
+
+async fn suggestion_ls(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let mut path = String::from("/v1/docs/suggestions?limit=1000");
+    if let Some(s) = p.opt("--status") {
+        path.push_str(&format!("&status={}", q(s)));
+    }
+    if let Some(day) = p.opt("--day") {
+        path.push_str(&format!("&day={}", q(day)));
+    }
+    let v = d.get_json(&path).await?;
+    let human = v["items"]
+        .as_array()
+        .map(|a| a.iter().map(suggestion_line).collect::<Vec<_>>().join("\n"))
+        .unwrap_or_default();
+    out(p, "oo.docs-suggestions/v1", v, human);
+    Ok(())
+}
+
+async fn suggestion_digest(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
+    let mut path = String::from("/v1/docs/suggestions:digest");
+    if let Some(day) = p.opt("--day") {
+        path.push_str(&format!("?day={}", q(day)));
+    }
+    let v = d.get_json(&path).await?;
+    let c = &v["counts"];
+    let human = format!(
+        "{}: {} suggestions, auto accepted {}, silently superseded {}, waiting {}",
+        v["day"].as_str().unwrap_or(""),
+        v["total"],
+        c["auto_accepted"],
+        c["superseded_silently"],
+        c["pending"]
+    );
+    out(p, "oo.docs-suggestion-digest/v1", v, human);
+    Ok(())
+}
+
+async fn suggestion_show(d: &Daemon, p: &Parsed, diff: bool) -> Result<(), CliError> {
+    let id = one(p, "<suggestion-id>")?;
+    let path = format!(
+        "/v1/docs/suggestions/{}{}",
+        q(id),
+        if diff { "/diff" } else { "" }
+    );
+    let v = d.get_json(&path).await?;
+    let human = serde_json::to_string_pretty(&v).unwrap_or_default();
+    out(
+        p,
+        if diff {
+            "oo.docs-suggestion-diff/v1"
+        } else {
+            "oo.docs-suggestion/v1"
+        },
+        v,
+        human,
+    );
+    Ok(())
+}
+
+/// `accept`, `reject` or `undo` one or more suggestions: one call each, no revision to look up.
+async fn suggestion_decide(d: &Daemon, p: &Parsed, decision: &str) -> Result<(), CliError> {
+    if p.pos.is_empty() {
+        return Err(bad("expected <suggestion-id>..."));
+    }
+    let mut results = Vec::new();
+    for id in &p.pos {
+        let v = d
+            .post_json(
+                &format!("/v1/docs/suggestions/{}:decide", q(id)),
+                &json!({"decision": decision}),
+            )
+            .await?;
+        results.push(v);
+    }
+    let human = results
+        .iter()
+        .map(suggestion_line)
+        .collect::<Vec<_>>()
+        .join("\n");
+    out(
+        p,
+        "oo.docs-suggestion-decide/v1",
+        json!({"results": results}),
+        human,
     );
     Ok(())
 }

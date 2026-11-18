@@ -104,6 +104,22 @@ pub async fn measure(
     Ok(c)
 }
 
+/// True when everything of the scope up to `want` has settled (always false for the whole Drive: it waits for all).
+async fn scope_settled(
+    conn: &mut PgConnection,
+    drive_id: &str,
+    prefixes: &[String],
+    want: i64,
+) -> Result<bool, sqlx::Error> {
+    if prefixes.is_empty() {
+        return Ok(false);
+    }
+    let r = crate::store::rev::covers_drive_rev_scoped(conn, drive_id, prefixes)
+        .await
+        .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    Ok(r >= want)
+}
+
 /// Wait for `min_drive_rev`, measure, and enforce `require_complete`.
 pub async fn prepare(
     pool: &sqlx::PgPool,
@@ -122,7 +138,12 @@ pub async fn prepare(
     };
     let deadline = Instant::now() + Duration::from_millis(f.wait_ms.min(MAX_WAIT_MS));
     let mut c = measure(&mut conn, drive_id, prefixes).await?;
-    while c.covered_rev < want && Instant::now() < deadline {
+    // The number reported stays the Drive's (FM10). What it waits for is the files of the scope: a recording elsewhere
+    // in the Drive that is still being parsed does not make a pack that cannot contain it wait out `wait_ms` (D77).
+    while c.covered_rev < want
+        && Instant::now() < deadline
+        && !scope_settled(&mut conn, drive_id, prefixes, want).await?
+    {
         tokio::time::sleep(Duration::from_millis(100)).await;
         c = measure(&mut conn, drive_id, prefixes).await?;
     }

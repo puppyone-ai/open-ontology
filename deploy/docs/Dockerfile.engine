@@ -24,7 +24,10 @@ LABEL oo.lane=$OO_LANE \
       org.opencontainers.image.description="Super Ontology docs engine"
 COPY --from=build /out/oo-docs-engine /usr/local/bin/oo-docs-engine
 COPY deploy/docs/install-schema.sh /usr/local/bin/oo-docs-install-schema
-RUN chmod 0555 /usr/local/bin/oo-docs-engine /usr/local/bin/oo-docs-install-schema
+# The model egress process the engine starts for itself (standard library only, run by the base image's python).
+COPY tools/model-egress/model_egress.py /opt/oo/model_egress.py
+RUN chmod 0555 /usr/local/bin/oo-docs-engine /usr/local/bin/oo-docs-install-schema \
+ && chmod 0444 /opt/oo/model_egress.py
 ENV HOME=/tmp
 EXPOSE 7480
 ENTRYPOINT ["/usr/local/bin/oo-docs-engine"]

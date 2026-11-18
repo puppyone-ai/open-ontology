@@ -31,15 +31,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:5555bbd35e29ba47c9e84f4bc64999eee320f748caeaed585e8046674bdd867c",
+        "image": "sha256:0b12869f68b8ac1a7b8612f29f435873dffb51e1d3df8991506dad0ec34e9300",
         "tag": "oo-docs-engine:dev",
-        "size_bytes": 251272562,
-        "dockerfile_sha256": "30fdc85b0d8509fd83f3b6c9bf3022c2decf1853db286f63bdb59321d443c290",
+        "size_bytes": 228067380,
+        "dockerfile_sha256": "65bac9211a3543a7ff70235796a4d93c8e543a69cea0f4baf5adbf22e5f43747",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-be4",
+        "lane": "super-ontology-be3",
         "built": "2026-11-17",
-        "built_from": "so/C-L4-finish d3fcf3b73 (feat/super-ontology 3afd43f35 merged, plus the extract_llm stage, model config, retention and PATCH /shares/{sid})",
-        "build_note": "the container had no route to static.rust-lang.org or crates.io, so the binary was compiled with the base image toolchain (rustc 1.94.0, rust-toolchain.toml pins 1.98.1) offline from the host crate cache (cargo build --release --offline --locked) and wrapped in the Dockerfile.engine runtime stage unchanged; rebuild with deploy/docs/Dockerfile.engine when the network allows"
+        "built_from": "so/C-L4-quality-merge (feat/super-ontology 7e510090d merged with the L4 quality branch: link pass, extract/2, model egress in the container, L5/L6 engine wiring)",
+        "build_note": "the build container still has no route to static.rust-lang.org or crates.io (the host reaches them through a local proxy the container cannot use), so the binary was compiled in the local rust:1.98.1-bookworm image (rustc 1.98.1, glibc 2.36 like the python base) offline from the host crate cache (docker run ... cargo build --release --offline --locked -p oo-docs --bin oo-docs-engine, target outside the checkout). The python base digest of the Dockerfile is no longer in the local image store and the registry is not reachable, so the runtime stage could not be rebuilt from scratch: the final binary was put in a layer over the previous build of this tag and the image was flattened (docker export | docker import, with the same ENTRYPOINT, ENV, EXPOSE and labels). Rebuild with deploy/docs/Dockerfile.engine when the network allows. Rebuilt after the merge in the same way; this single image replaces the dev-be2 and dev entries."
       },
       "linux/amd64": null
     }
@@ -58,9 +58,9 @@
     "note": "built before the final notices; rebuild rewrites the digest"
   },
   "media_parser": {
-    "image": "sha256:5d0f2f8ee1e61d941f64df43b034c1da241d92094ffba74859154898aac29b76",
-    "tag": "oo-docs-media-parser:dev",
-    "size_bytes": 1151628587,
+    "image": "sha256:05e9a9806c67f32c19b9fa21331ad1341f3b8aac4ed7bbe6745e4b310be911ae",
+    "tag": "oo-docs-media-parser:dev-be2",
+    "size_bytes": 1151765899,
     "platform": "linux/arm64",
     "lane": "super-ontology-be6",
     "dockerfile_sha256": "cfbf65675cfbfc3689a273b1b669b30e8bcac472cc2d776733df6da30a5bc310",
@@ -68,6 +68,7 @@
     "models_lock_sha256": "004e9921aa5b2f9182412288098dbf5ac979672166afcc712c6fa5f698bf7265",
     "ffmpeg": "9.0.2 own LGPL decode-only build, source sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
     "sbom": "testing/super-ontology/evidence/L6/sbom-media-parser.json",
-    "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)"
+    "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
+    "note": "dev-be2 = the day-one image plus a one layer rebuild of media_parser/ and video/ (ffmpeg 9 dropped -vsync; scenedetect needs a cv2.VideoCapture name that the FFmpeg-free OpenCV lacks)"
   }
 }

@@ -208,7 +208,27 @@ fn an_explicit_earlier_end_is_kept() {
     let mut a = owner("1", "chen", Some("2026-01-01"));
     a.valid_to = Some("2026-05-31".into());
     let b = owner("2", "zhou", Some("2026-06-01"));
-    assert!(plan_group(&[a, b]).end.is_empty());
+    // The end stays at 05-31; the next owner is still recorded as the replacement.
+    let plan = plan_group(&[a, b]);
+    assert_eq!(
+        plan.end,
+        vec![EndFact {
+            fact_id: "1".into(),
+            valid_to: "2026-05-31".into(),
+            superseded_by: "2".into()
+        }]
+    );
+    assert!(plan.held.is_empty());
+}
+
+#[test]
+fn a_candidate_after_an_owner_that_already_ended_waits_for_nobody() {
+    let mut a = owner("1", "chen", Some("2026-01-01"));
+    a.valid_to = Some("2026-05-31".into());
+    let mut b = owner("2", "zhou", Some("2026-06-01"));
+    b.origin = Origin::Llm;
+    let plan = plan_group(&[a, b]);
+    assert!(plan.end.is_empty() && plan.held.is_empty(), "{plan:?}");
 }
 
 #[test]

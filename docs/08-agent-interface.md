@@ -223,6 +223,10 @@ TS SDK 提供同样的方法（`export` 在浏览器环境不可用）。SDK 不
   annotations: { readOnlyHint: true, openWorldHint: false }
 ```
 
+- **Suggest 与更新订阅（Super Ontology L5，docs 引擎侧，不经 Gateway 数据面）：** 当 MCP 服务器配置了 docs 引擎（`OO_MCP_DOCS_URL`、`OO_MCP_DOCS_CREDENTIAL_FILE`、`OO_MCP_DOCS_SHARE_ID`）时，另外提供两个工具和一个资源。
+  `suggest`：参数为 `oo.suggest/v1`（`kind`、`subject`、`predicate`、`object` 或 `value`、`valid_from`、`supersedes`、`rationale`、`evidence`、`idempotency_key`），`annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }`，鉴权用该 share 的 `oodr_` 凭证（scope `suggest:write`），同一 `idempotency_key` 重发不产生新建议；
+  `context_check`：只读，询问该 share 构建时的上下文是否仍然最新（退出码 0 继续、10 建议刷新、20 停止、30 share 已结束）；
+  资源 `puppyone://share/<sid>/updates`：该 share 的更新条目，`resources/subscribe` 后在条目追加起 2 秒内收到 `notifications/resources/updated`。
 - **Resources：** `oo://knowledge/README.md`、`oo://knowledge/tables/{schema}.{table}.md` 等，映射到按角色编译的 Knowledge Pack；列表按 principal、角色、策略版本与 Knowledge 版本隔离缓存；不跨权限复用。
 - **Prompts：** 提供 `analyze_data` 提示模板，内容与沙盒中 `AGENTS.md` 的工作说明一致，让沙盒外的 Agent 遵循同样的工作方式。
 

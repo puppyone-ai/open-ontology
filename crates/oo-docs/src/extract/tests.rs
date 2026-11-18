@@ -541,3 +541,17 @@ fn golden_predictions_are_well_formed_and_can_be_written() {
         std::fs::write(PathBuf::from(&dir).join("facts.jsonl"), facts_out).unwrap();
     }
 }
+
+#[test]
+fn a_replacement_starts_on_the_decision_date_not_the_date_it_names() {
+    let x = fx(
+        "Decisions/D-2027-04-周报改为每周四发送.md",
+        "---\ntype: decision\ndate: 2027-04-02\nowner: 林远舟\n---\n\n# 决定：周报改为每周四发送\n\n本决定取代2027年1月10日“周报每周五发送”的决定。\n",
+    );
+    let f = x
+        .facts
+        .iter()
+        .find(|f| f.predicate == Predicate::Supersedes)
+        .expect("a supersedes fact");
+    assert_eq!(f.valid_from.as_deref(), Some("2027-04-02"));
+}

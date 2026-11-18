@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "actor": "cloud:a8a9cbfa-3d65-4905-8a2a-056683c7aa13",
+      "agent": "agent-7",
+      "at": "2026-11-18 09:13:21.133779+00",
+      "drive_id": "4fef4a42-c718-4fea-8748-cad2c70125a6",
+      "grantor": "owner",
+      "refs_reads": 0,
+      "revoked_at": null,
+      "role": "suggester",
+      "scope": [
+        "Projects",
+        "People"
+      ],
+      "seq": 3,
+      "share_id": "af1d2db3-9f5d-4c09-9157-d1f9175897a3",
+      "tenant": "acme"
+    }
+  ]
+}

@@ -44,3 +44,36 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `edit.name`); `reprocess_diff` `{gate, prior, added, removed, share_used_removed, version_id}`.
 - `BRIEF.md` of a refreshed Share has a section "自上次以来的变化（vA → vB）" after the head (added, changed,
   retracted, fixed order); not an API field.
+
+## 1.3 (L5, B-S7 and B-S8 cards)
+
+- Suggest endpoints (`since` 1.3): `POST /v1/docs/suggestions` (`SuggestRequest`: one `SuggestionRecord`, `items`, or
+  `documents` read from `.context/suggest/`; a share's `oodr_` credential with scope `suggest:write`, or the engine token with
+  `share_id`; idempotent per share on `idempotency_key` or the content hash, no `Idempotency-Key` header), `GET /suggestions`,
+  `GET /suggestions:digest?day=`, `GET /suggestions/{id}`, `GET /suggestions/{id}/diff` (a file-level draft for the revision mode;
+  OO never writes the Drive, `writer` is `desktop`) and `POST /suggestions/{id}:decide` (`accept`, `reject`, `undo`).
+- The `suggestion` review kind is live: `subject` is `{suggestion_id, share_id, kind}`; deciding the item through `review:decide`
+  does what `:decide` does. Reason codes: `suggestion_manual_kind`, `suggestion_supersede_in_use`, `suggestion_functional_conflict`,
+  `suggestion_no_scope_evidence`, `suggestion_supersedes_unknown`, `suggestion_unresolved_entity`.
+- Refs credentials of `suggester` and `editor` shares carry `suggest:write`; the `editor` role can be created
+  (`DOCS_SHARE_ROLE_UNAVAILABLE` is no longer returned). A credential may call `POST /suggestions` for its own share.
+- `share.update_appended` entries with `summary_key` `suggestion_accepted` tell every live Share that used a superseded fact.
+- `errors.v1.json` adds `DOCS_SUGGEST_NOT_FOUND`, `DOCS_SUGGEST_ROLE_FORBIDDEN`, `DOCS_SUGGEST_SCOPE_MISSING`,
+  `DOCS_SUGGEST_NOT_PENDING`, `DOCS_SUGGEST_NO_EVIDENCE`, `DOCS_SUGGEST_UNRESOLVED_ENTITY`.
+
+## 1.4 (L7, B-S11 and B-S12 cards)
+
+- Drive config `policy` `{allow, deny}` (`DrivePolicy`) on every backend: whole segment path prefixes, `deny` wins, an empty `allow` is
+  the whole Drive. Enforced in ingest (a denied path is never listed, hashed or parsed) and in the visible graph (denied files are not
+  in any snapshot a pack or projection is built from).
+- Backends `oss`, `cos` and `r2` are served (the S3 compatible path, `DriveConfigCloud`): `region` (oss, cos), `account_id` (r2),
+  `internal`, `endpoint` override. `s3` takes the same object. Keys are never inline (`secret_ref`).
+- `POST /v1/docs/drives/{id}:events` (`since` 1.4, `EventsRequest`, `EventsResult`): bucket event notifications as change hints.
+  Duplicates and older events of a key are dropped, each remaining key gets one targeted sync; deletions are only reported.
+- Cloud proxy mode (local entry only): `POST /v1/docs/cloud-tokens` issues an `oodc_` token bound to a tenant and a set of Drives
+  (shown once); `DELETE /v1/docs/cloud-tokens/{id}` revokes it. The token works on the cloud entry (a second listener,
+  `OO_DOCS_CLOUD_LISTEN`, own `Host` list) only, never on the loopback API; the cloud entry accepts nothing else and calls only shares
+  (create, get, `:revoke`), `context-packs:compile` and the packs' files, on the token's Drives.
+- Audit (`share.created`, `share.revoked`, `refs.accessed`, token events) in an append-only, hash chained table:
+  `GET /v1/docs/audit/shares?drive_id&agent&tenant&since&until` (`AuditShares`: who shared what to which agent, when) and
+  `GET /v1/docs/audit/verify` (`AuditVerify`). The agent is the request header `OO-Docs-Agent` of the call that created the share.

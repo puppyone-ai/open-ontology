@@ -5,4 +5,5 @@
 !crates
 !contracts
 !deploy/docs/install-schema.sh
+!tools/model-egress/model_egress.py
 **/target

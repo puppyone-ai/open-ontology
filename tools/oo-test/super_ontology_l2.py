@@ -42,6 +42,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import uuid
 from pathlib import Path
 
@@ -51,7 +52,7 @@ PG_IMAGE = (
     "docker.io/library/postgres@sha256:"
     "839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5"
 )
-LANE = "oo.lane=super-ontology-be5"
+LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be5")
 PUBLISH_DEADLINE = 60.0
 EDIT_DEADLINE = 30.0
 EXTRA_FILES = {
@@ -172,15 +173,16 @@ class Api:
     def __init__(self, port, token):
         self.port, self.token = port, token
 
-    def request(self, method, path, body=None, timeout=30):
+    def request(self, method, path, body=None, timeout=30, headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=timeout)
-        headers = {"Authorization": f"Bearer {self.token}"}
+        headers = {"Authorization": f"Bearer {self.token}", **(headers or {})}
         data = None
         if body is not None:
             data = json.dumps(body).encode()
             headers["Content-Type"] = "application/json"
         if method == "POST":
             headers["Idempotency-Key"] = uuid.uuid4().hex + uuid.uuid4().hex[:8]
+        path = urllib.parse.quote(path, safe="/?=&:%,;@+-._~!*'()")
         conn.request(method, path, body=data, headers=headers)
         resp = conn.getresponse()
         raw = resp.read()

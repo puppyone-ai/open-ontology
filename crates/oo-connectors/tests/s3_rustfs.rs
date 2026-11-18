@@ -23,6 +23,7 @@ fn env(k: &str) -> String {
 
 fn source(prefix: &str) -> S3Source {
     let cfg = S3Config {
+        provider: Default::default(),
         bucket: env("OO_S3_BUCKET"),
         prefix: format!("{prefix}/"),
         endpoint: Some(env("OO_S3_ENDPOINT")),
@@ -232,6 +233,7 @@ async fn the_probe_reports_what_the_store_does() {
 #[ignore = "needs a RustFS or MinIO (OO_S3_*)"]
 async fn a_wrong_secret_is_auth_failed_and_nothing_leaks() {
     let cfg = S3Config {
+        provider: Default::default(),
         bucket: env("OO_S3_BUCKET"),
         prefix: "t-auth/".into(),
         endpoint: Some(env("OO_S3_ENDPOINT")),

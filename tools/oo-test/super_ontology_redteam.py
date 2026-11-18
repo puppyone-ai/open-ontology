@@ -43,7 +43,7 @@ import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden"
-comp.LANE = "super-ontology-be4"
+comp.LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 PUBLISH_DEADLINE = 900.0
 ADVERSARIAL = 2  # index in TASKS of the query that names the secret material
 TASKS = [
@@ -164,7 +164,12 @@ def main():
                 to = work / f"m{i}-{j}"
                 to.mkdir()
                 argv = [str(oo), "context", "mount", "--to", str(to), "--for", task, "--json", "--state-dir", str(state)]
-                for p in pref:
+                if with_rt:
+                    # The control scopes hold the red-team entities the adversarial task names (and every
+                    # document that links to them): their BRIEF frame needs more than the default 800 tokens.
+                    argv += ["--budget", "4000"]
+                # `oo` refuses more than 32 arguments: the scope that is the whole Drive names no directory.
+                for p in ([] if with_rt and len(pref) > 6 else pref):
                     argv += ["--scope", p]
                 r = subprocess.run(argv, capture_output=True, text=True, timeout=180)
                 if r.returncode != 0:
@@ -178,7 +183,7 @@ def main():
                         per_scope[sid]["mounts"] += 1
                         per_scope[sid]["refused"] = per_scope[sid].get("refused", 0) + 1
                         continue
-                    ev.check(f"mount scope {sid} task {j + 1} exits 0", False, f"exit {r.returncode} {(r.stdout + r.stderr).strip()[:140]}")
+                    ev.check(f"mount scope {sid} task {j + 1} exits 0", False, f"exit {r.returncode} {(r.stdout + r.stderr).strip()[-420:]}")
                     continue
                 scanned = 0
                 for f in sorted((to / ".context").rglob("*")):

@@ -187,6 +187,41 @@ pub fn clean_item(text: &str, max_chars: usize) -> String {
     head.chars().take(max_chars).collect()
 }
 
+/// Words that introduce what a person prefers ("X 偏好 …", "X 希望 …", "X 的要求：…").
+const PREFERENCE_VERBS: &[&str] = &["偏好", "希望", "要求", "喜欢", "习惯", "倾向于", "倾向"];
+
+/// The content of a preference sentence: the first clause, without the person
+/// and the verb that introduces it (`周若溪偏好文档先写结论再写过程，结论放在第一段`
+/// is `文档先写结论再写过程`). A sentence without such a verb is cut at its
+/// first clause break.
+pub fn preference_name(text: &str, max_chars: usize) -> String {
+    let t = text.trim().trim_start_matches(['-', '*', '+', ' ']).trim();
+    // "X的要求：内容" and "要求：内容": the content follows the colon.
+    let t = match t.split_once(['：', ':']) {
+        Some((head, tail))
+            if !tail.trim().is_empty() && PREFERENCE_VERBS.iter().any(|v| head.ends_with(v)) =>
+        {
+            tail.trim()
+        }
+        _ => t,
+    };
+    let cut = t.find(['，', ',', '。', '；', ';']).unwrap_or(t.len());
+    let clause = t[..cut].trim();
+    let content = PREFERENCE_VERBS
+        .iter()
+        .filter_map(|v| clause.find(v).map(|at| (at, v)))
+        .min_by_key(|(at, _)| *at)
+        .map(|(at, v)| clause[at + v.len()..].trim())
+        .filter(|rest| !rest.is_empty())
+        .unwrap_or(clause);
+    content
+        .trim_matches(['*', '_', '`', '"', '“', '”'])
+        .trim()
+        .chars()
+        .take(max_chars)
+        .collect()
+}
+
 /// Date of a frontmatter value or a line value, if the whole value is one.
 pub fn date_value(value: &str) -> Option<ParsedDate> {
     parse_exact(value)
@@ -266,6 +301,27 @@ mod tests {
         assert!(s.to.is_none());
         assert_eq!(owner_sentence("由周若溪负责"), None, "date required");
         assert_eq!(owner_sentence("2026-06-01 起由周若溪，李四负责"), None);
+    }
+
+    #[test]
+    fn preference_sentences_give_their_content() {
+        assert_eq!(
+            preference_name("林远舟的要求：会议控制在三十分钟内，超时必须拆会", 80),
+            "会议控制在三十分钟内"
+        );
+        assert_eq!(
+            preference_name("周若溪偏好文档先写结论再写过程，结论放在第一段", 80),
+            "文档先写结论再写过程"
+        );
+        assert_eq!(
+            preference_name("子墨希望沟通优先使用文字而非电话，紧急情况除外。", 80),
+            "沟通优先使用文字而非电话"
+        );
+        assert_eq!(
+            preference_name("- 不开无议程会议；提前一天发材料", 80),
+            "不开无议程会议"
+        );
+        assert_eq!(preference_name("要求：先写结论", 80), "先写结论");
     }
 
     #[test]

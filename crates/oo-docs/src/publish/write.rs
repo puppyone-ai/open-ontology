@@ -73,6 +73,31 @@ pub async fn index_document_with(
     index_extraction(conn, doc, &extraction).await
 }
 
+/// `doc.link`: mentions and `about` links of this file version to the entities the
+/// Drive knows by name (`extract::links`), stored as drafts. Run after the rules
+/// or the model added entities, and again for the other files when new entities
+/// appeared ([`index_links`] is idempotent).
+pub async fn index_links(
+    conn: &mut PgConnection,
+    doc: &DocumentInput<'_>,
+) -> Result<IndexSummary, StoreError> {
+    let lex = crate::resolve::pg::load_lexicon(conn).await?;
+    let stem = doc.path.rsplit('/').next().unwrap_or(doc.path);
+    let stem = stem.rsplit_once('.').map_or(stem, |(s, _)| s);
+    let title = doc
+        .ir
+        .blocks
+        .iter()
+        .find(|b| b.kind == oo_core::docir::BlockKind::Heading && b.level == Some(1))
+        .map(|b| b.text.trim().to_owned())
+        .or_else(|| doc.ir.meta.title.clone());
+    let links = crate::extract::links::doc_links(doc.path, doc.ir, title.as_deref(), stem, &lex);
+    if links.hints.is_empty() {
+        return Ok(IndexSummary::default());
+    }
+    index_extraction(conn, doc, &links).await
+}
+
 /// Store an extraction (rules or LLM supplement) for one file version.
 pub async fn index_extraction(
     conn: &mut PgConnection,
@@ -283,12 +308,23 @@ async fn store_resolved(
         if rejected.contains(&f.fact_key) {
             continue;
         }
+        // A statement without a date (a model said "X owns Y", the rules found the
+        // dated row) is the same fact as a dated one of the same triple: it only
+        // adds evidence.
+        let undated_relation =
+            f.valid_from.is_none() && f.value.is_none() && f.object_key.is_some();
         let existing: Option<String> = sqlx::query_scalar(
             "SELECT id::text FROM _oo_docs.fact \
-              WHERE fact_key = $1 AND status IN ('draft', 'published') \
-              ORDER BY recorded_at, id LIMIT 1",
+              WHERE status IN ('draft', 'published') \
+                AND (fact_key = $1 \
+                     OR ($2 AND subject_id = $3::uuid AND predicate = $4 AND object_id = $5::uuid)) \
+              ORDER BY (fact_key = $1) DESC, recorded_at, id LIMIT 1",
         )
         .bind(&f.fact_key)
+        .bind(undated_relation)
+        .bind(entity_ids.get(f.subject_key.as_str()))
+        .bind(f.predicate.name())
+        .bind(f.object_key.as_ref().and_then(|k| entity_ids.get(k.as_str())))
         .fetch_optional(&mut *conn)
         .await?;
         let fact_id = match existing {

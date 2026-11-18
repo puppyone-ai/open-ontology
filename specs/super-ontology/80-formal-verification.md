@@ -5,6 +5,8 @@
 
 ## 1. 为什么要做，做到什么程度
 
+> **D81（2026-11-18）**：本册收窄为低成本一层。签收只看已建成模型与证明的快速检查和一致性测试；`formal-verify-deep` 是可选的每晚检查，不阻断签收；§7 中 V-S7-01、V-S9-01、V-S9-02、V-S11-01、V-S13-01 取消，未完成的 KP 不再补做。下文与本说明冲突处以本说明为准。
+
 Super Ontology 有两类东西光靠测试不够：
 
 1. **并发协议**：作业租约与续跑、文件状态机、对象存储“事件 + 对账”的增量同步、SSE 事件流与断线补齐、批量审核与并发新条目、Share 的刷新与撤销。它们的 bug 只在特定交错下出现，测试很难碰上。
@@ -105,7 +107,7 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | `formal-simulate` | `quint run` 随机模拟，每模型 10,000 条 | 每个 PR | < 10 分钟 |
 | `formal-conformance` | Rust 与渲染层的轨迹一致性测试 | 每个 PR | < 10 分钟 |
 | `kani-fast` | 改动 crate 的 KP harness | 改动对应 crate 的 PR | < 20 分钟 |
-| `formal-verify-deep` | 放大边界（例如 FM1 用 4 worker、6 作业；FM3 用 6 key、10 次写）+ TLC 活性检查 + 全部 KP | 每晚 + 闭环签收前 | 单独时段，独占机器 |
+| `formal-verify-deep` | 放大边界（例如 FM1 用 4 worker、6 作业；FM3 用 6 key、10 次写）+ TLC 活性检查 + 全部 KP | 可选，每晚（D81：不阻断签收） | 单独时段，独占机器 |
 
 - 工具版本锁定在 `formal/TOOLCHAIN.md`（Quint、Apalache、Kani、quint-connect 的版本与校验和），经 `supply-chain/` 准入（WS-INT）。
 - 为避免 `cargo build` 出现 `unexpected_cfgs` 警告，相关 crate 的 `build.rs` 加 `cargo::rustc-check-cfg=cfg(kani)`。
@@ -140,12 +142,9 @@ formal/quint/jobs.qnt ──quint run / quint test──▶ ITF 轨迹（JSON）
 | 闭环 | 必须全绿 | 报告 |
 |---|---|---|
 | L1 | 工具链锁定；FM1 草稿评审通过 | — |
-| L2 | FM1、FM2（md）、FM4 无反例；FM1、FM4 一致性测试通过；KP1、KP2、KP8 | `evidence/L2/formal.md` |
-| L3 | FM2 全量、FM3（fs + s3）无反例与一致；KP3、KP4、KP7 | `evidence/L3/formal.md` |
-| L4 | FM5、FM6（含一致性扩展）、FM8、FM10、FM11 无反例与一致；KP5、KP6、KP10；`formal-verify-deep` 全绿 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
-| L5 | FM7 | `evidence/L5/formal.md` |
-| L6 | FM6（漂移刷新）、FM9；KP9；FM1 媒体续跑一致性 | `evidence/L6/formal.md` |
-| L7 | FM3（多云事件） | `evidence/L7/formal.md` |
-| L8 | 全部模型在放大边界下复跑 | `evidence/L8/formal.md` |
+| L2 | FM1、FM2（md）、FM4 快速检查无反例；FM1、FM4 一致性测试通过；KP1、KP2、KP8 | `evidence/L2/formal.md` |
+| L3 | FM2、FM3 快速检查无反例与一致；已通过的 KP 列出，未完成的如实列为未做 | `evidence/L3/formal.md` |
+| L4 | FM5、FM6、FM8、FM10、FM11 快速检查无反例与一致；已通过的 KP 列出 | `evidence/L4/formal.md`，也放进 owner 验收包和 Puppyone 最终 PR 的描述 |
+| L5–L8 | 无新增形式化项（D81）；已有模型的快速检查与一致性测试在 CI 中保持全绿 | 各闭环 `formal.md` 一行说明即可 |
 
 每份报告写明：模型版本（commit）、边界、检查的不变式和活性、运行时长、发现的反例及其处理、一致性测试的轨迹数、尚未覆盖的部分。没有覆盖的部分要明说，不写“已形式化验证”这类笼统结论。

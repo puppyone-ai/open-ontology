@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import super_ontology_l2 as l2  # noqa: E402  (shared Evidence, Api, helpers)
 
 REPO = l2.REPO
-LANE = "super-ontology-be2"
+LANE = "super-ontology-verify"  # verify lane: this run labels its own containers
 DEPLOY = REPO / "deploy/docs"
 PUBLISH_DEADLINE = 90.0
 START_DEADLINE = 420.0

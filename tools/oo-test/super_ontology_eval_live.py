@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 import super_ontology_l2 as l2  # noqa: E402
 
 REPO = l2.REPO
-l2.LANE = "oo.lane=super-ontology-be4"
+l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 
 
 def main():
@@ -44,17 +44,23 @@ def main():
     ap.add_argument("--key-file")
     ap.add_argument("--model-id")
     ap.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S"))
+    ap.add_argument("--golden", default="testing/super-ontology/golden", help="golden or holdout set (docs/ and labels/)")
+    ap.add_argument("--keep-out", help="keep raw predictions under this directory instead of a temp dir")
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L4/eval"))
     args = ap.parse_args()
     ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
     pg = l2.Postgres(ev, args.run_id)
-    out_root = Path(tempfile.mkdtemp(prefix="oo-eval-live-", dir="/tmp"))
+    if args.keep_out:
+        out_root = Path(args.keep_out)
+        out_root.mkdir(parents=True, exist_ok=True)
+    else:
+        out_root = Path(tempfile.mkdtemp(prefix="oo-eval-live-", dir="/tmp"))
     ok = True
     try:
         pg.start()
         for mode in args.modes.split(","):
             out = out_root / mode
-            env = dict(os.environ, OO_DOCS_TEST_PG_PORT=str(pg.port), OO_EVAL_OUT=str(out),
+            env = dict(os.environ, OO_DOCS_TEST_PG_PORT=str(pg.port), OO_EVAL_OUT=str(out), OO_EVAL_GOLDEN=str(Path(args.golden).resolve()),
                        CARGO_BUILD_JOBS=os.environ.get("CARGO_BUILD_JOBS", "6"))
             if mode == "on":
                 if not (args.endpoint_file and args.key_file and args.model_id):
@@ -70,12 +76,12 @@ def main():
                 ev.log((p.stdout + p.stderr)[-1500:])
                 continue
             rep = out / "report"
-            q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", "testing/super-ontology/golden",
+            q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", args.golden,
                                 "--predictions", str(out / "predictions"), "--out", str(rep)], cwd=REPO, capture_output=True, text=True, timeout=600)
             ev.log(q.stdout.strip() or q.stderr.strip()[-300:])
             # What the product acts on: published facts only (held candidates left out).
             repp = out / "report-published"
-            q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", "testing/super-ontology/golden",
+            q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", args.golden,
                                 "--predictions", str(out / "predictions-published"), "--out", str(repp)], cwd=REPO, capture_output=True, text=True, timeout=600)
             ev.log("published only: " + (q.stdout.strip() or q.stderr.strip()[-300:]))
             dest = Path(args.evidence_dir) / f"model-{mode}"
@@ -87,7 +93,8 @@ def main():
         ok = ok and all(c["ok"] for c in ev.checks)
     finally:
         pg.stop()
-        shutil.rmtree(out_root, ignore_errors=True)
+        if not args.keep_out:
+            shutil.rmtree(out_root, ignore_errors=True)
     print(f"# {sum(1 for c in ev.checks if c['ok'])}/{len(ev.checks)} checks passed")
     sys.exit(0 if ok else 1)
 
