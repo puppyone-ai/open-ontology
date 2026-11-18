@@ -22,6 +22,7 @@ use sha2::{Digest, Sha256};
 
 use super::blob_b3;
 use crate::normalize::docling::{self, WindowResponse};
+use crate::normalize::paddle;
 use crate::normalize::{Normalized, finish};
 
 pub const PROTOCOL: &str = "oo.doc-parser/v1";
@@ -33,6 +34,9 @@ pub const MAX_PDF_PAGES: u32 = 2_000;
 pub const MAX_RESPONSE_BYTES: usize = 80 << 20;
 /// Request deadline sent to the sidecar and the longest it accepts.
 pub const DEADLINE_MS: u64 = 120_000;
+/// PDF pages per OCR request: PP-StructureV3 takes seconds per page on CPU, and a request is limited to
+/// [`DEADLINE_MS`].
+pub const OCR_PDF_WINDOW: u32 = 4;
 /// A scanned PDF has fewer than this share of pages with a text layer.
 pub const TEXT_LAYER_MIN_PERCENT: u32 = 20;
 
@@ -75,6 +79,21 @@ pub enum SidecarError {
     ScannedPdf,
     /// The response was valid HTTP but not a document the normalizer accepts.
     Normalize(String),
+    /// `PARSER_CODEC_UNAVAILABLE`: H.264, HEVC, AAC or another codec our FFmpeg does not decode, and neither a
+    /// host decode helper nor `media.external_ffmpeg` is available (D65). `how_to` says how to configure.
+    CodecUnavailable { codecs: Vec<String>, how_to: String },
+    /// `PARSER_MEDIA_TOO_LONG`: over 4 GiB or 4 hours (`too_large`).
+    MediaTooLong,
+    /// `PARSER_HOST_DECODE_MISMATCH`: host decode output belongs to another version of the file.
+    HostDecodeMismatch,
+    /// `PARSER_ASR_FAILED`.
+    AsrFailed,
+    /// `PARSER_DIARIZATION_FAILED`.
+    DiarizationFailed,
+    /// `PARSER_DISK_LOW`: the job waits (`blocked_reason = disk_low`), the file does not change state.
+    DiskLow,
+    /// The caller cancelled the task.
+    Cancelled,
 }
 
 impl SidecarError {
@@ -92,6 +111,11 @@ impl SidecarError {
             Self::ScannedPdf => "DOCS_PARSE_SCANNED_PDF",
             Self::LimitPages { .. } => "DOCS_PARSE_LIMIT_PAGES",
             Self::Normalize(_) => "DOCS_PARSE_IR_INVALID",
+            Self::CodecUnavailable { .. } => "DOCS_PARSE_CODEC_UNAVAILABLE",
+            Self::MediaTooLong => "DOCS_SOURCE_MEDIA_TOO_LONG",
+            Self::HostDecodeMismatch => "DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+            Self::AsrFailed => "DOCS_PARSE_ASR_FAILED",
+            Self::DiarizationFailed => "DOCS_PARSE_DIARIZATION_FAILED",
             _ => return None,
         })
     }
@@ -234,6 +258,8 @@ pub struct SidecarConfig {
     pub connect_timeout: Duration,
     /// Extra read time on top of the request deadline.
     pub grace: Duration,
+    /// This endpoint is an `ocr-parser`: parse requests say `options.ocr = true`.
+    pub ocr: bool,
 }
 
 impl SidecarConfig {
@@ -243,7 +269,20 @@ impl SidecarConfig {
             token: token.into(),
             connect_timeout: Duration::from_secs(5),
             grace: Duration::from_secs(15),
+            ocr: false,
         }
+    }
+
+    /// The same endpoint settings for an `ocr-parser` sidecar.
+    pub fn for_ocr(mut self) -> Self {
+        self.ocr = true;
+        self
+    }
+
+    /// Ask a Docling doc-parser to OCR embedded pictures too (B-S9-04). Only for an image whose
+    /// `/v1/info` says `limits.ocr`; an older image answers 422.
+    pub fn with_picture_ocr(self) -> Self {
+        self.for_ocr()
     }
 }
 
@@ -269,9 +308,9 @@ impl SidecarStats {
     }
 }
 
-struct Response {
-    status: u16,
-    body: Vec<u8>,
+pub(crate) struct Response {
+    pub(crate) status: u16,
+    pub(crate) body: Vec<u8>,
 }
 
 /// Progress of one parse: pages are PDF pages; other formats report 0 of 0.
@@ -285,6 +324,8 @@ pub struct SidecarClient {
     cfg: SidecarConfig,
     breaker: Mutex<Breaker>,
     pub stats: SidecarStats,
+    /// Scanned pdf and standalone images go here (D69, D76); without it they park as unsupported.
+    ocr: Option<Box<SidecarClient>>,
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -305,7 +346,18 @@ impl SidecarClient {
             cfg,
             breaker: Mutex::new(Breaker::standard()),
             stats: SidecarStats::default(),
+            ocr: None,
         }
+    }
+
+    /// Route scanned PDFs and images to `ocr` (an endpoint built with [`SidecarConfig::for_ocr`]).
+    pub fn with_ocr(mut self, ocr: SidecarClient) -> Self {
+        self.ocr = Some(Box::new(ocr));
+        self
+    }
+
+    pub fn ocr_client(&self) -> Option<&SidecarClient> {
+        self.ocr.as_deref()
     }
 
     pub fn with_breaker(cfg: SidecarConfig, breaker: Breaker) -> Self {
@@ -313,6 +365,7 @@ impl SidecarClient {
             cfg,
             breaker: Mutex::new(breaker),
             stats: SidecarStats::default(),
+            ocr: None,
         }
     }
 
@@ -409,7 +462,7 @@ impl SidecarClient {
     }
 
     /// One call through the breaker, with typed error mapping.
-    fn call(
+    pub(crate) fn call(
         &self,
         method: &str,
         path: &str,
@@ -517,7 +570,7 @@ impl SidecarClient {
     ) -> Result<Value, SidecarError> {
         let mut req = json!({
             "blob": sha, "format": format,
-            "options": {"ocr": false, "table_structure": true},
+            "options": {"ocr": self.cfg.ocr, "table_structure": true},
             "deadline_ms": deadline_ms.min(DEADLINE_MS),
         });
         if let Some((s, e)) = page_range {
@@ -567,6 +620,12 @@ impl SidecarClient {
             DocFormat::Pdf => "pdf",
             DocFormat::Docx => "docx",
             DocFormat::Pptx => "pptx",
+            DocFormat::PdfScanned | DocFormat::Image => {
+                let ocr = self.ocr.as_deref().ok_or_else(|| {
+                    SidecarError::Unsupported("no ocr-parser is configured".into())
+                })?;
+                return ocr.parse_ocr(bytes, format, None, progress);
+            }
             _ => return Err(SidecarError::Unsupported("not a sidecar format".into())),
         };
         let sha = sha256_hex(bytes);
@@ -600,7 +659,11 @@ impl SidecarClient {
                 return Err(SidecarError::LimitPages { pages });
             }
             if n("text_layer_pages") * 100 < pages * TEXT_LAYER_MIN_PERCENT {
-                return Err(SidecarError::ScannedPdf);
+                // The Docling pipeline has no OCR; a scanned pdf goes to the ocr-parser when there is one.
+                return match self.ocr.as_deref() {
+                    Some(ocr) => ocr.parse_ocr(bytes, DocFormat::PdfScanned, Some(pages), progress),
+                    None => Err(SidecarError::ScannedPdf),
+                };
             }
             let mut start = 1;
             while start <= pages {
@@ -623,6 +686,80 @@ impl SidecarClient {
         let fragment = docling::assemble(format, blob_b3(bytes), responses)
             .map_err(|e| SidecarError::Normalize(e.to_string()))?;
         finish(fragment).map_err(|e| SidecarError::Normalize(format!("{e:?}")))
+    }
+
+    /// OCR path (this client is an ocr-parser): a standalone image is one request, a scanned pdf goes in
+    /// windows of [`OCR_PDF_WINDOW`] pages. `pages` is the page count when the caller already knows it.
+    pub fn parse_ocr(
+        &self,
+        bytes: &[u8],
+        format: DocFormat,
+        pages: Option<u32>,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<Normalized, SidecarError> {
+        let sha = sha256_hex(bytes);
+        self.put_blob(&sha, bytes)?;
+        let result = self.parse_ocr_uploaded(&sha, bytes, format, pages, progress);
+        self.delete_blob(&sha);
+        result
+    }
+
+    fn parse_ocr_uploaded(
+        &self,
+        sha: &str,
+        bytes: &[u8],
+        format: DocFormat,
+        pages: Option<u32>,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<Normalized, SidecarError> {
+        let mut responses: Vec<Value> = Vec::new();
+        if format == DocFormat::Image {
+            responses.push(self.parse_raw(sha, "image", None, DEADLINE_MS)?);
+            progress(Progress {
+                pages_done: 0,
+                page_count: 0,
+            });
+        } else {
+            let pages =
+                pages.ok_or_else(|| SidecarError::Unsupported("page count unknown".into()))?;
+            if pages > MAX_PDF_PAGES {
+                return Err(SidecarError::LimitPages { pages });
+            }
+            let mut start = 1;
+            while start <= pages {
+                let end = (start + OCR_PDF_WINDOW - 1).min(pages);
+                self.ocr_window(sha, (start, end), &mut responses, true)?;
+                progress(Progress {
+                    pages_done: end,
+                    page_count: pages,
+                });
+                start = end + 1;
+            }
+        }
+        let fragment = paddle::assemble(format, blob_b3(bytes), responses)
+            .map_err(|e| SidecarError::Normalize(e.to_string()))?;
+        finish(fragment).map_err(|e| SidecarError::Normalize(format!("{e:?}")))
+    }
+
+    fn ocr_window(
+        &self,
+        sha: &str,
+        (s, e): (u32, u32),
+        out: &mut Vec<Value>,
+        may_split: bool,
+    ) -> Result<(), SidecarError> {
+        match self.parse_raw(sha, "pdf", Some((s, e)), DEADLINE_MS) {
+            Ok(v) => {
+                out.push(v);
+                Ok(())
+            }
+            Err(SidecarError::OutputLimit | SidecarError::Oom) if may_split && e > s => {
+                let mid = s + (e - s) / 2;
+                self.ocr_window(sha, (s, mid), out, false)?;
+                self.ocr_window(sha, (mid + 1, e), out, false)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// One window; on output-limit or OOM split it in two and retry once.
@@ -654,7 +791,7 @@ fn poisoned() -> SidecarError {
 }
 
 /// `{"error":{"code":..}}` of a typed response.
-fn typed_code(body: &[u8]) -> Option<String> {
+pub(crate) fn typed_code(body: &[u8]) -> Option<String> {
     let v: Value = serde_json::from_slice(body).ok()?;
     v.get("error")?.get("code")?.as_str().map(str::to_owned)
 }
@@ -667,7 +804,7 @@ fn decode(r: &Response, want: u16) -> Result<Value, SidecarError> {
 }
 
 /// Typed sidecar failure from a non-success response.
-fn map_error(r: &Response) -> SidecarError {
+pub(crate) fn map_error(r: &Response) -> SidecarError {
     let v: Value = serde_json::from_slice(&r.body).unwrap_or(Value::Null);
     let err = v.get("error");
     let code = err
@@ -810,5 +947,188 @@ mod tests {
         assert!(c.breaker_open());
         assert!(matches!(c.info(), Err(SidecarError::CircuitOpen { .. })));
         assert_eq!(c.stats.snapshot()[4], 3);
+    }
+
+    /// A tiny sidecar: every request is answered by `answer(method, path, body)`.
+    fn mock(
+        answer: impl Fn(&str, &str, &[u8]) -> (u16, String) + Send + 'static,
+    ) -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+        use std::io::BufRead;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = seen.clone();
+        std::thread::spawn(move || {
+            for conn in listener.incoming() {
+                let Ok(conn) = conn else { break };
+                let mut reader = std::io::BufReader::new(conn);
+                let mut first = String::new();
+                if reader.read_line(&mut first).unwrap_or(0) == 0 {
+                    continue;
+                }
+                let mut len = 0usize;
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line.trim().is_empty() {
+                        break;
+                    }
+                    if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        len = v.trim().parse().unwrap();
+                    }
+                }
+                let mut body = vec![0u8; len];
+                reader.read_exact(&mut body).unwrap();
+                let mut parts = first.split_whitespace();
+                let (method, path) = (parts.next().unwrap(), parts.next().unwrap());
+                log.lock().unwrap().push(format!("{method} {path}"));
+                let (status, out) = answer(method, path, &body);
+                let head = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    out.len()
+                );
+                let mut conn = reader.into_inner();
+                let _ = conn.write_all(head.as_bytes());
+                let _ = conn.write_all(out.as_bytes());
+            }
+        });
+        (addr, seen)
+    }
+
+    fn ocr_body(page_from: u64, page_to: u64) -> String {
+        let pages: Vec<Value> = (page_from..=page_to)
+            .map(|p| {
+                json!({"page": p, "px_w": 1654, "px_h": 2339, "pt_w": 595.0, "pt_h": 842.0,
+                       "blocks": [{"label": "text", "kind": "paragraph", "text": format!("第{p}页 陈子墨"),
+                                   "bbox_px": [10, 20, 300, 60], "score": 0.97}]})
+            })
+            .collect();
+        json!({"protocol": PROTOCOL, "parser": {"id": "paddleocr", "version": "3.7.0", "adapter_version": "1"},
+               "kind": "pdf", "page_count": 6, "pages": [page_from, page_to], "page_list": pages,
+               "profile": {"tier": "cpu", "isa": "x", "models": []}, "warnings": []})
+        .to_string()
+    }
+
+    #[test]
+    fn a_scanned_pdf_goes_to_the_ocr_parser_in_windows() {
+        let (doc_addr, doc_seen) = mock(|m, p, _| {
+            match (m, p) {
+            ("PUT", _) => (201, "{}".into()),
+            ("DELETE", _) => (204, String::new()),
+            ("POST", "/v1/probe") => (
+                200,
+                json!({"page_count": 6, "encrypted": false, "needs_password": false, "text_layer_pages": 0})
+                    .to_string(),
+            ),
+            _ => (500, "{}".into()),
+        }
+        });
+        let (ocr_addr, ocr_seen) = mock(|m, p, body| match (m, p) {
+            ("PUT", _) => (201, "{}".into()),
+            ("DELETE", _) => (204, String::new()),
+            ("POST", "/v1/parse") => {
+                let req: Value = serde_json::from_slice(body).unwrap();
+                assert_eq!(req["options"]["ocr"], json!(true));
+                let r = req["page_range"].as_array().unwrap();
+                (
+                    200,
+                    ocr_body(r[0].as_u64().unwrap(), r[1].as_u64().unwrap()),
+                )
+            }
+            _ => (500, "{}".into()),
+        });
+        let client = SidecarClient::new(SidecarConfig::new(doc_addr, "t")).with_ocr(
+            SidecarClient::new(SidecarConfig::new(ocr_addr, "t").for_ocr()),
+        );
+        let mut progress = Vec::new();
+        let n = client
+            .parse_bytes(b"%PDF-1.7 fake", DocFormat::Pdf, &mut |p| progress.push(p))
+            .unwrap();
+        assert_eq!(n.ir.format, DocFormat::PdfScanned);
+        assert_eq!(n.ir.blocks.len(), 6);
+        assert_eq!(n.ir.blocks[5].anchor.fragment(), "#p6");
+        assert_eq!(
+            progress,
+            vec![
+                Progress {
+                    pages_done: 4,
+                    page_count: 6
+                },
+                Progress {
+                    pages_done: 6,
+                    page_count: 6
+                }
+            ]
+        );
+        assert!(
+            doc_seen
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|l| !l.contains("/v1/parse"))
+        );
+        let ocr = ocr_seen.lock().unwrap();
+        assert_eq!(
+            ocr.iter()
+                .filter(|l| l.as_str() == "POST /v1/parse")
+                .count(),
+            2
+        );
+        assert!(
+            ocr.iter().any(|l| l.starts_with("DELETE ")),
+            "scratch copy is deleted"
+        );
+    }
+
+    #[test]
+    fn an_image_needs_the_ocr_parser_and_a_scanned_pdf_without_one_stays_unsupported() {
+        let (addr, _) = mock(|m, p, _| {
+            match (m, p) {
+            ("PUT", _) => (201, "{}".into()),
+            ("DELETE", _) => (204, String::new()),
+            ("POST", "/v1/probe") => (
+                200,
+                json!({"page_count": 2, "encrypted": false, "needs_password": false, "text_layer_pages": 0})
+                    .to_string(),
+            ),
+            _ => (500, "{}".into()),
+        }
+        });
+        let plain = SidecarClient::new(SidecarConfig::new(addr, "t"));
+        assert_eq!(
+            plain
+                .parse_bytes(b"%PDF-", DocFormat::Pdf, &mut |_| {})
+                .unwrap_err(),
+            SidecarError::ScannedPdf
+        );
+        assert!(matches!(
+            plain.parse_bytes(b"\x89PNG", DocFormat::Image, &mut |_| {}),
+            Err(SidecarError::Unsupported(_))
+        ));
+        let (ocr_addr, _) = mock(|m, p, body| match (m, p) {
+            ("PUT", _) => (201, "{}".into()),
+            ("DELETE", _) => (204, String::new()),
+            ("POST", "/v1/parse") => {
+                let req: Value = serde_json::from_slice(body).unwrap();
+                assert_eq!(req["format"], "image");
+                assert!(req.get("page_range").is_none());
+                let mut v: Value = serde_json::from_str(&ocr_body(1, 1)).unwrap();
+                v["kind"] = json!("image");
+                v["page_list"][0]["pt_w"] = Value::Null;
+                v["page_list"][0]["pt_h"] = Value::Null;
+                (200, v.to_string())
+            }
+            _ => (500, "{}".into()),
+        });
+        let direct = SidecarClient::new(SidecarConfig::new(ocr_addr, "t").for_ocr());
+        let n = direct.parse_bytes(b"\x89PNG", DocFormat::Image, &mut |_| {});
+        // The direct client has no ocr of its own, so an image is refused there too.
+        assert!(matches!(n, Err(SidecarError::Unsupported(_))));
+        let routed = SidecarClient::new(SidecarConfig::new("127.0.0.1:9", "t")).with_ocr(direct);
+        let n = routed
+            .parse_bytes(b"\x89PNG", DocFormat::Image, &mut |_| {})
+            .unwrap();
+        assert_eq!(n.ir.format, DocFormat::Image);
+        assert_eq!(n.ir.blocks[0].kind, oo_core::docir::BlockKind::ImageText);
     }
 }

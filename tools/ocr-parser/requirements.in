@@ -1,0 +1,5 @@
+# ocr-parser (B-S9-01, D69/D76): PP-StructureV3 on CPU. CPython 3.13.
+# opencv-contrib-python (pulled by paddleocr/paddlex) is dropped by lock.py: its wheel bundles FFmpeg (D65);
+# the image installs the OpenCV built without FFmpeg instead (Dockerfile stage `opencv`).
+paddleocr[doc-parser]==3.7.0
+paddlepaddle==3.2.2

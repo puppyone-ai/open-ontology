@@ -45,11 +45,48 @@ pub enum Anchor {
         bbox: [i64; 4],
         #[serde(default, skip_serializing_if = "Option::is_none")]
         charspan: Option<[u64; 2]>,
+        /// v1.1: page width and height in 1/100 pt (same unit as `bbox`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page_w: Option<i64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page_h: Option<i64>,
     },
     /// csv (`sheet = null`) and xlsx: A1 range.
     Cells {
         sheet: Option<String>,
         range: String,
+    },
+    /// v1.1 audio / video span on the source file's time axis, milliseconds.
+    /// `speaker` is a per-file label (`S1`, `S2`...); `word_start`/`word_end`
+    /// index the ASR words of the file.
+    Media {
+        t_start_ms: u64,
+        t_end_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        speaker: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        word_start: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        word_end: Option<u32>,
+    },
+    /// v1.1 one video frame at `t_ms`; `bbox` is `[x0,y0,x1,y1]` in frame pixels.
+    Frame {
+        t_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bbox: Option<[i64; 4]>,
+    },
+    /// v1.1 text found inside an image. With `parent = null` the image is a
+    /// standalone file and `bbox` is in image pixels. Inside a pdf the parent
+    /// is the pdf anchor of the picture and `bbox` is already converted to
+    /// page coordinates (1/100 pt, top-left origin). A docx image has the
+    /// docx paragraph anchor as parent and an `image_index` (1-based), no bbox.
+    Image {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<Box<Anchor>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        image_index: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bbox: Option<[i64; 4]>,
     },
 }
 
@@ -65,6 +102,30 @@ pub enum AnchorError {
     BadCellRange,
     #[error("sheet name is longer than 128 characters")]
     SheetTooLong,
+    #[error("speaker label must look like S1, S2...")]
+    BadSpeaker,
+    #[error("image parent must be a pdf, slide or docx anchor")]
+    BadImageParent,
+    #[error("page size must be positive")]
+    BadPageSize,
+}
+
+/// Speaker labels are file-local: `S` and a positive number of up to 3 digits.
+pub fn is_speaker_label(label: &str) -> bool {
+    label.strip_prefix('S').is_some_and(|n| {
+        (1..=3).contains(&n.len()) && !n.starts_with('0') && n.bytes().all(|b| b.is_ascii_digit())
+    })
+}
+
+impl Anchor {
+    /// True for the anchor kinds that exist only from `oo.doc-ir/v1.1`.
+    pub fn is_v11(&self) -> bool {
+        match self {
+            Anchor::Media { .. } | Anchor::Frame { .. } | Anchor::Image { .. } => true,
+            Anchor::Pdf { page_w, page_h, .. } => page_w.is_some() || page_h.is_some(),
+            _ => false,
+        }
+    }
 }
 
 impl Anchor {
@@ -116,9 +177,14 @@ impl Anchor {
                 page,
                 bbox,
                 charspan,
+                page_w,
+                page_h,
             } => {
                 if *page == 0 {
                     return Err(AnchorError::ZeroBased);
+                }
+                if page_w.is_some_and(|w| w <= 0) || page_h.is_some_and(|h| h <= 0) {
+                    return Err(AnchorError::BadPageSize);
                 }
                 if bbox[0] > bbox[2] || bbox[1] > bbox[3] {
                     return Err(AnchorError::Reversed);
@@ -134,6 +200,45 @@ impl Anchor {
                     return Err(AnchorError::SheetTooLong);
                 }
                 a1_parse(range).ok_or(AnchorError::BadA1)?;
+            }
+            Anchor::Media {
+                t_start_ms,
+                t_end_ms,
+                speaker,
+                word_start,
+                word_end,
+            } => {
+                if t_start_ms > t_end_ms {
+                    return Err(AnchorError::Reversed);
+                }
+                if let (Some(s), Some(e)) = (word_start, word_end)
+                    && s > e
+                {
+                    return Err(AnchorError::Reversed);
+                }
+                if speaker.as_deref().is_some_and(|s| !is_speaker_label(s)) {
+                    return Err(AnchorError::BadSpeaker);
+                }
+            }
+            Anchor::Frame { bbox, .. } => check_bbox(bbox)?,
+            Anchor::Image {
+                parent,
+                image_index,
+                bbox,
+            } => {
+                if *image_index == Some(0) {
+                    return Err(AnchorError::ZeroBased);
+                }
+                check_bbox(bbox)?;
+                if let Some(parent) = parent {
+                    if !matches!(
+                        **parent,
+                        Anchor::Pdf { .. } | Anchor::Slide { .. } | Anchor::Docx { .. }
+                    ) {
+                        return Err(AnchorError::BadImageParent);
+                    }
+                    parent.check()?;
+                }
             }
         }
         Ok(())
@@ -185,8 +290,44 @@ impl Anchor {
             }
             Anchor::Slide { slide, .. } => format!("#s{slide}"),
             Anchor::Pdf { page, .. } => format!("#p{page}"),
+            Anchor::Media {
+                t_start_ms,
+                t_end_ms,
+                speaker,
+                ..
+            } => {
+                // Start rounds down and end rounds up so the span still covers the words.
+                let start = hms(t_start_ms / 1000);
+                let end = hms(t_end_ms.div_ceil(1000));
+                let at = speaker
+                    .as_deref()
+                    .map(|s| format!("@{s}"))
+                    .unwrap_or_default();
+                if start == end {
+                    format!("#t={start}{at}")
+                } else {
+                    format!("#t={start}-{end}{at}")
+                }
+            }
+            Anchor::Frame { t_ms, .. } => format!("#f={}", hms(t_ms / 1000)),
+            Anchor::Image { image_index, .. } => match image_index {
+                Some(n) => format!("#img{n}"),
+                None => "#img".to_owned(),
+            },
         }
     }
+}
+
+fn check_bbox(bbox: &Option<[i64; 4]>) -> Result<(), AnchorError> {
+    match bbox {
+        Some(b) if b[0] > b[2] || b[1] > b[3] => Err(AnchorError::Reversed),
+        _ => Ok(()),
+    }
+}
+
+/// `HH:MM:SS` for whole seconds.
+fn hms(secs: u64) -> String {
+    format!("{:02}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
 }
 
 /// Quote a sheet name the way spreadsheets do when it is not plain

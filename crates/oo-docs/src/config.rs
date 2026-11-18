@@ -146,8 +146,14 @@ impl EngineConfig {
             (None, Some(_)) => return Err(ConfigError::Missing("OO_DOCS_PARSER_URL")),
         };
         let mut poll = PollConfig::default();
-        let mut concurrency: HashMap<JobKind, usize> =
-            HashMap::from([(JobKind::Sync, 1), (JobKind::Hash, 4)]);
+        let mut concurrency: HashMap<JobKind, usize> = HashMap::from([
+            (JobKind::Sync, 1),
+            (JobKind::Hash, 4),
+            (
+                JobKind::ParseMedia,
+                crate::jobs::media_pool::DEFAULT_MEDIA_SLOTS,
+            ),
+        ]);
         if let Some(text) = docs_json {
             let doc: Value = serde_json::from_str(text)
                 .map_err(|e| ConfigError::Invalid("docs.json", e.to_string()))?;
@@ -172,6 +178,12 @@ impl EngineConfig {
             }
             if let Some(n) = doc["concurrency"]["extract_llm"].as_u64() {
                 concurrency.insert(JobKind::ExtractLlm, (n as usize).clamp(1, 8));
+            }
+            if let Some(n) = doc["concurrency"]["media"].as_u64() {
+                concurrency.insert(
+                    JobKind::ParseMedia,
+                    crate::jobs::media_pool::clamp_media_slots(n),
+                );
             }
         }
         Ok(Self {
@@ -291,6 +303,18 @@ mod tests {
                 Err(ConfigError::Missing(m)) if m == missing
             ));
         }
+    }
+
+    #[test]
+    fn media_concurrency_defaults_to_one_and_is_read_from_docs_json() {
+        let c = EngineConfig::from_parts(&env_of(BASE), None).unwrap();
+        assert_eq!(c.concurrency[&JobKind::ParseMedia], 1);
+        let json = r#"{"version":"oo.docs/v1","concurrency":{"media":3}}"#;
+        let c = EngineConfig::from_parts(&env_of(BASE), Some(json)).unwrap();
+        assert_eq!(c.concurrency[&JobKind::ParseMedia], 3);
+        let json = r#"{"version":"oo.docs/v1","concurrency":{"media":50}}"#;
+        let c = EngineConfig::from_parts(&env_of(BASE), Some(json)).unwrap();
+        assert_eq!(c.concurrency[&JobKind::ParseMedia], 4);
     }
 
     #[test]

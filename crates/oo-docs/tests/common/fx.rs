@@ -100,6 +100,10 @@ impl Fx {
             DocFormat::Docx => "docx",
             DocFormat::Pptx => "pptx",
             DocFormat::Pdf => "pdf",
+            DocFormat::Audio => "audio",
+            DocFormat::Video => "video",
+            DocFormat::Image => "image",
+            DocFormat::PdfScanned => "pdf_scanned",
         };
         let put = self
             .cas

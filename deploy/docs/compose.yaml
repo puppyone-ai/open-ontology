@@ -163,6 +163,87 @@ services:
       retries: 3
       start_period: 20s
 
+  # OCR sidecar for scanned pdf and images (B-S9-01, D69, D76). Profile `ocr`: started only when the
+  # configuration turns OCR on (OO_DOCS_OCR_URL on the engine). PP-StructureV3 needs about 7 GB per worker.
+  ocr-parser:
+    profiles: [ocr]
+    # optional: only the `ocr` profile starts it; the tag is the local build
+    image: ${OO_DOCS_OCR_IMAGE:-oo-docs-ocr-parser:dev}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 10g
+    memswap_limit: 10g
+    cpus: 4
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "1"
+      HOME: /tmp
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - docs-ocr-scratch:/scratch
+    networks: [docs-internal]
+    expose: ["7482"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7482/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # Audio and video (B-S10-05, D69, D77). Profile `media`: one job at a time (concurrency.media), mem 4g, 2 cpus.
+  # /exchange is where the macOS Desktop host decode helper puts WAV and frames with a manifest (D65), read-only.
+  media-parser:
+    profiles: [media]
+    # optional: only the `media` profile starts it; the tag is the local build
+    image: ${OO_DOCS_MEDIA_IMAGE:-oo-docs-media-parser:dev}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 4g
+    memswap_limit: 4g
+    cpus: 2
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "1"
+      OO_MEDIA_EXCHANGE: /exchange
+      PYANNOTE_METRICS_ENABLED: "0"
+      HOME: /tmp
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - docs-media-scratch:/scratch
+      - ${OO_DOCS_EXCHANGE:-/dev/null}:/exchange:ro
+    networks: [docs-internal]
+    expose: ["7483"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7483/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
 networks:
   docs-internal:
     internal: true
@@ -172,6 +253,10 @@ networks:
 
 volumes:
   docs-parser-scratch:
+    labels: *labels
+  docs-ocr-scratch:
+    labels: *labels
+  docs-media-scratch:
     labels: *labels
   docs-data:
     labels: *labels

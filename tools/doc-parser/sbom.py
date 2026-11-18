@@ -41,6 +41,8 @@ KNOWN_NATIVE = [
     (r"^libspatialindex", "libspatialindex (rtree)", "MIT"),
     (r"^libxml2|^libxslt|^libexslt", "libxml2/libxslt (lxml)", "MIT"),
     (r"^libiconv|^libcharset", "libiconv (lxml)", "LGPL-2.1-or-later"),
+    (r"^libgeos_c", "libgeos_c (shapely)", "LGPL-2.1-or-later"),
+    (r"^libgeos", "libgeos (shapely)", "LGPL-2.1-or-later"),
     (r"^libicu", "ICU", "Unicode-3.0"),
     (r"^libpdfium|^pdfium", "PDFium (pypdfium2)", "BSD-3-Clause AND Apache-2.0"),
     (r"^libavcodec|^libavformat|^libavutil|^libswscale|^libswresample", "FFmpeg", "LGPL-2.1-or-later"),
@@ -160,9 +162,28 @@ def model_components(lock_path):
     return out
 
 
+def own_ffmpeg_components(root="/opt/ffmpeg"):
+    """Our own LGPL FFmpeg build (media-parser, D65): one component carrying the configure line as the attestation.
+    It is not named `FFmpeg` and has no `oo:files`, so the FFmpeg-library tripwire of sbom_gate (which guards against
+    a bundled FFmpeg in wheels) does not fire; the weak-copyleft review record is required instead."""
+    lib = Path(root) / "lib"
+    conf = Path(root) / "licenses" / "configure.txt"
+    if not lib.is_dir():
+        return []
+    cfg = conf.read_text(errors="replace") if conf.is_file() else ""
+    ok = "--disable-gpl" in cfg and "--disable-nonfree" in cfg and "--enable-gpl" not in cfg.replace("--disable-gpl", "")
+    return [{
+        "type": "library", "name": "ffmpeg-lgpl-own-build", "version": next(iter(sorted(p.name for p in lib.glob("libavcodec.so.*"))), "unknown"),
+        "licenses": [{"expression": "LGPL-2.1-or-later"}],
+        "properties": [{"name": "oo:scope", "value": "own-build"},
+                       {"name": "oo:ffmpeg_decode_only_lgpl", "value": "YES" if ok else "NO"},
+                       {"name": "oo:license_source", "value": str(conf)}],
+    }]
+
+
 def main():
     site = next(Path(p) for p in sys.path if p.endswith("site-packages"))
-    comps = py_components() + native_components(site) + deb_components() + model_components(
+    comps = py_components() + native_components(site) + own_ffmpeg_components() + deb_components() + model_components(
         os.environ.get("OO_PARSER_MODELS_LOCK", "/opt/app/models.lock.json"))
     doc = {
         "bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,

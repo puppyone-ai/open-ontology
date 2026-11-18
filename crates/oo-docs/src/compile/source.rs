@@ -85,6 +85,7 @@ pub fn frag(anchor: &Anchor) -> String {
         },
         Anchor::Slide { slide, .. } => format!("#s{slide}"),
         Anchor::Pdf { page, .. } => format!("#p{page}"),
+        Anchor::Media { .. } | Anchor::Frame { .. } | Anchor::Image { .. } => anchor.fragment(),
     }
 }
 
@@ -188,6 +189,8 @@ mod tests {
             page: 5,
             bbox: [0, 0, 1, 1],
             charspan: None,
+            page_w: None,
+            page_h: None,
         };
         assert_eq!(frag(&p), "#p5");
     }

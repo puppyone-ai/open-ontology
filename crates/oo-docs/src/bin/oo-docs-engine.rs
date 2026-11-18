@@ -241,6 +241,7 @@ async fn run() -> ExitCode {
         api::freshness::spawn_watcher(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
         api::lifecycle::spawn(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
     ];
+    health.set_parser(cfg.parser.is_some());
     health.set_ready();
     println!(
         "{}",
