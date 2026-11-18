@@ -19,6 +19,26 @@ class L3Tests(unittest.TestCase):
             self.assertNotIn("--scale", matrix)
             self.assertNotIn("--cases", plan["commands"][2])
 
+    def test_oracle_slice_runs_only_what_the_host_can_and_names_the_rest(self):
+        day = next(datetime.date(2026, 11, 12) + datetime.timedelta(days=i) for i in range(3)
+                   if l3.slice_for(datetime.date(2026, 11, 12) + datetime.timedelta(days=i))["engine"] == "oracle")
+        ci = l3.slice_for(day, None, "linux/amd64")
+        self.assertEqual(ci["local_only"], {"11": "thick_worker_image_absent",
+                                            "19": "platform_absent_from_image_lock"})
+        self.assertIn("23ai,21c", ci["commands"][0])
+        for command in ci["commands"]:
+            self.assertNotIn("--worker-image", command)
+            versions = command[command.index("--versions") + 1]
+            self.assertFalse({"11", "11g", "19"} & set(versions.split(",")))
+        local = l3.slice_for(day, "sha256:worker", "linux/arm64")
+        self.assertEqual(local["local_only"], {})
+        self.assertIn("23ai,21c,11g,19", local["commands"][0])
+        t7 = next(c for c in local["commands"] if c[1].endswith("t7.py"))
+        self.assertEqual(t7[t7.index("--versions") + 1], "23,21,11")
+        self.assertEqual(local["commands"][-1][1], "testing/engines/oracle/e19_t7.py")
+        for command in local["commands"][1:]:
+            self.assertEqual(command[command.index("--worker-image") + 1], "sha256:worker")
+
     def test_pairs_require_identical_verdicts(self):
         with tempfile.TemporaryDirectory(dir=runner.ROOT / "evidence") as directory:
             fast, real = Path(directory) / "fast.json", Path(directory) / "real.json"
