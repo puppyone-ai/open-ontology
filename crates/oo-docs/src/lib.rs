@@ -23,7 +23,9 @@ pub const CONTEXT_PACK_PROTOCOL: &str = "oo.context-pack/v1";
 pub const CONFIG_PROTOCOL: &str = "oo.docs/v1";
 
 pub mod api;
+pub mod audit;
 pub mod cas;
+pub mod cloud;
 pub mod compile;
 pub mod config;
 pub mod extract;

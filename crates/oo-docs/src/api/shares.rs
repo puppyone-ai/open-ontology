@@ -143,9 +143,29 @@ pub async fn create(app: &AppState, req: &Req) -> Result<Response<Body>, ApiErro
     }
     let c = parse_create(&body, public_host(req))?;
     let _ = &c.drive;
+    let (audit_scope, audit_role, audit_grantor) = (
+        c.plan.creq.scope.clone(),
+        c.plan.creq.role.clone(),
+        c.plan.grantor.clone(),
+    );
     let prepared = lifecycle::prepare(app, c.plan).await?;
     let mut tx = sqlx::Connection::begin(&mut *conn).await?;
     let ins = lifecycle::insert(&mut tx, &prepared, None).await?;
+    // Who shared what to which agent: in the same transaction as the share, so none exists without it (B-S12-01).
+    crate::audit::record(
+        &mut tx,
+        &crate::audit::Entry {
+            action: crate::audit::SHARE_CREATED,
+            actor: &req.actor,
+            tenant: req.cloud.as_ref().map(|c| c.tenant.as_str()),
+            drive_id: Some(&c.drive),
+            share_id: Some(&ins.id),
+            agent: req.agent.as_deref(),
+            detail: json!({"scope": audit_scope, "role": audit_role, "grantor": audit_grantor,
+                           "expires_at": ins.expires_at, "pack_id": prepared.record.id, "pack_digest": prepared.record.pack_digest}),
+        },
+    )
+    .await?;
     tx.commit().await?;
     let share = lifecycle::payload(&mut conn, &prepared, &ins).await?;
     // Stored for replay without the credential.
@@ -270,6 +290,19 @@ pub async fn revoke(app: &AppState, sid: &str, req: &Req) -> Result<Response<Bod
         return Ok(json_with(stored.status, &stored.response, &[]));
     }
     let share = lifecycle::revoke(&mut conn, sid, "revoked_by_owner").await?;
+    crate::audit::record(
+        &mut conn,
+        &crate::audit::Entry {
+            action: crate::audit::SHARE_REVOKED,
+            actor: &req.actor,
+            tenant: req.cloud.as_ref().map(|c| c.tenant.as_str()),
+            drive_id: share["drive_id"].as_str(),
+            share_id: Some(sid),
+            agent: req.agent.as_deref(),
+            detail: json!({"state": share["state"]}),
+        },
+    )
+    .await?;
     let v = json!({"share": share, "local_removed": false,
                    "notice_code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE"});
     idem::store(&mut conn, &route, &key, &sha, 200, &v).await?;
