@@ -14,7 +14,8 @@ model endpoint and key are only ever passed as file paths (`file:` references):
 
 Usage: tools/oo-test/super_ontology_eval_live.py [--modes off,on] [--workers 4]
        [--endpoint-file F --key-file F --model-id ID] [--evidence-dir DIR]
-Evidence: <dir>/model-off/ and <dir>/model-on/ with report.md, report.json, run.json.
+Evidence: <dir>/model-off/ and <dir>/model-on/ with report.md, report.json (all candidates),
+report-published.md, report-published.json (published facts only) and run.json.
 """
 
 import argparse
@@ -72,9 +73,15 @@ def main():
             q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", "testing/super-ontology/golden",
                                 "--predictions", str(out / "predictions"), "--out", str(rep)], cwd=REPO, capture_output=True, text=True, timeout=600)
             ev.log(q.stdout.strip() or q.stderr.strip()[-300:])
+            # What the product acts on: published facts only (held candidates left out).
+            repp = out / "report-published"
+            q = subprocess.run(["cargo", "run", "-q", "-p", "oo-eval", "--locked", "--", "docs", "--golden", "testing/super-ontology/golden",
+                                "--predictions", str(out / "predictions-published"), "--out", str(repp)], cwd=REPO, capture_output=True, text=True, timeout=600)
+            ev.log("published only: " + (q.stdout.strip() or q.stderr.strip()[-300:]))
             dest = Path(args.evidence_dir) / f"model-{mode}"
             dest.mkdir(parents=True, exist_ok=True)
-            for src, name in ((rep / "report.md", "report.md"), (rep / "report.json", "report.json"), (out / "run.json", "run.json")):
+            for src, name in ((rep / "report.md", "report.md"), (rep / "report.json", "report.json"), (repp / "report.md", "report-published.md"),
+                              (repp / "report.json", "report-published.json"), (out / "run.json", "run.json")):
                 if src.is_file():
                     shutil.copyfile(src, dest / name)
         ok = ok and all(c["ok"] for c in ev.checks)

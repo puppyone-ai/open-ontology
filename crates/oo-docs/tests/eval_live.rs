@@ -98,7 +98,10 @@ fn anchor_json(list: &[(String, String, Option<Value>)]) -> Vec<Value> {
     out
 }
 
-async fn export(s: &Stack, dir: &std::path::Path) -> (usize, usize) {
+/// `published_only`: what the product acts on: facts in a published version, and the
+/// entities they connect (plus every Document); otherwise every candidate fact that is
+/// not rejected or retracted, the whole extraction output.
+async fn export(s: &Stack, dir: &std::path::Path, published_only: bool) -> (usize, usize) {
     // Anchors per target (fact, alias or entity), live evidence only.
     let rows = sqlx::query(
         "SELECT e.target_id::text AS t, fv.path_at_version AS p, e.anchor::text AS a \
@@ -139,8 +142,10 @@ async fn export(s: &Stack, dir: &std::path::Path) -> (usize, usize) {
            FROM _oo_docs.fact f JOIN _oo_docs.entity es ON es.id = f.subject_id \
            JOIN _oo_docs.entity eo ON eo.id = f.object_id \
           WHERE f.status IN ('draft', 'published') AND f.object_id IS NOT NULL \
+            AND ($1 = false OR f.status = 'published') \
           ORDER BY f.id",
     )
+    .bind(published_only)
     .fetch_all(&s.pool)
     .await
     .unwrap();
@@ -166,6 +171,9 @@ async fn export(s: &Stack, dir: &std::path::Path) -> (usize, usize) {
             continue;
         }
         let id: String = e.get("id");
+        if published_only && ty != "Document" && !anchors_of_entity.contains_key(&id) {
+            continue;
+        }
         let name = format!("E{:04}", i + 1);
         eid.insert(id.clone(), name.clone());
         let mut als: Vec<String> = aliases
@@ -361,7 +369,8 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
         *counts.entry(state.clone()).or_default() += 1;
     }
     std::fs::create_dir_all(&out).unwrap();
-    let (e, f) = export(&s, &out.join("predictions")).await;
+    let (e, f) = export(&s, &out.join("predictions"), false).await;
+    let (pe, pf) = export(&s, &out.join("predictions-published"), true).await;
     let usage = s.call("GET", "/v1/docs/usage", None).await.json();
     let jobs: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT kind, state, count(*) FROM _oo_docs.job WHERE kind IN ('extract_llm', 'extract_rules') GROUP BY 1, 2 ORDER BY 1, 2",
@@ -374,7 +383,7 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
             .fetch_all(&s.pool)
             .await
             .unwrap();
-    let summary = json!({"files": n, "states": counts, "seconds": secs, "entities": e, "facts": f,
+    let summary = json!({"files": n, "states": counts, "seconds": secs, "entities": e, "facts": f, "published_entities": pe, "published_facts": pf,
         "model": with_model, "usage": usage, "jobs": jobs, "facts_by_origin": origin});
     std::fs::write(
         out.join("run.json"),
