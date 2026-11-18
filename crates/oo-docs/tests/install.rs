@@ -15,7 +15,7 @@ use sqlx::{Connection, Executor, Row};
 #[test]
 fn compiled_files_have_stable_shape() {
     let list = migrations();
-    assert_eq!(list.len(), 11);
+    assert_eq!(list.len(), 13);
     let mut seen = std::collections::HashSet::new();
     for (m, min) in list.iter().zip(SCHEMA_MIN) {
         assert_eq!(m.version, min);
@@ -108,7 +108,7 @@ async fn empty_db_install_then_readiness() {
     .await
     .unwrap();
     let extra = usize::from(has_vector(&mut admin).await);
-    assert_eq!(rows.len(), 11 + extra);
+    assert_eq!(rows.len(), 13 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
