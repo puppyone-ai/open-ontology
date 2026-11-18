@@ -56,8 +56,8 @@ pub fn lookup_names(x: &Extraction) -> (BTreeSet<String>, BTreeSet<String>) {
     (names, surnames)
 }
 
-/// The names of every linkable entity of the Drive with the aliases a text may
-/// use for them (draft and published), for `extract::links` (`doc.link`).
+/// The canonical names of every linkable entity of the Drive, for
+/// `extract::links` (`doc.link`).
 ///
 /// Only *established* entities: one a rule found, or one a published fact of
 /// another source rests on. An entity only the model proposed, and nothing
@@ -66,12 +66,8 @@ pub fn lookup_names(x: &Extraction) -> (BTreeSet<String>, BTreeSet<String>) {
 pub async fn load_lexicon(
     conn: &mut PgConnection,
 ) -> Result<Vec<crate::extract::links::LexEntry>, StoreError> {
-    /// (entity key, type, canonical name, alias, alias confidence)
-    type Row = (String, String, String, Option<String>, Option<i32>);
-    let rows: Vec<Row> = sqlx::query_as(
-        "SELECT e.key, e.type, e.canonical_name, a.alias, a.confidence_bp \
-           FROM _oo_docs.entity e \
-           LEFT JOIN _oo_docs.alias a ON a.entity_id = e.id AND a.status IN ('draft', 'published') \
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT e.type, e.canonical_name FROM _oo_docs.entity e \
           WHERE e.status = 'active' \
             AND e.type IN ('Person', 'Organization', 'Project', 'Topic', 'Term', 'Event') \
             AND EXISTS (SELECT 1 FROM _oo_docs.fact f \
@@ -79,26 +75,18 @@ pub async fn load_lexicon(
                            AND COALESCE(f.rule_id, '') NOT IN ('doc.link', 'doc.about') \
                            AND ((f.origin = 'rule' AND f.status IN ('draft', 'published')) \
                                 OR (f.origin IN ('llm', 'human', 'suggest') AND f.status = 'published'))) \
-          ORDER BY e.key, a.alias",
+          ORDER BY e.key",
     )
     .fetch_all(&mut *conn)
     .await?;
-    let mut out: Vec<crate::extract::links::LexEntry> = Vec::new();
-    let mut last: Option<String> = None;
-    for (key, ty, name, alias, bp) in rows {
-        if last.as_deref() != Some(key.as_str()) {
-            out.push(crate::extract::links::LexEntry {
+    rows.into_iter()
+        .map(|(ty, name)| {
+            Ok(crate::extract::links::LexEntry {
                 ty: parse_type(&ty)?,
                 name,
-                aliases: Vec::new(),
-            });
-            last = Some(key);
-        }
-        if let (Some(a), Some(bp), Some(e)) = (alias, bp, out.last_mut()) {
-            e.aliases.push((a, bp));
-        }
-    }
-    Ok(out)
+            })
+        })
+        .collect()
 }
 
 fn like_prefix(s: &str) -> String {

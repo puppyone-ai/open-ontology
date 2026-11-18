@@ -16,8 +16,9 @@
 //!    itself; a core entity named by a generic word ("公司", "团队") is dropped;
 //!    a name close to a known entity of the same type becomes that entity;
 //! 7. (`extract/2`, 5.3) a relation is `high` only when its quote names both
-//!    ends: one end missing caps it at `medium`, both missing at `low`, so
-//!    low-evidence statements go to the review queue instead of publishing.
+//!    ends by their canonical names: one end missing caps it at `medium`, both
+//!    missing at `low`, so low-evidence statements go to the review queue instead
+//!    of publishing.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -360,8 +361,10 @@ pub(crate) fn map_into(
             // Candidates only: they stay drafts and never trigger a merge.
             col.alias(&r, a, e.confidence.bp().min(5000), "llm", &ev);
         }
-        let mut names = vec![written, name];
-        names.extend(e.aliases.iter().cloned());
+        // The canonical name is what a pack shows for this entity, so it is the
+        // name the quote has to carry (an alias in the quote would tell a reader of
+        // that document alone who it is from other files).
+        let names = vec![name];
         refs.insert(
             e.id.as_str(),
             Named {
@@ -729,5 +732,39 @@ mod tests {
             let x = col.finish("a.md");
             assert_eq!(x.facts[0].confidence_bp, want, "{quote}");
         }
+    }
+
+    #[test]
+    fn an_alias_only_quote_does_not_carry_the_canonical_name() {
+        let ir = parse_markdown("# 星图\n\nKevin Wu 负责星图看板。\n".as_bytes())
+            .unwrap()
+            .ir;
+        let id = ir
+            .blocks
+            .iter()
+            .find(|b| b.text.starts_with("Kevin"))
+            .unwrap()
+            .id
+            .clone();
+        let known = vec!["Person:吴启明（别名：Kevin Wu）".to_owned()];
+        let (col, _) = run_with(
+            &ir,
+            &format!(
+                r#"{{"entities":[
+                {{"id":"e1","type":"Person","name":"Kevin Wu","block_id":"{id}","quote":"Kevin Wu","confidence":"high"}},
+                {{"id":"e2","type":"Project","name":"星图看板","block_id":"{id}","quote":"星图看板","confidence":"high"}}],
+                "relations":[{{"subject":"e1","predicate":"owns","object":"e2","block_id":"{id}","quote":"Kevin Wu 负责星图看板","confidence":"high"}}]}}"#
+            ),
+            &known,
+        );
+        let x = col.finish("Notes/a.md");
+        assert_eq!(
+            x.facts[0].subject.name, "吴启明",
+            "snapped to the known entity"
+        );
+        assert_eq!(
+            x.facts[0].confidence_bp, 7000,
+            "the quote writes an alias, not the name a pack shows"
+        );
     }
 }

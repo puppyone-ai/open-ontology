@@ -1338,7 +1338,7 @@ pub struct PublishHandler {
 fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
     let mut h = blake3::Hasher::new();
     for e in lex {
-        h.update(format!("{:?}\0{}\0{:?}\n", e.ty, e.name, e.aliases).as_bytes());
+        h.update(format!("{:?}\0{}\n", e.ty, e.name).as_bytes());
     }
     h.finalize().to_hex().to_string()
 }

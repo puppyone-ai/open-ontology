@@ -1,12 +1,18 @@
 //! `doc.link`: Document to entity links found by name (10 §5.1, D15).
 //!
 //! The rules of one file only know the entities that file introduces. A
-//! document also *mentions* every other entity of the Drive whose name or
-//! alias it writes, and is *about* the ones it puts in its title or headings
-//! or keeps coming back to. This module is pure: it takes the names the Drive
-//! knows ([`LexEntry`], loaded by `resolve::pg::load_lexicon`) and the IR and
-//! returns bind-only hints, so a link never creates an entity; resolve binds
-//! each hint to the stored entity, or drops it.
+//! document also *mentions* every other entity of the Drive whose name it
+//! writes, and is *about* the ones it puts in its title or headings or keeps
+//! coming back to. This module is pure: it takes the names the Drive knows
+//! ([`LexEntry`], loaded by `resolve::pg::load_lexicon`) and the IR and returns
+//! bind-only hints, so a link never creates an entity; resolve binds each hint
+//! to the stored entity, or drops it.
+//!
+//! Only the canonical name links, never an alias or a derived form: a link is
+//! evidence in the document's own text, and a pack of that document alone shows
+//! the entity under its canonical name, so the text has to say it (the leak
+//! guard, DOC-G6, stops a pack that names an entity its scope never named). An
+//! alias match would tell a reader who `Ruby` is from files outside the scope.
 //!
 //! Matching is on the normalised text (NFKC, lower case, blanks squeezed):
 //! a name is a substring, except that a name made of ASCII letters and digits
@@ -22,24 +28,19 @@ use oo_core::docir::{Block, BlockKind, DocIr};
 use super::model::{Collector, EntityRef, EntityType, EvidenceRef, Extraction, Predicate};
 use crate::resolve::normalize::norm;
 
-/// An alias must carry at least this confidence to link a document (the
-/// title-free forms of people and model candidates stay below it).
-pub const MIN_ALIAS_BP: i32 = 7000;
-/// Confidence of a link by canonical name or a trusted alias.
+/// Confidence of a link by canonical name.
 pub const MENTION_BP: u16 = 9000;
 /// Confidence of an `about` link.
 pub const ABOUT_BP: u16 = 8500;
 /// Distinct blocks that make an entity a subject of the document by repetition.
 pub const ABOUT_REPEAT_BLOCKS: usize = 3;
 
-/// One entity the Drive knows, with the names a document may use for it.
+/// One entity the Drive knows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LexEntry {
     pub ty: EntityType,
     /// Canonical name as stored (the hint binds to it exactly).
     pub name: String,
-    /// Aliases with their confidence in basis points.
-    pub aliases: Vec<(String, i32)>,
 }
 
 /// Entity types a document links to by name: Decisions and Documents are long
@@ -101,95 +102,32 @@ fn occurs(hay: &str, needle: &str) -> bool {
     false
 }
 
-/// One matchable form of an entity.
+/// One matchable name of an entity.
 struct Form {
     entry: usize,
     text: String,
-    trusted: bool,
-}
-
-/// How a person is also called in running text, derived from the names the Drive
-/// holds: the given name of a Latin full name (`Kevin` for `Kevin Wu`) and the
-/// two-character given name of a three-character Han name (`雨桐` for `郑雨桐`).
-/// Only a name that no other entity claims links (see [`forms`]).
-fn given_names(e: &LexEntry) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut full: Vec<&str> = vec![e.name.as_str()];
-    full.extend(
-        e.aliases
-            .iter()
-            .filter(|(_, bp)| *bp >= MIN_ALIAS_BP)
-            .map(|(a, _)| a.as_str()),
-    );
-    for name in full {
-        let words: Vec<&str> = name.split_whitespace().collect();
-        let latin = !name.is_empty()
-            && name
-                .chars()
-                .all(|c| c.is_ascii_alphabetic() || c.is_whitespace() || c == '-');
-        if latin && words.len() >= 2 && words[0].chars().count() >= 3 {
-            out.push(norm(words[0]));
-        }
-        let han: Vec<char> = name.chars().collect();
-        if han.len() == 3 && han.iter().all(|c| ('\u{4e00}'..='\u{9fff}').contains(c)) {
-            out.push(norm(&han[1..].iter().collect::<String>()));
-        }
-    }
-    out.sort();
-    out.dedup();
-    out
 }
 
 fn forms(lex: &[LexEntry]) -> Vec<Form> {
-    // Names that more than one entry claims are ambiguous.
-    let mut owners: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
-    let derived: Vec<Vec<String>> = lex
-        .iter()
-        .map(|e| {
-            if e.ty == EntityType::Person {
-                given_names(e)
-            } else {
-                Vec::new()
-            }
-        })
-        .collect();
+    // A name that more than one entity of the same type claims is ambiguous.
+    let mut owners: BTreeMap<(EntityType, String), BTreeSet<usize>> = BTreeMap::new();
     for (i, e) in lex.iter().enumerate() {
-        owners.entry(norm(&e.name)).or_default().insert(i);
-        for (a, bp) in &e.aliases {
-            if *bp >= MIN_ALIAS_BP {
-                owners.entry(norm(a)).or_default().insert(i);
-            }
-        }
-        for d in &derived[i] {
-            owners.entry(d.clone()).or_default().insert(i);
-        }
+        owners.entry((e.ty, norm(&e.name))).or_default().insert(i);
     }
     let mut out = Vec::new();
     for (i, e) in lex.iter().enumerate() {
         if !linkable(e.ty) {
             continue;
         }
-        let mut names: Vec<(String, bool)> = vec![(norm(&e.name), true)];
-        for (a, bp) in &e.aliases {
-            if *bp >= MIN_ALIAS_BP {
-                names.push((norm(a), false));
-            }
+        let text = norm(&e.name);
+        if !long_enough(e.ty, &text)
+            || owners
+                .get(&(e.ty, text.clone()))
+                .is_some_and(|o| o.len() > 1)
+        {
+            continue;
         }
-        for d in &derived[i] {
-            names.push((d.clone(), false));
-        }
-        names.sort();
-        names.dedup_by(|a, b| a.0 == b.0);
-        for (text, trusted) in names {
-            if !long_enough(e.ty, &text) || owners.get(&text).is_some_and(|o| o.len() > 1) {
-                continue;
-            }
-            out.push(Form {
-                entry: i,
-                text,
-                trusted,
-            });
-        }
+        out.push(Form { entry: i, text });
     }
     out
 }
@@ -253,32 +191,26 @@ pub fn doc_links(
         }
     }
     let anchor = |i: usize| EvidenceRef::from_block(&ir.blocks[i]);
-    let first_block = ir.blocks.iter().position(is_text_block);
     let mut col = Collector::default();
     for (entry, s) in seen {
         let e = &lex[entry];
-        // A document whose only hit is its own title has no block of that name
-        // to point at: the first block stands for it.
-        let Some(at) = s.first.or(if s.in_title { first_block } else { None }) else {
+        // The evidence is a block that writes the name: a name only the title
+        // metadata or the file name carries has no text to point at (and a pack of
+        // this document alone could not show where the name comes from).
+        let Some(at) = s.first else {
             continue;
-        };
-        let bp = if forms.iter().any(|f| f.entry == entry && f.trusted) {
-            MENTION_BP
-        } else {
-            8500
         };
         col.hint(
             &doc,
             Predicate::Mentions,
             e.ty,
             &e.name,
-            bp,
+            MENTION_BP,
             "doc.link",
             &anchor(at),
         );
         let subject = s.in_title || s.first_title.is_some() || s.blocks >= ABOUT_REPEAT_BLOCKS;
         if subject && about_range(e.ty) {
-            let at = s.first_title.or(first_block).unwrap_or(at);
             col.hint(
                 &doc,
                 Predicate::About,
@@ -286,7 +218,7 @@ pub fn doc_links(
                 &e.name,
                 ABOUT_BP,
                 "doc.about",
-                &anchor(at),
+                &anchor(s.first_title.unwrap_or(at)),
             );
         }
     }
@@ -300,26 +232,22 @@ mod tests {
     use crate::parse::markdown::parse_markdown;
 
     fn lex() -> Vec<LexEntry> {
-        let e = |ty, name: &str, aliases: &[(&str, i32)]| LexEntry {
+        let e = |ty, name: &str| LexEntry {
             ty,
             name: name.into(),
-            aliases: aliases.iter().map(|(a, b)| ((*a).into(), *b)).collect(),
         };
         vec![
-            e(
-                EntityType::Person,
-                "林远舟",
-                &[("老林", 9000), ("远", 9000)],
-            ),
-            e(EntityType::Person, "吴启明", &[("Kevin Wu", 9000)]),
-            e(EntityType::Person, "韩立", &[("Leo Han", 9000)]),
-            e(EntityType::Person, "韩雪", &[("Leo Hu", 9000)]),
-            e(EntityType::Project, "星图看板", &[]),
-            e(EntityType::Topic, "周报", &[]),
-            e(EntityType::Organization, "AI", &[]),
-            e(EntityType::Term, "go", &[]),
-            e(EntityType::Project, "Atlas", &[("星图", 5000)]),
-            e(EntityType::Organization, "产品", &[]),
+            e(EntityType::Person, "林远舟"),
+            e(EntityType::Person, "吴启明"),
+            e(EntityType::Project, "星图看板"),
+            e(EntityType::Topic, "周报"),
+            e(EntityType::Organization, "AI"),
+            e(EntityType::Term, "go"),
+            e(EntityType::Project, "Atlas"),
+            e(EntityType::Organization, "产品"),
+            // The same name for two Projects: ambiguous.
+            e(EntityType::Project, "灯塔"),
+            e(EntityType::Project, "灯塔"),
         ]
     }
 
@@ -343,10 +271,10 @@ mod tests {
     #[test]
     fn a_name_in_the_text_is_a_mention_with_the_block_it_stands_in() {
         let x = run(
-            "# 记录\n\n今天老林和同事讨论了星图看板的进度。\n",
+            "# 记录\n\n今天林远舟和同事讨论了星图看板的进度。\n",
             "Notes/a.md",
         );
-        assert!(has(&x, Predicate::Mentions, "林远舟"), "alias of a person");
+        assert!(has(&x, Predicate::Mentions, "林远舟"));
         assert!(has(&x, Predicate::Mentions, "星图看板"));
         assert!(
             !has(&x, Predicate::About, "星图看板"),
@@ -362,13 +290,27 @@ mod tests {
     }
 
     #[test]
-    fn the_title_heading_or_file_name_makes_the_subject() {
+    fn only_the_canonical_name_links_never_an_alias_or_a_derived_form() {
+        // The pack of this document alone shows the entity under its canonical name, so the
+        // text must say it: a nickname or a given name would tell who it is from other files.
+        let x = run(
+            "# 记录\n\n老林说启明已经完成。Kevin 同意。\n",
+            "Notes/aa.md",
+        );
+        assert!(x.hints.is_empty(), "{:?}", x.hints);
+    }
+
+    #[test]
+    fn the_title_heading_or_file_name_makes_the_subject_when_a_block_writes_the_name() {
         let x = run("# 周报每周五发送\n\n内容。\n", "Decisions/x.md");
         assert!(has(&x, Predicate::About, "周报"));
         let y = run("正文提到星图看板。\n", "Projects/星图看板.md");
         assert!(has(&y, Predicate::About, "星图看板"), "the file name");
         let z = run("# 记录\n\n## 星图看板进展\n\n无。\n", "Notes/b.md");
         assert!(has(&z, Predicate::About, "星图看板"), "a heading");
+        // The file name alone, without a block that writes the name: no link, no evidence.
+        let w = run("# 记录\n\n无关。\n", "Projects/星图看板.md");
+        assert!(w.hints.is_empty(), "{:?}", w.hints);
     }
 
     #[test]
@@ -380,20 +322,16 @@ mod tests {
     }
 
     #[test]
-    fn short_ambiguous_and_weak_names_link_nothing() {
-        let x = run("# 记录\n\n产品和AI；单字远；星图；goal。\n", "Notes/d.md");
+    fn short_and_ambiguous_names_link_nothing() {
+        let x = run("# 记录\n\n产品和AI；goal；灯塔。\n", "Notes/d.md");
         assert!(
             !has(&x, Predicate::Mentions, "产品"),
             "two characters, not a person"
         );
         assert!(!has(&x, Predicate::Mentions, "AI"), "two letters");
         assert!(
-            !has(&x, Predicate::Mentions, "林远舟"),
-            "one character alias"
-        );
-        assert!(
-            !has(&x, Predicate::Mentions, "Atlas"),
-            "weak alias is no link"
+            !has(&x, Predicate::Mentions, "灯塔"),
+            "two entities claim it"
         );
     }
 
@@ -423,34 +361,5 @@ mod tests {
         );
         let y = run("# 记录\n\n星图看板。\n", "Notes/速记.md");
         assert!(y.hints.iter().all(|h| h.valid_from.is_none()));
-    }
-
-    #[test]
-    fn a_person_is_also_called_by_the_given_name_of_a_full_name() {
-        let x = run(
-            "# 记录\n\nKevin 完成了，启明说可以。远舟也同意。\n",
-            "Notes/h.md",
-        );
-        let names: Vec<&str> = x
-            .hints
-            .iter()
-            .filter(|h| h.predicate == Predicate::Mentions)
-            .map(|h| h.target_name.as_str())
-            .collect();
-        assert!(names.contains(&"吴启明"), "{names:?}");
-        assert!(
-            names.contains(&"林远舟"),
-            "the two-character given name of a Han name: {names:?}"
-        );
-        // `Leo` is the given name of two people: no link.
-        let y = run("# 记录\n\nLeo 来了。\n", "Notes/i.md");
-        assert!(
-            y.hints
-                .iter()
-                .all(|h| h.target_name != "韩立" && h.target_name != "韩雪")
-        );
-        // A two-character name has no given-name form.
-        let z = run("# 记录\n\n立来了。\n", "Notes/j.md");
-        assert!(z.hints.iter().all(|h| h.target_name != "韩立"));
     }
 }
