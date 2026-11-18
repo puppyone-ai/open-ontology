@@ -20,6 +20,7 @@ fn env(k: &str) -> String {
 
 fn source(prefix: &str) -> (S3Source, AnySource) {
     let cfg = S3Config {
+        provider: Default::default(),
         bucket: env("OO_S3_BUCKET"),
         prefix: format!("{prefix}/"),
         endpoint: Some(env("OO_S3_ENDPOINT")),

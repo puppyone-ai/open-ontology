@@ -17,7 +17,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -36,7 +36,9 @@ use crate::objectstore::{
     DocBackend, DocCapability, DocSourceError, DocumentSource, EntryKind, ListCursor, ListPage,
     ObjectMeta, ReadExpect,
 };
-use crate::objectstore_compat::{self as compat, Crc64, Crc64Kind, Crc64Value, Probed};
+use crate::objectstore_compat::{
+    self as compat, Crc64, Crc64Kind, Crc64Value, EndpointHints, Probed, Provider,
+};
 
 /// Bytes per ranged GET (10 §4.3.3).
 pub const RANGE_BYTES: u64 = 8 * 1024 * 1024;
@@ -127,6 +129,8 @@ impl SecretResolver {
 /// `drive.config` of an `s3` Drive, minus the secret.
 #[derive(Debug)]
 pub struct S3Config {
+    /// Which cloud the bucket is on; chooses defaults only (`compat::Provider`).
+    pub provider: Provider,
     pub bucket: String,
     /// Key prefix of the Drive; no leading `/`, empty or ending in `/`.
     pub prefix: String,
@@ -145,6 +149,22 @@ impl S3Config {
         config: &Value,
         resolver: &SecretResolver,
     ) -> Result<Self, DocSourceError> {
+        Self::from_drive_config_for("s3", config, resolver)
+    }
+
+    /// Same for any of the `s3`, `r2`, `oss` and `cos` backends. Extra keys:
+    /// `account_id` (r2), `internal` (oss, cos: the in-cloud endpoint). `region`
+    /// is required for `oss` and `cos`; `endpoint` overrides the cloud's own
+    /// endpoint (a self-hosted store, or a test), and then `path_style`
+    /// defaults to true.
+    pub fn from_drive_config_for(
+        backend: &str,
+        config: &Value,
+        resolver: &SecretResolver,
+    ) -> Result<Self, DocSourceError> {
+        let provider = Provider::parse(backend).ok_or(DocSourceError::InvalidConfig(
+            "backend is not an s3 backend",
+        ))?;
         for inline in [
             "access_key_id",
             "secret_access_key",
@@ -169,14 +189,41 @@ impl S3Config {
         if !prefix.is_empty() && !prefix.ends_with('/') {
             prefix.push('/');
         }
-        let endpoint = text("endpoint")
+        let custom_endpoint = text("endpoint")
             .filter(|e| !e.is_empty())
             .map(str::to_owned);
-        let region = text("region").unwrap_or("us-east-1").to_owned();
-        let path_style = config
-            .get("path_style")
-            .and_then(Value::as_bool)
-            .unwrap_or(endpoint.is_some());
+        if matches!(provider, Provider::Oss | Provider::Cos)
+            && custom_endpoint.is_none()
+            && text("region").is_none_or(str::is_empty)
+        {
+            return Err(DocSourceError::InvalidConfig("config has no region"));
+        }
+        let region = text("region")
+            .filter(|r| !r.is_empty())
+            .unwrap_or(provider.default_region())
+            .to_owned();
+        let endpoint = match &custom_endpoint {
+            Some(e) => Some(e.clone()),
+            None => provider
+                .endpoint(
+                    &region,
+                    EndpointHints {
+                        account_id: text("account_id"),
+                        internal: config
+                            .get("internal")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false),
+                    },
+                )
+                .map_err(DocSourceError::InvalidConfig)?,
+        };
+        let path_style = config.get("path_style").and_then(Value::as_bool).unwrap_or(
+            if custom_endpoint.is_some() {
+                true
+            } else {
+                provider.cloud_path_style()
+            },
+        );
         let reference = text("secret_ref")
             .or_else(|| {
                 config
@@ -196,6 +243,7 @@ impl S3Config {
             })
             .unwrap_or_default();
         Ok(Self {
+            provider,
             bucket,
             prefix,
             endpoint,
@@ -212,6 +260,8 @@ impl S3Config {
 pub struct Seen {
     crc64: Mutex<HashMap<String, Crc64Value>>,
     retry_after_ms: AtomicU64,
+    /// Largest `Date` offset of the store seen so far (signed, ms).
+    skew_ms: AtomicI64,
 }
 
 impl Seen {
@@ -233,6 +283,13 @@ impl Seen {
 struct ReqwestTransport {
     client: reqwest::Client,
     seen: Arc<Seen>,
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+        .unwrap_or(0)
 }
 
 fn http_error(message: &'static str) -> opendal::Error {
@@ -262,6 +319,16 @@ impl HttpTransport for ReqwestTransport {
         let headers = resp.headers().clone();
         if let Some(c) = compat::crc64_from_headers(&headers) {
             self.seen.note(&path, c);
+        }
+        if let Some(skew) = headers
+            .get(http::header::DATE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|d| compat::clock_skew_ms(d, now_ms()))
+        {
+            let cur = self.seen.skew_ms.load(Ordering::Relaxed);
+            if skew.abs() > cur.abs() {
+                self.seen.skew_ms.store(skew, Ordering::Relaxed);
+            }
         }
         if let Some(ms) = headers
             .get(http::header::RETRY_AFTER)
@@ -388,6 +455,7 @@ pub struct S3Source {
 }
 
 struct Inner {
+    provider: Provider,
     op: Operator,
     seen: Arc<Seen>,
     excludes: ExcludeSet,
@@ -405,6 +473,7 @@ impl S3Source {
     pub fn from_parts(op: Operator, seen: Arc<Seen>, config: &S3Config) -> Self {
         Self {
             inner: Arc::new(Inner {
+                provider: config.provider,
                 op,
                 seen,
                 excludes: ExcludeSet::new(config.excludes.clone()),
@@ -530,7 +599,9 @@ impl S3Source {
                 .as_deref()
                 .is_some_and(compat::etag_is_content_md5),
             versioning: meta.version_id.is_some(),
-            crc64: meta.crc64.map(|_| Crc64Kind::Nvme),
+            crc64: meta
+                .crc64
+                .map(|_| self.inner.provider.crc64_kind().unwrap_or(Crc64Kind::Nvme)),
             if_match: false,
         };
         if meta.size > 0 {
@@ -547,6 +618,14 @@ impl S3Source {
         Ok(p)
     }
 
+    /// `DOCS_SOURCE_CLOCK_SKEW` (10 §4.3.3): the store's clock differs from ours
+    /// by more than five minutes; `Some(offset_ms)` (store minus local). Read
+    /// after any request, from the `Date` headers seen so far.
+    pub fn clock_skew(&self) -> Option<i64> {
+        let ms = self.inner.seen.skew_ms.load(Ordering::Relaxed);
+        (ms.abs() > compat::CLOCK_SKEW_LIMIT_MS).then_some(ms)
+    }
+
     /// The operator, for tests that put fixtures into a bucket.
     #[doc(hidden)]
     pub fn operator_for_tests(&self) -> &Operator {
@@ -556,7 +635,7 @@ impl S3Source {
 
 impl DocumentSource for S3Source {
     fn backend(&self) -> DocBackend {
-        DocBackend::S3
+        self.inner.provider.backend()
     }
 
     fn capabilities(&self) -> BTreeSet<DocCapability> {
