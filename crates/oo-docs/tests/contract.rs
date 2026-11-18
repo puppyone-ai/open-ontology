@@ -223,6 +223,7 @@ fn engine_routes_match_the_endpoint_table() {
         ("POST", "/v1/docs/drives", true, false),
         ("GET", "/v1/docs/drives/{id}", false, false),
         ("PATCH", "/v1/docs/drives/{id}", false, true),
+        ("POST", "/v1/docs/drives/{id}:rebuild", true, false),
         ("DELETE", "/v1/docs/drives/{id}", false, true),
         ("POST", "/v1/docs/drives/{id}:sync", true, false),
         ("GET", "/v1/docs/drives/{id}/files", false, false),

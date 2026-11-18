@@ -14,7 +14,7 @@
 //! Every response, errors included, carries `OO-Docs-Api: 1.0`.
 //!
 //! L2 serves: `livez`, `health`, drives (list, create, get, patch, delete),
-//! `:sync` (full, deep, confirm, targeted), files, tree and the event stream.
+//! `:sync` (full, deep, confirm, targeted), `:rebuild` (confirmed full rebuild), files, tree and the event stream.
 //! Other documented routes answer `404 DOCS_ENGINE_NOT_FOUND` until their
 //! boards land.
 
@@ -540,6 +540,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             if let Some(id) = last.strip_suffix(":sync") {
                 method_allowed(req, &["POST"])?;
                 return drives::sync(app, id, req).await;
+            }
+            if let Some(id) = last.strip_suffix(":rebuild") {
+                method_allowed(req, &["POST"])?;
+                return drives::rebuild(app, id, req).await;
             }
             if last.contains(':') {
                 return Err(ApiError::not_found("route"));

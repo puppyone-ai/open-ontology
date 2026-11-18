@@ -46,14 +46,18 @@ use crate::extract::rules::RULESET_VERSION;
 use crate::ingest::HashableSource as _;
 use crate::ingest::files::{self, Extra};
 use crate::ingest::{DriveRef, SourceFactory};
+use crate::parse::media::{MediaKind, MediaOptions};
 use crate::parse::sidecar::{self, SidecarClient, SidecarError};
 use crate::parse::{self, LOCAL_PARSER_VERSION};
 use crate::publish::run::{PublishConfig, PublishOutcome, publish};
-use crate::publish::write::{DocumentInput, index_document, index_extraction};
+use crate::publish::write::{DocumentInput, index_extraction};
 use crate::state::{self, FileState, Transition, TransitionError};
 use crate::store::jobs as store;
 use oo_connectors::objectstore::{DocumentSource, ReadExpect};
 use oo_core::docir::{DocFormat, DocIr};
+
+/// Reprocess jobs (`outdated` files) in flight at once: a parser or prompt upgrade never floods the pool (D23).
+const REPROCESS_INFLIGHT: i64 = 1;
 
 /// Priority of a new file's stage jobs; manual retry 50; reprocessing after an
 /// upgrade 900 (4.1.7, D23).
@@ -257,6 +261,34 @@ pub struct ParseHandler<F: SourceFactory> {
     cas: Arc<Cas>,
     progress: Option<Bus>,
     sidecar: Option<Arc<SidecarClient>>,
+    media: Option<MediaRuntime>,
+}
+
+/// The `media-parser` client and its `oo.docs/v1` `media.*` settings (10 17.1, 17.2).
+#[derive(Clone)]
+pub struct MediaRuntime {
+    /// Client of the media sidecar.
+    pub client: Arc<SidecarClient>,
+    /// `media.external_ffmpeg` (Linux, D65).
+    pub external_ffmpeg: Option<String>,
+}
+
+/// Audio or video by sniffed format.
+fn media_kind(format: &str) -> Option<MediaKind> {
+    match format {
+        "audio" => Some(MediaKind::Audio),
+        "video" => Some(MediaKind::Video),
+        _ => None,
+    }
+}
+
+/// The job kind a parse of this sniffed format is queued as (D77: media has its own pool).
+pub fn parse_kind_of(format: &str) -> JobKind {
+    if media_kind(format).is_some() {
+        JobKind::ParseMedia
+    } else {
+        JobKind::Parse
+    }
 }
 
 /// Why a parse attempt stopped without an IR.
@@ -287,6 +319,8 @@ fn sidecar_format(format: &str) -> Option<DocFormat> {
         "pdf" => Some(DocFormat::Pdf),
         "docx" => Some(DocFormat::Docx),
         "pptx" => Some(DocFormat::Pptx),
+        // Standalone images go to the ocr-parser through the same client (10 17.6).
+        "image" => Some(DocFormat::Image),
         _ => None,
     }
 }
@@ -299,17 +333,49 @@ struct ParsedIr {
     blocks: i32,
 }
 
+/// Versions the sidecars reported at start (`/v1/info`): a stored result of that parser with another version is
+/// not reused, so an upgraded parser really parses again (D23). A parser not listed is reused whatever its version.
+static CURRENT_PARSERS: std::sync::RwLock<Vec<(String, String)>> =
+    std::sync::RwLock::new(Vec::new());
+
+/// Record the version a sidecar parser reports now.
+pub fn set_current_parser(id: &str, version: &str) {
+    let mut g = CURRENT_PARSERS.write().unwrap_or_else(|p| p.into_inner());
+    g.retain(|(i, _)| i != id);
+    g.push((id.to_owned(), version.to_owned()));
+}
+
+/// The `(id, version)` of the parser a `/v1/info` answer describes.
+pub fn parser_of_info(info: &serde_json::Value) -> Option<(String, String)> {
+    let p = info.get("parser")?;
+    Some((
+        p.get("id")?.as_str()?.to_owned(),
+        p.get("version")?.as_str()?.to_owned(),
+    ))
+}
+
+fn current_parsers() -> (Vec<String>, Vec<String>) {
+    let g = CURRENT_PARSERS.read().unwrap_or_else(|p| p.into_inner());
+    g.iter().cloned().unzip()
+}
+
 async fn cached_parse(pool: &PgPool, b3: &str) -> Result<Option<ParsedIr>, sqlx::Error> {
+    let (ids, versions) = current_parsers();
     let row: Option<(String, String, String, String, Option<i32>)> = sqlx::query_as(
         "SELECT ir_b3, parser_id, parser_version, profile_sha256, block_count \
-           FROM _oo_docs.parse_result \
+           FROM _oo_docs.parse_result p \
           WHERE b3 = $1 AND status = 'complete' AND ir_b3 IS NOT NULL \
             AND ((parser_id IN ('oo-md', 'oo-text', 'oo-csv', 'oo-xlsx') AND parser_version = $2) \
-                 OR parser_id = 'docling') \
+                 OR (parser_id IN ('docling', 'paddleocr', 'media') \
+                     AND (EXISTS (SELECT 1 FROM unnest($3::text[], $4::text[]) c(i, v) \
+                                   WHERE c.i = p.parser_id AND c.v = p.parser_version) \
+                          OR NOT EXISTS (SELECT 1 FROM unnest($3::text[]) c(i) WHERE c.i = p.parser_id)))) \
           ORDER BY finished_at DESC NULLS LAST LIMIT 1",
     )
     .bind(b3)
     .bind(LOCAL_PARSER_VERSION)
+    .bind(&ids)
+    .bind(&versions)
     .fetch_optional(pool)
     .await?;
     Ok(row.map(
@@ -364,7 +430,20 @@ impl<F: SourceFactory> ParseHandler<F> {
             return Ok(hit);
         }
         let side = sidecar_format(&s.format);
-        if side.is_none() && !matches!(s.format.as_str(), "md" | "txt" | "csv" | "xlsx") {
+        let media = media_kind(&s.format);
+        if let Some(_kind) = media
+            && let Err(limit) =
+                crate::jobs::media_pool::check_size(u64::try_from(s.size).unwrap_or(0))
+        {
+            return Err(Halt::Park {
+                to: FileState::TooLarge,
+                code: limit.code(),
+            });
+        }
+        if side.is_none()
+            && media.is_none()
+            && !matches!(s.format.as_str(), "md" | "txt" | "csv" | "xlsx")
+        {
             return Err(Halt::Park {
                 to: FileState::Unsupported,
                 code: "DOCS_PARSE_UNSUPPORTED_FORMAT",
@@ -426,9 +505,10 @@ impl<F: SourceFactory> ParseHandler<F> {
         if let Some(ms) = crate::failpoints::sleep_ms("parse_window_mid", &s.b3) {
             tokio::time::sleep(Duration::from_millis(ms)).await;
         }
-        let normalized = match side {
-            Some(doc_format) => self.parse_sidecar(s, bytes, doc_format).await?,
-            None => self.parse_local(ctx, s, bytes).await?,
+        let normalized = match (side, media) {
+            (Some(doc_format), _) => self.parse_sidecar(s, bytes, doc_format).await?,
+            (None, Some(kind)) => self.parse_media(ctx, s, bytes, kind).await?,
+            (None, None) => self.parse_local(ctx, s, bytes).await?,
         };
         let n = normalized;
         let put = self
@@ -540,6 +620,93 @@ impl<F: SourceFactory> ParseHandler<F> {
             Ok(Ok(n)) => Ok(n),
             Ok(Err(e)) => Err(sidecar_halt(&e)),
         }
+    }
+
+    /// The client a format is parsed through.
+    fn client_for(&self, format: &str) -> Option<Arc<SidecarClient>> {
+        if media_kind(format).is_some() {
+            self.media.as_ref().map(|m| m.client.clone())
+        } else {
+            self.sidecar.clone()
+        }
+    }
+
+    /// Audio and video: through the media-parser as a long task, progress in milliseconds of the source
+    /// timeline, cancelled with the job (10 17.1, 17.3).
+    async fn parse_media(
+        &self,
+        ctx: &JobCtx,
+        s: &Subject,
+        bytes: Vec<u8>,
+        kind: MediaKind,
+    ) -> Result<crate::normalize::Normalized, Halt> {
+        let Some(rt) = self.media.clone() else {
+            return Err(Halt::Park {
+                to: FileState::Unsupported,
+                code: "DOCS_PARSE_UNSUPPORTED_FORMAT",
+            });
+        };
+        if blake3::hash(&bytes).to_hex().as_str() != s.b3 {
+            return Err(Outcome::failed(
+                FailureClass::Transient,
+                "DOCS_SOURCE_CHANGED_DURING_READ",
+            )
+            .into());
+        }
+        let opts = MediaOptions {
+            hotwords: self.hotwords().await,
+            external_ffmpeg: rt.external_ffmpeg.clone(),
+            host_decode_dir: None,
+            num_speakers: None,
+        };
+        let handle = tokio::runtime::Handle::current();
+        let pool = self.pool.clone();
+        let bus = self.progress.clone();
+        let (file_id, drive_id) = (s.file_id.clone(), s.drive_id.clone());
+        let stop = ctx.cancel_flag_arc();
+        let done = tokio::task::spawn_blocking(move || {
+            rt.client.parse_media(
+                &bytes,
+                kind,
+                &opts,
+                Duration::from_secs(2),
+                &mut |p: crate::parse::media::MediaProgress| {
+                    if p.total_ms > 0 {
+                        handle.block_on(report_progress(
+                            &pool,
+                            bus.as_ref(),
+                            &file_id,
+                            &drive_id,
+                            "ms",
+                            i64::try_from(p.done_ms).unwrap_or(i64::MAX),
+                            i64::try_from(p.total_ms).ok(),
+                        ));
+                    }
+                    !stop.load(std::sync::atomic::Ordering::Relaxed)
+                },
+            )
+        })
+        .await;
+        match done {
+            Err(_) => Err(Outcome::failed(FailureClass::Crash, "DOCS_PARSE_CRASH").into()),
+            Ok(Ok(n)) => Ok(n),
+            Ok(Err(e)) => Err(sidecar_halt(&e)),
+        }
+    }
+
+    /// Entity names and aliases of this Drive that are already published: they bias recognition only and are
+    /// never written to a Pack (17.3).
+    async fn hotwords(&self) -> Vec<String> {
+        sqlx::query_scalar(
+            "SELECT DISTINCT n FROM (SELECT e.canonical_name AS n FROM _oo_docs.entity e \
+                                       WHERE e.status = 'active' AND e.type <> 'Document' \
+                                     UNION ALL SELECT a.alias FROM _oo_docs.alias a \
+                                       WHERE a.status = 'published') x \
+              WHERE char_length(n) BETWEEN 2 AND 32 ORDER BY n LIMIT 200",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
     }
 
     /// The `file.progress` event and the `progress` column: the unit is the
@@ -815,9 +982,9 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 return Outcome::Cancelled;
             }
             // A sidecar format waits in `queued` while the sidecar is down.
-            if sidecar_format(&s.format).is_some()
+            if (sidecar_format(&s.format).is_some() || media_kind(&s.format).is_some())
                 && s.state == FileState::Queued
-                && let Some(client) = self.sidecar.clone()
+                && let Some(client) = self.client_for(&s.format)
                 && cached_parse(&self.pool, &s.b3)
                     .await
                     .ok()
@@ -848,7 +1015,7 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 return db_fail(e);
             }
             s.state = FileState::Parsing;
-            if sidecar_format(&s.format).is_some() {
+            if sidecar_format(&s.format).is_some() || media_kind(&s.format).is_some() {
                 set_blocked_clear(&self.pool, &s.file_id).await;
             }
             let done = match self.parse(&ctx, &s).await {
@@ -871,7 +1038,10 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
                 sqlx::query(
                     "INSERT INTO _oo_docs.parse_result \
                        (b3, parser_id, parser_version, profile_sha256, status, ir_b3, block_count, finished_at) \
-                     VALUES ($1, $2, $3, $4, 'complete', $5, $6, clock_timestamp()) ON CONFLICT DO NOTHING",
+                     VALUES ($1, $2, $3, $4, 'complete', $5, $6, clock_timestamp()) \
+                     ON CONFLICT (b3, parser_id, parser_version, profile_sha256) DO UPDATE \
+                        SET status = 'complete', ir_b3 = EXCLUDED.ir_b3, block_count = EXCLUDED.block_count, \
+                            error_code = NULL, finished_at = clock_timestamp()",
                 )
                 .bind(&s.b3)
                 .bind(&done.parser_id)
@@ -987,6 +1157,46 @@ async fn withdraw_superseded(
 }
 
 impl ExtractHandler {
+    /// Text of the minutes file with the same stem next to a recording (`周会.m4a` and `周会.md`), when it has
+    /// been parsed: the attendee list there is layer 1 of the speaker identity (D74).
+    async fn sibling_minutes(&self, s: &Subject) -> Option<String> {
+        let (dir, name) = s.path.rsplit_once('/').unwrap_or(("", s.path.as_str()));
+        let stem = name.rsplit_once('.').map_or(name, |(st, _)| st);
+        let join = |ext: &str| {
+            if dir.is_empty() {
+                format!("{stem}.{ext}")
+            } else {
+                format!("{dir}/{stem}.{ext}")
+            }
+        };
+        let ir_b3: Option<String> = sqlx::query_scalar(
+            "SELECT pr.ir_b3 FROM _oo_docs.file f \
+               JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+               JOIN _oo_docs.parse_result pr ON pr.b3 = fv.b3 AND pr.status = 'complete' \
+              WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND f.path = ANY($2::text[]) \
+                AND pr.ir_b3 IS NOT NULL ORDER BY f.path LIMIT 1",
+        )
+        .bind(&s.drive_id)
+        .bind(vec![join("md"), join("txt")])
+        .fetch_optional(&self.pool)
+        .await
+        .ok()
+        .flatten();
+        let ir = self.load_ir_by_ir_b3(&ir_b3?)?;
+        Some(
+            ir.blocks
+                .iter()
+                .map(|b| b.text.as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
+
+    fn load_ir_by_ir_b3(&self, ir_b3: &str) -> Option<DocIr> {
+        let bytes = self.cas.get(CasKind::Ir, ir_b3).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    }
+
     async fn load_ir(&self, b3: &str) -> Result<Option<DocIr>, Outcome> {
         load_ir_of(&self.pool, &self.cas, b3).await
     }
@@ -1057,8 +1267,24 @@ impl JobHandler for ExtractHandler {
                     path: &s.path,
                     ir: &ir,
                 };
-                if let Err(e) = index_document(&mut conn, &doc).await {
+                // A first extraction, or a reprocess that passes DOC-G10 or waits for a person (D23).
+                if let Err(e) = crate::publish::reprocess::index_gated(&mut conn, &doc).await {
                     return db_fail(e);
+                }
+                // Who is S1? One `speaker_identity` item per speaker label (D74, 17.4).
+                if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
+                    let minutes = self.sibling_minutes(&s).await;
+                    if let Err(e) = crate::review::speaker::propose(
+                        &mut conn,
+                        &s.version_id,
+                        &ir,
+                        &s.path,
+                        minutes.as_deref(),
+                    )
+                    .await
+                    {
+                        return db_fail(e);
+                    }
                 }
             }
             // A model that is up and a Drive that uses it: the file waits in
@@ -1220,6 +1446,10 @@ impl JobHandler for ExtractLlmHandler {
                     .and_then(|n| n.to_str())
                     .unwrap_or(&s.path)
                     .to_owned();
+                // Types a person promoted constrain the prompt (B-S9-02); a read error means none.
+                let types = crate::review::promotion::constrained_types(&mut conn)
+                    .await
+                    .unwrap_or_default();
                 let input = LlmInput {
                     drive_id: &s.drive_id,
                     path: &s.path,
@@ -1227,6 +1457,7 @@ impl JobHandler for ExtractLlmHandler {
                     ir: &ir,
                     known,
                     calls_used,
+                    types,
                 };
                 let limits = Limits {
                     daily,
@@ -1410,6 +1641,8 @@ impl JobHandler for PublishHandler {
             // overlay item (D22), after every publish.
             if let Ok(mut c) = self.pool.acquire().await {
                 let _ = crate::review::overlay::sweep_orphans(&mut c).await;
+                // Open types that reached the thresholds become `type_promotion` items (D16).
+                let _ = crate::review::promotion::propose(&mut c).await;
             }
             let n = match n {
                 Some(n) => Some(n),
@@ -1454,12 +1687,13 @@ pub fn handlers_with_sidecar<F: SourceFactory>(
     progress: Option<Bus>,
     sidecar: Option<Arc<SidecarClient>>,
 ) -> HashMap<JobKind, Arc<dyn JobHandler>> {
-    handlers_with_model(
+    handlers_with_runtime(
         pool,
         factory,
         cas,
         progress,
         sidecar,
+        None,
         ModelRuntime::disabled(),
     )
 }
@@ -1474,17 +1708,54 @@ pub fn handlers_with_model<F: SourceFactory>(
     sidecar: Option<Arc<SidecarClient>>,
     model: Arc<ModelRuntime>,
 ) -> HashMap<JobKind, Arc<dyn JobHandler>> {
+    handlers_with_runtime(pool, factory, cas, progress, sidecar, None, model)
+}
+
+/// [`handlers_with_sidecar`] plus the media-parser: `parse_media` jobs (own pool, D77) are handled by a
+/// second parse handler, so a recording that parses for hours never holds a document slot.
+pub fn handlers_with_media<F: SourceFactory>(
+    pool: &PgPool,
+    factory: Arc<F>,
+    cas: Arc<Cas>,
+    progress: Option<Bus>,
+    sidecar: Option<Arc<SidecarClient>>,
+    media: Option<MediaRuntime>,
+) -> HashMap<JobKind, Arc<dyn JobHandler>> {
+    handlers_with_runtime(
+        pool,
+        factory,
+        cas,
+        progress,
+        sidecar,
+        media,
+        ModelRuntime::disabled(),
+    )
+}
+
+/// All stage handlers: parse (documents and media), rules, model, publish.
+pub fn handlers_with_runtime<F: SourceFactory>(
+    pool: &PgPool,
+    factory: Arc<F>,
+    cas: Arc<Cas>,
+    progress: Option<Bus>,
+    sidecar: Option<Arc<SidecarClient>>,
+    media: Option<MediaRuntime>,
+    model: Arc<ModelRuntime>,
+) -> HashMap<JobKind, Arc<dyn JobHandler>> {
     let mut map: HashMap<JobKind, Arc<dyn JobHandler>> = HashMap::new();
-    map.insert(
-        JobKind::Parse,
-        Arc::new(Contended(ParseHandler {
-            pool: pool.clone(),
-            factory,
-            cas: cas.clone(),
-            progress,
-            sidecar,
-        })),
-    );
+    for kind in [JobKind::Parse, JobKind::ParseMedia] {
+        map.insert(
+            kind,
+            Arc::new(Contended(ParseHandler {
+                pool: pool.clone(),
+                factory: factory.clone(),
+                cas: cas.clone(),
+                progress: progress.clone(),
+                sidecar: sidecar.clone(),
+                media: media.clone(),
+            })),
+        );
+    }
     map.insert(
         JobKind::ExtractRules,
         Arc::new(Contended(ExtractHandler {
@@ -1515,6 +1786,10 @@ pub fn handlers_with_model<F: SourceFactory>(
 pub fn default_concurrency() -> HashMap<JobKind, usize> {
     HashMap::from([
         (JobKind::Parse, 4),
+        (
+            JobKind::ParseMedia,
+            crate::jobs::media_pool::DEFAULT_MEDIA_SLOTS,
+        ),
         (JobKind::ExtractRules, 2),
         (JobKind::ExtractLlm, 2),
         (JobKind::Publish, 1),
@@ -1571,6 +1846,18 @@ async fn enqueue_stage(
     Ok(store::enqueue(conn, &job).await?.status == JobStatus::Enqueued)
 }
 
+/// `(file, version, drive, b3, failed, inherited quarantine, state, blob format)` of a file waiting for parse.
+type PumpRow = (
+    String,
+    String,
+    String,
+    String,
+    bool,
+    bool,
+    String,
+    Option<String>,
+);
+
 /// One pump pass: enqueue what is due. Returns the number of jobs enqueued.
 pub async fn pump_once(pool: &PgPool) -> Result<u32, crate::store::StoreError> {
     pump_once_with(pool, false).await
@@ -1594,28 +1881,36 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
     // queued / parsing / outdated -> parse. A blob whose parse was
     // quarantined fails every path that carries it, until a parse of that
     // content has succeeded (4.1.6).
-    let rows: Vec<(String, String, String, String, bool, bool, String)> = sqlx::query_as(
+    let rows: Vec<PumpRow> = sqlx::query_as(
         "SELECT f.id::text, f.current_version_id::text, f.drive_id::text, fv.b3, \
-                EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
+                EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                           AND j.version_id = f.current_version_id \
                           AND j.state IN ('failed', 'quarantined') AND j.updated_at >= f.state_since), \
                 (EXISTS (SELECT 1 FROM _oo_docs.job j \
                            JOIN _oo_docs.file_version qv ON qv.id = j.version_id \
-                          WHERE j.kind = 'parse' AND j.state = 'quarantined' AND qv.b3 = fv.b3) \
+                          WHERE j.kind IN ('parse', 'parse_media') AND j.state = 'quarantined' AND qv.b3 = fv.b3) \
                  AND NOT EXISTS (SELECT 1 FROM _oo_docs.parse_result p \
                                   WHERE p.b3 = fv.b3 AND p.status = 'complete' \
                                     AND p.ir_b3 IS NOT NULL)), \
-                f.state \
+                f.state, (SELECT bl.format FROM _oo_docs.blob bl WHERE bl.b3 = fv.b3) \
            FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
           WHERE f.state IN ('queued', 'parsing', 'outdated') AND f.deleted_at IS NULL \
-            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'parse' AND j.file_id = f.id \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id AND j.state IN ('queued', 'running')) \
-          ORDER BY f.state_since, f.id LIMIT $1",
+          ORDER BY (f.state = 'outdated'), f.state_since, f.id LIMIT $1",
     )
     .bind(PUMP_BATCH)
     .fetch_all(&mut *conn)
     .await?;
-    for (file_id, version_id, drive_id, b3, failed, inherited, state) in rows {
+    let reprocessing: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM _oo_docs.job WHERE kind IN ('parse', 'parse_media') AND priority = $1 \
+            AND state IN ('queued', 'running')",
+    )
+    .bind(PRIORITY_OUTDATED)
+    .fetch_one(&mut *conn)
+    .await?;
+    let mut reprocess_slots = (REPROCESS_INFLIGHT - reprocessing).max(0);
+    for (file_id, version_id, drive_id, b3, failed, inherited, state, format) in rows {
         if failed {
             fail_file(pool, &file_id, &version_id, FileState::ParseFailed, None).await;
             continue;
@@ -1625,6 +1920,12 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
             fail_file(pool, &file_id, &version_id, FileState::ParseFailed, code).await;
             continue;
         }
+        if state == "outdated" {
+            if reprocess_slots == 0 {
+                continue;
+            }
+            reprocess_slots -= 1;
+        }
         let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}");
         let priority = if state == "outdated" {
             PRIORITY_OUTDATED
@@ -1633,7 +1934,7 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
         };
         if enqueue_stage(
             &mut conn,
-            JobKind::Parse,
+            parse_kind_of(format.as_deref().unwrap_or("")),
             &key,
             &drive_id,
             &file_id,
@@ -1866,7 +2167,7 @@ async fn fail_file(
 ) {
     let last: Option<(Option<String>, String)> = sqlx::query_as(
         "SELECT last_error, state FROM _oo_docs.job \
-          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'extract_rules', 'extract_llm') \
+          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'parse_media', 'extract_rules', 'extract_llm') \
             AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
     )
     .bind(file_id)
@@ -1984,7 +2285,7 @@ async fn requeue_retrying(pool: &PgPool) {
     let rows: Vec<(String, String, String, i32)> = sqlx::query_as(
         "SELECT f.id::text, f.current_version_id::text, j.last_error, j.attempt \
            FROM _oo_docs.file f \
-           JOIN _oo_docs.job j ON j.kind = 'parse' AND j.file_id = f.id \
+           JOIN _oo_docs.job j ON j.kind IN ('parse', 'parse_media') AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id \
           WHERE f.state = 'parsing' AND f.deleted_at IS NULL \
             AND j.state = 'queued' AND j.attempt > 0 AND j.last_error IS NOT NULL \
@@ -2061,6 +2362,138 @@ pub async fn mark_outdated(pool: &PgPool) -> Result<u32, crate::store::StoreErro
     Ok(n)
 }
 
+/// Files made by a parser or prompt older than the current ones, or parked because a sidecar was missing, become
+/// `outdated` (D23, B-S10-02). The pump reprocesses them at priority 900 in small batches, the old facts stay valid
+/// meanwhile, and DOC-G10 judges the new extraction when it is stored. Returns how many files were marked.
+///
+/// * parser: the latest complete parse of the blob came from a sidecar parser whose version differs from
+///   [`set_current_parser`]'s;
+/// * prompt: the file's LLM facts carry another `prompt_version` than `prompt_version`;
+/// * `ocr_enabled`: scanned pdf and image files that waited for OCR (`DOCS_PARSE_SCANNED_PDF`,
+///   `DOCS_PARSE_IMAGE_OCR_M2`) are tried again.
+pub async fn mark_outdated_versions(
+    pool: &PgPool,
+    prompt_version: &str,
+    ocr_enabled: bool,
+) -> Result<u32, crate::store::StoreError> {
+    let (ids, versions) = current_parsers();
+    let mut rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text \
+           FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+          WHERE f.state IN ('published', 'extract_partial', 'parse_failed') AND f.deleted_at IS NULL \
+            AND fv.duplicate_of IS NULL \
+            AND EXISTS (SELECT 1 FROM _oo_docs.parse_result p, unnest($1::text[], $2::text[]) c(i, v) \
+                         WHERE p.b3 = fv.b3 AND p.status = 'complete' AND p.parser_id = c.i) \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.parse_result p, unnest($1::text[], $2::text[]) c(i, v) \
+                             WHERE p.b3 = fv.b3 AND p.status = 'complete' AND p.parser_id = c.i \
+                               AND p.parser_version = c.v) \
+          ORDER BY f.id LIMIT 500",
+    )
+    .bind(&ids)
+    .bind(&versions)
+    .fetch_all(pool)
+    .await?;
+    let by_prompt: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT f.id::text, f.current_version_id::text \
+           FROM _oo_docs.file f \
+           JOIN _oo_docs.evidence e ON e.version_id = f.current_version_id AND e.target_kind = 'fact' \
+                                   AND e.withdrawn_at IS NULL \
+           JOIN _oo_docs.fact x ON x.id = e.target_id \
+          WHERE f.state IN ('published', 'extract_partial') AND f.deleted_at IS NULL \
+            AND x.origin = 'llm' AND x.prompt_version IS NOT NULL AND x.prompt_version <> $1 \
+          ORDER BY 1 LIMIT 500",
+    )
+    .bind(prompt_version)
+    .fetch_all(pool)
+    .await?;
+    rows.extend(by_prompt);
+    if ocr_enabled {
+        let waiting: Vec<(String, String)> = sqlx::query_as(
+            "SELECT f.id::text, f.current_version_id::text FROM _oo_docs.file f \
+              WHERE f.state = 'unsupported' AND f.deleted_at IS NULL AND f.current_version_id IS NOT NULL \
+                AND f.state_code IN ('DOCS_PARSE_SCANNED_PDF', 'DOCS_PARSE_IMAGE_OCR_M2') \
+              ORDER BY f.id LIMIT 500",
+        )
+        .fetch_all(pool)
+        .await?;
+        rows.extend(waiting);
+    }
+    rows.sort();
+    rows.dedup();
+    let mut n = 0;
+    for (file_id, version_id) in rows {
+        match state::transition(
+            pool,
+            &Transition {
+                file_id: &file_id,
+                expect_from: None,
+                to: FileState::Outdated,
+                code: None,
+                retryable: false,
+                version_id: Some(&version_id),
+                attempt: None,
+                detail_json: None,
+            },
+        )
+        .await
+        {
+            Ok(_) => n += 1,
+            Err(TransitionError::Store(e)) => return Err(e),
+            Err(_) => {}
+        }
+    }
+    Ok(n)
+}
+
+/// The manual full rebuild of one Drive (`POST /drives/{id}:rebuild`, D23): the stored parse results of its files
+/// are set aside and every file that has a result becomes `outdated`. The pump then reprocesses them at priority
+/// 900, two at a time; each new extraction goes through DOC-G10, and the old facts stay valid until then. Returns
+/// how many files were marked.
+pub async fn rebuild_drive(pool: &PgPool, drive_id: &str) -> Result<u32, crate::store::StoreError> {
+    sqlx::query(
+        "UPDATE _oo_docs.parse_result p SET status = 'failed', error_code = 'DOCS_REBUILD_SET_ASIDE' \
+          WHERE p.status = 'complete' AND p.b3 IN (SELECT fv.b3 FROM _oo_docs.file f \
+                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+               WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL)",
+    )
+    .bind(drive_id)
+    .execute(pool)
+    .await?;
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text FROM _oo_docs.file f \
+          WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND f.current_version_id IS NOT NULL \
+            AND f.state IN ('published', 'extract_partial', 'parse_failed', 'unsupported', 'indexed') \
+          ORDER BY f.id",
+    )
+    .bind(drive_id)
+    .fetch_all(pool)
+    .await?;
+    let mut n = 0;
+    for (file_id, version_id) in rows {
+        // `indexed` is not yet `published`: it reaches `outdated` through the table's own edge.
+        match state::transition(
+            pool,
+            &Transition {
+                file_id: &file_id,
+                expect_from: None,
+                to: FileState::Outdated,
+                code: None,
+                retryable: false,
+                version_id: Some(&version_id),
+                attempt: None,
+                detail_json: Some("{\"reason\":\"rebuild\"}"),
+            },
+        )
+        .await
+        {
+            Ok(_) => n += 1,
+            Err(TransitionError::Store(e)) => return Err(e),
+            Err(_) => {}
+        }
+    }
+    Ok(n)
+}
+
 type RetryRow = (String, Option<String>, Option<String>, Option<String>, bool);
 
 /// What `retry_file` did.
@@ -2127,7 +2560,13 @@ pub async fn retry_file(
             .fetch_one(&mut *tx)
             .await?;
     let key = format!("parse:{b3}:local@{LOCAL_PARSER_VERSION}:v{version_id}#m{stamp}");
-    let mut job = NewJob::new(JobKind::Parse, &key);
+    let format: Option<String> =
+        sqlx::query_scalar("SELECT format FROM _oo_docs.blob WHERE b3 = $1")
+            .bind(&b3)
+            .fetch_optional(&mut *tx)
+            .await?
+            .flatten();
+    let mut job = NewJob::new(parse_kind_of(format.as_deref().unwrap_or("")), &key);
     job.drive_id = Some(&drive_id);
     job.file_id = Some(file_id);
     job.version_id = Some(&version_id);

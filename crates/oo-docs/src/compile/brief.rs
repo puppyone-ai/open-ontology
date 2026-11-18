@@ -104,6 +104,71 @@ pub struct TrimCounts {
     pub removed: u32,
 }
 
+/// How a fact differs between the version a Share was compiled at and the one a refresh compiles (10 16, B-S10-01).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChangeKind {
+    /// A fact the new version has and the old pack did not use.
+    Added,
+    /// A fact whose value replaced another fact of the same subject and predicate.
+    Changed,
+    /// A fact the old pack used and the new version retracted.
+    Retracted,
+}
+
+/// The wording parts of the fact a change replaced or retracted, from the store.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OldFact {
+    pub subject: String,
+    /// Chinese predicate label, as `predicate_cn` writes it.
+    pub predicate: String,
+    pub object: Option<String>,
+    pub value: Option<String>,
+}
+
+/// One change; `new_key` names the visible fact of `Added` and `Changed`, `old` the replaced or retracted one.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Change {
+    pub kind: ChangeKind,
+    pub new_key: Option<String>,
+    pub old: Option<OldFact>,
+}
+
+/// What a refresh passes to the compiler: the changes since the version the old Share was compiled at.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Changes {
+    pub from_version: i64,
+    pub changes: Vec<Change>,
+}
+
+impl Changes {
+    /// Canonical form for the parameter digest.
+    pub fn digest_value(&self) -> serde_json::Value {
+        // Order of the input does not matter.
+        let mut sorted: Vec<&Change> = self.changes.iter().collect();
+        sorted.sort();
+        sorted.dedup();
+        let v: Vec<serde_json::Value> = sorted
+            .into_iter()
+            .map(|c| {
+                serde_json::json!([
+                    c.kind as u8,
+                    c.new_key,
+                    c.old.as_ref().map(|o| serde_json::json!([
+                        o.subject,
+                        o.predicate,
+                        o.object,
+                        o.value
+                    ]))
+                ])
+            })
+            .collect();
+        serde_json::json!({"from": self.from_version, "changes": v})
+    }
+}
+
+/// Most change lines BRIEF carries; the rest are summarised in one line and are in `UPDATES.md`.
+pub const MAX_CHANGE_LINES: usize = 20;
+
 /// One fact line's precision, for `share_fact_use`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FactUse {
@@ -118,6 +183,8 @@ pub struct BriefParams<'a> {
     pub budget: u32,
     pub role: &'a str,
     pub coverage: Option<&'a super::coverage::Coverage>,
+    /// Refresh only: what changed since the old Share's version (a section after the head).
+    pub changes: Option<&'a Changes>,
 }
 
 pub struct Brief {
@@ -465,6 +532,73 @@ struct Frame<'a> {
 }
 
 impl Frame<'_> {
+    /// The lines of the change section in a fixed order (added, changed, retracted; then text, then key), at most
+    /// [`MAX_CHANGE_LINES`] and at most a tenth of the budget; what does not fit is counted in one last line. A
+    /// change whose entities are not visible in this scope is not shown (it is in `UPDATES.md` for those who may
+    /// see it), so a retraction cannot leak a name.
+    fn change_lines(&self, cites: &mut Cites) -> Vec<String> {
+        let Some(ch) = self.p.changes.filter(|c| !c.changes.is_empty()) else {
+            return Vec::new();
+        };
+        let g = self.g;
+        let old_text = |o: &OldFact| -> Option<String> {
+            let name = g.entity(&o.subject)?.name.clone();
+            let object = match (&o.object, &o.value) {
+                (Some(k), _) => g.entity(k)?.name.clone(),
+                (None, Some(v)) => v.clone(),
+                (None, None) => String::new(),
+            };
+            Some(format!("{name}：{} {object}", o.predicate))
+        };
+        let mut rows: Vec<(u8, String, String, String)> = Vec::new();
+        for c in &ch.changes {
+            let new_fact = c
+                .new_key
+                .as_ref()
+                .and_then(|k| g.facts().find(|f| &f.key == k));
+            let line = match (c.kind, new_fact, c.old.as_ref().and_then(old_text)) {
+                (ChangeKind::Added, Some(f), _) => {
+                    let src = first_src(&f.evidence, cites);
+                    Some((
+                        format!("新增：{}", fact_text(g, f, false)),
+                        format!("- 新增：{} {src}", fact_text(g, f, false)),
+                    ))
+                }
+                (ChangeKind::Changed, Some(f), Some(old)) => {
+                    let src = first_src(&f.evidence, cites);
+                    Some((
+                        format!("改值：{old} → {}", fact_text(g, f, false)),
+                        format!("- 改值：{old} → {} {src}", fact_text(g, f, false)),
+                    ))
+                }
+                (ChangeKind::Retracted, _, Some(old)) => {
+                    Some((format!("撤回：{old}"), format!("> 撤回：{old}")))
+                }
+                _ => None,
+            };
+            if let Some((text, line)) = line {
+                let key = c.new_key.clone().unwrap_or_default();
+                rows.push((c.kind as u8, text, key, line));
+            }
+        }
+        rows.sort();
+        rows.dedup();
+        let cap = u64::from(self.p.budget) / 10;
+        let mut out: Vec<String> = Vec::new();
+        let mut spent = 0u64;
+        let total = rows.len();
+        for (i, (_, _, _, line)) in rows.into_iter().enumerate() {
+            let t = tokens::count(&line);
+            if out.len() >= MAX_CHANGE_LINES || spent + t > cap {
+                out.push(format!("> 另有 {} 条变化见 UPDATES.md", total - i));
+                break;
+            }
+            spent += t;
+            out.push(line);
+        }
+        out
+    }
+
     fn compose(&self, entries: &[Entry], used: u64, cites: &mut Cites) -> String {
         let v = self.g.version();
         let scope = if self.g.scope().is_empty() {
@@ -488,6 +622,15 @@ impl Frame<'_> {
             super::coverage::Guarantees::compute(self.p.coverage, !self.g.conflicts().is_empty())
                 .brief_line()
         ));
+        let change_lines = self.change_lines(cites);
+        if !change_lines.is_empty() {
+            let from = self.p.changes.map_or(0, |c| c.from_version);
+            body.extend([
+                String::new(),
+                format!("## 自上次以来的变化（v{from} → v{}）", v.n),
+            ]);
+            body.extend(change_lines);
+        }
         body.extend([String::new(), "## 你在做什么".into()]);
         if self.p.task.trim().is_empty() {
             body.push("> （未指定任务）".into());

@@ -252,10 +252,13 @@ pub async fn prepare_version_sniffed(
         }
         Verdict::Parseable if !parser_exists(limits, sniffed.format) => {
             tail.push((FileState::Queued, None));
-            tail.push((
-                FileState::Unsupported,
-                Some("DOCS_PARSE_UNSUPPORTED_FORMAT"),
-            ));
+            // No `ocr-parser` (images) or `media-parser` (audio, video) is configured.
+            let code = if sniffed.format == Format::Image {
+                "DOCS_PARSE_IMAGE_OCR_M2"
+            } else {
+                "DOCS_PARSE_UNSUPPORTED_FORMAT"
+            };
+            tail.push((FileState::Unsupported, Some(code)));
         }
         Verdict::Parseable if finished_twin => tail.push((FileState::Duplicate, None)),
         Verdict::Parseable if waits => {}
