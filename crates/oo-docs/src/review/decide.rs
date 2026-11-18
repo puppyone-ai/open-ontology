@@ -14,6 +14,7 @@
 //! | `low_confidence_fact` | overlay `fact_assert` (the fact becomes eligible; a `functional_conflict` winner rejects its partner; a `supersede_*` accept ends the old fact) | overlay `fact_reject`, fact `rejected` | overlay `fact_edit`, a new human fact with the new value/dates, the old one `rejected` |
 //! | `entity_merge` | merge the second into the first (`edit.into` picks the target) | the item only | — |
 //! | `alias_conflict` | `edit.entity` (a key) gets the alias (overlay `alias_add`) | overlay `alias_reject` | — |
+//! | `reprocess_diff` | the new extraction replaces the old: facts only the old run had are retracted, held new facts are released (DOC-G10) | the old extraction stays, the held new facts are rejected | — |
 //! | `type_promotion` | overlay `type_promote{label, type_name}` (`edit.type_name`, default the label); the prompt version changes and the files holding the label are `outdated` | the item only, never proposed again | — |
 //! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
@@ -455,6 +456,16 @@ async fn apply_one(
                     Ok((ItemResult::ok(id), Some("accepted")))
                 }
             }
+        }
+        ("reprocess_diff", Decision::Accept) => {
+            crate::publish::reprocess::apply(conn, &item.subject).await?;
+            close_item(conn, id, "accepted", by, note).await?;
+            Ok((ItemResult::ok(id), Some("accepted")))
+        }
+        ("reprocess_diff", Decision::Reject) => {
+            crate::publish::reprocess::discard(conn, &item.subject).await?;
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
         }
         ("type_promotion", Decision::Accept) => {
             let type_name = it

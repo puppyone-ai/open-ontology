@@ -218,6 +218,32 @@ async fn run() -> ExitCode {
         }
         None => None,
     };
+    // What the sidecars say they are now: a result of another version is not reused (D23).
+    {
+        let clients: Vec<Arc<SidecarClient>> = sidecar.iter().cloned().collect();
+        let ocr_info = sidecar
+            .as_ref()
+            .and_then(|c| c.ocr_client().map(|_| c.clone()));
+        let media_client = media.as_ref().map(|m| m.client.clone());
+        let versions = tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            for c in clients {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = ocr_info.as_ref().and_then(|c| c.ocr_client()) {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = media_client {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            out
+        })
+        .await
+        .unwrap_or_default();
+        for (id, version) in versions {
+            stages::set_current_parser(&id, &version);
+        }
+    }
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
     handlers.extend(stages::handlers_with_media(
         &pool,
@@ -244,6 +270,20 @@ async fn run() -> ExitCode {
         && n > 0
     {
         obs::log("info", "files.outdated", json!({ "count": n }));
+    }
+    {
+        let types = match pool.acquire().await {
+            Ok(mut c) => oo_docs::review::promotion::constrained_types(&mut c)
+                .await
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        let pv = oo_docs::extract::llm::prompt_version(&types);
+        if let Ok(n) = stages::mark_outdated_versions(&pool, &pv, cfg.ocr.is_some()).await
+            && n > 0
+        {
+            obs::log("info", "files.outdated_by_version", json!({ "count": n }));
+        }
     }
     let tasks = vec![
         stages::spawn_pump_guarded(

@@ -30,6 +30,64 @@ pub const DOC_G2: &str = "DOC-G2";
 pub const DOC_G3: &str = "DOC-G3";
 pub const DOC_G4: &str = "DOC-G4";
 pub const DOC_G5: &str = "DOC-G5";
+/// Reprocess diff (10 6.3, D23, B-S10-02): checked when a re-extraction of a file finishes.
+pub const DOC_G10: &str = "DOC-G10";
+
+/// DOC-G10: the share of the file's facts a reprocess may change before a person has to look (percent).
+pub const G10_MAX_CHANGE_PERCENT: usize = 30;
+
+/// New against old extraction of one file version, by `fact_key`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReprocessDiff {
+    /// Facts the old extraction had.
+    pub prior: usize,
+    /// Keys only the new extraction has, sorted.
+    pub added: Vec<String>,
+    /// Keys only the old extraction had, sorted.
+    pub removed: Vec<String>,
+    /// Removed keys that a live Share's pack used, sorted.
+    pub share_used_removed: Vec<String>,
+}
+
+impl ReprocessDiff {
+    /// Diff of two key sets (any order); `share_used` are the keys a live Share uses.
+    pub fn of(prior: &[String], now: &[String], share_used: &[String]) -> Self {
+        use std::collections::BTreeSet;
+        let (p, n): (BTreeSet<&String>, BTreeSet<&String>) =
+            (prior.iter().collect(), now.iter().collect());
+        let removed: Vec<String> = p.difference(&n).map(|k| (*k).clone()).collect();
+        let added: Vec<String> = n.difference(&p).map(|k| (*k).clone()).collect();
+        let used: BTreeSet<&String> = share_used.iter().collect();
+        let share_used_removed = removed
+            .iter()
+            .filter(|k| used.contains(k))
+            .cloned()
+            .collect();
+        Self {
+            prior: p.len(),
+            added,
+            removed,
+            share_used_removed,
+        }
+    }
+
+    /// Nothing differs.
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.removed.is_empty()
+    }
+
+    /// DOC-G10: `Ok` when the new extraction may replace the old without a person; `Err` names why not:
+    /// a removed fact is used by a live Share, or more than 30% of the file's facts changed.
+    pub fn g10(&self) -> Result<(), &'static str> {
+        if !self.share_used_removed.is_empty() {
+            return Err("share_used_fact_removed");
+        }
+        if (self.added.len() + self.removed.len()) * 100 > self.prior * G10_MAX_CHANGE_PERCENT {
+            return Err("diff_over_30_percent");
+        }
+        Ok(())
+    }
+}
 
 /// Longest `attr.*` value text.
 pub const MAX_VALUE_CHARS: usize = 2000;
@@ -283,5 +341,43 @@ impl Tally {
             "blocked_aliases": self.blocked_aliases,
             "reasons": reasons,
         })
+    }
+}
+
+#[cfg(test)]
+mod g10_tests {
+    use super::*;
+
+    fn keys(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn a_small_diff_passes_and_is_sorted() {
+        let prior = keys(&["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]);
+        let now = keys(&["a", "b", "c", "d", "e", "f", "g", "h", "i", "k"]);
+        let d = ReprocessDiff::of(&prior, &now, &[]);
+        assert_eq!(
+            (d.added.as_slice(), d.removed.as_slice()),
+            (&keys(&["k"])[..], &keys(&["j"])[..])
+        );
+        assert_eq!(d.g10(), Ok(()), "2 of 10 is 20%");
+        assert!(ReprocessDiff::of(&prior, &prior, &[]).is_empty());
+    }
+
+    #[test]
+    fn more_than_thirty_percent_or_a_share_used_fact_blocks() {
+        let prior = keys(&["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]);
+        let now = keys(&["a", "b", "c", "d", "e", "f", "g", "x", "y", "z"]);
+        let d = ReprocessDiff::of(&prior, &now, &[]);
+        assert_eq!(d.g10(), Err("diff_over_30_percent"), "6 of 10");
+        // Exactly 30% (one removed, two added) is allowed.
+        let now = keys(&["a", "b", "c", "d", "e", "f", "g", "h", "i", "x", "y"]);
+        assert_eq!(ReprocessDiff::of(&prior, &now, &[]).g10(), Ok(()));
+        // One removed fact that a live share uses blocks whatever the size.
+        let now = keys(&["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+        let d = ReprocessDiff::of(&prior, &now, &keys(&["j", "zz"]));
+        assert_eq!(d.share_used_removed, keys(&["j"]));
+        assert_eq!(d.g10(), Err("share_used_fact_removed"));
     }
 }
