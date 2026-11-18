@@ -28,9 +28,20 @@ use super::client::{CliError, Daemon, exit};
 use super::docs_cmd::{Parsed, bad, drive_id, out, parse, rev_header, state_of};
 use super::upload::{host_root, read_drive_secret, s3_target};
 
-pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
+pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME\n  oo source add postgres|mysql|oracle --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...\n      registers the database in stack.yaml (created by `oo init`); postgres and mysql need --tls-ca-* and --include; password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
 
-const VALUED: &[&str] = &[
+pub(super) const VALUED: &[&str] = &[
+    "--config",
+    "--host",
+    "--port",
+    "--database",
+    "--user",
+    "--include",
+    "--password-env",
+    "--password-file",
+    "--password-ref",
+    "--tls-ca-file",
+    "--tls-ca-ref",
     "--name",
     "--root",
     "--bucket",
@@ -44,7 +55,8 @@ const VALUED: &[&str] = &[
     "--secret-access-key-env",
     "--session-token-env",
 ];
-const SWITCHES: &[&str] = &[
+pub(super) const SWITCHES: &[&str] = &[
+    "--password-stdin",
     "--path-style",
     "--no-path-style",
     "--internal",
@@ -233,7 +245,7 @@ pub fn credential_source(p: &Parsed, interactive: bool) -> Result<CredentialSour
     ))
 }
 
-fn read_stdin_text() -> Result<String, CliError> {
+pub(super) fn read_stdin_text() -> Result<String, CliError> {
     let mut s = String::new();
     std::io::stdin()
         .take(65_537)
@@ -242,7 +254,7 @@ fn read_stdin_text() -> Result<String, CliError> {
     Ok(s)
 }
 
-fn env_value(name: &str) -> Result<String, CliError> {
+pub(super) fn env_value(name: &str) -> Result<String, CliError> {
     std::env::var(name)
         .ok()
         .filter(|v| !v.is_empty())
@@ -256,7 +268,7 @@ fn env_value(name: &str) -> Result<String, CliError> {
 }
 
 /// Create the secret file for `name` and return the `file:` reference.
-fn store_secret(name: &str, text: &str) -> Result<(String, PathBuf), CliError> {
+pub(super) fn store_secret(name: &str, text: &str) -> Result<(String, PathBuf), CliError> {
     let (store, dir) = open_store()?;
     store.write_new(name, text.as_bytes()).map_err(|c| {
         CliError::new(
@@ -299,6 +311,12 @@ fn acquire(src: CredentialSource, file_name: &str) -> Result<(String, Option<Pat
 fn location(v: &Value) -> String {
     match v["backend"].as_str().unwrap_or("") {
         "fs" => v["config"]["root"].as_str().unwrap_or("").to_owned(),
+        "postgres" | "mysql" | "oracle" => format!(
+            "{}:{}/{}",
+            v["config"]["host"].as_str().unwrap_or(""),
+            v["config"]["port"],
+            v["config"]["database"].as_str().unwrap_or("")
+        ),
         _ => format!(
             "{}/{}",
             v["config"]["bucket"].as_str().unwrap_or(""),
@@ -313,7 +331,11 @@ fn line(v: &Value) -> String {
         v["name"].as_str().unwrap_or(""),
         v["backend"].as_str().unwrap_or(""),
         v["status"].as_str().unwrap_or(""),
-        v["files_total"],
+        if v["files_total"].is_null() {
+            "-".to_owned()
+        } else {
+            v["files_total"].to_string()
+        },
         location(v)
     )
 }
@@ -354,14 +376,32 @@ pub fn run(rest: &[String]) -> u8 {
     };
     let result = rt.block_on(async {
         let state = state_of(&p)?;
-        let d = Daemon::connect(&state)?;
-        match sub.as_str() {
-            "add" => add(&d, &p).await,
-            "ls" => ls(&d, &p).await,
-            "show" => show(&d, &p).await,
-            "rm" => rm(&d, &p).await,
-            "test" => test(&d, &p, &state).await,
-            other => Err(bad(format!("unknown command `source {other}`"))),
+        let conn = Daemon::connect(&state);
+        // A database source lives in the stack file, not in the daemon.
+        let db_name = p.pos.first().map(String::as_str).filter(|n| {
+            matches!(sub.as_str(), "show" | "rm" | "test") && super::source_db::exists(&p, n)
+        });
+        let is_drive = match (&conn, db_name) {
+            (Ok(d), Some(n)) => drive_id(d, n).await.is_ok(),
+            _ => false,
+        };
+        match (sub.as_str(), db_name) {
+            ("add", _)
+                if p.pos
+                    .first()
+                    .is_some_and(|k| super::source_db::is_db_kind(k)) =>
+            {
+                super::source_db::add(&p, &p.pos[0])
+            }
+            ("show", Some(n)) if !is_drive => super::source_db::show(&p, n),
+            ("rm", Some(n)) if !is_drive => super::source_db::rm(&p, n),
+            ("test", Some(n)) if !is_drive => super::source_db::test(&p, n),
+            ("ls", _) => ls(conn.as_ref().ok(), &p).await,
+            ("add", _) => add(&conn?, &p).await,
+            ("show", _) => show(&conn?, &p).await,
+            ("rm", _) => rm(&conn?, &p).await,
+            ("test", _) => test(&conn?, &p, &state).await,
+            (other, _) => Err(bad(format!("unknown command `source {other}`"))),
         }
     });
     match result {
@@ -456,16 +496,42 @@ async fn add(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
     }
 }
 
-async fn ls(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
-    let v = d.get_json("/v1/docs/drives?limit=200").await?;
-    let items: Vec<Value> = v["items"].as_array().cloned().unwrap_or_default();
+async fn ls(d: Option<&Daemon>, p: &Parsed) -> Result<(), CliError> {
+    let items: Vec<Value> = match d {
+        Some(d) => d.get_json("/v1/docs/drives?limit=200").await?["items"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+    let databases = super::source_db::list(p)?;
+    let shown_dbs = databases.clone();
+    let engine_up = d.is_some();
     let human = if items.is_empty() {
         "no sources; `oo docs upload <files>` creates the managed folder, `oo source add` registers more".to_owned()
     } else {
         items.iter().map(line).collect::<Vec<_>>().join("\n")
     };
-    let shown: Vec<Value> = items.iter().map(public).collect();
-    out(p, "oo.sources/v1", json!({"sources": shown}), human);
+    let mut shown: Vec<Value> = items.iter().map(public).collect();
+    shown.extend(shown_dbs);
+    let mut human = human;
+    if !databases.is_empty() {
+        let dbl: Vec<String> = databases.iter().map(line).collect();
+        human = if items.is_empty() {
+            dbl.join("\n")
+        } else {
+            format!("{human}\n{}", dbl.join("\n"))
+        };
+    }
+    if !engine_up {
+        human.push_str("\n(oo serve is not running: folder and bucket sources are not listed)");
+    }
+    out(
+        p,
+        "oo.sources/v1",
+        json!({"sources": shown, "engine_running": engine_up}),
+        human,
+    );
     Ok(())
 }
 
@@ -486,7 +552,12 @@ async fn show(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
 /// The secret file a source created for itself, if its reference points into
 /// the secrets directory with the `src_` prefix this command writes.
 fn own_secret_file(config: &Value) -> Option<PathBuf> {
-    let path = PathBuf::from(config["secret_ref"].as_str()?.strip_prefix("file:")?);
+    own_secret_file_of(config["secret_ref"].as_str()?)
+}
+
+/// The same for a bare `file:` reference.
+pub(super) fn own_secret_file_of(reference: &str) -> Option<PathBuf> {
+    let path = PathBuf::from(reference.strip_prefix("file:")?);
     let dir = secrets_dir().ok()?;
     let dir = std::fs::canonicalize(dir).ok()?;
     let name = path.file_name()?.to_str()?;

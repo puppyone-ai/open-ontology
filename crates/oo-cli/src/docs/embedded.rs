@@ -1,8 +1,10 @@
 //! The Docker-free runtime of `oo serve` (D83, ADR-S14-docker-free-runtime,
 //! step 1): a private PostgreSQL cluster in the state directory, supervised by
 //! `oo serve`, plus the engine as a host process. It serves Markdown, text and
-//! CSV Drives with no container; Office and PDF Drives need the compose runtime
-//! or a parser sidecar the operator runs (`OO_DOCS_PARSER_URL`).
+//! CSV Drives with no container; Office and PDF Drives need the compose runtime,
+//! the uv-managed parser sidecar `oo serve` starts from `<state>/sidecar` or
+//! `OO_DOCS_SIDECAR_DIR` (see `sidecar.rs`), or a parser the operator runs
+//! (`OO_DOCS_PARSER_URL`).
 //!
 //! The cluster lives in `<state>/pg/data`, listens on loopback only (no unix
 //! socket) and uses SCRAM logins whose passwords are 0600 files in `<state>/pg`.

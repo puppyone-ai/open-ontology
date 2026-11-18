@@ -49,6 +49,10 @@ pub struct EngineSpec {
     pub token_file: PathBuf,
     /// Where the engine's stderr goes (0600, appended).
     pub log_file: PathBuf,
+    /// Extra environment for the engine (the parser sidecar's URL and token file).
+    pub extra_env: Vec<(String, String)>,
+    /// Why Office and PDF files cannot be parsed, when no parser is configured.
+    pub parser_note: Option<String>,
 }
 
 fn open_log(path: &Path) -> std::io::Result<std::fs::File> {
@@ -90,6 +94,9 @@ pub fn start_once(spec: &EngineSpec) -> Result<(Child, SocketAddr), String> {
         if let Some(v) = std::env::var_os(k) {
             cmd.env(k, v);
         }
+    }
+    for (k, v) in &spec.extra_env {
+        cmd.env(k, v);
     }
     let mut child = cmd.spawn().map_err(|e| format!("engine spawn: {e}"))?;
     let stdout = child.stdout.take().ok_or("engine has no stdout")?;

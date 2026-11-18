@@ -4,6 +4,7 @@
 //! links `oo-docs` (architecture rule R-CLIENT-DB-DRIVER): `oo serve` runs the
 //! engine and a token-checking reverse proxy, `oo context` talks to the proxy.
 
+pub mod autostart;
 pub mod client;
 pub mod compose;
 pub mod context;
@@ -15,7 +16,9 @@ pub mod proxy;
 pub mod s3io;
 pub mod secrets;
 pub mod serve;
+pub mod sidecar;
 pub mod source;
+pub mod source_db;
 pub mod suggest;
 pub mod upload;
 

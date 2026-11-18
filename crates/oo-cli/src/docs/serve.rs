@@ -309,6 +309,37 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         secrets::clean_runtime_files(state);
         return exit::STATE_DIR;
     }
+    // The Docker-free parser sidecar (ADR-S14 step 2), when its environment is there.
+    let mut sidecar: Option<super::sidecar::Sidecar> = None;
+    let mut extra_env: Vec<(String, String)> = Vec::new();
+    let mut parser_note: Option<String> = None;
+    if std::env::var_os("OO_DOCS_PARSER_URL").is_some() {
+        // the operator's own parser: engine.rs forwards the variables
+    } else if kind == RuntimeKind::Embedded {
+        match super::sidecar::probe(&super::sidecar::env_dir(state)) {
+            Ok(senv) => match super::sidecar::start(state, &senv) {
+                Ok(sc) => {
+                    eprintln!(
+                        "oo serve: parser sidecar listening ({})",
+                        senv.dir.display()
+                    );
+                    extra_env.push(("OO_DOCS_PARSER_URL".into(), sc.url.clone()));
+                    extra_env.push((
+                        "OO_DOCS_PARSER_TOKEN_FILE".into(),
+                        sc.token_file.display().to_string(),
+                    ));
+                    sidecar = Some(sc);
+                }
+                Err(why) => {
+                    eprintln!("oo serve: {why}");
+                    parser_note = Some(why);
+                }
+            },
+            Err(why) => parser_note = Some(why),
+        }
+    } else {
+        parser_note = Some("no parser is configured (set OO_DOCS_PARSER_URL and OO_DOCS_PARSER_TOKEN_FILE, or use the compose runtime); docx and pdf stay unsupported".into());
+    }
     let spec = EngineSpec {
         exe,
         state_dir: engine_dir,
@@ -316,6 +347,8 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         admin_database_url,
         token_file: engine_token_file,
         log_file: state.join("engine.log"),
+        extra_env,
+        parser_note,
     };
     let first = match engine::start_once(&spec) {
         Ok(f) => f,
@@ -347,6 +380,7 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         Backend::Host(spec, first),
     ));
     secrets::clean_runtime_files(state);
+    drop(sidecar);
     drop(embedded);
     code
 }
@@ -463,6 +497,8 @@ fn start_embedded(state: &Path, engine_exe: &Path) -> Result<(embedded::Embedded
         admin_database_url: Some(admin),
         token_file: token_file.clone(),
         log_file: state.join("engine-install.log"),
+        extra_env: Vec::new(),
+        parser_note: None,
     };
     let first = engine::start_once(&spec);
     let _ = std::fs::remove_file(&token_file);
@@ -547,6 +583,7 @@ fn start_compose(args: &ServeArgs, state: &Path) -> u8 {
 }
 
 /// What runs the engine.
+#[allow(clippy::large_enum_variant)] // one value per process
 enum Backend {
     Host(EngineSpec, (std::process::Child, std::net::SocketAddr)),
     Compose(Arc<compose::Runtime>),
@@ -582,11 +619,15 @@ async fn serve_loop(
     let (supervisor, compose_rt, engine_json, drives) = match backend {
         Backend::Host(spec, first) => {
             let pid = first.0.id();
+            let parser = match &spec.parser_note {
+                Some(n) => json!({"mode": "none", "note": n}),
+                None => json!({"mode": "configured"}),
+            };
             let sup = Supervisor::spawn(spec, first, link.clone(), state.join("engine.pid"));
             (
                 Some(sup),
                 None,
-                json!({"mode": "host_process", "pid": pid, "project": "host", "images": {}}),
+                json!({"mode": "host_process", "pid": pid, "project": "host", "images": {}, "parser": parser}),
                 None,
             )
         }

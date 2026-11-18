@@ -647,13 +647,34 @@ pub async fn upload(d: &Daemon, p: &Parsed) -> Result<u8, CliError> {
     );
     if wait_mode != "none" {
         let rev = drive_rev.as_i64();
-        let (report, c) = wait_for(d, &id, wait_mode, timeout, rev).await?;
+        let (mut report, c) = wait_for(d, &id, wait_mode, timeout, rev).await?;
+        add_reason(&mut report, &state);
         human.push_str(&format!("\n{}", wait_human(&report)));
         result["wait"] = report;
         code = c;
     }
     out(p, "oo.docs-upload/v1", result, human);
     Ok(code)
+}
+
+/// Why files are `unsupported`: the parser note `oo serve` wrote to serve.json,
+/// when files of that state exist and no parser is configured.
+pub fn unsupported_hint(counts: &Value, serve_json: Option<&Value>) -> Option<String> {
+    if counts["unsupported"].as_i64().unwrap_or(0) == 0 {
+        return None;
+    }
+    let parser = &serve_json?["engine"]["parser"];
+    (parser["mode"] == "none")
+        .then(|| parser["note"].as_str().map(str::to_owned))
+        .flatten()
+}
+
+/// Add `unsupported_reason` to a wait report.
+fn add_reason(report: &mut Value, state: &Path) {
+    let doc = super::secrets::read_serve_json(state);
+    if let Some(why) = unsupported_hint(&report["counts"], doc.as_ref()) {
+        report["unsupported_reason"] = json!(why);
+    }
 }
 
 const IN_FLIGHT: [&str; 6] = [
@@ -674,10 +695,11 @@ const FAILED: [&str; 5] = [
 
 /// Summary of a drive's per-state counts: `(settled, failed)`.
 ///
-/// `indexed` is the step before `published`. While the Drive's ontology is not
-/// up to date it is in flight; once it is, a file still `indexed` waits for a
-/// person in the review queue and counts as settled, except with `published`.
-pub fn judge(counts: &Value, mode: &str, up_to_date: bool) -> (bool, i64) {
+/// `indexed` is the step before `published`. It is in flight until the Drive
+/// has nothing processing and something in the review queue (`needs_person`);
+/// only then does a file still `indexed` wait for a person and count as settled,
+/// except with `published`.
+pub fn judge(counts: &Value, mode: &str, needs_person: bool) -> (bool, i64) {
     let mut settled = true;
     let mut failed = 0;
     if let Some(m) = counts.as_object() {
@@ -687,7 +709,7 @@ pub fn judge(counts: &Value, mode: &str, up_to_date: bool) -> (bool, i64) {
                 continue;
             }
             if IN_FLIGHT.contains(&state.as_str())
-                || (state == "indexed" && (mode == "published" || !up_to_date))
+                || (state == "indexed" && (mode == "published" || !needs_person))
             {
                 settled = false;
             }
@@ -713,7 +735,10 @@ fn wait_human(r: &Value) -> String {
             "no failures".to_owned()
         },
         r["counts"]
-    )
+    ) + &r["unsupported_reason"]
+        .as_str()
+        .map(|w| format!("\nunsupported because: {w}"))
+        .unwrap_or_default()
 }
 
 /// Poll a drive until its files left the in-flight states. Returns the report
@@ -732,9 +757,10 @@ pub async fn wait_for(
         let rev = v["drive_rev"].as_i64().unwrap_or(0);
         let sync_running = v["last_sync"]["status"] == "running";
         let fresh = &v["freshness"];
-        let up_to_date =
-            fresh["state"] == "up_to_date" && fresh["processing"].as_i64().unwrap_or(0) == 0;
-        let (mut settled, failed) = judge(&v["counts"], mode, up_to_date);
+        let needs_person = fresh["processing"].as_i64().unwrap_or(0) == 0
+            && (fresh["pending_review"].as_i64().unwrap_or(0) > 0
+                || v["pending_review"].as_i64().unwrap_or(0) > 0);
+        let (mut settled, failed) = judge(&v["counts"], mode, needs_person);
         settled = settled && !sync_running && min_rev.is_none_or(|m| rev >= m);
         let report = json!({
             "settled": settled,
@@ -786,6 +812,7 @@ pub async fn wait(d: &Daemon, p: &Parsed) -> Result<u8, CliError> {
     let (report, code) = wait_for(d, &id, mode, timeout, rev).await?;
     let mut r = report;
     r["drive_id"] = json!(id);
+    add_reason(&mut r, &state_of(p)?);
     let human = wait_human(&r);
     out(p, "oo.docs-wait/v1", r, human);
     Ok(code)
@@ -925,6 +952,23 @@ mod tests {
         assert_eq!(judge(&c, "terminal", true), (true, 0), "waits for a person");
         assert_eq!(judge(&c, "published", true), (false, 0));
         assert_eq!(judge(&json!({}), "terminal", true), (true, 0));
+    }
+
+    #[test]
+    fn unsupported_reason_needs_files_and_no_parser() {
+        let none = json!({"engine": {"parser": {"mode": "none", "note": "no parser sidecar: x"}}});
+        let some = json!({"engine": {"parser": {"mode": "configured"}}});
+        let c = json!({"unsupported": 2});
+        assert_eq!(
+            unsupported_hint(&c, Some(&none)).as_deref(),
+            Some("no parser sidecar: x")
+        );
+        assert_eq!(unsupported_hint(&c, Some(&some)), None);
+        assert_eq!(
+            unsupported_hint(&json!({"published": 1}), Some(&none)),
+            None
+        );
+        assert_eq!(unsupported_hint(&c, None), None);
     }
 
     #[test]
