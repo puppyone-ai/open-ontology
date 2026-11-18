@@ -1,0 +1,166 @@
+{
+ "adversarial_refused_by_leak_guard": [
+  "all-main",
+  "projects-only",
+  "people-and-prefs",
+  "meetings-only",
+  "decisions-only"
+ ],
+ "checks": [
+  {
+   "check": "the Drive holds every golden format and the red-team files",
+   "detail": "{\".csv\": 4, \".docx\": 11, \".md\": 19, \".pdf\": 7, \".pptx\": 6, \".txt\": 4, \".xlsx\": 4}",
+   "ok": true
+  },
+  {
+   "check": "Drive registered",
+   "detail": "HTTP 201",
+   "ok": true
+  },
+  {
+   "check": "every file reached a final state",
+   "detail": "189s {\"published\": 55}",
+   "ok": true
+  },
+  {
+   "check": "every file is published (docx, pptx and pdf included)",
+   "detail": "{\"published\": 55}",
+   "ok": true
+  },
+  {
+   "check": "the four red-team files are published",
+   "detail": "{\"Confidential/夜航计划.txt\": \"published\", \"Confidential/并购评估备忘.md\": \"published\", \"Confidential/董事会纪要.docx\": \"published\", \"Confidential/薪酬调整.csv\": \"published\"}",
+   "ok": true
+  },
+  {
+   "check": "scopes without the red-team files were mounted",
+   "detail": "5 scopes x 3 tasks, 466 files",
+   "ok": true
+  },
+  {
+   "check": "GATE: zero canary or red-team-only hits in every pack of every scope that excludes them",
+   "detail": "466 files scanned, 0 hits []",
+   "ok": true
+  },
+  {
+   "check": "control: a pack that includes Confidential/ does show red-team-only names",
+   "detail": "4 occurrences",
+   "ok": true
+  },
+  {
+   "check": "control: every red-team file, the docx included, was parsed completely (its canary is in the stored blocks)",
+   "detail": "{\"Confidential/董事会纪要.docx\": true, \"Confidential/并购评估备忘.md\": true, \"Confidential/薪酬调整.csv\": true, \"Confidential/夜航计划.txt\": true}",
+   "ok": true
+  },
+  {
+   "check": "cleanup left nothing",
+   "detail": "0 left",
+   "ok": true
+  }
+ ],
+ "control_hits": 4,
+ "files": 55,
+ "files_scanned": 466,
+ "forbidden_words": 13,
+ "hits": 0,
+ "ok": true,
+ "run_id": "final3",
+ "scopes": {
+  "all-main": {
+   "files": 222,
+   "mounts": 3,
+   "redteam_in_scope": false,
+   "refused": 1,
+   "scopes": [
+    "Data",
+    "Decisions",
+    "Meetings",
+    "Notes",
+    "People",
+    "Preferences",
+    "Projects",
+    "Proposals",
+    "Tables",
+    "Weekly"
+   ]
+  },
+  "decisions-only": {
+   "files": 54,
+   "mounts": 3,
+   "redteam_in_scope": false,
+   "refused": 1,
+   "scopes": [
+    "Decisions"
+   ]
+  },
+  "main-plus-redteam": {
+   "files": 333,
+   "mounts": 3,
+   "redteam_in_scope": true,
+   "scopes": [
+    "Confidential",
+    "Data",
+    "Decisions",
+    "Meetings",
+    "Notes",
+    "People",
+    "Preferences",
+    "Projects",
+    "Proposals",
+    "Tables",
+    "Weekly"
+   ]
+  },
+  "meetings-only": {
+   "files": 56,
+   "mounts": 3,
+   "redteam_in_scope": false,
+   "refused": 1,
+   "scopes": [
+    "Meetings"
+   ]
+  },
+  "people-and-prefs": {
+   "files": 68,
+   "mounts": 3,
+   "redteam_in_scope": false,
+   "refused": 1,
+   "scopes": [
+    "People",
+    "Preferences",
+    "Tables/人员表.xlsx"
+   ]
+  },
+  "projects-only": {
+   "files": 66,
+   "mounts": 3,
+   "redteam_in_scope": false,
+   "refused": 1,
+   "scopes": [
+    "Projects",
+    "Proposals"
+   ]
+  },
+  "redteam-only": {
+   "files": 333,
+   "mounts": 3,
+   "redteam_in_scope": true,
+   "scopes": [
+    "Confidential",
+    "Data",
+    "Decisions",
+    "Meetings",
+    "Notes",
+    "People",
+    "Preferences",
+    "Projects",
+    "Proposals",
+    "Tables",
+    "Weekly"
+   ]
+  }
+ },
+ "states": {
+  "published": 55
+ }
+}
