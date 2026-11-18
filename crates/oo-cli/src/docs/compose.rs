@@ -775,6 +775,41 @@ fn image_id(reference: &str) -> Option<String> {
     out.status.success().then(|| ok_stdout(&out))
 }
 
+/// Can the compose runtime start here? The same checks as the first steps of
+/// [`prepare`] (Docker answers, the compose plugin, the deploy files, the locked
+/// engine and parser images, the postgres image) without changing anything.
+/// `oo serve` in auto mode uses it to fall back to the Docker-free runtime.
+pub fn usable(deploy_dir: Option<&Path>) -> Result<(), String> {
+    let arch = run(Command::new("docker").args(["info", "--format", "{{.Architecture}}"]))
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| ok_stdout(&o))
+        .ok_or("Docker does not answer")?;
+    if !run(Command::new("docker").args(["compose", "version"])).is_ok_and(|o| o.status.success()) {
+        return Err("the docker compose plugin is missing".into());
+    }
+    let platform = platform_of(&arch).ok_or("unsupported Docker architecture")?;
+    let deploy = find_deploy_dir(deploy_dir).ok_or("deploy/docs was not found")?;
+    let lock: Value = fs::read_to_string(deploy.join("images.lock.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .ok_or("images.lock.json is unreadable")?;
+    let images = wanted_images(&lock, platform)?;
+    for (name, reference, tag) in [
+        ("docs-engine", &images.engine, &images.engine_tag),
+        ("doc-parser", &images.parser, &images.parser_tag),
+    ] {
+        let local = image_id(reference);
+        let by_tag = tag.as_deref().map(|t| (t, image_id(t)));
+        let by_tag_ref = by_tag.as_ref().map(|(t, id)| (*t, id.as_deref()));
+        judge_image(name, reference, local.as_deref(), by_tag_ref)?;
+    }
+    if image_id(&images.db).is_none() {
+        return Err(format!("postgres image {} is not present", images.db));
+    }
+    Ok(())
+}
+
 /// Everything before `up`: Docker, images, files, tokens, PKI.
 pub fn prepare(
     state: &Path,

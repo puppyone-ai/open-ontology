@@ -20,6 +20,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 
 use super::compose;
+use super::embedded;
 use super::engine::{self, EngineSpec, Supervisor};
 use super::proxy::{self, DriveMounts, EngineLink, ProxyConfig};
 use super::secrets::{self, LockResult};
@@ -48,8 +49,17 @@ pub enum Action {
 /// Where the engine runs.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RuntimeKind {
+    /// The engine as a host process on a Postgres the operator provides
+    /// (`OO_DOCS_DATABASE_URL`).
     Host,
+    /// Docker compose: docs-db, docs-engine and the parser sidecar.
     Compose,
+    /// The Docker-free runtime: a private Postgres cluster in the state directory
+    /// plus the host engine (ADR-S14).
+    Embedded,
+    /// The default: `Host` when `OO_DOCS_DATABASE_URL` is set, else `Compose`
+    /// when Docker and the deploy files are there, else `Embedded`.
+    Auto,
 }
 
 /// Parsed `oo serve` arguments.
@@ -67,7 +77,7 @@ pub struct ServeArgs {
 /// Parse the arguments after `serve`.
 pub fn parse_args(rest: &[String]) -> Result<ServeArgs, String> {
     let mut a = ServeArgs {
-        runtime: RuntimeKind::Host,
+        runtime: RuntimeKind::Auto,
         deploy_dir: None,
         action: Action::Run,
         state_dir: None,
@@ -98,7 +108,13 @@ pub fn parse_args(rest: &[String]) -> Result<ServeArgs, String> {
                 a.runtime = match value("--runtime")?.as_str() {
                     "host" => RuntimeKind::Host,
                     "compose" => RuntimeKind::Compose,
-                    other => return Err(format!("--runtime must be host or compose, not {other}")),
+                    "embedded" => RuntimeKind::Embedded,
+                    "auto" => RuntimeKind::Auto,
+                    other => {
+                        return Err(format!(
+                            "--runtime must be auto, compose, embedded or host, not {other}"
+                        ));
+                    }
                 };
             }
             "--deploy-dir" => a.deploy_dir = Some(PathBuf::from(value("--deploy-dir")?)),
@@ -224,7 +240,14 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
     // A crashed predecessor left files and maybe an engine behind.
     engine::reap_stale(&state.join("engine.pid"));
     secrets::clean_runtime_files(state);
-    if args.runtime == RuntimeKind::Compose {
+    let kind = match choose_runtime(args) {
+        Ok(k) => k,
+        Err(code) => {
+            secrets::clean_runtime_files(state);
+            return code;
+        }
+    };
+    if kind == RuntimeKind::Compose {
         return start_compose(args, state);
     }
 
@@ -235,11 +258,31 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         );
         return exit::ENGINE_MISSING;
     };
-    let Ok(database_url) = std::env::var("OO_DOCS_DATABASE_URL") else {
-        eprintln!(
-            "oo serve: OO_DOCS_DATABASE_URL is required (L2: Postgres is external to oo serve)"
-        );
-        return exit::OTHER;
+    // `embedded` is dropped (and the private cluster stopped) on every way out.
+    let mut embedded: Option<embedded::Embedded> = None;
+    let (database_url, admin_database_url) = if kind == RuntimeKind::Embedded {
+        match start_embedded(state, &exe) {
+            Ok((pg, rt_url)) => {
+                embedded = Some(pg);
+                (rt_url, None)
+            }
+            Err(why) => {
+                eprintln!("oo serve: {why}");
+                secrets::clean_runtime_files(state);
+                return exit::OTHER;
+            }
+        }
+    } else {
+        let Ok(database_url) = std::env::var("OO_DOCS_DATABASE_URL") else {
+            eprintln!(
+                "oo serve: OO_DOCS_DATABASE_URL is required for --runtime host (Postgres is external to it); omit --runtime to let oo serve choose Docker or the embedded Postgres"
+            );
+            return exit::OTHER;
+        };
+        (
+            database_url,
+            std::env::var("OO_DOCS_ADMIN_DATABASE_URL").ok(),
+        )
     };
     if args.keep_engine {
         eprintln!("oo serve: --keep-engine has no effect while the engine is a host process");
@@ -270,7 +313,7 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         exe,
         state_dir: engine_dir,
         database_url,
-        admin_database_url: std::env::var("OO_DOCS_ADMIN_DATABASE_URL").ok(),
+        admin_database_url,
         token_file: engine_token_file,
         log_file: state.join("engine.log"),
     };
@@ -304,7 +347,144 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         Backend::Host(spec, first),
     ));
     secrets::clean_runtime_files(state);
+    drop(embedded);
     code
+}
+
+/// Pick the runtime for `--runtime auto` (the default) and report the choice
+/// on stderr. Errors print `DOCS_RUNTIME_UNAVAILABLE` and return the exit code.
+fn choose_runtime(args: &ServeArgs) -> Result<RuntimeKind, u8> {
+    if args.runtime != RuntimeKind::Auto {
+        return Ok(args.runtime);
+    }
+    let own_database = std::env::var_os("OO_DOCS_DATABASE_URL").is_some();
+    let compose_ok = if own_database || !docker_usable() {
+        false
+    } else {
+        match compose::usable(args.deploy_dir.as_deref()) {
+            Ok(()) => true,
+            Err(why) => {
+                eprintln!("oo serve: the compose runtime cannot start here ({why})");
+                false
+            }
+        }
+    };
+    let (kind, why) = decide_runtime(
+        own_database,
+        compose_ok,
+        embedded::find_bins().is_some() && engine::find_engine_binary().is_some(),
+    );
+    match kind {
+        Some(k) => {
+            eprintln!("oo serve: runtime {k:?} ({why})");
+            Ok(k)
+        }
+        None => {
+            let message = "no runtime can start: Docker is not usable (or its deploy files are missing) and the Docker-free runtime needs PostgreSQL server programs (initdb, pg_ctl, psql; set OO_DOCS_PG_BIN_DIR) next to a built oo-docs-engine. Either start Docker Desktop, install PostgreSQL 17, or set OO_DOCS_DATABASE_URL to your own Postgres and use --runtime host";
+            if args.json {
+                eprintln!(
+                    "{}",
+                    json!({"protocol": "oo.docs-error/v1", "error": {"code": "DOCS_RUNTIME_UNAVAILABLE", "message": message}})
+                );
+            } else {
+                eprintln!("oo serve: {message} (DOCS_RUNTIME_UNAVAILABLE)");
+            }
+            Err(exit::OTHER)
+        }
+    }
+}
+
+/// The decision itself, on facts: own database given, compose usable, embedded usable.
+pub fn decide_runtime(
+    own_database: bool,
+    compose_ok: bool,
+    embedded_ok: bool,
+) -> (Option<RuntimeKind>, &'static str) {
+    if own_database {
+        (Some(RuntimeKind::Host), "OO_DOCS_DATABASE_URL is set")
+    } else if compose_ok {
+        (Some(RuntimeKind::Compose), "Docker is available")
+    } else if embedded_ok {
+        (
+            Some(RuntimeKind::Embedded),
+            "no Docker; using the embedded PostgreSQL",
+        )
+    } else {
+        (None, "")
+    }
+}
+
+/// Docker answers `docker info` within a few seconds.
+fn docker_usable() -> bool {
+    let Ok(mut child) = std::process::Command::new("docker")
+        .args(["info", "--format", "{{.ServerVersion}}"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    else {
+        return false;
+    };
+    let deadline = std::time::Instant::now() + Duration::from_secs(8);
+    loop {
+        match child.try_wait() {
+            Ok(Some(s)) => return s.success(),
+            Ok(None) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
+}
+
+/// Start the private cluster, install the schema with the admin login (one
+/// short engine run, as the compose installer does) and return the cluster with
+/// the runtime login URL of the long-running engine.
+fn start_embedded(state: &Path, engine_exe: &Path) -> Result<(embedded::Embedded, String), String> {
+    let bins = embedded::find_bins().ok_or(
+        "PostgreSQL server programs (initdb, pg_ctl, psql) were not found; set OO_DOCS_PG_BIN_DIR",
+    )?;
+    let pg = embedded::Embedded::start(state, bins)?;
+    let token = secrets::new_token("oodi_").map_err(|_| "no randomness source".to_owned())?;
+    let install_dir = state.join("engine-install");
+    secrets::ensure_state_dir(&install_dir).map_err(|e| e.0.to_owned())?;
+    let token_file = state.join("install.token");
+    secrets::write_secret_file(&token_file, &token)
+        .map_err(|_| "cannot write the install token".to_owned())?;
+    let admin = pg.admin_url();
+    let spec = EngineSpec {
+        exe: engine_exe.to_path_buf(),
+        state_dir: install_dir,
+        database_url: admin.clone(),
+        admin_database_url: Some(admin),
+        token_file: token_file.clone(),
+        log_file: state.join("engine-install.log"),
+    };
+    let first = engine::start_once(&spec);
+    let _ = std::fs::remove_file(&token_file);
+    let (mut child, _) = first.map_err(|why| format!("schema install: {why}"))?;
+    // The install run only has to finish the schema: ask it to stop, then force it.
+    engine::signal(child.id(), "TERM");
+    let asked = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if asked.elapsed() < Duration::from_secs(15) => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break;
+            }
+        }
+    }
+    let rt_url = pg.ensure_runtime_login()?;
+    Ok((pg, rt_url))
 }
 
 /// The compose runtime start (10 §8.6 point 3): checks, files, containers,
@@ -557,14 +737,27 @@ mod tests {
     }
 
     #[test]
-    fn the_runtime_defaults_to_host_and_compose_is_opt_in() {
+    fn the_runtime_defaults_to_auto_and_every_explicit_choice_still_parses() {
         let d = parse_args(&a(&[])).unwrap();
-        assert_eq!((d.runtime, d.deploy_dir), (RuntimeKind::Host, None));
+        assert_eq!((d.runtime, d.deploy_dir), (RuntimeKind::Auto, None));
+        let h = parse_args(&a(&["--runtime", "host"])).unwrap();
+        assert_eq!(h.runtime, RuntimeKind::Host);
+        let e = parse_args(&a(&["--runtime=embedded"])).unwrap();
+        assert_eq!(e.runtime, RuntimeKind::Embedded);
         let c = parse_args(&a(&["--runtime", "compose", "--deploy-dir=/d"])).unwrap();
         assert_eq!(c.runtime, RuntimeKind::Compose);
         assert_eq!(c.deploy_dir, Some(PathBuf::from("/d")));
         assert!(parse_args(&a(&["--runtime", "podman"])).is_err());
         assert!(parse_args(&a(&["--runtime"])).is_err());
+    }
+
+    #[test]
+    fn auto_prefers_an_own_database_then_docker_then_the_embedded_postgres() {
+        use RuntimeKind::{Compose, Embedded, Host};
+        assert_eq!(decide_runtime(true, true, true).0, Some(Host));
+        assert_eq!(decide_runtime(false, true, true).0, Some(Compose));
+        assert_eq!(decide_runtime(false, false, true).0, Some(Embedded));
+        assert_eq!(decide_runtime(false, false, false).0, None);
     }
 
     #[test]
