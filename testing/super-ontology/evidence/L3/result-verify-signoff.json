@@ -707,6 +707,62 @@
       "check": "s3_rustfs (cargo test -p oo-connectors --features objectstore-s3 --test s3_rustfs -- --ignored)",
       "ok": false,
       "detail": "BLOCKED: needs a RustFS endpoint; image not local. git_head 4cee27056"
+    },
+    {
+      "check": "s3 life rustfs (super_ontology_s3_life.py --store rustfs, rustfs/rustfs@sha256:ee717072...)",
+      "ok": true,
+      "detail": "20/20 checks passed; add/modify/rename/delete/cache/secrets",
+      "n": "20/20",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "s3 life minio (super_ontology_s3_life.py --store minio, pgsty/minio@sha256:b6bfe723...)",
+      "ok": true,
+      "detail": "20/20 checks passed",
+      "n": "20/20",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "s3 cell docs-rustfs (tools/oo-test/super_ontology_s3.py, run so-v3s-s3-l1)",
+      "ok": true,
+      "detail": "status passed in 59s; s3_rustfs 8/8, download 3/3 with OO_S3_* pointed at the RustFS container",
+      "n": "11/11",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "s3 cell docs-minio (tools/oo-test/super_ontology_s3.py, run so-v3s-s3-l1)",
+      "ok": true,
+      "detail": "status passed in 42s; s3_rustfs 8/8, download 3/3 with OO_S3_* pointed at the MinIO container",
+      "n": "11/11",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "cargo test -p oo-docs --features objectstore-s3 --test download -- --ignored (RustFS)",
+      "ok": true,
+      "detail": "3 passed",
+      "n": "3/3",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "cargo test -p oo-docs --features objectstore-s3 --test download -- --ignored (MinIO)",
+      "ok": true,
+      "detail": "3 passed",
+      "n": "3/3",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "cargo test -p oo-connectors --features objectstore-s3 --test s3_rustfs -- --ignored (RustFS)",
+      "ok": true,
+      "detail": "8 passed",
+      "n": "8/8",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
+    },
+    {
+      "check": "cargo test -p oo-connectors --features objectstore-s3 --test s3_rustfs -- --ignored (MinIO)",
+      "ok": true,
+      "detail": "8 passed",
+      "n": "8/8",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7"
     }
   ],
   "notes": [
@@ -722,6 +778,28 @@
       "status": "blocked",
       "s3_cells": "0/2 cells run (images missing locally)",
       "download_s3_rustfs": "not run (no endpoint)"
+    },
+    {
+      "run": "verify-sign-L3-s3 (branch so/V3s-signoff, worktree so-V3s)",
+      "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7",
+      "status": "pass",
+      "fast_run_id": "so-v3s-s3 (oo-test fast --layer L2 --suite super-ontology --cells s3): s3-rustfs passed 159.8s, s3-minio passed 27.2s",
+      "s3_life": "rustfs 20/20, minio 20/20 (evidence s3-life-rustfs.md, s3-life-minio.md rewritten by this run)",
+      "s3_cells": "docs-rustfs passed, docs-minio passed (super_ontology_s3.py, OO_TEST_LANE=super-ontology-v3s, evidence in /tmp, not committed)",
+      "download_s3": "3/3 per store",
+      "s3_rustfs_connector": "8/8 per store",
+      "retries": 0,
+      "notes": "A standalone run of the download test without OO_S3_* env failed with 'OO_S3_BUCKET is not set' (3 of 3, environment, not a defect); the pass above is the run against the store containers. Earlier blocked entries kept as recorded."
     }
-  ]
+  ],
+  "s3_signoff": {
+    "git_head": "7a8130ae7beab615236ce3f80d8f2afd792002d7",
+    "status": "pass",
+    "date": "2026-11-18",
+    "signer": "verifier (Haiku 5.5), independent of the executor",
+    "counts": {
+      "pass": 62,
+      "fail": 0
+    }
+  }
 }
