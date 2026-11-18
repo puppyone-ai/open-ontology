@@ -11,7 +11,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import ADAPTER_VERSION, PROTOCOL
+from . import ADAPTER_VERSION, PROTOCOL, embed
 from .scratch import HEX64, Scratch, ScratchFull
 from .supervisor import Pool
 from .watchdog import Watchdog
@@ -178,8 +178,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._authorized():
             return self._error(401, "PARSER_UNAUTHORIZED", "bearer token required", close=True)
-        if self.path not in ("/v1/probe", "/v1/parse"):
+        if self.path not in ("/v1/probe", "/v1/parse", "/v1/embed"):
             return self._error(404, "PARSER_NOT_FOUND", "no such path", close=True)
+        if self.path == "/v1/embed":
+            return self._embed()
         req = self._read_json()
         if req is None:
             return self._error(400, "PARSER_BAD_INPUT", "body must be a small JSON object")
@@ -192,6 +194,21 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/v1/probe":
             return self._run(sha, "probe", (fmt,), deadline_s=30)
         return self._parse(sha, fmt, req)
+
+    def _embed(self):
+        """Local embeddings (hashgram/1): texts in, int16 vectors out; no blob, no model download."""
+        req = self._read_json(limit=1024 * 1024)
+        texts = None if req is None else req.get("texts")
+        if (
+            req is None
+            or req.get("model_version", embed.MODEL_VERSION) != embed.MODEL_VERSION
+            or not isinstance(texts, list)
+            or not 0 < len(texts) <= 64
+            or not all(isinstance(t, str) and len(t) <= 20000 for t in texts)
+        ):
+            return self._error(400, "PARSER_BAD_INPUT", "texts must be 1..64 strings and the model version hashgram/1")
+        return self._json(200, {"model_version": embed.MODEL_VERSION, "dim": embed.DIM,
+                                "vectors": [embed.embed(t) for t in texts]})
 
     def _parse(self, sha, fmt, req):
         cfg = self.svc.cfg

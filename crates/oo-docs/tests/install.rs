@@ -29,6 +29,72 @@ fn compiled_files_have_stable_shape() {
     );
 }
 
+/// Whether the server ships pgvector (the optional `docs-vectors/1` step, B-S13-01).
+async fn has_vector(conn: &mut sqlx::PgConnection) -> bool {
+    sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector')",
+    )
+    .fetch_one(conn)
+    .await
+    .unwrap()
+}
+
+#[test]
+fn vectors_migration_is_optional_and_not_required() {
+    use oo_docs::store::install::{VECTORS, VERSION_VECTORS};
+    assert_eq!(VECTORS.version, VERSION_VECTORS);
+    assert_eq!(VECTORS.file, "0144_docs_vectors.sql");
+    assert!(!SCHEMA_MIN.contains(&VERSION_VECTORS));
+    assert!(!migrations().iter().any(|m| m.version == VERSION_VECTORS));
+}
+
+/// On a pgvector server the table exists, is usable by the runtime role and ranks like the Rust
+/// cosine; on a stock server nothing is installed and readiness still passes.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container; pgvector image for the full check)"]
+async fn vectors_table_follows_the_server_image() {
+    let _g = CLUSTER_LOCK.lock().await;
+    installed_db("oo_docs_it_vec").await;
+    let mut admin = connect("oo_docs_it_vec").await;
+    let table: bool = sqlx::query_scalar("SELECT to_regclass('_oo_docs.block_vector') IS NOT NULL")
+        .fetch_one(&mut admin)
+        .await
+        .unwrap();
+    assert_eq!(table, has_vector(&mut admin).await);
+    if table {
+        // Second install is still a replay and readiness accepts the optional row.
+        assert_eq!(install(&mut admin).await.unwrap(), InstallOutcome::Replay);
+        let mut rt = connect_runtime("oo_docs_it_vec").await;
+        let v = verify_readiness(&mut rt).await.expect("ready");
+        assert!(v.unknown_additive.is_empty());
+        let drive: String = sqlx::query_scalar(
+            "INSERT INTO _oo_docs.drive (id, name, backend, config) VALUES (gen_random_uuid(), 'v', 'fs', '{}') RETURNING id::text",
+        )
+        .fetch_one(&mut admin)
+        .await
+        .unwrap();
+        {
+            let q = oo_docs::vector::embed("quarterly budget review");
+            let lit = |v: &oo_docs::vector::Vector| {
+                format!(
+                    "[{}]",
+                    v.iter().map(i16::to_string).collect::<Vec<_>>().join(",")
+                )
+            };
+            for (id, t) in [("b1", "quarterly budget review"), ("b2", "zebra paint")] {
+                let e = lit(&oo_docs::vector::embed(t));
+                sqlx::query("INSERT INTO _oo_docs.block_vector (drive_id, block_id, model_version, dim, embedding) VALUES ($1::uuid, $2, $3, 256, $4::vector)")
+                    .bind(&drive).bind(id).bind(oo_docs::vector::MODEL_VERSION).bind(e)
+                    .execute(&mut admin).await.unwrap();
+            }
+            let top: String = sqlx::query_scalar("SELECT block_id FROM _oo_docs.block_vector WHERE drive_id = $1::uuid ORDER BY embedding <=> $2::vector, block_id LIMIT 1")
+                .bind(&drive).bind(lit(&q)).fetch_one(&mut admin).await.unwrap();
+            assert_eq!(top, "b1");
+        }
+    }
+    drop_db("oo_docs_it_vec").await;
+}
+
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
 async fn empty_db_install_then_readiness() {
@@ -41,7 +107,8 @@ async fn empty_db_install_then_readiness() {
     .fetch_all(&mut admin)
     .await
     .unwrap();
-    assert_eq!(rows.len(), 10);
+    let extra = usize::from(has_vector(&mut admin).await);
+    assert_eq!(rows.len(), 10 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
@@ -51,7 +118,7 @@ async fn empty_db_install_then_readiness() {
             .fetch_one(&mut admin)
             .await
             .unwrap();
-    assert_eq!(tables, 37);
+    assert_eq!(tables, 37 + i64::try_from(extra).unwrap());
 
     // The runtime principal can verify readiness without installing.
     let mut rt = connect_runtime("oo_docs_it_empty").await;
@@ -180,7 +247,7 @@ async fn missing_prerequisite_raises_oo002_and_runs_nothing() {
         .fetch_one(&mut admin)
         .await
         .unwrap();
-    assert_eq!(n, 9);
+    assert_eq!(n, 9 + i64::from(has_vector(&mut admin).await));
     match verify_readiness(&mut admin).await {
         Err(ReadinessError::Incomplete { missing }) => assert_eq!(missing, "docs-sources-jobs/1"),
         other => panic!("{other:?}"),
@@ -203,11 +270,11 @@ async fn unknown_versions_follow_compat() {
     let v = verify_readiness(&mut admin).await.unwrap();
     assert_eq!(v.unknown_additive, vec!["docs-future/1".to_string()]);
     admin
-        .execute("INSERT INTO _oo_docs.schema_migrations (version, sha256, compat) VALUES ('docs-vectors/1', repeat('b', 64), 'breaking')")
+        .execute("INSERT INTO _oo_docs.schema_migrations (version, sha256, compat) VALUES ('docs-future/2', repeat('b', 64), 'breaking')")
         .await
         .unwrap();
     match verify_readiness(&mut admin).await {
-        Err(ReadinessError::SchemaMismatch { version }) => assert_eq!(version, "docs-vectors/1"),
+        Err(ReadinessError::SchemaMismatch { version }) => assert_eq!(version, "docs-future/2"),
         other => panic!("{other:?}"),
     }
     assert!(matches!(

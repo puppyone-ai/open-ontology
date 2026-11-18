@@ -185,6 +185,8 @@ pub struct BriefParams<'a> {
     pub coverage: Option<&'a super::coverage::Coverage>,
     /// Refresh only: what changed since the old Share's version (a section after the head).
     pub changes: Option<&'a Changes>,
+    /// Rank "other related" with the local vectors of `vector::MODEL_VERSION` (off by default).
+    pub vector: bool,
 }
 
 pub struct Brief {
@@ -205,6 +207,7 @@ struct Entry {
     subject_name: String,
     file: String,
     seed_hit: bool,
+    vec_bp: i32,
     valid_from: Option<String>,
     full: String,
     evs: Vec<VisibleEvidence>,
@@ -320,6 +323,7 @@ fn resolve_seeds(g: &VisibleGraph, task: &str, explicit: &[String]) -> Result<Se
 fn rank_key(e: &Entry) -> kernels::RankKey<'_> {
     kernels::RankKey {
         seed_hit: e.seed_hit,
+        vec_bp: e.vec_bp,
         valid_from: e.valid_from.as_deref(),
         evs: e.evs.len(),
         subject: &e.subject,
@@ -331,7 +335,32 @@ fn rank_cmp(a: &Entry, b: &Entry) -> std::cmp::Ordering {
     kernels::rank_cmp_keys(&rank_key(a), &rank_key(b))
 }
 
-fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
+/// Best in-scope block score per entity for the task (empty without a task).
+fn vector_scores(g: &VisibleGraph, task: &str) -> crate::vector::Scores {
+    let mut out = crate::vector::Scores::new();
+    if task.trim().is_empty() {
+        return out;
+    }
+    let q = crate::vector::embed(task);
+    for e in g.entities() {
+        let best = entity_evidence(g, &e.key)
+            .iter()
+            .filter_map(|ev| g.block_text(&ev.version_id, &ev.block_id))
+            .map(|t| crate::vector::cosine_bp(&q, &crate::vector::embed(t)))
+            .max();
+        if let Some(bp) = best {
+            out.insert(e.key.clone(), bp);
+        }
+    }
+    out
+}
+
+fn select(
+    g: &VisibleGraph,
+    seeds: &BTreeSet<String>,
+    scores: Option<&crate::vector::Scores>,
+) -> Vec<Entry> {
+    let bp_of = |k: &str| scores.and_then(|s| s.get(k)).copied().unwrap_or(0);
     let ty = |k: &str| g.entity(k).map(|e| e.ty);
     let mut chosen: BTreeMap<&str, (Sec, &VisibleFact)> = BTreeMap::new();
     // 1-hop facts around the seeds, then the supersedes chain.
@@ -401,6 +430,7 @@ fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
             file: detail_file(subject),
             seed_hit: seeds.contains(&f.subject)
                 || f.object.as_ref().is_some_and(|o| seeds.contains(o)),
+            vec_bp: 0,
             valid_from: f.valid_from.clone(),
             full: fact_text(g, f, true),
             evs: f.evidence.clone(),
@@ -418,7 +448,7 @@ fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
     let mut add = |sec: Sec, e: &VisibleEntity, seed: bool| {
         let evs = entity_evidence(g, &e.key);
         if evs.is_empty() {
-            return;
+            return false;
         }
         extra.push(Entry {
             sec,
@@ -428,6 +458,7 @@ fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
             subject_name: e.name.clone(),
             file: detail_file(e),
             seed_hit: seed,
+            vec_bp: bp_of(&e.key),
             valid_from: g
                 .facts_of(&e.key)
                 .filter_map(|f| f.valid_from.clone())
@@ -437,6 +468,7 @@ fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
             entity_facts: g.facts_of(&e.key).count(),
             level: Level::Full,
         });
+        true
     };
     for k in seeds {
         if let Some(e) = g.entity(k)
@@ -463,6 +495,34 @@ fn select(g: &VisibleGraph, seeds: &BTreeSet<String>) -> Vec<Entry> {
             )
         {
             add(Sec::Other, e, seeds.contains(*k));
+        }
+    }
+    if let Some(s) = scores {
+        // Vector recall: in-scope entities the walk did not reach, best score first, key breaks ties.
+        let mut cand: Vec<(&str, i32)> = s
+            .iter()
+            .filter(|(k, bp)| **bp >= crate::vector::MIN_BP && !reach.contains(k.as_str()))
+            .map(|(k, bp)| (k.as_str(), *bp))
+            .collect();
+        cand.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+        let mut taken = 0;
+        for (k, _) in cand {
+            if taken >= crate::vector::MAX_EXTRA {
+                break;
+            }
+            if let Some(e) = g.entity(k)
+                && matches!(
+                    e.ty,
+                    EntityType::Topic
+                        | EntityType::Term
+                        | EntityType::Event
+                        | EntityType::Organization
+                        | EntityType::Thing
+                )
+                && add(Sec::Other, e, false)
+            {
+                taken += 1;
+            }
         }
     }
     entries.extend(extra);
@@ -736,7 +796,8 @@ pub fn build(g: &VisibleGraph, basis: &str, p: &BriefParams<'_>) -> Result<Brief
     }
     let seeds = resolve_seeds(g, p.task, p.seeds)?;
     let seed_set: BTreeSet<String> = seeds.keys.iter().cloned().collect();
-    let mut entries = select(g, &seed_set);
+    let scores = p.vector.then(|| vector_scores(g, p.task));
+    let mut entries = select(g, &seed_set, scores.as_ref());
     let frame = Frame {
         g,
         basis,

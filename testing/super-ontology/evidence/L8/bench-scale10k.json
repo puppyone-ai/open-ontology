@@ -1,0 +1,23 @@
+{
+  "build": "release",
+  "engine_rss_limit_mib": 1536.0,
+  "engine_rss_mib": 187.734375,
+  "facts": 25100,
+  "files": 10000,
+  "index_files_per_s": 27.535581871538028,
+  "index_limit_s": 18000.0,
+  "index_s": 363.166467542,
+  "list_ms": {
+    "max": 37.508792,
+    "p50": 12.507166,
+    "p95": 23.844125000000002,
+    "samples": 220,
+    "walk_p95": 19.315458
+  },
+  "list_p95_limit_ms": 100.0,
+  "list_stat_limit_s": 60.0,
+  "list_stat_s": 0.166171708,
+  "pg_peak_memory_bytes": 228484710.4,
+  "protocol": "oo.bench.scale/v1",
+  "publish_s": 87.00875975
+}

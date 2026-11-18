@@ -137,6 +137,9 @@ pub struct CompileRequest {
     /// Refresh only: what changed since the old Share's version. It writes "自上次以来的变化" after the head of
     /// BRIEF and is part of the parameters, so the pack still replays byte for byte.
     pub changes: Option<brief::Changes>,
+    /// Local vector model version for "other related" (10 11.3); `None` is off. Part of the
+    /// parameters, so the same version replays byte for byte and another is another pack.
+    pub vector: Option<String>,
 }
 
 impl Default for CompileRequest {
@@ -150,6 +153,7 @@ impl Default for CompileRequest {
             version: None,
             coverage: None,
             changes: None,
+            vector: None,
         }
     }
 }
@@ -283,6 +287,13 @@ pub(crate) fn compile_inner(
             "role must be viewer, suggester or editor",
         ));
     }
+    if req
+        .vector
+        .as_deref()
+        .is_some_and(|v| v != crate::vector::MODEL_VERSION)
+    {
+        return Err(PackError::BadRequest("unknown vector model version"));
+    }
     if req.task.chars().count() > brief::MAX_TASK_CHARS {
         return Err(PackError::TaskTooLong {
             max_chars: brief::MAX_TASK_CHARS,
@@ -318,6 +329,9 @@ pub(crate) fn compile_inner(
     if let (Some(ch), Some(obj)) = (req.changes.as_ref(), params.as_object_mut()) {
         obj.insert("changes".into(), ch.digest_value());
     }
+    if let (Some(v), Some(obj)) = (req.vector.as_ref(), params.as_object_mut()) {
+        obj.insert("vector".into(), json!(v));
+    }
     let params_sha256 = pack::sha256_hex(oo_builder::canonical_json(&params).as_bytes());
     // The pack's identity before any file exists: it goes into every file's
     // AIGC block, so it cannot depend on file bytes (that would be circular,
@@ -346,6 +360,7 @@ pub(crate) fn compile_inner(
             role: &req.role,
             coverage: req.coverage.as_ref(),
             changes: req.changes.as_ref(),
+            vector: req.vector.is_some(),
         },
     )?;
     {

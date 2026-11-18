@@ -1554,3 +1554,29 @@ fn brief_changes_follow_the_head_in_a_fixed_order_with_provenance() {
     let p3 = compile(&r, &small).unwrap();
     assert!(brief(&p3).contains("自上次以来的变化") || brief(&p3).contains("另有"));
 }
+
+// ---------------------------------------------------------------- vectors --
+
+#[test]
+fn vectors_are_off_by_default_and_replay_when_on() {
+    let r = golden_reader(false);
+    let off = compile(&r, &req(&["docs"], "星图看板")).unwrap();
+    let mut rq = req(&["docs"], "星图看板");
+    rq.vector = Some(crate::vector::MODEL_VERSION.to_owned());
+    let a = compile(&r, &rq).unwrap();
+    let b = compile(&r, &rq).unwrap();
+    assert_eq!(all_bytes(&a), all_bytes(&b));
+    assert_eq!(a.pack_digest, b.pack_digest);
+    // The model version is part of the parameters: another pack than the off one.
+    assert_ne!(a.params_sha256, off.params_sha256);
+    // Off stays what it was: same request twice, same bytes, no vector key in the parameters.
+    let off2 = compile(&r, &req(&["docs"], "星图看板")).unwrap();
+    assert_eq!(all_bytes(&off), all_bytes(&off2));
+    // Provenance still complete with vectors on.
+    for l in bullet_lines(&brief(&a)) {
+        assert!(l.contains("[src:"), "{l}");
+    }
+    // Unknown versions are refused.
+    rq.vector = Some("other/9".into());
+    assert!(compile(&r, &rq).is_err());
+}

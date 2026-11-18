@@ -4,6 +4,7 @@
   oo-test l3 run --suite super-ontology --run-id ID                  acceptance 1, 3-5, 8-10 (super_ontology_l3.py)
   oo-test l3 run --suite super-ontology --only faults --run-id ID    the fault injection suite (10 12.5)
   oo-test l3 run --suite super-ontology --bench cold1000 --run-id ID the 1000 file cold bench (L3-6)
+  oo-test l3 run --suite super-ontology --bench scale10k --run-id ID the 10,000 file bench (B-S13-03, 10 11.3)
 
 `--only` for the acceptance run takes the phase names of super_ontology_l3.py.
 The faults run starts one labelled Postgres container, runs the `--ignored`
@@ -74,13 +75,14 @@ def main(argv=None):
     ap.add_argument("--suite", required=True, choices=["super-ontology"])
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--only")
-    ap.add_argument("--bench", choices=["cold1000"])
+    ap.add_argument("--bench", choices=["cold1000", "scale10k"])
     ap.add_argument("--skip-build", action="store_true")
     args = ap.parse_args(argv)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,60}", args.run_id):
         ap.error("invalid run id")
     if args.bench:
-        cmd = [sys.executable, "-B", str(HERE / "super_ontology_bench.py"), "--files", "1000", "--run-id", args.run_id]
+        kind, files = ("scale", "10000") if args.bench == "scale10k" else ("cold", "1000")
+        cmd = [sys.executable, "-B", str(HERE / "super_ontology_bench.py"), "--bench", kind, "--files", files, "--run-id", args.run_id]
     elif args.only == "faults":
         return faults(args.run_id)
     else:
