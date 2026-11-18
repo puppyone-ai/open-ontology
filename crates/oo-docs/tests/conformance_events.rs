@@ -448,6 +448,13 @@ async fn replay(rig: &mut Rig, trace: &Value) -> Result<usize, String> {
                         .await
                         .unwrap();
                     floor = n;
+                    // a purge that leaves the connected client below the floor closes its stream (the model's
+                    // rule; the live `run` loop has no such check, see FM4.md: no retention job exists yet)
+                    if connected && client.cursor < n {
+                        client.stream = None;
+                        client.buf.clear();
+                        connected = false;
+                    }
                     res = "purged".into();
                 }
                 "reconnect" => {
