@@ -227,8 +227,14 @@ impl S3Target {
             &amz_date[..8],
             self.region
         );
+        // `host.docker.internal` is how a compose engine reaches a store on this host; from here
+        // it is the loopback (Docker Desktop maps the name only inside containers).
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(300))
+            .resolve(
+                "host.docker.internal",
+                std::net::SocketAddr::from(([127, 0, 0, 1], 0)),
+            )
             .build()
             .map_err(|_| "http client".to_owned())?;
         let m = reqwest::Method::from_bytes(method.as_bytes()).map_err(|_| "method".to_owned())?;

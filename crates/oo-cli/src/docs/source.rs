@@ -28,9 +28,15 @@ use super::client::{CliError, Daemon, exit};
 use super::docs_cmd::{Parsed, bad, drive_id, out, parse, rev_header, state_of};
 use super::upload::{host_root, read_drive_secret, s3_target};
 
-pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME\n  oo source add postgres|mysql|oracle --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...\n      registers the database in stack.yaml (created by `oo init`); postgres and mysql need --tls-ca-* and --include; password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
+pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME\n  oo source add postgres|mysql|oracle --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...\n      registers the database in stack.yaml (created by `oo init`); postgres and mysql need --tls-ca-* and --include; password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)\n  oo source link ... (document-to-database entity links: `oo source link --help`)\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
 
 pub(super) const VALUED: &[&str] = &[
+    "--table",
+    "--key-col",
+    "--name-col",
+    "--alias-col",
+    "--entity-type",
+    "--drive",
     "--config",
     "--host",
     "--port",
@@ -56,6 +62,7 @@ pub(super) const VALUED: &[&str] = &[
     "--session-token-env",
 ];
 pub(super) const SWITCHES: &[&str] = &[
+    "--no-force",
     "--password-stdin",
     "--path-style",
     "--no-path-style",
@@ -354,7 +361,7 @@ fn public(v: &Value) -> Value {
 /// Entry for `oo source <rest...>`; returns the exit code.
 pub fn run(rest: &[String]) -> u8 {
     if rest.iter().any(|a| a == "--help" || a == "-h") {
-        print!("{HELP}");
+        print!("{HELP}{}", super::source_link::HELP);
         return exit::OK;
     }
     let (Some(sub), tail) = (rest.first(), rest.get(1..).unwrap_or(&[])) else {
@@ -396,6 +403,7 @@ pub fn run(rest: &[String]) -> u8 {
             ("show", Some(n)) if !is_drive => super::source_db::show(&p, n),
             ("rm", Some(n)) if !is_drive => super::source_db::rm(&p, n),
             ("test", Some(n)) if !is_drive => super::source_db::test(&p, n),
+            ("link", _) => super::source_link::run(&conn?, &p).await,
             ("ls", _) => ls(conn.as_ref().ok(), &p).await,
             ("add", _) => add(&conn?, &p).await,
             ("show", _) => show(&conn?, &p).await,
@@ -490,6 +498,12 @@ async fn add(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
             // The credential was made for this registration only.
             if let Some(f) = created {
                 let _ = std::fs::remove_file(f);
+            }
+            let mut e = e;
+            if e.message.contains("does not serve that backend") {
+                e.message.push_str(
+                    "; build oo-docs-engine with `--features objectstore-s3` (the compose image has it)",
+                );
             }
             Err(e)
         }

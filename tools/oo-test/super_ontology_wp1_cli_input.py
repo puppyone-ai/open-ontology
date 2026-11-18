@@ -369,9 +369,11 @@ def main():
                 rep.check("5 rustfs requested but Docker does not answer", False)
             else:
                 mock = RustFs(s3_access, s3_secret) if args.s3 == "rustfs" else mock_s3.MockS3("oo-wp1", s3_access, s3_secret).start()
+                # a compose engine reaches a store on this host by this name (deploy/docs/compose.yaml)
+                engine_endpoint = mock.endpoint.replace("127.0.0.1", "host.docker.internal") if compose else mock.endpoint
                 cred = json.dumps({"access_key_id": s3_access, "secret_access_key": s3_secret})
                 add = ["source", "add", "s3", "--name", "bucket-docs", "--bucket", "oo-wp1", "--prefix", "inbox",
-                       "--endpoint", mock.endpoint, "--path-style", "--credentials-stdin"]
+                       "--endpoint", engine_endpoint, "--path-style", "--credentials-stdin"]
                 rc, src, p = oo.json(*add, input_text=cred)
                 rep.check("5 oo source add s3 --credentials-stdin exits 0", rc == 0 and src.get("backend") == "s3", p.stderr[-300:])
                 sec_files = sorted(f.name for f in secrets_dir.glob("src_*")) if secrets_dir.exists() else []
@@ -475,6 +477,21 @@ def main():
                 listener.close()
             if db:
                 db.stop()
+
+        # --------------------------------------------------- 9 link rules
+        rc, r1, p = oo.json("source", "link", "add", "--table", "sales.customers", "--key-col", "id", "--name-col", "name", "--alias-col", "short", "--entity-type", "Organization")
+        rep.check("9 oo source link add stores a rule on the managed Drive", rc == 0 and r1.get("db_table") == "sales.customers" and r1.get("revision") == 1, p.stderr[-200:])
+        rc, r2, p = oo.json("source", "link", "add", "--table", "sales.customers", "--key-col", "id", "--name-col", "name", "--alias-col", "short", "--entity-type", "Organization")
+        rep.check("9 the same rule again keeps its revision, a changed one moves it", rc == 0 and r2.get("revision") == 1)
+        rc, r3, p = oo.json("source", "link", "add", "--table", "sales.customers", "--key-col", "id", "--name-col", "title")
+        rep.check("9 a changed rule moves the revision", rc == 0 and r3.get("revision") == 2, r3)
+        rc, ls, _ = oo.json("source", "link", "ls")
+        rep.check("9 oo source link ls lists it", rc == 0 and [x["db_table"] for x in ls.get("items", [])] == ["sales.customers"], ls)
+        rc, _, p = oo.json("source", "link", "add", "--table", "bad", "--key-col", "id", "--name-col", "name")
+        rep.check("9 a bad table name is refused by the engine (exit 2)", rc == 2, p.stderr[-200:])
+        rc, _, p = oo.json("source", "link", "rm", "--table", "sales.customers")
+        rc2, ls2, _ = oo.json("source", "link", "ls")
+        rep.check("9 oo source link rm removes it", rc == 0 and ls2.get("items") == [], p.stderr[-200:])
 
         # ------------------------------------------------------------- stop
         if args.autostart:

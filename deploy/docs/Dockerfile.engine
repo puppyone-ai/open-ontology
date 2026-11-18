@@ -6,6 +6,9 @@
 #   docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-be2 \
 #     --build-arg OO_LANE=super-ontology-be2 -t oo-docs-engine:dev .
 #
+# The engine is built with `objectstore-s3` so S3, OSS, COS and R2 Drives work in the default
+# compose runtime (D83).
+#
 # This is not the coordinator-owned deploy/lite/Dockerfile: it builds one
 # binary and carries nothing else. Network is needed at build time only.
 FROM docker.io/library/rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f AS build
@@ -14,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-confi
 WORKDIR /src
 COPY . .
 ENV PROTOC=/usr/bin/protoc CARGO_TARGET_DIR=/build/target CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=8
-RUN cargo build --release --locked -p oo-docs --bin oo-docs-engine \
+RUN cargo build --release --locked -p oo-docs --features objectstore-s3 --bin oo-docs-engine \
  && mkdir /out && cp /build/target/release/oo-docs-engine /out/
 
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f

@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77",
-        "tag": "oo-docs-engine:dev",
-        "size_bytes": 228684364,
-        "dockerfile_sha256": "65bac9211a3543a7ff70235796a4d93c8e543a69cea0f4baf5adbf22e5f43747",
+        "image": "sha256:051f381fe509cc4fa5251c8bbc5ca128f7ce0c249ef02fd498f11fff6b916a8e",
+        "tag": "oo-docs-engine:dev-s3",
+        "size_bytes": 287000000,
+        "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-bint",
-        "built": "2026-11-18",
-        "built_from": "so/B-integration (feat/super-ontology 745a4ecba plus the integration fixes: L4 quality and formal, L6 remainder, L7 and its remainder, L8 vectors, migrations 0147-0149, docs-api 1.5)",
-        "build_note": "the build container has no route to crates.io or the registry, so oo-docs-engine was compiled with cargo build --release --offline --locked in the local rust:1.98.1-bookworm image from the host crate cache (target outside the checkout), put in a layer over the previous oo-docs-engine:dev and the image flattened (docker export | docker import, same ENTRYPOINT, ENV, EXPOSE and labels). The binary in the image has sha256 8427356aae1cca2c5be16e86691d54e5661526c7ec94a8410f11f3a0d024d867. Rebuild with deploy/docs/Dockerfile.engine when the network allows. This single image replaces the dev and dev-be2 entries."
+        "lane": "super-ontology-wp1",
+        "built": "2026-11-19",
+        "built_from": "so/WP1b-s3-link on feat/super-ontology a7364658d; oo-docs-engine built with --features objectstore-s3 so S3, OSS, COS and R2 Drives work in the compose runtime",
+        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-wp1 -t oo-docs-engine:dev-s3 . (online build in rust 1.98.1 bookworm, python base digest above). Tagged dev-s3 so lanes that still lock the earlier image keep their own tag. A store on this host is reached from the engine container at http://host.docker.internal:<port> (extra_hosts in compose.yaml)."
       },
       "linux/amd64": null
     }
