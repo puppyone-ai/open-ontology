@@ -15,6 +15,7 @@ speaker labels S1..; no egress; job scratch (chunks, features) is gone after the
 """
 import argparse
 import json
+import os
 import re
 import secrets
 import subprocess
