@@ -4,12 +4,15 @@
 //! links `oo-docs` (architecture rule R-CLIENT-DB-DRIVER): `oo serve` runs the
 //! engine and a token-checking reverse proxy, `oo context` talks to the proxy.
 
+pub mod agent;
 pub mod client;
 pub mod compose;
 pub mod context;
 pub mod docs_cmd;
 pub mod engine;
+pub mod federate;
 pub mod mounts;
+pub mod ontology;
 pub mod proxy;
 pub mod secrets;
 pub mod serve;
@@ -31,6 +34,14 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         "docs" if rest.iter().any(|a| a == "--help" || a == "-h") => {
             Some(Ok(Invocation::Help(docs_cmd::HELP.into())))
         }
+        "agent" if rest.iter().any(|a| a == "--help" || a == "-h") => {
+            Some(Ok(Invocation::Help(agent::HELP.into())))
+        }
+        "agent" => std::process::exit(i32::from(agent::run(rest))),
+        "ontology" if ontology::is_subcommand(rest) => {
+            std::process::exit(i32::from(ontology::run(rest)))
+        }
+        "mcp" if rest.iter().any(|a| a == "--endpoint") => Some(ontology::mcp(rest)),
         "docs" => std::process::exit(i32::from(docs_cmd::run(rest))),
         "context" => std::process::exit(i32::from(context::run(rest))),
         "serve" if rest.iter().any(|a| a == "--help" || a == "-h") => {
