@@ -176,6 +176,9 @@ impl EngineConfig {
             if let Some(n) = doc["concurrency"]["hash"].as_u64() {
                 concurrency.insert(JobKind::Hash, (n as usize).clamp(1, 32));
             }
+            if let Some(n) = doc["concurrency"]["extract_llm"].as_u64() {
+                concurrency.insert(JobKind::ExtractLlm, (n as usize).clamp(1, 8));
+            }
             if let Some(n) = doc["concurrency"]["media"].as_u64() {
                 concurrency.insert(
                     JobKind::ParseMedia,
@@ -318,13 +321,14 @@ mod tests {
     fn docs_json_overrides() {
         let json = r#"{"version":"oo.docs/v1","limits":{"max_file_bytes":1000},
             "sync":{"fs_poll_seconds":5,"settle_seconds":0,"weekly_hash_audit":false},
-            "concurrency":{"hash":2},"model":null,"unknown":{"x":1}}"#;
+            "concurrency":{"hash":2,"extract_llm":4},"model":null,"unknown":{"x":1}}"#;
         let c = EngineConfig::from_parts(&env_of(BASE), Some(json)).unwrap();
         assert_eq!(c.ingest.max_file_bytes, 1000);
         assert_eq!(c.ingest.settle, Duration::ZERO);
         assert_eq!(c.poll.interval, Duration::from_secs(5));
         assert!(!c.poll.weekly_audit);
         assert_eq!(c.concurrency[&JobKind::Hash], 2);
+        assert_eq!(c.concurrency[&JobKind::ExtractLlm], 4);
         assert!(matches!(
             EngineConfig::from_parts(&env_of(BASE), Some(r#"{"version":"oo.docs/v2"}"#)),
             Err(ConfigError::Version(_))

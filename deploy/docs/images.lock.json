@@ -31,13 +31,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:a138833c3bcfb284c67d2813f4fbed6323987fb942140f1fc1a8bc7ab8929f5b",
+        "image": "sha256:5555bbd35e29ba47c9e84f4bc64999eee320f748caeaed585e8046674bdd867c",
         "tag": "oo-docs-engine:dev",
-        "size_bytes": 246867991,
+        "size_bytes": 251272562,
         "dockerfile_sha256": "30fdc85b0d8509fd83f3b6c9bf3022c2decf1853db286f63bdb59321d443c290",
-        "cargo_lock_sha256": "3a39267b6636fdf1d10435b1c2cf6bd2d14550a4b5563bbd75fc7f0871ebda89",
-        "lane": "super-ontology-be1",
-        "built": "2026-11-17"
+        "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
+        "lane": "super-ontology-be4",
+        "built": "2026-11-17",
+        "built_from": "so/C-L4-finish d3fcf3b73 (feat/super-ontology 3afd43f35 merged, plus the extract_llm stage, model config, retention and PATCH /shares/{sid})",
+        "build_note": "the container had no route to static.rust-lang.org or crates.io, so the binary was compiled with the base image toolchain (rustc 1.94.0, rust-toolchain.toml pins 1.98.1) offline from the host crate cache (cargo build --release --offline --locked) and wrapped in the Dockerfile.engine runtime stage unchanged; rebuild with deploy/docs/Dockerfile.engine when the network allows"
       },
       "linux/amd64": null
     }

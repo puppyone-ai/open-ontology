@@ -39,6 +39,9 @@ use super::scheduler::{HandlerFuture, JobCtx, JobHandler, Outcome};
 use super::{FailureClass, JobKind, JobStatus, NewJob};
 use crate::api::progress::{Bus, Progress};
 use crate::cas::{Cas, CasError, CasKind};
+use crate::extract::llm::PROMPT_VERSION;
+use crate::extract::llm::config::ModelRuntime;
+use crate::extract::llm::run::{Limits, LlmInput, extract_llm};
 use crate::extract::rules::RULESET_VERSION;
 use crate::ingest::HashableSource as _;
 use crate::ingest::files::{self, Extra};
@@ -46,7 +49,7 @@ use crate::ingest::{DriveRef, SourceFactory};
 use crate::parse::sidecar::{self, SidecarClient, SidecarError};
 use crate::parse::{self, LOCAL_PARSER_VERSION};
 use crate::publish::run::{PublishConfig, PublishOutcome, publish};
-use crate::publish::write::{DocumentInput, index_document};
+use crate::publish::write::{DocumentInput, index_document, index_extraction};
 use crate::state::{self, FileState, Transition, TransitionError};
 use crate::store::jobs as store;
 use oo_connectors::objectstore::{DocumentSource, ReadExpect};
@@ -911,27 +914,81 @@ impl<F: SourceFactory> JobHandler for ParseHandler<F> {
 pub struct ExtractHandler {
     pool: PgPool,
     cas: Arc<Cas>,
+    model: Arc<ModelRuntime>,
+}
+
+async fn load_ir_of(pool: &PgPool, cas: &Cas, b3: &str) -> Result<Option<DocIr>, Outcome> {
+    let ir_b3: Option<String> = sqlx::query_scalar(
+        "SELECT ir_b3 FROM _oo_docs.parse_result \
+          WHERE b3 = $1 AND status = 'complete' AND ir_b3 IS NOT NULL \
+          ORDER BY finished_at DESC NULLS LAST LIMIT 1",
+    )
+    .bind(b3)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_fail)?;
+    let Some(ir_b3) = ir_b3 else { return Ok(None) };
+    match cas.get(CasKind::Ir, &ir_b3) {
+        Ok(bytes) => serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|_| Outcome::failed(FailureClass::Permanent, "DOCS_PARSE_IR_INVALID")),
+        Err(CasError::NotFound) => Ok(None),
+        Err(e) => Err(Outcome::failed(FailureClass::Transient, e.code())),
+    }
+}
+
+/// Does this Drive use the model right now: it is enabled on the Drive and the
+/// engine has a model whose egress is up (D19: otherwise rules only).
+async fn llm_wanted(pool: &PgPool, model: &ModelRuntime, drive_id: &str) -> bool {
+    if model.port().is_none() {
+        return false;
+    }
+    sqlx::query_scalar::<_, bool>("SELECT model_enabled FROM _oo_docs.drive WHERE id = $1::uuid")
+        .bind(drive_id)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+}
+
+/// The key of the `extract_llm` job of a file version (4.1.2; the model is
+/// part of the block cache key instead, so a model switch reuses nothing).
+fn llm_key(version_id: &str, b3: &str) -> String {
+    format!("llm:{version_id}:{b3}:{PROMPT_VERSION}")
+}
+
+/// Evidence of earlier versions of this file goes now that the new version
+/// has asserted what still holds; facts left without live evidence are
+/// retracted (4.3.5, D22).
+async fn withdraw_superseded(
+    tx: &mut sqlx::Transaction<'static, sqlx::Postgres>,
+    s: &Subject,
+) -> Result<(), String> {
+    let old: Vec<String> = sqlx::query_scalar(
+        "SELECT id::text FROM _oo_docs.file_version \
+          WHERE file_id = $1::uuid AND id <> $2::uuid AND superseded_at IS NOT NULL \
+            AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
+                         WHERE e.version_id = _oo_docs.file_version.id \
+                           AND e.withdrawn_at IS NULL) \
+          ORDER BY created_at, id",
+    )
+    .bind(&s.file_id)
+    .bind(&s.version_id)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(stage_err)?;
+    for v in &old {
+        files::withdraw_evidence(tx, v, "file_superseded")
+            .await
+            .map_err(stage_err)?;
+    }
+    Ok(())
 }
 
 impl ExtractHandler {
     async fn load_ir(&self, b3: &str) -> Result<Option<DocIr>, Outcome> {
-        let ir_b3: Option<String> = sqlx::query_scalar(
-            "SELECT ir_b3 FROM _oo_docs.parse_result \
-              WHERE b3 = $1 AND status = 'complete' AND ir_b3 IS NOT NULL \
-              ORDER BY finished_at DESC NULLS LAST LIMIT 1",
-        )
-        .bind(b3)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(db_fail)?;
-        let Some(ir_b3) = ir_b3 else { return Ok(None) };
-        match self.cas.get(CasKind::Ir, &ir_b3) {
-            Ok(bytes) => serde_json::from_slice(&bytes)
-                .map(Some)
-                .map_err(|_| Outcome::failed(FailureClass::Permanent, "DOCS_PARSE_IR_INVALID")),
-            Err(CasError::NotFound) => Ok(None),
-            Err(e) => Err(Outcome::failed(FailureClass::Transient, e.code())),
-        }
+        load_ir_of(&self.pool, &self.cas, b3).await
     }
 }
 
@@ -1004,6 +1061,11 @@ impl JobHandler for ExtractHandler {
                     return db_fail(e);
                 }
             }
+            // A model that is up and a Drive that uses it: the file waits in
+            // `extracting` for the `extract_llm` job, which adds its facts and
+            // moves the file on. Same blocks as before (reused) need no model.
+            let with_llm =
+                reused.is_none() && llm_wanted(&self.pool, &self.model, &s.drive_id).await;
             let mut tx = match begin_stage(&self.pool).await {
                 Ok(t) => t,
                 Err(e) => return db_fail(e),
@@ -1017,32 +1079,22 @@ impl JobHandler for ExtractHandler {
                     JobStatus::Succeeded => {}
                     _ => return Ok(false),
                 }
-                // Evidence of earlier versions of this file goes now that the
-                // new version has asserted what still holds; facts left
-                // without live evidence are retracted (4.3.5, D22).
-                let old: Vec<String> = sqlx::query_scalar(
-                    "SELECT id::text FROM _oo_docs.file_version \
-                      WHERE file_id = $1::uuid AND id <> $2::uuid AND superseded_at IS NOT NULL \
-                        AND EXISTS (SELECT 1 FROM _oo_docs.evidence e \
-                                     WHERE e.version_id = _oo_docs.file_version.id \
-                                       AND e.withdrawn_at IS NULL) \
-                      ORDER BY created_at, id",
-                )
-                .bind(&s.file_id)
-                .bind(&s.version_id)
-                .fetch_all(&mut *tx)
-                .await
-                .map_err(stage_err)?;
+                if with_llm {
+                    let key = llm_key(&s.version_id, &s.b3);
+                    let mut job = NewJob::new(JobKind::ExtractLlm, &key);
+                    job.drive_id = Some(&s.drive_id);
+                    job.file_id = Some(&s.file_id);
+                    job.version_id = Some(&s.version_id);
+                    job.priority = PRIORITY_NEW;
+                    store::enqueue(&mut tx, &job).await.map_err(stage_err)?;
+                    return Ok::<bool, String>(true);
+                }
                 if let Some(prev) = &reused {
                     files::copy_evidence(&mut tx, prev, &s.version_id)
                         .await
                         .map_err(stage_err)?;
                 }
-                for v in &old {
-                    files::withdraw_evidence(&mut tx, v, "file_superseded")
-                        .await
-                        .map_err(stage_err)?;
-                }
+                withdraw_superseded(&mut tx, &s).await?;
                 let detail = reused
                     .as_ref()
                     .map(|p| format!("{{\"reused_from\":\"{p}\",\"by\":\"block_ids\"}}"));
@@ -1072,6 +1124,197 @@ impl JobHandler for ExtractHandler {
     }
 }
 
+// ---------------------------------------------------------- extract_llm
+
+/// `extract_llm` handler (10 §5.2): the model's supplement to the rules.
+///
+/// The rules job has indexed its drafts and left the file in `extracting`;
+/// this job asks the model batch by batch (cache, caps and reservations are in
+/// [`extract_llm`]), stores what it said with `origin = llm` and moves the
+/// file on: `indexed`, or `extract_partial` when a batch failed after its
+/// retry (the batches that worked stand). A model that is gone, a Drive that
+/// switched it off, a reached cap: the file goes to `indexed` with what the
+/// rules found (D19), never stuck, never failed.
+pub struct ExtractLlmHandler {
+    pool: PgPool,
+    cas: Arc<Cas>,
+    model: Arc<ModelRuntime>,
+}
+
+/// `Type:name` of the entities the Drive knows that matter for this file:
+/// the ones the rules found in it, then the most asserted ones.
+async fn known_entities(pool: &PgPool, version_id: &str) -> Vec<String> {
+    sqlx::query_scalar::<_, String>(
+        "(SELECT e.type || ':' || e.canonical_name FROM _oo_docs.entity e \
+           WHERE e.status = 'active' AND e.id IN ( \
+                 SELECT unnest(ARRAY[f.subject_id, f.object_id]) FROM _oo_docs.evidence ev \
+                   JOIN _oo_docs.fact f ON f.id = ev.target_id \
+                  WHERE ev.target_kind = 'fact' AND ev.version_id = $1::uuid \
+                    AND ev.withdrawn_at IS NULL) \
+           ORDER BY e.canonical_name LIMIT 50) \
+         UNION \
+         (SELECT e.type || ':' || e.canonical_name FROM _oo_docs.entity e \
+           JOIN _oo_docs.fact f ON f.subject_id = e.id AND f.status = 'published' \
+          WHERE e.status = 'active' AND e.type <> 'Thing' \
+          GROUP BY e.id ORDER BY count(*) DESC, e.canonical_name LIMIT 50)",
+    )
+    .bind(version_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+}
+
+impl JobHandler for ExtractLlmHandler {
+    fn run(&self, ctx: JobCtx) -> HandlerFuture<'_> {
+        Box::pin(async move {
+            let s = match load_subject(&ctx).await {
+                Ok(Some(s)) => s,
+                Ok(None) => return Outcome::Done,
+                Err(e) => return db_fail(e),
+            };
+            if s.state != FileState::Extracting {
+                return Outcome::Done;
+            }
+            let drive: Option<(bool, i32)> = match sqlx::query_as(
+                "SELECT model_enabled, llm_daily_calls FROM _oo_docs.drive WHERE id = $1::uuid",
+            )
+            .bind(&s.drive_id)
+            .fetch_optional(&self.pool)
+            .await
+            {
+                Ok(d) => d,
+                Err(e) => return db_fail(e),
+            };
+            let port = drive
+                .filter(|(enabled, _)| *enabled)
+                .and_then(|_| self.model.port());
+            let mut to = FileState::Indexed;
+            let mut code: Option<&str> = None;
+            let mut detail = serde_json::json!({ "llm": "skipped" });
+            let mut checkpoint: Option<String> = None;
+            if let (Some(port), Some((_, daily))) = (port, drive) {
+                let ir = match load_ir_of(&self.pool, &self.cas, &s.b3).await {
+                    Ok(Some(ir)) => ir,
+                    Ok(None) => {
+                        return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_CAS_MISSING");
+                    }
+                    Err(o) => return o,
+                };
+                if ctx.should_stop() {
+                    return Outcome::Cancelled;
+                }
+                let calls_used = ctx
+                    .job
+                    .checkpoint
+                    .as_deref()
+                    .and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok())
+                    .and_then(|v| v["calls"].as_u64())
+                    .unwrap_or(0) as u32;
+                let known = known_entities(&self.pool, &s.version_id).await;
+                let mut conn = match self.pool.acquire().await {
+                    Ok(c) => c,
+                    Err(e) => return db_fail(e),
+                };
+                let title = std::path::Path::new(&s.path)
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&s.path)
+                    .to_owned();
+                let input = LlmInput {
+                    drive_id: &s.drive_id,
+                    path: &s.path,
+                    title: &title,
+                    ir: &ir,
+                    known,
+                    calls_used,
+                };
+                let limits = Limits {
+                    daily,
+                    ..Limits::default()
+                };
+                let (x, stats) =
+                    match extract_llm(&mut conn, &self.cas, &*port, limits, &input).await {
+                        Ok(r) => r,
+                        Err(e) => return db_fail(e),
+                    };
+                let doc = DocumentInput {
+                    version_id: &s.version_id,
+                    b3: &s.b3,
+                    path: &s.path,
+                    ir: &ir,
+                };
+                if let Err(e) = index_extraction(&mut conn, &doc, &x).await {
+                    return db_fail(e);
+                }
+                drop(conn);
+                checkpoint = Some(format!(
+                    "{{\"calls\":{}}}",
+                    u64::from(calls_used) + u64::from(stats.calls)
+                ));
+                if stats.failed_batches > 0 {
+                    to = FileState::ExtractPartial;
+                    code = Some("DOCS_EXTRACT_PARTIAL");
+                }
+                detail = serde_json::json!({
+                    "llm": "done", "batches": stats.batches, "calls": stats.calls,
+                    "cache_hits": stats.cache_hits, "failed_batches": stats.failed_batches,
+                    "schema_invalid": stats.schema_invalid,
+                    "limit": if stats.file_limited { "DOCS_EXTRACT_LLM_LIMIT_FILE" }
+                        else if stats.drive_limited { "DOCS_EXTRACT_LLM_LIMIT_DRIVE" }
+                        else { "" },
+                });
+            }
+            let mut tx = match begin_stage(&self.pool).await {
+                Ok(t) => t,
+                Err(e) => return db_fail(e),
+            };
+            let detail = detail.to_string();
+            let r = async {
+                if let Some(cp) = &checkpoint {
+                    let _ = store::save_checkpoint(
+                        &mut tx,
+                        &ctx.job.id,
+                        &ctx.owner,
+                        ctx.job.generation,
+                        cp,
+                    )
+                    .await;
+                }
+                match store::complete(&mut tx, &ctx.job.id, &ctx.owner, ctx.job.generation)
+                    .await
+                    .map_err(stage_err)?
+                    .status
+                {
+                    JobStatus::Succeeded => {}
+                    _ => return Ok(false),
+                }
+                withdraw_superseded(&mut tx, &s).await?;
+                match state::transition_in_tx(
+                    &mut tx,
+                    &Transition {
+                        file_id: &s.file_id,
+                        expect_from: Some(FileState::Extracting),
+                        to,
+                        code,
+                        retryable: code.is_some(),
+                        version_id: Some(&s.version_id),
+                        attempt: Some(ctx.job.attempt),
+                        detail_json: Some(&detail),
+                    },
+                )
+                .await
+                {
+                    Ok(_) | Err(TransitionError::Conflict { .. } | TransitionError::NotFound) => {}
+                    Err(e) => return Err(stage_err(e)),
+                }
+                Ok::<bool, String>(true)
+            }
+            .await;
+            finish(tx, r).await
+        })
+    }
+}
+
 // -------------------------------------------------------------- publish
 
 /// `publish` handler: one ontology version from the eligible drafts, then
@@ -1083,14 +1326,24 @@ pub struct PublishHandler {
 
 impl PublishHandler {
     async fn promote(&self, n: Option<i64>) -> Result<u32, TransitionError> {
-        let rows: Vec<(String, String)> = sqlx::query_as(
-            "SELECT f.id::text, fv.id::text FROM _oo_docs.file f \
+        // `extract_partial` after a failed model batch publishes like `indexed`
+        // (the batches that worked stand); one from a failed rules job has no
+        // drafts and stays where it is. A draft that waits for a person in the
+        // review queue does not hold the file back (`pending_review` counts it, 4.2).
+        let rows: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
-              WHERE f.state = 'indexed' AND f.deleted_at IS NULL \
+              WHERE (f.state = 'indexed' OR (f.state = 'extract_partial' AND EXISTS ( \
+                      SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
+                         AND j.version_id = f.current_version_id AND j.state = 'succeeded'))) \
+                AND f.deleted_at IS NULL \
                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
                                   JOIN _oo_docs.fact ft ON ft.id = e.target_id \
                                  WHERE e.target_kind = 'fact' AND e.version_id = fv.id \
-                                   AND e.withdrawn_at IS NULL AND ft.status = 'draft') \
+                                   AND e.withdrawn_at IS NULL AND ft.status = 'draft' \
+                                   AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
+                                                    WHERE r.status = 'pending' \
+                                                      AND r.subject->>'fact_id' = ft.id::text)) \
                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
                                   JOIN _oo_docs.alias a ON a.id = e.target_id \
                                  WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
@@ -1101,12 +1354,12 @@ impl PublishHandler {
         .await?;
         let detail = serde_json::json!({ "ontology_version": n }).to_string();
         let mut done = 0;
-        for (file_id, version_id) in rows {
+        for (file_id, version_id, from) in rows {
             match state::transition(
                 &self.pool,
                 &Transition {
                     file_id: &file_id,
-                    expect_from: Some(FileState::Indexed),
+                    expect_from: FileState::parse(&from),
                     to: FileState::Published,
                     code: None,
                     retryable: false,
@@ -1201,6 +1454,26 @@ pub fn handlers_with_sidecar<F: SourceFactory>(
     progress: Option<Bus>,
     sidecar: Option<Arc<SidecarClient>>,
 ) -> HashMap<JobKind, Arc<dyn JobHandler>> {
+    handlers_with_model(
+        pool,
+        factory,
+        cas,
+        progress,
+        sidecar,
+        ModelRuntime::disabled(),
+    )
+}
+
+/// [`handlers_with_sidecar`] with the engine's model: a Drive that has the
+/// model enabled gets the `extract_llm` stage after the rules.
+pub fn handlers_with_model<F: SourceFactory>(
+    pool: &PgPool,
+    factory: Arc<F>,
+    cas: Arc<Cas>,
+    progress: Option<Bus>,
+    sidecar: Option<Arc<SidecarClient>>,
+    model: Arc<ModelRuntime>,
+) -> HashMap<JobKind, Arc<dyn JobHandler>> {
     let mut map: HashMap<JobKind, Arc<dyn JobHandler>> = HashMap::new();
     map.insert(
         JobKind::Parse,
@@ -1217,6 +1490,15 @@ pub fn handlers_with_sidecar<F: SourceFactory>(
         Arc::new(Contended(ExtractHandler {
             pool: pool.clone(),
             cas: cas.clone(),
+            model: model.clone(),
+        })),
+    );
+    map.insert(
+        JobKind::ExtractLlm,
+        Arc::new(Contended(ExtractLlmHandler {
+            pool: pool.clone(),
+            cas: cas.clone(),
+            model,
         })),
     );
     map.insert(
@@ -1234,6 +1516,7 @@ pub fn default_concurrency() -> HashMap<JobKind, usize> {
     HashMap::from([
         (JobKind::Parse, 4),
         (JobKind::ExtractRules, 2),
+        (JobKind::ExtractLlm, 2),
         (JobKind::Publish, 1),
     ])
 }
@@ -1376,6 +1659,10 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
           WHERE f.state IN ('parsed', 'extracting') AND f.deleted_at IS NULL \
             AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
                               AND j.version_id = f.current_version_id AND j.state IN ('queued', 'running')) \
+            AND NOT (f.state = 'extracting' AND EXISTS (SELECT 1 FROM _oo_docs.job j \
+                        WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
+                          AND j.version_id = f.current_version_id AND j.state = 'succeeded' \
+                          AND j.updated_at >= f.state_since)) \
           ORDER BY f.state_since, f.id LIMIT $1",
     )
     .bind(PUMP_BATCH)
@@ -1390,6 +1677,46 @@ pub async fn pump_once_with(pool: &PgPool, paused: bool) -> Result<u32, crate::s
         if enqueue_stage(
             &mut conn,
             JobKind::ExtractRules,
+            &key,
+            &drive_id,
+            &file_id,
+            &version_id,
+            PRIORITY_NEW,
+        )
+        .await?
+        {
+            enqueued += 1;
+        }
+    }
+
+    // extracting, rules done -> extract_llm (a lost wake-up, or a job that
+    // failed for good: the file goes on with what the rules found).
+    let rows: Vec<(String, String, String, String, bool)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text, f.drive_id::text, fv.b3, \
+                EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_llm' AND j.file_id = f.id \
+                          AND j.version_id = f.current_version_id \
+                          AND j.state IN ('failed', 'quarantined') AND j.updated_at >= f.state_since) \
+           FROM _oo_docs.file f JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+          WHERE f.state = 'extracting' AND f.deleted_at IS NULL \
+            AND EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
+                          AND j.version_id = f.current_version_id AND j.state = 'succeeded' \
+                          AND j.updated_at >= f.state_since) \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_llm' AND j.file_id = f.id \
+                              AND j.version_id = f.current_version_id AND j.state IN ('queued', 'running')) \
+          ORDER BY f.state_since, f.id LIMIT $1",
+    )
+    .bind(PUMP_BATCH)
+    .fetch_all(&mut *conn)
+    .await?;
+    for (file_id, version_id, drive_id, b3, failed) in rows {
+        if failed {
+            fail_file(pool, &file_id, &version_id, FileState::ExtractPartial, None).await;
+            continue;
+        }
+        let key = llm_key(&version_id, &b3);
+        if enqueue_stage(
+            &mut conn,
+            JobKind::ExtractLlm,
             &key,
             &drive_id,
             &file_id,
@@ -1539,7 +1866,7 @@ async fn fail_file(
 ) {
     let last: Option<(Option<String>, String)> = sqlx::query_as(
         "SELECT last_error, state FROM _oo_docs.job \
-          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'extract_rules') \
+          WHERE file_id = $1::uuid AND version_id = $2::uuid AND kind IN ('parse', 'extract_rules', 'extract_llm') \
             AND state IN ('failed', 'quarantined') ORDER BY updated_at DESC LIMIT 1",
     )
     .bind(file_id)
@@ -1608,7 +1935,11 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
     let mut enqueued = 0;
     // indexed files and unpublished retractions -> publish (debounced)
     let due: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f WHERE f.state = 'indexed' AND f.deleted_at IS NULL \
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \
+                         WHERE (f.state = 'indexed' OR (f.state = 'extract_partial' AND EXISTS ( \
+                                 SELECT 1 FROM _oo_docs.job x WHERE x.kind = 'extract_rules' AND x.file_id = f.id \
+                                    AND x.version_id = f.current_version_id AND x.state = 'succeeded'))) \
+                           AND f.deleted_at IS NULL \
                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
                                           AND j.created_at >= f.state_since \
                                           AND j.state IN ('queued', 'running', 'succeeded'))) \

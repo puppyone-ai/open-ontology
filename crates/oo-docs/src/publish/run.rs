@@ -567,19 +567,24 @@ pub async fn publish(
     let publish_alias_ids: Vec<String> = ok_aliases.iter().map(|a| a.id.clone()).collect();
     let mut touched: Vec<String> = publish_fact_ids.clone();
     touched.extend(publish_alias_ids.iter().cloned());
-    let files: Vec<(String, String)> = sqlx::query_as(
-        "SELECT DISTINCT f.id::text, fv.id::text \
+    // `extract_partial` after a failed model batch publishes like `indexed`
+    // (10 4.2); one from a failed rules job has no succeeded rules job.
+    let files: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT DISTINCT f.id::text, fv.id::text, f.state \
            FROM _oo_docs.evidence e \
            JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
            JOIN _oo_docs.file f ON f.id = fv.file_id \
           WHERE e.withdrawn_at IS NULL AND e.target_kind IN ('fact', 'alias') \
-            AND e.target_id = ANY($1::text[]::uuid[]) AND f.state = 'indexed' \
+            AND e.target_id = ANY($1::text[]::uuid[]) \
+            AND (f.state = 'indexed' OR (f.state = 'extract_partial' AND EXISTS ( \
+                  SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'extract_rules' AND j.file_id = f.id \
+                     AND j.version_id = f.current_version_id AND j.state = 'succeeded'))) \
           ORDER BY 1, 2",
     )
     .bind(&touched)
     .fetch_all(&mut *tx)
     .await?;
-    let settling: Vec<String> = files.iter().map(|(f, _)| f.clone()).collect();
+    let settling: Vec<String> = files.iter().map(|(f, _, _)| f.clone()).collect();
     let covers = crate::store::rev::covers_drive_rev(&mut tx, &settling).await?;
     sqlx::query(
         "INSERT INTO _oo_docs.ontology_version \
@@ -655,7 +660,7 @@ pub async fn publish(
     // one after the first event would deadlock with it.
     let lock_ids: Vec<String> = files
         .iter()
-        .map(|(f, _)| f.clone())
+        .map(|(f, _, _)| f.clone())
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -667,13 +672,13 @@ pub async fn publish(
     .await?;
     let mut files_published = 0u32;
     let mut seen_files = BTreeSet::new();
-    for (file_id, version_id) in &files {
+    for (file_id, version_id, from) in &files {
         if !seen_files.insert(file_id.clone()) {
             continue;
         }
         let req = Transition {
             file_id,
-            expect_from: Some(FileState::Indexed),
+            expect_from: FileState::parse(from),
             to: FileState::Published,
             code: None,
             retryable: false,

@@ -274,6 +274,17 @@ class Tests(unittest.TestCase):
         with self.assertRaises(Refusal):
             read_key('model-key', self.secrets)
 
+    def test_env_reference_reads_the_environment_and_refuses_bad_names(self):
+        with patch.dict(os.environ, {'OO_TEST_MODEL_KEY': 'env-secret-value'}):
+            self.assertEqual(read_key('env:OO_TEST_MODEL_KEY'), 'env-secret-value')
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('OO_TEST_MODEL_KEY', None)
+            with self.assertRaisesRegex(Refusal, 'SECRET_CONTENT'):
+                read_key('env:OO_TEST_MODEL_KEY')
+        for bad in ('env:', 'env:1X', 'env:A-B', 'env:A B'):
+            with self.assertRaisesRegex(Refusal, 'SECRET_REFERENCE'):
+                read_key(bad)
+
     def test_in_place_file_sources_keep_the_same_private_file_boundary(self):
         reference = 'file:' + str(self.path)
         self.assertEqual(read_key(reference), self.key)
@@ -297,6 +308,18 @@ class Tests(unittest.TestCase):
         leaf.symlink_to(self.secrets, target_is_directory=True)
         with self.assertRaises(OSError):
             read_key('model-key', leaf)
+
+    def test_the_listener_serves_requests_in_parallel(self):
+        import socketserver
+        egress = Egress({'provider': 'openai-compatible', 'base_url': 'http://127.0.0.1:9/v1',
+                         'model': 'fixture-model', 'key': {'secret_ref': 'model-key'}}, None, 30, self.secrets)
+        try:
+            with server(egress, '127.0.0.1', 0) as httpd:
+                self.assertIsInstance(httpd, socketserver.ThreadingMixIn)
+                self.assertTrue(httpd.daemon_threads)
+                self.assertGreaterEqual(httpd.request_queue_size, 32)
+        finally:
+            egress.close()
 
     def test_url_and_listener_guards(self):
         for url in ('http://example.com/v1', 'https://user:pass@example.com',

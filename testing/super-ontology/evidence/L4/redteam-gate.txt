@@ -1,0 +1,14 @@
+# red-team gate, all formats, compose runtime, run final3
+[PASS] the Drive holds every golden format and the red-team files - {".csv": 4, ".docx": 11, ".md": 19, ".pdf": 7, ".pptx": 6, ".txt": 4, ".xlsx": 4}
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-redteam-final3-kqi9higa/state --deploy-dir <repo>/deploy/docs
+  {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:459d9a51db66078a472f40284ee63a7e0cf4cc2fc1ab0d8e335b14423634f776"}, "mode": "compose", "port": 50888, "project": "oo-docs-34ed8cc0ec44"}, "pid": 32279, "port": 51015, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T01:26:57Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] Drive registered - HTTP 201
+[PASS] every file reached a final state - 189s {"published": 55}
+[PASS] every file is published (docx, pptx and pdf included) - {"published": 55}
+[PASS] the four red-team files are published - {"Confidential/夜航计划.txt": "published", "Confidential/并购评估备忘.md": "published", "Confidential/董事会纪要.docx": "published", "Confidential/薪酬调整.csv": "published"}
+[PASS] scopes without the red-team files were mounted - 5 scopes x 3 tasks, 466 files
+  adversarial task refused by the leak guard in 5 of 5 scopes: ['all-main', 'projects-only', 'people-and-prefs', 'meetings-only', 'decisions-only']
+[PASS] GATE: zero canary or red-team-only hits in every pack of every scope that excludes them - 466 files scanned, 0 hits []
+[PASS] control: a pack that includes Confidential/ does show red-team-only names - 4 occurrences
+[PASS] control: every red-team file, the docx included, was parsed completely (its canary is in the stored blocks) - {"Confidential/董事会纪要.docx": true, "Confidential/并购评估备忘.md": true, "Confidential/薪酬调整.csv": true, "Confidential/夜航计划.txt": true}
+[PASS] cleanup left nothing - 0 left

@@ -179,6 +179,34 @@ pub async fn get(app: &AppState, sid: &str) -> Result<Response<Body>, ApiError> 
     Ok(json_with(200, &v, &[]))
 }
 
+/// `PATCH /v1/docs/shares/{sid}` (G6): the expiry of an active or drifted share,
+/// at most 30 days after its creation; `If-Match: "r<revision>"`. Content,
+/// version and refresh policy do not change and nothing is refreshed.
+pub async fn patch(app: &AppState, sid: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(sid) {
+        return Err(share_not_found(sid));
+    }
+    let want = super::http::if_match(&req.headers)?;
+    let body = parse_json(&req.body)?;
+    let obj = body
+        .as_object()
+        .ok_or_else(|| ApiError::bad("", "expected an object"))?;
+    if let Some(k) = obj.keys().find(|k| k.as_str() != "expires_at") {
+        return Err(ApiError::bad(
+            &format!("/{k}"),
+            "only expires_at can be changed",
+        ));
+    }
+    let expires = obj
+        .get("expires_at")
+        .and_then(Value::as_str)
+        .ok_or_else(|| ApiError::bad("/expires_at", "expires_at is required"))?;
+    let mut conn = app.pool.acquire().await?;
+    let v = lifecycle::extend(&mut conn, sid, want, expires).await?;
+    let rev = v["revision"].as_i64().unwrap_or(want + 1);
+    Ok(json_with(200, &v, &[("ETag", super::http::etag(rev))]))
+}
+
 /// `GET /v1/docs/shares?state&drive_id&group_id&limit&cursor`.
 pub async fn list(app: &AppState, req: &Req) -> Result<Response<Body>, ApiError> {
     let limit = req.query.limit()?;

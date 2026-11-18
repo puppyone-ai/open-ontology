@@ -9,6 +9,7 @@ use std::fmt;
 pub mod events;
 pub mod install;
 pub mod jobs;
+pub mod retention;
 pub mod rev;
 
 /// Database failure with the SQLSTATE kept apart from the message.

@@ -69,6 +69,8 @@ pub struct HealthProbe {
     ready: std::sync::atomic::AtomicBool,
     usage: Mutex<Option<(Instant, u64, u64)>>,
     sample: Mutex<Option<(Instant, SampleReport)>>,
+    /// What the parse stage can read (`set_parser`); local md, txt, csv and xlsx by default.
+    parser: Mutex<Value>,
 }
 
 impl HealthProbe {
@@ -86,6 +88,9 @@ impl HealthProbe {
             disk,
             schema_versions,
             started: Instant::now(),
+            parser: Mutex::new(serde_json::json!({
+                "kind": "local", "formats": ["md", "txt", "csv", "xlsx"]
+            })),
             ready: std::sync::atomic::AtomicBool::new(false),
             usage: Mutex::new(None),
             sample: Mutex::new(None),
@@ -93,6 +98,21 @@ impl HealthProbe {
     }
 
     /// The engine finished starting.
+    /// Say how files are parsed: `local` (md, txt, csv, xlsx in the engine) or
+    /// `local+sidecar` with the Docling sidecar for pdf, docx and pptx.
+    pub fn set_parser(&self, with_sidecar: bool) {
+        let v = if with_sidecar {
+            serde_json::json!({"kind": "local+sidecar",
+                "formats": ["md", "txt", "csv", "xlsx", "pdf", "docx", "pptx"],
+                "sidecar_formats": ["pdf", "docx", "pptx"]})
+        } else {
+            serde_json::json!({"kind": "local", "formats": ["md", "txt", "csv", "xlsx"]})
+        };
+        if let Ok(mut g) = self.parser.lock() {
+            *g = v;
+        }
+    }
+
     pub fn set_ready(&self) {
         self.ready.store(true, std::sync::atomic::Ordering::Relaxed);
     }
@@ -215,8 +235,7 @@ impl HealthProbe {
             "status": status,
             "components": {
                 "db": db,
-                // md and txt parse in a local child process; no sidecar yet.
-                "parser": { "status": "ok", "detail": { "kind": "local", "formats": ["md", "txt"] } },
+                "parser": { "status": "ok", "detail": self.parser.lock().map_or(Value::Null, |g| g.clone()) },
                 "model": { "status": "not_configured" },
                 "cas": cas,
                 "engine": { "status": if ready { "ok" } else { "starting" } },

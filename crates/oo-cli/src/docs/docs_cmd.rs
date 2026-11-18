@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]...\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>...\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -187,6 +187,7 @@ pub fn run(rest: &[String]) -> u8 {
         "--confirm-mass-delete",
         "--kinds",
         "--q",
+        "--winner",
     ];
     let switches = [
         "--deep",
@@ -547,7 +548,12 @@ async fn review_decide(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
                 .find(|i| i["id"] == id.as_str())
                 .and_then(|i| i["revision"].as_i64())
                 .ok_or_else(|| bad(format!("{id} is not a pending item")))?;
-            Ok(json!({"id": id, "revision": rev, "decision": decision}))
+            let mut item = json!({"id": id, "revision": rev, "decision": decision});
+            // A constraint conflict is accepted by naming the fact that stays.
+            if let (Some(w), "accept") = (p.opt("--winner"), decision) {
+                item["edit"] = json!({"winner": w});
+            }
+            Ok(item)
         })
         .collect::<Result<_, CliError>>()?;
     let v = d
@@ -762,8 +768,15 @@ async fn entity_split(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
         "oo.docs-split/v1",
         v.clone(),
         format!(
-            "split {key} into {} entities",
-            v["entities"].as_array().map_or(0, Vec::len)
+            "split {key}: {} new entities {}",
+            v["results"].as_array().map_or(0, Vec::len),
+            v["results"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|r| r["id"].as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
     );
     Ok(())
@@ -793,6 +806,23 @@ mod tests {
         assert_eq!(p.pos, ["x", "y"]);
         assert!(parse(&a(&["--bogus"]), &[], &[]).is_err());
         assert!(parse(&a(&["--name"]), &["--name"], &[]).is_err());
+    }
+
+    #[test]
+    fn a_winner_flag_is_a_valued_option() {
+        let p = parse(
+            &[
+                "accept".into(),
+                "id1".into(),
+                "--winner".into(),
+                "f1".into(),
+            ],
+            &["--winner"],
+            &[],
+        )
+        .unwrap();
+        assert_eq!(p.opt("--winner"), Some("f1"));
+        assert_eq!(p.pos, ["accept", "id1"]);
     }
 
     #[test]

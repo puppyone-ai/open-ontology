@@ -4,6 +4,7 @@ import argparse
 from collections import deque
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import ipaddress
 import io
 import json
@@ -52,6 +53,12 @@ def private_open(path, flags=os.O_RDONLY, mode=0o600, directory=False):
 
 
 def read_key(name, root=None):
+    if isinstance(name, str) and name.startswith('env:'):
+        # The owner's environment (the engine's, inherited): never a file, never echoed.
+        var = name[4:]
+        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,127}', var):
+            raise Refusal('SECRET_REFERENCE', 500)
+        return secret_text(os.environ.get(var, '').encode('utf-8', 'replace'))
     if isinstance(name, str) and name.startswith('file:'):
         path = Path(name[5:])
         if not path.is_absolute() or '..' in path.parts:
@@ -550,7 +557,12 @@ def server(egress, host, port):
         def do_GET(self):
             self.send_json(404, {'error': {'code': 'NOT_FOUND'}})
 
-    class LocalServer(HTTPServer):
+    class LocalServer(ThreadingMixIn, HTTPServer):
+        # One thread per request: a slow upstream call must not stall the rest
+        # (the docs engine runs several extraction workers). The rate limiter and
+        # the meter take the Egress lock, so admission stays exact.
+        daemon_threads = True
+        request_queue_size = 64
         address_family = socket.AF_INET6 if ':' in host else socket.AF_INET
 
         def handle_error(self, _request, _address):
@@ -573,6 +585,9 @@ def main():
     parser.add_argument('--port', default=8317, type=int)
     parser.add_argument('--rpm', default=30, type=int)
     parser.add_argument('--probe', action='store_true')
+    # A supervisor (the docs engine) passes its pid: the egress ends with it, so a
+    # killed supervisor leaves no process holding the owner's credentials.
+    parser.add_argument('--exit-with-parent', type=int, default=0, metavar='PID')
     # Idle read timeout per upstream request; long-context models can pause for minutes.
     parser.add_argument('--timeout', default=45, type=int)
     egress = None
@@ -596,6 +611,17 @@ def main():
             print(json.dumps(egress.probe()))
         else:
             with server(egress, args.listen, args.port) as httpd:
+                if args.exit_with_parent > 0:
+                    def watch(pid=args.exit_with_parent):
+                        while True:
+                            time.sleep(1)
+                            try:
+                                os.kill(pid, 0)
+                            except ProcessLookupError:
+                                os._exit(0)
+                            except PermissionError:
+                                pass
+                    threading.Thread(target=watch, daemon=True).start()
                 httpd.serve_forever()
         return 0
     except Refusal as error:

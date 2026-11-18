@@ -187,14 +187,16 @@ fn stop(state: &Path) -> u8 {
         return exit::OTHER;
     };
     engine::signal(pid, "TERM");
-    for _ in 0..150 {
+    // Stopping the compose runtime stops three containers (docker's own grace
+    // period each), so the wait is longer than for a host process.
+    for _ in 0..900 {
         if !secrets::is_running(state) {
             println!("oo serve stopped");
             return exit::OK;
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    eprintln!("oo serve: did not stop within 15 s");
+    eprintln!("oo serve: did not stop within 90 s");
     exit::OTHER
 }
 

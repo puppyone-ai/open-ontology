@@ -296,35 +296,43 @@ async fn fm6_refresh_policy_credentials_group_and_extension() {
         "active",
         "check does not refresh a manual share"
     );
-    // extension changes only the end date
+    // extension changes only the end date (G6: If-Match, at most 30 days from creation)
     let before = share(&e, &sm).await;
-    let later = "2099-01-01T00:00:00Z";
-    let p = e
-        .req(
-            "PATCH",
-            &format!("/v1/docs/shares/{sm}"),
-            &[("Idempotency-Key", &key())],
-            Some(&json!({"expires_at": later})),
+    let rev = before["revision"].as_i64().expect("share revision");
+    let at = |days: i32| {
+        format!(
+            "SELECT to_char((created_at + interval '{days} days') AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') \
+               FROM _oo_docs.share WHERE id = '{sm}'"
         )
-        .await;
+    };
+    let later = fx.text(&at(20)).await.remove(0);
+    let beyond = fx.text(&at(31)).await.remove(0);
+    let patch = |when: String| {
+        let e = &e;
+        let path = format!("/v1/docs/shares/{sm}");
+        async move {
+            e.req(
+                "PATCH",
+                &path,
+                &[("If-Match", &format!("\"r{rev}\""))],
+                Some(&json!({"expires_at": when})),
+            )
+            .await
+        }
+    };
+    assert_eq!(
+        patch(beyond).await.status,
+        400,
+        "more than 30 days after creation"
+    );
+    let p = patch(later.clone()).await;
+    assert_eq!(p.status, 200, "{}", String::from_utf8_lossy(&p.body));
     let after = share(&e, &sm).await;
-    if p.status == 200 {
-        assert_eq!(
-            (&after["pack_digest"], &after["version"], &after["state"]),
-            (&before["pack_digest"], &before["version"], &before["state"])
-        );
-        assert_ne!(after["expires_at"], before["expires_at"]);
-    } else {
-        // Contract G6 (`PATCH /shares/{sid}`, extend `expires_at`) has no route in the engine yet: the
-        // model's `extend` action cannot be run. This arm fails the day the route answers anything but
-        // "not found / not allowed" without doing the work.
-        eprintln!(
-            "FM6: PATCH /shares/{{sid}} answered {} (G6 extend is not implemented)",
-            p.status
-        );
-        assert!(matches!(p.status, 404 | 405), "PATCH answered {}", p.status);
-        assert_eq!(after["expires_at"], before["expires_at"]);
-    }
+    assert_eq!(
+        (&after["pack_digest"], &after["version"], &after["state"]),
+        (&before["pack_digest"], &before["version"], &before["state"])
+    );
+    assert_ne!(after["expires_at"], before["expires_at"]);
     let r = e
         .post(&format!("/v1/docs/shares/{sm}:refresh"), &json!({}))
         .await;

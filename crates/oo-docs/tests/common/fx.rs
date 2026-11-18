@@ -276,6 +276,14 @@ impl Fx {
             .expect("publish")
     }
 
+    /// Run one statement as the administrator.
+    pub async fn admin_sql(&mut self, sql: &str) {
+        self.admin
+            .execute(sqlx::AssertSqlSafe(sql.to_owned()))
+            .await
+            .unwrap();
+    }
+
     pub async fn scalar(&mut self, sql: &str) -> i64 {
         sqlx::query_scalar(sqlx::AssertSqlSafe(sql.to_owned()))
             .fetch_one(&mut self.admin)
