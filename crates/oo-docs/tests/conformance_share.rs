@@ -313,6 +313,17 @@ async fn fm6_refresh_policy_credentials_group_and_extension() {
             (&after["pack_digest"], &after["version"], &after["state"]),
             (&before["pack_digest"], &before["version"], &before["state"])
         );
+        assert_ne!(after["expires_at"], before["expires_at"]);
+    } else {
+        // Contract G6 (`PATCH /shares/{sid}`, extend `expires_at`) has no route in the engine yet: the
+        // model's `extend` action cannot be run. This arm fails the day the route answers anything but
+        // "not found / not allowed" without doing the work.
+        eprintln!(
+            "FM6: PATCH /shares/{{sid}} answered {} (G6 extend is not implemented)",
+            p.status
+        );
+        assert!(matches!(p.status, 404 | 405), "PATCH answered {}", p.status);
+        assert_eq!(after["expires_at"], before["expires_at"]);
     }
     let r = e
         .post(&format!("/v1/docs/shares/{sm}:refresh"), &json!({}))

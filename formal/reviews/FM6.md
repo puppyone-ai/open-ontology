@@ -45,7 +45,10 @@ Review status: author self-review done (lane A, 2026-11-17); independent review 
 1. A group member with `at-checkpoint` refreshes its **group** on a check that comes out 0 or 10 (`check::run`); a lone member refresh is `409 DOCS_SHARE_GROUP_MEMBER`.
 2. `pinned_by` is a derived view (the table is insert-only); the retention job that deletes caches of unpinned versions older than 30 days is **not implemented** (lane C note 8): `invRetention` is a property of the model
    and of the view, not of a collector that does not exist yet.
-3. `refs` reads with a credential are refused once the share is terminal; between the end date and the scheduler sweep the credential check compares the clock (the model's `credOk`).
+3. **Extending a share is not implemented.** Contract G6 (`PATCH /v1/docs/shares/{sid}`, `expires_at` only, at most 30 days) has no route:
+   the engine answers 405. `extend` stays in the model (and `invExtendKeepsContent`) as the property the endpoint must meet; the scenario test
+   asserts the 405 and fails on any other answer that does not do the work.
+4. `refs` reads with a credential are refused once the share is terminal; between the end date and the scheduler sweep the credential check compares the clock (the model's `credOk`).
 
 ## 5. Mutation checks (simulation)
 
