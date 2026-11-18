@@ -41,6 +41,7 @@ pub mod state;
 pub mod store;
 pub mod suggest;
 pub mod temporal;
+pub mod vector;
 
 #[cfg(feature = "failpoints")]
 pub mod failpoints;
