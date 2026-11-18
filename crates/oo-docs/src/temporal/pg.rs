@@ -208,6 +208,32 @@ pub async fn reconcile(
     // used the old fact then drifts and gets its UPDATES entry. When a live
     // share did use it, the queue also gets one notice for a person (D51:
     // "even when the rule is certain"); the notice does not hold the cut.
+    // A link that is already recorded (an owner that ended on its own and was linked to
+    // the next one by an earlier run) is not an event again.
+    if !out.ended.is_empty() {
+        let (ids, sups, tos): (Vec<String>, Vec<String>, Vec<String>) = out
+            .ended
+            .iter()
+            .map(|e| {
+                (
+                    e.fact_id.clone(),
+                    e.superseded_by.clone(),
+                    e.valid_to.clone(),
+                )
+            })
+            .collect();
+        let done: Vec<String> = sqlx::query_scalar(
+            "SELECT f.id::text FROM _oo_docs.fact f \
+               JOIN unnest($1::text[], $2::text[], $3::text[]) AS t(id, sup, vto) \
+                 ON f.id = t.id::uuid AND f.superseded_by = t.sup::uuid AND f.valid_to = t.vto::date",
+        )
+        .bind(&ids)
+        .bind(&sups)
+        .bind(&tos)
+        .fetch_all(&mut *conn)
+        .await?;
+        out.ended.retain(|e| !done.contains(&e.fact_id));
+    }
     let ending: Vec<String> = out.ended.iter().map(|e| e.fact_id.clone()).collect();
     let used = used_by_live_share(conn, &ending).await?;
     let mut applied = Vec::new();

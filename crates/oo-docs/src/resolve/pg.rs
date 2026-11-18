@@ -58,15 +58,27 @@ pub fn lookup_names(x: &Extraction) -> (BTreeSet<String>, BTreeSet<String>) {
 
 /// The names of every linkable entity of the Drive with the aliases a text may
 /// use for them (draft and published), for `extract::links` (`doc.link`).
+///
+/// Only *established* entities: one a rule found, or one a published fact of
+/// another source rests on. An entity only the model proposed, and nothing
+/// corroborated, is not published through the back door of a name match in
+/// other files (5.3: a single source waits for a person).
 pub async fn load_lexicon(
     conn: &mut PgConnection,
 ) -> Result<Vec<crate::extract::links::LexEntry>, StoreError> {
-    let rows: Vec<(String, String, String, Option<String>, Option<i32>)> = sqlx::query_as(
+    /// (entity key, type, canonical name, alias, alias confidence)
+    type Row = (String, String, String, Option<String>, Option<i32>);
+    let rows: Vec<Row> = sqlx::query_as(
         "SELECT e.key, e.type, e.canonical_name, a.alias, a.confidence_bp \
            FROM _oo_docs.entity e \
            LEFT JOIN _oo_docs.alias a ON a.entity_id = e.id AND a.status IN ('draft', 'published') \
           WHERE e.status = 'active' \
             AND e.type IN ('Person', 'Organization', 'Project', 'Topic', 'Term', 'Event') \
+            AND EXISTS (SELECT 1 FROM _oo_docs.fact f \
+                         WHERE e.id IN (f.subject_id, f.object_id) \
+                           AND COALESCE(f.rule_id, '') NOT IN ('doc.link', 'doc.about') \
+                           AND ((f.origin = 'rule' AND f.status IN ('draft', 'published')) \
+                                OR (f.origin IN ('llm', 'human', 'suggest') AND f.status = 'published'))) \
           ORDER BY e.key, a.alias",
     )
     .fetch_all(&mut *conn)

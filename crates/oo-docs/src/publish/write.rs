@@ -308,12 +308,23 @@ async fn store_resolved(
         if rejected.contains(&f.fact_key) {
             continue;
         }
+        // A statement without a date (a model said "X owns Y", the rules found the
+        // dated row) is the same fact as a dated one of the same triple: it only
+        // adds evidence.
+        let undated_relation =
+            f.valid_from.is_none() && f.value.is_none() && f.object_key.is_some();
         let existing: Option<String> = sqlx::query_scalar(
             "SELECT id::text FROM _oo_docs.fact \
-              WHERE fact_key = $1 AND status IN ('draft', 'published') \
-              ORDER BY recorded_at, id LIMIT 1",
+              WHERE status IN ('draft', 'published') \
+                AND (fact_key = $1 \
+                     OR ($2 AND subject_id = $3::uuid AND predicate = $4 AND object_id = $5::uuid)) \
+              ORDER BY (fact_key = $1) DESC, recorded_at, id LIMIT 1",
         )
         .bind(&f.fact_key)
+        .bind(undated_relation)
+        .bind(entity_ids.get(f.subject_key.as_str()))
+        .bind(f.predicate.name())
+        .bind(f.object_key.as_ref().and_then(|k| entity_ids.get(k.as_str())))
         .fetch_optional(&mut *conn)
         .await?;
         let fact_id = match existing {

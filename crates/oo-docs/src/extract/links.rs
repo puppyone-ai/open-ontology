@@ -242,6 +242,7 @@ pub fn doc_links(
             );
         }
     }
+    col.date_hints(super::rules::file_default_valid_from(path, ir));
     col.finish(path)
 }
 
@@ -358,5 +359,18 @@ mod tests {
         let a = run("# 周报\n\n林远舟 星图看板\n", "Notes/g.md");
         let b = run("# 周报\n\n林远舟 星图看板\n", "Notes/g.md");
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn links_start_on_the_default_date_of_the_file_like_its_other_facts() {
+        let x = run("# 记录\n\n星图看板。\n", "Notes/2026-03-05-速记.md");
+        assert!(!x.hints.is_empty());
+        assert!(
+            x.hints
+                .iter()
+                .all(|h| h.valid_from.as_ref().map(|(d, _)| d.as_str()) == Some("2026-03-05"))
+        );
+        let y = run("# 记录\n\n星图看板。\n", "Notes/速记.md");
+        assert!(y.hints.iter().all(|h| h.valid_from.is_none()));
     }
 }
