@@ -51,10 +51,14 @@ pub const VERSION_PACKS_SHARES: &str = "docs-packs-shares/1";
 pub const VERSION_LLM: &str = "docs-llm/1";
 /// `docs-consistency/1`.
 pub const VERSION_CONSISTENCY: &str = "docs-consistency/1";
+/// `docs-suggest/1`.
+pub const VERSION_SUGGEST: &str = "docs-suggest/1";
 /// `docs-share-consistency/1`.
 pub const VERSION_SHARE_CONSISTENCY: &str = "docs-share-consistency/1";
+/// `docs-parse-media/1`.
+pub const VERSION_PARSE_MEDIA: &str = "docs-parse-media/1";
 
-const MIGRATIONS: [Migration; 7] = [
+const MIGRATIONS: [Migration; 9] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -86,21 +90,33 @@ const MIGRATIONS: [Migration; 7] = [
         sql: include_str!("../../../oo-pipeline/migrations/0142_docs_consistency.sql"),
     },
     Migration {
+        version: VERSION_SUGGEST,
+        file: "0143_docs_suggest.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0143_docs_suggest.sql"),
+    },
+    Migration {
         version: VERSION_SHARE_CONSISTENCY,
         file: "0145_docs_share_consistency.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0145_docs_share_consistency.sql"),
     },
+    Migration {
+        version: VERSION_PARSE_MEDIA,
+        file: "0146_docs_parse_media.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0146_docs_parse_media.sql"),
+    },
 ];
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 7] = [
+pub const SCHEMA_MIN: [&str; 9] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
     VERSION_PACKS_SHARES,
     VERSION_LLM,
     VERSION_CONSISTENCY,
+    VERSION_SUGGEST,
     VERSION_SHARE_CONSISTENCY,
+    VERSION_PARSE_MEDIA,
 ];
 
 /// Migrations compiled into this binary, in install order.

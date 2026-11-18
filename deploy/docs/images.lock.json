@@ -58,9 +58,9 @@
     "note": "built before the final notices; rebuild rewrites the digest"
   },
   "media_parser": {
-    "image": "sha256:5d0f2f8ee1e61d941f64df43b034c1da241d92094ffba74859154898aac29b76",
-    "tag": "oo-docs-media-parser:dev",
-    "size_bytes": 1151628587,
+    "image": "sha256:05e9a9806c67f32c19b9fa21331ad1341f3b8aac4ed7bbe6745e4b310be911ae",
+    "tag": "oo-docs-media-parser:dev-be2",
+    "size_bytes": 1151765899,
     "platform": "linux/arm64",
     "lane": "super-ontology-be6",
     "dockerfile_sha256": "cfbf65675cfbfc3689a273b1b669b30e8bcac472cc2d776733df6da30a5bc310",
@@ -68,6 +68,7 @@
     "models_lock_sha256": "004e9921aa5b2f9182412288098dbf5ac979672166afcc712c6fa5f698bf7265",
     "ffmpeg": "9.0.2 own LGPL decode-only build, source sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
     "sbom": "testing/super-ontology/evidence/L6/sbom-media-parser.json",
-    "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)"
+    "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
+    "note": "dev-be2 = the day-one image plus a one layer rebuild of media_parser/ and video/ (ffmpeg 9 dropped -vsync; scenedetect needs a cv2.VideoCapture name that the FFmpeg-free OpenCV lacks)"
   }
 }

@@ -194,11 +194,16 @@ def _page(tmp):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--suite", choices=["cells", "e2e"], default="cells",
+                    help="cells: the L1 cells docs-ocr and docs-media; e2e: the L6 end to end run on the compose stack")
     ap.add_argument("--cells", default="docs-ocr,docs-media")
     ap.add_argument("--run-id", default=time.strftime("l6-%Y%m%d-%H%M%S"))
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L6"))
     ap.add_argument("--keep", action="store_true")
-    a = ap.parse_args(argv)
+    a, rest = ap.parse_known_args(argv)
+    if a.suite == "e2e":
+        import super_ontology_l6_e2e
+        return super_ontology_l6_e2e.main(["--run-id", a.run_id, "--evidence-dir", a.evidence_dir] + (["--keep"] if a.keep else []) + rest)
     ev = Path(a.evidence_dir)
     ev.mkdir(parents=True, exist_ok=True)
     rows = [run_cell(n, a.run_id, ev, a.keep) for n in a.cells.split(",") if n]

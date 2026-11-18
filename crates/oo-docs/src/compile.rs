@@ -134,6 +134,9 @@ pub struct CompileRequest {
     /// Freshness coverage the store measured (D54); part of the parameters,
     /// so a pack compiled under another coverage is another pack.
     pub coverage: Option<coverage::Coverage>,
+    /// Refresh only: what changed since the old Share's version. It writes "自上次以来的变化" after the head of
+    /// BRIEF and is part of the parameters, so the pack still replays byte for byte.
+    pub changes: Option<brief::Changes>,
 }
 
 impl Default for CompileRequest {
@@ -146,6 +149,7 @@ impl Default for CompileRequest {
             role: "suggester".into(),
             version: None,
             coverage: None,
+            changes: None,
         }
     }
 }
@@ -299,7 +303,7 @@ pub(crate) fn compile_inner(
     seeds.dedup();
 
     let snapshot_sha256 = snapshot_digest(&g);
-    let params = json!({
+    let mut params = json!({
         "drive_id": drive.id,
         "scope": scope,
         "task": req.task,
@@ -311,6 +315,9 @@ pub(crate) fn compile_inner(
         "compiler": COMPILER,
         "token_estimator": tokens::ESTIMATOR,
     });
+    if let (Some(ch), Some(obj)) = (req.changes.as_ref(), params.as_object_mut()) {
+        obj.insert("changes".into(), ch.digest_value());
+    }
     let params_sha256 = pack::sha256_hex(oo_builder::canonical_json(&params).as_bytes());
     // The pack's identity before any file exists: it goes into every file's
     // AIGC block, so it cannot depend on file bytes (that would be circular,
@@ -338,6 +345,7 @@ pub(crate) fn compile_inner(
             budget: req.budget,
             role: &req.role,
             coverage: req.coverage.as_ref(),
+            changes: req.changes.as_ref(),
         },
     )?;
     {

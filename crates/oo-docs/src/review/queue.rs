@@ -118,6 +118,8 @@ pub async fn classify_drafts(
     };
     let (once_s, once_o) = (once("f.subject_id"), once("f.object_id"));
     let (file_s, file_o) = (one_file("f.subject_id"), one_file("f.object_id"));
+    let held_speaker = crate::review::speaker::HELD_SQL;
+    let held_reprocess = crate::publish::reprocess::HELD_SQL;
     let sql = format!(
         "SELECT f.id::text AS id, f.fact_key, f.predicate, f.origin, f.rule_id, f.confidence_bp, \
                 COALESCE(o.type = 'Thing', false) AS object_thing, \
@@ -130,6 +132,8 @@ pub async fn classify_drafts(
                 (CASE WHEN f.origin = 'llm' \
                       THEN ((sj.type <> 'Document' AND {file_s}) OR (f.object_id IS NOT NULL AND {file_o})) \
                       ELSE ({once_s} OR (f.object_id IS NOT NULL AND {once_o})) END) AS single_entity, \
+                (EXISTS (SELECT 1 FROM _oo_docs.entity s WHERE s.id = f.subject_id AND {held_speaker}) \
+                 OR {held_reprocess}) AS speaker_held, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
                          AND v.kind = 'fact_assert' AND v.status = 'active') AS asserted, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
@@ -165,6 +169,12 @@ pub async fn classify_drafts(
             r.try_get("rejected")?,
             th,
         );
+        // A statement of a speaker nobody has confirmed yet stays a draft (D74, 17.4).
+        let class = if r.try_get::<bool, _>("speaker_held")? && class != Class::Rejected {
+            Class::Hold
+        } else {
+            class
+        };
         out.push(Classified {
             fact_id: r.try_get("id")?,
             fact_key: r.try_get("fact_key")?,

@@ -33,6 +33,10 @@ pub enum Format {
     PdfScanned,
     /// Raster image.
     Image,
+    /// Audio container (`media-parser`, D77).
+    Audio,
+    /// Video container (`media-parser`, D77).
+    Video,
     /// OLE2 container: .doc, .xls, .ppt.
     LegacyOffice,
     /// ZIP that is not an OOXML package.
@@ -54,6 +58,8 @@ impl Format {
             Self::Pdf => "pdf",
             Self::PdfScanned => "pdf_scanned",
             Self::Image => "image",
+            Self::Audio => "audio",
+            Self::Video => "video",
             Self::LegacyOffice => "legacy_office",
             Self::Zip => "zip",
             Self::Unknown => "unknown",
@@ -232,19 +238,13 @@ pub fn sniff(head: &[u8], file_len: u64, ext: &str) -> Sniffed {
     if head.starts_with(&[0xFF, 0xFE]) || head.starts_with(&[0xFE, 0xFF]) {
         return make(text_format(ext), Verdict::Parseable);
     }
+    // Images and media are parseable when the engine has an `ocr-parser` or a `media-parser`
+    // (`IngestLimits::parsers`); without one the hash stage reports the file as unsupported.
     if is_image(head) {
-        return make(
-            Format::Image,
-            Verdict::Unsupported("DOCS_PARSE_IMAGE_OCR_M2"),
-        );
+        return make(Format::Image, Verdict::Parseable);
     }
     if is_media(head) {
-        // The contract has no DOCS_PARSE_MEDIA_L6 code (10 §4.4.1 names it,
-        // errors.v1.json does not): report the generic one.
-        return make(
-            Format::Unknown,
-            Verdict::Unsupported("DOCS_PARSE_UNSUPPORTED_FORMAT"),
-        );
+        return make(media_format(head, ext), Verdict::Parseable);
     }
     match text_kind(head, file_len) {
         TextKind::Binary => make(
@@ -264,6 +264,25 @@ fn text_format(ext: &str) -> Format {
         "md" | "markdown" | "mdx" => Format::Md,
         "csv" => Format::Csv,
         _ => Format::Txt,
+    }
+}
+
+/// Audio or video: the extension decides where the container allows both (mp4, ogg, webm, matroska).
+fn media_format(head: &[u8], ext: &str) -> Format {
+    match ext {
+        "wav" | "mp3" | "flac" | "oga" | "opus" | "m4a" | "aac" | "mka" | "weba" | "ogg" => {
+            Format::Audio
+        }
+        "mp4" | "mov" | "m4v" | "webm" | "mkv" | "ogv" | "avi" => Format::Video,
+        _ => {
+            if head.len() >= 8 && &head[4..8] == b"ftyp"
+                || head.starts_with(&[0x1A, 0x45, 0xDF, 0xA3])
+            {
+                Format::Video
+            } else {
+                Format::Audio
+            }
+        }
     }
 }
 
@@ -375,24 +394,22 @@ mod tests {
     }
 
     #[test]
-    fn images_and_media_are_unsupported() {
+    fn images_and_media_are_routed_to_their_sidecars() {
         assert_eq!(
             s(&[0x89, b'P', b'N', b'G', 0, 0], "png").format,
             Format::Image
         );
-        assert_eq!(
-            s(b"\xFF\xD8\xFF\xE0", "jpg").verdict,
-            Verdict::Unsupported("DOCS_PARSE_IMAGE_OCR_M2")
-        );
-        assert_eq!(
-            s(b"\x00\x00\x00\x18ftypmp42", "mp4").format,
-            Format::Unknown
-        );
+        assert_eq!(s(b"\xFF\xD8\xFF\xE0", "jpg").verdict, Verdict::Parseable);
+        assert_eq!(s(b"\x00\x00\x00\x18ftypmp42", "mp4").format, Format::Video);
+        assert_eq!(s(b"\x00\x00\x00\x18ftypM4A ", "m4a").format, Format::Audio);
         assert_eq!(
             s(b"RIFF\x00\x00\x00\x00WAVEfmt ", "wav").format,
-            Format::Unknown
+            Format::Audio
         );
-        assert_eq!(s(b"OggS\x00", "ogg").format, Format::Unknown);
+        assert_eq!(s(b"OggS\x00", "ogg").format, Format::Audio);
+        assert_eq!(s(b"\x1A\x45\xDF\xA3", "webm").format, Format::Video);
+        assert_eq!(s(b"\x1A\x45\xDF\xA3", "mka").format, Format::Audio);
+        assert_eq!(s(b"OggS\x00", "ogv").verdict, Verdict::Parseable);
     }
 
     #[test]

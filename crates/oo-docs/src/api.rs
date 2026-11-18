@@ -14,7 +14,7 @@
 //! Every response, errors included, carries `OO-Docs-Api: 1.0`.
 //!
 //! L2 serves: `livez`, `health`, drives (list, create, get, patch, delete),
-//! `:sync` (full, deep, confirm, targeted), files, tree and the event stream.
+//! `:sync` (full, deep, confirm, targeted), `:rebuild` (confirmed full rebuild), files, tree and the event stream.
 //! Other documented routes answer `404 DOCS_ENGINE_NOT_FOUND` until their
 //! boards land.
 
@@ -56,6 +56,7 @@ pub mod routes_correct;
 pub mod routes_entities;
 pub mod routes_model;
 pub mod routes_review;
+pub mod routes_suggest;
 pub mod routes_usage;
 pub mod shares;
 
@@ -468,6 +469,7 @@ fn cred_allowed(
         (&Method::GET, ["v1", "docs", "shares", sid, "updates"]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "shares", sid]) => *sid == cred.share_id,
         (&Method::GET, ["v1", "docs", "entities", _]) => true,
+        (&Method::POST, ["v1", "docs", "suggestions"]) => true,
         _ => false,
     }
 }
@@ -540,6 +542,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             if let Some(id) = last.strip_suffix(":sync") {
                 method_allowed(req, &["POST"])?;
                 return drives::sync(app, id, req).await;
+            }
+            if let Some(id) = last.strip_suffix(":rebuild") {
+                method_allowed(req, &["POST"])?;
+                return drives::rebuild(app, id, req).await;
             }
             if last.contains(':') {
                 return Err(ApiError::not_found("route"));
@@ -658,6 +664,30 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
         ["v1", "docs", "review:decide"] => {
             method_allowed(req, &["POST"])?;
             routes_review::decide(app, req).await
+        }
+        ["v1", "docs", "suggestions"] => {
+            method_allowed(req, &["GET", "POST"])?;
+            if req.method == Method::GET {
+                routes_suggest::list(app, req).await
+            } else {
+                routes_suggest::create(app, req).await
+            }
+        }
+        ["v1", "docs", "suggestions:digest"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::digest(app, req).await
+        }
+        ["v1", "docs", "suggestions", last] if last.ends_with(":decide") => {
+            method_allowed(req, &["POST"])?;
+            routes_suggest::decide(app, last.trim_end_matches(":decide"), req).await
+        }
+        ["v1", "docs", "suggestions", id, "diff"] => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::diff(app, id).await
+        }
+        ["v1", "docs", "suggestions", id] if !id.contains(':') => {
+            method_allowed(req, &["GET"])?;
+            routes_suggest::get(app, id).await
         }
         ["v1", "docs", "shares"] => {
             method_allowed(req, &["GET", "POST"])?;

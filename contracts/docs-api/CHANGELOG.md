@@ -25,3 +25,38 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `GET /ontology/versions` items carry `covers_drive_rev` (already in the schema); `pinned_by` is always 0
   until the share lifecycle cards maintain it.
 - 2026-11-17 (still 1.0-draft): `Fact.revision` (optional, for If-Match on corrections); `DOCS_REVIEW_MERGE_CONFLICT` gets HTTP 409.
+
+## 1.2 (L6, B-S10 cards)
+
+- `POST /v1/docs/drives/{id}:rebuild` (`since` 1.2): the one manual full rebuild (10 4.2, D23). Body `RebuildRequest`
+  `{"confirm": "<drive id>"}`, required; without it or with another id the answer is 400 `DOCS_ENGINE_BAD_REQUEST`
+  (`/confirm`). Answer 202 `RebuildInfo`. Every file with a result becomes `outdated`; the engine reprocesses them
+  at priority 900, two at a time, and each new extraction goes through DOC-G10 (a `reprocess_diff` review item when
+  it changes more than 30% of the file's facts or drops a fact a live Share uses).
+- `FileSummary.progress.unit` and the `file.progress` event add `ms` (done and total are milliseconds of the source
+  timeline of an audio or video file, 10 17.3).
+- `errors.v1.json` adds `DOCS_SOURCE_MEDIA_TOO_LONG`, `DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH`,
+  `DOCS_PARSE_ASR_FAILED`, `DOCS_PARSE_DIARIZATION_FAILED` (state codes) and `DOCS_REVIEW_SPEAKER_UNCONFIRMED`
+  (item level code of `review:decide`: accepting a fact whose speaker is unconfirmed).
+- `ReviewKind` values `type_promotion`, `speaker_identity` and `reprocess_diff` are now written by the engine
+  (enum unchanged, reserved since 1.0). Items carry: `type_promotion` `{label, instances, files, examples}`;
+  `speaker_identity` `{b3, speaker, placeholder, candidates:[{name, source, block_id, quote}]}` (accept with
+  `edit.name`); `reprocess_diff` `{gate, prior, added, removed, share_used_removed, version_id}`.
+- `BRIEF.md` of a refreshed Share has a section "自上次以来的变化（vA → vB）" after the head (added, changed,
+  retracted, fixed order); not an API field.
+
+## 1.3 (L5, B-S7 and B-S8 cards)
+
+- Suggest endpoints (`since` 1.3): `POST /v1/docs/suggestions` (`SuggestRequest`: one `SuggestionRecord`, `items`, or
+  `documents` read from `.context/suggest/`; a share's `oodr_` credential with scope `suggest:write`, or the engine token with
+  `share_id`; idempotent per share on `idempotency_key` or the content hash, no `Idempotency-Key` header), `GET /suggestions`,
+  `GET /suggestions:digest?day=`, `GET /suggestions/{id}`, `GET /suggestions/{id}/diff` (a file-level draft for the revision mode;
+  OO never writes the Drive, `writer` is `desktop`) and `POST /suggestions/{id}:decide` (`accept`, `reject`, `undo`).
+- The `suggestion` review kind is live: `subject` is `{suggestion_id, share_id, kind}`; deciding the item through `review:decide`
+  does what `:decide` does. Reason codes: `suggestion_manual_kind`, `suggestion_supersede_in_use`, `suggestion_functional_conflict`,
+  `suggestion_no_scope_evidence`, `suggestion_supersedes_unknown`, `suggestion_unresolved_entity`.
+- Refs credentials of `suggester` and `editor` shares carry `suggest:write`; the `editor` role can be created
+  (`DOCS_SHARE_ROLE_UNAVAILABLE` is no longer returned). A credential may call `POST /suggestions` for its own share.
+- `share.update_appended` entries with `summary_key` `suggestion_accepted` tell every live Share that used a superseded fact.
+- `errors.v1.json` adds `DOCS_SUGGEST_NOT_FOUND`, `DOCS_SUGGEST_ROLE_FORBIDDEN`, `DOCS_SUGGEST_SCOPE_MISSING`,
+  `DOCS_SUGGEST_NOT_PENDING`, `DOCS_SUGGEST_NO_EVIDENCE`, `DOCS_SUGGEST_UNRESOLVED_ENTITY`.

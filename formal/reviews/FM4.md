@@ -23,3 +23,20 @@ Liveness (client eventually reaches head) is shown only by witnesses, not model 
 Per invariant, 10 steps, same conditions as in FM1.md (loaded 16 core machine): invOutboxGapFree 14 s,
 invTransientHasNoSeq 12 s, invCaughtUpEqualsServer 176 s, invViewMatchesCursor 561 s. All inside 12 minutes, so the
 FAST bound stays `verify-steps=10`; the nightly bound is `deep-steps=12` (not measured).
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. Reviewed: `event_stream.qnt` against 10 8.5, `api/events.rs` (`parse_since`, `stream`, `run`), and `tests/conformance_events.rs` (header mapping, `deliver`/`duplicate`/`transient`/`purge` replay). Checks: `quint typecheck` passes; `quint run` (seed 7, 40 steps) finds no violation for `inv` on the unmodified model.
+
+Blocking
+1. **B1, the 410 path is not protected by any invariant.** Mutant `if (cursor < floor) all {` replaced by `if (false) all {`: `inv` still gives "No violation found" (seed 7, 3000 samples). The refetch branch is only a witness (`witGone410`). Without it, a client whose cursor is below the floor is stuck: `deliver` needs `cursor + 1 > floor`, and nothing else moves the cursor. Add a liveness-style safety property that a model run can check: `connected implies cursor >= floor` is violated by the model in 12 ms (probe, not committed), so the model shows that a purge can strand a connected client. The code handles the reconnect case (`api/events.rs` l.214 `gone`), but the live case (purge while connected, client below the new floor) is not specified: `stream.lagging` (l.31, l.313) is about slow clients, not retention. Decide and write it down: (a) the purge guard must not pass the oldest connected cursor, or (b) the server closes the live stream with `CURSOR_EXPIRED` and the model adds that transition, or (c) the spec says live clients cannot be purged past. Then the invariant follows.
+2. **B2, the conformance test cannot see a stuck client.** `conformance_events.rs` replays `deliver` as "the next frame has seq cursor+1". A purged cursor never gets a frame, so the replay of a trace that reaches the stuck state will fail only if the trace contains a `deliver` action there; the model has no such action at that point (guard false). The test therefore does not check the state where the client is stuck. Add a compare of the client's cursor and `floor` (`oldest - 1`) after each step, not only the view.
+
+Non-blocking
+3. `purge` keeps the ghost `hist`, so `invOutboxGapFree` checks gap-freedom of the full history, not of the retained tail (`floor+1..headSeq`). Model the retained set (`hist` filtered by `seq > floor`) if the claim "retained tail is exactly floor+1..headSeq" in the comment is to hold.
+4. `reconnect` with `cursor > headSeq` (the code's `s > head` branch, l.214 to 219, also returns `CURSOR_EXPIRED`) is not modelled. It cannot happen in the model because `cursor <= headSeq` always. Say so in "Not modelled", since a client can send any `since` value.
+5. The race between `bounds()` (l.208) and the start of `run` (purge in between) is not modelled. It only matters for a client whose `since` is at the old floor; mention it as an open point.
+6. `invTransientHasNoSeq` is `headSeq == hist.keys().size() and tUsed >= transients`. It does not say that transients never enter `hist` or `view`. Add `view` and `hist` unchanged by `transient` as a check, or rename the invariant to what it checks.
+7. `duplicate(s)` is accepted for `s <= cursor` only. A duplicate of a purged seq (the code's replay returns 410 for it) is not modelled; fine, but say so.
+
+Checked and fine: `appendEvent` is gap-free and monotone (`headSeq + 1`, `invOutboxGapFree` holds on the unmodified model); the code 410 condition `s + 1 < oldest` equals the model's `cursor < floor` when `floor = oldest - 1`; `deliver` always applies `cursor + 1`, so out-of-order delivery cannot be expressed in the model at all (the `seq` check of the test is therefore a real check only of the real stream).

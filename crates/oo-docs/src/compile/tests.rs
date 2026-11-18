@@ -1419,3 +1419,138 @@ fn manifest_lists_section_digests_and_uses_cover_every_visible_fact() {
     let again = compile(&r, &req(&[], "李甲")).unwrap();
     assert_eq!(p.section_uses, again.section_uses);
 }
+
+// ---- refresh: "自上次以来的变化" (B-S10-01) ----
+
+fn change_world() -> (MemoryReader, Vec<String>, String) {
+    let r = golden_reader(false);
+    let p = compile(&r, &req(&["docs"], "陈子墨 和 星图看板 现在怎么样")).unwrap();
+    // Facts and entities the graph shows: take them from a plain compile of the same scope.
+    let (g, _) = VisibleGraph::load(
+        &r,
+        &r.version(1).unwrap(),
+        &normalize_scope(&["docs".into()]),
+    )
+    .unwrap();
+    let keys: Vec<String> = g
+        .facts()
+        .filter(|f| f.predicate != Predicate::Mentions && !f.evidence.is_empty())
+        .map(|f| f.key.clone())
+        .take(3)
+        .collect();
+    assert_eq!(keys.len(), 3, "the golden set has facts to point at");
+    let subject = g
+        .facts()
+        .find(|f| f.key == keys[0])
+        .map(|f| f.subject.clone())
+        .unwrap();
+    drop(p);
+    (r, keys, subject)
+}
+
+fn some_changes(keys: &[String], subject: &str) -> brief::Changes {
+    use brief::{Change, ChangeKind, OldFact};
+    let old = |text: &str| OldFact {
+        subject: subject.to_owned(),
+        predicate: "负责".into(),
+        object: None,
+        value: Some(text.to_owned()),
+    };
+    brief::Changes {
+        from_version: 0,
+        changes: vec![
+            Change {
+                kind: ChangeKind::Retracted,
+                new_key: None,
+                old: Some(old("旧结论")),
+            },
+            Change {
+                kind: ChangeKind::Added,
+                new_key: Some(keys[0].clone()),
+                old: None,
+            },
+            Change {
+                kind: ChangeKind::Changed,
+                new_key: Some(keys[1].clone()),
+                old: Some(old("旧值")),
+            },
+            // Not visible here: nothing of it may appear.
+            Change {
+                kind: ChangeKind::Retracted,
+                new_key: None,
+                old: Some(brief::OldFact {
+                    subject: "person:ffffffffffffffffffffffff".into(),
+                    predicate: "负责".into(),
+                    object: None,
+                    value: Some("看不见的结论".into()),
+                }),
+            },
+        ],
+    }
+}
+
+#[test]
+fn brief_changes_follow_the_head_in_a_fixed_order_with_provenance() {
+    let (r, keys, subject) = change_world();
+    let mut base = req(&["docs"], "星图看板");
+    base.budget = 3000;
+    let plain = compile(&r, &base).unwrap();
+    assert!(
+        !brief(&plain).contains("自上次以来的变化"),
+        "no changes, no section"
+    );
+    let mut q = base.clone();
+    q.changes = Some(some_changes(&keys, &subject));
+    let p = compile(&r, &q).unwrap();
+    let b = brief(&p);
+    let at = b.find("## 自上次以来的变化（v0 → v1）").expect("section");
+    assert!(
+        at < b.find("## 你在做什么").unwrap(),
+        "after the head, before the task"
+    );
+    let section: Vec<&str> = b[at..]
+        .lines()
+        .skip(1)
+        .take_while(|l| !l.starts_with("## "))
+        .filter(|l| !l.is_empty())
+        .collect();
+    let kinds: Vec<&str> = section
+        .iter()
+        .map(|l| {
+            l.trim_start_matches("- ")
+                .trim_start_matches("> ")
+                .split('：')
+                .next()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        ["新增", "改值", "撤回"],
+        "added, changed, retracted: {section:?}"
+    );
+    for l in section.iter().filter(|l| l.starts_with("- ")) {
+        assert!(!source::tags_in(l).is_empty(), "provenance on {l}");
+    }
+    assert!(
+        section[2].starts_with("> 撤回："),
+        "a retraction has no live source: {}",
+        section[2]
+    );
+    assert!(
+        !b.contains("看不见的结论"),
+        "a name outside the scope does not leak"
+    );
+    assert_eq!(tokens::count(&b), p.brief_tokens);
+    // The same input in another order gives the same bytes; the changes are part of the parameters.
+    let mut q2 = q.clone();
+    q2.changes.as_mut().unwrap().changes.reverse();
+    let p2 = compile(&r, &q2).unwrap();
+    assert_eq!(all_bytes(&p), all_bytes(&p2));
+    assert_ne!(p.params_sha256, plain.params_sha256);
+    // Budget: the section never takes more than a tenth, and says what did not fit.
+    let mut small = q.clone();
+    small.budget = 600;
+    let p3 = compile(&r, &small).unwrap();
+    assert!(brief(&p3).contains("自上次以来的变化") || brief(&p3).contains("另有"));
+}

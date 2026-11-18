@@ -14,6 +14,10 @@
 //! | `low_confidence_fact` | overlay `fact_assert` (the fact becomes eligible; a `functional_conflict` winner rejects its partner; a `supersede_*` accept ends the old fact) | overlay `fact_reject`, fact `rejected` | overlay `fact_edit`, a new human fact with the new value/dates, the old one `rejected` |
 //! | `entity_merge` | merge the second into the first (`edit.into` picks the target) | the item only | — |
 //! | `alias_conflict` | `edit.entity` (a key) gets the alias (overlay `alias_add`) | overlay `alias_reject` | — |
+//! | `reprocess_diff` | the new extraction replaces the old: facts only the old run had are retracted, held new facts are released (DOC-G10) | the old extraction stays, the held new facts are rejected | — |
+//! | `type_promotion` | overlay `type_promote{label, type_name}` (`edit.type_name`, default the label); the prompt version changes and the files holding the label are `outdated` | the item only, never proposed again | — |
+//! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
+//! | `suggestion` | the suggestion is applied (a fact with `origin = suggest`, the old one ended or retracted; Shares that used it get an update entry) | the suggestion is closed | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
 
 use std::collections::BTreeSet;
@@ -22,6 +26,8 @@ use serde_json::{Value, json};
 use sqlx::{Connection, PgConnection, Row};
 
 use super::overlay;
+use super::promotion::{self, Promoted};
+use super::speaker::{self, Confirmed};
 use crate::resolve::merge::{MergeError, merge_entities};
 use crate::resolve::normalize::{fact_key, norm};
 use crate::store::StoreError;
@@ -417,6 +423,21 @@ async fn apply_one(
             };
             match d {
                 Decision::Accept => {
+                    // A statement of a speaker nobody confirmed does not publish (D74).
+                    let held: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                        "SELECT EXISTS (SELECT 1 FROM _oo_docs.fact f JOIN _oo_docs.entity s \
+                           ON s.id = f.subject_id WHERE f.id = $1::uuid AND {})",
+                        speaker::HELD_SQL
+                    )))
+                    .bind(fid)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    if held {
+                        return Ok((
+                            ItemResult::fail(id, "conflict", speaker::CODE_UNCONFIRMED),
+                            None,
+                        ));
+                    }
                     let other = other.filter(|o| *o != fid);
                     accept_fact(conn, &fact, &reason, other, by, id).await?;
                     close_item(conn, id, "accepted", by, note).await?;
@@ -436,6 +457,65 @@ async fn apply_one(
                     Ok((ItemResult::ok(id), Some("accepted")))
                 }
             }
+        }
+        ("reprocess_diff", Decision::Accept) => {
+            crate::publish::reprocess::apply(conn, &item.subject).await?;
+            close_item(conn, id, "accepted", by, note).await?;
+            Ok((ItemResult::ok(id), Some("accepted")))
+        }
+        ("reprocess_diff", Decision::Reject) => {
+            crate::publish::reprocess::discard(conn, &item.subject).await?;
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
+        }
+        ("type_promotion", Decision::Accept) => {
+            let type_name = it
+                .edit
+                .as_ref()
+                .and_then(|e| e.get("type_name"))
+                .and_then(Value::as_str);
+            match promotion::accept(conn, id, &item.subject, type_name, by).await? {
+                Promoted::Done { .. } => {
+                    close_item(conn, id, "accepted", by, note).await?;
+                    Ok((ItemResult::ok(id), Some("accepted")))
+                }
+                Promoted::BadName => Ok((invalid(id), None)),
+            }
+        }
+        ("type_promotion", Decision::Reject) => {
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
+        }
+        ("speaker_identity", Decision::Accept) => {
+            let name = it
+                .edit
+                .as_ref()
+                .and_then(|e| e.get("name"))
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    item.subject
+                        .pointer("/candidates/0/name")
+                        .and_then(Value::as_str)
+                });
+            let Some(name) = name else {
+                return Ok((invalid(id), None));
+            };
+            match speaker::confirm(conn, id, &item.subject, name, by).await? {
+                Confirmed::Done { .. } => {
+                    close_item(conn, id, "accepted", by, note).await?;
+                    Ok((ItemResult::ok(id), Some("accepted")))
+                }
+                Confirmed::BadName => Ok((invalid(id), None)),
+                Confirmed::Ambiguous | Confirmed::Conflict => Ok((
+                    ItemResult::fail(id, "conflict", "DOCS_REVIEW_MERGE_CONFLICT"),
+                    None,
+                )),
+            }
+        }
+        ("speaker_identity", Decision::Reject) => {
+            // "Not any of these": the label stays unknown and its facts stay drafts.
+            close_item(conn, id, "rejected", by, note).await?;
+            Ok((ItemResult::ok(id), Some("rejected")))
         }
         ("entity_merge", Decision::Accept) => {
             let keys: Vec<String> = item
@@ -684,6 +764,31 @@ async fn apply_one(
             .await?;
             close_item(conn, id, item_status, by, note).await?;
             Ok((ItemResult::ok(id), Some(item_status)))
+        }
+        ("suggestion", d @ (Decision::Accept | Decision::Reject)) => {
+            let Some(sid) = item.subject.get("suggestion_id").and_then(Value::as_str) else {
+                return Ok((invalid(id), None));
+            };
+            let accept = d == Decision::Accept;
+            match crate::suggest::store::decide(
+                conn,
+                sid,
+                if accept { "accept" } else { "reject" },
+                None,
+                by,
+                note,
+            )
+            .await
+            {
+                Ok(_) => {
+                    let status = if accept { "accepted" } else { "rejected" };
+                    Ok((ItemResult::ok(id), Some(status)))
+                }
+                Err(e) if e.code == crate::api::error::code::SUGGEST_NOT_PENDING => {
+                    Ok((ItemResult::fail(id, "conflict", e.code.as_str()), None))
+                }
+                Err(e) => Ok((ItemResult::fail(id, "invalid", e.code.as_str()), None)),
+            }
         }
         _ => Ok((invalid(id), None)),
     }

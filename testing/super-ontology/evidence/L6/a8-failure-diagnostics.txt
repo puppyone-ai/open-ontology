@@ -1,0 +1,15 @@
+engine log (outdated, parser, reprocess lines):
+{"count":4,"event":"files.outdated_by_version","level":"info","ts":"2026-11-18T06:16:55Z"}
+
+files:
+Meetings/周会 参会=小王、小李.wav indexed 
+Meetings/录屏h264.mp4 unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+Meetings/录屏.webm published 
+Meetings/讲话.m4a unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+People/林川.md published 
+Projects/星火计划.md published 
+Scans/扫描件.pdf published 
+Scans/纪要.png published
+
+parse_result:
+

@@ -136,7 +136,7 @@ def extract_frames(src, out_dir, ffmpeg=None, fps=1):
     """1 fps PNG frames `out_dir/%08d.png`; frame n (1-based) is at `(n-1) / fps` seconds from the start."""
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     run([ffmpeg or FFMPEG, "-nostdin", "-v", "error", "-y", "-i", str(src), "-map", "0:v:0", "-an", "-sn", "-dn",
-         "-vf", f"fps={fps}", "-vsync", "0", "-f", "image2", str(Path(out_dir) / "%08d.png")])
+         "-vf", f"fps={fps}", "-fps_mode", "passthrough", "-f", "image2", str(Path(out_dir) / "%08d.png")])
     return sorted(Path(out_dir).glob("*.png"))
 
 

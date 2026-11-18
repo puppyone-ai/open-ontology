@@ -789,7 +789,7 @@
       "http": 422,
       "state_code": false,
       "retryable": false,
-      "meaning_zh": "`editor` 在 M2 前不可用",
+      "meaning_zh": "`editor` 在 M2 前不可用（docs-api 1.3 起 editor 可用，此码不再返回）",
       "details": [],
       "i18n_key": "super-drive.errors.DOCS_SHARE_ROLE_UNAVAILABLE"
     },
@@ -1100,6 +1100,116 @@
       "meaning_zh": "文件仍在写入",
       "details": [],
       "i18n_key": "super-drive.errors.DOCS_SOURCE_UNSTABLE"
+    },
+    {
+      "code": "DOCS_SOURCE_MEDIA_TOO_LONG",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "媒体超过 4 GiB 或 4 小时（`too_large`，D77）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SOURCE_MEDIA_TOO_LONG",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "宿主机解码产物与文件版本不符（D65），重新解析",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_ASR_FAILED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "语音识别失败（可重试）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_ASR_FAILED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_PARSE_DIARIZATION_FAILED",
+      "http": null,
+      "state_code": true,
+      "retryable": false,
+      "meaning_zh": "说话人分离失败（可重试）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_PARSE_DIARIZATION_FAILED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_REVIEW_SPEAKER_UNCONFIRMED",
+      "http": null,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "说话人身份未确认，其发言的事实不能发布（D74）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_REVIEW_SPEAKER_UNCONFIRMED",
+      "added_by": "10 17.11, 00 D65 D74 D77"
+    },
+    {
+      "code": "DOCS_SUGGEST_NOT_FOUND",
+      "http": 404,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "建议不存在",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_NOT_FOUND",
+      "added_by": "10 11.1, B-S7-01"
+    },
+    {
+      "code": "DOCS_SUGGEST_ROLE_FORBIDDEN",
+      "http": 403,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "viewer 共享不能写建议",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_ROLE_FORBIDDEN",
+      "added_by": "10 11.1, B-S7-01"
+    },
+    {
+      "code": "DOCS_SUGGEST_SCOPE_MISSING",
+      "http": 403,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "凭证没有 suggest:write",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_SCOPE_MISSING",
+      "added_by": "10 11.1, B-S7-01"
+    },
+    {
+      "code": "DOCS_SUGGEST_NOT_PENDING",
+      "http": 409,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "建议已处理，不能再做这个决定",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_NOT_PENDING",
+      "added_by": "10 11.1, B-S7-01"
+    },
+    {
+      "code": "DOCS_SUGGEST_NO_EVIDENCE",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "建议在共享范围内没有可解析的证据",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_NO_EVIDENCE",
+      "added_by": "10 11.1, B-S7-01"
+    },
+    {
+      "code": "DOCS_SUGGEST_UNRESOLVED_ENTITY",
+      "http": 422,
+      "state_code": false,
+      "retryable": false,
+      "meaning_zh": "建议的主语或宾语不是已知实体",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_SUGGEST_UNRESOLVED_ENTITY",
+      "added_by": "10 11.1, B-S7-01"
     }
   ]
 }

@@ -854,6 +854,63 @@ pub async fn sync(app: &AppState, id: &str, req: &Req) -> Result<Response<Body>,
     Ok(json_with(202, &info, &[]))
 }
 
+/// `POST /drives/{id}:rebuild` (10 4.2, D23, B-S10-03): the one manual full rebuild. Every file of the Drive is
+/// parsed and extracted again at the reprocess priority, one by one, with DOC-G10 judging each new extraction; the
+/// old facts stay valid until a file's diff is applied. Nothing else triggers a full rebuild. The body must say
+/// `{"confirm": "<drive id>"}`: a rebuild is expensive and cannot be undone by the caller.
+pub async fn rebuild(app: &AppState, id: &str, req: &Req) -> Result<Response<Body>, ApiError> {
+    if !is_uuid(id) {
+        return Err(drive_not_found(id));
+    }
+    let key = idem::key_from(&req.headers)?;
+    let route = format!("POST /v1/docs/drives/{id}:rebuild");
+    let sha = idem::body_sha256(&req.body);
+    let body = super::http::parse_json(&req.body)?;
+    let obj = body
+        .as_object()
+        .ok_or_else(|| ApiError::bad("", "expected an object"))?;
+    only_keys(obj, &["confirm"], "")?;
+    let mut conn = app.pool.acquire().await?;
+    if let Some(stored) = idem::lookup(&mut conn, &route, &key, &sha).await? {
+        return Ok(replayed(stored, "/v1/docs/drives"));
+    }
+    match obj.get("confirm").and_then(Value::as_str) {
+        Some(c) if c == id => {}
+        Some(_) => {
+            return Err(ApiError::bad(
+                "/confirm",
+                "confirm must be the id of the drive to rebuild",
+            ));
+        }
+        None => {
+            return Err(ApiError::bad(
+                "/confirm",
+                "a full rebuild needs \"confirm\": the drive id",
+            ));
+        }
+    }
+    let drive = crate::ingest::reconcile::load_drive(&app.pool, id)
+        .await?
+        .filter(|d| d.status != "deleted")
+        .ok_or_else(|| drive_not_found(id))?;
+    if drive.status != "active" {
+        return Err(
+            ApiError::new(code::INVALID_CONFIG, "the drive is not active")
+                .details(json!({ "status": drive.status })),
+        );
+    }
+    let outdated = crate::jobs::stages::rebuild_drive(&app.pool, id).await?;
+    app.wake.notify_waiters();
+    let info = json!({
+        "drive_id": id,
+        "status": "queued",
+        "files": outdated,
+        "priority": 900,
+    });
+    idem::store(&mut conn, &route, &key, &sha, 202, &info).await?;
+    Ok(json_with(202, &info, &[]))
+}
+
 #[allow(dead_code)]
 fn _kinds() -> JobKind {
     JobKind::Sync

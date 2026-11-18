@@ -95,6 +95,11 @@ impl JobCtx {
         self.cancel_requested() || self.lease_lost()
     }
 
+    /// The cancel flag as a shared handle, for a blocking task that outlives the borrow.
+    pub fn cancel_flag_arc(&self) -> Arc<AtomicBool> {
+        self.cancel.clone()
+    }
+
     /// The cancel flag itself, for code that polls an `&AtomicBool`.
     pub fn cancel_flag(&self) -> &AtomicBool {
         &self.cancel

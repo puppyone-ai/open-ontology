@@ -214,6 +214,21 @@ fn tail(out: &Output) -> String {
     lines.into_iter().rev().collect::<Vec<_>>().join(" | ")
 }
 
+/// Optional sidecar profiles, `OO_DOCS_PROFILES=ocr,media` (10 17.1). Unknown names are ignored.
+/// Each profile adds its service to `up` and tells the engine where it is; both sit on the internal network only.
+fn optional_profiles() -> Vec<&'static str> {
+    let text = std::env::var("OO_DOCS_PROFILES").unwrap_or_default();
+    let mut out = Vec::new();
+    for name in text.split(',') {
+        match name.trim() {
+            "ocr" if !out.contains(&"ocr") => out.push("ocr"),
+            "media" if !out.contains(&"media") => out.push("media"),
+            _ => {}
+        }
+    }
+    out
+}
+
 /// The running compose project.
 pub struct Runtime {
     deploy: PathBuf,
@@ -386,6 +401,13 @@ impl Runtime {
         .env("OO_DOCS_ENGINE_IMAGE", &self.images.engine)
         .env("OO_DOCS_PARSER_IMAGE", &self.images.parser)
         .env("OO_DOCS_DB_IMAGE", &self.images.db);
+        for profile in optional_profiles() {
+            c.args(["--profile", profile]);
+            match profile {
+                "ocr" => c.env("OO_DOCS_OCR_URL", "http://ocr-parser:7482"),
+                _ => c.env("OO_DOCS_MEDIA_URL", "http://media-parser:7483"),
+            };
+        }
         c
     }
 
@@ -456,18 +478,23 @@ impl Runtime {
 
         self.ensure_login()?;
         let was_running = self.engine_running();
-        self.compose_ok(
-            &[
-                "up",
-                "-d",
-                "--wait",
-                "--wait-timeout",
-                "120",
-                "docs-engine",
-                "doc-parser",
-            ],
-            "docker compose up docs-engine doc-parser",
-        )?;
+        let mut up = vec![
+            "up",
+            "-d",
+            "--wait",
+            "--wait-timeout",
+            "240",
+            "docs-engine",
+            "doc-parser",
+        ];
+        for profile in optional_profiles() {
+            up.push(if profile == "ocr" {
+                "ocr-parser"
+            } else {
+                "media-parser"
+            });
+        }
+        self.compose_ok(&up, "docker compose up docs-engine doc-parser")?;
         if was_running {
             // A reused engine read its token files at its own start; the
             // daemon rotated them, so the engine restarts (the databases and

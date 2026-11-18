@@ -68,7 +68,7 @@
       "properties": {
         "code": {
           "type": "string",
-          "pattern": "^DOCS_(SOURCE|PARSE|EXTRACT|REVIEW|PACK|SHARE|ENGINE)_[A-Z0-9_]+$"
+          "pattern": "^DOCS_(SOURCE|PARSE|EXTRACT|REVIEW|PACK|SHARE|SUGGEST|ENGINE)_[A-Z0-9_]+$"
         },
         "message": {
           "type": "string"
@@ -827,7 +827,8 @@
                 "page",
                 "sheet",
                 "line",
-                "batch"
+                "batch",
+                "ms"
               ]
             },
             "done": {
@@ -2903,6 +2904,670 @@
           ]
         }
       ]
+    },
+    "RebuildRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirm"
+      ],
+      "properties": {
+        "confirm": {
+          "type": "string",
+          "description": "The id of the drive to rebuild. A full rebuild is manual and needs this confirmation (10 4.2, D23)."
+        }
+      },
+      "examples": [
+        {
+          "confirm": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        }
+      ]
+    },
+    "RebuildInfo": {
+      "type": "object",
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "queued"
+          ]
+        },
+        "files": {
+          "type": "integer",
+          "description": "Files marked outdated; they are reprocessed at priority 900, one at a time, each new extraction judged by DOC-G10."
+        },
+        "priority": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "status": "queued",
+          "files": 42,
+          "priority": 900
+        }
+      ]
+    },
+    "SuggestionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "subject",
+        "predicate",
+        "rationale"
+      ],
+      "description": "oo.suggest/v1 (10 11.1). object and value: exactly one for the fact kinds. share_id only with the engine token (the collector); a share credential implies it.",
+      "properties": {
+        "protocol": {
+          "const": "oo.suggest/v1"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "predicate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "valid_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "supersedes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "a [src:...] tag of the BRIEF or a fact_key"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "brief_line",
+                  "ref",
+                  "external"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.suggest/v1",
+          "kind": "new_fact",
+          "subject": "星火计划",
+          "predicate": "attr.status",
+          "value": "进行中",
+          "rationale": "周会确认",
+          "evidence": [
+            {
+              "kind": "brief_line",
+              "ref": "[src:Projects/a/周会.md#L3-L3]"
+            }
+          ]
+        }
+      ]
+    },
+    "SuggestRequest": {
+      "type": "object",
+      "description": "One record, or items (at most 50 records), or documents (at most 200 files read from suggest/: name, format md|json, text). Idempotent per share on idempotency_key or the content hash; no Idempotency-Key header. The single-record form carries the SuggestionRecord fields at the top level; the request is closed like every request object.",
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/SuggestionRecord"
+          }
+        },
+        "documents": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "format",
+              "text"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "format": {
+                "enum": [
+                  "md",
+                  "json"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 65536
+              }
+            }
+          }
+        },
+        "protocol": {
+          "const": "oo.suggest/v1"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "predicate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "valid_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "supersedes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "a [src:...] tag of the BRIEF or a fact_key"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "brief_line",
+                  "ref",
+                  "external"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "items": [
+            {
+              "kind": "new_fact",
+              "subject": "星火计划",
+              "predicate": "attr.status",
+              "value": "进行中",
+              "rationale": "周会确认"
+            }
+          ]
+        }
+      ]
+    },
+    "Suggestion": {
+      "type": "object",
+      "required": [
+        "id",
+        "share_id",
+        "kind",
+        "status",
+        "rule",
+        "revision",
+        "payload"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "auto_accepted",
+            "superseded_silently",
+            "accepted",
+            "rejected",
+            "undone",
+            "duplicate"
+          ]
+        },
+        "rule": {
+          "enum": [
+            "new_fact",
+            "supersede_unused",
+            "supersede_in_use",
+            "manual"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fact_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "old_fact_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credential_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "submitted_by": {
+          "enum": [
+            "credential",
+            "collector"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "payload": {
+          "$ref": "#/$defs/SuggestionRecord"
+        },
+        "impact": {
+          "type": "object",
+          "properties": {
+            "shares": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "share_id": {
+                    "$ref": "#/$defs/Uuid"
+                  },
+                  "task": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "group_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "replayed": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "decided_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decided_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "new_fact",
+          "status": "pending",
+          "rule": "new_fact",
+          "revision": 0,
+          "payload": {
+            "protocol": "oo.suggest/v1",
+            "kind": "new_fact",
+            "subject": "星火计划",
+            "predicate": "attr.status",
+            "value": "进行中",
+            "rationale": "周会确认",
+            "evidence": [
+              {
+                "kind": "brief_line",
+                "ref": "[src:Projects/a/周会.md#L3-L3]"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "SuggestResult": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "accepted",
+        "rejected",
+        "results"
+      ],
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "accepted": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "A Suggestion, or {status: invalid, error, document?, code?} for a record or document that was refused."
+          }
+        }
+      },
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "accepted": 0,
+          "rejected": 0,
+          "results": []
+        }
+      ]
+    },
+    "SuggestionDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision"
+      ],
+      "properties": {
+        "decision": {
+          "enum": [
+            "accept",
+            "reject",
+            "undo"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "examples": [
+        {
+          "decision": "accept"
+        }
+      ]
+    },
+    "SuggestionDigest": {
+      "type": "object",
+      "required": [
+        "day",
+        "counts",
+        "total",
+        "in_effect",
+        "pending"
+      ],
+      "properties": {
+        "day": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "total": {
+          "type": "integer"
+        },
+        "in_effect": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Suggestion"
+          }
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Suggestion"
+          }
+        },
+        "human_operations": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "day": "x",
+          "counts": {},
+          "total": 0,
+          "in_effect": [],
+          "pending": []
+        }
+      ]
+    },
+    "SuggestionDiff": {
+      "type": "object",
+      "required": [
+        "suggestion_id",
+        "share_id",
+        "kind",
+        "writable",
+        "writer",
+        "changes",
+        "ontology_effect"
+      ],
+      "description": "A draft for Desktop's revision mode; OO never writes the Drive. writable is true for an editor share; the write is Desktop's.",
+      "properties": {
+        "suggestion_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "viewer",
+            "suggester",
+            "editor"
+          ]
+        },
+        "writable": {
+          "type": "boolean"
+        },
+        "writer": {
+          "const": "desktop"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "path": {
+                "type": "string"
+              },
+              "anchor": {
+                "type": "object"
+              },
+              "frag": {
+                "type": "string"
+              },
+              "block_id": {
+                "type": "string"
+              },
+              "source_b3": {
+                "type": "string"
+              },
+              "operation": {
+                "enum": [
+                  "replace",
+                  "insert_after",
+                  "annotate"
+                ]
+              },
+              "after": {
+                "type": "string"
+              },
+              "before_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ontology_effect": {
+          "type": "object"
+        },
+        "impact": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "suggestion_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "x",
+          "writable": false,
+          "writer": "desktop",
+          "changes": [],
+          "ontology_effect": {}
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -2979,6 +3644,15 @@
       "idempotency_key": true,
       "if_match": false,
       "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:rebuild",
+      "request": "RebuildRequest",
+      "response": "RebuildInfo",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.2"
     },
     {
       "method": "GET",
@@ -3303,6 +3977,60 @@
       "idempotency_key": true,
       "if_match": false,
       "since": "1.1"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions",
+      "request": null,
+      "response": "Page<Suggestion>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/suggestions",
+      "request": "SuggestRequest",
+      "response": "SuggestResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions:digest",
+      "request": null,
+      "response": "SuggestionDigest",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions/{id}",
+      "request": null,
+      "response": "Suggestion",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions/{id}/diff",
+      "request": null,
+      "response": "SuggestionDiff",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/suggestions/{id}:decide",
+      "request": "SuggestionDecideRequest",
+      "response": "Suggestion",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
     }
   ]
 }

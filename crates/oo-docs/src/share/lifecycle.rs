@@ -204,7 +204,8 @@ pub async fn insert(
         .await?;
     sqlx::query(
         "INSERT INTO _oo_docs.refs_credential (id, share_id, token_b3, scopes, expires_at) \
-         SELECT gen_random_uuid(), $1::uuid, $2, ARRAY['refs:read'], expires_at \
+         SELECT gen_random_uuid(), $1::uuid, $2, \
+                CASE WHEN role = 'viewer' THEN ARRAY['refs:read'] ELSE ARRAY['refs:read','suggest:write'] END, expires_at \
            FROM _oo_docs.share WHERE id = $1::uuid",
     )
     .bind(&sid)
@@ -723,6 +724,7 @@ pub fn request_of(params: &Value) -> CompileRequest {
         role: params["role"].as_str().unwrap_or("suggester").to_owned(),
         version: None,
         coverage: None,
+        changes: None,
     }
 }
 
@@ -749,11 +751,17 @@ pub async fn refresh(app: &AppState, sid: &str, public_host: &str) -> Result<Val
         )
         .details(json!({"share_id": sid, "group_id": old.group_id})));
     }
+    // What changed since the old share's version goes after the head of the new BRIEF.
+    let mut creq = request_of(&old.params);
+    {
+        let mut conn = app.pool.acquire().await?;
+        creq.changes = crate::share::changes::compute(&mut conn, sid, creq.version).await?;
+    }
     let prepared = prepare(
         app,
         Plan {
             drive: old.drive.clone(),
-            creq: request_of(&old.params),
+            creq,
             fresh: Freshness {
                 wait_ms: 0,
                 ..Freshness::default()

@@ -1,7 +1,7 @@
 {
-  "cursor": 86,
-  "head": 188,
-  "replayed_seqs": "87..188",
+  "cursor": 92,
+  "head": 199,
+  "replayed_seqs": "93..199",
   "types": [
     "drive.freshness_changed",
     "drive.sync_completed",
@@ -9,6 +9,8 @@
     "file.state_changed",
     "ontology.version_published",
     "pack.compiled",
-    "share.created"
+    "share.created",
+    "share.state_changed",
+    "share.update_appended"
   ]
 }
