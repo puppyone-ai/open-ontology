@@ -26,9 +26,9 @@ use oo_docs::parse::markdown::parse_markdown;
 use oo_docs::vector::lexical::Index;
 use serde_json::{Value, json};
 
-/// Lines per indexed window of an accessibility tree.
+/// Default lines per indexed window of an accessibility tree (`--window`).
 const WINDOW: usize = 20;
-/// Windows of context shown on each side of a hit window.
+/// Default windows of context shown on each side of a hit (`--spread`).
 const SPREAD: usize = 1;
 
 struct State {
@@ -54,10 +54,14 @@ struct Traj {
 /// One indexed text, with every place it was observed: `(state, first line)`.
 struct Unit {
     seen: Vec<(usize, usize)>,
+    /// Lowercased indexed text, for quoted-phrase matching.
+    lower: String,
 }
 
 #[derive(Default)]
 struct Memory {
+    window: usize,
+    spread: usize,
     trajs: Vec<Traj>,
     states: Vec<State>,
     windows: Index,
@@ -226,7 +230,7 @@ impl Memory {
             let n = self.states[si].lines.len();
             let mut start = 0;
             while start < n {
-                let end = (start + WINDOW).min(n);
+                let end = (start + self.window).min(n);
                 let text = self.states[si].lines[start..end].join("\n");
                 let with_title = format!("{}\n{text}", self.states[si].title);
                 self.add_unit(&with_title, si, start);
@@ -262,6 +266,8 @@ impl Memory {
     }
 
     fn add_unit(&mut self, text: &str, state: usize, line: usize) {
+        let text = strip_bids(text);
+        let text = text.as_str();
         let h = blake3::hash(text.as_bytes());
         if let Some(&u) = self.by_text.get(&h) {
             self.units[u as usize].seen.push((state, line));
@@ -271,6 +277,7 @@ impl Memory {
         self.by_text.insert(h, id);
         self.units.push(Unit {
             seen: vec![(state, line)],
+            lower: text.to_lowercase(),
         });
     }
 
@@ -306,10 +313,32 @@ impl Memory {
         h
     }
 
-    fn query(&self, text: &str, budget: u64, digest_share: u64) -> Value {
+    #[allow(clippy::too_many_arguments)]
+    fn query(
+        &self,
+        text: &str,
+        budget: u64,
+        digest_share: u64,
+        per_page: usize,
+        agg_sum: bool,
+        full_top: usize,
+        phrase_boost: i64,
+        coverage_note: bool,
+    ) -> Value {
         let q = strip_scaffold(text);
         let mut items: Vec<String> = Vec::new();
         let mut used: u64 = 0;
+        if coverage_note {
+            // What was searched, like the pack compiler's coverage line (D54):
+            // a statement about the evidence, not about the answer.
+            let note = format!(
+                "Memory coverage: {} past task trajectories ({} observed page states) from this environment were searched; the observations below are the closest matches, most relevant first. A tree marked complete lists every element that page showed when it was observed.\n",
+                self.trajs.len(),
+                self.states.len()
+            );
+            used += tokens::count(&note);
+            items.push(note);
+        }
 
         // Trajectory digests (workflow and failure knowledge).
         let digest_budget = budget * digest_share / 100;
@@ -327,11 +356,25 @@ impl Memory {
             ));
         }
         used += dused;
+        let digest_count = items.len();
 
         // Windows grouped by observation; the latest sighting of a unit wins.
         let mut per_state: BTreeMap<usize, (i64, Vec<usize>, usize)> = BTreeMap::new();
         let mut order: Vec<usize> = Vec::new();
-        for (u, score) in self.windows.search(&q, 600) {
+        let phrases = quoted_phrases(&q);
+        let mut ranked = self.windows.search(&q, 600);
+        if phrase_boost > 0 && !phrases.is_empty() {
+            for (u, score) in &mut ranked {
+                let lower = &self.units[*u as usize].lower;
+                let n = phrases
+                    .iter()
+                    .filter(|p| lower.contains(p.as_str()))
+                    .count() as i64;
+                *score += *score * n * phrase_boost / 100;
+            }
+            ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        }
+        for (u, score) in ranked {
             let unit = &self.units[u as usize];
             let Some(&(si, line)) = unit.seen.iter().max_by_key(|(si, l)| {
                 let st = &self.states[*si];
@@ -346,12 +389,22 @@ impl Memory {
             if line != usize::MAX {
                 e.1.push(line);
             }
+            if e.1.len() < 3 && agg_sum && score != e.0 {
+                e.0 += score / 2;
+            }
             e.2 = e.2.max(unit.seen.len());
         }
         order.sort_by(|a, b| per_state[b].0.cmp(&per_state[a].0).then(a.cmp(b)));
+        let mut pages: HashMap<String, usize> = HashMap::new();
         for si in order {
             let (_, hits, sightings) = &per_state[&si];
-            let item = self.render(si, hits, *sightings);
+            let seen = pages.entry(self.page_key(si)).or_insert(0);
+            if *seen >= per_page {
+                continue;
+            }
+            *seen += 1;
+            let full = items.len() < full_top + digest_count;
+            let item = self.render(si, hits, *sightings, full);
             let n = tokens::count(&item);
             if used + n > budget {
                 if used + 400 > budget {
@@ -365,36 +418,97 @@ impl Memory {
         json!({"ok": true, "items": items, "tokens": used})
     }
 
-    fn render(&self, si: usize, hits: &[usize], sightings: usize) -> String {
+    /// Page identity: title plus the URL without query string or digits, so
+    /// one form seen in many records counts as one page.
+    fn page_key(&self, si: usize) -> String {
+        let st = &self.states[si];
+        let url = st.url.split(['?', '#']).next().unwrap_or("");
+        let url: String = url.chars().filter(|c| !c.is_ascii_digit()).collect();
+        format!("{}\u{1}{url}", st.title)
+    }
+
+    fn render(&self, si: usize, hits: &[usize], sightings: usize, full: bool) -> String {
         let st = &self.states[si];
         let mut out = self.header(si, sightings);
         let n = st.lines.len();
-        let mut keep = vec![false; n];
+        let mut keep = vec![full; n];
         for k in keep.iter_mut().take(3) {
             *k = true;
         }
         for &h in hits {
-            let w = h / WINDOW;
-            let from = w.saturating_sub(SPREAD) * WINDOW;
-            let to = ((w + 1 + SPREAD) * WINDOW).min(n);
+            let w = h / self.window;
+            let from = w.saturating_sub(self.spread) * self.window;
+            let to = ((w + 1 + self.spread) * self.window).min(n);
             for k in keep.iter_mut().take(to).skip(from) {
                 *k = true;
             }
         }
-        out.push_str("Accessibility tree (excerpt):\n");
-        let mut gap = false;
+        out.push_str(if full {
+            "Accessibility tree (complete):\n"
+        } else {
+            "Accessibility tree (excerpt):\n"
+        });
+        let mut skipped = 0;
         for (i, line) in st.lines.iter().enumerate() {
             if keep[i] {
+                if skipped > 0 {
+                    out.push_str(&format!("\t... ({skipped} lines not shown)\n"));
+                    skipped = 0;
+                }
                 out.push_str(line);
                 out.push('\n');
-                gap = false;
-            } else if !gap {
-                out.push_str("\t...\n");
-                gap = true;
+            } else {
+                skipped += 1;
             }
+        }
+        if skipped > 0 {
+            out.push_str(&format!("\t... ({skipped} lines not shown)\n"));
         }
         out
     }
+}
+
+/// Remove browser element ids (`[112] `, `[a51] `): they differ between
+/// sightings of the same page and carry no meaning for retrieval.
+fn strip_bids(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find('[') {
+        out.push_str(&rest[..i]);
+        let after = &rest[i + 1..];
+        match after.find(']') {
+            Some(j)
+                if j > 0 && j <= 12 && after[..j].chars().all(|c| c.is_ascii_alphanumeric()) =>
+            {
+                rest = after[j + 1..].strip_prefix(' ').unwrap_or(&after[j + 1..]);
+            }
+            _ => {
+                out.push('[');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Lowercased spans the question quotes ("..", `..`, \u{201c}..\u{201d}), at
+/// least 3 characters: field labels and button names worth matching exactly.
+fn quoted_phrases(q: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for (open, close) in [('"', '"'), ('`', '`'), ('\u{201c}', '\u{201d}')] {
+        let mut rest = q;
+        while let Some(i) = rest.find(open) {
+            let after = &rest[i + open.len_utf8()..];
+            let Some(j) = after.find(close) else { break };
+            let p = after[..j].trim().to_lowercase();
+            if p.chars().count() >= 3 && p.chars().count() <= 80 && !out.contains(&p) {
+                out.push(p);
+            }
+            rest = &after[j + close.len_utf8()..];
+        }
+    }
+    out
 }
 
 /// Drop the answer-format instructions; they carry no retrieval signal.
@@ -432,7 +546,23 @@ fn clip_tokens(text: &str, max: u64) -> String {
 fn main() {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout().lock();
-    let mut mem = Memory::default();
+    let mut mem = Memory {
+        window: WINDOW,
+        spread: SPREAD,
+        ..Memory::default()
+    };
+    let argv: Vec<String> = std::env::args().skip(1).collect();
+    for pair in argv.chunks(2) {
+        let v = pair.get(1).and_then(|v| v.parse::<usize>().ok());
+        match (pair[0].as_str(), v) {
+            ("--window", Some(v)) if v > 0 => mem.window = v,
+            ("--spread", Some(v)) => mem.spread = v,
+            _ => {
+                eprintln!("usage: lme_v2_memory [--window N] [--spread N]");
+                std::process::exit(2);
+            }
+        }
+    }
     for line in stdin.lock().lines() {
         let Ok(line) = line else { break };
         if line.trim().is_empty() {
@@ -454,6 +584,20 @@ fn main() {
                         .and_then(Value::as_u64)
                         .unwrap_or(20)
                         .min(100),
+                    req.get("per_page")
+                        .and_then(Value::as_u64)
+                        .map_or(usize::MAX, |n| usize::try_from(n).unwrap_or(usize::MAX)),
+                    req.get("agg_sum").and_then(Value::as_bool).unwrap_or(false),
+                    req.get("full_top")
+                        .and_then(Value::as_u64)
+                        .map_or(0, |n| usize::try_from(n).unwrap_or(0)),
+                    req.get("phrase_boost")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0)
+                        .clamp(0, 1000),
+                    req.get("coverage_note")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 ),
                 Some("stats") => json!({
                     "ok": true,
@@ -473,5 +617,91 @@ fn main() {
         {
             break;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn trajectory(id: &str, tree: &str) -> Value {
+        json!({
+            "id": id,
+            "goal": "Open the incident list",
+            "outcome": "success",
+            "states": [
+                {"url": "https://x.test/a", "action": "click('12')", "thought": "open it",
+                 "accessibility_tree": format!("RootWebArea 'Incidents | Portal'\n\t[12] link 'Incidents'\n{tree}")},
+                {"url": "https://x.test/b?sys_id=9", "action": null, "thought": "",
+                 "accessibility_tree": "RootWebArea 'Incident list'\n\t[40] button 'Filters'"}
+            ]
+        })
+    }
+
+    #[test]
+    fn helpers() {
+        assert_eq!(
+            strip_bids("\t[12] link 'A' [a51] b [not an id] [ x]"),
+            "\tlink 'A' b [not an id] [ x]"
+        );
+        assert_eq!(
+            strip_scaffold("Which one?\n\nMark your final answer in \\boxed{}."),
+            "Which one?\n\n"
+        );
+        assert_eq!(
+            title_of("RootWebArea 'Incidents | Portal', focused\n..."),
+            "Incidents | Portal"
+        );
+        assert_eq!(
+            resolve_action("click('12')", "x\n\t[12] link 'Incidents'"),
+            "click('12') on [12] link 'Incidents'"
+        );
+        assert_eq!(resolve_action("scroll(0, 200)", "x"), "scroll(0, 200)");
+    }
+
+    #[test]
+    fn latest_sighting_wins_and_queries_replay() {
+        let mut mem = Memory {
+            window: 4,
+            spread: 1,
+            ..Memory::default()
+        };
+        mem.insert(&trajectory("t1", "\t[13] checkbox 'Depreciation'"))
+            .unwrap();
+        mem.insert(&trajectory("t2", "\t[99] checkbox 'Depreciation'"))
+            .unwrap();
+        assert_eq!(mem.trajs.len(), 2);
+        // Same text up to element ids is one unit seen twice.
+        let q = mem.query(
+            "Which checkbox mentions Depreciation?",
+            4000,
+            0,
+            usize::MAX,
+            false,
+            0,
+            0,
+            false,
+        );
+        let items = q["items"].as_array().unwrap();
+        let first = items[0].as_str().unwrap();
+        assert!(first.contains("trajectory 2 of 2"), "{first}");
+        assert!(first.contains("seen in 2 observations"));
+        assert!(first.contains("[src:trajectories/0002-t2.md#L"));
+        assert_eq!(
+            mem.query(
+                "Which checkbox mentions Depreciation?",
+                4000,
+                0,
+                usize::MAX,
+                false,
+                0,
+                0,
+                false
+            ),
+            q
+        );
+        // The budget bounds the reply.
+        let small = mem.query("Depreciation", 10, 0, usize::MAX, false, 0, 0, false);
+        assert!(small["items"].as_array().unwrap().is_empty());
     }
 }

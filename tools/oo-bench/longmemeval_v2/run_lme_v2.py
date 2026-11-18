@@ -45,6 +45,11 @@ def main() -> None:
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--budget-tokens", type=int, default=24000)
     ap.add_argument("--digest-share-pct", type=int, default=20)
+    ap.add_argument(
+        "--engine-params",
+        default="{}",
+        help="JSON merged into memory_params: window, spread, per_page, full_top, phrase_boost, coverage_note",
+    )
     ap.add_argument("--reader-url", default="http://127.0.0.1:8023/v1")
     ap.add_argument("--reader-concurrency", type=int, default=8)
     ap.add_argument("--judge-model", default="cb/gpt-5.2")
@@ -90,6 +95,7 @@ def main() -> None:
             "budget_tokens": args.budget_tokens,
             "digest_share_pct": args.digest_share_pct,
             "lexical_model": "bm25/1",
+            **json.loads(args.engine_params),
         },
     }
     write_json(runtime / "memory_config.json", config)
