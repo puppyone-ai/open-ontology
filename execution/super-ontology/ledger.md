@@ -5,12 +5,12 @@
 | 卡号 | 闭环 | 状态 | 分支 | 提交（首 → 末） | PR | 证据 | 备注 |
 |---|---|---|---|---|---|---|---|
 | SO-SIGN-L2 | L2 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L2/ | OO 侧（D80 阶段一）；标签 super-ontology/L2（本地） |
-| SO-SIGN-L8 | L8 | review | so/sign-v2 | 证据提交（未签收） | — | testing/super-ontology/evidence/L8/ | OO 侧证据已记录，未签收：conformance_share 偶发失败（向量开启全量运行 1 次，单独通过）；download 因 S3 镜像不在本机被阻塞；L8 自身验收项全部通过；pgvector 基础镜像法务审阅（D67）与无 Docker 冷下载为 owner 事项 |
+| SO-SIGN-L8 | L8 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L8/ | OO 侧证据已记录，未签收：conformance_share 偶发失败（向量开启全量运行 1 次，单独通过）；download 因 S3 镜像不在本机被阻塞；L8 自身验收项全部通过；pgvector 基础镜像法务审阅（D67）与无 Docker 冷下载为 owner 事项 |
 | SO-SIGN-L7 | L7 | review | so/sign-v2 | 证据提交（未签收） | — | testing/super-ontology/evidence/L7/ | OO 侧证据已记录，未签收：真实 OSS/COS/R2 桶与云队列需 owner 凭证（验收 1 未做）；MNS 签名、COS 事件格式未确认 |
 | SO-SIGN-L5 | L5 | signed | so/sign-v2 | 签收提交 | — | testing/super-ontology/evidence/L5/ | OO 侧（D80 阶段一）；独立复核 42/42；修订模式视图与 editor 写入在阶段二；标签 super-ontology/L5（本地） |
 | SO-SIGN-L3 | L3 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L3/ | OO 侧证据已记录，未签收：S3 格子（RustFS、MinIO）、download、s3_rustfs 未独立重跑（固定镜像不在本机，拉取需 owner 批准） |
 | SO-SIGN-L1 | L1 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L1/ | 标签 super-ontology/L1（本地） |
-| SO-SIGN-L4 | L4 | review | so/sign-v2 | 证据提交（未签收） | — | testing/super-ontology/evidence/L4/ | OO 侧证据已记录，未签收：conformance_share（FM6）在全量 live 套件负载下于 4cee27056 失败 1 次（单独通过），根因修复进行中；CLI 验收 58/58 |
+| SO-SIGN-L4 | L4 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L4/ | OO 侧证据已记录，未签收：conformance_share（FM6）在全量 live 套件负载下于 4cee27056 失败 1 次（单独通过），根因修复进行中；CLI 验收 58/58 |
 | SO-SIGN-L6 | L6 | signed | feat/super-ontology (主线程) | 签收提交 | — | testing/super-ontology/evidence/L6/ | OO 侧（D80 阶段一）；独立复核 CLI 36/36、e2e 28/28；ASR 选型与许可记录于 supply-chain/media-asr-model-reviews.json；macOS 宿主机解码与 puppyone share 在阶段二；标签 super-ontology/L6（本地） |
 | SO-SPEC | — | merged | feat/super-ontology (主线程) | 台账、spec 类提交 | — | — | 非卡片的主线程提交 |
 | SO-B-S1-01 | L1 | signed | feat/super-ontology (主线程) | 5f1fb464e → 5f1fb464e | — | contracts/docs-api/ | docs-api 1.0-draft |
@@ -143,6 +143,8 @@
 
 | 闭环 | 签收提交 | OO sha | Puppyone sha | 证据 | 日期 |
 |---|---|---|---|---|---|
+| L8 | SO-SIGN-L8（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L8/ | 2026-11-18 |
+| L4 | SO-SIGN-L4（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L4/ | 2026-11-18 |
 | L3 | SO-SIGN-L3（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L3/ | 2026-11-18 |
 | L6 | SO-SIGN-L6（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L6/ | 2026-11-18 |
 | L5 | SO-SIGN-L5（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L5/ | 2026-11-18 |
