@@ -1,14 +1,14 @@
 {
   "schema_version": "oo-source-baseline/v1",
   "spec_id": "OO-SPEC-001",
-  "captured_date": "2026-11-07",
+  "captured_date": "2026-11-18",
   "timezone": "Asia/Shanghai",
-  "revision": 32,
-  "supersedes_revision": 31,
-  "supersedes_baseline_head": "214d177a444caeb1f3139f53708cdeed448230c8",
-  "supersedes_sha256": "4c5cc3197961e512c7456330446417ab966fe4d05c0b837bde3c88a5619daf85",
-  "review_record": "specs/source-baseline-revision-32.md",
-  "baseline_head": "0b59c1740f20da17188bd4b02c3eafc3e6077726",
+  "revision": 33,
+  "supersedes_revision": 32,
+  "supersedes_baseline_head": "0b59c1740f20da17188bd4b02c3eafc3e6077726",
+  "supersedes_sha256": "ea85f2ae14d3546aeaa48dbac5207e56f771edaea79e2333eb546d4eec874c64",
+  "review_record": "specs/source-baseline-revision-33.md",
+  "baseline_head": "ad0c3fbc0ceb7eb4220cc4c87432c5430d7a4f3e",
   "source_count": 26,
   "sources": [
     {
@@ -61,9 +61,9 @@
     },
     {
       "path": "docs/08-agent-interface.md",
-      "sha256": "0004140b1bf7374d9c7978a12cd3f8f87ade8b7b449a5f10097d8ab4b9733f50",
-      "bytes": 16872,
-      "lines": 250
+      "sha256": "e1f741b09a626a8990814cfaaa7db69b139e720bd87e7dae17d56275e99c370b",
+      "bytes": 17879,
+      "lines": 254
     },
     {
       "path": "docs/09-sandbox-and-agent-runtime.md",
@@ -168,5 +168,5 @@
       "lines": 41
     }
   ],
-  "review_status": "owner self-review (D6); D19 architecture backfill"
+  "review_status": "owner delegate review (Super Ontology D42); MCP suggest tools added to docs/08"
 }
