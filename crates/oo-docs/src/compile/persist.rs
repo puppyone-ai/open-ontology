@@ -34,6 +34,17 @@ impl PackRecord {
     /// The `ContextPack` object (contract `$defs/ContextPack`), without the
     /// BRIEF preview.
     pub fn to_json(&self) -> Value {
+        let mut v = self.to_base_json();
+        if let Some(c) = self.manifest.get("coverage") {
+            v["coverage"] = c.clone();
+        }
+        if let Some(g) = self.manifest.get("guarantees") {
+            v["guarantees"] = g.clone();
+        }
+        v
+    }
+
+    fn to_base_json(&self) -> Value {
         json!({
             "id": self.id,
             "pack_digest": self.pack_digest,
@@ -149,15 +160,24 @@ pub async fn persist(
         .fetch_optional(&mut *conn)
         .await
         .map_err(store)?;
+    // Bytes first, also for a pack already stored: the objects are content
+    // addressed, so a rerun is cheap, and a lost or torn object is healed.
+    let b3s = cas
+        .put_batch(
+            CasKind::Pack,
+            &p.files
+                .iter()
+                .map(|f| f.bytes.as_slice())
+                .collect::<Vec<_>>(),
+            // Derived bytes: the same compile rebuilds them, and a torn file is
+            // written again on the next request for the same pack.
+            false,
+        )
+        .map_err(store)?;
+    let files: Vec<(&super::pack::PackFile, String)> = p.files.iter().zip(b3s).collect();
     if let Some(r) = existing {
         let total = total_tokens(conn, &r.0).await?;
         return Ok((record(r, total)?, false));
-    }
-    // Bytes first: the objects are content addressed, so a rerun is free.
-    let mut files = Vec::with_capacity(p.files.len());
-    for f in &p.files {
-        let put = cas.put(CasKind::Pack, &f.bytes).map_err(store)?;
-        files.push((f, put.b3));
     }
     let mut tx = conn.begin().await.map_err(store)?;
     let id: Option<String> = sqlx::query_scalar(
@@ -198,21 +218,36 @@ pub async fn persist(
         let total = total_tokens(conn, &r.0).await?;
         return Ok((record(r, total)?, false));
     };
-    for (f, b3) in &files {
-        sqlx::query(
-            "INSERT INTO _oo_docs.context_pack_file (pack_id, path, sha256, bytes, tokens, cas_b3) \
-             VALUES ($1::uuid, $2, $3, $4, $5, $6)",
-        )
-        .bind(&id)
-        .bind(&f.path)
-        .bind(pack::sha256_hex(&f.bytes))
-        .bind(i32::try_from(f.bytes.len()).unwrap_or(i32::MAX))
-        .bind(i32::try_from(f.tokens).unwrap_or(i32::MAX))
-        .bind(b3)
-        .execute(&mut *tx)
-        .await
-        .map_err(store)?;
-    }
+    // One statement for the whole file list.
+    let paths: Vec<&str> = files.iter().map(|(f, _)| f.path.as_str()).collect();
+    let shas: Vec<String> = files
+        .iter()
+        .map(|(f, _)| pack::sha256_hex(&f.bytes))
+        .collect();
+    let bytes: Vec<i32> = files
+        .iter()
+        .map(|(f, _)| i32::try_from(f.bytes.len()).unwrap_or(i32::MAX))
+        .collect();
+    let tokens: Vec<i32> = files
+        .iter()
+        .map(|(f, _)| i32::try_from(f.tokens).unwrap_or(i32::MAX))
+        .collect();
+    let b3s: Vec<&str> = files.iter().map(|(_, b)| b.as_str()).collect();
+    sqlx::query(
+        "INSERT INTO _oo_docs.context_pack_file (pack_id, path, sha256, bytes, tokens, cas_b3) \
+         SELECT $1::uuid, u.path, u.sha, u.bytes, u.tokens, u.b3 \
+           FROM unnest($2::text[], $3::text[], $4::int[], $5::int[], $6::text[]) \
+                AS u(path, sha, bytes, tokens, b3)",
+    )
+    .bind(&id)
+    .bind(&paths)
+    .bind(&shas)
+    .bind(&bytes)
+    .bind(&tokens)
+    .bind(&b3s)
+    .execute(&mut *tx)
+    .await
+    .map_err(store)?;
     tx.commit().await.map_err(store)?;
     let r = load(conn, &id)
         .await?

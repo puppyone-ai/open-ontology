@@ -34,6 +34,8 @@ pub mod files;
 pub mod handlers;
 pub mod hashjob;
 pub mod poll;
+#[cfg(kani)]
+mod proofs;
 pub mod reconcile;
 pub mod sniff;
 pub mod zipguard;

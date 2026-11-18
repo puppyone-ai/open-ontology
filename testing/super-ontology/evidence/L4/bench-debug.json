@@ -1,0 +1,16 @@
+{
+  "alarm_s": 2.4,
+  "block_s": 3.0,
+  "budget": 800,
+  "build": "debug",
+  "facts": 2290,
+  "files": 1000,
+  "index_s": 27.3429585,
+  "limit_s": 2.0,
+  "max_s": 5.702164958,
+  "p50_s": 4.103672042,
+  "p95_s": 5.197298541,
+  "protocol": "oo.bench.compile/v1",
+  "publish_s": 2.025330125,
+  "runs": 60
+}

@@ -36,7 +36,48 @@ impl CasKind {
 
 /// `true` for exactly 64 lowercase hex characters.
 pub fn is_b3_hex(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    is_hex64(s.as_bytes())
+}
+
+/// Byte form of [`is_b3_hex`] (shared with the KP8 proofs).
+pub fn is_hex64(b: &[u8]) -> bool {
+    b.len() == 64 && b.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// Longest relative object path: `orig/b3/aa/bb/<64 hex>`.
+pub const MAX_REL_PATH: usize = 78;
+
+fn put(out: &mut [u8; MAX_REL_PATH], n: &mut usize, bytes: &[u8]) {
+    let mut i = 0;
+    while i < bytes.len() {
+        out[*n] = bytes[i];
+        *n += 1;
+        i += 1;
+    }
+}
+
+/// The allocation-free kernel of [`object_rel_path`]: writes the path into
+/// `out` and returns its length. `key` must be 64 lowercase hex characters
+/// (the caller checked). Kept free of `String`, `format!` and iterators so
+/// the KP8 proofs reach every byte of it.
+pub fn write_rel_path(kind: CasKind, key: &[u8; 64], out: &mut [u8; MAX_REL_PATH]) -> usize {
+    let mut n = 0;
+    let (head, deep, tail): (&[u8], bool, &[u8]) = match kind {
+        CasKind::Orig => (b"orig/b3/", true, b""),
+        CasKind::Ir => (b"ir/", false, b".json"),
+        CasKind::Llm => (b"llm/", false, b".json"),
+        CasKind::Pack => (b"packs/", false, b""),
+    };
+    put(out, &mut n, head);
+    put(out, &mut n, &key[..2]);
+    put(out, &mut n, b"/");
+    if deep {
+        put(out, &mut n, &key[2..4]);
+        put(out, &mut n, b"/");
+    }
+    put(out, &mut n, key);
+    put(out, &mut n, tail);
+    n
 }
 
 /// Path of an object relative to the CAS root, `None` for a malformed key.
@@ -45,19 +86,15 @@ pub fn is_b3_hex(s: &str) -> bool {
 /// file name, shards are prefixes of them) and only produces characters from
 /// `[0-9a-f/._]` plus the fixed directory names.
 ///
-/// Formal: KP8
+/// Formal: KP8 (on [`write_rel_path`])
 pub fn object_rel_path(kind: CasKind, b3: &str) -> Option<String> {
     if !is_b3_hex(b3) {
         return None;
     }
-    let (aa, rest) = b3.split_at(2);
-    let bb = &rest[..2];
-    Some(match kind {
-        CasKind::Orig => format!("orig/b3/{aa}/{bb}/{b3}"),
-        CasKind::Ir => format!("ir/{aa}/{b3}.json"),
-        CasKind::Llm => format!("llm/{aa}/{b3}.json"),
-        CasKind::Pack => format!("packs/{aa}/{b3}"),
-    })
+    let key: &[u8; 64] = b3.as_bytes().try_into().ok()?;
+    let mut buf = [0u8; MAX_REL_PATH];
+    let n = write_rel_path(kind, key, &mut buf);
+    String::from_utf8(buf[..n].to_vec()).ok()
 }
 
 /// Inverse of the file-name part: the key stored in `file_name`, if valid for

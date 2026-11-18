@@ -106,6 +106,14 @@ fn every_route_error_code_is_in_the_contract() {
             code::SHARE_EXPIRY_INVALID,
             code::SHARE_ROLE_UNAVAILABLE,
             code::SHARE_TARGET_INVALID,
+            code::PACK_COVERAGE_INCOMPLETE,
+            code::SHARE_GROUP_MEMBER,
+            code::SHARE_INVALID_TRANSITION,
+            code::SHARE_PINNED,
+            code::SHARE_REFS_CREDENTIAL_INVALID,
+            code::SHARE_REFS_OUT_OF_SCOPE,
+            code::SHARE_TARGET_OCCUPIED,
+            code::SHARE_TARGET_WRITE_FAILED,
             code::PARSE_NOT_READY,
             code::REVIEW_BATCH_TOO_LARGE,
             code::REVIEW_INVALID_DECISION,
@@ -123,7 +131,7 @@ fn every_route_error_code_is_in_the_contract() {
         assert_eq!(e.retryable, entry["retryable"].as_bool().unwrap(), "{name}");
         check(&v, name, &e.body());
     }
-    assert_eq!(ALL_CODES.len(), 42);
+    assert_eq!(ALL_CODES.len(), 50);
 }
 
 #[test]

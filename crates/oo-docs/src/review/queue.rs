@@ -237,7 +237,10 @@ pub async fn enqueue(conn: &mut PgConnection, th: Thresholds) -> Result<EnqueueR
           WHERE r.kind = 'low_confidence_fact' AND r.status = 'pending' \
             AND r.reason_code IN ('low_confidence', 'supersede_candidate') \
             AND r.subject ? 'fact_id' \
-            AND NOT ((r.subject->>'fact_id') = ANY($1::text[]))",
+            AND NOT ((r.subject->>'fact_id') = ANY($1::text[])) \
+            AND (r.reason_code <> 'supersede_candidate' \
+                 OR NOT EXISTS (SELECT 1 FROM _oo_docs.fact held \
+                                 WHERE held.id = (r.subject->>'fact_id')::uuid AND held.status = 'draft'))",
     )
     .bind(&waiting)
     .execute(&mut *conn)

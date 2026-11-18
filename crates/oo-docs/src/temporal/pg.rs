@@ -204,7 +204,10 @@ pub async fn reconcile(
         merge_plan(&mut out, plan, &incoming_set);
     }
 
-    // ---- Shares in use turn a certain supersession into a prompt (D51).
+    // ---- A rule-certain supersession always runs (D51, D50): the share that
+    // used the old fact then drifts and gets its UPDATES entry. When a live
+    // share did use it, the queue also gets one notice for a person (D51:
+    // "even when the rule is certain"); the notice does not hold the cut.
     let ending: Vec<String> = out.ended.iter().map(|e| e.fact_id.clone()).collect();
     let used = used_by_live_share(conn, &ending).await?;
     let mut applied = Vec::new();
@@ -215,9 +218,8 @@ pub async fn reconcile(
                 other_id: e.fact_id.clone(),
                 reason: ReviewReason::SupersedeInUse,
             });
-        } else {
-            applied.push(e);
         }
+        applied.push(e);
     }
     for e in &applied {
         sqlx::query(

@@ -331,6 +331,7 @@ lite 运行时镜像用 `--features s3` 构建引擎；`cli-binaries.yml` 何时
 | 0142 | `0142_docs_consistency.sql` | `docs-consistency/1` | S5 | 依赖链哈希列、drive_rev、constraint 与 constraint_violation、share_group、share_update、share_section_use、ontology_version 的 pinned_by 计数（见 §16.9） |
 | 0143 | `0143_docs_suggest.sql` | `docs-suggest/1` | S7 | suggestion、brief_use 摘要视图 |
 | 0144 | `0144_docs_vectors.sql` | `docs-vectors/1` | S13 | 可选，见 §11.3 |
+| 0145 | `0145_docs_share_consistency.sql` | `docs-share-consistency/1` | S6 | 实现更正（2026-11-17）：§16 的 share 侧表（share_group、share_update、share_section_use、刷新策略、pinned_by）从 0142 拆出，单独编号，避免占用 0143/0144 的预留号 |
 
 规则：
 

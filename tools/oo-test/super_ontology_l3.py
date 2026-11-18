@@ -636,6 +636,9 @@ def phase_fresh(ev, lab):
         deg = l2.wait_until(90, lambda: fstate(held_id) == "degraded", step=0.5)
         ev.check("degraded: an unreadable root is degraded and nothing is swept", bool(deg), json.dumps(lab.drive(held_id).get("freshness")))
         ev.check("degraded: the files are still listed", len(lab.states("", held_id)) == n0, f"{n0} files")
+        # The engine announces freshness from a 1 s watcher; a state that lasts
+        # less than one period is coalesced. Hold it for two periods.
+        time.sleep(2.5)
     finally:
         os.chmod(lab.held_root, 0o755)
     sync_raw(held_id)

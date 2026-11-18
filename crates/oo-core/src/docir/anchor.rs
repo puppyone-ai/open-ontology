@@ -199,53 +199,114 @@ fn quote_sheet(name: &str) -> String {
     }
 }
 
-/// Column (1-based) and row (1-based) to A1 notation, e.g. (3, 9) -> "C9".
-/// Returns `None` outside the A..ZZZ / 1..9_999_999 range.
-pub fn a1_from_cell(col: u32, row: u32) -> Option<String> {
+/// Longest A1 cell: three letters and seven row digits.
+pub const MAX_A1: usize = 10;
+
+/// Allocation-free kernel of [`a1_from_cell`] (so the KP2 proofs reach every
+/// byte): writes the A1 text of (col, row) into `out` and returns its length,
+/// `None` outside the A..ZZZ / 1..9_999_999 range.
+pub fn a1_write(col: u32, row: u32, out: &mut [u8; MAX_A1]) -> Option<usize> {
     if col == 0 || col > 18_278 || row == 0 || row > 9_999_999 {
         return None;
     }
-    let mut letters = Vec::new();
+    let mut letters = [0u8; 3];
+    let mut nl = 0;
     let mut n = col;
     while n > 0 {
         let rem = (n - 1) % 26;
-        letters.push(b'A' + rem as u8);
+        letters[nl] = b'A' + rem as u8;
+        nl += 1;
         n = (n - 1) / 26;
     }
-    letters.reverse();
-    Some(format!("{}{row}", String::from_utf8(letters).ok()?))
+    let mut len = 0;
+    while nl > 0 {
+        nl -= 1;
+        out[len] = letters[nl];
+        len += 1;
+    }
+    let mut digits = [0u8; 7];
+    let mut nd = 0;
+    let mut r = row;
+    while r > 0 {
+        digits[nd] = b'0' + (r % 10) as u8;
+        nd += 1;
+        r /= 10;
+    }
+    while nd > 0 {
+        nd -= 1;
+        out[len] = digits[nd];
+        len += 1;
+    }
+    Some(len)
 }
 
-fn a1_cell(s: &str) -> Option<(u32, u32)> {
-    let split = s.find(|c: char| c.is_ascii_digit())?;
+/// Column (1-based) and row (1-based) to A1 notation, e.g. (3, 9) -> "C9".
+/// Returns `None` outside the A..ZZZ / 1..9_999_999 range.
+///
+/// Formal: KP2 (on [`a1_write`])
+pub fn a1_from_cell(col: u32, row: u32) -> Option<String> {
+    let mut out = [0u8; MAX_A1];
+    let n = a1_write(col, row, &mut out)?;
+    String::from_utf8(out[..n].to_vec()).ok()
+}
+
+/// Kernel of the cell parser: one A1 cell as bytes.
+pub fn a1_cell_bytes(s: &[u8]) -> Option<(u32, u32)> {
+    let mut split = 0;
+    while split < s.len() && !s[split].is_ascii_digit() {
+        split += 1;
+    }
+    if split == s.len() {
+        return None;
+    }
     let (letters, digits) = s.split_at(split);
-    if letters.is_empty() || letters.len() > 3 || !letters.bytes().all(|b| b.is_ascii_uppercase()) {
+    if letters.is_empty() || letters.len() > 3 {
         return None;
     }
-    if digits.is_empty()
-        || digits.len() > 7
-        || digits.starts_with('0')
-        || !digits.bytes().all(|b| b.is_ascii_digit())
-    {
+    let mut col = 0u32;
+    for &b in letters {
+        if !b.is_ascii_uppercase() {
+            return None;
+        }
+        col = col * 26 + u32::from(b - b'A' + 1);
+    }
+    if digits.len() > 7 || digits[0] == b'0' {
         return None;
     }
-    let col = letters
-        .bytes()
-        .fold(0u32, |acc, b| acc * 26 + u32::from(b - b'A' + 1));
-    Some((col, digits.parse().ok()?))
+    let mut row = 0u32;
+    for &b in digits {
+        if !b.is_ascii_digit() {
+            return None;
+        }
+        row = row * 10 + u32::from(b - b'0');
+    }
+    Some((col, row))
+}
+
+/// Kernel of [`a1_parse`]: `A1` or `A1:C9` as bytes.
+pub fn a1_parse_bytes(range: &[u8]) -> Option<((u32, u32), (u32, u32))> {
+    let mut colon = 0;
+    while colon < range.len() && range[colon] != b':' {
+        colon += 1;
+    }
+    let (a, b) = if colon < range.len() {
+        (
+            a1_cell_bytes(&range[..colon])?,
+            a1_cell_bytes(&range[colon + 1..])?,
+        )
+    } else {
+        let cell = a1_cell_bytes(range)?;
+        (cell, cell)
+    };
+    (a.0 <= b.0 && a.1 <= b.1).then_some((a, b))
 }
 
 /// Parse `A1` or `A1:C9` into ((col, row), (col, row)), requiring the second
 /// corner to be at or below/right of the first.
+///
+/// Formal: KP2 (on [`a1_parse_bytes`])
 pub fn a1_parse(range: &str) -> Option<((u32, u32), (u32, u32))> {
-    let (a, b) = match range.split_once(':') {
-        Some((a, b)) => (a1_cell(a)?, a1_cell(b)?),
-        None => {
-            let cell = a1_cell(range)?;
-            (cell, cell)
-        }
-    };
-    (a.0 <= b.0 && a.1 <= b.1).then_some((a, b))
+    a1_parse_bytes(range.as_bytes())
 }
 
 fn rc_cell(s: &str) -> Option<(u32, u32)> {

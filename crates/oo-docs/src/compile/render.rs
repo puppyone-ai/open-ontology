@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
 
+use super::kernels;
 use super::source;
 use super::visible::{VisibleEntity, VisibleEvidence, VisibleFact, VisibleGraph};
 use crate::extract::model::Predicate;
@@ -32,9 +33,9 @@ pub fn aigc_object(reserved_code1: &str, produce_id: &str) -> Value {
 
 /// YAML front matter of a generated Markdown file.
 pub fn front_matter(basis: &str, path: &str) -> String {
-    format!(
-        "---\nAIGC:\n  Label: \"1\"\n  ContentProducer: \"{CONTENT_PRODUCER}\"\n  ProduceID: \"{basis}/{path}\"\n  ReservedCode1: \"{basis}\"\n  ContentPropagator: \"\"\n  PropagateID: \"\"\n  ReservedCode2: \"\"\n---\n"
-    )
+    let mut out: Vec<u8> = Vec::new();
+    kernels::put_front_matter(&mut out, basis.as_bytes(), path.as_bytes());
+    String::from_utf8(out).expect("front matter is UTF-8")
 }
 
 /// A whole generated Markdown file: label on line 1, then the front matter
@@ -43,21 +44,17 @@ pub fn front_matter(basis: &str, path: &str) -> String {
 /// The label is the first line because 90 §7 and 30 §249 ask for a visible
 /// first line; the YAML block follows after one blank line. A reader that
 /// needs the metadata at byte 0 would have to move it; that is a product
-/// choice flagged in the B-S2-08 report.
+/// choice flagged in the B-S2-08 report. The bytes are written by
+/// [`kernels::put_md_file`], which `proofs.rs` proves (KP10).
 pub fn md_file(basis: &str, path: &str, body: &[String]) -> String {
-    let mut out = String::new();
-    out.push_str(AIGC_LABEL_LINE);
-    out.push_str("\n\n");
-    out.push_str(&front_matter(basis, path));
-    out.push('\n');
-    for line in body {
-        out.push_str(line);
-        out.push('\n');
-    }
-    while out.ends_with("\n\n") {
-        out.pop();
-    }
-    out
+    let mut out: Vec<u8> = Vec::new();
+    kernels::put_md_file(
+        &mut out,
+        basis.as_bytes(),
+        path.as_bytes(),
+        body.iter().map(|l| l.as_bytes()),
+    );
+    String::from_utf8(out).expect("generated Markdown is UTF-8")
 }
 
 /// File-name part of an entity: name NFC with `/\:*?"<>|` and control
@@ -218,6 +215,36 @@ pub fn src_tags(evs: &[VisibleEvidence], cites: &mut Cites) -> String {
         parts.push(format!("[src:+{}]", evs.len() - 3));
     }
     parts.join(" ")
+}
+
+/// `- 冲突未决：<实体>：甲 [src] vs 乙 [src]` for each open conflict (10 §16.7).
+/// The sides are shown only with in-scope evidence; the rest is a count.
+pub fn conflict_lines(
+    g: &VisibleGraph,
+    conflicts: &[&super::visible::VisibleConflict],
+    cites: &mut Cites,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for c in conflicts {
+        let name = g.entity(&c.entity_key).map_or("", |e| e.name.as_str());
+        let sides: Vec<String> = c
+            .sides
+            .iter()
+            .map(|s| {
+                format!(
+                    "{} {}",
+                    fact_text(g, s, false),
+                    src_tags(&s.evidence, cites)
+                )
+            })
+            .collect();
+        let mut line = format!("- 冲突未决：{name}：{}", sides.join(" vs "));
+        if c.hidden_sides > 0 {
+            line.push_str(&format!("（另有 {} 方来源不在共享范围内）", c.hidden_sides));
+        }
+        out.push(line);
+    }
+    out
 }
 
 /// Only the first evidence (summary and title lines).

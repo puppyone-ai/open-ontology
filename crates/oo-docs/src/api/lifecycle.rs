@@ -96,6 +96,8 @@ pub fn spawn(pool: PgPool, every: Duration, mut stop: watch::Receiver<bool>) -> 
                 return;
             }
             let _ = reap_once(&pool).await;
+            // Expired shares (D28): the credential dies and the daemon sees the event.
+            let _ = crate::share::lifecycle::expire_due(&pool).await;
             ticks += 1;
             if ticks.is_multiple_of(600)
                 && let Ok(mut c) = pool.acquire().await

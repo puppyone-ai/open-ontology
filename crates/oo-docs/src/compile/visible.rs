@@ -74,6 +74,17 @@ pub struct VisibleAlias {
     pub evidence: Vec<VisibleEvidence>,
 }
 
+/// An open constraint violation, reduced to what the scope may see.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VisibleConflict {
+    pub entity_key: String,
+    pub constraint_id: String,
+    /// Held-back facts with in-scope evidence, ordered by fact key.
+    pub sides: Vec<VisibleFact>,
+    /// Sides the scope cannot see (a count, nothing else).
+    pub hidden_sides: u32,
+}
+
 pub struct VisibleGraph {
     version: VersionInfo,
     scope: Vec<String>,
@@ -84,6 +95,7 @@ pub struct VisibleGraph {
     by_entity: BTreeMap<String, Vec<usize>>,
     blocks: BTreeMap<String, Vec<(u32, String, String)>>,
     blocked: BlockedCounts,
+    conflicts: Vec<VisibleConflict>,
 }
 
 fn sort_evidence(v: &mut Vec<VisibleEvidence>) {
@@ -111,6 +123,7 @@ impl VisibleGraph {
             facts,
             blocks,
             blocked,
+            conflicts,
         } = s;
         let path_of: BTreeMap<&str, &str> = snapshot
             .iter()
@@ -146,17 +159,45 @@ impl VisibleGraph {
                 )
             })
             .collect();
+        // D26 on indices: `kernels::visible_decide` (proved as KP5) says which facts, aliases and
+        // entities survive; this code only supplies the evidence in scope and builds what survives.
+        let eidx: BTreeMap<String, usize> = ents
+            .keys()
+            .enumerate()
+            .map(|(i, k)| (k.clone(), i))
+            .collect();
+        let slot = |k: &str| eidx.get(k).copied().unwrap_or(usize::MAX);
+        let entity_known = vec![true; ents.len()];
+        let fact_ev: Vec<Vec<VisibleEvidence>> =
+            facts.iter().map(|f| visible_ev(&f.evidence)).collect();
+        let alias_ev: Vec<Vec<VisibleEvidence>> =
+            aliases.iter().map(|a| visible_ev(&a.evidence)).collect();
+        let fact_has: Vec<bool> = fact_ev.iter().map(|e| !e.is_empty()).collect();
+        let fact_subject: Vec<usize> = facts.iter().map(|f| slot(&f.subject_key)).collect();
+        let fact_object: Vec<Option<usize>> = facts
+            .iter()
+            .map(|f| f.object_key.as_deref().map(slot))
+            .collect();
+        let alias_has: Vec<bool> = alias_ev.iter().map(|e| !e.is_empty()).collect();
+        let alias_owner: Vec<usize> = aliases.iter().map(|a| slot(&a.entity_key)).collect();
+        let mut fact_vis = vec![false; facts.len()];
+        let mut alias_vis = vec![false; aliases.len()];
+        let mut ent_vis = vec![false; ents.len()];
+        super::kernels::visible_decide(
+            &fact_has,
+            &fact_subject,
+            &fact_object,
+            &alias_has,
+            &alias_owner,
+            &entity_known,
+            &mut fact_vis,
+            &mut alias_vis,
+            &mut ent_vis,
+        );
         let mut vis_facts: Vec<VisibleFact> = Vec::new();
         let mut seen_facts: BTreeSet<String> = BTreeSet::new();
-        for f in facts {
-            let evidence = visible_ev(&f.evidence);
-            if evidence.is_empty() || !seen_facts.insert(f.fact_key.clone()) {
-                continue;
-            }
-            // Both ends must be known entities.
-            if !ents.contains_key(&f.subject_key)
-                || f.object_key.as_ref().is_some_and(|o| !ents.contains_key(o))
-            {
+        for ((f, evidence), keep) in facts.into_iter().zip(fact_ev).zip(fact_vis) {
+            if !keep || !seen_facts.insert(f.fact_key.clone()) {
                 continue;
             }
             vis_facts.push(VisibleFact {
@@ -173,9 +214,8 @@ impl VisibleGraph {
         }
         vis_facts.sort_by(|a, b| a.key.cmp(&b.key));
         let mut vis_aliases: BTreeMap<String, Vec<VisibleAlias>> = BTreeMap::new();
-        for a in aliases {
-            let evidence = visible_ev(&a.evidence);
-            if evidence.is_empty() || !ents.contains_key(&a.entity_key) {
+        for ((a, evidence), keep) in aliases.into_iter().zip(alias_ev).zip(alias_vis) {
+            if !keep {
                 continue;
             }
             let slot = vis_aliases.entry(a.entity_key).or_default();
@@ -199,18 +239,13 @@ impl VisibleGraph {
             v.sort_by(|a, b| (&a.norm, &a.alias).cmp(&(&b.norm, &b.alias)));
         }
         // Keep only entities something visible points at.
-        let mut used: BTreeSet<&str> = BTreeSet::new();
-        for f in &vis_facts {
-            used.insert(&f.subject);
-            if let Some(o) = &f.object {
-                used.insert(o);
-            }
-        }
-        for k in vis_aliases.keys() {
-            used.insert(k);
-        }
-        let used: BTreeSet<String> = used.into_iter().map(str::to_owned).collect();
-        ents.retain(|k, _| used.contains(k));
+        let keep_entity: BTreeSet<String> = ents
+            .keys()
+            .zip(ent_vis)
+            .filter(|(_, v)| *v)
+            .map(|(k, _)| k.clone())
+            .collect();
+        ents.retain(|k, _| keep_entity.contains(k));
         let mut by_entity: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (i, f) in vis_facts.iter().enumerate() {
             by_entity.entry(f.subject.clone()).or_default().push(i);
@@ -233,6 +268,48 @@ impl VisibleGraph {
                 )
             })
             .collect();
+        let mut vis_conflicts: Vec<VisibleConflict> = Vec::new();
+        for c in conflicts {
+            if !ents.contains_key(&c.entity_key) {
+                continue;
+            }
+            let mut hidden = c.hidden_sides;
+            let mut sides: Vec<VisibleFact> = Vec::new();
+            for f in c.sides {
+                let evidence = visible_ev(&f.evidence);
+                let ends_known = ents.contains_key(&f.subject_key)
+                    && f.object_key.as_ref().is_none_or(|o| ents.contains_key(o));
+                if evidence.is_empty() || !ends_known {
+                    hidden += 1;
+                    continue;
+                }
+                sides.push(VisibleFact {
+                    key: f.fact_key,
+                    subject: f.subject_key,
+                    predicate: f.predicate,
+                    object: f.object_key,
+                    value: f.value,
+                    valid_from: f.valid_from,
+                    valid_to: f.valid_to,
+                    origin: f.origin,
+                    evidence,
+                });
+            }
+            sides.sort_by(|a, b| a.key.cmp(&b.key));
+            sides.dedup_by(|a, b| a.key == b.key);
+            if sides.is_empty() {
+                continue;
+            }
+            vis_conflicts.push(VisibleConflict {
+                entity_key: c.entity_key,
+                constraint_id: c.constraint_id,
+                sides,
+                hidden_sides: hidden,
+            });
+        }
+        vis_conflicts.sort_by(|a, b| {
+            (&a.entity_key, &a.constraint_id).cmp(&(&b.entity_key, &b.constraint_id))
+        });
         let mut terms = blocked.terms;
         terms.sort();
         terms.dedup();
@@ -250,9 +327,15 @@ impl VisibleGraph {
                     facts: blocked.facts,
                     entities: blocked.entities,
                 },
+                conflicts: vis_conflicts,
             },
             terms,
         )
+    }
+
+    /// Open constraint violations on visible entities (10 §16.7).
+    pub fn conflicts(&self) -> &[VisibleConflict] {
+        &self.conflicts
     }
 
     pub fn version(&self) -> &VersionInfo {
