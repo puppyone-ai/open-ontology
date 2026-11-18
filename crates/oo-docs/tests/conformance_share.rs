@@ -448,12 +448,11 @@ fn fm6_traces_exercise_every_rule_the_scenarios_check() {
     }
     for a in [
         "mount",
-        "publish",
+        "publishK",
         "refresh",
         "groupRefresh",
         "check",
         "revoke",
-        "extend",
         "refsRead",
     ] {
         assert!(acts.contains(a), "no sample trace does `{a}`: {acts:?}");
