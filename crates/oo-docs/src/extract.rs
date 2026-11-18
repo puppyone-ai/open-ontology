@@ -8,6 +8,7 @@
 //! The LLM supplement (5.2) is a later card.
 
 pub mod confidence;
+pub mod links;
 pub mod llm;
 pub mod model;
 pub mod rules;

@@ -1,0 +1,356 @@
+{
+  "protocol": "oo.eval.token-calibration/v1",
+  "note": "tokens is null until calibrated against a tokenizer; cjk/ascii counts are for text formats only",
+  "files": [
+    {
+      "path": "docs/Data/任务清单.csv",
+      "bytes": 328,
+      "cjk_chars": 90,
+      "ascii_chars": 58,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-01-月报每周二发送.md",
+      "bytes": 333,
+      "cjk_chars": 81,
+      "ascii_chars": 84,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-02-磐石采用蓝绿部署版.md",
+      "bytes": 312,
+      "cjk_chars": 76,
+      "ascii_chars": 84,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-03-海图平台采购外部模型.md",
+      "bytes": 316,
+      "cjk_chars": 79,
+      "ascii_chars": 79,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-04-月报改为每周一发送.md",
+      "bytes": 300,
+      "cjk_chars": 68,
+      "ascii_chars": 90,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-05-磐石改用边缘缓存.md",
+      "bytes": 439,
+      "cjk_chars": 117,
+      "ascii_chars": 82,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-06-办公迁至山麓.md",
+      "bytes": 254,
+      "cjk_chars": 57,
+      "ascii_chars": 83,
+      "tokens": null
+    },
+    {
+      "path": "docs/Decisions/D-2027-08-取消月报.md",
+      "bytes": 296,
+      "cjk_chars": 70,
+      "ascii_chars": 80,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-01-08-客户恳谈会.docx",
+      "bytes": 6794,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-01-10-周会.docx",
+      "bytes": 6118,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-02-15-磐石技术评审.docx",
+      "bytes": 6628,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-03-03-客服方案评审.docx",
+      "bytes": 6619,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-04-02-周会.docx",
+      "bytes": 6152,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-05-20-供应链大会.docx",
+      "bytes": 6655,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-06-01-项目分工调整.docx",
+      "bytes": 6147,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-06-15-迁址沟通会.docx",
+      "bytes": 6163,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-07-06-年终答谢会.docx",
+      "bytes": 6467,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Meetings/2027-08-20-周会.docx",
+      "bytes": 6109,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Notes/速记-0601.txt",
+      "bytes": 168,
+      "cjk_chars": 53,
+      "ascii_chars": 9,
+      "tokens": null
+    },
+    {
+      "path": "docs/Notes/速记-0828.txt",
+      "bytes": 179,
+      "cjk_chars": 56,
+      "ascii_chars": 11,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/宋芷若.md",
+      "bytes": 189,
+      "cjk_chars": 44,
+      "ascii_chars": 57,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/彭予宁.md",
+      "bytes": 187,
+      "cjk_chars": 47,
+      "ascii_chars": 46,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/范语桐.md",
+      "bytes": 171,
+      "cjk_chars": 42,
+      "ascii_chars": 45,
+      "tokens": null
+    },
+    {
+      "path": "docs/People/闵弘毅.md",
+      "bytes": 147,
+      "cjk_chars": 34,
+      "ascii_chars": 45,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/宋芷若-会议偏好.md",
+      "bytes": 147,
+      "cjk_chars": 36,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/彭予宁-沟通偏好.md",
+      "bytes": 144,
+      "cjk_chars": 35,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Preferences/范语桐-文档偏好.md",
+      "bytes": 144,
+      "cjk_chars": 35,
+      "ascii_chars": 39,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/海图平台.md",
+      "bytes": 228,
+      "cjk_chars": 53,
+      "ascii_chars": 69,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/磐石风控.md",
+      "bytes": 326,
+      "cjk_chars": 76,
+      "ascii_chars": 98,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/航标系统.md",
+      "bytes": 275,
+      "cjk_chars": 70,
+      "ascii_chars": 65,
+      "tokens": null
+    },
+    {
+      "path": "docs/Projects/青藤数据湖.md",
+      "bytes": 235,
+      "cjk_chars": 54,
+      "ascii_chars": 73,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/安全巡检方案.pdf",
+      "bytes": 1766,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/年度客户调研方案.pdf",
+      "bytes": 1774,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/海图平台方案.pdf",
+      "bytes": 1887,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/磐石风控产品方案.pdf",
+      "bytes": 2007,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/航标系统方案.pdf",
+      "bytes": 2024,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Proposals/青藤数据湖方案.pdf",
+      "bytes": 1770,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/人员表.xlsx",
+      "bytes": 6454,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/客户与供应商.xlsx",
+      "bytes": 4101,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/年度预算表.xlsx",
+      "bytes": 4041,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Tables/项目负责人表.xlsx",
+      "bytes": 4298,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2027-W10-月报.pptx",
+      "bytes": 16081,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2027-W15-月报.pptx",
+      "bytes": 16092,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2027-W22-月报.pptx",
+      "bytes": 16135,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2027-W28-月报.pptx",
+      "bytes": 16068,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "docs/Weekly/2027-W34-月报.pptx",
+      "bytes": 16068,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/并购评估备忘.md",
+      "bytes": 432,
+      "cjk_chars": 110,
+      "ascii_chars": 102,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/星火计划.txt",
+      "bytes": 151,
+      "cjk_chars": 33,
+      "ascii_chars": 52,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/董事会纪要.docx",
+      "bytes": 4904,
+      "cjk_chars": 0,
+      "ascii_chars": 0,
+      "tokens": null
+    },
+    {
+      "path": "redteam/docs/Confidential/薪酬调整.csv",
+      "bytes": 116,
+      "cjk_chars": 20,
+      "ascii_chars": 56,
+      "tokens": null
+    }
+  ]
+}

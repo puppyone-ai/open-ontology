@@ -51,6 +51,29 @@ impl EngineLink {
 pub trait DriveMounts: Send + Sync {
     /// Blocking: may recreate the engine container.
     fn mount(&self, host_root: &str) -> Result<String, String>;
+
+    /// The model's `file:` references (endpoint and key files, owner-only) the
+    /// engine's egress process will read: make each file visible read-only at
+    /// the same absolute path inside the engine (compose runtime). Blocking;
+    /// may recreate the engine container. A host-process engine reads the host
+    /// path itself, so the default does nothing.
+    fn mount_secret_files(&self, _files: &[String]) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+/// The `file:` references (absolute host paths) of a `PUT /v1/docs/config/model`
+/// body (`base_url` and `key_ref`); the values themselves are never read here.
+pub fn model_secret_files(body: &[u8]) -> Vec<String> {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    ["base_url", "key_ref"]
+        .iter()
+        .filter_map(|k| v.get(*k)?.as_str()?.strip_prefix("file:"))
+        .filter(|p| p.starts_with('/'))
+        .map(str::to_owned)
+        .collect()
 }
 
 /// What the proxy needs to serve.
@@ -422,6 +445,23 @@ async fn serve_one(
         }
     }
 
+    // The engine's egress process lives in the engine container: the files the
+    // model configuration names must be mounted there before it starts.
+    if let Some(drives) = cfg.drives.clone()
+        && head.method == "PUT"
+        && head.path() == "/v1/docs/config/model"
+    {
+        let files = model_secret_files(&body);
+        if !files.is_empty() {
+            let mounted = tokio::task::spawn_blocking(move || drives.mount_secret_files(&files))
+                .await
+                .unwrap_or_else(|_| Err("mount task failed".into()));
+            if let Err(why) = mounted {
+                return Err(error(502, "DOCS_ENGINE_UNAVAILABLE", &why, true, &[]));
+            }
+        }
+    }
+
     let unavailable = |head: &Head| {
         if head.method == "GET" && head.path() == "/v1/docs/health" {
             response(
@@ -522,6 +562,19 @@ pub async fn serve(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn model_secret_files_come_from_file_references_only() {
+        let body = br#"{"provider":"openai-compatible","base_url":"file:/home/o/.config/e","model":"m","key_ref":"file:/home/o/.config/k"}"#;
+        assert_eq!(
+            model_secret_files(body),
+            ["/home/o/.config/e", "/home/o/.config/k"]
+        );
+        let env = br#"{"base_url":"https://api.example.com","key_ref":"env:KEY"}"#;
+        assert!(model_secret_files(env).is_empty());
+        assert!(model_secret_files(br#"{"key_ref":"file:relative"}"#).is_empty());
+        assert!(model_secret_files(b"not json").is_empty());
+    }
+
     use super::*;
 
     fn cfg(port: u16, engine: Option<SocketAddr>) -> Arc<ProxyConfig> {

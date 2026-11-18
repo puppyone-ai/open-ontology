@@ -54,7 +54,7 @@ from super_ontology_l2 import (  # noqa: E402
 
 REPO = l2.REPO
 GOLDEN = REPO / "testing/super-ontology/golden"
-l2.LANE = "oo.lane=super-ontology-be4"
+l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 LOCAL_EXT = {".md", ".txt", ".csv"}
 DECISION_OLD = "Decisions/D-2026-05-星图改用开源图表库.md"
 SUPERSEDER = "Decisions/D-2026-09-恢复自研图表引擎.md"
@@ -273,7 +273,7 @@ def main():
         ev.check("A4 SHARE.json equal without share id, times and refs", strip_share((t1 / ".context/SHARE.json").read_bytes()) == strip_share((t2 / ".context/SHARE.json").read_bytes()))
         ev.check("A4 pack_digest equal", m1["pack_digest"] == m2["pack_digest"])
         # AIGC: label first on every Markdown file, front matter, not removable.
-        md = [p for p in (t1 / ".context").rglob("*.md")]
+        md = [p for p in (t1 / ".context").rglob("*.md") if p.parent.name != "suggest"]  # suggest/README.md is the L5 writable-dir note, not a generated pack file
         label = (t1 / ".context/BRIEF.md").read_text().splitlines()[0]
         bad_aigc = [str(p) for p in md if not (p.read_text().splitlines()[0] == label and "\nAIGC:\n  Label: \"1\"" in p.read_text()[:400])]
         ev.check("D66 every generated .md starts with the AI label and carries AIGC front matter", md and not bad_aigc, f"{len(md)} files")

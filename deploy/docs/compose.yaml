@@ -72,6 +72,12 @@ services:
       OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
       OO_DOCS_PARSER_URL: http://doc-parser:7481
       OO_DOCS_PARSER_TOKEN_FILE: /run/oo/parser-token
+      # The model's egress process runs inside this container (10 2.1, 2.7): it reaches the
+      # model through `docs-egress`, and reads the endpoint and key files the model
+      # configuration names (`file:` references), which the override binds read-only.
+      OO_DOCS_MODEL_EGRESS: /opt/oo/model_egress.py
+      OO_DOCS_PYTHON: python3
+      PYTHONDONTWRITEBYTECODE: "1"
       # The two optional sidecars (10 17.1): set the URL when the `ocr` / `media` profile is started; empty
       # means off. They share the parser token file. A media file is read into engine memory (D77: up to
       # 4 GiB), so raise OO_DOCS_ENGINE_MEM with the `media` profile.

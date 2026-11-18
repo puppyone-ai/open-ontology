@@ -50,7 +50,7 @@ use crate::parse::media::{MediaKind, MediaOptions};
 use crate::parse::sidecar::{self, SidecarClient, SidecarError};
 use crate::parse::{self, LOCAL_PARSER_VERSION};
 use crate::publish::run::{PublishConfig, PublishOutcome, publish};
-use crate::publish::write::{DocumentInput, index_extraction};
+use crate::publish::write::{DocumentInput, index_extraction, index_links};
 use crate::state::{self, FileState, Transition, TransitionError};
 use crate::store::jobs as store;
 use oo_connectors::objectstore::{DocumentSource, ReadExpect};
@@ -1378,8 +1378,15 @@ pub struct ExtractLlmHandler {
 /// `Type:name` of the entities the Drive knows that matter for this file:
 /// the ones the rules found in it, then the most asserted ones.
 async fn known_entities(pool: &PgPool, version_id: &str) -> Vec<String> {
-    sqlx::query_scalar::<_, String>(
-        "(SELECT e.type || ':' || e.canonical_name FROM _oo_docs.entity e \
+    // `Type:name`, with up to six trusted aliases as `Type:name（别名：a、b）`, so the model
+    // writes a person it knows as `Kevin` the way the Drive does (extract/2).
+    const LABEL: &str = "e.type || ':' || e.canonical_name || COALESCE(( \
+          SELECT '（别名：' || string_agg(x.alias, '、' ORDER BY x.alias) || '）' FROM ( \
+            SELECT a.alias FROM _oo_docs.alias a \
+             WHERE a.entity_id = e.id AND a.status IN ('draft', 'published') \
+               AND a.confidence_bp >= 7000 ORDER BY a.alias LIMIT 6) x), '')";
+    let sql = format!(
+        "(SELECT {LABEL} FROM _oo_docs.entity e \
            WHERE e.status = 'active' AND e.id IN ( \
                  SELECT unnest(ARRAY[f.subject_id, f.object_id]) FROM _oo_docs.evidence ev \
                    JOIN _oo_docs.fact f ON f.id = ev.target_id \
@@ -1387,15 +1394,16 @@ async fn known_entities(pool: &PgPool, version_id: &str) -> Vec<String> {
                     AND ev.withdrawn_at IS NULL) \
            ORDER BY e.canonical_name LIMIT 50) \
          UNION \
-         (SELECT e.type || ':' || e.canonical_name FROM _oo_docs.entity e \
+         (SELECT {LABEL} FROM _oo_docs.entity e \
            JOIN _oo_docs.fact f ON f.subject_id = e.id AND f.status = 'published' \
           WHERE e.status = 'active' AND e.type <> 'Thing' \
-          GROUP BY e.id ORDER BY count(*) DESC, e.canonical_name LIMIT 50)",
-    )
-    .bind(version_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default()
+          GROUP BY e.id ORDER BY count(*) DESC, e.canonical_name LIMIT 50)"
+    );
+    sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql))
+        .bind(version_id)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default()
 }
 
 impl JobHandler for ExtractLlmHandler {
@@ -1561,9 +1569,73 @@ impl JobHandler for ExtractLlmHandler {
 pub struct PublishHandler {
     pool: PgPool,
     cas: Arc<Cas>,
+    /// File version -> hash of the names it was last linked against
+    /// (`doc.link`); a pass skips a version whose names did not change.
+    linked: std::sync::Mutex<HashMap<String, String>>,
+}
+
+fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
+    let mut h = blake3::Hasher::new();
+    for e in lex {
+        h.update(format!("{:?}\0{}\n", e.ty, e.name).as_bytes());
+    }
+    h.finalize().to_hex().to_string()
 }
 
 impl PublishHandler {
+    /// `doc.link` (10 5.1): link every document that is past the rules to the
+    /// entities of the Drive it names. Entities appear in any order, so the
+    /// links are made here, in front of the single publish writer, against the
+    /// names known now; a version is only read again when the names changed.
+    async fn link_pass(&self) -> Result<String, crate::store::StoreError> {
+        let mut conn = self.pool.acquire().await?;
+        let lex = crate::resolve::pg::load_lexicon(&mut conn).await?;
+        if lex.is_empty() {
+            return Ok(String::new());
+        }
+        let digest = lexicon_digest(&lex);
+        let rows: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
+               JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+              WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
+              ORDER BY fv.path_at_version, fv.id LIMIT 5000",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        for (version_id, b3, path) in rows {
+            let done = self
+                .linked
+                .lock()
+                .ok()
+                .and_then(|m| m.get(&version_id).cloned());
+            if done.as_deref() == Some(digest.as_str()) {
+                continue;
+            }
+            let Ok(Some(ir)) = load_ir_of(&self.pool, &self.cas, &b3).await else {
+                continue;
+            };
+            let doc = DocumentInput {
+                version_id: &version_id,
+                b3: &b3,
+                path: &path,
+                ir: &ir,
+            };
+            index_links(&mut conn, &doc).await?;
+            if let Ok(mut m) = self.linked.lock() {
+                m.insert(version_id, digest.clone());
+            }
+        }
+        Ok(digest)
+    }
+
+    /// The digest of the names a link pass would use now.
+    async fn lexicon_digest(&self) -> Result<String, crate::store::StoreError> {
+        let mut conn = self.pool.acquire().await?;
+        let lex = crate::resolve::pg::load_lexicon(&mut conn).await?;
+        Ok(lexicon_digest(&lex))
+    }
+
     async fn promote(&self, n: Option<i64>) -> Result<u32, TransitionError> {
         // `extract_partial` after a failed model batch publishes like `indexed`
         // (the batches that worked stand); one from a failed rules job has no
@@ -1621,30 +1693,45 @@ impl PublishHandler {
 impl JobHandler for PublishHandler {
     fn run(&self, _ctx: JobCtx) -> HandlerFuture<'_> {
         Box::pin(async move {
-            let mut conn = match self.pool.acquire().await {
-                Ok(c) => c,
-                Err(e) => return db_fail(e),
-            };
-            let outcome = publish(&mut conn, &self.cas, &PublishConfig::default()).await;
-            drop(conn);
-            let n = match outcome {
-                Ok(PublishOutcome::Published(v)) => {
-                    crate::obs::emit(
-                        "info",
-                        "publish.version",
-                        &crate::obs::Fields {
-                            count: Some(("ontology_version", v.n)),
-                            ..crate::obs::Fields::default()
-                        },
-                    );
-                    Some(v.n)
+            // Link, publish; a publish can establish entities (a model fact that
+            // published), whose names the other documents then link to: go round
+            // again while the names change (at most three times).
+            let mut n = None;
+            for _round in 0..3 {
+                let Ok(before) = self.link_pass().await else {
+                    return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_INTERNAL");
+                };
+                let mut conn = match self.pool.acquire().await {
+                    Ok(c) => c,
+                    Err(e) => return db_fail(e),
+                };
+                let outcome = publish(&mut conn, &self.cas, &PublishConfig::default()).await;
+                drop(conn);
+                match outcome {
+                    Ok(PublishOutcome::Published(v)) => {
+                        crate::obs::emit(
+                            "info",
+                            "publish.version",
+                            &crate::obs::Fields {
+                                count: Some(("ontology_version", v.n)),
+                                ..crate::obs::Fields::default()
+                            },
+                        );
+                        n = Some(v.n);
+                    }
+                    Ok(PublishOutcome::NoChange { .. }) => {}
+                    Ok(PublishOutcome::Busy) => {
+                        return Outcome::failed(FailureClass::Busy, "DOCS_ENGINE_BUSY");
+                    }
+                    Err(_) => {
+                        return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_INTERNAL");
+                    }
                 }
-                Ok(PublishOutcome::NoChange { .. }) => None,
-                Ok(PublishOutcome::Busy) => {
-                    return Outcome::failed(FailureClass::Busy, "DOCS_ENGINE_BUSY");
+                match self.lexicon_digest().await {
+                    Ok(after) if after != before => {}
+                    _ => break,
                 }
-                Err(_) => return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_INTERNAL"),
-            };
+            }
             // A person's decision whose evidence is gone becomes an orphaned
             // overlay item (D22), after every publish.
             if let Ok(mut c) = self.pool.acquire().await {
@@ -1785,6 +1872,7 @@ pub fn handlers_with_runtime<F: SourceFactory>(
         Arc::new(Contended(PublishHandler {
             pool: pool.clone(),
             cas,
+            linked: std::sync::Mutex::new(HashMap::new()),
         })),
     );
     map

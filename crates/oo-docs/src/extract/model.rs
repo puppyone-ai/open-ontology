@@ -272,6 +272,10 @@ pub struct BindHint {
     pub predicate: Predicate,
     pub target_ty: EntityType,
     pub target_name: String,
+    /// `valid_from` of the fact the hint becomes, with its precision (the
+    /// file's default date for `doc.link`, so it is the same fact the rules
+    /// of that file make); `None` for the rules' own hints.
+    pub valid_from: Option<(String, &'static str)>,
     pub confidence_bp: u16,
     pub rule_id: &'static str,
     pub evidence: Vec<EvidenceRef>,
@@ -280,7 +284,7 @@ pub struct BindHint {
 /// Provenance of an LLM extraction (10 §5.2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LlmMeta {
-    /// `extract/1`.
+    /// `extract/2`.
     pub prompt_version: String,
     /// Hash of the batch cache keys the facts came from.
     pub extraction_key: String,
@@ -431,12 +435,20 @@ impl Collector {
                 predicate,
                 target_ty,
                 target_name: target_name.to_owned(),
+                valid_from: None,
                 confidence_bp: conf,
                 rule_id: rule,
                 evidence: Vec::new(),
             });
         if !slot.evidence.contains(ev) {
             slot.evidence.push(ev.clone());
+        }
+    }
+
+    /// Date the hints of this collector's facts start (`doc.link`).
+    pub fn date_hints(&mut self, from: Option<(String, &'static str)>) {
+        for h in self.hints.values_mut() {
+            h.valid_from = from.clone();
         }
     }
 

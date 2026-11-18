@@ -19,7 +19,7 @@
 //! identity list is the lite stack's and would change what a lite
 //! `credentials status` demands.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -242,6 +242,8 @@ pub struct Runtime {
     db_runtime_password: String,
     db_admin_password: String,
     mounts: Mutex<BTreeMap<String, PathBuf>>,
+    /// Model secret files bound read-only into the engine at their own path.
+    secret_files: Mutex<BTreeSet<PathBuf>>,
     subnets: Mutex<Option<Vec<String>>>,
 }
 
@@ -296,6 +298,8 @@ impl Runtime {
                 })
             })
             .collect();
+        let mut binds = binds;
+        binds.extend(self.secret_file_binds());
         let port = self.engine_port;
         let mut doc = json!({
             "services": {
@@ -326,6 +330,45 @@ impl Runtime {
             });
         }
         doc
+    }
+
+    /// `file:` references of the saved model configuration (`<state>/engine/model.json`).
+    fn saved_secret_files(&self) -> Vec<PathBuf> {
+        let Ok(text) = fs::read_to_string(self.state.join("engine/model.json")) else {
+            return Vec::new();
+        };
+        super::proxy::model_secret_files(text.as_bytes())
+            .into_iter()
+            .map(PathBuf::from)
+            .collect()
+    }
+
+    /// Read-only binds of the model's secret files, at the same absolute path
+    /// inside the engine: the egress process there reads them itself (a `file:`
+    /// reference stays valid, the engine never sees a value). Only existing
+    /// regular files are bound; the engine's own refusal reports the rest.
+    fn secret_file_binds(&self) -> Vec<Value> {
+        let mut files: BTreeSet<PathBuf> = self.saved_secret_files().into_iter().collect();
+        files.extend(
+            self.secret_files
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .iter()
+                .cloned(),
+        );
+        files
+            .into_iter()
+            .filter(|p| p.is_absolute() && fs::metadata(p).is_ok_and(|m| m.is_file()))
+            .map(|p| {
+                json!({
+                    "type": "bind",
+                    "source": p,
+                    "target": p,
+                    "read_only": true,
+                    "bind": {"create_host_path": false},
+                })
+            })
+            .collect()
     }
 
     fn write_override(&self) -> Result<(), Failure> {
@@ -599,6 +642,49 @@ impl DriveMounts for Runtime {
     fn mount(&self, host_root: &str) -> Result<String, String> {
         self.mount_checked(host_root)
     }
+
+    fn mount_secret_files(&self, files: &[String]) -> Result<(), String> {
+        let wanted: BTreeSet<PathBuf> = files
+            .iter()
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute() && fs::metadata(p).is_ok_and(|m| m.is_file()))
+            .collect();
+        let known: BTreeSet<PathBuf> = {
+            let mut k: BTreeSet<PathBuf> = self.saved_secret_files().into_iter().collect();
+            k.extend(
+                self.secret_files
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .iter()
+                    .cloned(),
+            );
+            k
+        };
+        if wanted.is_subset(&known) {
+            return Ok(());
+        }
+        self.secret_files
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .extend(wanted);
+        self.write_override().map_err(|f| f.message)?;
+        // Recreate the engine with the new binds (the same step as a new Drive).
+        let out = self
+            .compose_run(&[
+                "up",
+                "-d",
+                "--no-deps",
+                "--wait",
+                "--wait-timeout",
+                "120",
+                "docs-engine",
+            ])
+            .map_err(|e| format!("engine recreate failed: {e}"))?;
+        if !out.status.success() {
+            return Err(format!("engine recreate failed: {}", tail(&out)));
+        }
+        self.wait_livez(LIVEZ_TIMEOUT).map_err(|f| f.message)
+    }
 }
 
 /// `GET /livez` over plain HTTP on the loopback port.
@@ -779,6 +865,7 @@ pub fn prepare(
         db_runtime_password: runtime_pw,
         db_admin_password: admin_pw,
         mounts: Mutex::new(mounts),
+        secret_files: Mutex::new(BTreeSet::new()),
         subnets: Mutex::new(subnets),
     })
 }
@@ -1000,6 +1087,7 @@ mod tests {
                     .map(|(k, v)| ((*k).to_owned(), PathBuf::from(v)))
                     .collect(),
             ),
+            secret_files: Mutex::new(BTreeSet::new()),
             subnets: Mutex::new(None),
         }
     }
@@ -1031,6 +1119,31 @@ mod tests {
         );
         assert!(!env.to_string().contains("adm"));
         assert!(o.get("networks").is_none());
+    }
+
+    #[test]
+    fn model_secret_files_are_bound_read_only_at_their_own_path() {
+        let dir = std::env::temp_dir().join(format!("oo-compose-secret-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let key = dir.join("key");
+        std::fs::write(&key, b"x").unwrap();
+        let rt = runtime_for_test(&[]);
+        // Nothing configured: no extra bind.
+        assert!(rt.secret_file_binds().is_empty());
+        rt.secret_files.lock().unwrap().extend([
+            key.clone(),
+            dir.join("missing"),
+            PathBuf::from("relative"),
+        ]);
+        let binds = rt.secret_file_binds();
+        assert_eq!(binds.len(), 1, "only an existing absolute file");
+        assert_eq!(binds[0]["source"], binds[0]["target"]);
+        assert_eq!(binds[0]["read_only"], true);
+        assert_eq!(binds[0]["bind"]["create_host_path"], false);
+        let o = rt.override_json();
+        let vols = o["services"]["docs-engine"]["volumes"].as_array().unwrap();
+        assert!(vols.iter().any(|v| v["target"] == key.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
