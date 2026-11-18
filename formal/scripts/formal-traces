@@ -3,6 +3,7 @@
 # Deterministic: fixed seed, --mbt metadata for quint-connect. Large counts are
 # produced in batches of 1000 (quint's ITF writer aborts above ~2000 in one go);
 # batch b uses seed+b.
+# FORMAL_STEP=<action> replays a restricted step profile (e.g. stepFacts for review_decide).
 # Usage: formal-traces <model-basename> <main> <n-traces> <max-steps> [seed] [out-dir] [--no-mbt]
 source "$(dirname "$0")/_env.sh"
 name="${1:?model basename, e.g. jobs}"; main="${2:?main module}"
@@ -14,7 +15,7 @@ batch=1000; b=0; left="$n"
 while [ "$left" -gt 0 ]; do
   k=$(( left < batch ? left : batch ))
   quint run "$FORMAL_ROOT/formal/quint/$name.qnt" --main="$main" --max-steps="$steps" \
-    --max-samples="$k" --n-traces="$k" --seed="$(printf '0x%x' $(( seed + b )))" ${mbt} \
+    --max-samples="$k" --n-traces="$k" --seed="$(printf '0x%x' $(( seed + b )))" ${mbt} ${FORMAL_STEP:+--step="$FORMAL_STEP"} \
     --out-itf="$out/b${b}-trace{seq}.itf.json" >/dev/null
   left=$(( left - k )); b=$(( b + 1 ))
 done

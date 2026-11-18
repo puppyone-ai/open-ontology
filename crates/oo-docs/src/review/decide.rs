@@ -659,6 +659,16 @@ async fn apply_one(
             let (status, item_status) = if d == Decision::Accept {
                 ("active", "accepted")
             } else {
+                // The person lets go of a fact whose source is gone: nothing keeps it.
+                sqlx::query(
+                    "UPDATE _oo_docs.fact SET status = 'retracted', retracted_at = clock_timestamp() \
+                      WHERE fact_key = $1 AND status IN ('draft', 'published') \
+                        AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e WHERE e.target_kind = 'fact' \
+                                         AND e.target_id = _oo_docs.fact.id AND e.withdrawn_at IS NULL)",
+                )
+                .bind(&binds)
+                .execute(&mut *conn)
+                .await?;
                 ("withdrawn", "rejected")
             };
             overlay::insert(

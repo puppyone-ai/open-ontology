@@ -47,6 +47,39 @@ fn is_cjk_like(ch: char) -> bool {
 /// * every other run of letters and digits is `max(1, ceil(chars / 4))`;
 /// * every other non-whitespace character is 1 token; whitespace is 0.
 pub fn cjk_calibrated_tokens(text: &str) -> u64 {
+    tokens_of_classes(text.chars().map(char_class))
+}
+
+/// What the `v2` estimate sees of a character.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CharClass {
+    /// CJK ideograph, kana or hangul: one token by itself.
+    Cjk,
+    /// Letter or digit: part of a run.
+    Alnum,
+    /// Whitespace: ends a run, costs nothing.
+    Space,
+    /// Anything else: ends a run, one token by itself.
+    Other,
+}
+
+/// The class of one character.
+pub fn char_class(ch: char) -> CharClass {
+    if is_cjk_like(ch) {
+        CharClass::Cjk
+    } else if ch.is_alphanumeric() {
+        CharClass::Alnum
+    } else if ch.is_whitespace() {
+        CharClass::Space
+    } else {
+        CharClass::Other
+    }
+}
+
+/// The estimate over a stream of classes. Kani proves it on class sequences
+/// (`oo-docs` `compile/proofs.rs`, KP6): never more than the two parts of a
+/// concatenation together, at most one less.
+pub fn tokens_of_classes(classes: impl Iterator<Item = CharClass>) -> u64 {
     let mut total = 0_u64;
     let mut run = 0_u64;
     let flush = |run: &mut u64, total: &mut u64| {
@@ -55,15 +88,16 @@ pub fn cjk_calibrated_tokens(text: &str) -> u64 {
             *run = 0;
         }
     };
-    for ch in text.chars() {
-        if is_cjk_like(ch) {
-            flush(&mut run, &mut total);
-            total = total.saturating_add(1);
-        } else if ch.is_alphanumeric() {
-            run += 1;
-        } else {
-            flush(&mut run, &mut total);
-            if !ch.is_whitespace() {
+    for c in classes {
+        match c {
+            CharClass::Cjk => {
+                flush(&mut run, &mut total);
+                total = total.saturating_add(1);
+            }
+            CharClass::Alnum => run += 1,
+            CharClass::Space => flush(&mut run, &mut total),
+            CharClass::Other => {
+                flush(&mut run, &mut total);
                 total = total.saturating_add(1);
             }
         }

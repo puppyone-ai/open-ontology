@@ -337,7 +337,8 @@ pub async fn to_state(
 }
 
 /// Withdraw the evidence of a version and retract facts left without any
-/// live evidence unless a human asserted them (4.3.5). Returns
+/// live evidence unless a human asserted them: a person's overlay is never
+/// retracted by itself, it becomes an orphan to decide (D22, 4.3.5). Returns
 /// `(evidence withdrawn, facts retracted)`.
 pub async fn withdraw_evidence(
     conn: &mut PgConnection,
@@ -359,7 +360,9 @@ pub async fn withdraw_evidence(
          AND EXISTS (SELECT 1 FROM _oo_docs.evidence e WHERE e.target_kind = 'fact' \
                      AND e.target_id = f.id AND e.version_id = $1::uuid) \
          AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e WHERE e.target_kind = 'fact' \
-                     AND e.target_id = f.id AND e.withdrawn_at IS NULL)",
+                     AND e.target_id = f.id AND e.withdrawn_at IS NULL) \
+         AND NOT EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
+                     AND v.kind IN ('fact_assert', 'fact_edit') AND v.status IN ('active', 'orphaned'))",
     )
     .bind(version_id)
     .execute(&mut *conn)

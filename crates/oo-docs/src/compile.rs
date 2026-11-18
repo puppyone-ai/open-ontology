@@ -26,10 +26,13 @@ use self::visible::{BlockedCounts, VisibleGraph};
 
 pub mod brief;
 pub mod coverage;
+pub(crate) mod kernels;
 pub mod leakguard;
 pub mod pack;
 pub mod persist;
 pub mod pg;
+#[cfg(kani)]
+mod proofs;
 pub mod reader;
 pub mod render;
 pub mod sections;

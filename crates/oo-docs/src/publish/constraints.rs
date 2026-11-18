@@ -219,16 +219,23 @@ pub async fn route_held(conn: &mut PgConnection, held: &[Held]) -> Result<u32, S
 }
 
 /// Incoming facts that would make an alternative both rejected and decided:
-/// `(incoming fact, other fact, alternative key)`.
+/// `(incoming fact, other fact, alternative key)`. The other side is a
+/// published fact or an incoming fact of the same run that stays: incoming
+/// facts are met by confidence (then fact key), a fact that contradicts a
+/// published one or one that stays is blocked, every other publishes. One run
+/// never publishes both halves of a contradiction, and a fact is not blocked
+/// by one that is itself blocked.
 pub async fn rejected_not_adopted(
     conn: &mut PgConnection,
     incoming: &[String],
 ) -> Result<Vec<(String, String, String)>, StoreError> {
-    let rows: Vec<(String, String, String)> = sqlx::query_as(
-        "SELECT a.id::text, b.id::text, x.key \
+    // (incoming id, other id, other is published, incoming confidence, incoming fact key, alternative key)
+    let rows: Vec<(String, String, bool, i32, String, String)> = sqlx::query_as(
+        "SELECT a.id::text, b.id::text, (b.status = 'published' AND b.retracted_at IS NULL), \
+                a.confidence_bp, a.fact_key, x.key \
            FROM _oo_docs.fact a \
            JOIN _oo_docs.fact b ON b.object_id = a.object_id AND b.id <> a.id \
-                AND b.status = 'published' AND b.retracted_at IS NULL \
+                AND ((b.status = 'published' AND b.retracted_at IS NULL) OR b.id = ANY($1::text[]::uuid[])) \
                 AND ((a.predicate = 'rejects' AND b.predicate = 'decides') \
                   OR (a.predicate = 'decides' AND b.predicate = 'rejects')) \
                 AND (a.valid_to IS NULL OR b.valid_from IS NULL OR b.valid_from < a.valid_to) \
@@ -240,7 +247,28 @@ pub async fn rejected_not_adopted(
     .bind(incoming)
     .fetch_all(&mut *conn)
     .await?;
-    Ok(rows)
+    let mut order: Vec<(i32, &str, &str)> = rows
+        .iter()
+        .map(|r| (r.3, r.4.as_str(), r.0.as_str()))
+        .collect();
+    order.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    order.dedup_by(|a, b| a.2 == b.2);
+    let mut kept: BTreeSet<&str> = BTreeSet::new();
+    let mut out = Vec::new();
+    for (_, _, id) in order {
+        let against = rows
+            .iter()
+            .filter(|r| r.0 == id)
+            .find(|r| r.2 || kept.contains(r.1.as_str()));
+        match against {
+            Some(r) => out.push((r.0.clone(), r.1.clone(), r.5.clone())),
+            None => {
+                kept.insert(id);
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
 }
 
 /// Persons that share an identity attribute and could not be merged
