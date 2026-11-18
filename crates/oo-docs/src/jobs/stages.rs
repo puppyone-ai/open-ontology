@@ -1281,6 +1281,10 @@ impl JobHandler for ExtractHandler {
                 }
                 // Who is S1? One `speaker_identity` item per speaker label (D74, 17.4).
                 if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
+                    // Labels a person confirmed earlier keep their Person (reprocess, A8).
+                    if let Err(e) = crate::review::speaker::apply_confirmed(&mut conn, &ir).await {
+                        return db_fail(e);
+                    }
                     let minutes = self.sibling_minutes(&s).await;
                     if let Err(e) = crate::review::speaker::propose(
                         &mut conn,
@@ -1636,12 +1640,24 @@ impl PublishHandler {
         Ok(lexicon_digest(&lex))
     }
 
-    async fn promote(&self, n: Option<i64>) -> Result<u32, TransitionError> {
+    /// A handler over `pool` and `cas` (tests drive [`Self::promote`] directly).
+    pub fn new(pool: PgPool, cas: Arc<Cas>) -> Self {
+        Self {
+            pool,
+            cas,
+            linked: std::sync::Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Move every `indexed` file that has nothing left to publish to `published`.
+    pub async fn promote(&self, n: Option<i64>) -> Result<u32, TransitionError> {
         // `extract_partial` after a failed model batch publishes like `indexed`
         // (the batches that worked stand); one from a failed rules job has no
         // drafts and stays where it is. A draft that waits for a person in the
-        // review queue does not hold the file back (`pending_review` counts it, 4.2).
-        let rows: Vec<(String, String, String)> = sqlx::query_as(
+        // review queue does not hold the file back (`pending_review` counts it, 4.2); neither does a
+        // statement of a speaker nobody confirmed yet (a `speaker_identity` item waits for a person):
+        // a recording whose statements are all held must still reach `published` (A8).
+        let rows: Vec<(String, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
               WHERE (f.state = 'indexed' OR (f.state = 'extract_partial' AND EXISTS ( \
@@ -1650,8 +1666,10 @@ impl PublishHandler {
                 AND f.deleted_at IS NULL \
                 AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
                                   JOIN _oo_docs.fact ft ON ft.id = e.target_id \
+                                  JOIN _oo_docs.entity s ON s.id = ft.subject_id \
                                  WHERE e.target_kind = 'fact' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND ft.status = 'draft' \
+                                   AND NOT {held} \
                                    AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
                                                     WHERE r.status = 'pending' \
                                                       AND r.subject->>'fact_id' = ft.id::text)) \
@@ -1660,7 +1678,8 @@ impl PublishHandler {
                                  WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND a.status = 'draft') \
               ORDER BY 1 LIMIT 500",
-        )
+            held = crate::review::speaker::HELD_SQL,
+        )))
         .fetch_all(&self.pool)
         .await?;
         let detail = serde_json::json!({ "ontology_version": n }).to_string();

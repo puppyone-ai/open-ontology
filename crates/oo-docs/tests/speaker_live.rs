@@ -179,3 +179,157 @@ async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_s
     );
     fx.finish(db).await;
 }
+
+/// A8 (L6): after a parser bump the recording is extracted again. The speaker a person already confirmed keeps
+/// the Person (the new placeholder is merged at once) and a recording whose only drafts are statements of
+/// speakers nobody has confirmed still returns to `published` (those wait in the review queue, they do not hold
+/// the file back).
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_published() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_speaker_a8";
+    let mut fx = Fx::new(db).await;
+    let path = A8_PATH;
+    let planted = fx.plant_normalized(path, meeting("a"), 1000).await;
+    let doc = oo_docs::publish::write::DocumentInput {
+        version_id: &planted.version_id,
+        b3: &planted.b3,
+        path,
+        ir: &planted.ir,
+    };
+    oo_docs::publish::write::index_document(&mut fx.rt, &doc)
+        .await
+        .unwrap();
+    oo_docs::review::speaker::propose(&mut fx.rt, &planted.version_id, &planted.ir, path, None)
+        .await
+        .unwrap();
+    let PublishOutcome::Published(_) = fx.publish().await else {
+        panic!("first publish")
+    };
+    // Confirm S1 = 小王 and publish.
+    let (id, revision): (String, i64) = sqlx::query_as(
+        "SELECT id::\"text\", revision FROM _oo_docs.review_item WHERE kind = 'speaker_identity' AND subject->>'speaker' = 'S1'",
+    )
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap();
+    let out = decide_items(
+        &mut fx.rt,
+        "tester",
+        &[ItemDecision {
+            id,
+            revision,
+            decision: Decision::Accept,
+            edit: Some(json!({"name": "小王"})),
+            note: None,
+        }],
+    )
+    .await
+    .unwrap();
+    assert_eq!(out.results[0].status, "ok");
+    let PublishOutcome::Published(_) = fx.publish().await else {
+        panic!("confirmed publish")
+    };
+    assert_eq!(file_state(&mut fx).await, "published");
+
+    // The parser is bumped and the recording is extracted again. A new placeholder row for the confirmed label S1
+    // appears (the first one was merged away): it is merged into 小王 at once, nothing of S1 is held.
+    let ph = oo_docs::extract::rules::media::placeholder_name(&planted.b3, "S1");
+    let k1 = oo_docs::resolve::normalize::entity_key(
+        oo_docs::extract::model::EntityType::Person,
+        None,
+        "a8-placeholder",
+        None,
+    );
+    fx.admin_sql(&format!(
+        "INSERT INTO _oo_docs.entity (id, key, type, canonical_name, norm_name) \
+         VALUES (gen_random_uuid(), '{k1}', 'Person', '{ph}', lower('{ph}'))"
+    ))
+    .await;
+    let merged = oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir)
+        .await
+        .unwrap();
+    assert_eq!(
+        merged, 1,
+        "the new placeholder of a confirmed label is merged into the Person"
+    );
+    assert_eq!(
+        fx.scalar(&format!(
+            "SELECT count(*) FROM _oo_docs.entity WHERE key = '{k1}' AND status = 'merged'"
+        ))
+        .await,
+        1
+    );
+    assert_eq!(held(&mut fx).await, 0, "no statement of S1 is held");
+    // And once more: nothing left to merge.
+    assert_eq!(
+        oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir)
+            .await
+            .unwrap(),
+        0
+    );
+
+    // What the rerun leaves is a draft statement on a speaker's placeholder row (here the merged row of S1, the
+    // row of an unconfirmed speaker works the same). It waits for a person in the review queue; it must not keep
+    // the recording from `published`, which is what happened to the meeting wav in the compose run.
+    fx.admin_sql(&format!(
+        "WITH f AS (INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, value, status, origin, confidence_bp) \
+            SELECT gen_random_uuid(), repeat('a', 64), e.id, e.id, 'owns', '\"x\"'::jsonb, 'draft', 'rule', 9000 FROM _oo_docs.entity e \
+             WHERE e.canonical_name = '{ph}' AND e.key <> '{k1}' RETURNING id) \
+         INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, quote_b3, origin, block_id, anchor) \
+            SELECT gen_random_uuid(), 'fact', f.id, fv.id, fv.b3, fv.b3, 'rule', 'blk_' || repeat('b', 20), '{{}}'::jsonb FROM f, _oo_docs.file_version fv \
+             WHERE fv.id = '{}'::uuid",
+        planted.version_id
+    ))
+    .await;
+    fx.admin_sql(&format!(
+        "UPDATE _oo_docs.file SET state = 'indexed' WHERE path = '{path}'"
+    ))
+    .await;
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.fact WHERE status = 'draft'")
+            .await,
+        1,
+        "one held draft with live evidence on this version"
+    );
+    let pool = common::pool_runtime(db, 2).await;
+    let h = oo_docs::jobs::stages::PublishHandler::new(
+        pool,
+        std::sync::Arc::new(oo_docs::cas::Cas::open(&fx.dir).unwrap()),
+    );
+    assert_eq!(h.promote(None).await.unwrap(), 1, "the file is promoted");
+    assert_eq!(
+        file_state(&mut fx).await,
+        "published",
+        "the recording returns to published after the rerun"
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+              WHERE f.predicate = 'owns' AND f.status = 'published' AND s.canonical_name = '小王'"
+        )
+        .await,
+        1
+    );
+    fx.finish(db).await;
+}
+
+const A8_PATH: &str = "会议/周会 参会=小王、小李.m4a";
+
+async fn file_state(fx: &mut Fx) -> String {
+    sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(format!(
+        "SELECT state FROM _oo_docs.file WHERE path = '{A8_PATH}'"
+    )))
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap()
+}
+
+async fn held(fx: &mut Fx) -> i64 {
+    fx.scalar(
+        "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
+          WHERE f.predicate = 'owns' AND f.status = 'draft' AND s.canonical_name LIKE '说话人 S1%'",
+    )
+    .await
+}
