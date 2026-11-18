@@ -79,8 +79,14 @@ pub fn start_once(spec: &EngineSpec) -> Result<(Child, SocketAddr), String> {
     if let Some(tmp) = std::env::var_os("TMPDIR") {
         cmd.env("TMPDIR", tmp);
     }
-    // The cloud entry (B-S12-01) is opt in by the operator's environment and nothing else.
-    for k in ["OO_DOCS_CLOUD_LISTEN", "OO_DOCS_CLOUD_HOSTS"] {
+    // The cloud entry (B-S12-01) and a Docker-free parser sidecar (B-S14-01, a process the operator runs on
+    // loopback) are opt in by the operator's environment and nothing else.
+    for k in [
+        "OO_DOCS_CLOUD_LISTEN",
+        "OO_DOCS_CLOUD_HOSTS",
+        "OO_DOCS_PARSER_URL",
+        "OO_DOCS_PARSER_TOKEN_FILE",
+    ] {
         if let Some(v) = std::env::var_os(k) {
             cmd.env(k, v);
         }

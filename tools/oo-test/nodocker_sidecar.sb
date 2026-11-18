@@ -1,0 +1,19 @@
+;; sandbox-exec profile for the Docker-free doc-parser sidecar (ADR-S14).
+;; Parameters: SCRATCH (the only writable tree), HOME, VENV_ROOT (read only).
+;; Network: loopback only. Files: no writes outside SCRATCH (and /dev), no reads of the home directory
+;; except the interpreter and caches the venv links to. Later rules win.
+(version 1)
+(allow default)
+(deny network*)
+(allow network-bind (local ip "localhost:*"))
+(allow network-inbound (local ip "localhost:*"))
+(allow network-outbound (remote ip "localhost:*"))
+; the multiprocessing fork server talks over a unix socket in the scratch directory, nowhere else
+(allow network-bind (local unix-socket (subpath (param "SCRATCH"))))
+(allow network-inbound (local unix-socket (subpath (param "SCRATCH"))))
+(allow network-outbound (remote unix-socket (subpath (param "SCRATCH"))))
+(deny file-write*)
+(allow file-write* (subpath (param "SCRATCH")) (subpath "/dev") (literal "/dev/null"))
+(deny file-read* (subpath (param "HOME")))
+(allow file-read* (subpath (string-append (param "HOME") "/.local/share/uv")))
+(allow file-read* (subpath (param "VENV_ROOT")))
