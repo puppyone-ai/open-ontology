@@ -90,6 +90,7 @@ async fn publish_now(fx: &mut Fx) {
     let before = fx
         .scalar("SELECT coalesce(max(n), 0) FROM _oo_docs.ontology_version")
         .await;
+    drain_jobs(fx).await;
     for _ in 0..100 {
         match fx.publish().await {
             oo_docs::publish::run::PublishOutcome::Busy => {
@@ -99,6 +100,25 @@ async fn publish_now(fx: &mut Fx) {
         }
     }
     wait_version(fx, before + 1).await;
+    drain_jobs(fx).await;
+}
+
+/// Wait until the engine's own pipeline has nothing queued or running (two looks, 200 ms apart): it publishes
+/// by itself as parse and extract jobs finish, and a publish on top of running jobs cuts a version too many.
+async fn drain_jobs(fx: &mut Fx) {
+    let t = Instant::now();
+    let mut quiet = 0;
+    while quiet < 2 {
+        let busy = fx
+            .scalar("SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running')")
+            .await;
+        quiet = if busy == 0 { quiet + 1 } else { 0 };
+        assert!(
+            t.elapsed() < Duration::from_secs(30),
+            "the pipeline did not go quiet"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 /// The newest ontology version number. Tests never assume how many versions
