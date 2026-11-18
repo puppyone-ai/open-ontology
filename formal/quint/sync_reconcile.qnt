@@ -1,8 +1,9 @@
-// formal: main=sync_reconcile inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witRename witHeld witConfirmedSweep witPartialKeepsDeleted witTargetedCreated witRecreatedDuringListing witRetrySameGeneration" vinv="invOnlySweepKills invSweepOnlyUnseen invGenerationMonotone invHeldAfterMassOnly invRenameCarries invConverged"
+// formal: main=sync_reconcile inv=inv steps=40 verify-steps=8 deep-steps=10 witnesses="witRename witHeld witConfirmedSweep witPartialKeepsDeleted witTargetedCreated witRecreatedDuringListing witRetrySameGeneration" vinv="invOnlySweepKills invSweepOnlyUnseen invMassHold invGenerationMonotone invHeldAfterMassOnly invRenameCarries invConverged"
 // FM3 (fs): incremental sync of one Drive against a folder, as implemented by
 // crates/oo-docs/src/ingest/reconcile.rs (10 4.3.4, 4.3.5; D46, D47). Spec 80
 // 3.1 FM3: partial listings never sweep, targeted sync never sweeps, a listing
-// that is overtaken by writes does not delete what was written, a quiet
+// overtaken by writes may sweep a file written in the listing window (the row is revived by the next sync;
+// FM3.md B1), a quiet
 // folder converges after one complete reconcile, rename is detected by
 // content hash, a mass delete is held until confirmed. Notes and bounds:
 // formal/reviews/FM3.md.
@@ -48,7 +49,8 @@ module sync_reconcile {
   var wSince: bool            // ghost: a source write after the current listing started
   var lastKind: str           // ghost: init write start partial held sweep targeted hash
   var shrunk: bool            // ghost: some live row stopped being live in the last step
-  var sweptSeenOk: bool       // ghost: every row swept had not been seen by generation g
+  var sweptSeenOk: bool       // ghost: no key the listing snapshot saw was swept (computed from the snapshot, not from `missing`)
+  var massSweepOk: bool       // ghost: a sweep never ran under an unconfirmed mass delete
   var renameOk: bool          // ghost: every rename pairs an unseen old row with a new row of equal content
   var prevGen: int
   var preDeleted: bool        // ghost: a key was deleted from the folder while its row was marked by this generation
@@ -89,13 +91,13 @@ module sync_reconcile {
     gen' = 0, maxg' = 0,
     ls' = { active: false, g: 0, snap: KEYS.mapBy(k => 0), snapV: KEYS.mapBy(k => 0), complete: true, confirm: false },
     held' = false, attempted' = false, nW' = 0, nP' = 0, nT' = 0,
-    quiet' = true, wSince' = false, lastKind' = "init", shrunk' = false, sweptSeenOk' = true, renameOk' = true,
+    quiet' = true, wSince' = false, lastKind' = "init", shrunk' = false, sweptSeenOk' = true, massSweepOk' = true, renameOk' = true,
     prevGen' = 0, preDeleted' = false, recreated' = false,
   }
 
   // every action leaves the variables it does not mention alone
   action keepGhosts: bool = all {
-    sweptSeenOk' = sweptSeenOk, renameOk' = renameOk,
+    sweptSeenOk' = sweptSeenOk, massSweepOk' = massSweepOk, renameOk' = renameOk,
   }
 
   // ---- the folder changes ----
@@ -175,16 +177,17 @@ module sync_reconcile {
         // partial or failed listing: what was seen is recorded, nothing is swept, the generation stays;
         // the attempt overwrites the drive_sync status, so a held generation is no longer held
         rows' = rows1, gen' = gen, held' = false, attempted' = attempted,
-        quiet' = quiet, lastKind' = "partial", shrunk' = false, sweptSeenOk' = sweptSeenOk, renameOk' = renameOk,
+        quiet' = quiet, lastKind' = "partial", shrunk' = false, sweptSeenOk' = sweptSeenOk, massSweepOk' = massSweepOk, renameOk' = renameOk,
       } else if (mass and not(ls.confirm)) all {
         // mass delete: held, nothing is swept
         rows' = rows1, gen' = gen, held' = true, attempted' = true,
-        quiet' = false, lastKind' = "held", shrunk' = false, sweptSeenOk' = sweptSeenOk, renameOk' = renameOk,
+        quiet' = false, lastKind' = "held", shrunk' = false, sweptSeenOk' = sweptSeenOk, massSweepOk' = massSweepOk, renameOk' = renameOk,
       } else all {
         rows' = swept, gen' = g, held' = false, attempted' = false,
         quiet' = not(wSince), lastKind' = "sweep",
         shrunk' = KEYS.exists(k => rows.get(k).st == 1 and swept.get(k).st != 1),
-        sweptSeenOk' = missing.forall(k => rows1.get(k).seen < g),
+        sweptSeenOk' = KEYS.forall(k => (rows.get(k).st == 1 and swept.get(k).st != 1) implies ls.snap.get(k) == 0),
+        massSweepOk' = not(mass and not(ls.confirm)),
         renameOk' = pr.pairs.keys().forall(m =>
           created.contains(pr.pairs.get(m)) and src.get(pr.pairs.get(m)) == rows.get(m).c and ls.snap.get(m) == 0),
       }
@@ -234,6 +237,8 @@ module sync_reconcile {
   val invOnlySweepKills = shrunk implies lastKind == "sweep"
   // the sweep takes only rows that no listing of this generation saw; a targeted touch protects a row
   val invSweepOnlyUnseen = sweptSeenOk
+  // the mass-delete hold: an unconfirmed mass delete is never swept (review B2)
+  val invMassHold = massSweepOk
   val invGenerationMonotone = (gen == prevGen or gen == prevGen + 1) and gen <= maxg
   // held only for a generation that has not been committed, and a held sync changed no live row (see invOnlySweepKills)
   val invHeldAfterMassOnly = held implies (gen < maxg and attempted)
@@ -243,7 +248,7 @@ module sync_reconcile {
   // the live rows are exactly the objects of the folder with their content
   val invConverged = (quiet and not(KEYS.exists(k => rows.get(k).hp))) implies
     KEYS.forall(k => if (src.get(k) != 0) (rows.get(k).st == 1 and rows.get(k).c == src.get(k)) else rows.get(k).st != 1)
-  val inv = invOnlySweepKills and invSweepOnlyUnseen and invGenerationMonotone and invHeldAfterMassOnly and invRenameCarries and invConverged
+  val inv = invOnlySweepKills and invSweepOnlyUnseen and invMassHold and invGenerationMonotone and invHeldAfterMassOnly and invRenameCarries and invConverged
 
   val witRename = lastKind == "sweep" and KEYS.exists(k => rows.get(k).st == 2 and rows.get(k).c != 0 and KEYS.exists(n => n != k and rows.get(n).st == 1 and rows.get(n).c == rows.get(k).c))
   val witHeld = held

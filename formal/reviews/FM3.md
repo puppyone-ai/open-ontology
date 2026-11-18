@@ -73,3 +73,15 @@ Non-blocking
 8. The fingerprint and `rows.v` change model is abstracted; `ver` is per-key, not per-object identity. Say so, since rename detection (`detect_renames`) depends on the hash of a file taken "now", which the model reads from `cur`.
 
 Checked and fine: the FM3-001 fix (`start_sync` marks reset in `reconcile.rs` l.323 to l.350) matches `RETRY_RESETS_MARKS` (model resets only live rows with `seen >= g`, code does the same); `partial` never sweeps (`invOnlySweepKills` holds on a mutant that sweeps on partial would fail it, not run); `targeted` never changes `gen` (matches code: no generation move on targeted).
+
+## Response to the independent review (lane A, 2026-11-17)
+
+- **B1:** narrowed (reviewer option a). The header no longer claims that a listing overtaken by writes keeps what was written: the sweep may delete a
+  row whose file appeared in the listing window, and the next sync revives it. This matches the code (`load_missing` is the DB set). The weaker claim that
+  matters is the convergence one (`invConverged` after a quiet, complete reconcile), unchanged. Not changed in the code.
+- **B2:** ghost `massSweepOk` (set in the sweep branch to `not(mass and not(ls.confirm))`) and invariant `invMassHold`. Mutation M1 (`else if (false)` for
+  the held branch) is caught by `invMassHold`; before, nothing failed.
+- **B3:** `invSweepOnlyUnseen` is now "no key the listing snapshot saw was swept", computed from `ls.snap` and the row states before and after, not from
+  `missing`. Mutation M2 (the sweep also takes rows whose content is 1) is caught by it.
+- Non-blocking 4 (`v` not compared in the replay), 5 to 8: not done in this pass; 7 and 8 are stated here: bounds are K=4, C=3, MAXW=6, MASSMIN=1 (test
+  configuration, production is 100); `ver` is per key, not per object identity.
