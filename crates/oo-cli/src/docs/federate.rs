@@ -39,6 +39,7 @@ impl Principal {
     }
 }
 
+#[derive(Debug)]
 struct Fail(u16, &'static str, String);
 
 fn fail(status: u16, code: &'static str, msg: impl Into<String>) -> Fail {
@@ -1062,22 +1063,64 @@ async fn run(head: &Head, body: &[u8], cfg: &ProxyConfig, addr: SocketAddr) -> R
             cx.entity(u, qv("key_col")).await
         }
         ("POST", "query") => {
-            let b: Value = serde_json::from_slice(body)
-                .map_err(|_| fail(400, "ONTOLOGY_BAD_REQUEST", "expected a JSON object"))?;
-            let sql = b["sql"]
-                .as_str()
-                .filter(|s| !s.trim().is_empty() && s.len() <= 16384)
-                .ok_or_else(|| fail(400, "ONTOLOGY_BAD_REQUEST", "sql is required"))?;
-            let n = b["max_rows"].as_u64().map_or(200, |n| n.clamp(1, 2000)) as u32;
-            cx.query(sql, n).await
+            let (sql, n) = query_body(body)?;
+            cx.query(&sql, n).await
         }
         _ => Err(fail(404, "ONTOLOGY_NOT_FOUND", "unknown ontology route")),
     }
 }
 
+/// The body of `POST /v1/ontology/query`: the request schema is closed (`additionalProperties: false`), so a field
+/// the contract does not name is the contract's 400 `ONTOLOGY_BAD_REQUEST`, as are a body that is not an object and
+/// a missing or empty `sql`. Returns the SQL and the row bound.
+fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
+    let b: Value = serde_json::from_slice(body)
+        .map_err(|_| fail(400, "ONTOLOGY_BAD_REQUEST", "expected a JSON object"))?;
+    let Some(obj) = b.as_object() else {
+        return Err(fail(400, "ONTOLOGY_BAD_REQUEST", "expected a JSON object"));
+    };
+    if let Some(k) = obj
+        .keys()
+        .find(|k| !matches!(k.as_str(), "sql" | "max_rows"))
+    {
+        return Err(fail(
+            400,
+            "ONTOLOGY_BAD_REQUEST",
+            format!("unknown field `{k}`; the request takes `sql` and `max_rows`"),
+        ));
+    }
+    let sql = b["sql"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty() && s.len() <= 16384)
+        .ok_or_else(|| fail(400, "ONTOLOGY_BAD_REQUEST", "sql is required"))?;
+    let n = b["max_rows"].as_u64().map_or(200, |n| n.clamp(1, 2000)) as u32;
+    Ok((sql.to_owned(), n))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_query_body_is_closed_like_its_contract() {
+        assert_eq!(
+            query_body(br#"{"sql":"SELECT 1","max_rows":5}"#).unwrap(),
+            ("SELECT 1".to_owned(), 5)
+        );
+        assert_eq!(query_body(br#"{"sql":"SELECT 1"}"#).unwrap().1, 200);
+        for bad in [
+            &br#"{"sql":"SELECT 1","limit":3}"#[..],
+            br#"{"sql":"SELECT 1","extra":null}"#,
+            br#"{"max_rows":3}"#,
+            br#"[]"#,
+            b"not json",
+        ] {
+            let Fail(status, code, _) = query_body(bad).unwrap_err();
+            assert_eq!((status, code), (400, "ONTOLOGY_BAD_REQUEST"), "{bad:?}");
+        }
+        let Fail(_, _, m) = query_body(br#"{"sql":"SELECT 1","x":1}"#).unwrap_err();
+        assert!(m.contains("`x`"), "{m}");
+    }
 
     #[test]
     fn urns_round_trip() {

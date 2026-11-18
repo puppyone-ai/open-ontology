@@ -4,4 +4,4 @@ The HTTP server, scratch store, supervisor and watchdog are the ones of `doc_par
 (tools/doc-parser); this package supplies the metadata (`meta`) and the backend (`adapter`).
 """
 
-ADAPTER_VERSION = "1"
+ADAPTER_VERSION = "2"

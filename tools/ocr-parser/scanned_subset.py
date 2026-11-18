@@ -12,6 +12,9 @@ process (same adapter as the sidecar) and reports
 * core-type recall (D15 types): an entity counts when one of its anchor files is in the subset, and is found
   when its name or an alias appears in the OCR text of one of those files. This is the OCR-only share of
   extraction recall: the LLM step is not in this loop.
+  `core_type_recall` is OCR-only: image pages, no text layer (the pdf pages are the pdfium bitmaps). The
+  `engine_path_pdf` number is separate: the original digital pdfs through the adapter's pdf path, where the text layer
+  fills in what the render could not show. `--no-pdf-path` skips it. `render` refuses a blank pdf page.
 * character recall on synthetic chart and screenshot images (embedded-image text, B-S9-04): ground-truth characters
   found in the OCR output (multiset overlap) divided by all ground-truth characters.
 
@@ -119,6 +122,10 @@ def render(golden, out):
         if src.suffix == ".pdf":
             doc = pdfium.PdfDocument(str(src))
             pages = [doc[i].render(scale=200 / 72).to_pil() for i in range(len(doc))]
+            # A pdf whose fonts are not embedded renders blank where pdfium has no such font: a blank page is not a
+            # scan of anything, so refuse it (render on a host with CJK fonts).
+            if any(p.convert("L").getextrema()[0] > 200 for p in pages):
+                sys.exit(f"{rel}: rendered page is blank (pdfium has no font for it); render on a host with CJK fonts")
         elif src.suffix in (".md", ".txt"):
             pages = text_pages(src.read_text(encoding="utf-8").splitlines())
         elif src.suffix == ".docx":
@@ -141,6 +148,16 @@ def ocr_text(adapter, img_path):
 
     blocks = adapter._run(Image.open(img_path).convert("RGB"))
     return "".join(b["text"] for b in blocks), blocks
+
+
+def pdf_text(adapter, src):
+    """OCR text of an original pdf through the adapter's own pdf path (render, OCR, text layer supplement), the path
+    the sidecar takes for a pdf. A pdf whose fonts are not embedded renders blank on a host without them (the
+    sidecar image has no CJK font), so a bitmap rendered elsewhere is not what the sidecar would see."""
+    out = []
+    for _no, _w, _h, img, lines in adapter._pdf_pages(src, None):
+        out.append("".join(b["text"] for b in adapter._supplement(adapter._run(img), lines)))
+    return "".join(out)
 
 
 def char_recall(truth, got):
@@ -184,7 +201,7 @@ def chart_images(out):
     return truths
 
 
-def measure(golden, out, adapter, report):
+def measure(golden, out, adapter, report, use_pdf_path=True):
     ents = [json.loads(l) for l in (golden / "labels" / "entities.jsonl").read_text().splitlines() if l.strip()]
     pages = sorted(p for p in out.glob("*.png") if not p.name.startswith("."))
     by_file = {}
@@ -194,28 +211,44 @@ def measure(golden, out, adapter, report):
     texts = {}
     cache = out / "ocr-text.json"
     done = json.loads(cache.read_text()) if cache.exists() else {}
+    sources = {p.relative_to(golden).as_posix().replace("/", "__"): p for p in (golden / "docs").rglob("*.pdf")}
     for stem, ps in by_file.items():
         if stem not in done:
             done[stem] = norm("".join(ocr_text(adapter, p)[0] for p in ps))
             cache.write_text(json.dumps(done, ensure_ascii=False))
         texts[stem] = done[stem]
         print(f"ocr {stem}: {len(texts[stem])} chars", file=sys.stderr)
-    scored, hits, misses = 0, 0, []
-    by_type = {}
-    for e in ents:
-        files = {a["file"].replace("/", "__") for a in e["anchors"]} & set(texts)
-        if not files:
-            continue
-        scored += 1
-        names = [norm(e["name"])] + [norm(a) for a in e.get("aliases", [])]
-        ok = any(n and n in texts[f] for n in names for f in files)
-        t = by_type.setdefault(e["type"], [0, 0])
-        t[1] += 1
-        if ok:
-            hits += 1
-            t[0] += 1
-        else:
-            misses.append(e["name"])
+    # Engine path: the original digital pdfs through the adapter's pdf path (render, OCR, text layer supplement).
+    pdf_texts = {}
+    if use_pdf_path:
+        pcache = out / "pdf-path-text.json"
+        pdone = json.loads(pcache.read_text()) if pcache.exists() else {}
+        for stem, src in sources.items():
+            if stem not in pdone:
+                pdone[stem] = norm(pdf_text(adapter, src))
+                pcache.write_text(json.dumps(pdone, ensure_ascii=False))
+            pdf_texts[stem] = pdone[stem]
+
+    def recall(texts):
+        scored, hits, misses, by_type = 0, 0, [], {}
+        for e in ents:
+            files = {a["file"].replace("/", "__") for a in e["anchors"]} & set(texts)
+            if not files:
+                continue
+            scored += 1
+            names = [norm(e["name"])] + [norm(a) for a in e.get("aliases", [])]
+            ok = any(n and n in texts[f] for n in names for f in files)
+            t = by_type.setdefault(e["type"], [0, 0])
+            t[1] += 1
+            if ok:
+                hits += 1
+                t[0] += 1
+            else:
+                misses.append(e["name"])
+        return scored, hits, misses, by_type
+
+    scored, hits, misses, by_type = recall(texts)
+    e_scored, e_hits, e_misses, _ = recall(pdf_texts) if pdf_texts else (0, 0, [], {})
     truths = chart_images(out)
     chart = {}
     for name, truth in truths.items():
@@ -224,6 +257,8 @@ def measure(golden, out, adapter, report):
     res = {"files": len(by_file), "pages": len(pages), "entities_scored": scored, "entities_found": hits,
            "core_type_recall": round(hits / scored, 4) if scored else 0.0,
            "by_type": {k: f"{v[0]}/{v[1]}" for k, v in sorted(by_type.items())}, "missed": misses,
+           "engine_path_pdf": {"entities_scored": e_scored, "entities_found": e_hits,
+                               "recall": round(e_hits / e_scored, 4) if e_scored else None, "missed": e_misses},
            "embedded_char_recall": chart, "embedded_char_recall_mean": round(sum(chart.values()) / len(chart), 4)}
     print(json.dumps(res, ensure_ascii=False, indent=1))
     if report:
@@ -237,6 +272,7 @@ def main():
     ap.add_argument("--golden", default="testing/super-ontology/golden")
     ap.add_argument("--out", required=True)
     ap.add_argument("--report")
+    ap.add_argument("--no-pdf-path", action="store_true", help="skip the engine-path number of the original pdfs")
     a = ap.parse_args()
     golden, out = Path(a.golden), Path(a.out)
     if a.cmd == "render":
@@ -246,7 +282,7 @@ def main():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "doc-parser"))
     from ocr_parser import adapter
 
-    measure(golden, out, adapter, a.report)
+    measure(golden, out, adapter, a.report, use_pdf_path=not a.no_pdf_path)
 
 
 if __name__ == "__main__":

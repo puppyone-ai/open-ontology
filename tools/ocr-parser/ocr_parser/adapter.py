@@ -93,6 +93,54 @@ def _cap(img):
     return img
 
 
+def _text_layer_lines(page, px_w, px_h):
+    """The text layer of a pdf page as `(text, [x0, y0, x1, y1] in pixels)` lines, top to bottom.
+
+    Why: a pdf may carry its text but not the fonts (a CID font such as STSong-Light with no font program and an
+    identity ToUnicode map is what most CJK generators emit). pdfium then draws nothing on a host without that
+    font (the sidecar image has no CJK font), so the rendered page is blank and the OCR has nothing to read, while
+    the text layer is complete. The lines are the same text the page would show.
+    """
+    try:
+        tp = page.get_textpage()
+    except Exception:  # noqa: BLE001 - a damaged text layer only means no supplement
+        return []
+    try:
+        pt_w, pt_h = page.get_size()
+        sx, sy = px_w / pt_w, px_h / pt_h
+        lines = []
+        for i in range(tp.count_rects()):
+            left, bottom, right, top = tp.get_rect(i)
+            text = " ".join(tp.get_text_bounded(left, bottom, right, top).split())
+            if text:
+                lines.append((text, [round(left * sx), round((pt_h - top) * sy),
+                                     round(right * sx), round((pt_h - bottom) * sy)]))
+        return sorted(lines, key=lambda t: (round(t[1][1] / 12), t[1][0]))
+    finally:
+        tp.close()
+
+
+def _compact(text):
+    return "".join(text.split())
+
+
+def _supplement(blocks, lines):
+    """Add the text layer lines the OCR did not return, when the OCR returned under half of the layer's text.
+
+    A page whose OCR is healthy (a scan, or a pdf with embedded fonts) is left exactly as the OCR gave it.
+    Added blocks are plain text with score 1.0 (a layer is exact, not a recognition), in reading order.
+    """
+    layer = sum(len(_compact(t)) for t, _ in lines)
+    seen = _compact("".join(b["text"] for b in blocks))
+    if layer == 0 or len(seen) * 2 >= layer:
+        return blocks
+    out = list(blocks)
+    for text, box in lines:
+        if _compact(text) not in seen:
+            out.append({"label": "text", "kind": "paragraph", "text": text, "bbox_px": box, "score": 1.0})
+    return sorted(out, key=lambda b: (round(b["bbox_px"][1] / 12), b["bbox_px"][0]))
+
+
 def _pdf_pages(path, page_range):
     import pypdfium2 as pdfium
 
@@ -110,7 +158,7 @@ def _pdf_pages(path, page_range):
             try:
                 pt_w, pt_h = page.get_size()
                 img = _cap(page.render(scale=DPI / 72).to_pil())
-                yield no, pt_w, pt_h, img
+                yield no, pt_w, pt_h, img, _text_layer_lines(page, img.size[0], img.size[1])
             finally:
                 page.close()
     finally:
@@ -185,9 +233,9 @@ def parse(path, fmt, page_range, table_structure, max_response, ocr=True):
         with open(path, "rb") as f:
             if not f.read(5) == b"%PDF-":
                 raise WorkerError("PARSER_CORRUPT", "not a pdf")
-        for no, pt_w, pt_h, img in _pdf_pages(path, page_range):
+        for no, pt_w, pt_h, img, lines in _pdf_pages(path, page_range):
             pages.append({"page": no, "px_w": img.size[0], "px_h": img.size[1], "pt_w": pt_w, "pt_h": pt_h,
-                          "blocks": _run(img)})
+                          "blocks": _supplement(_run(img), lines)})
         page_count = pages[-1]["page"] if pages else 0
     else:
         img = _open_image(path)
