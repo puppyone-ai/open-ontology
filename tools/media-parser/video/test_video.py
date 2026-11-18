@@ -31,6 +31,15 @@ def test_one_key_frame_per_slide_despite_a_live_clock_and_noise():
     assert spans[0] == (0, 6000) and spans[-1][1] == t * 1000
 
 
+def test_pyscenedetect_hash_detector_finds_every_page_turn_when_installed():
+    pytest.importorskip("scenedetect")
+    fr = [(t, img) for t, img, _ in synth.slide_frames()]
+    cuts = kf.scenedetect_cuts(fr)
+    assert cuts == {6, 14, 19, 26, 32, 37, 43}
+    # the union with the numpy signals keeps exactly one key frame per slide
+    assert len(kf.dedupe(fr, use_scenedetect=True)) == 8 and len(kf.dedupe(fr, use_scenedetect=False)) == 8
+
+
 def test_a_page_turn_is_far_above_the_hash_threshold_and_a_clock_tick_far_below():
     a = synth.slide_image(synth.SLIDES[1], tick=1)
     b = synth.slide_image(synth.SLIDES[1], tick=2, seed=9)

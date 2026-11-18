@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--dest", required=True)
     ap.add_argument("--lock", required=True)
     ap.add_argument("--mode", choices=["verify", "write"], default="verify")
+    ap.add_argument("--local-dir", default=".", help="where `kind: local` artifacts are")
     a = ap.parse_args()
     lock_path = Path(a.lock)
     lock = json.loads(lock_path.read_text())
@@ -47,6 +48,40 @@ def main():
                 data = urllib.request.urlopen(f["url"], timeout=300).read()
                 if hashlib.sha256(data).hexdigest() != f["sha256"]:
                     sys.exit(f"{f['url']}: sha256 differs from the lock")
+                (target / f["local"]).write_bytes(data)
+            for p in sorted(target.rglob("*")):
+                if p.is_file():
+                    files.append({"name": f"{src['local_dir']}/{p.relative_to(target).as_posix()}",
+                                  "sha256": sha256_file(p), "size": p.stat().st_size})
+            continue
+        if src.get("kind") == "wheel-member":
+            import io
+            import zipfile
+
+            target = dest / src["local_dir"]
+            target.mkdir(parents=True, exist_ok=True)
+            data = urllib.request.urlopen(src["url"], timeout=300).read()
+            if hashlib.sha256(data).hexdigest() != src["wheel_sha256"]:
+                sys.exit(f"{src['url']}: wheel sha256 differs from the lock")
+            z = zipfile.ZipFile(io.BytesIO(data))
+            for m in src["members"]:
+                blob = z.read(m["member"])
+                if hashlib.sha256(blob).hexdigest() != m["sha256"]:
+                    sys.exit(f"{m['member']}: sha256 differs from the lock")
+                (target / m["local"]).write_bytes(blob)
+            for p in sorted(target.rglob("*")):
+                if p.is_file():
+                    files.append({"name": f"{src['local_dir']}/{p.relative_to(target).as_posix()}",
+                                  "sha256": sha256_file(p), "size": p.stat().st_size})
+            continue
+        if src.get("kind") == "local":
+            # An artifact we build ourselves (see `rebuild` in the source) and place next to the Dockerfile.
+            target = dest / src["local_dir"]
+            target.mkdir(parents=True, exist_ok=True)
+            for f in src["files"]:
+                data = (Path(a.local_dir) / f["local"]).read_bytes()
+                if hashlib.sha256(data).hexdigest() != f["sha256"]:
+                    sys.exit(f"{f['local']}: sha256 differs from the lock")
                 (target / f["local"]).write_bytes(data)
             for p in sorted(target.rglob("*")):
                 if p.is_file():
