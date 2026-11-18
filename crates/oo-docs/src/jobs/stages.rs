@@ -679,6 +679,29 @@ fn sidecar_halt(e: &SidecarError) -> Halt {
             code: "DOCS_PARSE_IR_INVALID".into(),
             retryable: true,
         },
+        // Media (D65, D77): no decoder for the codec, over the size or duration limit.
+        SidecarError::CodecUnavailable { .. } => Halt::Park {
+            to: FileState::Unsupported,
+            code: "DOCS_PARSE_CODEC_UNAVAILABLE",
+        },
+        SidecarError::MediaTooLong => Halt::Park {
+            to: FileState::TooLarge,
+            code: "DOCS_SOURCE_MEDIA_TOO_LONG",
+        },
+        // The host decode output was made from another version of the file: parse again.
+        SidecarError::HostDecodeMismatch => Halt::Out(Outcome::failed(
+            FailureClass::Transient,
+            "DOCS_PARSE_MEDIA_HOST_DECODE_MISMATCH",
+        )),
+        SidecarError::AsrFailed => Halt::Failed {
+            code: "DOCS_PARSE_ASR_FAILED".into(),
+            retryable: true,
+        },
+        SidecarError::DiarizationFailed => Halt::Failed {
+            code: "DOCS_PARSE_DIARIZATION_FAILED".into(),
+            retryable: true,
+        },
+        SidecarError::Cancelled => Halt::Out(Outcome::Cancelled),
         // Busy, an open breaker, no answer, a hash or scratch problem: the
         // sidecar side, not this file.
         SidecarError::Busy { .. }
@@ -688,6 +711,7 @@ fn sidecar_halt(e: &SidecarError) -> Halt {
         | SidecarError::BlobMissing
         | SidecarError::HashMismatch
         | SidecarError::ScratchFull
+        | SidecarError::DiskLow
         | SidecarError::BadInput(_) => Halt::Waiting,
     }
 }

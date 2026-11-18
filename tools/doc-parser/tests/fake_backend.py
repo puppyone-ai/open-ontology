@@ -36,9 +36,9 @@ def probe(path, fmt):
     return json.dumps({"page_count": 3, "encrypted": False, "needs_password": False, "text_layer_pages": 3}).encode()
 
 
-def parse(path, fmt, page_range, table, max_response):
+def parse(path, fmt, page_range, table, max_response, ocr=False):
     _act(path)
     return json.dumps(
         {"protocol": "oo.doc-parser/v1", "parser": {"id": "docling", "version": "fake", "adapter_version": "1"},
-         "page_count": 3, "pages": page_range or [1, 3], "doc": {"name": "x", "table": table}, "warnings": []}
+         "page_count": 3, "pages": page_range or [1, 3], "doc": {"name": "x", "table": table}, "ocr": ocr, "warnings": []}
     ).encode()

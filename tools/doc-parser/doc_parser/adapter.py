@@ -2,9 +2,10 @@
 
 Docling is imported lazily inside the functions so that importing this module
 in the fork server (warm start) pulls in the heavy modules once, while the HTTP
-process itself never loads them. L3 has no OCR: `do_ocr=False`, no picture,
-code or formula enrichment, no remote services, models only from
-`DOCLING_ARTIFACTS_PATH` (offline).
+process itself never loads them. Without `options.ocr`: `do_ocr=False` (the L3 profile). With it (B-S9-04):
+RapidOCR on onnxruntime chosen explicitly through `RapidOcrOptions` (never `OcrAutoOptions`), models by path
+from `DOCLING_ARTIFACTS_PATH/rapidocr-ppocrv5` (offline), picture bitmaps generated and read by
+`pictures.picture_records`. No picture description, code or formula enrichment, no remote services.
 """
 import json
 import os
@@ -88,21 +89,35 @@ def probe(path, fmt):
     ).encode()
 
 
-def _converter(table_structure):
+def _ocr_options():
+    from docling.datamodel.pipeline_options import RapidOcrOptions
+
+    from .pictures import rapid_files
+
+    f = rapid_files(MODELS_DIR)
+    return RapidOcrOptions(
+        backend="onnxruntime", lang=["ch"], use_cls=False, text_score=0.5,
+        det_model_path=f["det"], rec_model_path=f["rec"], rec_keys_path=f["keys"], force_full_page_ocr=False,
+    )
+
+
+def _converter(table_structure, ocr=False):
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import AcceleratorOptions, PdfPipelineOptions
     from docling.document_converter import DocumentConverter, PdfFormatOption
 
+    extra = {"ocr_options": _ocr_options(), "images_scale": 2.0} if ocr else {}
     opts = PdfPipelineOptions(
         artifacts_path=MODELS_DIR,
-        do_ocr=False,
+        do_ocr=bool(ocr),
+        **extra,
         do_table_structure=bool(table_structure) and table_structure_available(),
         do_picture_classification=False,
         do_picture_description=False,
         do_code_enrichment=False,
         do_formula_enrichment=False,
         generate_page_images=False,
-        generate_picture_images=False,
+        generate_picture_images=bool(ocr),
         generate_table_images=False,
         enable_remote_services=False,
         allow_external_plugins=False,
@@ -137,8 +152,13 @@ def _precheck(path, fmt):
             raise WorkerError("PARSER_ENCRYPTED", "pdf is encrypted")
 
 
-def parse(path, fmt, page_range, table_structure, max_response):
+def parse(path, fmt, page_range, table_structure, max_response, ocr=False):
     _precheck(path, fmt)
+    if ocr:
+        from .pictures import ocr_available
+
+        if not ocr_available(MODELS_DIR):
+            raise WorkerError("PARSER_UNSUPPORTED", "OCR models are not in this image")
     from docling.exceptions import ConversionError
 
     with tempfile.TemporaryDirectory(prefix="job-") as tmp:
@@ -146,10 +166,15 @@ def parse(path, fmt, page_range, table_structure, max_response):
         os.symlink(path, link)
         kwargs = {"page_range": (page_range[0], page_range[1])} if page_range else {}
         try:
-            result = _converter(table_structure).convert(link, raises_on_error=True, **kwargs)
+            result = _converter(table_structure, ocr).convert(link, raises_on_error=True, **kwargs)
         except ConversionError as e:
             raise WorkerError("PARSER_CORRUPT", f"conversion failed: {type(e).__name__}") from None
         doc = result.document.export_to_dict()
+        pictures = []
+        if ocr:
+            from .pictures import picture_records
+
+            pictures = picture_records(result.document)
         page_count = int(getattr(result.input, "page_count", 0) or 0)
     warnings = []
     if fmt == "pdf" and table_structure and not table_structure_available():
@@ -167,6 +192,9 @@ def parse(path, fmt, page_range, table_structure, max_response):
         "doc": doc,
         "warnings": warnings,
     }
+    if ocr:
+        out["ocr"] = True
+        out["pictures"] = pictures
     if fmt == "docx":
         from .ooxml import docx_facts
 

@@ -1,0 +1,25 @@
+{
+  "protocol": "oo.golden-media-script/v1",
+  "note": "Synthetic 3-person Chinese meeting for the ASR and diarization bake-off (D72). All people, projects and numbers are invented. Speech is generated offline by a TTS whose license allows it (see asr-bakeoff.md); no real voice is used. Turns are spoken in order with a pause between them; nobody talks over anyone (the bake-off scores exclusive speaker output).",
+  "speakers": {"A": "主持人", "B": "研发负责人", "C": "产品经理"},
+  "pause_ms": [400, 900],
+  "turns": [
+    ["A", "各位好，现在开始本周的项目例会，今天主要讨论星图看板的上线安排。"],
+    ["B", "我先汇报一下进度，图表库的替换已经完成百分之八十，剩下的是导出功能。"],
+    ["C", "导出功能客户催得比较紧，能不能在下周三之前完成测试？"],
+    ["B", "可以，我们会优先处理，周二晚上提交测试版本。"],
+    ["A", "好的，那灯塔迁移那边呢，吴启明有什么需要协调的吗？"],
+    ["C", "迁移窗口定在周六凌晨，灰度发布每次放量不超过百分之十。"],
+    ["A", "回滚预案是什么？"],
+    ["C", "保留旧机房两周，出现异常就立刻切回，不会影响线上客户。"],
+    ["B", "数据库迁移我这边需要提前一天冻结写入，请产品确认客户通知。"],
+    ["C", "通知今天下午就会发出，客服团队也已经准备好了话术。"],
+    ["A", "知了客服的方案评审结果怎么样？"],
+    ["B", "评审通过了，采购外部模型，预算控制在年度计划之内。"],
+    ["C", "另外官网改版下个月启动，需要研发提供两个人手。"],
+    ["A", "人手问题会后单独沟通，大家还有其他事项吗？"],
+    ["B", "没有了，我会在周五之前把风险清单发给大家。"],
+    ["C", "我也没有，会议纪要请记录员今天发出。"],
+    ["A", "好，今天的会议到此结束，谢谢大家。"]
+  ]
+}

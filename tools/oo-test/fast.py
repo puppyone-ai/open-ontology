@@ -181,6 +181,7 @@ def oracle_free():
 
 
 DOCS_CELLS = ("docs-rustfs", "docs-minio")
+L6_CELLS = ("docs-ocr", "docs-media")  # B-S9-01, B-S10-05: super_ontology_l6.py
 
 
 def run_docs_cells(root, args):
@@ -197,8 +198,27 @@ def run_docs_cells(root, args):
     return [entry]
 
 
+def run_l6_cells(root, args):
+    names = sorted(c for c in args.cells if c in L6_CELLS)
+    evidence = ROOT / "testing/super-ontology/evidence/L6"
+    command = ["python3", "-B", str(HERE / "super_ontology_l6.py"), "--cells", ",".join(names),
+               "--run-id", args.run_id, "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-l6", command, root, 3600, lane=False)
+    entry = dict(suite="super-ontology", cells=names, **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l1-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
 def run_l1(root, args):
     day = args.day
+    if args.cells and args.cells & set(L6_CELLS):
+        rest = args.cells - set(L6_CELLS)
+        rows = run_l6_cells(root, args)
+        if not rest:
+            return rows
+        args.cells = rest
+        return rows + run_l1(root, args)
     if args.cells and args.cells & set(DOCS_CELLS):
         rest = args.cells - set(DOCS_CELLS)
         rows = run_docs_cells(root, args)
