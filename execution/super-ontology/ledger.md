@@ -134,6 +134,11 @@
 | SO-B-S11-04 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 12c8c1d6b → 8532d1d0e | — | evidence/L7/ | 已发布文档实体投影到 Agent DB 并关联行；投影迁移 |
 | SO-B-S12-01 | L7 | merged | feat/super-ontology (车道 B 分支并入) | 28f63af34 → 044983b7d | — | evidence/L7/ | 云入口、共享审计、事件提示路由；审计迁移 |
 | SO-B-S12-02 | L7 | merged | feat/super-ontology (车道 B 分支并入) | f3321e53e → f2d36e157 | — | evidence/L7/ | --remote 挂载远端 OO serve；L7 端到端脚本 |
+| SO-B-S17-01 | D83 | merged | feat/super-ontology (WP2 分支并入) | 77c2e4e87 → 88463bde4 | — | — | 投影作业：已发布文档实体与事实增量投影到共享实体命名空间，带出处 |
+| SO-B-S17-02 | D83 | merged | feat/super-ontology (WP2 分支并入) | 45626acf9 → a7c00590c | — | — | ooa_ Agent 令牌、scope 校验、审计、吊销；链接路由；迁移 0150、0151 |
+| SO-B-S17-03 | D83 | merged | feat/super-ontology (WP2 分支并入) | 766f2900c → 766f2900c | — | — | 装入器接入 0150–0152 |
+| SO-B-S17-04 | D83 | merged | feat/super-ontology (WP2 分支并入) | f66b870ec → f66b870ec | — | — | docs-api 1.6：令牌与链接路由 |
+| SO-B-S17-05 | D83 | merged | feat/super-ontology (WP2 分支并入) | 9cf41fce6 → 26878a66c | — | — | 令牌、吊销、投影增量与跨源链接的测试 |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
