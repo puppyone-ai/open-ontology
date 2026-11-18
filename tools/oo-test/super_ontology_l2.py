@@ -42,6 +42,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import uuid
 from pathlib import Path
 
@@ -181,6 +182,7 @@ class Api:
             headers["Content-Type"] = "application/json"
         if method == "POST":
             headers["Idempotency-Key"] = uuid.uuid4().hex + uuid.uuid4().hex[:8]
+        path = urllib.parse.quote(path, safe="/?=&:%,;@+-._~!*'()")
         conn.request(method, path, body=data, headers=headers)
         resp = conn.getresponse()
         raw = resp.read()

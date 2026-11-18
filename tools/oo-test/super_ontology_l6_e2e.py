@@ -18,7 +18,7 @@ Waits while another Super Ontology compose stack is up. No credential is written
   A5  H.264/AAC mp4 and AAC m4a: unsupported with DOCS_PARSE_CODEC_UNAVAILABLE (no host decoder on Linux);
       macOS host decode is a Desktop helper, phase two (F-S10-05); ffmpeg -buildconf is the L1 cell docs-media
   A7  change a fact a Share used, refresh: BRIEF lists the change after the head
-  A8  parser version upgrade: outdated, old facts stay published meanwhile, no retraction churn, DOC-G10 judges
+  A8  parser version bump (container run): outdated, old facts stay published meanwhile, no retraction churn, DOC-G10 judges
   A10 a media job is running while a Markdown edit publishes: its latency stays within the D49 bound
 Acceptance 2 (bake-off) and 6 (SBOM) are in evidence/L6/asr-bakeoff.md and sbom-*.json; 9 (`puppyone share`) is
 the Puppyone CLI and phase two.
@@ -39,6 +39,7 @@ import super_ontology_l2 as l2  # noqa: E402  (Evidence, Api, run, wait_until, r
 
 REPO = l2.REPO
 LANE = "super-ontology-be2"
+D49_MD_SECONDS = 7.0  # D49 as calibrated at L3 (2026-11-17): md/txt detected to published, p95
 D49_EDIT_SECONDS = 30.0  # md edit to new BRIEF while a media job runs (the L2 bound, 30 section L2 acceptance 5)
 
 SLIDES = [("季度复盘", "营收增长百分之十二"), ("下季计划", "星火计划九月上线")]
@@ -109,9 +110,9 @@ def make_inputs(root: Path):
     vl = tmp / "v.txt"
     vl.write_text("".join(f"file '{p}'\nduration 6\n" for p in frames) + f"file '{frames[-1]}'\n")
     sh(ff + ["-f", "concat", "-safe", "0", "-i", str(vl), "-i", str(wavs[1]), "-c:v", "libvpx-vp9", "-r", "1", "-c:a", "libopus",
-             "-shortest", str(root / "Meetings/录屏.webm")], check=True)
+             "-af", "apad", "-t", "12", str(root / "Meetings/录屏.webm")], check=True)
     sh(ff + ["-f", "concat", "-safe", "0", "-i", str(vl), "-i", str(wavs[1]), "-c:v", "libx264", "-pix_fmt", "yuv420p",
-             "-c:a", "aac", "-shortest", str(root / "Meetings/录屏h264.mp4")], check=True)
+             "-c:a", "aac", "-af", "apad", "-t", "12", str(root / "Meetings/录屏h264.mp4")], check=True)
     sh(ff + ["-i", str(wavs[0]), "-c:a", "aac", str(root / "Meetings/讲话.m4a")], check=True)
     shutil.rmtree(tmp, ignore_errors=True)
 
@@ -152,11 +153,14 @@ def main(argv=None):
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(text, encoding="utf-8")
         # ---- oo serve --runtime compose with the ocr and media sidecars
-        env = dict(os.environ, OO_DOCS_PROFILES="ocr,media", OO_DOCS_LANE=LANE, OO_DOCS_DEPLOY_DIR=str(REPO / "deploy/docs"))
+        lock = json.loads((REPO / "deploy/docs/images.lock.json").read_text())
+        env = dict(os.environ, OO_DOCS_PROFILES="ocr,media", OO_DOCS_LANE=LANE, OO_DOCS_DEPLOY_DIR=str(REPO / "deploy/docs"),
+                   OO_DOCS_MEDIA_IMAGE=lock["media_parser"]["tag"], OO_DOCS_OCR_IMAGE=lock["ocr_parser"]["tag"])
         argv = [str(oo), "serve", "--runtime", "compose", "--json", "--port", "0", "--state-dir", str(state)]
         ev.command(argv)
         serve = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         info = json.loads(serve.stdout.readline())
+        project = (info.get("engine") or {}).get("project") or info.get("project") or "oo-docs"
         api = l2.Api(info["port"], Path(info["token_file"]).read_text().strip())
         st, h = api.request("GET", "/v1/docs/health")
         ev.check("compose stack is up and healthy", st == 200 and h.get("status") in ("ok", "degraded"), f"HTTP {st}")
@@ -190,12 +194,13 @@ def main(argv=None):
         items = rv.get("items", []) if st == 200 else []
         ev.check("A3 one speaker_identity item per speaker label", len(items) >= 2, f"{len(items)} items")
         st, ents = api.request("GET", "/v1/docs/entities?q=小王")
-        ev.check("A3 nothing is published under a named Person before confirmation", st == 200 and not ents.get("items"), json.dumps(ents, ensure_ascii=False)[:120])
+        persons = lambda e: [i for i in e.get("items", []) if i.get("type") == "Person" and "小王" in (i.get("name") or "")]
+        ev.check("A3 nothing is published under a named Person before confirmation", st == 200 and not persons(ents), json.dumps(ents, ensure_ascii=False)[:120])
         s1 = next((i for i in items if i.get("subject", {}).get("speaker") == "S1"), None)
         if s1:
             st, r = api.request("POST", "/v1/docs/review:decide", {"items": [{"id": s1["id"], "revision": s1["revision"], "decision": "accept", "edit": {"name": "小王"}}]})
             ev.check("A3 confirming S1 as 小王 succeeds", st == 200 and r["results"][0]["status"] == "ok", json.dumps(r, ensure_ascii=False)[:160])
-            ok = l2.wait_until(60, lambda: api.request("GET", "/v1/docs/entities?q=小王")[1].get("items"), step=2)
+            ok = l2.wait_until(60, lambda: persons(api.request("GET", "/v1/docs/entities?q=小王")[1]), step=2)
             ev.check("A3 after confirming, the fact's subject is the Person 小王", bool(ok), json.dumps(ok, ensure_ascii=False)[:160] if ok else "")
         # A4
         vp = "Meetings/录屏.webm"
@@ -228,16 +233,72 @@ def main(argv=None):
             brief = pk if isinstance(pk, str) else (pk.decode() if isinstance(pk, bytes) else "")
         ev.check("A7 BRIEF lists the change after the head", "自上次以来的变化" in brief and "已暂停" in brief, f"{len(brief)} bytes")
         ev.write("a7-BRIEF-after-refresh.md", brief)
-        # A10: a media job runs while a Markdown edit publishes
-        (drive_root / "Meetings/周会2 参会=小王、小李.wav").write_bytes((drive_root / "Meetings/周会 参会=小王、小李.wav").read_bytes() + b"\0\0" * 8)
-        time.sleep(3)
+        # A8: a sidecar parser version bump. The stored media result is relabelled as an older version and the engine
+        # restarted (it compares at start): the file turns outdated, the old facts stay published during the rerun,
+        # nothing is retracted and DOC-G10 has nothing to hold.
+        db = f"{project}-docs-db-1"
+        psql = lambda q: sh(["docker", "exec", db, "psql", "-U", "postgres", "-d", "oo_docs", "-tAc", q]).stdout.strip()
+        sidecar_paths = ("Scans/纪要.png", "Scans/扫描件.pdf", mp, "Meetings/录屏.webm")
+        in_list = ", ".join("'" + p.replace("'", "''") + "'" for p in sidecar_paths)
+        keys_sql = "SELECT fact_key FROM _oo_docs.fact WHERE status = 'published' ORDER BY 1"
+        b3s_sql = ("SELECT fv.b3 FROM _oo_docs.file fl JOIN _oo_docs.file_version fv ON fv.id = fl.current_version_id "
+                   f"WHERE fl.path IN ({in_list})")
+        before = psql(keys_sql).splitlines()
+        retracted_before = int(psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'") or 0)
+        b3s = psql(b3s_sql).splitlines()
+        ev.check("A8 the drive has published facts before the bump", len(before) >= 1 and len(b3s) == len(sidecar_paths), f"{len(before)} facts, {len(b3s)} sidecar files")
+        psql(f"UPDATE _oo_docs.parse_result SET parser_version = parser_version || '-old' WHERE status = 'complete' AND b3 IN ({b3s_sql})")
+        sh(["docker", "restart", f"{project}-docs-engine-1"])
+        low, seen_not_published = len(before), False
+        def rerun_done():
+            nonlocal low, seen_not_published
+            n_text = psql(f"SELECT count(*) FROM ({keys_sql}) k")
+            if not n_text.isdigit():
+                return False  # the query itself failed (docker exec hiccup): not a reading
+            low = min(low, int(n_text))
+            working = int(psql(f"SELECT count(*) FROM _oo_docs.file WHERE path IN ({in_list}) AND state <> 'published'") or 0)
+            seen_not_published = seen_not_published or working > 0
+            fresh = int(psql(f"SELECT count(DISTINCT b3) FROM _oo_docs.parse_result WHERE status = 'complete' AND parser_version NOT LIKE '%-old' AND b3 IN ({b3s_sql})") or 0)
+            return working == 0 and fresh >= len(set(b3s))
+        done = l2.wait_until(600, rerun_done, step=1)
+        after = psql(keys_sql).splitlines()
+        retracted = str(int(psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'") or 0) - retracted_before)
+        if not done:
+            ev.write("a8-failure-diagnostics.txt", "engine log (outdated, parser, reprocess lines):\n" + "\n".join(
+                [l[:300] for l in sh(["docker", "logs", "--tail", "400", f"{project}-docs-engine-1"]).stdout.splitlines() + sh(["docker", "logs", "--tail", "400", f"{project}-docs-engine-1"]).stderr.splitlines()
+                 if any(k in l for k in ("outdated", "parser", "reprocess", "set_current"))][-60:]) + "\n\nfiles:\n" +
+                psql("SELECT path || ' ' || state || ' ' || coalesce(state_code,'') FROM _oo_docs.file ORDER BY path") + "\n\nparse_result:\n" +
+                psql("SELECT parser_id || ' ' || parser_version || ' ' || status || ' ' || count(*) FROM _oo_docs.parse_result GROUP BY 1") + "\n")
+        st, diffs = api.request("GET", "/v1/docs/review?kind=reprocess_diff&status=pending&limit=50")
+        ev.check("A8 the sidecar files were reprocessed with the new parser version", bool(done), f"{'seen outdated' if seen_not_published else 'state not observed'}")
+        ev.check("A8 the old facts stayed published during the rerun", low >= len(before), f"min {low} of {len(before)}")
+        ev.check("A8 no churn: same fact keys after, nothing retracted", after == before and retracted in ("0", ""), f"{len(after)} facts, retracted {retracted or 0}")
+        held = diffs.get("items", []) if st == 200 else []
+        ev.check("A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it", st == 200 and retracted in ("0", ""),
+                 f"{len(held)} held: " + ", ".join(str((h.get("source") or {}).get("path")) + " " + str(h.get("reason_code")) for h in held))
+        ev.write("a8-held-items.json", json.dumps(held, ensure_ascii=False, indent=2) + "\n")
+        # A10: a media job runs while a Markdown edit publishes. D49 (calibrated, 2026-11-17): a md file goes from detected
+        # to published within 7 s (p95); measured here from the file's own state history, one sample, media job running.
+        sh(["ffmpeg", "-nostdin", "-v", "error", "-y", "-stream_loop", "40", "-i", str(drive_root / "Meetings/周会 参会=小王、小李.wav"),
+            "-c", "copy", str(drive_root / "Meetings/周会2 参会=小王、小李.wav")])
+        media_busy = lambda: int(psql("SELECT count(*) FROM _oo_docs.job WHERE kind = 'parse_media' AND state IN ('queued','running')") or 0)
+        started = l2.wait_until(120, lambda: media_busy() > 0, step=0.5)
         t_edit = time.time()
+        media_at_edit = media_busy()
+        seen = {"media": media_at_edit}
         (drive_root / "Projects/星火计划.md").write_text(md["Projects/星火计划.md"].replace("进行中", "收尾中"), encoding="utf-8")
-        ok = l2.wait_until(D49_EDIT_SECONDS + 30, lambda: state_of_now(api, did, "Projects/星火计划.md") == "published" and "收尾中" in json.dumps(api.request("POST", "/v1/docs/context-packs:compile", {"drive_id": did, "scope": ["Projects"]})[1], ensure_ascii=False), step=0.5)
+        def edit_done():
+            seen["media"] = max(seen["media"], media_busy())
+            return state_of_now(api, did, "Projects/星火计划.md") == "published" and "收尾中" in json.dumps(api.request("POST", "/v1/docs/context-packs:compile", {"drive_id": did, "scope": ["Projects"]})[1], ensure_ascii=False)
+        ok = l2.wait_until(D49_EDIT_SECONDS + 30, edit_done, step=0.5)
         el = time.time() - t_edit
-        busy = sh(["docker", "exec", f"{info.get('project', 'oo-docs')}-docs-db-1", "psql", "-U", "postgres", "-d", "oo_docs", "-tAc", "SELECT count(*) FROM _oo_docs.job WHERE kind = 'parse_media' AND state IN ('queued','running')"]).stdout.strip()
+        lat = psql("SELECT round(extract(epoch FROM (max(at) FILTER (WHERE to_state = 'published') - min(at)))::numeric, 2) FROM _oo_docs.file_state_history "
+                   "WHERE file_id = (SELECT id FROM _oo_docs.file WHERE path = 'Projects/星火计划.md') AND at > to_timestamp(%f) - interval '1 second'" % t_edit)
         ev.timings["a10_edit_to_brief_seconds"] = round(el, 2)
-        ev.check("A10 the edit published within the D49 bound while media work was queued or running", bool(ok) and el <= D49_EDIT_SECONDS, f"{el:.1f}s, media jobs in flight: {busy or '?'}")
+        ev.timings["a10_detected_to_published_seconds"] = float(lat) if lat else None
+        ev.check("A10 a media job was queued or running when the edit was made", started is not None and seen["media"] >= 1, f"{media_at_edit} at the edit, max {seen['media']}")
+        ev.check("A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran", bool(ok) and bool(lat) and float(lat) <= D49_MD_SECONDS, f"{lat} s (edit to BRIEF {el:.1f}s)")
+        ev.check("A10 the edit reached a new BRIEF within the L2 bound (30 s)", bool(ok) and el <= D49_EDIT_SECONDS, f"{el:.1f}s")
         ev.write("l6-e2e-result.json", json.dumps({"run_id": a.run_id, "checks": ev.checks, "timings": ev.timings}, ensure_ascii=False, indent=2) + "\n")
         ev.write("l6-e2e-log.txt", "\n".join(ev.log_lines) + "\n")
         return 0 if all(c["ok"] for c in ev.checks) else 1
