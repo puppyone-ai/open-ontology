@@ -712,8 +712,6 @@ pub async fn publish(
             "as_of": as_of,
             "facts_added": ok_facts.len(),
             "facts_retracted": retractions.len(),
-            "changed_entities": changed_entities.len(),
-            "covers_drive_rev": covers,
             "gates": gate_map,
         })
         .to_string(),
