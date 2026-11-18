@@ -156,6 +156,8 @@ def chart_images(out):
     from PIL import Image, ImageDraw
 
     d = out / "embedded"
+    if (d / "truth.json").exists() and (d / "chart.png").exists():  # rendered on a host with a CJK font
+        return json.loads((d / "truth.json").read_text())
     d.mkdir(parents=True, exist_ok=True)
     f, fs = font(30), font(22)
     truths = {}
@@ -184,14 +186,19 @@ def chart_images(out):
 
 def measure(golden, out, adapter, report):
     ents = [json.loads(l) for l in (golden / "labels" / "entities.jsonl").read_text().splitlines() if l.strip()]
-    pages = sorted(out.glob("*.png"))
+    pages = sorted(p for p in out.glob("*.png") if not p.name.startswith("."))
     by_file = {}
     for p in pages:
         stem = p.name.rsplit("__p", 1)[0]
         by_file.setdefault(stem, []).append(p)
     texts = {}
+    cache = out / "ocr-text.json"
+    done = json.loads(cache.read_text()) if cache.exists() else {}
     for stem, ps in by_file.items():
-        texts[stem] = norm("".join(ocr_text(adapter, p)[0] for p in ps))
+        if stem not in done:
+            done[stem] = norm("".join(ocr_text(adapter, p)[0] for p in ps))
+            cache.write_text(json.dumps(done, ensure_ascii=False))
+        texts[stem] = done[stem]
         print(f"ocr {stem}: {len(texts[stem])} chars", file=sys.stderr)
     scored, hits, misses = 0, 0, []
     by_type = {}
