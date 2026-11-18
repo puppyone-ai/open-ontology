@@ -84,8 +84,8 @@ pub fn parse_mount_args(rest: &[String]) -> Result<MountArgs, String> {
             }
             "--role" => {
                 let r = value("--role")?;
-                if !matches!(r.as_str(), "viewer" | "suggester") {
-                    return Err("--role must be viewer or suggester".into());
+                if !matches!(r.as_str(), "viewer" | "suggester" | "editor") {
+                    return Err("--role must be viewer, suggester or editor".into());
                 }
                 a.role = Some(r);
             }
@@ -191,7 +191,7 @@ pub fn run(rest: &[String]) -> u8 {
                 Err(e) => fail(&e, args.json),
             }
         }
-        "list" | "status" | "refresh" | "revoke" | "check" => {
+        "list" | "status" | "refresh" | "revoke" | "check" | "collect" => {
             let a = match parse_simple(sub, tail) {
                 Ok(a) => a,
                 Err(e) => {
@@ -204,6 +204,7 @@ pub fn run(rest: &[String]) -> u8 {
                 "status" => rt.block_on(status(&a)),
                 "refresh" => rt.block_on(refresh(&a)),
                 "revoke" => rt.block_on(revoke(&a)),
+                "collect" => rt.block_on(collect(&a)),
                 _ => return rt.block_on(check(&a)),
             };
             match out {
@@ -275,13 +276,13 @@ pub fn parse_simple(sub: &str, rest: &[String]) -> Result<SimpleArgs, String> {
             }
             ("refresh", "--group") => a.group = Some(value("--group")?),
             (_, f) if f.starts_with("--") => return Err(format!("unknown option {f}")),
-            ("status" | "refresh" | "revoke", _) if a.target.is_none() => {
+            ("status" | "refresh" | "revoke" | "collect", _) if a.target.is_none() => {
                 a.target = Some(arg.clone());
             }
             _ => return Err(format!("unexpected argument {arg}")),
         }
     }
-    if matches!(sub, "status" | "revoke") && a.target.is_none() {
+    if matches!(sub, "status" | "revoke" | "collect") && a.target.is_none() {
         return Err("expected <share-id|dir>".into());
     }
     if sub == "refresh" && a.target.is_none() && a.group.is_none() {
@@ -401,6 +402,33 @@ async fn list(a: &SimpleArgs) -> Result<(), CliError> {
     Ok(())
 }
 
+/// `oo context collect <dir|share-id>`: collect `.context/suggest/` once, by hand.
+async fn collect(a: &SimpleArgs) -> Result<(), CliError> {
+    let state = state_of(a)?;
+    let d = Daemon::connect(&state)?;
+    let target = a.target.clone().unwrap_or_default();
+    let (sid, dir) = resolve_target(&state, &target)?;
+    let dir = dir.ok_or_else(|| {
+        CliError::new(
+            exit::SHARE_STATE,
+            "DOCS_SHARE_NOT_FOUND",
+            "this share has no mount directory on this machine",
+        )
+    })?;
+    let v = super::suggest::collect_dir(
+        &d,
+        &sid,
+        &dir.join(mounts::MOUNT_DIR).join(super::suggest::DIR),
+    )
+    .await?;
+    let human = format!(
+        "collected {}, rejected {}, left alone {}",
+        v["collected"], v["rejected"], v["skipped"]
+    );
+    emit(a.json, "oo.context-collect/v1", v, human);
+    Ok(())
+}
+
 async fn status(a: &SimpleArgs) -> Result<(), CliError> {
     let state = state_of(a)?;
     let target = a.target.as_deref().unwrap_or("");
@@ -438,7 +466,10 @@ async fn remount(
 ) -> Result<PathBuf, CliError> {
     let files = pack_files(d, new_share).await?;
     let sid = str_of(new_share, "id")?;
+    let mut files = files;
+    super::suggest::add_dir(&mut files, new_share["role"].as_str().unwrap_or("viewer"));
     let at = mounts::replace(dir, &sid, old, &files).map_err(|e| target_error(&e))?;
+    super::suggest::open_dir(&at);
     if let Some(mref) = new_share["mount_ref"].as_str() {
         let _ = mounts::register(state, mref, &sid, dir);
     }
@@ -675,15 +706,17 @@ async fn check(a: &SimpleArgs) -> u8 {
             return report(code, out, human);
         };
         match pack_files(control, new).await {
-            Ok(files) => {
+            Ok(mut files) => {
                 let nsid = new["id"].as_str().unwrap_or("");
+                super::suggest::add_dir(&mut files, new["role"].as_str().unwrap_or("viewer"));
                 match mounts::replace(
                     &std::fs::canonicalize(&target).unwrap_or(target),
                     nsid,
                     sid,
                     &files,
                 ) {
-                    Ok(_) => {
+                    Ok(at) => {
+                        super::suggest::open_dir(&at);
                         out["refreshed_to"] = json!(nsid);
                         out["upgraded_to_version"] = body["upgraded_to_version"].clone();
                         human.push_str(&format!(
@@ -885,7 +918,10 @@ async fn mount(args: &MountArgs) -> Result<(), CliError> {
     let share = daemon.post_json("/v1/docs/shares", &body).await?;
     let sid = str_of(&share, "id")?;
     let files = match pack_files(&daemon, &share).await {
-        Ok(f) => f,
+        Ok(mut f) => {
+            super::suggest::add_dir(&mut f, share["role"].as_str().unwrap_or("viewer"));
+            f
+        }
         Err(e) => {
             // Nothing was mounted: do not leave a live share behind.
             let _ = daemon
@@ -903,6 +939,7 @@ async fn mount(args: &MountArgs) -> Result<(), CliError> {
             return Err(target_error(&e));
         }
     };
+    super::suggest::open_dir(&mounted);
     if let Some(mref) = share["mount_ref"].as_str() {
         let _ = mounts::register(&state, mref, &sid, &target);
     }
@@ -1054,7 +1091,7 @@ mod tests {
             &["--scope", "a"][..],
             &["--to", "/tmp/x", "--budget", "10"],
             &["--to", "/tmp/x", "--budget", "x"],
-            &["--to", "/tmp/x", "--role", "editor"],
+            &["--to", "/tmp/x", "--role", "admin"],
             &["--to", "/tmp/x", "--expires", "5m"],
             &["--to", "/tmp/x", "--expires", "90d"],
             &["--to", "/tmp/x", "--for", "a", "--for-file", "b"],
