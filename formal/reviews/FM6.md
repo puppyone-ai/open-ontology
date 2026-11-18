@@ -75,3 +75,26 @@ level of the change), authentication, `Share.coverage`. Drift for a violation ch
 `conformance_share.rs` (live engine over HTTP): three scenarios built from the model's witnesses plus a check that the committed ITF samples contain every action the
 scenarios stand for. The model's whole state space is not replayed step by step (a share's `uses` are determined by the engine's compile, not chosen); the invariants are
 evaluated on the engine's rows and responses after each step of the scenarios.
+
+## Independent review (native sub-agent, 2026-11-17, commit e82490f57)
+
+Verdict: APPROVE WITH CHANGES. Reviewed: `share_lifecycle.qnt` (429 lines) against 00 5.4/5.6, 10 7.6 to 7.8, 16.3 to 16.6, 16.9 and D50/D55/D56/D58/D60/D62; `crates/oo-docs/src/share/{lifecycle,group,check,drift,updates,credential,changes,coverage}.rs` (guards `DOCS_SHARE_PINNED` at `lifecycle.rs` l.740 and `group.rs` l.75); `tests/conformance_share.rs`. Checks: `quint typecheck` passes; `quint run` (seed 7, 40 steps, 1500 samples) finds no violation on the unmodified model.
+
+Mutation checks (copies in /tmp, `--invariant=inv`, seed 7): all five are caught.
+- S1, a pinned share can be refreshed (guard `o.pol != PINNED` removed from `refresh`): violation (`invRefreshPolicy`).
+- S2, a group refresh moves all members but one: violation (`invGroupAllOrNothing`).
+- S4, `check` answers 0 when the engine is unreachable (fail open): violation (`invCheckFailClosed`).
+- S6, a warn-level change does not mark the share drifted (`l > 1` in `publish`): violation (`invDriftMarked`).
+- S8, `gc` may drop the cache of a version a live share is pinned to: violation (`invRetention`).
+
+Blocking
+1. **B1, the conformance check is a scenario check, not a trace replay.** `conformance_share.rs` runs the model's witnesses as fixed engine scenarios and evaluates the invariants on the responses (its header says so). FM2, FM3, FM4, FM5, FM8 and FM10 each replay the model's ITF traces step by step against the code; FM6 does not. The 16 witnesses plus the invariant checks show that the code satisfies the properties on those scenarios, not that the code has the model's transitions in every interleaving (for example a refresh between two publishes, or `gc` during a group refresh, are not in the scenario list). Either add a trace replay in the style of `conformance_sync.rs` (drive the engine from `mbt::actionTaken` and compare `st`, `ver`, `nupd`, `lvl`, `exp`), or state in FM6.md that FM6's conformance is scenario-based and the interleavings are open.
+
+Non-blocking
+2. The entry cap `s.nupd < MAXUPD` in `publish` silently drops an entry when the cap is reached. It is not reachable with the bound: MAXUPD = 3 equals the three changes the bound allows (MAXV = 4 with versions 2..4). Keep it, but state in the header that raising MAXV without MAXUPD makes the model drop entries silently, and that a `invChangeDelivered` failure would then be a model artefact, not a code finding.
+3. `ADD` gives an `info` entry to every live share regardless of `uses` (`levelOf`). Confirm against 16.x that additions reach every share (the header says "one entry per share per version, at the worst level of the change"; additions are not in "uses").
+4. `groupRefresh` is disabled when `nsh + ms.size() > NS` (no rollback transition for a capacity refusal). That is a bound artefact, not a spec rule: state it in "Not modelled".
+5. The credential rule uses the stored row (`credRev`, `exp`) and not the share status; `expireSweep` is needed only for the status column. The invariant `invCredentialDead` covers time-based death without the sweep. Good, but say in FM6.md that the status is cosmetic for refs.
+6. `check` with `auto` refreshes at `V` even when the caller's `since` shows nothing new (`code == 0`); this is the at-checkpoint rule (D62), so it is correct. Keep the witness `witAtCheckpoint` tied to a `code == 0` case as well as `10`.
+
+Checked and fine: the group version rule (`gver` set at group creation and on each group refresh; `invGroupSameVersion` over unexpired members); `invPackBytesImmutable` (digest, ver, uses, pol, grp, src fixed) matches the `refreshed_from` and immutable-pack design; `invTerminalAbsorbing` holds on all transitions; S1 (the pinned guard) is the single point that the code checks at both the single and group level (`lifecycle.rs` l.740, `group.rs` l.75).
