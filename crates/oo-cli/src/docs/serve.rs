@@ -316,7 +316,18 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
     if std::env::var_os("OO_DOCS_PARSER_URL").is_some() {
         // the operator's own parser: engine.rs forwards the variables
     } else if kind == RuntimeKind::Embedded {
-        match super::sidecar::probe(&super::sidecar::env_dir(state)) {
+        let sdir = super::sidecar::env_dir(state);
+        if !super::runtime::installed(&sdir)
+            && super::sidecar::probe(&sdir).is_err()
+            && std::env::var("OO_DOCS_RUNTIME_AUTOINSTALL").as_deref() != Ok("0")
+        {
+            eprintln!("oo serve: installing the Docker-free parser runtime (first use, one time)");
+            if let Err(why) = super::runtime::install(state, &sdir, &|m| eprintln!("oo serve: {m}"))
+            {
+                eprintln!("oo serve: {why}");
+            }
+        }
+        match super::sidecar::probe(&sdir) {
             Ok(senv) => match super::sidecar::start(state, &senv) {
                 Ok(sc) => {
                     eprintln!(

@@ -13,7 +13,7 @@ use super::client::{CliError, exit, read_connection};
 
 /// How long a cold start may take: initdb, the schema, the parser sidecar's
 /// first import, or Docker's containers.
-const START_DEADLINE: Duration = Duration::from_secs(600);
+const START_DEADLINE: Duration = Duration::from_secs(2400);
 
 /// Make sure a daemon answers for `state`. `Ok(true)` when this call started one.
 pub fn ensure(state: &Path, no_start: bool) -> Result<bool, CliError> {
@@ -85,7 +85,7 @@ pub fn ensure(state: &Path, no_start: bool) -> Result<bool, CliError> {
                 exit::ENGINE_UNAVAILABLE,
                 "DOCS_SERVE_START_FAILED",
                 format!(
-                    "oo serve did not come up in 600 s; see {}",
+                    "oo serve did not come up in 2400 s; see {}",
                     log_path.display()
                 ),
             ));
