@@ -592,7 +592,7 @@ impl Runtime {
 
     fn save_mounts(&self, map: &BTreeMap<String, PathBuf>) {
         let doc = json!({"protocol": "oo.docs.mounts/v1", "mounts": map});
-        let _ = secrets::write_secret_atomic(&self.state.join("mounts.json"), &doc.to_string());
+        let _ = secrets::write_secret_atomic(&self.state.join(DRIVE_MOUNTS), &doc.to_string());
     }
 
     fn mount_checked(&self, host_root: &str) -> Result<String, String> {
@@ -881,11 +881,20 @@ fn read_subnets(state: &Path) -> Option<Vec<String>> {
     (list.len() == 2 && list.iter().all(|s| parse_cidr(s).is_some())).then_some(list)
 }
 
+/// The compose runtime's Drive bind mounts. `mounts.json` belongs to the
+/// context mounts (10 7.7 point 4), whose daemon pass rewrites it, so the Drive
+/// mounts have a file of their own.
+const DRIVE_MOUNTS: &str = "drive-mounts.json";
+
 fn read_mounts(state: &Path) -> BTreeMap<String, PathBuf> {
-    let Some(v) = fs::read_to_string(state.join("mounts.json"))
-        .ok()
-        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
-    else {
+    // A state directory written before the split keeps its Drive mounts under
+    // `mounts.json` with the `oo.docs.mounts/v1` shape; read that when the new file is absent.
+    let read = |name: &str| {
+        fs::read_to_string(state.join(name))
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+    };
+    let Some(v) = read(DRIVE_MOUNTS).or_else(|| read("mounts.json")) else {
         return BTreeMap::new();
     };
     v["mounts"]
@@ -1047,6 +1056,23 @@ mod tests {
         assert_eq!(platform_of("aarch64"), Some("linux/arm64"));
         assert_eq!(platform_of("x86_64\n"), Some("linux/amd64"));
         assert_eq!(platform_of("riscv64"), None);
+    }
+
+    #[test]
+    fn drive_mounts_survive_the_context_mounts_file() {
+        let dir = std::env::temp_dir().join(format!("oo-compose-mounts-{}", std::process::id()));
+        let drive = dir.join("drive");
+        std::fs::create_dir_all(&drive).unwrap();
+        let doc = json!({"protocol": "oo.docs.mounts/v1", "mounts": {"d1": drive}}).to_string();
+        // the context mounts own mounts.json and rewrite it; the Drive mounts are elsewhere
+        std::fs::write(dir.join("mounts.json"), "{}").unwrap();
+        std::fs::write(dir.join(DRIVE_MOUNTS), &doc).unwrap();
+        assert_eq!(read_mounts(&dir).len(), 1);
+        // a state directory written before the split still reads its legacy file
+        std::fs::remove_file(dir.join(DRIVE_MOUNTS)).unwrap();
+        std::fs::write(dir.join("mounts.json"), &doc).unwrap();
+        assert_eq!(read_mounts(&dir).len(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
