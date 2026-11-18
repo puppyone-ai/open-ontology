@@ -1,3 +1,67 @@
+# L3 sign-off verification (verify-L3), NOT SIGNED OFF on this HEAD
+
+Branch `so/verify-L3` on `feat/super-ontology` e82490f57, 2026-11-17. Details: `verify-l3-tests.md` (same folder).
+Result: **the OO-side sign-off is blocked, not passed.** This host could not reach any registry, so the
+locked `docs-engine` image (and therefore the full stack runner, compose check and both S3 cells) could not
+be run. The table below separates what was run on this HEAD from what is carried forward from the earlier run
+(branch `so/B-S3-05-pipeline-routing`, commit 7834b28c2, section "History" below). Carried-forward numbers
+are not verification at this HEAD.
+
+| # | Acceptance (30 section L3) | verify-L3 status | Measured on this HEAD | Evidence |
+|---|---|---|---|---|
+| 1 | Golden set parse success >= 98 %, readable error codes | NOT VERIFIED here (blocked: engine image) | none this run; earlier run 51/51 (100 %) | `verify-l3-tests.md`; earlier: `l3-run.txt`, `l3-golden-states.json` |
+| 2 | Fault injection: sidecar kill, PG disconnect, 5xx, half-written file | **FAIL (open)** | `sidecar_supervision` 6/6 pass; `faults` 8/9 pass; PG-restart case hung (no result after 20+ min, killed) | `verify-l3-tests.md`, `faults-run.txt` (earlier) |
+| 3 | Poison file: <= 3 attempts, then quarantine, throughput unharmed | fault-level PASS; full-stack NOT VERIFIED | `faults`: poison pill quarantined after 2 crashes, rest flows (pass) | `verify-l3-tests.md`; earlier: `l3-run.txt` (quarantined at attempt 2, 33.4 s) |
+| 4 | Idempotence: 10 copies parsed once | NOT VERIFIED here | none this run; earlier: 1 published + 9 duplicate | earlier: `l3-run.txt` |
+| 5 | fs and s3 rounds: add, modify, rename, delete | NOT VERIFIED here; s3 cells blocked | none this run (`download` ignored tests need an S3 endpoint, not run) | earlier: `s3-life-rustfs.md`, `s3-life-minio.md` |
+| 6 | 1000 files cold parse <= 30 min, memory limits | NOT VERIFIED here | none this run; earlier 23.8 min, peak 66 MiB / 1697 MiB / 411 MiB | earlier: `bench-cold1000.md`, `bench-cold1000.json` |
+| 7 | Desktop frontend status matrix | phase two (D80) | not in this phase | section below |
+| 8 | Auto detection, D49 latency (md/txt p95 <= 7 s, pdf/docx <= 30 s, xlsx <= 20 s) | NOT VERIFIED here | none this run; earlier md/txt p95 6.13 s (poll) and 6.11 s (hint), pdf 8.26 s, docx 6.21 s, xlsx 6.24 s | earlier: `l3-latency-poll.json`, `l3-latency-hint.json` |
+| 9 | Targeted sync does not sweep; seven freshness states visible | NOT VERIFIED here at full stack; API/conformance level PASS | `freshness_live` 3/3, `conformance_freshness` 1/1 | earlier: `l3-run.txt` |
+| 10 | Format-only DOCX change does not re-extract | NOT VERIFIED here | none this run | earlier: `l3-run.txt` |
+
+Note on item 8: D49 was recalibrated on 2026-11-17 to md/txt p95 <= 7 s (spec 00). The earlier 5 s
+FAIL in this README's history no longer applies to the spec, but the 6.1 s measurement is from the earlier run.
+
+### Other test results on this HEAD (verify-L3)
+
+- `cargo test -p oo-docs --locked`: exit 0 (unit 338 passed, integration 0 failed).
+- `cargo test -p oo-connectors --features objectstore-s3 --locked --lib objectstore`: exit 0 (24 passed).
+- `--ignored` suites: all pass except the following:
+  - `reprocess`: 3/4 pass. The `a_parser_upgrade_marks_files_outdated_and_reprocesses_them_in_small_batches` assertion
+    expects 2 queued reprocess jobs (`reprocess.rs:300`), the code gives 1 because `REPROCESS_INFLIGHT = 1`
+    (`crates/oo-docs/src/jobs/stages.rs:60`). Both come from commit f2b604e99 and the spec gives no number
+    (10 section 11.2 says only "low priority, small batches"). This is a mismatch between test and code;
+    not changed here. Needs a development agent or a coordinator decision.
+  - `faults`: `postgres_restarted_under_a_running_engine_loses_nothing` hung after `docker restart` of the
+    labelled PG container (no result after 20+ min). Killed. Not a pass.
+  - `download` (3 ignored tests) did not run: needs `--features objectstore-s3` and an S3 endpoint.
+- `eval_live` and `faults` failed on the first pass only because required env vars were missing from the
+  invocation (`OO_EVAL_OUT`, `OO_DOCS_TEST_PG_CONTAINER`). Reruns with the variables passed (`eval_live` passes).
+
+### Gates in force at L3 (30 section 4)
+
+| Gate | Result this run | Evidence |
+|---|---|---|
+| State-machine contract (front/back enum consistency) | backend side pass: `conformance_state` 1/1, `contract` 3/3, `conformance_jobs` 1/1. Desktop-side matrix comparison is phase two. | `verify-l3-tests.md` |
+| Fault injection suite | 8/9 pass, PG-restart hung | `verify-l3-tests.md` |
+| SBOM licence gate (D64: fail on forbidden licence or missing audit record) | NOT re-run (needs the doc-parser image). Earlier gate result: pass, five weak-copyleft components reviewed. | `sbom-doc-parser.gate.txt`, `sbom-doc-parser.json` (earlier) |
+
+### Phase two (Desktop, not verified here, D80)
+
+- Item 7 (status matrix screenshots), the upload queue, bulk retry and the parse-result tab.
+- Drive registration form for S3 (endpoint, bucket, prefix, `secret_ref`), virtual scrolling for large Drives.
+- Desktop reconnect without losing status (item 7).
+- Desktop end-to-end run of items 1 to 10 and the Desktop part of the gates.
+
+### Changes made by verify-L3
+
+- `tools/oo-test/super_ontology_compose.py`: `LANE` set to `super-ontology-verify` (was `super-ontology-be2`), so this lane
+  labels and cleans up only its own containers. Test-script change only.
+- No product code changed. `deploy/docs/images.lock.json` unchanged.
+
+## History (earlier run, branch so/B-S3-05-pipeline-routing at 7834b28c2, 2026-11-17)
+
 # L3 evidence, "read the files" (30 section L3 acceptance 1-10, OO side)
 
 Branch `so/B-S3-05-pipeline-routing` (on `feat/super-ontology` at 7834b28c2), 2026-11-17, local arm64
