@@ -1,0 +1,76 @@
+{
+  "run_id": "verify-signoff",
+  "status": "fail",
+  "git_head": "e1242d241 (verify branch so/V8-signoff, base; commit recorded in the trailer step)",
+  "binaries_sha256": {
+    "oo_debug": "fbb8f7c5e8d860d3fe6a0d4f2097677c1c3057f9a129d0166c1b0815b101c098",
+    "oo_docs_engine_debug": "bfff7566bf261485c6dc75a12fe6abd968c632d14c7bfb04549c1972ba4cd5bb",
+    "oo_docs_engine_release": "5f18540fbaab8a8f7065dec091239a63cbe72878d4134578ce199d9d68ae5dbb"
+  },
+  "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (stock, 17.11-bookworm); oo-docs-pgvector:dev sha256:69e200637d00744f889cb619d4a3cc9b233086d011131604c3d17cbf8905a97b",
+  "timings": {
+    "scale10k_index_s": 352.43,
+    "scale10k_publish_s": 86.24,
+    "scale10k_list_stat_s": 0.184,
+    "docker_free_first_brief_s": 49.08
+  },
+  "limits": {
+    "index_s": 18000,
+    "list_stat_s": 60,
+    "list_p95_ms": 100,
+    "engine_rss_mib": 1536,
+    "docs_db_mem_note": "1 GiB container limit in compose"
+  },
+  "checks": [
+    {
+      "check": "scale10k bench (oo-test l3 run --suite super-ontology --bench scale10k), 9/9 pass",
+      "ok": true,
+      "detail": "index 352.4 s (limit 18000 s); list+stat 0.18 s (60 s); list p95 26.2 ms (100 ms); engine RSS 186 MiB (1536 MiB); docs-db 216 MiB sampled; publish 86.2 s; 10000 files, 25100 facts. Run 1 only, no rerun needed. Committed bench-scale10k.* from C-L8 left untouched; this run's copy is in the verify evidence JSON only."
+    },
+    {
+      "check": "install suite on stock postgres 17.11 (cargo test -p oo-docs --test install -- --ignored)",
+      "ok": true,
+      "detail": "9 passed, 0 failed"
+    },
+    {
+      "check": "install suite on oo-docs-pgvector:dev (locked minimal pgvector image)",
+      "ok": true,
+      "detail": "9 passed, 0 failed"
+    },
+    {
+      "check": "gates_live with OO_DOCS_VECTORS=hashgram/1 on pgvector image",
+      "ok": true,
+      "detail": "3 passed, 0 failed"
+    },
+    {
+      "check": "all oo-docs ignored suites with OO_DOCS_VECTORS=hashgram/1 on pgvector image (--no-fail-fast)",
+      "ok": false,
+      "detail": "65 suites ok; 1 failing test: speaker_live::an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_subject at crates/oo-docs/tests/speaker_live.rs:172 (left 1, right 0): information_schema.columns in _oo_docs with name like %embedding% is 1 on the pgvector image because migration 0144 creates _oo_docs.block_vector.embedding. Failed on run 1 and on rerun (deterministic, not a flake). Same test passes on stock postgres without vectors (2/2). Defect for a dev agent: test scope vs S13 text vectors (test is meant for voiceprints, D63)."
+    },
+    {
+      "check": "speaker_live on stock postgres 17.11, no vectors",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "pack/gates replay with vectors on (gates_live above, plus conformance/api_live in the all-suites run)",
+      "ok": true,
+      "detail": "covered by the suite runs above; no separate pack-only test exists"
+    },
+    {
+      "check": "docker-free install to first BRIEF (md+docx+pdf, sidecar under sandbox-exec, 22 files), ADR-S14 script",
+      "ok": true,
+      "detail": "first_brief 49.08 s from script start (target <=600 s). Cached beforehand: uv cache 18 GB warm (wheels present, 84 packages installed fresh into a temp venv, online); models copied from local oo-docs-parser:dev image; PostgreSQL = Homebrew 17 binaries already installed; no Docker. Not measured: cold uv download (PyPI mirror was ~100 KB/s earlier, 16 s with mirror), Hugging Face model download, app and binary download/build."
+    },
+    {
+      "check": "L2 acceptance script (super_ontology_l2.py) on this HEAD",
+      "ok": true,
+      "detail": "40/40 checks passed"
+    },
+    {
+      "check": "L4 acceptance script (super_ontology_l4.py) on this HEAD",
+      "ok": true,
+      "detail": "70/70 checks passed"
+    }
+  ]
+}
