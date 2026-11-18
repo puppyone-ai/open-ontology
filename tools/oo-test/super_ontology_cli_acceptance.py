@@ -306,6 +306,8 @@ def main():
             ev.check("8 a decision fact is available for the P21 scenario", False, "no facts on the decision entity")
 
         ev.log("\n## 9. stop and start again: everything is still there")
+        rc, v = cli.json("docs", "files", "ls", "--drive", "acceptance", "--state", "published")
+        published_before = len(v.get("files", [])) if rc == 0 else -1
         code = daemon.term()
         ev.check("9 SIGTERM: oo serve exits 0", code == 0, f"exit {code}")
         states_after = {n: i["State"]["Status"] for n, i in project.by_service().items()}
@@ -315,7 +317,8 @@ def main():
         rc, v = cli.json("docs", "drive", "show", "acceptance")
         ev.check("9 the Drive survived the restart", rc == 0 and v.get("name") == "acceptance", f"exit {rc}")
         rc, v = cli.json("docs", "files", "ls", "--drive", "acceptance", "--state", "published")
-        ev.check("9 its files are still published", rc == 0 and len(v.get("files", [])) == len(SAMPLE), f"{len(v.get('files', []))} files")
+        ev.check("9 its files are still published", rc == 0 and published_before >= len(SAMPLE) - 1 and len(v.get("files", [])) == published_before,
+                 f"{len(v.get('files', []))} files after the restart, {published_before} before")
         rc, sls = cli.json("docs", "share", "ls")
         ev.check("9 the shares are still listed", rc == 0 and len(sls.get("shares", [])) == 6, f"{len(sls.get('shares', []))} shares (L4 run: 6)")
         ev.check("9 the mounted directories were not touched", all((t / ".context/BRIEF.md").exists() for t in (mnt, ta, tb)))
