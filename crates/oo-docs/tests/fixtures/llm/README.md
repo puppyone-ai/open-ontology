@@ -1,4 +1,4 @@
-# Recorded model replies (`extract/1`)
+# Recorded model replies (`extract/2`)
 
 `replies.json` holds the model replies the LLM tests replay; no test calls a
 model. A reply is a template: `{{BLOCK:<text>}}` stands for the id of the block

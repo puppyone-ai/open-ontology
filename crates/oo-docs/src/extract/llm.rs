@@ -7,7 +7,7 @@
 //! * [`config`]: the model configuration (`GET/PUT /v1/docs/config/model`) and the
 //!   egress process behind it;
 //! * [`batch`]: sections of the IR become batches of at most 3,000 tokens;
-//! * [`prompt`]: `extract/1` prompt and the block level cache key;
+//! * [`prompt`]: `extract/2` prompt and the block level cache key;
 //! * [`schema`]: `oo.docs.llm-extract/v1` validation;
 //! * [`post`]: quote check, domain and range, `Thing` labels, mapping to an
 //!   [`Extraction`](crate::extract::model::Extraction) (confidence 8500, 7000,
@@ -35,7 +35,7 @@ pub mod schema;
 pub mod usage;
 
 /// `prompt_version` stored with every LLM fact.
-pub const PROMPT_VERSION: &str = "extract/1";
+pub const PROMPT_VERSION: &str = "extract/2";
 /// Output schema tag.
 pub const SCHEMA_TAG: &str = "oo.docs.llm-extract/v1";
 /// Largest batch, in `cjk_calibrated_tokens`.

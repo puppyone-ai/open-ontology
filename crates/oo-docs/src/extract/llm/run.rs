@@ -14,7 +14,7 @@ use sqlx::{PgConnection, Row};
 
 use super::batch::batches;
 use super::egress::{ChatReply, LlmError, LlmPort};
-use super::post::{Dropped, map_into};
+use super::post::{Dropped, MapCtx, map_into};
 use super::prompt::{Known, cache_key, request};
 use super::schema::{LlmOutput, parse};
 use super::usage::{Outcome, Reserve, record, reserve};
@@ -161,6 +161,10 @@ pub async fn extract_llm(
     let mut keys: Vec<String> = Vec::new();
     let mut infra_errors = 0u32;
     let format = format!("{:?}", input.ir.format).to_lowercase();
+    let ctx = MapCtx {
+        doc_path: input.path,
+        known: &input.known,
+    };
     'batches: for batch in batches(input.ir) {
         stats.batches += 1;
         let key = cache_key(&model, &input.known, &batch);
@@ -173,7 +177,9 @@ pub async fn extract_llm(
                 let text = String::from_utf8_lossy(&cas.get(CasKind::Llm, &b3)?).into_owned();
                 if let Ok(out) = parse(&text) {
                     keys.push(key);
-                    stats.dropped.add(&map_into(&mut col, input.ir, &ids, &out));
+                    stats
+                        .dropped
+                        .add(&map_into(&mut col, input.ir, &ids, &out, &ctx));
                     continue;
                 }
             }
@@ -256,7 +262,9 @@ pub async fn extract_llm(
                 let b3 = cas.put(CasKind::Llm, reply.content.as_bytes())?.b3;
                 cache_put(conn, &key, &model, &b3, "ok").await?;
                 keys.push(key);
-                stats.dropped.add(&map_into(&mut col, input.ir, &ids, &out));
+                stats
+                    .dropped
+                    .add(&map_into(&mut col, input.ir, &ids, &out, &ctx));
             }
             (None, Some(reply)) => {
                 // Both attempts broke the schema: remembered, so it is not paid again.

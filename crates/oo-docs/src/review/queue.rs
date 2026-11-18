@@ -101,7 +101,23 @@ pub async fn classify_drafts(
                  AND x.status IN ('draft', 'published') AND {col} IN (x.subject_id, x.object_id)))"
         )
     };
+    // A model fact is single sourced when an end of it is known from one file
+    // version only (its own evidence and the evidence of every fact it is part
+    // of): 5.3 rule 3, read per file for the model so that an entity the model
+    // names in one document and nothing else corroborates waits for a person.
+    let one_file = |col: &str| {
+        format!(
+            "((SELECT count(DISTINCT u.v) FROM ( \
+                 SELECT e.version_id AS v FROM _oo_docs.evidence e \
+                  WHERE e.target_kind = 'entity' AND e.target_id = {col} AND e.withdrawn_at IS NULL \
+                 UNION \
+                 SELECT e.version_id FROM _oo_docs.evidence e JOIN _oo_docs.fact x ON x.id = e.target_id \
+                  WHERE e.target_kind = 'fact' AND e.withdrawn_at IS NULL \
+                    AND x.status IN ('draft', 'published') AND {col} IN (x.subject_id, x.object_id)) u) <= 1)"
+        )
+    };
     let (once_s, once_o) = (once("f.subject_id"), once("f.object_id"));
+    let (file_s, file_o) = (one_file("f.subject_id"), one_file("f.object_id"));
     let sql = format!(
         "SELECT f.id::text AS id, f.fact_key, f.predicate, f.origin, f.rule_id, f.confidence_bp, \
                 COALESCE(o.type = 'Thing', false) AS object_thing, \
@@ -111,13 +127,15 @@ pub async fn classify_drafts(
                 EXISTS (SELECT 1 FROM _oo_docs.fact r WHERE r.fact_key = f.fact_key \
                          AND r.origin = 'rule' AND r.id <> f.id \
                          AND r.status IN ('draft', 'published')) AS by_rule, \
-                ({once_s} \
-                 OR (f.object_id IS NOT NULL AND {once_o})) AS single_entity, \
+                (CASE WHEN f.origin = 'llm' \
+                      THEN ((sj.type <> 'Document' AND {file_s}) OR (f.object_id IS NOT NULL AND {file_o})) \
+                      ELSE ({once_s} OR (f.object_id IS NOT NULL AND {once_o})) END) AS single_entity, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
                          AND v.kind = 'fact_assert' AND v.status = 'active') AS asserted, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
                          AND v.kind IN ('fact_reject', 'fact_edit') AND v.status = 'active') AS rejected \
            FROM _oo_docs.fact f LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+           JOIN _oo_docs.entity sj ON sj.id = f.subject_id \
           WHERE f.status = 'draft' ORDER BY f.fact_key, f.id"
     );
     let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
