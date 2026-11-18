@@ -257,3 +257,66 @@ async fn a_wrong_secret_is_auth_failed_and_nothing_leaks() {
         assert!(!shown.contains(secret), "the error must not carry {secret}");
     }
 }
+
+/// First level scopes (B-S11-03): the scopes together are the whole listing, each scope pages by its own
+/// cursor, and a scope with no objects lists as nothing.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a RustFS or MinIO (OO_S3_*)"]
+async fn scopes_partition_the_listing() {
+    let src = source("t-scopes");
+    for key in [
+        "root.md",
+        "a/1.md",
+        "a/deep/2.md",
+        "a/deep/er/3.md",
+        "b/4.md",
+        "c d/5.md",
+        "z/.hidden.md",
+    ] {
+        put(&src, key, bytes(10, 2)).await;
+    }
+    let scopes = src.list_scopes().await.unwrap().unwrap();
+    assert_eq!(scopes, ["", "a", "b", "c d", "z"]);
+    let mut whole = BTreeSet::new();
+    let mut cursor: Option<ListCursor> = None;
+    loop {
+        let page = src.list(cursor.as_ref(), 100).await.unwrap();
+        whole.extend(
+            page.entries
+                .iter()
+                .map(|e| e.path.clone().unwrap().to_string()),
+        );
+        if page.next.is_none() {
+            break;
+        }
+        cursor = page.next;
+    }
+    for page_size in [1u32, 2, 100] {
+        let mut union = BTreeSet::new();
+        for scope in &scopes {
+            let mut cursor: Option<ListCursor> = None;
+            loop {
+                let page = src
+                    .list_scope(scope, cursor.as_ref(), page_size)
+                    .await
+                    .unwrap();
+                for e in &page.entries {
+                    let k = e.path.clone().unwrap().to_string();
+                    let first = k.split_once('/').map(|(f, _)| f).unwrap_or("");
+                    assert_eq!(first, scope, "{k} listed under the wrong scope");
+                    assert!(union.insert(k), "no key twice");
+                }
+                if page.complete {
+                    assert!(page.next.is_none());
+                    break;
+                }
+                cursor = page.next;
+            }
+        }
+        assert_eq!(union, whole, "page size {page_size}");
+    }
+    assert!(whole.contains("a/deep/er/3.md") && !whole.contains("z/.hidden.md"));
+    let gone = src.list_scope("nothing-here", None, 10).await.unwrap();
+    assert!(gone.entries.is_empty() && gone.complete);
+    assert!(src.list_scope("a/deep", None, 10).await.is_err());
+}

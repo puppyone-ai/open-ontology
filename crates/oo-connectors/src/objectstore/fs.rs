@@ -354,6 +354,9 @@ struct Walk<'a> {
     out: Vec<ObjectMeta>,
     incomplete: bool,
     more: bool,
+    /// Do not descend: list the files and links of one directory only (the
+    /// `""` scope of a scoped listing).
+    shallow: bool,
 }
 
 impl Walk<'_> {
@@ -401,6 +404,9 @@ impl Walk<'_> {
         };
         let kind = kind_of(&md);
         if kind == EntryKind::Dir {
+            if self.shallow {
+                return;
+            }
             if let Some(r) = &self.resume
                 && !r.starts_with(rel.as_slice())
                 && rel.as_slice() < r.as_slice()
@@ -490,23 +496,129 @@ impl Inner {
             out: Vec::new(),
             incomplete: carried_incomplete,
             more: false,
+            shallow: false,
         };
         walk.dir(&self.root, &mut Vec::new());
-        let more = walk.out.len() > limit || walk.more;
-        walk.out.truncate(limit);
-        let incomplete = walk.incomplete;
-        let next = if more {
-            walk.out
-                .last()
-                .map(|m| encode_cursor(incomplete, &m.raw_key))
-        } else {
-            None
+        Ok(finish_page(walk, limit))
+    }
+
+    /// First level scopes (10 11.3): every top level directory, plus `""` when
+    /// files or links sit directly under the root. `None` when a top level
+    /// name is not UTF-8 (the Drive is then listed whole).
+    fn list_scopes(&self) -> Result<Option<Vec<String>>, DocSourceError> {
+        let rd = std::fs::read_dir(&self.root).map_err(|_| root_missing())?;
+        let mut dirs: Vec<String> = Vec::new();
+        let mut root_files = false;
+        for entry in rd {
+            let entry = entry.map_err(|_| DocSourceError::Io("root listing failed"))?;
+            let name = entry.file_name();
+            let Some(text) = name.to_str() else {
+                return Ok(None);
+            };
+            if skip_reason(text).is_some() {
+                continue;
+            }
+            let md = std::fs::symlink_metadata(self.root.join(&name))
+                .map_err(|_| DocSourceError::Io("root listing failed"))?;
+            match kind_of(&md) {
+                EntryKind::Dir => dirs.push(text.to_owned()),
+                EntryKind::File | EntryKind::Symlink => root_files = true,
+                EntryKind::Other => {}
+            }
+        }
+        dirs.sort();
+        if root_files {
+            dirs.insert(0, String::new());
+        }
+        Ok(Some(dirs))
+    }
+
+    /// One page of one scope, same cursor rules as [`Inner::list`].
+    fn list_scope(
+        &self,
+        scope: &str,
+        cursor: Option<&ListCursor>,
+        page_size: u32,
+    ) -> Result<ListPage, DocSourceError> {
+        if scope.contains('/') || scope == "." || scope == ".." {
+            return Err(DocSourceError::InvalidConfig(
+                "scope is not a first level name",
+            ));
+        }
+        if !std::fs::metadata(&self.root).is_ok_and(|m| m.is_dir()) {
+            return Err(root_missing());
+        }
+        let (carried_incomplete, resume) = match cursor {
+            Some(c) => {
+                let (i, key) = decode_cursor(c)?;
+                (
+                    i,
+                    Some(key.split(|b| *b == b'/').map(<[u8]>::to_vec).collect()),
+                )
+            }
+            None => (false, None),
         };
-        Ok(ListPage {
-            entries: walk.out,
-            complete: next.is_none() && !incomplete,
-            next,
-        })
+        let limit = page_size.clamp(1, MAX_PAGE) as usize;
+        let mut walk = Walk {
+            inner: self,
+            resume,
+            limit,
+            out: Vec::new(),
+            incomplete: carried_incomplete,
+            more: false,
+            shallow: scope.is_empty(),
+        };
+        if scope.is_empty() {
+            walk.dir(&self.root, &mut Vec::new());
+        } else {
+            let name = OsStr::new(scope);
+            // A scope that has vanished lists as nothing: its files are gone.
+            if std::fs::symlink_metadata(self.root.join(name))
+                .is_ok_and(|m| kind_of(&m) == EntryKind::Dir)
+            {
+                walk.entry(&self.root, name, &mut vec![scope.as_bytes().to_vec()]);
+            }
+        }
+        Ok(finish_page(walk, limit))
+    }
+}
+
+fn finish_page(mut walk: Walk<'_>, limit: usize) -> ListPage {
+    let more = walk.out.len() > limit || walk.more;
+    walk.out.truncate(limit);
+    let incomplete = walk.incomplete;
+    let next = if more {
+        walk.out
+            .last()
+            .map(|m| encode_cursor(incomplete, &m.raw_key))
+    } else {
+        None
+    };
+    ListPage {
+        entries: walk.out,
+        complete: next.is_none() && !incomplete,
+        next,
+    }
+}
+
+impl FsSource {
+    /// First level scopes of the root, see [`Inner::list_scopes`].
+    pub async fn list_scopes(&self) -> Result<Option<Vec<String>>, DocSourceError> {
+        let inner = self.inner.clone();
+        run_blocking(move || inner.list_scopes()).await
+    }
+
+    /// One page of one first level scope (`""` = files directly under the root).
+    pub async fn list_scope(
+        &self,
+        scope: &str,
+        cursor: Option<&ListCursor>,
+        page_size: u32,
+    ) -> Result<ListPage, DocSourceError> {
+        let inner = self.inner.clone();
+        let scope = scope.to_owned();
+        let cursor = cursor.cloned();
+        run_blocking(move || inner.list_scope(&scope, cursor.as_ref(), page_size)).await
     }
 }
 

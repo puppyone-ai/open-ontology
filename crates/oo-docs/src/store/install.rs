@@ -59,8 +59,10 @@ pub const VERSION_SHARE_CONSISTENCY: &str = "docs-share-consistency/1";
 pub const VERSION_PARSE_MEDIA: &str = "docs-parse-media/1";
 /// `docs-cloud-audit/1`.
 pub const VERSION_CLOUD_AUDIT: &str = "docs-cloud-audit/1";
+/// `docs-drive-sync-prefix/1`.
+pub const VERSION_DRIVE_SYNC_PREFIX: &str = "docs-drive-sync-prefix/1";
 
-const MIGRATIONS: [Migration; 10] = [
+const MIGRATIONS: [Migration; 11] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -111,6 +113,11 @@ const MIGRATIONS: [Migration; 10] = [
         file: "0148_docs_cloud_audit.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0148_docs_cloud_audit.sql"),
     },
+    Migration {
+        version: VERSION_DRIVE_SYNC_PREFIX,
+        file: "0149_docs_drive_sync_prefix.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0149_docs_drive_sync_prefix.sql"),
+    },
 ];
 
 /// `docs-vectors/1`, the optional pgvector table (10 11.3).
@@ -125,7 +132,7 @@ pub const VECTORS: Migration = Migration {
 };
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 10] = [
+pub const SCHEMA_MIN: [&str; 11] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -136,6 +143,7 @@ pub const SCHEMA_MIN: [&str; 10] = [
     VERSION_SHARE_CONSISTENCY,
     VERSION_PARSE_MEDIA,
     VERSION_CLOUD_AUDIT,
+    VERSION_DRIVE_SYNC_PREFIX,
 ];
 
 /// Migrations compiled into this binary, in install order.

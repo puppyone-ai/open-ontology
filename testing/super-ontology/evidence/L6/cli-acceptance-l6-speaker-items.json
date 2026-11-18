@@ -1,0 +1,147 @@
+[
+ {
+  "confidence_bp": null,
+  "created_at": "2026-11-18T11:55:23.023418Z",
+  "decided_at": null,
+  "drive_id": "26ef0272-906b-4972-890e-452115262e5e",
+  "evidence": [],
+  "id": "796e6cf7-6d9f-4bce-9379-a7486f60537c",
+  "kind": "speaker_identity",
+  "reason_code": "speaker_unconfirmed",
+  "revision": 1,
+  "source": {
+   "file_id": "2193f27f-b248-4161-a566-f2edba5043ef",
+   "path": "Meetings/录屏.webm"
+  },
+  "status": "pending",
+  "subject": {
+   "b3": "a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0",
+   "candidates": [],
+   "placeholder": "说话人 S1 · a15243c4",
+   "speaker": "S1"
+  }
+ },
+ {
+  "confidence_bp": null,
+  "created_at": "2026-11-18T11:55:31.076384Z",
+  "decided_at": null,
+  "drive_id": "26ef0272-906b-4972-890e-452115262e5e",
+  "evidence": [],
+  "id": "b48a9127-19be-45ac-aa75-0b20291e45b0",
+  "kind": "speaker_identity",
+  "reason_code": "speaker_unconfirmed",
+  "revision": 1,
+  "source": {
+   "file_id": "ca627081-f162-4680-9101-b1e5214fb03b",
+   "path": "Meetings/周会 参会=小王、小李.wav"
+  },
+  "status": "pending",
+  "subject": {
+   "b3": "056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44",
+   "candidates": [
+    {
+     "block_id": "blk_8479b0a8cb6c40dc5f64",
+     "name": "小李",
+     "quote": "会小李你说一下进度我是小李",
+     "source": "self_intro"
+    },
+    {
+     "block_id": "blk_8d2f990c21f899512722",
+     "name": "小王我",
+     "quote": "大家好我是小王我负责星火计划好的我们",
+     "source": "self_intro"
+    },
+    {
+     "block_id": null,
+     "name": "小李",
+     "quote": null,
+     "source": "attendees"
+    },
+    {
+     "block_id": null,
+     "name": "小王",
+     "quote": null,
+     "source": "attendees"
+    }
+   ],
+   "placeholder": "说话人 S1 · 056150c5",
+   "speaker": "S1"
+  }
+ },
+ {
+  "confidence_bp": null,
+  "created_at": "2026-11-18T11:55:31.076685Z",
+  "decided_at": null,
+  "drive_id": "26ef0272-906b-4972-890e-452115262e5e",
+  "evidence": [],
+  "id": "ee941533-05dd-4087-9491-8f71c5e5add2",
+  "kind": "speaker_identity",
+  "reason_code": "speaker_unconfirmed",
+  "revision": 1,
+  "source": {
+   "file_id": "ca627081-f162-4680-9101-b1e5214fb03b",
+   "path": "Meetings/周会 参会=小王、小李.wav"
+  },
+  "status": "pending",
+  "subject": {
+   "b3": "056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44",
+   "candidates": [
+    {
+     "block_id": null,
+     "name": "小李",
+     "quote": null,
+     "source": "attendees"
+    },
+    {
+     "block_id": null,
+     "name": "小王",
+     "quote": null,
+     "source": "attendees"
+    }
+   ],
+   "placeholder": "说话人 S2 · 056150c5",
+   "speaker": "S2"
+  }
+ },
+ {
+  "confidence_bp": null,
+  "created_at": "2026-11-18T11:55:31.076956Z",
+  "decided_at": null,
+  "drive_id": "26ef0272-906b-4972-890e-452115262e5e",
+  "evidence": [],
+  "id": "877d9838-d4aa-4e65-9505-45b5000ee1b6",
+  "kind": "speaker_identity",
+  "reason_code": "speaker_unconfirmed",
+  "revision": 1,
+  "source": {
+   "file_id": "ca627081-f162-4680-9101-b1e5214fb03b",
+   "path": "Meetings/周会 参会=小王、小李.wav"
+  },
+  "status": "pending",
+  "subject": {
+   "b3": "056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44",
+   "candidates": [
+    {
+     "block_id": "blk_8479b0a8cb6c40dc5f64",
+     "name": "会小李",
+     "quote": "会小李你说一下进度我是小李",
+     "source": "addressed"
+    },
+    {
+     "block_id": null,
+     "name": "小李",
+     "quote": null,
+     "source": "attendees"
+    },
+    {
+     "block_id": null,
+     "name": "小王",
+     "quote": null,
+     "source": "attendees"
+    }
+   ],
+   "placeholder": "说话人 S3 · 056150c5",
+   "speaker": "S3"
+  }
+ }
+]
