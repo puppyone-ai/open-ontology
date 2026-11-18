@@ -288,11 +288,12 @@ pub async fn audit(app: &AppState, req: &Req) -> Result<Response<Body>, ApiError
 
 /// The path of a call as the audit keeps it: the words of the API, every value (key, id, name) as `{id}`.
 pub fn audit_route(path: &str) -> String {
-    const WORDS: [&str; 22] = [
+    const WORDS: [&str; 23] = [
         "v1",
         "docs",
         "entities",
         "resolve",
+        "search",
         "files",
         "blocks",
         "content",
@@ -360,6 +361,17 @@ pub async fn guard(
             Ok(None)
         }
         (&Method::GET, ["v1", "docs", "entities"]) => {
+            need(agent::DOCS_READ)?;
+            match req.query.get("drive_id").filter(|d| !d.is_empty()) {
+                Some(d) => {
+                    drive_ok(d)?;
+                    Ok(Some(d.to_ascii_lowercase()))
+                }
+                None if p.all_drives => Ok(None),
+                None => Err(denied("drive_id_required")),
+            }
+        }
+        (&Method::GET, ["v1", "docs", "search"]) => {
             need(agent::DOCS_READ)?;
             match req.query.get("drive_id").filter(|d| !d.is_empty()) {
                 Some(d) => {

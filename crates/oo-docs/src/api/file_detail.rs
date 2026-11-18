@@ -85,15 +85,15 @@ fn cas(app: &AppState) -> Result<&crate::cas::Cas, ApiError> {
 type ParseRow = (String, String, String, Option<i32>, Option<i32>);
 
 /// The finished parse of a blob: the IR and what is recorded about it.
-struct Parsed {
-    ir: DocIr,
+pub(super) struct Parsed {
+    pub(super) ir: DocIr,
     parser_id: String,
     parser_version: String,
     block_count: i32,
     page_count: Option<i32>,
 }
 
-async fn load_parsed(
+pub(super) async fn load_parsed(
     conn: &mut PgConnection,
     app: &AppState,
     b3: &str,
