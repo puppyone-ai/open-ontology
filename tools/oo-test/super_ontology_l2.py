@@ -172,9 +172,9 @@ class Api:
     def __init__(self, port, token):
         self.port, self.token = port, token
 
-    def request(self, method, path, body=None, timeout=30):
+    def request(self, method, path, body=None, timeout=30, headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=timeout)
-        headers = {"Authorization": f"Bearer {self.token}"}
+        headers = {"Authorization": f"Bearer {self.token}", **(headers or {})}
         data = None
         if body is not None:
             data = json.dumps(body).encode()

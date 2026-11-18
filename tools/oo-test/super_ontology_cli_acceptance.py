@@ -95,6 +95,9 @@ def main():
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L4"))
     ap.add_argument("--keep", action="store_true")
     ap.add_argument("--skip-build", action="store_true")
+    ap.add_argument("--endpoint-file", help="0600 file with the model's base URL (optional step 9b)")
+    ap.add_argument("--key-file", help="0600 file with the model's key")
+    ap.add_argument("--model-id")
     args = ap.parse_args()
 
     ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
@@ -310,6 +313,20 @@ def main():
         rc, sls = cli.json("docs", "share", "ls")
         ev.check("9 the shares are still listed", rc == 0 and len(sls.get("shares", [])) >= 3, f"{len(sls.get('shares', []))} shares")
         ev.check("9 the mounted directories were not touched", all((t / ".context/BRIEF.md").exists() for t in (mnt, ta, tb)))
+
+        if args.endpoint_file and args.key_file and args.model_id:
+            # The model's endpoint and key only ever travel as file: references; the daemon binds the
+            # two files read-only into the engine container and the engine starts its egress there.
+            ev.log("\n## 9b. model egress inside the compose engine")
+            body = {"provider": "openai-compatible", "base_url": f"file:{args.endpoint_file}", "model": args.model_id, "key_ref": f"file:{args.key_file}"}
+            st, put = api.request("PUT", "/v1/docs/config/model", body, timeout=300, headers={"If-Match": '"r1"'})
+            ev.check("9b PUT /v1/docs/config/model through the daemon: 200 and the egress is up in the engine container",
+                     st == 200 and isinstance(put, dict) and put.get("status") == "ok", f"HTTP {st} status {put.get('status') if isinstance(put, dict) else '?'} code {put.get('code') if isinstance(put, dict) else '?'}")
+            st, usage = api.request("GET", "/v1/docs/usage")
+            ev.check("9b GET /v1/docs/usage: model.status is ok", st == 200 and usage.get("model", {}).get("status") == "ok", f"HTTP {st} model {usage.get('model', {}).get('status') if isinstance(usage, dict) else '?'}")
+            svc = project.by_service().get("docs-engine")
+            binds = [m for m in (svc or {}).get("Mounts", []) if m.get("Destination") in (args.endpoint_file, args.key_file)]
+            ev.check("9b the two files are bind-mounted read-only at their own path", len(binds) == 2 and all(m.get("RW") is False for m in binds), f"{len(binds)} mounts")
 
         ev.log("\n## 10. revoke and remove")
         rc, rv = cli.json("context", "revoke", str(mnt))
