@@ -72,5 +72,37 @@
       "ok": true,
       "detail": "70/70 checks passed"
     }
+  ],
+  "vectors_on_runs": [
+    {
+      "run_id": "verify-sign-L8-vectors-on",
+      "git_head": "395a3fade",
+      "branch": "so/V38-signoff",
+      "env": {
+        "OO_DOCS_VECTORS": "hashgram/1",
+        "OO_TEST_LANE": "super-ontology-v38",
+        "postgres_image": "oo-docs-pgvector:dev (locked; track_commit_timestamp=on)"
+      },
+      "command": "tools/oo-test/super_ontology_live_suites.py over all 53 ignored oo-docs targets; PG image set to oo-docs-pgvector:dev by a wrapper outside the repo (/tmp/so-v38-wrap/run_l8.py)",
+      "run1": {
+        "passed": 51,
+        "failed": 1,
+        "skipped": 1,
+        "failed_targets": [
+          "conformance_share"
+        ],
+        "skipped_targets": [
+          "download"
+        ],
+        "note": "download skipped: needs --with-s3 and an S3 store (not run, see L3 entry)"
+      },
+      "rerun_conformance_share": {
+        "passed": 1,
+        "failed": 0,
+        "result": "passed on the single rerun"
+      },
+      "status": "partial",
+      "summary": "52 of 53 targets pass on oo-docs-pgvector:dev with vectors on (conformance_share failed once, passed on rerun). download not run (S3 store images missing). Overall status not set to pass."
+    }
   ]
 }
