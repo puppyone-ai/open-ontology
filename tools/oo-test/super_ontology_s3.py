@@ -39,7 +39,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-LANE = "super-ontology-be1"
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be1")
 BUCKET = "oo-test"
 
 CELLS = {
