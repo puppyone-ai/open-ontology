@@ -233,7 +233,9 @@ async fn a_failed_batch_is_extract_partial_and_the_other_batches_stand_and_publi
     e.write("Projects/星图项目.md", &md);
     let drive = e.create_drive("llm-partial").await;
     enable_model(&e, &drive).await;
-    e.until("published", || async {
+    // The down section is tried 4 times with the extract_llm waits of 10 4.1.4 (5 s, 15 s, 45 s), so
+    // the batch gives up after about 65 s.
+    e.until_within("published", std::time::Duration::from_secs(120), || async {
         state_of(&e, "Projects/星图项目.md").await == "published"
     })
     .await;

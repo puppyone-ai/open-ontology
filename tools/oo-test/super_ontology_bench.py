@@ -146,7 +146,7 @@ def scale_bench(args):
     p95 and memory. Synthetic Markdown through the real write path against a labelled Postgres
     container; the binary formats and the parser sidecar are covered by the 1000 file compose
     bench (cold1000), whose rate extrapolates linearly."""
-    l2.LANE = "oo.lane=super-ontology-c8"
+    l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-c8")
     ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
     ev.log(f"# scale10k bench, run {args.run_id}")
     free = shutil.disk_usage("/").free / 2 ** 30

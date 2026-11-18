@@ -168,14 +168,27 @@ async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_s
         .await,
         1
     );
-    // The embeddings and voice features have no place in the database (D63): no such column or table.
+    // The voice embeddings and voice features have no place in the database (D63): no such column or
+    // table. The one embedding column allowed is the optional text vector of a block
+    // (`block_vector.embedding`, 0144, B-S13-02): it is computed from block text, never from audio.
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM information_schema.columns WHERE table_schema = '_oo_docs' \
-              AND (column_name ILIKE '%voiceprint%' OR column_name ILIKE '%embedding%')"
+              AND (column_name ILIKE '%voiceprint%' \
+                   OR (column_name ILIKE '%embedding%' AND table_name <> 'block_vector'))"
         )
         .await,
         0
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM information_schema.columns WHERE table_schema = '_oo_docs' \
+              AND table_name = 'block_vector' \
+              AND (column_name ILIKE '%speaker%' OR column_name ILIKE '%audio%' OR column_name ILIKE '%media%')"
+        )
+        .await,
+        0,
+        "the text vector table carries no speaker or audio link"
     );
     fx.finish(db).await;
 }

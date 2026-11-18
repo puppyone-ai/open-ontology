@@ -272,12 +272,21 @@ impl TestEngine {
     }
 
     /// Poll until `f` returns true (50 ms steps, 20 s).
-    pub async fn until<F, Fut>(&self, what: &str, mut f: F)
+    pub async fn until<F, Fut>(&self, what: &str, f: F)
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = bool>,
     {
-        for _ in 0..400 {
+        self.until_within(what, Duration::from_secs(20), f).await;
+    }
+
+    /// [`Self::until`] with an explicit limit, for flows whose spec schedule is longer than 20 s.
+    pub async fn until_within<F, Fut>(&self, what: &str, limit: Duration, mut f: F)
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = bool>,
+    {
+        for _ in 0..(limit.as_millis() / 50).max(1) {
             if f().await {
                 return;
             }
