@@ -222,6 +222,16 @@ fn an_explicit_earlier_end_is_kept() {
 }
 
 #[test]
+fn a_candidate_after_an_owner_that_already_ended_waits_for_nobody() {
+    let mut a = owner("1", "chen", Some("2026-01-01"));
+    a.valid_to = Some("2026-05-31".into());
+    let mut b = owner("2", "zhou", Some("2026-06-01"));
+    b.origin = Origin::Llm;
+    let plan = plan_group(&[a, b]);
+    assert!(plan.end.is_empty() && plan.held.is_empty(), "{plan:?}");
+}
+
+#[test]
 fn future_valid_to_does_not_end_a_fact() {
     assert!(is_live(Some("2099-01-01"), "2026-11-17"));
     assert!(is_live(None, "2026-11-17"));
