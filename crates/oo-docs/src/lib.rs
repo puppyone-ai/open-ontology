@@ -33,6 +33,7 @@ pub mod jobs;
 pub mod normalize;
 pub mod obs;
 pub mod parse;
+pub mod policy;
 pub mod publish;
 pub mod resolve;
 pub mod review;

@@ -146,6 +146,21 @@ impl PgReader {
             id: drive_id.to_owned(),
             backend: backend.ok_or(PackError::Store("drive not found".into()))?,
         };
+        // Drive access policy (10 11.3, B-S11-03): the second of its two places. A denied path is
+        // not in the snapshot, so no fact whose evidence lives only there is visible to any scope.
+        let config: Option<String> =
+            sqlx::query_scalar("SELECT config::text FROM _oo_docs.drive WHERE id = $1::uuid")
+                .bind(drive_id)
+                .fetch_optional(&mut *conn)
+                .await
+                .map_err(store)?;
+        let policy = crate::policy::DrivePolicy::from_config(
+            &config
+                .as_deref()
+                .and_then(|c| serde_json::from_str(c).ok())
+                .unwrap_or(serde_json::Value::Null),
+        )
+        .map_err(|_| PackError::Internal("drive policy is not valid"))?;
         let row: Option<(i64, String)> = match version {
             Some(n) => {
                 sqlx::query_as("SELECT n, as_of::text FROM _oo_docs.ontology_version WHERE n = $1")
@@ -180,6 +195,10 @@ impl PgReader {
         .fetch_all(&mut *conn)
         .await
         .map_err(store)?;
+        let all: Vec<(String, String, String)> = all
+            .into_iter()
+            .filter(|(path, _, _)| policy.permits(path))
+            .collect();
         let missing: Vec<String> = prefixes
             .iter()
             .filter(|p| !all.iter().any(|(path, _, _)| in_prefix(path, p)))

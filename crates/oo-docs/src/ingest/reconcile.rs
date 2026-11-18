@@ -612,10 +612,15 @@ async fn sync_core<S: HashableSource>(
     };
     let listing = list_all(source, limits.page_size, cancel).await;
     report.pages = listing.pages;
+    // Drive access policy (B-S11-03), first of its two places: what it does not permit is never a file
+    // of the Drive. A path that cannot be normalized cannot be judged and is dropped when a policy is set.
+    let policy = crate::policy::DrivePolicy::from_config(&drive.config)
+        .map_err(|_| IngestError::Protocol("drive policy is not valid".into()))?;
     let entries: Vec<ObjectMeta> = listing
         .entries
         .into_iter()
         .filter(|e| matches!(e.kind, EntryKind::File | EntryKind::Symlink))
+        .filter(|e| policy.is_open() || e.path.as_ref().is_some_and(|p| policy.permits(p.as_str())))
         .collect();
     report.listed = entries.len() as i64;
     let full = listing.complete && listing.error.is_none() && !cancel.load(Ordering::Relaxed);
@@ -1170,6 +1175,8 @@ pub async fn targeted_sync<S: HashableSource>(
     .fetch_one(pool)
     .await?;
 
+    let policy = crate::policy::DrivePolicy::from_config(&drive.config)
+        .map_err(|_| IngestError::Protocol("drive policy is not valid".into()))?;
     let mut seen_paths: HashSet<&str> = HashSet::new();
     let mut parents: HashSet<String> = HashSet::new();
     let mut valid: Vec<(&String, DocPath)> = Vec::new();
@@ -1179,7 +1186,10 @@ pub async fn targeted_sync<S: HashableSource>(
             continue;
         }
         match DocPath::new(p) {
-            Ok(dp) if !oo_connectors::objectstore::path::is_skipped_path(p) => {
+            Ok(dp)
+                if !oo_connectors::objectstore::path::is_skipped_path(p)
+                    && policy.permits(dp.as_str()) =>
+            {
                 if let Some(parent) = dp.parent() {
                     parents.insert(parent.as_str().to_owned());
                 }

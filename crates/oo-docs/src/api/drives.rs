@@ -311,7 +311,7 @@ fn review_field(obj: &Map<String, Value>) -> Result<(), ApiError> {
 }
 
 fn fs_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
-    only_keys(cfg, &["root", "exclude"], "/config")?;
+    only_keys(cfg, &["root", "exclude", "policy"], "/config")?;
     let root = str_field(cfg, "root", "/config", 1, 4096)?
         .ok_or_else(|| ApiError::bad("/config/root", "required"))?;
     if !root.starts_with('/') {
@@ -321,26 +321,41 @@ fn fs_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
     if let Some(e) = cfg.get("exclude") {
         config["exclude"] = json!(exclude_field(e, "/config/exclude")?);
     }
+    policy_field(cfg, &mut config)?;
     Ok(config)
 }
 
-/// `s3` Drives: bucket, prefix, endpoint, region, path_style, exclude and a
-/// `secret_ref`. Keys and secrets are never accepted inline (10 section 9).
+/// `config.policy` (10 11.3): allowed and denied prefixes, checked the way ingest and the visible graph read it.
+fn policy_field(cfg: &Map<String, Value>, config: &mut Value) -> Result<(), ApiError> {
+    if let Some(p) = cfg.get("policy") {
+        crate::policy::DrivePolicy::from_value(p)
+            .map_err(|e| ApiError::bad("/config/policy", e.0))?;
+        config["policy"] = p.clone();
+    }
+    Ok(())
+}
+
+/// `s3`, `r2`, `oss` and `cos` Drives: bucket, prefix, endpoint, region, path_style, exclude, policy and
+/// a `secret_ref`; `r2` also `account_id`, `oss` and `cos` also `internal`. Keys and secrets are never
+/// accepted inline (10 section 9).
 #[cfg(feature = "objectstore-s3")]
-fn s3_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
-    only_keys(
-        cfg,
-        &[
-            "bucket",
-            "prefix",
-            "endpoint",
-            "region",
-            "path_style",
-            "secret_ref",
-            "exclude",
-        ],
-        "/config",
-    )?;
+fn s3_config(backend: &str, cfg: &Map<String, Value>) -> Result<Value, ApiError> {
+    let mut allowed = vec![
+        "bucket",
+        "prefix",
+        "endpoint",
+        "region",
+        "path_style",
+        "secret_ref",
+        "exclude",
+        "policy",
+    ];
+    match backend {
+        "r2" => allowed.push("account_id"),
+        "oss" | "cos" => allowed.push("internal"),
+        _ => {}
+    }
+    only_keys(cfg, &allowed, "/config")?;
     let bucket = str_field(cfg, "bucket", "/config", 1, 255)?
         .ok_or_else(|| ApiError::bad("/config/bucket", "required"))?;
     let reference = str_field(cfg, "secret_ref", "/config", 1, 2048)?
@@ -360,9 +375,34 @@ fn s3_config(cfg: &Map<String, Value>) -> Result<Value, ApiError> {
     if let Some(v) = bool_field(cfg, "path_style", "/config")? {
         config["path_style"] = json!(v);
     }
+    if let Some(v) = str_field(cfg, "account_id", "/config", 0, 64)? {
+        config["account_id"] = json!(v);
+    }
+    if let Some(v) = bool_field(cfg, "internal", "/config")? {
+        config["internal"] = json!(v);
+    }
     if let Some(e) = cfg.get("exclude") {
         config["exclude"] = json!(exclude_field(e, "/config/exclude")?);
     }
+    // What the cloud needs to find its endpoint must be there at registration, not at the first sync.
+    if config.get("endpoint").is_none() {
+        let provider = oo_connectors::objectstore_s3::compat::Provider::parse(backend)
+            .ok_or_else(|| ApiError::bad("/backend", "unknown backend"))?;
+        let region = config.get("region").and_then(Value::as_str);
+        if matches!(backend, "oss" | "cos") && region.is_none() {
+            return Err(ApiError::bad("/config/region", "required for oss and cos"));
+        }
+        provider
+            .endpoint(
+                region.unwrap_or(provider.default_region()),
+                oo_connectors::objectstore_s3::compat::EndpointHints {
+                    account_id: config.get("account_id").and_then(Value::as_str),
+                    internal: false,
+                },
+            )
+            .map_err(|why| ApiError::bad("/config", why))?;
+    }
+    policy_field(cfg, &mut config)?;
     Ok(config)
 }
 
@@ -397,7 +437,7 @@ fn parse_create(body: &Value) -> Result<Create, ApiError> {
     let config = match backend {
         "fs" => fs_config(cfg)?,
         #[cfg(feature = "objectstore-s3")]
-        "s3" => s3_config(cfg)?,
+        "s3" | "oss" | "cos" | "r2" => s3_config(backend, cfg)?,
         _ => {
             return Err(ApiError::new(
                 code::INVALID_CONFIG,
