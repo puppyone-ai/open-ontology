@@ -84,3 +84,28 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   "other related" section of BRIEF. The engine rejects an unknown value with `DOCS_ENGINE_BAD_REQUEST` (field pointer `/vector`). When omitted the
   operator setting `OO_DOCS_VECTORS` still applies, as before. The version is part of the pack parameters, so the same
   version replays byte for byte. The field is also accepted in `POST /shares` `compile`. Additive; no other change.
+
+## 1.6 (D83, WP2: Agent tokens and the link surface)
+
+- Agent tokens (`since` 1.6, local entry only): `POST /v1/docs/agent-tokens` issues an `ooa_` token (`AgentTokenRequest`, `AgentToken`,
+  shown once; only its hash is stored) with scopes `docs:read`, `db:read`, optional `docs:suggest` and `docs:write`, a Drive set or
+  `all_drives`, a TTL (60 s to 30 days, default 7 days) and, for `db:read`, the NAME of a Gateway profile (`gw_profile`: the CLI proxy reads
+  the database ontology with it, the Agent never holds a Gateway token). One live token per name. `GET /agent-tokens` lists them (never a
+  token or hash), `DELETE /agent-tokens/{id}` revokes (the next call is 401, at once), `POST /agent-tokens:introspect` (control token only) answers
+  `active` and the principal, `GET /agent-tokens/self` is what an Agent asks about itself and the Drives it reaches.
+- The engine checks the scope on EVERY route an `ooa_` token calls. The default is deny (403 `DOCS_SHARE_REFS_OUT_OF_SCOPE`, `details.reason`
+  `route`, `scope`, `drive` or `drive_id_required`): `docs:read` reads entities (`drive_id` required unless `all_drives`), entity detail and `resolve`
+  restricted to the token's Drives, files, blocks and content of those Drives, `GET /links`; `docs:suggest` posts a Suggest of a share of its Drives;
+  `docs:write` decides links of its Drives. An entity outside the Drives is 404.
+- Audit (`GET /v1/docs/audit/agents?agent&since&until&limit`, `AuditAgents`): `agent_token.issued`, `agent_token.revoked`, one `agent.read` per call
+  and one `agent.denied` per refusal in the same hash chained log (`GET /audit/verify` covers them); the actor is `agent:<name>`, a call is a route
+  template whose values are `{id}`.
+- The projection job (engine process, no route): published document entities (and their anchored evidence) are projected into the shared
+  entity namespace of the Agent DB (`_oo_docproj`), incrementally on each published version, and linked to rows of database tables by the rules below.
+  Idempotent and replay safe. It does nothing without an Agent DB binding (documents only is a normal state).
+- Links (`since` 1.6): `GET /v1/docs/links?doc=<entity key>|db_table=<schema.table>[&db_key=][&drive_id=][&status=live|auto|confirmed|rejected|all][&limit]`
+  (`LinkList`, `LinkItem`: each link carries `provenance.file` anchors and `provenance.table_row` with the matching column and rule revision; the lookup
+  works from a document entity to rows and from a row to documents), `POST /links:decide` (`confirmed`/`rejected`, kept by every rebuild),
+  `POST /links:project` (run the job now, `ProjectRuns`), `GET|PUT|DELETE /link-rules` (`LinkRule`: which columns of which table match which entity type),
+  `GET|PUT|DELETE /agent-db-binding` (`AgentDbBinding`: a secret reference to the Agent DB login, never a URL; also `OO_DOCS_AGENT_DATABASE_URL_REF`).
+- No new error code. Additive; no existing route changes.

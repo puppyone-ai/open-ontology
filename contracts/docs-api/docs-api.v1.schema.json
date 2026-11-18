@@ -3969,6 +3969,1118 @@
           "rows": 3
         }
       ]
+    },
+    "AgentTokenRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "scopes"
+      ],
+      "description": "Issue an Agent token (`ooa_`). `docs:*` scopes need `drive_ids` or `all_drives`; `db:read` needs `gw_profile` (the NAME of a Gateway profile the CLI proxy reads the database ontology with; never a credential) and `gw_profile` needs `db:read`. `docs:suggest` and `docs:write` need `docs:read`. One live token per name.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 2592000
+        }
+      },
+      "examples": [
+        {
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read",
+            "db:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "gw_profile": "sales",
+          "expires_in_seconds": 86400
+        }
+      ]
+    },
+    "AgentToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "token",
+        "name",
+        "scopes",
+        "drive_ids",
+        "all_drives",
+        "expires_in_seconds",
+        "expires_at"
+      ],
+      "description": "The `ooa_` token is shown once and only its hash is stored. Valid on the local entry only (the loopback API), checked on every route.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^ooa_"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_in_seconds": {
+          "type": "integer"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "token": "ooa_example",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read",
+            "db:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": "sales",
+          "expires_in_seconds": 86400,
+          "expires_at": "2026-11-18T00:00:00Z"
+        }
+      ]
+    },
+    "AgentTokenInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "scopes",
+        "expires_at"
+      ],
+      "description": "An Agent token as the list and `GET /agent-tokens/self` show it: never the token, never a hash. `drives` is only in the answer of `self`.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_used_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "use_count": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "live",
+            "revoked",
+            "expired"
+          ]
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "backend",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "backend": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": null,
+          "label": null,
+          "created_at": "2026-11-18T00:00:00Z",
+          "expires_at": "2026-11-18T00:00:00Z",
+          "revoked_at": null,
+          "last_used_at": null,
+          "use_count": 0,
+          "state": "live"
+        }
+      ]
+    },
+    "AgentTokenList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AgentTokenInfo"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AgentIntrospectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token"
+      ],
+      "properties": {
+        "token": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "token": "ooa_example"
+        }
+      ]
+    },
+    "AgentIntrospect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active"
+      ],
+      "description": "Answer of `POST /agent-tokens:introspect` (control token only): always 200; `active: false` carries a `reason`. Not a use of the token.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_used_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "use_count": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "live",
+            "revoked",
+            "expired"
+          ]
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "backend",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "backend": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "revoked",
+            "expired"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "active": true,
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": null,
+          "expires_at": "2026-11-18T00:00:00Z"
+        },
+        {
+          "active": false,
+          "reason": "revoked"
+        }
+      ]
+    },
+    "AuditAgents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "description": "Calls, refusals, issues and revocations of Agent tokens, newest first. A call is a route template (values are `{id}`), never a path value or text.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "at",
+              "action",
+              "actor"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer"
+              },
+              "at": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "agent_token.issued",
+                  "agent_token.revoked",
+                  "agent.read",
+                  "agent.denied"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "agent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "drive_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "detail": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "seq": 7,
+              "at": "2026-11-18T00:00:00Z",
+              "action": "agent.read",
+              "actor": "agent:sales-bot",
+              "agent": "sales-bot",
+              "drive_id": "00000000-0000-4000-8000-0000000000d1",
+              "detail": {
+                "route": "GET /v1/docs/entities/{id}",
+                "token_id": "00000000-0000-4000-8000-0000000000e1",
+                "reason": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "LinkItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status",
+        "provenance"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "doc_entity_key": {
+          "type": "string"
+        },
+        "doc_entity_type": {
+          "type": "string"
+        },
+        "canonical_name": {
+          "type": "string"
+        },
+        "db_table": {
+          "type": "string"
+        },
+        "db_key": {
+          "type": "string"
+        },
+        "matched_via": {
+          "type": "string",
+          "enum": [
+            "name",
+            "alias"
+          ]
+        },
+        "matched_column": {
+          "type": "string"
+        },
+        "matched_text": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "table_row"
+          ],
+          "description": "Where a link comes from: the file anchors of the document entity (page and box, sheet and cell, heading and line; `anchor` is the document IR anchor) and the table row it is linked to with the rule that matched.",
+          "properties": {
+            "file": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "file_version",
+                  "block_id",
+                  "anchor"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "file_version": {
+                    "type": "string"
+                  },
+                  "block_id": {
+                    "type": "string"
+                  },
+                  "anchor": {
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "table_row": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "table",
+                "key"
+              ],
+              "properties": {
+                "table": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "matched_column": {
+                  "type": "string"
+                },
+                "rule_revision": {
+                  "type": "integer"
+                },
+                "ontology_version": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "doc_entity_type": "Organization",
+          "canonical_name": "Acme Ltd",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "matched_via": "name",
+          "matched_column": "name",
+          "matched_text": "Acme Ltd",
+          "confidence_bp": 9000,
+          "status": "auto",
+          "provenance": {
+            "file": [
+              {
+                "path": "Contracts/acme.md",
+                "file_version": "00000000-0000-4000-8000-0000000000e1",
+                "block_id": "b1",
+                "anchor": {
+                  "kind": "text",
+                  "line_start": 1,
+                  "line_end": 3,
+                  "char_start": 0,
+                  "char_end": 40
+                }
+              }
+            ],
+            "table_row": {
+              "table": "sales.customers",
+              "key": "17",
+              "matched_column": "name",
+              "rule_revision": 1,
+              "ontology_version": 3
+            }
+          }
+        }
+      ]
+    },
+    "LinkList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "agent_db"
+      ],
+      "description": "`agent_db` is `unbound` when no Agent DB is configured (documents only: an empty list is the normal answer) and `bound` otherwise. An Agent token only sees the links of its Drives.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkItem"
+          }
+        },
+        "agent_db": {
+          "type": "string",
+          "enum": [
+            "unbound",
+            "bound"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "items": [],
+          "agent_db": "unbound"
+        }
+      ]
+    },
+    "LinkDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "doc_entity_key": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "db_table": {
+          "type": "string",
+          "maxLength": 130
+        },
+        "db_key": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "rejected"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "status": "confirmed"
+        }
+      ]
+    },
+    "LinkDecideResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "doc_entity_key": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "db_table": {
+          "type": "string",
+          "maxLength": 130
+        },
+        "db_key": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "rejected"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "status": "confirmed"
+        }
+      ]
+    },
+    "ProjectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "force": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "force": true
+        }
+      ]
+    },
+    "ProjectRuns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runs"
+      ],
+      "description": "What the projection did per Drive: `skipped` (`no_agent_db`, `unchanged`, `no_ontology`, `drive_inactive`) or `projection` (entities inserted, rewritten because their digest changed, removed) and `links` (created, updated, removed).",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "runs": [
+            {
+              "drive_id": "00000000-0000-4000-8000-0000000000d1",
+              "skipped": "no_agent_db",
+              "projection": null,
+              "links": null
+            }
+          ]
+        }
+      ]
+    },
+    "LinkRuleRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "key_col",
+        "name_col"
+      ],
+      "description": "Match `name_col` (and `alias_cols`) of `db_table` against document entities of `entity_type` (empty: any). One rule per (Drive, table); a changed rule moves its `revision`. Plain identifiers only; `_oo*`, `pg_catalog` and `information_schema` are refused.",
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "db_table": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,62}$"
+        },
+        "key_col": {
+          "type": "string"
+        },
+        "name_col": {
+          "type": "string"
+        },
+        "alias_cols": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          }
+        },
+        "entity_type": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "key_col": "id",
+          "name_col": "name",
+          "entity_type": "Organization"
+        }
+      ]
+    },
+    "LinkRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "key_col",
+        "name_col",
+        "revision"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "db_table": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,62}$"
+        },
+        "key_col": {
+          "type": "string"
+        },
+        "name_col": {
+          "type": "string"
+        },
+        "alias_cols": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          }
+        },
+        "entity_type": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "key_col": "id",
+          "name_col": "name",
+          "alias_cols": [],
+          "entity_type": "Organization",
+          "revision": 1
+        }
+      ]
+    },
+    "LinkRuleList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkRule"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AgentDbBindingRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_ref"
+      ],
+      "description": "A secret reference (`env:NAME`, `file:/absolute/path` or a name in the secrets directory) whose content is the connection URL of the Agent DB login. A URL is never accepted. The reference must resolve and the login must connect.",
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "examples": [
+        {
+          "secret_ref": "agentdb"
+        }
+      ]
+    },
+    "AgentDbBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bound"
+      ],
+      "properties": {
+        "bound": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "environment",
+            "binding"
+          ]
+        },
+        "secret_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "unchecked",
+            "ok",
+            "failed"
+          ]
+        },
+        "last_error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "bound": true,
+          "source": "binding",
+          "secret_ref": "agentdb",
+          "status": "ok",
+          "last_error_code": null,
+          "updated_at": "2026-11-18 00:00:00+00"
+        },
+        {
+          "bound": false
+        }
+      ]
+    },
+    "LinkRuleDeleted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "deleted"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "db_table": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "deleted": true
+        }
+      ]
+    },
+    "AgentTokenRevoked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revoked"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revoked": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "revoked": true
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -4477,6 +5589,141 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.4"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/agent-tokens",
+      "request": "AgentTokenRequest",
+      "response": "AgentToken",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-tokens",
+      "request": null,
+      "response": "AgentTokenList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/agent-tokens/{id}",
+      "request": null,
+      "response": "AgentTokenRevoked",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-tokens/self",
+      "request": null,
+      "response": "AgentTokenInfo",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/agent-tokens:introspect",
+      "request": "AgentIntrospectRequest",
+      "response": "AgentIntrospect",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/agents",
+      "request": null,
+      "response": "AuditAgents",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/links",
+      "request": null,
+      "response": "LinkList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/links:decide",
+      "request": "LinkDecideRequest",
+      "response": "LinkDecideResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/links:project",
+      "request": "ProjectRequest",
+      "response": "ProjectRuns",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/link-rules",
+      "request": null,
+      "response": "LinkRuleList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/link-rules",
+      "request": "LinkRuleRequest",
+      "response": "LinkRule",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/link-rules",
+      "request": null,
+      "response": "LinkRuleDeleted",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-db-binding",
+      "request": null,
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/agent-db-binding",
+      "request": "AgentDbBindingRequest",
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/agent-db-binding",
+      "request": null,
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
     }
   ]
 }
