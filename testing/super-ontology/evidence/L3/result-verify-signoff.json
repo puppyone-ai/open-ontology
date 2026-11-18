@@ -685,6 +685,28 @@
       "check": "reprocess::rejecting_keeps_the_old_extraction_and_a_share_used_fact_blocks_a_small_diff",
       "ok": true,
       "detail": ""
+    },
+    {
+      "check": "s3 lifecycle rustfs (tools/oo-test/super_ontology_s3.py, rustfs/rustfs@sha256:ee717072...)",
+      "ok": false,
+      "detail": "BLOCKED: required image not present locally; not pulled (host rule: local images only) | 0/20 checks run; git_head 4cee27056",
+      "n": "0/0"
+    },
+    {
+      "check": "s3 lifecycle minio (tools/oo-test/super_ontology_s3.py, pgsty/minio@sha256:b6bfe723...)",
+      "ok": false,
+      "detail": "BLOCKED: required image not present locally; not pulled (host rule: local images only) | 0/20 checks run; git_head 4cee27056",
+      "n": "0/0"
+    },
+    {
+      "check": "download (cargo test -p oo-docs --features objectstore-s3 --test download -- --ignored)",
+      "ok": false,
+      "detail": "BLOCKED: needs a RustFS/MinIO endpoint; neither image is local. git_head 4cee27056"
+    },
+    {
+      "check": "s3_rustfs (cargo test -p oo-connectors --features objectstore-s3 --test s3_rustfs -- --ignored)",
+      "ok": false,
+      "detail": "BLOCKED: needs a RustFS endpoint; image not local. git_head 4cee27056"
     }
   ],
   "notes": [
@@ -692,5 +714,14 @@
     "faults suite: 9/9 pass (harness run v1-l3-faults)",
     "acceptance run v1-l3-acc: 99/99",
     "cold1000 bench: 8/8 checks, 1000/1000 published; debug binaries as the harness builds them"
+  ],
+  "verify_runs": [
+    {
+      "run": "verify-sign-L3 (branch so/V38-signoff)",
+      "git_head": "4cee27056",
+      "status": "blocked",
+      "s3_cells": "0/2 cells run (images missing locally)",
+      "download_s3_rustfs": "not run (no endpoint)"
+    }
   ]
 }
