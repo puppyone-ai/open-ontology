@@ -1,0 +1,34 @@
+{
+ "run_id": "verify-signoff",
+ "status": "pass",
+ "verifier_head": "5f9061df6",
+ "verifier_branch": "so/V46-signoff",
+ "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+ "checks": [
+  {
+   "check": "super_ontology_cli_acceptance_l6.py",
+   "ok": true,
+   "detail": "36/36 checks"
+  },
+  {
+   "check": "health check requires status ok (check 1)",
+   "ok": true,
+   "detail": "oo docs health --json exit 0 status ok, executed"
+  },
+  {
+   "check": "D49 per-file md/txt detected to published within 7 s (check 8)",
+   "ok": true,
+   "detail": "executed; People/林川.md 2015 ms, Projects/星火计划.md 1735 ms; script label says p95 but the check asserts the max"
+  },
+  {
+   "check": "super_ontology_l6_e2e.py",
+   "ok": true,
+   "detail": "28 PASS, 0 FAIL, exit 0 (first attempt failed: PIL missing in python3 -I; rerun with uv --with pillow)"
+  }
+ ],
+ "findings": [
+  "evidence/L6/formal.md is absent at 5f9061df6; it exists on feat/super-ontology d2c857b03 (no new formal item under D81, gate green by reference to evidence/L4/formal.md). Not created here.",
+  "super_ontology_cli_acceptance_l6.py check 8 label says p95 but asserts the worst file (max) <= 7 s.",
+  "l6 e2e needs the pillow package; /usr/bin/python3 is documented but PIL wasn't tested there."
+ ]
+}
