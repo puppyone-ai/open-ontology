@@ -41,7 +41,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
   }
   for (const node of scene.groups) {
     if (!visible(node)) continue;
-    const above = node.expanded ? -node.r * camera.k - 11 : node.r * camera.k + 11;
+    const above = node.r * camera.k + 12;
     out.push(`<text x="${px(node.x)}" y="${n(Number(py(node.y)) + above)}" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">${node.label.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</text>`);
   }
   out.push("</svg>");
