@@ -165,13 +165,14 @@ impl S3Config {
         let provider = Provider::parse(backend).ok_or(DocSourceError::InvalidConfig(
             "backend is not an s3 backend",
         ))?;
+        // A key or secret written into the config as text is refused; `{"secret_ref": ...}` is a reference.
         for inline in [
             "access_key_id",
             "secret_access_key",
             "session_token",
             "secret",
         ] {
-            if config.get(inline).is_some() {
+            if config.get(inline).is_some_and(|v| !v.is_object()) {
                 return Err(DocSourceError::InvalidConfig(
                     "inline credentials are refused",
                 ));
@@ -224,15 +225,7 @@ impl S3Config {
                 provider.cloud_path_style()
             },
         );
-        let reference = text("secret_ref")
-            .or_else(|| {
-                config
-                    .get("credentials")
-                    .and_then(|c| c.get("secret_ref"))
-                    .and_then(Value::as_str)
-            })
-            .ok_or(DocSourceError::InvalidConfig("s3 config has no secret_ref"))?;
-        let secret = resolver.resolve(reference)?;
+        let credentials = credentials_of(config, resolver)?;
         let excludes = config
             .get("exclude")
             .and_then(Value::as_array)
@@ -250,8 +243,61 @@ impl S3Config {
             region,
             path_style,
             excludes,
-            credentials: S3Credentials::from_secret_text(&secret)?,
+            credentials,
         })
+    }
+}
+
+/// The credentials a Drive config names: one `secret_ref` (top level or under `credentials`) that resolves to
+/// the JSON `{"access_key_id", "secret_access_key", "session_token"?}`, or the contract's pair
+/// `access_key_id` and `secret_access_key` (and optionally `session_token`), each `{"secret_ref": ...}` that
+/// resolves to the plain value (docs-api 1.10).
+fn credentials_of(
+    config: &Value,
+    resolver: &SecretResolver,
+) -> Result<S3Credentials, DocSourceError> {
+    let ref_of = |v: &Value| {
+        v.get("secret_ref")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    };
+    let single = config
+        .get("secret_ref")
+        .and_then(Value::as_str)
+        .or_else(|| {
+            config
+                .get("credentials")
+                .and_then(|c| c.get("secret_ref"))
+                .and_then(Value::as_str)
+        });
+    let pair = config
+        .get("access_key_id")
+        .zip(config.get("secret_access_key"));
+    match (single, pair) {
+        (Some(_), Some(_)) => Err(DocSourceError::InvalidConfig(
+            "give one secret_ref or the access key pair, not both",
+        )),
+        (Some(reference), None) => S3Credentials::from_secret_text(&resolver.resolve(reference)?),
+        (None, Some((id, secret))) => {
+            let id_ref = ref_of(id).ok_or(DocSourceError::InvalidConfig(
+                "access_key_id has no secret_ref",
+            ))?;
+            let secret_ref = ref_of(secret).ok_or(DocSourceError::InvalidConfig(
+                "secret_access_key has no secret_ref",
+            ))?;
+            let token = match config.get("session_token") {
+                Some(t) => Some(resolver.resolve(&ref_of(t).ok_or(
+                    DocSourceError::InvalidConfig("session_token has no secret_ref"),
+                )?)?),
+                None => None,
+            };
+            S3Credentials::new(
+                resolver.resolve(&id_ref)?.trim(),
+                resolver.resolve(&secret_ref)?.trim(),
+                token.as_ref().map(|t| t.trim()),
+            )
+        }
+        (None, None) => Err(DocSourceError::InvalidConfig("s3 config has no secret_ref")),
     }
 }
 
