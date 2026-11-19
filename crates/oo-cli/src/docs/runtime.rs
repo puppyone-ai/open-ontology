@@ -15,14 +15,17 @@ use serde_json::json;
 
 use super::client::exit;
 use super::docs_cmd::{out, parse};
-use super::{secrets, sidecar};
+use super::{artifacts, secrets, sidecar};
 
 const REQUIREMENTS: &str = include_str!("../../../../tools/doc-parser/requirements.lock");
 const MODELS_LOCK: &str = include_str!("../../../../tools/doc-parser/models.lock.json");
 const FETCH_MODELS: &str = include_str!("../../../../tools/doc-parser/fetch_models.py");
-/// The PyPI OpenCV wheel bundles FFmpeg: a development stand-in for the image's
-/// FFmpeg-free source build (D65), used by the Docker-free sidecar only.
-const DEV_OPENCV: &str = "opencv-python-headless==5.0.0.93";
+/// The PyPI OpenCV wheel bundles FFmpeg (D65 forbids shipping it), so the
+/// environment never takes OpenCV from an index: it installs the pinned
+/// FFmpeg-free wheel built from source (`artifacts.rs`).
+const FORBIDDEN_PIN: &str = "opencv";
+/// Run inside the finished venv: the build must carry no FFmpeg and no video I/O.
+const FFMPEG_FREE_CHECK: &str = "import cv2,re; b=cv2.getBuildInformation(); assert not hasattr(cv2,'VideoCapture'), 'VideoCapture present'; assert not re.search(r'FFMPEG:\\s+YES', b), 'FFmpeg linked'; print(cv2.__version__)";
 const PARSER_IMAGE: &str = "oo-docs-parser:dev";
 
 macro_rules! parser_files {
@@ -64,11 +67,10 @@ pub fn lock_pins(text: &str) -> Vec<String> {
             .find(|c: char| c.is_whitespace() || c == ';' || c == '\\')
             .unwrap_or(rest.len());
         let ver = rest[..ver_end].split('+').next().unwrap_or("");
-        if !ver.is_empty() {
+        if !ver.is_empty() && !line.to_ascii_lowercase().starts_with(FORBIDDEN_PIN) {
             pins.push(format!("{}=={ver}", &line[..name_end]));
         }
     }
-    pins.push(DEV_OPENCV.to_owned());
     pins
 }
 
@@ -77,19 +79,15 @@ pub fn installed(dir: &Path) -> bool {
     dir.join(MARKER).is_file() && sidecar::probe(dir).is_ok()
 }
 
-fn find_uv() -> Option<PathBuf> {
-    let mut cands: Vec<PathBuf> = std::env::var_os("PATH")
-        .map(|p| std::env::split_paths(&p).map(|d| d.join("uv")).collect())
-        .unwrap_or_default();
-    for d in ["/opt/homebrew/bin", "/usr/local/bin"] {
-        cands.push(Path::new(d).join("uv"));
+/// The uv to use: `OO_UV` (an operator's own build), else the pinned one that
+/// `oo` bootstrapped into the state directory. A uv found on the PATH is not
+/// used: the environment is built by the pinned, hash-checked release only.
+fn find_uv(state: &Path) -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OO_UV").map(PathBuf::from) {
+        return p.is_file().then_some(p);
     }
-    if let Some(h) = std::env::var_os("HOME") {
-        for d in [".local/bin", ".cargo/bin"] {
-            cands.push(Path::new(&h).join(d).join("uv"));
-        }
-    }
-    cands.into_iter().find(|p| p.is_file())
+    let pinned = artifacts::pinned_uv_path(state);
+    pinned.is_file().then_some(pinned)
 }
 
 /// uv uses a cache under the oo state unless the operator set one.
@@ -163,13 +161,17 @@ fn models_from_image(dest: &Path) -> Result<(), String> {
 
 /// Build the environment in `dir` (idempotent: finished parts are kept).
 pub fn install(state: &Path, dir: &Path, say: &dyn Fn(&str)) -> Result<String, String> {
-    let uv = find_uv().ok_or(
-        "uv is not installed: the Docker-free parser needs it (https://docs.astral.sh/uv/ , `brew install uv`); markdown, text and CSV work without it",
-    )?;
     secrets::ensure_state_dir(state).map_err(|e| e.0.to_owned())?;
+    let uv = match find_uv(state) {
+        Some(u) => u,
+        None => artifacts::bootstrap_uv(state, say).map_err(|e| {
+            format!("uv is not available and could not be bootstrapped: {e}; markdown, text and CSV work without it")
+        })?,
+    };
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let venv = dir.join("venv");
     if !venv.join("bin/python").is_file() {
+        let wheel = artifacts::opencv_wheel(state, say)?;
         say("creating the Python 3.13 environment");
         let mut c = uv_cmd(&uv, state);
         c.args(["venv", "--python", "3.13", "-q"]).arg(&venv);
@@ -184,6 +186,21 @@ pub fn install(state: &Path, dir: &Path, say: &dyn Fn(&str)) -> Result<String, S
             .arg("-r")
             .arg(&pins);
         if let Err(e) = run(c, "uv pip install") {
+            let _ = std::fs::remove_dir_all(&venv);
+            return Err(e);
+        }
+        say("installing the FFmpeg-free OpenCV wheel");
+        let mut c = uv_cmd(&uv, state);
+        c.args(["pip", "install", "-q", "--no-deps", "--python"])
+            .arg(venv.join("bin/python"))
+            .arg(&wheel);
+        let mut res = run(c, "uv pip install opencv");
+        if res.is_ok() {
+            let mut c = Command::new(venv.join("bin/python"));
+            c.args(["-I", "-c", FFMPEG_FREE_CHECK]).env_clear();
+            res = run(c, "FFmpeg-free OpenCV check");
+        }
+        if let Err(e) = res {
             let _ = std::fs::remove_dir_all(&venv);
             return Err(e);
         }
@@ -227,7 +244,8 @@ pub fn install(state: &Path, dir: &Path, say: &dyn Fn(&str)) -> Result<String, S
     }
     std::fs::write(
         dir.join(MARKER),
-        json!({"protocol": "oo.docs-runtime/v1", "models": source, "python": "3.13"}).to_string(),
+        json!({"protocol": "oo.docs-runtime/v1", "models": source, "python": "3.13",
+            "opencv": {"version": artifacts::opencv_pin().0, "wheel_sha256": artifacts::opencv_pin().1, "ffmpeg": false}}).to_string(),
     )
     .map_err(|e| e.to_string())?;
     sidecar::probe(dir)?;
@@ -250,16 +268,20 @@ pub fn run_cmd(rest: &[String]) -> u8 {
     match p.pos.first().map(String::as_str) {
         Some("status") => {
             let ok = installed(&dir);
-            let uv = find_uv().is_some();
+            let uv = find_uv(&state).is_some();
             out(
                 &p,
                 "oo.docs-runtime/v1",
-                json!({"installed": ok, "dir": dir, "uv": uv}),
+                json!({"installed": ok, "dir": dir, "uv": uv, "uv_bootstrap": "pinned uv is downloaded on install"}),
                 format!(
                     "parser runtime {} ({}){}",
                     if ok { "installed" } else { "not installed" },
                     dir.display(),
-                    if !ok && !uv { "; uv is missing" } else { "" }
+                    if !ok && !uv {
+                        "; the pinned uv is downloaded on install"
+                    } else {
+                        ""
+                    }
                 ),
             );
             0
@@ -303,11 +325,11 @@ mod tests {
 
     #[test]
     fn pins_drop_local_versions_and_hashes() {
-        let t = "torch==2.15.0+cpu \\\n    --hash=sha256:aa\nfoo[bar]==1.2 ; python_version < '4'\n# c\n";
+        let t = "torch==2.15.0+cpu \\\n    --hash=sha256:aa\nfoo[bar]==1.2 ; python_version < '4'\nopencv-python-headless==5.0.0.93 \\\n    --hash=sha256:bb\n# c\n";
         let p = lock_pins(t);
         assert_eq!(p[0], "torch==2.15.0");
         assert_eq!(p[1], "foo[bar]==1.2");
-        assert_eq!(p.last().unwrap(), DEV_OPENCV);
+        assert_eq!(p.len(), 2);
     }
 
     #[test]

@@ -245,6 +245,9 @@ def main():
         env["OO_DOCS_SIDECAR_DIR"] = os.environ["OO_DOCS_SIDECAR_DIR"]
     if os.environ.get("UV_CACHE_DIR"):  # a shared download cache; the environment itself is still built under the fresh HOME
         env["UV_CACHE_DIR"] = os.environ["UV_CACHE_DIR"]
+    for k in ("OO_DOCS_OPENCV_WHEEL", "OO_DOCS_UV_ARCHIVE"):  # the pinned runtime artifacts, until the owner publishes them
+        if os.environ.get(k):
+            env[k] = os.environ[k]
     if os.environ.get("OO_DOCS_DEPLOY_DIR"):
         env["OO_DOCS_DEPLOY_DIR"] = os.environ["OO_DOCS_DEPLOY_DIR"]
     if os.environ.get("OO_DOCS_PG_BIN_DIR"):

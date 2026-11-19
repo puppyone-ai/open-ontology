@@ -1,0 +1,211 @@
+{
+ "protocol": "oo.e2e.cli-only-matrix/v1",
+ "ok": true,
+ "lane": "super-ontology-g1",
+ "checks": [
+  {
+   "check": "A0 docker is not reachable for oo",
+   "ok": true
+  },
+  {
+   "check": "A1 fresh HOME: no state yet",
+   "ok": true
+  },
+  {
+   "check": "A1 oo source add s3 on a fresh HOME starts the daemon and registers the bucket",
+   "ok": true
+  },
+  {
+   "check": "A1 no model is configured",
+   "ok": true
+  },
+  {
+   "check": "A1 files-only upload (managed Drive, no model) publishes",
+   "ok": true
+  },
+  {
+   "check": "A1 no model call was made",
+   "ok": true
+  },
+  {
+   "check": "A1 rules alone produced the entity",
+   "ok": true
+  },
+  {
+   "check": "A2 s3p: oo source test reads the bucket (path addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 s3p: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 r2p: oo source add r2 exits 0",
+   "ok": true
+  },
+  {
+   "check": "A2 r2p: oo source test reads the bucket (path addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 r2p: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 ossp: oo source add oss exits 0",
+   "ok": true
+  },
+  {
+   "check": "A2 ossp: oo source test reads the bucket (path addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 ossp: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 ossv: oo source add oss exits 0",
+   "ok": true
+  },
+  {
+   "check": "A2 ossv: oo source test reads the bucket (virtual addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 ossv: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 cosp: oo source add cos exits 0",
+   "ok": true
+  },
+  {
+   "check": "A2 cosp: oo source test reads the bucket (path addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 cosp: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 cosv: oo source add cos exits 0",
+   "ok": true
+  },
+  {
+   "check": "A2 cosv: oo source test reads the bucket (virtual addressing)",
+   "ok": true
+  },
+  {
+   "check": "A2 cosv: upload lands in the bucket and the engine publishes it",
+   "ok": true
+  },
+  {
+   "check": "A2 the virtual-hosted source records no path style, the credential reference stays hidden",
+   "ok": true
+  },
+  {
+   "check": "A3 no stack file and no database binding exist",
+   "ok": true
+  },
+  {
+   "check": "A3 docs:read token created",
+   "ok": true
+  },
+  {
+   "check": "A3 files-only search answers with a file anchor, the database side is skipped",
+   "ok": true
+  },
+  {
+   "check": "A3 a file that lives in the virtual-hosted oss bucket is found",
+   "ok": true
+  },
+  {
+   "check": "A3 a database query is ONTOLOGY_SCOPE_DENIED",
+   "ok": true
+  },
+  {
+   "check": "A4 a token with --ttl 60s is created",
+   "ok": true
+  },
+  {
+   "check": "A4 it answers before it expires",
+   "ok": true
+  },
+  {
+   "check": "A4 expired: 401 ONTOLOGY_TOKEN_INVALID on the raw route",
+   "ok": true
+  },
+  {
+   "check": "A4 expired: the CLI fails with ONTOLOGY_TOKEN_INVALID",
+   "ok": true
+  },
+  {
+   "check": "A4 expired: 401 on the engine routes too",
+   "ok": true
+  },
+  {
+   "check": "A4 the other token is unaffected",
+   "ok": true
+  },
+  {
+   "check": "A5 the S3 secret is in no process argument list and no command output",
+   "ok": true
+  },
+  {
+   "check": "A5 the S3 secret is on disk only in 0600 files",
+   "ok": true
+  },
+  {
+   "check": "A5 the Agent token is on disk only in 0600 files",
+   "ok": true
+  },
+  {
+   "check": "B1 oo init --dsn (flags only, no TTY) checks the TLS database and writes nothing",
+   "ok": true
+  },
+  {
+   "check": "B1 oo source add postgres registers the database in the stack file (password to a 0600 file)",
+   "ok": true
+  },
+  {
+   "check": "B1 oo source test reaches the Gateway's database",
+   "ok": true
+  },
+  {
+   "check": "B2 the database is bound; no Drive and no file exist",
+   "ok": true
+  },
+  {
+   "check": "B2 a db:read token (no Drive) is created",
+   "ok": true
+  },
+  {
+   "check": "B2 the Agent queries through the Gateway and the answer cites the publication",
+   "ok": true
+  },
+  {
+   "check": "B2 search runs with the document side skipped and the database side asked",
+   "ok": true
+  },
+  {
+   "check": "B2 sources lists the database and no Drive",
+   "ok": true
+  },
+  {
+   "check": "B2 a write is refused",
+   "ok": true
+  },
+  {
+   "check": "B2 the db-only token cannot read documents or drives",
+   "ok": true
+  },
+  {
+   "check": "B2 the databases are untouched",
+   "ok": true
+  },
+  {
+   "check": "B2 secrets only in 0600 files",
+   "ok": true
+  }
+ ]
+}

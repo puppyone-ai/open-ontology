@@ -1,0 +1,71 @@
+{
+ "checks": [
+  {
+   "check": "status before: not installed, no uv and no docker on PATH",
+   "ok": true
+  },
+  {
+   "check": "upload of docx and pdf exits 0 (published)",
+   "ok": true
+  },
+  {
+   "check": "both files are published, none unsupported",
+   "ok": true
+  },
+  {
+   "check": "the environment is under the oo state dir, not /tmp",
+   "ok": true
+  },
+  {
+   "check": "models came from the pinned sources (no Docker)",
+   "ok": true
+  },
+  {
+   "check": "the pinned uv was bootstrapped into the oo state dir",
+   "ok": true
+  },
+  {
+   "check": "the marker records the FFmpeg-free OpenCV pin",
+   "ok": true
+  },
+  {
+   "check": "SBOM generated from the installed environment",
+   "ok": true
+  },
+  {
+   "check": "no FFmpeg library or codec file in the environment",
+   "ok": true
+  },
+  {
+   "check": "SBOM licence gate passes (no AGPL/GPL/FFmpeg, OpenCV attests FFmpeg off)",
+   "ok": true
+  },
+  {
+   "check": "cv2 reports no VideoCapture and no FFmpeg",
+   "ok": true
+  },
+  {
+   "check": "files listed as published",
+   "ok": true
+  },
+  {
+   "check": "second start reuses the environment (no install lines)",
+   "ok": true
+  }
+ ],
+ "upload_seconds": 63.9,
+ "upload_stdout": "{\"added\":2,\"changed\":0,\"created_drive\":true,\"drive\":{\"backend\":\"fs\",\"id\":\"b2c5f5a8-a832-4056-9828-a33743c6e201\",\"name\":\"default\"},\"drive_rev\":0,\"files\":[{\"bytes\":6793,\"path\":\"2026-01-08-年度计划会.docx\",\"renamed\":false},{\"bytes\":1766,\"path\":\"办公迁址方案.pdf\",\"renamed\":false}],\"managed\":true,\"protocol\":\"oo.docs-upload/v1\",\"skipped_hidden\":0,\"uploaded\":2,\"wait\":{\"awaiting_review\":0,\"counts\":{\"published\":2},\"drive_rev\":2,\"failed\":0,\"settled\":true,\"waited_ms\":28218}}\n",
+ "sbom_gate": "SBOM gate: PASS  components={'python': 85, 'native-in-wheel': 1, 'model': 13}\n  REVIEWED  certifi 2026.10.23  [python]  MPL-2.0\n  REVIEWED  tqdm 4.70.1  [python]  MPL-2.0 AND MIT\n",
+ "files": [
+  {
+   "state": "published",
+   "name": "2026-01-08-年度计划会.docx"
+  },
+  {
+   "state": "published",
+   "name": "办公迁址方案.pdf"
+  }
+ ],
+ "second_start_seconds": 3.4,
+ "ok": true
+}
