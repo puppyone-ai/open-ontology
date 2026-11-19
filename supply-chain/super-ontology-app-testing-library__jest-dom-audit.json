@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@testing-library/jest-dom",
+    "version": "7.0.1",
+    "official_source": "https://registry.npmjs.org/@testing-library/jest-dom/7.0.1",
+    "repository": "https://github.com/testing-library/jest-dom",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-08-09T23:44:33.598Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 101,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: npm >=6, node >=22, yarn >=1 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/testing-library__jest-dom-7.0.1/LICENSE",
+        "sha256": "bf8fd38056b7606deccfcadb4d8ca1c210082d8ef5513426d2650daedc30bed3"
+      }
+    ],
+    "digest": "sha256:8545c1b16bcc0ed4a61954838f2c06c3ba81671f011d49409cec10422532b583",
+    "registry_integrity": "sha512-oMDTC3oA+6CXSO2JZnvOI7CA6oVub6kij5ggk9ohwye5slmkwxYDXcPOVxgMw/RQlticjtO0C1RZkR97HgrWMw==",
+    "registry_shasum": "649a9a8b2039f28d29f9f7a46eba9a8b727f811e",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (advisory ids GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c, GHSA-4w7w-5xrc-9h26, GHSA-2m5v-pch6-74hx, GHSA-qrxm-fqhp-jwvm, GHSA-9fm3-97px-rjf6, GHSA-55wc-3pg8-jfw6; dispositions in the same file)",
+    "disposition": "resolved-before-adoption",
+    "known_exploitable_high_severity": false,
+    "disposition_note": "Open advisories exist on transitive dependencies of this package; none is exploitable in the shipped artifact (see the dispositions in the evidence file). The disposition value is the closest allowed by the record shape: the advisories are NOT patched, they are judged not reachable. Flagged for owner review.",
+    "residual_advisories": [
+      {
+        "id": "GHSA-4qv8-2p9j-2685",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser"
+      },
+      {
+        "id": "GHSA-f72v-6w45-q472",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens"
+      },
+      {
+        "id": "GHSA-xjj6-f33q-929c",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unhandled error on excessive content-encodings"
+      },
+      {
+        "id": "GHSA-4w7w-5xrc-9h26",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to cache poisoning and cross-user disclosure via cross-origin redirects"
+      },
+      {
+        "id": "GHSA-2m5v-pch6-74hx",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent"
+      },
+      {
+        "id": "GHSA-qrxm-fqhp-jwvm",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation"
+      },
+      {
+        "id": "GHSA-9fm3-97px-rjf6",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering"
+      },
+      {
+        "id": "GHSA-55wc-3pg8-jfw6",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unhandled exception in the decompress interceptor"
+      }
+    ]
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

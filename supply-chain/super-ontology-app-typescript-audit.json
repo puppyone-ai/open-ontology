@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "typescript",
+    "version": "6.0.3",
+    "official_source": "https://registry.npmjs.org/typescript/6.0.3",
+    "repository": "https://github.com/microsoft/TypeScript",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-04-16T23:38:27.905Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 216,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node >=14.17 (the build uses Node 24).",
+    "license_spdx": "Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "licenses/super-ontology-app/typescript-6.0.3/LICENSE.txt",
+        "sha256": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47"
+      }
+    ],
+    "digest": "sha256:33cd0ee1beaa8c9e9d15a9da836c62ddea4c34a42d7c2d349dbc80d94165d22a",
+    "registry_integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+    "registry_shasum": "90251dc007916e972786cb94d74d15b185577d21",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "Apache-2.0",
+    "dual_license_choice": null,
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "On redistribution, include the license and any NOTICE text and state changes (build or test tool; nothing of it is shipped in the DMG)."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG. Apache-2.0 with ThirdPartyNoticeText.txt for bundled third-party code; compiler only, nothing shipped."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through typescript)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

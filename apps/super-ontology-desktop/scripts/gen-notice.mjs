@@ -8,17 +8,27 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
 
+// `pnpm licenses --prod` lists what an importer needs, but not the packages its workspace dependency needs: the design system's own
+// runtime packages (intl-messageformat and its formatjs parts) are bundled into the renderer too, so that importer is read as well.
+const IMPORTERS = [root, path.resolve(root, "../../packages/design-system")];
+
 function productionPackages() {
-  let raw;
-  try { raw = execFileSync("pnpm", ["licenses", "list", "--prod", "--json"], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); } catch { return []; }
-  const trimmed = raw.trim();
-  if (!trimmed) return [];
-  const byLicense = JSON.parse(trimmed);
-  const rows = [];
-  for (const [license, entries] of Object.entries(byLicense)) {
-    for (const entry of entries) rows.push({ name: entry.name, versions: [...(entry.versions ?? [])].sort().join(", "), license, homepage: entry.homepage ?? "" });
+  const merged = new Map();
+  for (const cwd of IMPORTERS) {
+    let raw;
+    try { raw = execFileSync("pnpm", ["licenses", "list", "--prod", "--json"], { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); } catch { continue; }
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    for (const [license, entries] of Object.entries(JSON.parse(trimmed))) {
+      for (const entry of entries) {
+        const key = `${entry.name}|${license}`;
+        const known = merged.get(key);
+        const versions = new Set([...(known?.versions ?? []), ...(entry.versions ?? [])]);
+        merged.set(key, { name: entry.name, versions, license, homepage: entry.homepage ?? known?.homepage ?? "" });
+      }
+    }
   }
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+  return [...merged.values()].map((row) => ({ ...row, versions: [...row.versions].sort().join(", ") })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function thirdParty() {

@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": false,
+  "record_status": "owner-review-required-build-time-only",
+  "purpose": "Dedicated review of three WTFPL-licensed npm packages that are reached through electron-builder > app-builder-lib > builder-util > sanitize-filename. WTFPL is not OSI-approved. docs/02 requires OSI-approved permissive licenses for the default install, so these packages are admissible only because they are never part of a shipped artifact; this file is the evidence for that claim. It is not an admission of WTFPL for any shipped code.",
+  "audited_false_reason": "truncate-utf8-bytes 1.0.2 ships no LICENSE file (the manifest is its only license evidence, which policy.md section 1 item 9 calls a hint), and the license field of all three is a WTFPL expression that governance/qa_record.py cannot admit as a default-artifact license. The owner decides; nothing is waived here.",
+  "reached_through": "pnpm why (2026-11-19): truncate-utf8-bytes > sanitize-filename > builder-util > app-builder-lib / dmg-builder / electron-builder-squirrel-windows / electron-publish > electron-builder (devDependency of @open-ontology/super-ontology-desktop). utf8-byte-length is a dependency of truncate-utf8-bytes. No path from the app's dependencies exists.",
+  "packages": [
+    {
+      "ecosystem": "npm",
+      "name": "truncate-utf8-bytes",
+      "version": "1.0.2",
+      "official_source": "https://registry.npmjs.org/truncate-utf8-bytes/1.0.2",
+      "repository": "https://github.com/parshap/truncate-utf8-bytes",
+      "manifests": [
+        "pnpm-lock.yaml",
+        "apps/super-ontology-desktop/package.json"
+      ],
+      "publication_date": "2016-09-29T18:43:57.785Z",
+      "adoption_date": "2026-11-19T14:07:50Z",
+      "elapsed_seconds": 319922632,
+      "age_days_at_adoption": 3702,
+      "seven_day_rule": "pass",
+      "digest": "sha256:317ae6326a50e6c63b6325e9d7d90881382fd22b6351c546c3f36be58eabeb64",
+      "registry_integrity": "sha512-95Pu1QXQvruGEhv62XCMO3Mm90GscOCClvrIUwCM0PYOXK3kaF3l3sIHxx71ThJfcbM2O5Au6SO3AWCSEfW4mQ==",
+      "upstream_manifest_license": "WTFPL",
+      "license_spdx": "WTFPL",
+      "license_evidence": [],
+      "license_evidence_gap": "The published tarball has no LICENSE, COPYING or NOTICE file; the package.json license field (WTFPL) is the only statement. sha256 of the tarball is the digest above.",
+      "relied_on_license": "WTFPL (only option; not OSI-approved)",
+      "dual_license_choice": null,
+      "shipped_in_dmg": false
+    },
+    {
+      "ecosystem": "npm",
+      "name": "sanitize-filename",
+      "version": "1.6.5",
+      "official_source": "https://registry.npmjs.org/sanitize-filename/1.6.5",
+      "repository": "https://github.com/parshap/node-sanitize-filename",
+      "manifests": [
+        "pnpm-lock.yaml",
+        "apps/super-ontology-desktop/package.json"
+      ],
+      "publication_date": "2026-11-07T23:03:07.340Z",
+      "adoption_date": "2026-11-19T14:07:50Z",
+      "elapsed_seconds": 1004683,
+      "age_days_at_adoption": 11,
+      "seven_day_rule": "pass",
+      "digest": "sha256:5a19e1f363451b9245ef8ffd6e7d942da0ac66a526b85f68dab37f4eb70de27d",
+      "registry_integrity": "sha512-+dVApt46/oAFWRP0KBSnYNLRw1peY7o/b12tmpllPNFpjfwkPuZut1+DiKaD9zYx5r2SHwc+XMLSBaDiyUJw3g==",
+      "upstream_manifest_license": "WTFPL OR ISC",
+      "license_spdx": "WTFPL OR ISC",
+      "license_evidence": [
+        {
+          "spdx": "WTFPL",
+          "source": "licenses/super-ontology-app/sanitize-filename-1.6.5/LICENSE.md",
+          "sha256": "69dbd0bb60112fbdd6da878a5ecddee7ddac764d669591d7846cb0310c6e7be8"
+        },
+        {
+          "spdx": "ISC",
+          "source": "licenses/super-ontology-app/sanitize-filename-1.6.5/LICENSE.md",
+          "sha256": "69dbd0bb60112fbdd6da878a5ecddee7ddac764d669591d7846cb0310c6e7be8"
+        }
+      ],
+      "relied_on_license": "ISC",
+      "dual_license_choice": "ISC",
+      "license_obligations": [
+        {
+          "spdx": "ISC",
+          "obligations": [
+            "Retain the copyright and permission notice in all copies (applies only if the package were redistributed; it is not)."
+          ]
+        }
+      ],
+      "shipped_in_dmg": false,
+      "note": "Published 2026-11-07, 11 days before adoption, so it passes the seven-day rule."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "utf8-byte-length",
+      "version": "1.0.5",
+      "official_source": "https://registry.npmjs.org/utf8-byte-length/1.0.5",
+      "repository": "https://github.com/parshap/utf8-byte-length",
+      "manifests": [
+        "pnpm-lock.yaml",
+        "apps/super-ontology-desktop/package.json"
+      ],
+      "publication_date": "2024-05-14T19:18:05.723Z",
+      "adoption_date": "2026-11-19T14:07:50Z",
+      "elapsed_seconds": 79382984,
+      "age_days_at_adoption": 918,
+      "seven_day_rule": "pass",
+      "digest": "sha256:afb0f76e4271dbe3bfeae359804c0149ca533254db40c59cc22f5fdd6a4b93b1",
+      "registry_integrity": "sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==",
+      "upstream_manifest_license": "(WTFPL OR MIT)",
+      "license_spdx": "WTFPL OR MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "licenses/super-ontology-app/utf8-byte-length-1.0.5/LICENSE-MIT",
+          "sha256": "bfefe6b48c92732f278120d7a3bf682c3b01e25fdc2e0327544cbb62a2fa9a8e"
+        },
+        {
+          "spdx": "WTFPL",
+          "source": "licenses/super-ontology-app/utf8-byte-length-1.0.5/LICENSE-WTFPL",
+          "sha256": "184d8dd2923c05139a55da1ff61a367e45ca596ac4fb96a26856c3c90003c4bb"
+        }
+      ],
+      "relied_on_license": "MIT",
+      "dual_license_choice": "MIT",
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions (applies only if redistributed; it is not)."
+          ]
+        }
+      ],
+      "shipped_in_dmg": false
+    }
+  ],
+  "build_time_only_evidence": {
+    "method": "Packed the app with the exact electron-builder.yml (electron-builder --mac dir --arm64, output redirected outside the repository tree), then listed app.asar with @electron/asar.",
+    "asar_entries": 3192,
+    "asar_node_modules_packages": 108,
+    "result": "app.asar contains no sanitize-filename, truncate-utf8-bytes, utf8-byte-length, electron-builder, app-builder-lib, vite, vitest, eslint, typescript or jsdom entry. Its node_modules holds only the production dependency closure of the app (react, react-dom, lucide-react, react-markdown, remark-gfm, intl-messageformat and their runtime dependencies) plus @open-ontology/design-system.",
+    "config_reasoning": [
+      "electron-builder.yml `files` lists electron/**, src/shared/**, resources/bootstrap/**, dist/renderer/**, package.json and three negative globs; extraResources copies only build/oo-bundle (oo, oo-docs-engine, oo-bundle.json) and build/generated/legal.",
+      "electron-builder adds node_modules of the app's `dependencies` only; devDependencies (electron-builder and its tree) are never collected.",
+      "pnpm licenses list --prod for the app importer (the source of THIRD_PARTY_NOTICES.md) contains none of the three packages.",
+      "The prepare scripts (scripts/prepare-oo-bundle.mjs, gen-icon.mjs, gen-notice.mjs) do not copy anything from node_modules into build/."
+    ],
+    "caveat": "The pack check ran without the oo bundle and legal folder (not built in this tree: electron-builder reported the two sources missing); those two sources do not contain node_modules content. Re-run the same listing on the real DMG's app.asar at release."
+  },
+  "owner_flags": [
+    "WTFPL is permissive but not OSI-approved. These packages are accepted only as build-time tools, on the condition that the DMG never contains them.",
+    "truncate-utf8-bytes 1.0.2 has no license file in its tarball; only its manifest says WTFPL.",
+    "Replacing electron-builder (or a future builder-util that drops sanitize-filename) removes all three."
+  ],
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json (pnpm 12.10.1, 2026-11-19, workspace lockfile)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory names any of the three packages)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

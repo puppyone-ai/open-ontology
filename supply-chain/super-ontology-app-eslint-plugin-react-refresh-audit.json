@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "eslint-plugin-react-refresh",
+    "version": "0.5.7",
+    "official_source": "https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.7",
+    "repository": "https://github.com/ArnaudBarre/eslint-plugin-react-refresh",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-09-14T16:12:50.394Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 65,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: none declared (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/eslint-plugin-react-refresh-0.5.7/LICENSE",
+        "sha256": "fba570176c68f716676e04cad6c39fb56b763e44fc11be22fe6863ff19092a9b"
+      }
+    ],
+    "digest": "sha256:dafbd891afe1cb4873fa1a430fe79c6b4221970e79da1bdca44cfcdd6313c41d",
+    "registry_integrity": "sha512-XhJSzLljuYD4UjNuFGJu2v7aD3sqNVK12w5/DCUfrNfHWegZo2+TsavNx8MuxMwEquuFAzNbNfXKU0WoZ+YUIg==",
+    "registry_shasum": "acff4138192efd299114c8f101de1088416054c2",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (advisory ids GHSA-g3hv-75wg-m249; dispositions in the same file)",
+    "disposition": "resolved-before-adoption",
+    "known_exploitable_high_severity": false,
+    "disposition_note": "Open advisories exist on transitive dependencies of this package; none is exploitable in the shipped artifact (see the dispositions in the evidence file). The disposition value is the closest allowed by the record shape: the advisories are NOT patched, they are judged not reachable. Flagged for owner review.",
+    "residual_advisories": [
+      {
+        "id": "GHSA-g3hv-75wg-m249",
+        "severity": "moderate",
+        "module": "minimatch",
+        "vulnerable": ">=7.0.0 <11.0.1",
+        "patched": ">=11.0.1",
+        "found_versions": [
+          "10.2.6",
+          "9.0.9"
+        ],
+        "title": "minimatch has potential denial of service via globparts amplification"
+      }
+    ]
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}
