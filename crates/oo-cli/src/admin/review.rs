@@ -48,7 +48,16 @@ fn read_text(path: &Path) -> Result<String> {
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(path)
-        .map_err(|_| Failure::local("REVIEW_FILE_IO"))?;
+        .map_err(|e| {
+            Failure::local(format!(
+                "REVIEW_FILE_IO: cannot open the review file ({}); it must exist as a regular file, not a symbolic link, with mode 0600",
+                match e.kind() {
+                    std::io::ErrorKind::NotFound => "not found",
+                    std::io::ErrorKind::PermissionDenied => "permission denied",
+                    _ => "not a readable regular file",
+                }
+            ))
+        })?;
     let meta = file
         .metadata()
         .map_err(|_| Failure::local("REVIEW_FILE_IO"))?;
@@ -57,7 +66,9 @@ fn read_text(path: &Path) -> Result<String> {
         || meta.mode() & 0o777 != 0o600
         || meta.len() > MAX_BYTES
     {
-        return Err(Failure::local("REVIEW_PRIVATE_FILE_REQUIRED"));
+        return Err(Failure::local(
+            "REVIEW_PRIVATE_FILE_REQUIRED: the review file must be a regular file with mode 0600 (chmod 600) and at most the size limit",
+        ));
     }
     let mut text = String::new();
     file.take(MAX_BYTES + 1)
@@ -955,6 +966,39 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unreadable_review_files_say_why() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("oo-review-msg-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let missing = read(&dir.join("absent.json")).err().unwrap();
+        assert!(
+            missing.message_for_test().contains("not found"),
+            "{}",
+            missing.message_for_test()
+        );
+        assert!(missing.message_for_test().contains("0600"));
+        let open = dir.join("open.json");
+        fs::write(&open, "{}").unwrap();
+        fs::set_permissions(&open, fs::Permissions::from_mode(0o644)).unwrap();
+        let loose = read(&open).err().unwrap();
+        assert!(
+            loose.message_for_test().contains("chmod 600"),
+            "{}",
+            loose.message_for_test()
+        );
+        let link = dir.join("link.json");
+        std::os::unix::fs::symlink(&open, &link).unwrap();
+        let linked = read(&link).err().unwrap();
+        assert!(
+            linked.message_for_test().contains("symbolic link"),
+            "{}",
+            linked.message_for_test()
+        );
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn build_review_file_becomes_the_bound_confirmation_without_a_screen() {
         use crate::tui::adjudication as adj;

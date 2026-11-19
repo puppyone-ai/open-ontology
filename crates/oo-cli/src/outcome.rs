@@ -64,6 +64,11 @@ pub struct Failure {
 }
 
 impl Failure {
+    #[cfg(test)]
+    pub(crate) fn message_for_test(&self) -> &str {
+        &self.message
+    }
+
     fn plain(
         exit: u8,
         class: Class,
