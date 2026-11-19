@@ -174,9 +174,12 @@ def main():
         ev.check("3 oo docs drive show has drive_rev and freshness", rc == 0 and isinstance(v.get("drive_rev"), int) and "freshness" in v, f"drive_rev {v.get('drive_rev')}")
         rc, v = cli.json("docs", "files", "ls", "--drive", "acceptance", "--state", "published")
         rc_i, vi = cli.json("docs", "files", "ls", "--drive", "acceptance", "--state", "indexed")
-        # Deterministic sample: every file but the one of the conflict (D57) is published; that one waits in indexed.
-        ev.check("3 oo docs files ls --state published", rc == 0 and rc_i == 0 and len(v.get("files", [])) == len(SAMPLE) - 1 and len(vi.get("files", [])) == 1,
-                 f"{len(v.get('files', []))} published, {len(vi.get('files', []))} indexed of {len(SAMPLE)} (the file of the conflict waits in indexed)")
+        # 10 4.2: a file is published once every auto-publishable fact of it is in a
+        # version; the facts held for review (the conflict of D57) count as
+        # pending_review and do not keep the file in indexed (check 4 below
+        # proves the conflict itself is still queued).
+        ev.check("3 oo docs files ls --state published", rc == 0 and rc_i == 0 and len(v.get("files", [])) == len(SAMPLE) and len(vi.get("files", [])) == 0,
+                 f"{len(v.get('files', []))} published, {len(vi.get('files', []))} indexed of {len(SAMPLE)} (the held facts of the conflict wait in review, not in the file state)")
         rc, v = cli.json("docs", "files", "show", file_ids["Broken/pdf-encrypted.pdf"])
         ev.check("3 oo docs files show gives the reason of the encrypted pdf", rc == 0 and v.get("state") == "encrypted" and v.get("state_code") == "DOCS_PARSE_ENCRYPTED", f"{v.get('state')} {v.get('state_code')}")
         rc, v = cli.json("docs", "files", "show", file_ids["Meetings/2026-01-08-年度计划会.docx"])
