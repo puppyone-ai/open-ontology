@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 export type Section = "home" | "sources" | "ontology" | "agents" | "settings";
 export type OntologyTab = "entities" | "review" | "conflicts";
 export type AgentsTab = "connect" | "packs" | "access";
-export type SettingsTab = "engine" | "model" | "storage" | "privacy" | "about";
+export type SettingsTab = "general" | "engine" | "model" | "privacy" | "about";
 
 export type Nav = {
   section: Section;
@@ -28,7 +28,7 @@ const Context = createContext<Api | null>(null);
 const FIRST_RUN_KEY = "so.firstRun.done";
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "engine", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1" });
+  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1" });
   const [firstRunOpen, setFirstRunOpen] = useState(() => window.localStorage.getItem(FIRST_RUN_KEY) !== "1");
   const go = useCallback<Api["go"]>((section, tab) => setNav((c) => ({
     ...c, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab,

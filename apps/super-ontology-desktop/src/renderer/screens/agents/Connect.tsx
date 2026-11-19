@@ -16,7 +16,7 @@ const NAME = /^[A-Za-z0-9._-]{1,64}$/u;
 const TTL_DAYS = [1, 7, 30, 90] as const;
 
 /** Step by step: name an Agent, issue a read-only token, copy the configuration of the Agent it will run in. */
-export function Connect() {
+export function Connect({ compact = false }: { compact?: boolean } = {}) {
   const { t } = useLocalization();
   const errorText = useErrorText();
   const relative = useRelativeTime();
@@ -99,7 +99,7 @@ export function Connect() {
         </Section>
       )}
 
-      <Section title={t("app.connect.tokens.title")}>
+      {!compact && <Section title={t("app.connect.tokens.title")}>
         {tokens.status === "loading" && !tokens.value ? <Card className="so-list" aria-busy="true">{Array.from({ length: 2 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="40%" height={13} /></div>)}</Card>
           : tokens.status === "error" && !tokens.value ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={tokens.reload}>{t("app.common.retry")}</Button>}>{errorText(tokens.error)}</Notice>
           : (tokens.value?.items ?? []).length === 0 ? <Card><EmptyState icon={KeyRound} title={t("app.connect.tokens.empty.title")} description={t("app.connect.tokens.empty.body")} compact /></Card>
@@ -113,7 +113,7 @@ export function Connect() {
               ))}
             </Card>
           )}
-      </Section>
+      </Section>}
 
       {revoking && (
         <Dialog size="sm" title={t("app.connect.revoke.title", { name: revoking.name })} description={t("app.connect.revoke.body")} onClose={() => setRevoking(null)} closeLabel={t("app.common.close")}

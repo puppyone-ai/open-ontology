@@ -26,11 +26,12 @@ try {
   for (const scale of [1, 2]) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: scale, colorScheme: "light", locale: process.env.SO_LOCALE ?? "en-US" });
     const page = await context.newPage();
-    await page.addInitScript(() => { if (!window.localStorage.getItem("so.firstRun.done") && !window.sessionStorage.getItem("so.shot.firstRun")) window.localStorage.setItem("so.firstRun.done", "1"); });
     for (const spec of specs) {
       const cut = spec.indexOf("=");
       const name = cut < 0 ? spec : spec.slice(0, cut);
       const steps = cut < 0 ? "" : spec.slice(cut + 1);
+      await page.goto(base);
+      await page.evaluate((first) => { if (first) window.localStorage.removeItem("so.firstRun.done"); else window.localStorage.setItem("so.firstRun.done", "1"); }, name.startsWith("first"));
       await page.goto(base);
       await page.waitForSelector("[data-testid=app-root]");
       await page.waitForTimeout(800);
