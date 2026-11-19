@@ -1,0 +1,22 @@
+{
+  "kb": "mag",
+  "split": "val",
+  "n": 200,
+  "limit": 200,
+  "seed": 0,
+  "plan": "none",
+  "rerank_k": 0,
+  "model": null,
+  "fuzzy": 2,
+  "engine_args": [],
+  "candidate_types": [
+    "paper"
+  ],
+  "wall_s": 137.0,
+  "latency_p50_s": 0.103,
+  "latency_p95_s": 0.162,
+  "hit@1": 36.0,
+  "hit@5": 50.5,
+  "recall@20": 50.84,
+  "mrr": 43.28
+}

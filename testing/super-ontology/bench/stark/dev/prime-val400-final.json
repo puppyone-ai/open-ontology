@@ -1,0 +1,25 @@
+{
+  "kb": "prime",
+  "split": "val",
+  "n": 400,
+  "limit": 400,
+  "seed": 0,
+  "plan": "llm",
+  "rerank_k": 20,
+  "model": "cx/gpt-5.6-luna",
+  "fuzzy": 2,
+  "engine_args": [],
+  "candidate_types": [],
+  "wall_s": 16.2,
+  "llm_calls": 0,
+  "llm_tokens_in_out": [
+    0,
+    0
+  ],
+  "latency_p50_s": 0.025,
+  "latency_p95_s": 0.036,
+  "hit@1": 50.0,
+  "hit@5": 65.75,
+  "recall@20": 66.79,
+  "mrr": 56.91
+}

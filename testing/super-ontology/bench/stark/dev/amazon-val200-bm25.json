@@ -1,0 +1,25 @@
+{
+  "kb": "amazon",
+  "split": "val",
+  "n": 200,
+  "limit": 200,
+  "seed": 0,
+  "plan": "none",
+  "rerank_k": 0,
+  "model": null,
+  "fuzzy": 2,
+  "engine_args": [
+    "--anchor-weight",
+    "0"
+  ],
+  "candidate_types": [
+    "product"
+  ],
+  "wall_s": 199.8,
+  "latency_p50_s": 0.067,
+  "latency_p95_s": 0.112,
+  "hit@1": 45.0,
+  "hit@5": 68.5,
+  "recall@20": 49.28,
+  "mrr": 55.56
+}
