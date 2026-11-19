@@ -21,6 +21,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Name of this channel; part of any parameters that use it.
 pub const MODEL_VERSION: &str = "walk/1";
+/// Name of the specificity-weighted variant ([`rank_specific`]).
+pub const MODEL_VERSION_SPECIFIC: &str = "walk/2";
 /// At most this many anchors count (one bit each).
 pub const MAX_ANCHORS: usize = 63;
 
@@ -96,22 +98,7 @@ pub fn rank(
     weight: i64,
     k: usize,
 ) -> Vec<(u32, i64)> {
-    // Canonical anchor order, so the caller's order cannot matter.
-    let mut anchors: Vec<Anchor> = anchors
-        .iter()
-        .map(|a| {
-            let mut a = a.clone();
-            a.nodes.sort_unstable();
-            a.nodes.dedup();
-            a.relations.sort_unstable();
-            a.relations.dedup();
-            a
-        })
-        .filter(|a| !a.nodes.is_empty())
-        .collect();
-    anchors.sort();
-    anchors.dedup();
-    anchors.truncate(MAX_ANCHORS);
+    let anchors = canonical(anchors);
 
     // Per candidate: anchors reached over an allowed relation, and anchors
     // reached over any relation (one bit per anchor each).
@@ -150,6 +137,93 @@ pub fn rank(
     out.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     out.truncate(k);
     out
+}
+
+/// `walk/2`: [`rank`] with each anchor weighted by how specific it is. An
+/// anchor that reaches a quarter of the graph ("color: black", a broad
+/// category) says little about which candidate is meant; one that reaches
+/// three nodes says a lot. Each anchor's level is scaled by
+/// `idf(reach) / idf(1)`, with the BM25 inverse document frequency of
+/// `bm25/1` (`log2((2N + 2) / (2 reach + 1))`, Q16, `N` = graph nodes), so a
+/// unique anchor still counts one full `weight`. Same integer and ordering
+/// rules as `walk/1`.
+pub fn rank_specific(
+    graph: &Graph,
+    anchors: &[Anchor],
+    accept: impl Fn(u32) -> bool,
+    text: &BTreeMap<u32, i64>,
+    weight: i64,
+    k: usize,
+) -> Vec<(u32, i64)> {
+    let anchors = canonical(anchors);
+    let n = graph.len() as u64;
+    let top = crate::vector::lexical::log2_q16(2 * n + 2);
+    let idf = |reach: u64| (top - crate::vector::lexical::log2_q16(2 * reach + 1)).max(0);
+    let full = idf(1).max(1);
+    let mut score: BTreeMap<u32, i64> = BTreeMap::new();
+    for a in &anchors {
+        // Best edge per candidate for this anchor: 2 = allowed relation, 1 = other.
+        let mut best: BTreeMap<u32, i64> = BTreeMap::new();
+        for &node in &a.nodes {
+            for &(r, nb) in graph.neighbors(node) {
+                if !accept(nb) {
+                    continue;
+                }
+                let h = if a.relations.is_empty() || a.relations.binary_search(&r).is_ok() {
+                    2
+                } else {
+                    1
+                };
+                let e = best.entry(nb).or_insert(0);
+                *e = (*e).max(h);
+            }
+        }
+        let half = i64::try_from(
+            i128::from(weight / 2) * i128::from(idf(best.len() as u64)) / i128::from(full),
+        )
+        .unwrap_or(i64::MAX);
+        for (nb, h) in best {
+            let e = score.entry(nb).or_insert(0);
+            *e = e.saturating_add(h * half);
+        }
+    }
+    let named: BTreeSet<u32> = anchors
+        .iter()
+        .flat_map(|a| a.nodes.iter().copied())
+        .collect();
+    let mut cands: BTreeSet<u32> = score.keys().copied().collect();
+    cands.extend(text.keys().copied().filter(|n| accept(*n)));
+    let mut out: Vec<(u32, i64)> = cands
+        .into_iter()
+        .map(|c| {
+            let g =
+                score.get(&c).copied().unwrap_or(0) - if named.contains(&c) { weight } else { 0 };
+            (c, g.saturating_add(text.get(&c).copied().unwrap_or(0)))
+        })
+        .collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    out.truncate(k);
+    out
+}
+
+/// Canonical anchor order, so the caller's order cannot matter.
+fn canonical(anchors: &[Anchor]) -> Vec<Anchor> {
+    let mut anchors: Vec<Anchor> = anchors
+        .iter()
+        .map(|a| {
+            let mut a = a.clone();
+            a.nodes.sort_unstable();
+            a.nodes.dedup();
+            a.relations.sort_unstable();
+            a.relations.dedup();
+            a
+        })
+        .filter(|a| !a.nodes.is_empty())
+        .collect();
+    anchors.sort();
+    anchors.dedup();
+    anchors.truncate(MAX_ANCHORS);
+    anchors
 }
 
 #[cfg(test)]
@@ -255,6 +329,43 @@ mod tests {
         );
     }
 
+    #[test]
+    fn specific_anchor_outweighs_a_hub() {
+        // 0..=9 products; 10 a hub category linked to all of them; 11 a
+        // brand linked to 3 and 4.
+        let mut g = Graph::new(12);
+        for p in 0..10 {
+            g.add_edge(p, 10, 0);
+        }
+        g.add_edge(3, 11, 1);
+        g.add_edge(4, 11, 1);
+        g.seal();
+        let products = |n: u32| n < 10;
+        let hub = Anchor {
+            nodes: vec![10],
+            relations: vec![],
+        };
+        let brand = Anchor {
+            nodes: vec![11],
+            relations: vec![],
+        };
+        // Text prefers 7; under walk/1 the hub lifts everyone equally, the
+        // brand lifts 3 and 4 by a full level.
+        let text = BTreeMap::from([(7, 300), (4, 100)]);
+        let one = rank(&g, &[hub.clone(), brand.clone()], products, &text, 1000, 3);
+        assert_eq!(one[0], (4, 2100));
+        // walk/2: the hub counts little, the brand nearly a full level, and
+        // a unique anchor exactly one.
+        let two = rank_specific(&g, &[hub, brand], products, &text, 1000, 3);
+        assert_eq!(two.iter().map(|x| x.0).collect::<Vec<_>>(), vec![4, 3, 7]);
+        let only = Anchor {
+            nodes: vec![9],
+            relations: vec![],
+        };
+        let three = rank_specific(&g, &[only], |n| n == 10, &BTreeMap::new(), 1000, 3);
+        assert_eq!(three, vec![(10, 1000)]);
+    }
+
     proptest! {
         #[test]
         fn anchor_order_does_not_matter(
@@ -276,6 +387,12 @@ mod tests {
             let one = rank(&g, &anchors, |n| n % 3 != 0, &text, 10_000, 15);
             let two = rank(&g, &rev, |n| n % 3 != 0, &text, 10_000, 15);
             prop_assert_eq!(&one, &two);
+            let s1 = rank_specific(&g, &anchors, |n| n % 3 != 0, &text, 10_000, 15);
+            let s2 = rank_specific(&g, &rev, |n| n % 3 != 0, &text, 10_000, 15);
+            prop_assert_eq!(&s1, &s2);
+            for w in s1.windows(2) {
+                prop_assert!(w[0].1 > w[1].1 || (w[0].1 == w[1].1 && w[0].0 < w[1].0));
+            }
             // Sorted by score, then id; every result is accepted.
             for w in one.windows(2) {
                 prop_assert!(w[0].1 > w[1].1 || (w[0].1 == w[1].1 && w[0].0 < w[1].0));
