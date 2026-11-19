@@ -455,9 +455,19 @@ async fn drive_sync(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
                 .map_err(|_| bad("--confirm-mass-delete is a generation"))?
         );
     }
-    let v = d
+    // 10 §6.1: 409 DOCS_SOURCE_SYNC_RUNNING means a sweep of this drive is
+    // already on its way (every Drive polls); the request is satisfied by it.
+    let v = match d
         .post_json(&format!("/v1/docs/drives/{id}:sync"), &body)
-        .await?;
+        .await
+    {
+        Ok(v) => v,
+        Err(e) if e.code == "DOCS_SOURCE_SYNC_RUNNING" => json!({
+            "status": "running", "generation": null, "added": 0, "changed": 0,
+            "removed": 0, "drive_rev": null,
+        }),
+        Err(e) => return Err(e),
+    };
     let human = format!(
         "sync {}: generation {}, +{} ~{} -{}, drive_rev {}",
         v["status"].as_str().unwrap_or(""),
