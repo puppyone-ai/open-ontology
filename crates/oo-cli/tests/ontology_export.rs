@@ -157,7 +157,17 @@ fn command_exports_privately_without_overwrite_and_opens_headlessly() {
     assert!(
         ontology::run(&["export".into(), "--format=yaml".into(), "--out=a".into()])
             .unwrap_err()
-            .contains("YAML_ROLE_OOS")
+            .contains("ONTOLOGY_REGISTRY_IO")
+    );
+    assert_eq!(
+        ontology::run(&[
+            "export".into(),
+            "--format=yaml".into(),
+            "--out=a".into(),
+            "--role=r".into()
+        ])
+        .unwrap_err(),
+        "ADMIN_ARGUMENT"
     );
     assert_eq!(
         ontology::run(&["open".into(), "--format=html".into()]).unwrap_err(),
