@@ -1,0 +1,158 @@
+{
+  "ok": true,
+  "skipped": null,
+  "title": "Super Drive OSS, COS and R2 buckets",
+  "nativeInput": false,
+  "started": "2026-11-19T01:51:08.463Z",
+  "checks": [
+    {
+      "check": "oss: the dialog shows the fields of that cloud and no endpoint requirement",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oss: the engine got the backend, the cloud fields, the policy and the bucket",
+      "ok": true,
+      "detail": "{\"bucket\":\"team-oss\",\"access_key_id\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-a366f86771ee5108d4546e5324c7206c-access_key_id\"},\"secret_access_key\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-a366f86771ee5108d4546e5324c7206c-secret_access_key\"},\"region\":\"cn-hangzhou\",\"policy\":{\"deny\":[\"Payroll\"]}}"
+    },
+    {
+      "check": "oss: no key reached the engine, only file references",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oss: the keys are in private files next to the state folder",
+      "ok": true,
+      "detail": "2 files"
+    },
+    {
+      "check": "oss: the list names the kind and bucket, says read-only, shows the policy, and shows no key",
+      "ok": true,
+      "detail": "Hangzhou OSS | OSS bucket · 0 files | Sync now |  | team-oss | Never: Payroll | Credentials saved · Uploading from the app is off | Read-only: puppyone never changes files here"
+    },
+    {
+      "check": "oss: the object is listed as published, and uploading is off for the bucket",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oss: a changed object shows as outdated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oss: and published again once read",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "oss: a deleted object ends as deleted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: the dialog shows the fields of that cloud and no endpoint requirement",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: the engine got the backend, the cloud fields, the policy and the bucket",
+      "ok": true,
+      "detail": "{\"bucket\":\"team-cos\",\"access_key_id\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-18755dc3a105a9c580dbd347f183820f-access_key_id\"},\"secret_access_key\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-18755dc3a105a9c580dbd347f183820f-secret_access_key\"},\"region\":\"ap-beijing\",\"policy\":{\"deny\":[\"Payroll\"]}}"
+    },
+    {
+      "check": "cos: no key reached the engine, only file references",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: the keys are in private files next to the state folder",
+      "ok": true,
+      "detail": "4 files"
+    },
+    {
+      "check": "cos: the list names the kind and bucket, says read-only, shows the policy, and shows no key",
+      "ok": true,
+      "detail": "Beijing COS | COS bucket · 0 files | Sync now |  | team-cos | Never: Payroll | Credentials saved · Uploading from the app is off | Read-only: puppyone never changes files here"
+    },
+    {
+      "check": "cos: the object is listed as published, and uploading is off for the bucket",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: a changed object shows as outdated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: and published again once read",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cos: a deleted object ends as deleted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: the dialog shows the fields of that cloud and no endpoint requirement",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: the engine got the backend, the cloud fields, the policy and the bucket",
+      "ok": true,
+      "detail": "{\"bucket\":\"team-r2\",\"access_key_id\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-0d0bfa003b6040420816c8a69c289ee2-access_key_id\"},\"secret_access_key\":{\"secret_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-enterprise-buckets-2UJuEH/puppyone-development/super-ontology/secrets/s3-0d0bfa003b6040420816c8a69c289ee2-secret_access_key\"},\"account_id\":\"0123456789abcdef0123456789abcdef\",\"policy\":{\"deny\":[\"Payroll\"]}}"
+    },
+    {
+      "check": "r2: no key reached the engine, only file references",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: the keys are in private files next to the state folder",
+      "ok": true,
+      "detail": "6 files"
+    },
+    {
+      "check": "r2: the list names the kind and bucket, says read-only, shows the policy, and shows no key",
+      "ok": true,
+      "detail": "Edge R2 | R2 bucket · 0 files | Sync now |  | team-r2 | Never: Payroll | Credentials saved · Uploading from the app is off | Read-only: puppyone never changes files here"
+    },
+    {
+      "check": "r2: the object is listed as published, and uploading is off for the bucket",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: a changed object shows as outdated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: and published again once read",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "r2: a deleted object ends as deleted",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {},
+  "error": null,
+  "ui": {
+    "drives": [
+      "Local",
+      "Hangzhou OSS",
+      "Beijing COS",
+      "Edge R2",
+      "Register new Drive…"
+    ]
+  },
+  "notRun": [
+    "a real OSS, COS or R2 bucket: no account exists and none may be created (OO cloud_live is ready for the owner)"
+  ]
+}

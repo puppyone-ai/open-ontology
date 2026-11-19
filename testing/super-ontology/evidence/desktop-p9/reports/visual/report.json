@@ -1,0 +1,908 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "steps": [],
+  "error": null,
+  "entries": [
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "uploading",
+      "text": "01-uploading.md Uploading 2 KB 1 minute ago",
+      "file": "light/01-uploading.png",
+      "bytes": 12699,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "stored",
+      "text": "02-stored.md Stored 2.5 KB 2 minutes ago",
+      "file": "light/02-stored.png",
+      "bytes": 12764,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "queued",
+      "text": "03-queued.md Queued 3 KB 3 minutes ago",
+      "file": "light/03-queued.png",
+      "bytes": 12621,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "blocked-parser_unavailable",
+      "text": "04-blocked-parser_unavailable.md Waiting: Parser unavailable 3.5 KB 4 minutes ago",
+      "file": "light/04-blocked-parser_unavailable.png",
+      "bytes": 20530,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "blocked-disk_low",
+      "text": "05-blocked-disk_low.md Waiting: Low disk space 4 KB 5 minutes ago",
+      "file": "light/05-blocked-disk_low.png",
+      "bytes": 18596,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "blocked-db_degraded",
+      "text": "06-blocked-db_degraded.md Waiting: Database unavailable 4.5 KB 6 minutes ago",
+      "file": "light/06-blocked-db_degraded.png",
+      "bytes": 19633,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "blocked-llm_limit",
+      "text": "07-blocked-llm_limit.md Waiting: Model rate-limited, will resume 5 KB 7 minutes ago",
+      "file": "light/07-blocked-llm_limit.png",
+      "bytes": 18399,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "blocked-drive_paused",
+      "text": "08-blocked-drive_paused.md Waiting: Drive paused 5.5 KB 8 minutes ago",
+      "file": "light/08-blocked-drive_paused.png",
+      "bytes": 19863,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parsing",
+      "text": "09-parsing.md Parsing · page 3 of 12 6 KB 9 minutes ago",
+      "file": "light/09-parsing.png",
+      "bytes": 16365,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parsed",
+      "text": "10-parsed.md Parsed 6.5 KB 10 minutes ago",
+      "file": "light/10-parsed.png",
+      "bytes": 13049,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "extracting",
+      "text": "11-extracting.md Extracting · batch 2 of 5 7 KB 11 minutes ago",
+      "file": "light/11-extracting.png",
+      "bytes": 15436,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "indexed",
+      "text": "12-indexed.md Indexed, publishing 7.5 KB 12 minutes ago",
+      "file": "light/12-indexed.png",
+      "bytes": 14254,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "published",
+      "text": "13-published.md Published 8 KB 13 minutes ago",
+      "file": "light/13-published.png",
+      "bytes": 13569,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "published-review",
+      "text": "14-published-review.md Published · 2 to review 8.5 KB 14 minutes ago",
+      "file": "light/14-published-review.png",
+      "bytes": 17565,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "published-limited",
+      "text": "15-published-limited.md Published · model limit reached, rules only for part 9 KB 15 minutes ago",
+      "file": "light/15-published-limited.png",
+      "bytes": 21409,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parse_failed-retrying",
+      "text": "16-parse_failed-retrying.md Parse failed · Parsing timed out 9.5 KB 16 minutes ago",
+      "file": "light/16-parse_failed-retrying.png",
+      "bytes": 20068,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parse_failed",
+      "text": "17-parse_failed.md Parse failed · The file is damaged 10 KB 17 minutes ago",
+      "file": "light/17-parse_failed.png",
+      "bytes": 17342,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parse_failed-quarantined",
+      "text": "18-parse_failed-quarantined.md Quarantined after repeatedly crashing the parser 10.5 KB 18 minutes ago",
+      "file": "light/18-parse_failed-quarantined.png",
+      "bytes": 24389,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "parse_failed-permission",
+      "text": "19-parse_failed-permission.md No permission to read; check the permissions 11 KB 19 minutes ago",
+      "file": "light/19-parse_failed-permission.png",
+      "bytes": 23140,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "extract_partial",
+      "text": "20-extract_partial.md Partly extracted; the rest is published 11.5 KB 20 minutes ago",
+      "file": "light/20-extract_partial.png",
+      "bytes": 19824,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "unsupported",
+      "text": "21-unsupported.md Not supported · This file format isn't supported 12 KB 21 minutes ago",
+      "file": "light/21-unsupported.png",
+      "bytes": 19417,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "too_large",
+      "text": "22-too_large.md Over the size limit 12.5 KB 22 minutes ago",
+      "file": "light/22-too_large.png",
+      "bytes": 14561,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "encrypted",
+      "text": "23-encrypted.md Encrypted, can't be read 13 KB 23 minutes ago",
+      "file": "light/23-encrypted.png",
+      "bytes": 15934,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "duplicate",
+      "text": "24-duplicate.md Same as original.md; results reused 13.5 KB 24 minutes ago",
+      "file": "light/24-duplicate.png",
+      "bytes": 18308,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "superseded",
+      "text": "25-superseded.md Replaced by a newer version 14 KB 25 minutes ago",
+      "file": "light/25-superseded.png",
+      "bytes": 16736,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "deleted",
+      "text": "26-deleted.md Removed from the Drive · evidence withdrawn 14.5 KB 26 minutes ago",
+      "file": "light/26-deleted.png",
+      "bytes": 18880,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "outdated",
+      "text": "27-outdated.md Update available; reprocessing in the background 15 KB 27 minutes ago",
+      "file": "light/27-outdated.png",
+      "bytes": 20449,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "file-state",
+      "key": "unknown",
+      "text": "28-unknown.md Unknown state (melting) 15.5 KB 28 minutes ago",
+      "file": "light/28-unknown.png",
+      "bytes": 16916,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "details",
+      "key": "parse_failed-retrying",
+      "text": "Parse failed, retrying automatically (1 of 3)",
+      "file": "light/details-parse_failed-retrying.png",
+      "bytes": 69401,
+      "size": {
+        "width": 760,
+        "height": 1842
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "up_to_date",
+      "text": "Up to date · v7",
+      "file": "light/freshness-up_to_date.png",
+      "bytes": 4284,
+      "size": {
+        "width": 256,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "syncing",
+      "text": "Reading changes",
+      "file": "light/freshness-syncing.png",
+      "bytes": 5048,
+      "size": {
+        "width": 240,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "processing",
+      "text": "Processing 4 files",
+      "file": "light/freshness-processing.png",
+      "bytes": 4363,
+      "size": {
+        "width": 232,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "publishing",
+      "text": "Publishing a new version",
+      "file": "light/freshness-publishing.png",
+      "bytes": 5225,
+      "size": {
+        "width": 308,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "waiting_review",
+      "text": "3 items to review",
+      "file": "light/freshness-waiting_review.png",
+      "bytes": 8026,
+      "size": {
+        "width": 542,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "degraded",
+      "text": "Processing is limited",
+      "file": "light/freshness-degraded.png",
+      "bytes": 11002,
+      "size": {
+        "width": 738,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "held",
+      "text": "Cleanup is paused until you confirm",
+      "file": "light/freshness-held.png",
+      "bytes": 7396,
+      "size": {
+        "width": 482,
+        "height": 40
+      }
+    },
+    {
+      "scheme": "light",
+      "kind": "freshness",
+      "key": "unknown",
+      "text": "Freshness unknown (melting)",
+      "file": "light/freshness-unknown.png",
+      "bytes": 5820,
+      "size": {
+        "width": 358,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "uploading",
+      "text": "01-uploading.md Uploading 2 KB 1 minute ago",
+      "file": "dark/01-uploading.png",
+      "bytes": 12081,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "stored",
+      "text": "02-stored.md Stored 2.5 KB 2 minutes ago",
+      "file": "dark/02-stored.png",
+      "bytes": 12093,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "queued",
+      "text": "03-queued.md Queued 3 KB 3 minutes ago",
+      "file": "dark/03-queued.png",
+      "bytes": 12091,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "blocked-parser_unavailable",
+      "text": "04-blocked-parser_unavailable.md Waiting: Parser unavailable 3.5 KB 4 minutes ago",
+      "file": "dark/04-blocked-parser_unavailable.png",
+      "bytes": 18836,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "blocked-disk_low",
+      "text": "05-blocked-disk_low.md Waiting: Low disk space 4 KB 5 minutes ago",
+      "file": "dark/05-blocked-disk_low.png",
+      "bytes": 17203,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "blocked-db_degraded",
+      "text": "06-blocked-db_degraded.md Waiting: Database unavailable 4.5 KB 6 minutes ago",
+      "file": "dark/06-blocked-db_degraded.png",
+      "bytes": 18081,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "blocked-llm_limit",
+      "text": "07-blocked-llm_limit.md Waiting: Model rate-limited, will resume 5 KB 7 minutes ago",
+      "file": "dark/07-blocked-llm_limit.png",
+      "bytes": 17115,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "blocked-drive_paused",
+      "text": "08-blocked-drive_paused.md Waiting: Drive paused 5.5 KB 8 minutes ago",
+      "file": "dark/08-blocked-drive_paused.png",
+      "bytes": 18275,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parsing",
+      "text": "09-parsing.md Parsing · page 3 of 12 6 KB 9 minutes ago",
+      "file": "dark/09-parsing.png",
+      "bytes": 15271,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parsed",
+      "text": "10-parsed.md Parsed 6.5 KB 10 minutes ago",
+      "file": "dark/10-parsed.png",
+      "bytes": 12359,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "extracting",
+      "text": "11-extracting.md Extracting · batch 2 of 5 7 KB 11 minutes ago",
+      "file": "dark/11-extracting.png",
+      "bytes": 14544,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "indexed",
+      "text": "12-indexed.md Indexed, publishing 7.5 KB 12 minutes ago",
+      "file": "dark/12-indexed.png",
+      "bytes": 13426,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "published",
+      "text": "13-published.md Published 8 KB 13 minutes ago",
+      "file": "dark/13-published.png",
+      "bytes": 12846,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "published-review",
+      "text": "14-published-review.md Published · 2 to review 8.5 KB 14 minutes ago",
+      "file": "dark/14-published-review.png",
+      "bytes": 16315,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "published-limited",
+      "text": "15-published-limited.md Published · model limit reached, rules only for part 9 KB 15 minutes ago",
+      "file": "dark/15-published-limited.png",
+      "bytes": 19826,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parse_failed-retrying",
+      "text": "16-parse_failed-retrying.md Parse failed · Parsing timed out 9.5 KB 16 minutes ago",
+      "file": "dark/16-parse_failed-retrying.png",
+      "bytes": 19153,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parse_failed",
+      "text": "17-parse_failed.md Parse failed · The file is damaged 10 KB 17 minutes ago",
+      "file": "dark/17-parse_failed.png",
+      "bytes": 16698,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parse_failed-quarantined",
+      "text": "18-parse_failed-quarantined.md Quarantined after repeatedly crashing the parser 10.5 KB 18 minutes ago",
+      "file": "dark/18-parse_failed-quarantined.png",
+      "bytes": 23217,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "parse_failed-permission",
+      "text": "19-parse_failed-permission.md No permission to read; check the permissions 11 KB 19 minutes ago",
+      "file": "dark/19-parse_failed-permission.png",
+      "bytes": 21897,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "extract_partial",
+      "text": "20-extract_partial.md Partly extracted; the rest is published 11.5 KB 20 minutes ago",
+      "file": "dark/20-extract_partial.png",
+      "bytes": 18248,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "unsupported",
+      "text": "21-unsupported.md Not supported · This file format isn't supported 12 KB 21 minutes ago",
+      "file": "dark/21-unsupported.png",
+      "bytes": 18186,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "too_large",
+      "text": "22-too_large.md Over the size limit 12.5 KB 22 minutes ago",
+      "file": "dark/22-too_large.png",
+      "bytes": 13831,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "encrypted",
+      "text": "23-encrypted.md Encrypted, can't be read 13 KB 23 minutes ago",
+      "file": "dark/23-encrypted.png",
+      "bytes": 14910,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "duplicate",
+      "text": "24-duplicate.md Same as original.md; results reused 13.5 KB 24 minutes ago",
+      "file": "dark/24-duplicate.png",
+      "bytes": 17012,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "superseded",
+      "text": "25-superseded.md Replaced by a newer version 14 KB 25 minutes ago",
+      "file": "dark/25-superseded.png",
+      "bytes": 15517,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "deleted",
+      "text": "26-deleted.md Removed from the Drive · evidence withdrawn 14.5 KB 26 minutes ago",
+      "file": "dark/26-deleted.png",
+      "bytes": 17586,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "outdated",
+      "text": "27-outdated.md Update available; reprocessing in the background 15 KB 27 minutes ago",
+      "file": "dark/27-outdated.png",
+      "bytes": 19030,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "file-state",
+      "key": "unknown",
+      "text": "28-unknown.md Unknown state (melting) 15.5 KB 28 minutes ago",
+      "file": "dark/28-unknown.png",
+      "bytes": 15820,
+      "size": {
+        "width": 1844,
+        "height": 64
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "details",
+      "key": "parse_failed-retrying",
+      "text": "Parse failed, retrying automatically (1 of 3)",
+      "file": "dark/details-parse_failed-retrying.png",
+      "bytes": 64793,
+      "size": {
+        "width": 760,
+        "height": 1842
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "up_to_date",
+      "text": "Up to date · v7",
+      "file": "dark/freshness-up_to_date.png",
+      "bytes": 3844,
+      "size": {
+        "width": 256,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "syncing",
+      "text": "Reading changes",
+      "file": "dark/freshness-syncing.png",
+      "bytes": 4624,
+      "size": {
+        "width": 240,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "processing",
+      "text": "Processing 4 files",
+      "file": "dark/freshness-processing.png",
+      "bytes": 3998,
+      "size": {
+        "width": 232,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "publishing",
+      "text": "Publishing a new version",
+      "file": "dark/freshness-publishing.png",
+      "bytes": 4781,
+      "size": {
+        "width": 308,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "waiting_review",
+      "text": "3 items to review",
+      "file": "dark/freshness-waiting_review.png",
+      "bytes": 7382,
+      "size": {
+        "width": 542,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "degraded",
+      "text": "Processing is limited",
+      "file": "dark/freshness-degraded.png",
+      "bytes": 10130,
+      "size": {
+        "width": 738,
+        "height": 32
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "held",
+      "text": "Cleanup is paused until you confirm",
+      "file": "dark/freshness-held.png",
+      "bytes": 7252,
+      "size": {
+        "width": 482,
+        "height": 40
+      }
+    },
+    {
+      "scheme": "dark",
+      "kind": "freshness",
+      "key": "unknown",
+      "text": "Freshness unknown (melting)",
+      "file": "dark/freshness-unknown.png",
+      "bytes": 5241,
+      "size": {
+        "width": 358,
+        "height": 32
+      }
+    }
+  ],
+  "backgrounds": {
+    "light": "rgb(250, 250, 250)",
+    "dark": "rgb(22, 22, 22)"
+  },
+  "counts": {
+    "fileStates": 56,
+    "freshness": 16,
+    "schemes": [
+      "light",
+      "dark"
+    ]
+  }
+}

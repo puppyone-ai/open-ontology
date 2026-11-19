@@ -1,0 +1,249 @@
+Project A
+No Git
+0
+Project files
+Super Drive
+drive
+Register new Drive…
+Files
+Review
+Suggestions
+Shares
+Engine
+Settings
+drive
+Super Drive
+Up to date · v0 · 1 minute ago
+Healthy
+drive
+Share…
+Files
+Entities
+Filter
+Upload files
+Name
+Status
+Size
+Entered state
+Actions
+Decisions
+7 files
+—
+—
+Meetings
+10 files
+—
+—
+People
+4 files
+—
+—
+Preferences
+3 files
+—
+—
+Projects
+4 files
+—
+—
+Proposals
+7 files
+—
+—
+Tables
+4 files
+—
+—
+Weekly
+6 files
+—
+—
+D-2026-01-周报每周五发送.md
+Published
+333 B
+now
+D-2026-02-星图采用自研引擎.md
+Published
+324 B
+now
+D-2026-03-知了客服采购外部模型.md
+Published
+322 B
+now
+D-2026-04-周报改为每周四发送.md
+Published
+300 B
+now
+D-2026-05-星图改用开源图表库.md
+Published
+457 B
+now
+D-2026-06-办公迁至滨江.md
+Published
+254 B
+now
+D-2026-08-取消周报.md
+Published
+296 B
+now
+2026-01-08-年度计划会.docx
+Waiting: Parser unavailable
+6.6 KB
+now
+2026-01-10-周会.docx
+Waiting: Parser unavailable
+6 KB
+now
+2026-02-15-星图技术评审.docx
+Waiting: Parser unavailable
+6.5 KB
+now
+2026-03-03-客服方案评审.docx
+Waiting: Parser unavailable
+6.5 KB
+now
+2026-04-02-周会.docx
+Waiting: Parser unavailable
+6 KB
+now
+2026-05-20-星图复盘会.docx
+Waiting: Parser unavailable
+6.5 KB
+now
+2026-06-01-项目分工调整.docx
+Waiting: Parser unavailable
+6 KB
+now
+2026-06-15-迁址沟通会.docx
+Waiting: Parser unavailable
+6 KB
+now
+2026-07-06-官网改版启动会.docx
+Waiting: Parser unavailable
+6.3 KB
+now
+2026-08-20-周会.docx
+Waiting: Parser unavailable
+6 KB
+now
+周若溪.md
+Published
+172 B
+now
+孙晓棠.md
+Published
+144 B
+now
+林远舟.md
+Published
+190 B
+now
+陈子墨.md
+Published
+188 B
+now
+周若溪-文档偏好.md
+Published
+144 B
+now
+林远舟-会议偏好.md
+Published
+147 B
+now
+陈子墨-沟通偏好.md
+Published
+144 B
+now
+官网改版.md
+Published
+229 B
+now
+星图看板.md
+Published
+335 B
+now
+灯塔迁移.md
+Published
+279 B
+now
+知了客服.md
+Published
+231 B
+now
+办公迁址方案.pdf
+Waiting: Parser unavailable
+1.7 KB
+now
+官网改版方案.pdf
+Waiting: Parser unavailable
+1.7 KB
+now
+年度客户调研方案.pdf
+Waiting: Parser unavailable
+1.7 KB
+now
+星图看板产品方案.pdf
+Waiting: Parser unavailable
+2 KB
+now
+澄海物流合作方案.pdf
+Waiting: Parser unavailable
+1.8 KB
+now
+灯塔迁移方案.pdf
+Waiting: Parser unavailable
+2 KB
+now
+知了客服方案.pdf
+Waiting: Parser unavailable
+1.9 KB
+now
+人员表.xlsx
+Published
+6.3 KB
+now
+客户与供应商.xlsx
+Published
+4 KB
+now
+年度预算表.xlsx
+Published
+3.9 KB
+now
+项目负责人表.xlsx
+Published
+4.2 KB
+now
+2026-W03-周报.pptx
+Waiting: Parser unavailable
+15.8 KB
+now
+2026-W10-周报.pptx
+Waiting: Parser unavailable
+15.7 KB
+now
+2026-W15-周报.pptx
+Waiting: Parser unavailable
+15.7 KB
+now
+2026-W22-周报.pptx
+Waiting: Parser unavailable
+15.8 KB
+now
+2026-W28-周报.pptx
+Waiting: Parser unavailable
+15.7 KB
+now
+2026-W34-周报.pptx
+Waiting: Parser unavailable
+15.7 KB
+now
+Uploads and processing
+
+Uploading 0 · Processing 23 · Failed 0
+
+Processing Queued 23 · Parsing 0 · Extracting 0 · Published 22 · To review 0
+
+Use on this computer
+Built-in Agent
+Terminal

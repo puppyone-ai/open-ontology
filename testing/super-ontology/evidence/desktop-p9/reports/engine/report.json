@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "steps": [
+    {
+      "name": "01-not-checked",
+      "status": "Engine not connected"
+    },
+    {
+      "name": "02-docker-stopped",
+      "status": "Docker isn't running"
+    },
+    {
+      "name": "03-stopped",
+      "status": "Local engine is stopped"
+    },
+    {
+      "name": "04-starting",
+      "status": "Starting the local engine… (about a minute the first time)"
+    },
+    {
+      "name": "05-first-run-healthy",
+      "status": "Put your files in a Drive and share them with agents"
+    },
+    {
+      "name": "06-engine-page-healthy",
+      "status": "Healthy"
+    },
+    {
+      "name": "07-restarting",
+      "status": "Engine stopped unexpectedly; restarting (attempt 1, in 5s)"
+    },
+    {
+      "name": "08-healthy-again",
+      "status": "Healthy"
+    },
+    {
+      "name": "09-stopped-by-user",
+      "status": "Local engine is stopped"
+    },
+    {
+      "name": "10-oo-missing",
+      "status": "The oo command line isn't installed"
+    },
+    {
+      "name": "11-project-files",
+      "status": ""
+    }
+  ],
+  "error": null
+}

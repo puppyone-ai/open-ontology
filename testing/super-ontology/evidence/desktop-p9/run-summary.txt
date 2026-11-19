@@ -1,0 +1,20 @@
+skeleton rc=0 secs=41 :: tests/e2e/super-drive/skeleton/walking-skeleton.smoke.mjs
+flag-off rc=0 secs=6 :: tests/e2e/super-drive/flags/flag-off-regression.smoke.mjs
+flag-on rc=0 secs=6 :: tests/e2e/super-drive/flags/flag-on-entry.smoke.mjs
+engine-states rc=0 secs=16 :: tests/e2e/super-drive/engine/engine-states.smoke.mjs
+state-matrix rc=0 secs=46 :: tests/e2e/super-drive/visual/state-matrix.smoke.mjs
+details-anchor rc=0 secs=26 :: tests/e2e/super-drive/processing/details-anchor.smoke.mjs
+formats-failures rc=0 secs=35 :: tests/e2e/super-drive/processing/formats-and-failures.smoke.mjs
+s3-incremental rc=1 secs=51 :: tests/e2e/super-drive/sync/s3-incremental.smoke.mjs
+parser-outage rc=1 secs=129 :: tests/e2e/super-drive/processing/parser-outage.smoke.mjs
+share-mount-revoke rc=0 secs=29 :: tests/e2e/super-drive/share/mount-and-revoke.smoke.mjs
+review-accept rc=0 secs=37 :: tests/e2e/super-drive/review/accept-by-source.smoke.mjs
+suggest-revision rc=0 secs=10 :: tests/e2e/super-drive/suggest/revision-mode.smoke.mjs
+model-extract rc=0 secs=29 :: tests/e2e/super-drive/model/configure-and-extract.smoke.mjs
+drift-refresh rc=0 secs=31 :: tests/e2e/super-drive/drift/refresh.smoke.mjs
+media-decode rc=0 secs=26 :: tests/e2e/super-drive/media/queue-and-decode.smoke.mjs
+enterprise-buckets rc=0 secs=12 :: tests/e2e/super-drive/enterprise/buckets.smoke.mjs
+cloud-proxy rc=0 secs=14 :: tests/e2e/super-drive/enterprise/cloud-proxy.smoke.mjs
+scale-10k rc=1 secs=35 :: tests/e2e/super-drive/scale/ten-thousand.smoke.mjs
+docker-free rc=0 secs=8 :: tests/e2e/super-drive/runtime/docker-free.smoke.mjs
+ALLDONE

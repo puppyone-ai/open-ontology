@@ -1,0 +1,1990 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:42:29.225Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the real engine starts and the pill is healthy",
+      "ok": true,
+      "detail": "0.7s"
+    },
+    {
+      "check": "D79 the local-data line is stated on the first-run page",
+      "ok": true,
+      "detail": "Your files and processing results always stay on this computer and are never uploaded to the puppyone cloud, unless you choose puppyone Cloud."
+    },
+    {
+      "check": "A1 the list shows all 20 files published",
+      "ok": true,
+      "detail": "{\"published\":20}"
+    },
+    {
+      "check": "A1 within 60 s of registering",
+      "ok": true,
+      "detail": "4.5s"
+    },
+    {
+      "check": "the engine agrees: every file published",
+      "ok": true,
+      "detail": "20 files"
+    },
+    {
+      "check": "A6 the freshness indicator showed processing and then up_to_date",
+      "ok": true,
+      "detail": "up_to_date -> processing -> publishing -> syncing -> up_to_date"
+    },
+    {
+      "check": "A6 the up_to_date text carries the ontology version",
+      "ok": true,
+      "detail": "Up to date · v1 · now"
+    },
+    {
+      "check": "A4 the UI shows the engine as not connected",
+      "ok": true,
+      "detail": "restarting"
+    },
+    {
+      "check": "A4 the engine reconnects by itself",
+      "ok": true,
+      "detail": "6.1s, new daemon"
+    },
+    {
+      "check": "A4 no state lost: every earlier file is unchanged",
+      "ok": true,
+      "detail": "20 files unchanged"
+    },
+    {
+      "check": "A4 the event head moved on after the reconnect (events were emitted after the cursor)",
+      "ok": true,
+      "detail": "151 -> 165"
+    },
+    {
+      "check": "A4 the new file reached published in the list",
+      "ok": true,
+      "detail": "published"
+    },
+    {
+      "check": "A4 the list has 21 published rows",
+      "ok": true,
+      "detail": "{\"published\":21}"
+    },
+    {
+      "check": "A5 the edited file left published and came back within 30 s",
+      "ok": true,
+      "detail": "published > queued > parsed > indexed > published in 4.5s"
+    },
+    {
+      "check": "A5 the engine ends in published for the edited file",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {
+    "engineStartSeconds": 0.7,
+    "acceptance1PublishedSeconds": 4.5,
+    "disconnectShownMs": 52,
+    "reconnectSeconds": 6.1,
+    "acceptance5RerunSeconds": 4.5
+  },
+  "timeline": [
+    {
+      "t": 0,
+      "pill": null,
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 121,
+      "pill": "probing",
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 2072,
+      "pill": "stopped",
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 2440,
+      "pill": "probing",
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 2564,
+      "pill": "starting",
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 3172,
+      "pill": "healthy",
+      "freshness": null,
+      "rows": []
+    },
+    {
+      "t": 3539,
+      "pill": "restarting",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v0 · now"
+      },
+      "rows": []
+    },
+    {
+      "t": 4027,
+      "pill": "healthy",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v0 · now"
+      },
+      "rows": []
+    },
+    {
+      "t": 4150,
+      "pill": "healthy",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v0 · now"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "stored"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "stored"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "stored"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "stored"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "stored"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "stored"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "stored"
+        ],
+        [
+          "周若溪.md",
+          "stored"
+        ],
+        [
+          "孙晓棠.md",
+          "stored"
+        ],
+        [
+          "林川.md",
+          "stored"
+        ],
+        [
+          "林远舟.md",
+          "stored"
+        ],
+        [
+          "陈子墨.md",
+          "stored"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "stored"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "stored"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "stored"
+        ],
+        [
+          "星火计划.md",
+          "stored"
+        ],
+        [
+          "官网改版.md",
+          "stored"
+        ],
+        [
+          "星图看板.md",
+          "stored"
+        ],
+        [
+          "灯塔迁移.md",
+          "stored"
+        ],
+        [
+          "知了客服.md",
+          "stored"
+        ]
+      ]
+    },
+    {
+      "t": 4514,
+      "pill": "healthy",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v0 · now"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "queued"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "queued"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "queued"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "queued"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "queued"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "queued"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "queued"
+        ],
+        [
+          "周若溪.md",
+          "queued"
+        ],
+        [
+          "孙晓棠.md",
+          "queued"
+        ],
+        [
+          "林川.md",
+          "queued"
+        ],
+        [
+          "林远舟.md",
+          "queued"
+        ],
+        [
+          "陈子墨.md",
+          "queued"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "queued"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "queued"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "queued"
+        ],
+        [
+          "星火计划.md",
+          "queued"
+        ],
+        [
+          "官网改版.md",
+          "queued"
+        ],
+        [
+          "星图看板.md",
+          "queued"
+        ],
+        [
+          "灯塔迁移.md",
+          "queued"
+        ],
+        [
+          "知了客服.md",
+          "stored"
+        ]
+      ]
+    },
+    {
+      "t": 5001,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "parsed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "parsed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "parsed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "parsed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "parsed"
+        ],
+        [
+          "周若溪.md",
+          "parsing"
+        ],
+        [
+          "孙晓棠.md",
+          "queued"
+        ],
+        [
+          "林川.md",
+          "parsing"
+        ],
+        [
+          "林远舟.md",
+          "queued"
+        ],
+        [
+          "陈子墨.md",
+          "queued"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "queued"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "queued"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "queued"
+        ],
+        [
+          "星火计划.md",
+          "queued"
+        ],
+        [
+          "官网改版.md",
+          "queued"
+        ],
+        [
+          "星图看板.md",
+          "queued"
+        ],
+        [
+          "灯塔迁移.md",
+          "queued"
+        ],
+        [
+          "知了客服.md",
+          "queued"
+        ]
+      ]
+    },
+    {
+      "t": 5122,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "parsed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "parsed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "parsed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "parsed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "parsed"
+        ],
+        [
+          "周若溪.md",
+          "parsed"
+        ],
+        [
+          "孙晓棠.md",
+          "parsed"
+        ],
+        [
+          "林川.md",
+          "parsed"
+        ],
+        [
+          "林远舟.md",
+          "parsed"
+        ],
+        [
+          "陈子墨.md",
+          "parsed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "parsed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "parsed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "parsed"
+        ],
+        [
+          "星火计划.md",
+          "parsed"
+        ],
+        [
+          "官网改版.md",
+          "parsing"
+        ],
+        [
+          "星图看板.md",
+          "parsing"
+        ],
+        [
+          "灯塔迁移.md",
+          "parsing"
+        ],
+        [
+          "知了客服.md",
+          "queued"
+        ]
+      ]
+    },
+    {
+      "t": 5243,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "parsed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "parsed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "parsed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "parsed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "parsed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "parsed"
+        ],
+        [
+          "周若溪.md",
+          "parsed"
+        ],
+        [
+          "孙晓棠.md",
+          "parsed"
+        ],
+        [
+          "林川.md",
+          "parsed"
+        ],
+        [
+          "林远舟.md",
+          "parsed"
+        ],
+        [
+          "陈子墨.md",
+          "parsed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "parsed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "parsed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "parsed"
+        ],
+        [
+          "星火计划.md",
+          "parsed"
+        ],
+        [
+          "官网改版.md",
+          "parsed"
+        ],
+        [
+          "星图看板.md",
+          "parsed"
+        ],
+        [
+          "灯塔迁移.md",
+          "parsed"
+        ],
+        [
+          "知了客服.md",
+          "parsed"
+        ]
+      ]
+    },
+    {
+      "t": 5486,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "extracting"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "parsed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "extracting"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "parsed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "parsed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "parsed"
+        ],
+        [
+          "周若溪.md",
+          "parsed"
+        ],
+        [
+          "孙晓棠.md",
+          "parsed"
+        ],
+        [
+          "林川.md",
+          "parsed"
+        ],
+        [
+          "林远舟.md",
+          "parsed"
+        ],
+        [
+          "陈子墨.md",
+          "parsed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "parsed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "parsed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "parsed"
+        ],
+        [
+          "星火计划.md",
+          "parsed"
+        ],
+        [
+          "官网改版.md",
+          "parsed"
+        ],
+        [
+          "星图看板.md",
+          "parsed"
+        ],
+        [
+          "灯塔迁移.md",
+          "parsed"
+        ],
+        [
+          "知了客服.md",
+          "parsed"
+        ]
+      ]
+    },
+    {
+      "t": 5607,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "indexed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "indexed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "indexed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "indexed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "indexed"
+        ],
+        [
+          "周若溪.md",
+          "indexed"
+        ],
+        [
+          "孙晓棠.md",
+          "extracting"
+        ],
+        [
+          "林川.md",
+          "extracting"
+        ],
+        [
+          "林远舟.md",
+          "parsed"
+        ],
+        [
+          "陈子墨.md",
+          "parsed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "parsed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "parsed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "parsed"
+        ],
+        [
+          "星火计划.md",
+          "parsed"
+        ],
+        [
+          "官网改版.md",
+          "parsed"
+        ],
+        [
+          "星图看板.md",
+          "parsed"
+        ],
+        [
+          "灯塔迁移.md",
+          "parsed"
+        ],
+        [
+          "知了客服.md",
+          "parsed"
+        ]
+      ]
+    },
+    {
+      "t": 5729,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "indexed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "indexed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "indexed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "indexed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "indexed"
+        ],
+        [
+          "周若溪.md",
+          "indexed"
+        ],
+        [
+          "孙晓棠.md",
+          "indexed"
+        ],
+        [
+          "林川.md",
+          "indexed"
+        ],
+        [
+          "林远舟.md",
+          "indexed"
+        ],
+        [
+          "陈子墨.md",
+          "indexed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "indexed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "indexed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "indexed"
+        ],
+        [
+          "星火计划.md",
+          "indexed"
+        ],
+        [
+          "官网改版.md",
+          "indexed"
+        ],
+        [
+          "星图看板.md",
+          "indexed"
+        ],
+        [
+          "灯塔迁移.md",
+          "extracting"
+        ],
+        [
+          "知了客服.md",
+          "extracting"
+        ]
+      ]
+    },
+    {
+      "t": 5850,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 20 files"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "indexed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "indexed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "indexed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "indexed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "indexed"
+        ],
+        [
+          "周若溪.md",
+          "indexed"
+        ],
+        [
+          "孙晓棠.md",
+          "indexed"
+        ],
+        [
+          "林川.md",
+          "indexed"
+        ],
+        [
+          "林远舟.md",
+          "indexed"
+        ],
+        [
+          "陈子墨.md",
+          "indexed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "indexed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "indexed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "indexed"
+        ],
+        [
+          "星火计划.md",
+          "indexed"
+        ],
+        [
+          "官网改版.md",
+          "indexed"
+        ],
+        [
+          "星图看板.md",
+          "indexed"
+        ],
+        [
+          "灯塔迁移.md",
+          "indexed"
+        ],
+        [
+          "知了客服.md",
+          "indexed"
+        ]
+      ]
+    },
+    {
+      "t": 5973,
+      "pill": "healthy",
+      "freshness": {
+        "state": "publishing",
+        "text": "Publishing a new version"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "indexed"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "indexed"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "indexed"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "indexed"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "indexed"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "indexed"
+        ],
+        [
+          "周若溪.md",
+          "indexed"
+        ],
+        [
+          "孙晓棠.md",
+          "indexed"
+        ],
+        [
+          "林川.md",
+          "indexed"
+        ],
+        [
+          "林远舟.md",
+          "indexed"
+        ],
+        [
+          "陈子墨.md",
+          "indexed"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "indexed"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "indexed"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "indexed"
+        ],
+        [
+          "星火计划.md",
+          "indexed"
+        ],
+        [
+          "官网改版.md",
+          "indexed"
+        ],
+        [
+          "星图看板.md",
+          "indexed"
+        ],
+        [
+          "灯塔迁移.md",
+          "indexed"
+        ],
+        [
+          "知了客服.md",
+          "indexed"
+        ]
+      ]
+    },
+    {
+      "t": 7806,
+      "pill": "healthy",
+      "freshness": {
+        "state": "publishing",
+        "text": "Publishing a new version"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 9029,
+      "pill": "healthy",
+      "freshness": {
+        "state": "syncing",
+        "text": "Reading changes…"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 9638,
+      "pill": "healthy",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v1 · now"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 10861,
+      "pill": "restarting",
+      "freshness": {
+        "state": "up_to_date",
+        "text": "Up to date · v1 · now"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 16851,
+      "pill": "healthy",
+      "freshness": {
+        "state": "syncing",
+        "text": "Reading changes…"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 20034,
+      "pill": "healthy",
+      "freshness": {
+        "state": "syncing",
+        "text": "Reading changes…"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "queued"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 20523,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 1 file"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "parsed"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 21012,
+      "pill": "healthy",
+      "freshness": {
+        "state": "processing",
+        "text": "Processing 1 file"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "indexed"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 21499,
+      "pill": "healthy",
+      "freshness": {
+        "state": "syncing",
+        "text": "Reading changes…"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "indexed"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    },
+    {
+      "t": 21743,
+      "pill": "healthy",
+      "freshness": {
+        "state": "syncing",
+        "text": "Reading changes…"
+      },
+      "rows": [
+        [
+          "D-2026-01-周报每周五发送.md",
+          "published"
+        ],
+        [
+          "D-2026-02-星图采用自研引擎.md",
+          "published"
+        ],
+        [
+          "D-2026-03-知了客服采购外部模型.md",
+          "published"
+        ],
+        [
+          "D-2026-04-周报改为每周四发送.md",
+          "published"
+        ],
+        [
+          "D-2026-05-星图改用开源图表库.md",
+          "published"
+        ],
+        [
+          "D-2026-06-办公迁至滨江.md",
+          "published"
+        ],
+        [
+          "D-2026-08-取消周报.md",
+          "published"
+        ],
+        [
+          "written-during-outage.md",
+          "published"
+        ],
+        [
+          "周若溪.md",
+          "published"
+        ],
+        [
+          "孙晓棠.md",
+          "published"
+        ],
+        [
+          "林川.md",
+          "published"
+        ],
+        [
+          "林远舟.md",
+          "published"
+        ],
+        [
+          "陈子墨.md",
+          "published"
+        ],
+        [
+          "周若溪-文档偏好.md",
+          "published"
+        ],
+        [
+          "林远舟-会议偏好.md",
+          "published"
+        ],
+        [
+          "陈子墨-沟通偏好.md",
+          "published"
+        ],
+        [
+          "星火计划.md",
+          "published"
+        ],
+        [
+          "官网改版.md",
+          "published"
+        ],
+        [
+          "星图看板.md",
+          "published"
+        ],
+        [
+          "灯塔迁移.md",
+          "published"
+        ],
+        [
+          "知了客服.md",
+          "published"
+        ]
+      ]
+    }
+  ],
+  "error": null,
+  "driveFiles": 20,
+  "freshnessStatesSeen": [
+    "up_to_date",
+    "processing",
+    "publishing",
+    "syncing",
+    "up_to_date"
+  ],
+  "freshnessText": "Up to date · v1 · now",
+  "eventsHeadBeforeKill": 151,
+  "eventsHeadAfterReconnect": 165,
+  "editedStateSequenceInList": [
+    "published",
+    "queued",
+    "parsed",
+    "indexed",
+    "published"
+  ],
+  "timelineEntriesAfterEdit": 5
+}
