@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:051f381fe509cc4fa5251c8bbc5ca128f7ce0c249ef02fd498f11fff6b916a8e",
-        "tag": "oo-docs-engine:dev-s3",
+        "image": "sha256:894ffbf5ea8dbf4136a6282f8a400d7900e5a768d908ecf350b977625f470542",
+        "tag": "oo-docs-engine:dev-s3b",
         "size_bytes": 287000000,
         "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-wp1",
-        "built": "2026-11-19",
-        "built_from": "so/WP1b-s3-link on feat/super-ontology a7364658d; oo-docs-engine built with --features objectstore-s3 so S3, OSS, COS and R2 Drives work in the compose runtime",
-        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-wp1 -t oo-docs-engine:dev-s3 . (online build in rust 1.98.1 bookworm, python base digest above). Tagged dev-s3 so lanes that still lock the earlier image keep their own tag. A store on this host is reached from the engine container at http://host.docker.internal:<port> (extra_hosts in compose.yaml)."
+        "lane": "super-ontology-j1",
+        "built": "2026-11-18",
+        "built_from": "so/J-engine-image on feat/super-ontology 8f2ad81d8; oo-docs-engine built with --features objectstore-s3 (S3 polling, host-decode retry, docs-api 1.11); parser, ocr and media images need no rebuild",
+        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-j1 -t oo-docs-engine:dev-s3b . Tagged dev-s3b so lanes locking dev-s3 keep their own tag."
       },
       "linux/amd64": null
     }
