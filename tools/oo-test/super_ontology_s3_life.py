@@ -46,7 +46,7 @@ import super_ontology_l2 as l2  # noqa: E402
 import super_ontology_s3 as s3cells  # noqa: E402
 
 REPO = l2.REPO
-LANE = "super-ontology-be1"
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-be1")
 
 
 def sign_and_send(endpoint, access, secret, method, path, body=b"", extra=None, region="us-east-1"):
@@ -96,6 +96,8 @@ def main():
     ap.add_argument("--evidence-dir", default=str(REPO / "testing/super-ontology/evidence/L3"))
     ap.add_argument("--skip-build", action="store_true")
     ap.add_argument("--keep", action="store_true")
+    ap.add_argument("--poll-only", action="store_true",
+                    help="never call :sync: the engine's own poll (sync.s3_poll_seconds=5) finds every change")
     args = ap.parse_args()
     cell = s3cells.CELLS["docs-" + args.store]
     ev = l2.Evidence(Path(args.evidence_dir), args.run_id)
@@ -142,7 +144,7 @@ def main():
         (state / "engine").mkdir(parents=True)
         state.chmod(0o700)
         (state / "engine").chmod(0o700)
-        (state / "engine/docs.json").write_text(json.dumps({"version": "oo.docs/v1", "sync": {"fs_poll_seconds": 5}}))
+        (state / "engine/docs.json").write_text(json.dumps({"version": "oo.docs/v1", "sync": {"fs_poll_seconds": 5, "s3_poll_seconds": 5}}))
         tokfile = work / "install.token"
         tokfile.write_text("oodi_install_only_0123456789abcdef")
         tokfile.chmod(0o600)
@@ -177,7 +179,8 @@ def main():
         drive_id = d["id"]
 
         def sync_now():
-            api.request("POST", f"/v1/docs/drives/{drive_id}:sync", {})
+            if not args.poll_only:
+                api.request("POST", f"/v1/docs/drives/{drive_id}:sync", {})
 
         def states():
             return l2.file_states(api, drive_id)
@@ -217,13 +220,15 @@ def main():
         ev.check("modify: the old version's evidence is withdrawn, the new is live", old_live == "0" and live_evidence("life/a.md") > 0, f"old {old_live}, new {live_evidence('life/a.md')}")
         # rename = copy + delete
         retracted0 = int(psql("SELECT count(*) FROM _oo_docs.fact WHERE status = 'retracted'"))
+        t_ren = time.time()
         store.copy("drive/life/a.md", "drive/life/b.md")
         store.delete("drive/life/a.md")
         def renamed():
             sync_now()
             s = states()
             return s.get("life/b.md") in ("published", "duplicate") and "life/a.md" not in s
-        ev.check("rename: the new key has its result, the old is gone", bool(l2.wait_until(90, renamed, step=1.0)), history("life/b.md"))
+        ok_ren = bool(l2.wait_until(90, renamed, step=1.0))
+        ev.check("rename: the new key has its result, the old is gone", ok_ren, f"{time.time() - t_ren:.1f}s; {history('life/b.md')}")
         ev.check("rename: evidence is live on the new key", live_evidence("life/b.md") > 0, f"{live_evidence('life/b.md')} rows")
         n_ren = psql("SELECT count(*) FROM _oo_docs.event WHERE type = 'file.renamed'")
         ev.check("rename: a file.renamed event exists", int(n_ren) >= 1, f"{n_ren}")
