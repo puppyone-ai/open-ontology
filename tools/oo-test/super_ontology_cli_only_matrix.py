@@ -320,8 +320,8 @@ def part_b(oo, engine, work, target, rep):
         dbtok = home / "db.tok"
         code, t, err = cli.json("agent", "token", "create", "--name", "dbonly", "--scope", "db:read", "--gw-profile", "salesgw", "--ttl", "1d", "--output-file", str(dbtok))
         check("B2 a db:read token (no Drive) is created", code == 0, err)
-        ag = e2e.Oo(oo, {"PATH": base["PATH"], "HOME": str(work / "agent-home")}, state)
-        (work / "agent-home").mkdir()
+        ag = e2e.Oo(oo, {"PATH": base["PATH"], "HOME": str(work / "agent-homeB")}, state)
+        (work / "agent-homeB").mkdir()
         aenv = {"OO_ENDPOINT": f"http://127.0.0.1:{port}", "OO_AGENT_TOKEN_FILE": str(dbtok)}
         code, q, err = ag.json("ontology", "query", "SELECT credit_limit FROM sales.customers WHERE name='Acme Ltd'", env=aenv, state=False)
         check("B2 the Agent queries through the Gateway and the answer cites the publication", code == 0 and q["rows"] == [["50000"]]
