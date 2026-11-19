@@ -7,6 +7,7 @@ const CATALOG = Object.freeze({
     "menu.settings": "Settings...",
     "pick.driveRoot": "Choose the folder to use as a Drive", "pick.mountTarget": "Choose where to mount the context",
     "pick.ooExecutable": "Choose the oo executable", "pick.tokenFile": "Choose the token file of the remote engine",
+    "pick.caFile": "Choose the certificate authority file (PEM)", "pick.exportDir": "Choose where to export the ontology files",
     "about.detail": "Version {version}\nLicense: Apache-2.0",
   },
   "zh-Hans": {
@@ -16,6 +17,7 @@ const CATALOG = Object.freeze({
     "menu.settings": "设置...",
     "pick.driveRoot": "选择要用作 Drive 的文件夹", "pick.mountTarget": "选择挂载上下文的位置",
     "pick.ooExecutable": "选择 oo 可执行文件", "pick.tokenFile": "选择远端引擎的令牌文件",
+    "pick.caFile": "选择证书颁发机构文件(PEM)", "pick.exportDir": "选择导出本体文件的位置",
     "about.detail": "版本 {version}\n许可证:Apache-2.0",
   },
 });

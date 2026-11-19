@@ -46,7 +46,7 @@ export type SuperOntologyFailure = {
 export type SuperOntologyResult<T> = { ok: true; value: T; replayed?: boolean } | SuperOntologyFailure;
 
 /** Request and `value` types per implemented channel. Later cards extend this map. */
-export type PickPathPurpose = "drive-root" | "mount-target" | "oo-executable" | "token-file";
+export type PickPathPurpose = "drive-root" | "mount-target" | "oo-executable" | "token-file" | "ca-file" | "export-dir";
 export type PickPathValue = { grantId: string; displayPath: string } | { cancelled: true };
 
 /** Engine documents are carried verbatim (snake_case); the renderer narrows them with the generated guards. */
@@ -139,6 +139,24 @@ export type CompileInput = {
 };
 export type ModelConfigSaveInput = { provider: "openai-compatible" | "anthropic"; baseUrl: string; model: string; apiKey?: string; revision?: number };
 
+
+/** CLI parity channels (cli-requests.mjs): every answer carries the `oo` command that was run. A failing command is `ok: false` with its code, message and hint. */
+export type CliError = { code: string; message: string; hint: string | null };
+export type CliResult<T = unknown> = { ok: boolean; exit: number | null; data: T | null; error: CliError | null; cli: string };
+export type DbKindInfo = { id: string; label: string; port: number; nameField: "database" | "service"; tls: "required" | "optional"; wired: boolean; preflight: boolean; family?: string };
+export type DbConnectionFields = { kind: string; host: string; port?: number; database: string; user: string; password: string; tlsCaPem?: string; tlsCaGrantId?: string };
+export type DbSourceInfo = { name: string; backend: string; kind: "database"; status: string; config: { host: string; port: number; database: string; user: string; secret_ref: string; tls_ca: boolean; include: string[]; exclude: string[] } };
+export type CliJobState = { jobId: string; action: string; state: "running" | "succeeded" | "failed"; exit: number | null; error: CliError | null; cli: string; startedAt: number; offset: number; next: number; lines: string[] };
+export type GatewayState = { configured: boolean; url: string | null; transport: "production" | "local-development"; tokenFile: string | null; caFile: string | null };
+export type QueryOp = "query" | "validate" | "tables" | "describe" | "freshness" | "knowledge-search" | "knowledge-cat";
+export type QueryRequest = { op: QueryOp; sql?: string; table?: string; text?: string; path?: string; pathPrefix?: string; offset?: number; limit?: number; maxRows?: number; timeoutMs?: number };
+export type DiagnosticsReport = {
+  platform: { os: string; arch: string; node: string; app: string | null };
+  paths: { stackFile: string | null; stackExists: boolean; secretsDir: string; dataDir: string | null };
+  oo: { path: string } | null;
+  version: CliResult<{ name?: string; version?: string }> | null; check: CliResult | null; runtime: CliResult | null; serve: CliResult | null;
+};
+
 export type SuperOntologyChannelMap = {
   "engine-read": { request: { operationId?: string }; value: EngineSnapshot };
   "engine-preflight": { request: { operationId?: string }; value: EngineSnapshot };
@@ -157,6 +175,22 @@ export type SuperOntologyChannelMap = {
   "agent-token-list": { request: { operationId?: string }; value: { items: AgentTokenInfo[] } };
   "agent-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: boolean } };
   "agent-connect-snippet": { request: { agent: "generic" | "claude" | "cursor" | "codex"; profile: string; operationId?: string }; value: AgentConnectSnippet };
+  "cli-db-kinds": { request: { operationId?: string }; value: { kinds: DbKindInfo[]; stackFile: string | null; stackExists: boolean; secretsDir: string } };
+  "cli-db-list": { request: { operationId?: string }; value: CliResult<{ stackExists: boolean; sources: DbSourceInfo[] }> };
+  "cli-db-check": { request: DbConnectionFields & { operationId?: string }; value: CliResult<{ checks: { name: string; status: string; detail: string }[]; signed_in: boolean }> };
+  "cli-db-add": { request: DbConnectionFields & { operationId: string; name: string; include: string[]; exclude?: string[] }; value: CliResult };
+  "cli-db-remove": { request: { operationId: string; name: string }; value: CliResult };
+  "cli-db-test": { request: { name: string; operationId?: string }; value: CliResult<{ reachable: boolean }> };
+  "cli-doctor": { request: { operationId?: string }; value: CliResult };
+  "cli-pipeline": { request: { action: "status" | "freshness"; operationId?: string }; value: CliResult };
+  "cli-job-start": { request: { action: "up" | "build" | "down"; operationId: string }; value: { jobId: string; cli: string } };
+  "cli-job-read": { request: { jobId: string; since?: number; operationId?: string }; value: CliJobState };
+  "cli-gateway-read": { request: { operationId?: string }; value: GatewayState };
+  "cli-gateway-set": { request: { url: string; tokenGrantId: string; caGrantId?: string; transport?: "production" | "local-development"; operationId?: string }; value: GatewayState };
+  "cli-gateway-clear": { request: { operationId?: string }; value: { configured: false } };
+  "cli-query": { request: QueryRequest & { operationId?: string }; value: CliResult };
+  "cli-diagnostics": { request: { operationId?: string }; value: DiagnosticsReport };
+  "cli-ontology-export": { request: { grantId: string; files: { name: string; text: string }[]; operationId: string }; value: { directory: string; count: number; cli: string } };
   "drive-get": { request: { driveId: string; operationId?: string }; value: EngineDrive };
   "drive-create": {
     request:
