@@ -236,6 +236,7 @@
 | SO-B-S19-63 | D88 | merged | feat/super-ontology (车道 K 并入) | fb836f3f6 → fb836f3f6 | — | — | Say what is wrong when a review file cannot be read |
 | SO-B-S19-64 | D88 | merged | feat/super-ontology (车道 K 并入) | 940485148 → 940485148 | — | — | Test the review file error messages |
 | SO-B-S19-65 | D88 | merged | feat/super-ontology (车道 K 并入) | 01ec59905 → 01ec59905 | — | — | Pin the arm64 lite runtime built from the integration tip |
+| SO-F-S19-80 | D85 | merged | feat/super-ontology (App 车道 M 并入) | 69692efd4 → 7a875a53f | — | apps/super-ontology-desktop/ | Make the T2 runner address the launched process and the native open panel |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
