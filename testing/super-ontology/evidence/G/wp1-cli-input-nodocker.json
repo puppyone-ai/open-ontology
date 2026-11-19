@@ -1,0 +1,323 @@
+{
+ "lane": "super-ontology-g1",
+ "no_docker": true,
+ "s3": "mock",
+ "failed": 0,
+ "checks": [
+  {
+   "check": "1 oo serve starts with no OO_DOCS_DATABASE_URL and no flags",
+   "ok": true,
+   "detail": "{\"api_version\":\"1.0\",\"engine\":{\"images\":{},\"mode\":\"host_process\",\"parser\":{\"mode\":\"configured\"},\"pid\":51835,\"project\":\"host\"},\"pid\":50871,\"port\":60657,\"protocol\":\"oo.docs.serve/v1\",\"started_at\":\"2026-11-19T00:49:02Z\",\"state_dir\":\"/tmp/oo-wp1-jj_r0kih/home/.local/state/open-ontology/docs\",\"token_file"
+  },
+  {
+   "check": "1 the runtime was chosen by oo (compose with Docker, else embedded host)",
+   "ok": true,
+   "detail": "host_process"
+  },
+  {
+   "check": "1 serve.json exists in the default state dir of the fresh HOME",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "2 oo docs upload (no Drive exists) exits 0 and creates the managed Drive",
+   "ok": true,
+   "detail": "7"
+  },
+  {
+   "check": "2 the managed folder is under the oo state dir and holds the files",
+   "ok": true,
+   "detail": "['2026-01-08-年度计划会.docx', 'inbox/会议.md', 'inbox/北辰环境.md']"
+  },
+  {
+   "check": "2 no .part file is left behind",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "2 oo docs wait settles",
+   "ok": true,
+   "detail": "{\"published\": 7}"
+  },
+  {
+   "check": "2 oo installed the parser runtime itself (uv, under the state dir) and docx and pdf are published",
+   "ok": true,
+   "detail": "({'mode': 'configured'}, {'published': 7})"
+  },
+  {
+   "check": "2 wait exit code is 0 (all fine) or 10 (a file the runtime cannot parse)",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "check": "3 every uploaded md file is published",
+   "ok": true,
+   "detail": "{'2026-01-08-年度计划会.docx': 'published', 'inbox/会议.md': 'published', 'inbox/北辰环境.md': 'published', 'inbox/周若溪.md': 'published', 'inbox/星火计划.md': 'published', 'inbox/林川.md': 'published', '星图看板产品方案.pdf': 'published'}"
+  },
+  {
+   "check": "3 docx and pdf reach a terminal state in the Docker-free runtime (parsing needs the sidecar)",
+   "ok": true,
+   "detail": "{'2026-01-08-年度计划会.docx': 'published', '星图看板产品方案.pdf': 'published'}"
+  },
+  {
+   "check": "3 oo context mount exits 0 and BRIEF.md exists",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "3 BRIEF content lines carry [src: and cite uploaded files",
+   "ok": true,
+   "detail": "cited ['星火计划.md', '会议.md']"
+  },
+  {
+   "check": "3 BRIEF mentions the owner from the uploaded md",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "4 uploading the same name again gives `name (2).md` and keeps the first file",
+   "ok": true,
+   "detail": "['dup/星火计划 (2).md']"
+  },
+  {
+   "check": "4 a symlink is refused with exit 2",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_UPLOAD_SYMLINK\",\"message\":\"`/tmp/oo-wp1-jj_r0kih/link.md` is a symbolic link; upload the real file\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "4 --to ../ is refused with exit 2",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_UPLOAD_BAD_PATH\",\"message\":\"`..` is not a usable file name\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "4 nothing was written outside the Drive",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "4 oo source add s3 without a terminal or credential flag exits 2 and never waits",
+   "ok": true,
+   "detail": "exit 2 0.0s credential given and no terminal to ask: use --credentials-stdin, --access-key-id-env/--secret-access-key-env, or --secret-ref\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "4 `-` (stdin) without --name exits 2",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_UPLOAD_NEEDS_NAME\",\"message\":\"`-` (stdin) needs --name <file name>\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "4 `-` with --name places the file under --to",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 oo source add s3 --credentials-stdin exits 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 exactly one credential file, mode 0600, in the secrets directory",
+   "ok": true,
+   "detail": "{'src_bucket-docs_s3': '0o600'}"
+  },
+  {
+   "check": "5 secrets directory is 0700",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 oo source add answered with the reference hidden",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 oo source test reads the bucket with the stored credential",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 oo source ls lists the managed folder and the bucket",
+   "ok": true,
+   "detail": "['bucket-docs', 'default']"
+  },
+  {
+   "check": "5 oo docs upload --drive <bucket> signs a PUT the second SigV4 implementation accepts",
+   "ok": true,
+   "detail": "exit 0 keys ['inbox/projects/bucket-note.md'] denied 0 "
+  },
+  {
+   "check": "5 the engine read the file back from the bucket and published it",
+   "ok": true,
+   "detail": "{\"awaiting_review\": 0, \"counts\": {\"published\": 1}, \"drive_rev\": 1, \"failed\": 0, \"settled\": true, \"waited_ms\": 3674}"
+  },
+  {
+   "check": "5 a second upload to the bucket does not overwrite (name (2))",
+   "ok": true,
+   "detail": "['inbox/projects/bucket-note (2).md', 'inbox/projects/bucket-note.md']"
+  },
+  {
+   "check": "5 a read-only credential gives a clear error (exit 1, SO_UPLOAD_BACKEND_READ_ONLY)",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_UPLOAD_BACKEND_READ_ONLY\",\"message\":\"the bucket credential cannot write (AccessDenied); this Drive is read-only for oo. Upload with the cloud's own tool, or use a credential with write access\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "6 no secret in any process argument list",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "6 the S3 key and secret appear in no file under HOME but the 0600 credential file",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "6 and in no command output",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 oo source rm deletes the source and its credential file",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 the bucket is gone from oo source ls (or is being deleted)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 oo source add postgres --password-stdin exits 0 and registers it in the stack file",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 the password is one 0600 file in the secrets directory",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 the stack file names the source with a file: reference and no password",
+   "ok": true,
+   "detail": " \"key\": {\n      \"secret_ref\": \"env:OO_MODEL_KEY\"\n    },\n    \"context_window\": \"auto\"\n  },\n  \"deploy\": {\n    \"target\": \"local\",\n    \"profile\": \"lite\"\n  },\n  \"gateway\": {\n    \"public_url\": \"auto\"\n  }\n}\n"
+  },
+  {
+   "check": "8 the stack file is still a valid stack and keeps the other source and the model",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 stack file mode 0600",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 oo source ls lists the folder and both database sources",
+   "ok": true,
+   "detail": "{'default': 'fs', 'seed': 'postgres', 'erp': 'postgres'}"
+  },
+  {
+   "check": "8 ls shows no reference path",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 oo source test reports the database reachable",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 postgres without trust anchor and scope exits 2 and writes nothing",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"DOCS_ENGINE_BAD_REQUEST\",\"message\":\"postgres and mysql sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "8 no terminal and no password flag exits 2 without waiting",
+   "ok": true,
+   "detail": "\"error\":{\"code\":\"DOCS_ENGINE_BAD_REQUEST\",\"message\":\"no password given and no terminal to ask: use --password-stdin, --password-env, --password-file or --password-ref\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "8 a second source of the same name is refused (exit 2)",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_SOURCE_EXISTS\",\"message\":\"a source named `erp` is already in /tmp/oo-wp1-jj_r0kih/stack.json\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "8 without a stack file it says to run oo init (exit 2)",
+   "ok": true,
+   "detail": "NO_STACK\",\"message\":\"/tmp/oo-wp1-jj_r0kih/none.yaml does not exist; `oo init` creates it (the model the database pipeline needs is set there), or pass --config <file>\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "8 oo source add mysql --password-env exits 0",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 the database password is in no process list, command output or file but its 0600 file",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "8 oo source rm removes the entry and the password file",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 the last database source cannot be removed (exit 2)",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"SO_SOURCE_LAST\",\"message\":\"a stack needs at least one database source; edit the file or run `oo init` instead\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "9 oo source link add stores a rule on the managed Drive",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "9 the same rule again keeps its revision, a changed one moves it",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "9 a changed rule moves the revision",
+   "ok": true,
+   "detail": "{'alias_cols': [], 'db_table': 'sales.customers', 'drive_id': '35160714-dadf-4c64-84ea-a95caf0b0a73', 'entity_type': '', 'key_col': 'id', 'name_col': 'title', 'protocol': 'oo.link-rule/v1', 'revision': 2}"
+  },
+  {
+   "check": "9 oo source link ls lists it",
+   "ok": true,
+   "detail": "{'items': [{'alias_cols': [], 'db_table': 'sales.customers', 'drive_id': '35160714-dadf-4c64-84ea-a95caf0b0a73', 'entity_type': '', 'key_col': 'id', 'name_col': 'title', 'revision': 2}], 'protocol': 'oo.link-rules/v1'}"
+  },
+  {
+   "check": "9 a bad table name is refused by the engine (exit 2)",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"DOCS_ENGINE_BAD_REQUEST\",\"message\":\"schema.table of a data table\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "9 oo source link rm removes it",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "7 oo serve stops on SIGTERM with exit 0",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "check": "7 the embedded PostgreSQL stopped with it",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "7 oo serve starts again on the same state",
+   "ok": true,
+   "detail": "{\"api_version\":\"1.0\",\"engine\":{\"images\":{},\"mode\":\"host_process\",\"parser\":{\"mode\":\"configured\"},\"pid"
+  },
+  {
+   "check": "7 after the restart the Drive still lists every file",
+   "ok": true,
+   "detail": "10"
+  },
+  {
+   "check": "7 and stops again with exit 0",
+   "ok": true,
+   "detail": "0"
+  }
+ ]
+}
