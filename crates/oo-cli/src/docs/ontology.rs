@@ -1,4 +1,4 @@
-//! `oo ontology search|entity|query|sources` (D83): the CLI end of the unified query surface.
+//! `oo ontology search|entity|query|sources|schema` (D83): the CLI end of the unified query surface.
 //!
 //! An Agent calls it with `--endpoint URL --token-file F` (or `OO_ENDPOINT` and `OO_AGENT_TOKEN_FILE`);
 //! without them the local `oo serve` and its control token are used. JSON output is one object on one
@@ -14,12 +14,12 @@ use super::docs_cmd::{Parsed, parse};
 use super::federate::pct_encode;
 use super::secrets;
 
-pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n";
+pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  oo ontology schema [--limit <n>] [--cursor <c>] [--json]   (tables, columns, relationships, document links; read-only)\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n";
 
 pub fn is_subcommand(rest: &[String]) -> bool {
     matches!(
         rest.first().map(String::as_str),
-        Some("search" | "entity" | "query" | "sources")
+        Some("search" | "entity" | "query" | "sources" | "schema")
     )
 }
 
@@ -163,6 +163,47 @@ fn human(v: &Value) -> String {
                 }
             }
         }
+        "oo.ontology.schema/v1" => {
+            for t in v["tables"].as_array().into_iter().flatten() {
+                out.push_str(&format!(
+                    "{}  {}\n",
+                    t["qualified_name"].as_str().unwrap_or(""),
+                    t["urn"].as_str().unwrap_or("")
+                ));
+                for c in t["columns"].as_array().into_iter().flatten() {
+                    out.push_str(&format!(
+                        "  {} {}\n",
+                        c["name"].as_str().unwrap_or(""),
+                        c["type"].as_str().unwrap_or("")
+                    ));
+                }
+            }
+            for r in v["relationships"].as_array().into_iter().flatten() {
+                out.push_str(&format!(
+                    "rel {}: {}.{} -> {}.{} ({})\n",
+                    r["id"].as_str().unwrap_or(""),
+                    r["from"]["table"].as_str().unwrap_or(""),
+                    r["from"]["columns"],
+                    r["to"]["table"].as_str().unwrap_or(""),
+                    r["to"]["columns"],
+                    r["provenance"].as_str().unwrap_or("?")
+                ));
+            }
+            for l in v["doc_links"].as_array().into_iter().flatten() {
+                out.push_str(&format!(
+                    "link {} -> {}\n",
+                    l["row_urn"].as_str().unwrap_or(""),
+                    l["target"]["urn"].as_str().unwrap_or("")
+                ));
+            }
+            if let Some(c) = v["next_cursor"].as_str() {
+                out.push_str(&format!("next: --cursor {c}\n"));
+            }
+            out.push_str(&format!(
+                "[source] gateway {} schema",
+                v["source"]["profile"].as_str().unwrap_or("?")
+            ));
+        }
         "oo.ontology.query/v1" => {
             out.push_str(&format!("{}\n", v["columns"]));
             for r in v["rows"].as_array().into_iter().flatten() {
@@ -191,6 +232,7 @@ pub fn run(rest: &[String]) -> u8 {
             "--type",
             "--limit",
             "--max-rows",
+            "--cursor",
             "--endpoint",
             "--token-file",
         ],
@@ -231,6 +273,17 @@ pub fn run(rest: &[String]) -> u8 {
                     .await
             }
             "sources" => d.get_json("/v1/ontology/sources").await,
+            "schema" => {
+                let mut path = String::from("/v1/ontology/schema");
+                let mut sep = '?';
+                for (flag, key) in [("--limit", "limit"), ("--cursor", "cursor")] {
+                    if let Some(v) = p.opt(flag) {
+                        path.push_str(&format!("{sep}{key}={}", pct_encode(v)));
+                        sep = '&';
+                    }
+                }
+                d.get_json(&path).await
+            }
             _ => {
                 let mut body = json!({"sql": arg()?});
                 if let Some(n) = p.opt("--max-rows") {

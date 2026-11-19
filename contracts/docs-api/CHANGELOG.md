@@ -173,3 +173,15 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - Engine behaviour, no field: an object-store Drive (`s3`, `oss`, `cos`, `r2`) is polled for changes like a local one, every
   `sync.s3_poll_seconds` of `docs.json` (default 300; the key is not `object_poll_seconds`). Before, only `fs` Drives were polled, so a
   change in a bucket showed only after an explicit `POST /drives/{id}:sync`.
+
+## 1.12 (lane L, ontology schema)
+
+- `GET /v1/ontology/schema` (`since` 1.12; `oo ontology schema`): the database side of the unified ontology, so a client no longer reads
+  `information_schema` through `POST /v1/ontology/query` (the Gateway SQL guard refuses it, sql-guard-v1 R5). Answer `OntologySchema`:
+  `tables` with `columns` (name, position, type) from the Gateway's `/v1/tables` and `/v1/tables/{t}` under the token's profile,
+  `relationships` from the role pack's `relationships/graph.json` (declared foreign keys and reviewed relations, each with `from`/`to` table
+  and columns, cardinality, provenance), and `doc_links` (document entity to row, from the engine's link routes, only with `docs:read`).
+  Needs `db:read` and a Gateway profile (403 `ONTOLOGY_SCOPE_DENIED` otherwise); `limit` 1..=100 (default 50) and the opaque `cursor`
+  page the sorted table list (400 `ONTOLOGY_BAD_REQUEST` for a bad value); every relationship and link comes once, in the page of its
+  `from` table. New URNs: table `oo:db/<profile>/<schema.table>`, column `<table urn>#<column>`, relationship
+  `oo:db/<profile>/relationship/<id>`. No new error code. Additive.

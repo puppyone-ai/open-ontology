@@ -5614,6 +5614,444 @@
           }
         }
       ]
+    },
+    "OntologySchema": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/schema` (1.12, CLI proxy surface; `oo ontology schema`): the database side of the unified ontology, read-only and scoped by the token (`db:read` and its Gateway profile; without them 403 `ONTOLOGY_SCOPE_DENIED`). `tables` and their `columns` come from the Gateway (`/v1/tables`, `/v1/tables/{table}`) with the token's profile; `relationships` are the edges of the role pack's published relationship graph (declared foreign keys and reviewed relations); `doc_links` are the links between document entities and rows of the listed tables (needs `docs:read`; `sides.docs.status` is `skipped` otherwise). Paging: tables are sorted by qualified name and `limit` (1..=100, default 50) takes a window; `next_cursor` (opaque, null on the last page) continues it. A relationship and a link are returned once, in the page of the table it starts from (`from.table`, `db_table`). URNs: table `oo:db/<profile>/<schema.table>` (the prefix of its row URNs), column `<table urn>#<column>`, relationship `oo:db/<profile>/relationship/<id>`; a row URN is the one `oo ontology search|entity` returns.",
+      "required": [
+        "protocol",
+        "source",
+        "tables",
+        "relationships",
+        "doc_links",
+        "total_tables",
+        "next_cursor",
+        "sides",
+        "provenance"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.schema/v1"
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "profile"
+          ],
+          "properties": {
+            "kind": {
+              "const": "database"
+            },
+            "profile": {
+              "type": "string"
+            }
+          }
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "qualified_name",
+              "schema",
+              "name",
+              "column_count",
+              "columns",
+              "columns_status"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "qualified_name": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "column_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "columns_status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "error"
+                ],
+                "description": "`error` when the Gateway could not describe this table; `columns` is then empty and `warnings` says why."
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "urn",
+                    "name",
+                    "position"
+                  ],
+                  "properties": {
+                    "urn": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type_oid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "id",
+              "from",
+              "to"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "from": {
+                "type": "object",
+                "required": [
+                  "table",
+                  "urn"
+                ],
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "urn": {
+                    "type": "string"
+                  },
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "column_urns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "to": {
+                "type": "object",
+                "required": [
+                  "table",
+                  "urn"
+                ],
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "urn": {
+                    "type": "string"
+                  },
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "column_urns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "cardinality": {
+                "type": "string",
+                "enum": [
+                  "one_to_one",
+                  "one_to_many",
+                  "many_to_one",
+                  "many_to_many"
+                ]
+              },
+              "join_hint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "declared_fk",
+                  "inferred",
+                  "view_definition",
+                  "query_log",
+                  "human"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "doc_links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "table_urn",
+              "row_urn",
+              "target",
+              "db_table",
+              "db_key",
+              "status"
+            ],
+            "properties": {
+              "table_urn": {
+                "type": "string"
+              },
+              "row_urn": {
+                "type": "string"
+              },
+              "target": {
+                "type": "object",
+                "required": [
+                  "urn"
+                ],
+                "properties": {
+                  "urn": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              },
+              "db_table": {
+                "type": "string"
+              },
+              "db_key": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "confidence_bp": {
+                "type": "integer"
+              },
+              "matched_via": {
+                "type": "string"
+              },
+              "inferred": {
+                "type": "boolean"
+              },
+              "provenance": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "total_tables": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sides": {
+          "type": "object",
+          "required": [
+            "db",
+            "relationships",
+            "docs"
+          ],
+          "properties": {
+            "db": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "relationships": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "docs": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "required": [
+            "kind",
+            "source"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gateway_schema"
+            },
+            "source": {
+              "type": "string"
+            },
+            "knowledge_version": {},
+            "policy_version": {},
+            "pack_digest": {},
+            "publication_id": {}
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.schema/v1",
+          "source": {
+            "kind": "database",
+            "profile": "salesgw"
+          },
+          "tables": [
+            {
+              "urn": "oo:db/salesgw/sales.orders",
+              "qualified_name": "sales.orders",
+              "schema": "sales",
+              "name": "orders",
+              "column_count": 1,
+              "columns_status": "ok",
+              "columns": [
+                {
+                  "urn": "oo:db/salesgw/sales.orders#id",
+                  "name": "id",
+                  "position": 1,
+                  "type": "int8",
+                  "type_oid": 20
+                }
+              ]
+            }
+          ],
+          "relationships": [],
+          "doc_links": [],
+          "total_tables": 1,
+          "next_cursor": null,
+          "sides": {
+            "db": {
+              "status": "ok",
+              "count": 1
+            },
+            "relationships": {
+              "status": "ok",
+              "count": 0
+            },
+            "docs": {
+              "status": "skipped",
+              "count": 0
+            }
+          },
+          "warnings": [],
+          "provenance": {
+            "kind": "gateway_schema",
+            "source": "salesgw"
+          }
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -6302,6 +6740,15 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/schema",
+      "request": null,
+      "response": "OntologySchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.12"
     }
   ]
 }
