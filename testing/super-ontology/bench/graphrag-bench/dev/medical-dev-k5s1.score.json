@@ -1,0 +1,26 @@
+{
+  "judge": "cx/gpt-5.6-luna",
+  "n": 207,
+  "metric": "factual F1 (official prompts) and ROUGE-L (no stemmer); dev diagnostic, not the board ACC",
+  "Fact Retrieval": {
+    "n": 110,
+    "factual_f1": 66.86,
+    "rouge_l": 43.34
+  },
+  "Complex Reasoning": {
+    "n": 51,
+    "factual_f1": 48.54,
+    "rouge_l": 26.87
+  },
+  "Contextual Summarize": {
+    "n": 29,
+    "factual_f1": 50.34,
+    "rouge_l": 30.84
+  },
+  "Creative Generation": {
+    "n": 17,
+    "factual_f1": 37.31,
+    "rouge_l": 22.49
+  },
+  "mean_factual_f1_over_types": 50.76
+}

@@ -1,0 +1,27 @@
+{
+  "kb": "mag",
+  "split": "val",
+  "n": 200,
+  "limit": 200,
+  "seed": 0,
+  "plan": "llm",
+  "rerank_k": 0,
+  "model": "cx/gpt-5.6-luna",
+  "fuzzy": 2,
+  "engine_args": [],
+  "candidate_types": [
+    "paper"
+  ],
+  "wall_s": 402.1,
+  "llm_calls": 200,
+  "llm_tokens_in_out": [
+    557087,
+    38830
+  ],
+  "latency_p50_s": 5.313,
+  "latency_p95_s": 9.536,
+  "hit@1": 68.5,
+  "hit@5": 90.0,
+  "recall@20": 90.53,
+  "mrr": 78.19
+}

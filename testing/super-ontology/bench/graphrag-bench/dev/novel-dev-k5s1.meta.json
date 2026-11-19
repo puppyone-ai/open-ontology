@@ -1,0 +1,26 @@
+{
+  "domain": "novel",
+  "n": 201,
+  "reader": "cx/gpt-5.6-luna",
+  "temperature": 0.7,
+  "k": 5,
+  "spread": 1,
+  "words": 200,
+  "engine": {
+    "blocks": 8670,
+    "docs": 20,
+    "entities": 14940,
+    "facts": 0,
+    "mentions": 42612,
+    "ok": true,
+    "passages": 3235
+  },
+  "llm_calls": 201,
+  "llm_tokens_in_out": [
+    1436096,
+    14382
+  ],
+  "wall_s": 262.3,
+  "retrieval_p50_s": 0.0004,
+  "context_words_mean": 3315
+}

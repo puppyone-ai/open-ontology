@@ -1,0 +1,19 @@
+{
+  "kb": "prime",
+  "split": "val",
+  "n": 400,
+  "limit": 400,
+  "seed": 0,
+  "plan": "none",
+  "rerank_k": 0,
+  "model": null,
+  "fuzzy": 2,
+  "engine_args": [],
+  "wall_s": 12.1,
+  "latency_p50_s": 0.003,
+  "latency_p95_s": 0.007,
+  "hit@1": 27.0,
+  "hit@5": 45.5,
+  "recall@20": 53.87,
+  "mrr": 36.02
+}
