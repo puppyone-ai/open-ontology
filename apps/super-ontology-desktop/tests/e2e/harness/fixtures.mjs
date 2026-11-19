@@ -25,3 +25,16 @@ export async function createFixtures(root) {
   }
   return { folder, loose, files, count: Object.keys(FIXTURE_FILES).length };
 }
+
+/**
+ * A stand-in for the embedded-runtime folder the DMG ships, so the app's preflight accepts the `lite` runtime and `oo serve` is started
+ * with `--runtime embedded` (its own PostgreSQL, no Docker, no container). The engine brings the real database itself.
+ */
+export async function createLiteRuntimeStub(root) {
+  const lite = path.join(root, "lite");
+  await fs.mkdir(path.join(lite, "postgres", "bin"), { recursive: true });
+  for (const binary of ["postgres", "initdb", "pg_ctl"]) await fs.writeFile(path.join(lite, "postgres", "bin", binary), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  await fs.mkdir(path.join(lite, "sidecar"), { recursive: true });
+  await fs.writeFile(path.join(lite, "runtime.json"), JSON.stringify({ protocol: "oo.lite-runtime/v1", postgres: "17.4" }));
+  return lite;
+}

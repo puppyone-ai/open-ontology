@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { connectToPage, readDevToolsPort } from "./cdp.mjs";
-import { createFixtures } from "./fixtures.mjs";
+import { createFixtures, createLiteRuntimeStub } from "./fixtures.mjs";
 import { createFakeToolbox } from "../../support/fake-engine-tools.mjs";
 
 const execute = promisify(execFile);
@@ -75,11 +75,7 @@ export async function runScenario(options, scenario) {
     }
     // The embedded runtime is the engine's own (`oo serve --runtime embedded` brings its PostgreSQL); the stub folder only lets the
     // app's preflight see "an embedded runtime is present", like the folder the DMG ships.
-    const lite = path.join(root, "lite");
-    await fs.mkdir(path.join(lite, "postgres", "bin"), { recursive: true });
-    for (const binary of ["postgres", "initdb", "pg_ctl"]) await fs.writeFile(path.join(lite, "postgres", "bin", binary), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-    await fs.mkdir(path.join(lite, "sidecar"), { recursive: true });
-    await fs.writeFile(path.join(lite, "runtime.json"), JSON.stringify({ protocol: "oo.lite-runtime/v1", postgres: "17.4" }));
+    const lite = await createLiteRuntimeStub(root);
     environment.SUPER_ONTOLOGY_LITE_DIR = lite;
     Object.assign(appSettings, { ooExecutable: state.ooBinary, runtime: "lite" });
   } else {

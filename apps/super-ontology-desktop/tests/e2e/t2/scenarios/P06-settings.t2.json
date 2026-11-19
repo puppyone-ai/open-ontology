@@ -1,0 +1,98 @@
+{
+  "id": "P06",
+  "title": "Settings: stop and start the engine, About, and the sources survive a relaunch",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.settings"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "engine-status",
+        "attributes": {
+          "data-state": "healthy"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.settings.engine.stop"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "engine-status",
+        "attributes": {
+          "data-state": "stopped"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.settings.engine.start"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "engine-status",
+        "attributes": {
+          "data-state": "healthy"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "about-version",
+        "text": "\\d+\\.\\d+\\.\\d+"
+      }
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "source-row",
+        "attributes": {
+          "data-name": "Sample docs"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "settings"
+    }
+  ]
+}
