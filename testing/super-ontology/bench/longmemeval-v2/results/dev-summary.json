@@ -1,0 +1,28 @@
+{
+ "dev1": {
+  "answered": 159,
+  "rule_scored": "52/100",
+  "rule_acc": 0.52,
+  "judge_pending": 59,
+  "unknown": 50,
+  "abstention_unknown": "25/49",
+  "query_latency_mean_s": 0.0029,
+  "query_latency_max_s": 0.008,
+  "context_tokens_mean": 22699,
+  "reader_prompt_tokens_mean": 22935,
+  "reader_completion_tokens_mean": 5709
+ },
+ "dev2": {
+  "answered": 159,
+  "rule_scored": "57/100",
+  "rule_acc": 0.57,
+  "judge_pending": 59,
+  "unknown": 47,
+  "abstention_unknown": "22/49",
+  "query_latency_mean_s": 0.0029,
+  "query_latency_max_s": 0.0054,
+  "context_tokens_mean": 30900,
+  "reader_prompt_tokens_mean": 31135,
+  "reader_completion_tokens_mean": 5510
+ }
+}
