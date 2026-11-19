@@ -141,6 +141,8 @@ const server = http.createServer((request, response) => {
     return;
   }
   const docs = fakeDocs();
+  // The model the engine holds (`docs.model`, set by a scenario): the database pipeline reads it when the first stack file is written.
+  if (request.method === "GET" && request.url?.split("?")[0] === "/v1/docs/config/model") { send(200, docs?.model ?? { configured: false }); return; }
   if (docs && request.method === "GET" && request.url?.startsWith("/v1/docs/drives")) {
     const url = new URL(request.url, "http://127.0.0.1");
     const files = url.pathname.match(/^\/v1\/docs\/drives\/([^/]+)\/(files|tree)$/u);
