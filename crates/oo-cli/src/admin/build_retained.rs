@@ -185,6 +185,63 @@ pub(super) fn save(path: &Path, value: &Value) -> Result<()> {
         .map_err(|_| Failure::local("BUILD_STATE_IO"))
 }
 
+/// The failing child's own words, safe to show: its structured `error` code, or the last
+/// stderr line (an exception name and code), reduced to a short printable ASCII token set.
+/// Credentials never appear in these lines; anything else is dropped, not echoed.
+pub(super) fn cause(stderr: &[u8]) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let line = text
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("");
+    let raw = serde_json::from_str::<Value>(line)
+        .ok()
+        .and_then(|v| {
+            let code = v["error"]
+                .as_str()
+                .or_else(|| v["reason"].as_str())?
+                .to_owned();
+            Some(match v["detail"].as_str() {
+                Some(detail) => format!("{code}: {detail}"),
+                None => code,
+            })
+        })
+        .unwrap_or_else(|| line.to_owned());
+    let clean: String = raw
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || " _:.,-/=()".contains(*c))
+        .take(160)
+        .collect();
+    if clean.is_empty() {
+        "no error text from the child".into()
+    } else {
+        clean
+    }
+}
+
+/// A loopback source is reached from the runtime as `host.docker.internal`, so its server
+/// certificate must list that name; say so whenever a TLS failure could be that.
+pub(super) fn tls_hint(cause: &str) -> &'static str {
+    let lower = cause.to_ascii_lowercase();
+    if [
+        "tls",
+        "certificate",
+        "hostname",
+        "ssl",
+        "verify",
+        "handshake",
+    ]
+    .iter()
+    .any(|w| lower.contains(w))
+    {
+        " (a source on 127.0.0.1 or localhost is reached from the runtime as host.docker.internal; its server certificate must list host.docker.internal as a subject alternative name and carry the serverAuth usage)"
+    } else {
+        ""
+    }
+}
+
 pub(super) fn load(
     root: &Path,
     runtime: &Value,
@@ -234,13 +291,20 @@ pub(super) fn load(
         if (code != 0 && refusal["error"] != "publication_semantic_admission_required")
             || !matches!(value["state"].as_str(), Some("pending" | "ready"))
         {
-            return Err(Failure::local("BUILD_CANDIDATE_REFUSED"));
+            return Err(Failure::local(format!(
+                "BUILD_CANDIDATE_REFUSED: {}",
+                cause(&err)
+            )));
         }
         Ok(value)
     } else if code == 0 {
         Ok(json!({"generation":generation,"loaded":true}))
     } else {
-        Err(Failure::local("BUILD_LOAD_FAILED"))
+        let why = cause(&err);
+        Err(Failure::local(format!(
+            "BUILD_LOAD_FAILED: oo-load exited {code}: {why}{}",
+            tls_hint(&why)
+        )))
     }
 }
 
@@ -298,16 +362,17 @@ pub(super) fn builder(
     command.args(["-c", "import importlib.util,json,os,sys\np,c,o,r=sys.argv[1:]\nsys.path.insert(0,os.path.dirname(p))\ns=importlib.util.spec_from_file_location('retained_build',p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)\nos.umask(0o077)\nv=m.run(c,o)\nm.save(r,v)\nprint(json.dumps(v))"])
         .arg(text(runtime, "builder_script")?).arg(config_path).arg(&output).arg(&receipt)
         .env("OO_SELFBUILD_BUDGET_BIN", binary("selfbuild-budget")?);
-    let (code, _, _) = invoke(command, vec![], 1800)?;
+    let (code, _, err) = invoke(command, vec![], 1800)?;
     if code != 0 {
         // The Builder process finished with an error (e.g. one transient
         // model reply): its output can no longer change, so keep it aside as
         // evidence and let `--resume` start a fresh attempt. A Builder that
         // was interrupted mid-run still refuses above, never restarted.
         keep_failed_output(root, &output)?;
-        return Err(Failure::local(
-            "BUILD_BUILDER_FAILED: the draft step failed; run oo build --resume to try again",
-        ));
+        return Err(Failure::local(format!(
+            "BUILD_BUILDER_FAILED: the draft step failed ({}); run oo build --resume to try again",
+            cause(&err)
+        )));
     }
     review::read(&receipt)
 }
@@ -630,6 +695,24 @@ mod tests {
         symlink(&root, root.join("link")).unwrap();
         assert!(save(&root.join("link/unsafe.json"), &json!({})).is_err());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn child_failures_show_their_cause_and_nothing_else() {
+        assert_eq!(
+            cause(b"noise\n{\"error\":\"publication_unverified\",\"detail\":\"x y\"}\n"),
+            "publication_unverified: x y"
+        );
+        assert_eq!(
+            cause(b"Traceback (most recent call last):\nValueError: registry_entity_binding\n"),
+            "ValueError: registry_entity_binding"
+        );
+        assert_eq!(cause(b""), "no error text from the child");
+        assert!(tls_hint("tls handshake failed").contains("host.docker.internal"));
+        assert!(tls_hint("SOURCE auth failed").is_empty());
+        let long = "a".repeat(500);
+        assert_eq!(cause(long.as_bytes()).len(), 160);
+        assert!(!cause(b"pw=\x1b[31m<script>\n").contains(['<', '\x1b']));
     }
 
     #[test]
