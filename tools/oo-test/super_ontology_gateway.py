@@ -39,6 +39,11 @@ def run(args, **kw):
 
 
 class RealGateway:
+    # Extra datasets and relationships of the role pack (oos effective form). They are published in the pack the Gateway
+    # serves (`/v1/tables`, `/v1/knowledge/relationships/graph.json`) and are not backed by a physical table here.
+    EXTRA_DATASETS = ()
+    RELATIONSHIPS = ()
+
     def __init__(self, work, bindir, rows):
         """`bindir` holds oo-gateway, oo-sql-parser-worker, issue-token and role-pack-bundle; `rows` are (id, name, credit)."""
         self.work, self.bin, self.rows = Path(work).resolve() / "gw", Path(bindir), rows
@@ -97,13 +102,17 @@ class RealGateway:
                                    "primary_key": ["id"],
                                    "columns": [{"name": n, "data_type": t, "semantic_type": s, "pii": "none",
                                                 "classification": {"state": "confirmed", "by": "fixture/test"}, "provenance": "declared"}
-                                               for n, t, s in (("id", "bigint", "identifier"), ("name", "text", "entity_name"), ("credit_limit", "bigint", "quantity"))]}]}
+                                               for n, t, s in (("id", "bigint", "identifier"), ("name", "text", "entity_name"), ("credit_limit", "bigint", "quantity"))]},
+                                  *self.EXTRA_DATASETS]}
         for k in ("relationships", "enums", "glossary", "entities", "metrics", "examples"):
             effective[k] = []
+        effective["relationships"] = list(self.RELATIONSHIPS)
         visibility = {"protocol": "oo.builder.role-visibility/v1", "project": PROJECT, "ontology_version": "oos-1", "catalog_version": "cat-1",
                       "policy": {"id": "policy", "version": "pv1"}, "knowledge": {"id": "knowledge", "version": "kv1"},
                       "principal": "agent", "role": ROLE, "issued_for_compiler": "oo-builder/role-pack/v1",
-                      "datasets": [{"dataset": "sales.customers", "columns": list(COLS), "row_security": "none", "global_stats": "denied"}],
+                      "datasets": [{"dataset": "sales.customers", "columns": list(COLS), "row_security": "none", "global_stats": "denied"},
+                                   *({"dataset": d["dataset"], "columns": [c["name"] for c in d["columns"]], "row_security": "none", "global_stats": "denied"}
+                                     for d in self.EXTRA_DATASETS)],
                       "limits": {"max_file_bytes": 262144, "max_total_bytes": 1048576, "max_entries": 128}}
         req = self.work / "pack-request.json"
         req.write_text(json.dumps({"protocol": "oo.builder.role-pack-command/v1", "effective_oos": effective, "visibility": visibility}))

@@ -17,13 +17,21 @@ export function createLabBridge(initial: AtlasData): LabBridge {
   let seq = 0;
   const ok = (value: unknown) => ({ ok: true as const, value });
   const empty = { items: [], next_cursor: null, as_of_seq: 0 };
-  const sql = async (text: string) => {
+  /** The schema answer (docs-api 1.12) of the fake catalog, paged like the real route. */
+  const schema = async (limit: number, cursor: string | undefined) => {
     const catalog = await source.catalog();
     if (!catalog.ok) return catalog;
-    const rows = /table_constraints/u.test(text)
-      ? catalog.value.foreignKeys.map((fk) => [fk.from.schema, fk.from.table, fk.to.schema, fk.to.table])
-      : catalog.value.tables.map((t) => [t.schema, t.table]);
-    return ok({ columns: [], rows, protocol: "oo.ontology.query/v1" });
+    const start = cursor?.startsWith("t") ? Number(cursor.slice(1)) : 0;
+    const page = catalog.value.tables.slice(start, start + limit);
+    const names = new Set(page.map((t) => `${t.schema}.${t.table}`));
+    const end = (t: { schema: string; table: string }) => ({ table: `${t.schema}.${t.table}`, urn: `oo:db/lab/${t.schema}.${t.table}`, columns: ["id"] });
+    return ok({
+      protocol: "oo.ontology.schema/v1", source: { kind: "database", profile: "lab" },
+      tables: page.map((t) => ({ urn: `oo:db/lab/${t.schema}.${t.table}`, qualified_name: `${t.schema}.${t.table}`, schema: t.schema, name: t.table, column_count: 1, columns_status: "ok", columns: [{ urn: `oo:db/lab/${t.schema}.${t.table}#id`, name: "id", position: 1, type: "int8", type_oid: 20 }] })),
+      relationships: catalog.value.foreignKeys.filter((fk) => names.has(`${fk.from.schema}.${fk.from.table}`)).map((fk, i) => ({ urn: `oo:db/lab/relationship/fk_${start}_${i}`, id: `fk_${start}_${i}`, from: end(fk.from), to: end(fk.to), cardinality: "many_to_one", provenance: "declared_fk" })),
+      doc_links: [], total_tables: catalog.value.tables.length, next_cursor: start + limit < catalog.value.tables.length ? `t${start + limit}` : null,
+      sides: { db: { status: "ok", count: page.length }, relationships: { status: "ok", count: 0 }, docs: { status: "skipped", count: 0 } }, warnings: [], provenance: { kind: "gateway_schema", source: "lab" },
+    });
   };
   const bridge: SuperOntologyBridge = {
     invoke: (async (channel: string, request: Record<string, unknown> = {}) => {
@@ -37,7 +45,7 @@ export function createLabBridge(initial: AtlasData): LabBridge {
         case "entity-detail": return source.entity(String(request.entityIdOrKey));
         case "ontology-versions": return source.versions();
         case "atlas-links": return source.links();
-        case "atlas-sql": return sql(String(request.sql));
+        case "ontology-schema": return schema(Number(request.limit ?? 50), request.cursor as string | undefined);
         default: return ok(empty);
       }
     }) as SuperOntologyBridge["invoke"],

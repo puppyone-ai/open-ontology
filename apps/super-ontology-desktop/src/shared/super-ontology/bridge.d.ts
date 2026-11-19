@@ -276,9 +276,9 @@ export type SuperOntologyChannelMap = {
   "entity-split": { request: { operationId: string; entityId: string; revision: number; groups: { aliases?: string[]; facts?: string[] }[] }; value: BatchResult };
   "media-decode": { request: { fileId: string; operationId?: string }; value: { decoded: true; durationMs: number; frames: number; hasAudio: boolean; still: boolean; helperVersion: string } };
   "media-decode-cancel": { request: { fileId: string; operationId?: string }; value: { cancelled: boolean } };
-  /** Ontology atlas (D88). `atlas-links`: doc entity to table row links; `atlas-sql`: one read-only SELECT through the query surface. */
+  /** Ontology atlas (D88). `atlas-links`: doc entity to table row links; `ontology-schema`: the database schema (tables, columns, relationships, document links; `GET /v1/ontology/schema`, docs-api 1.12), one page. */
   "atlas-links": { request: { operationId?: string }; value: EngineDocument };
-  "atlas-sql": { request: { sql: string; maxRows?: number; operationId?: string }; value: { columns: string[]; rows: unknown[][]; truncated?: boolean; row_count?: number; [key: string]: unknown } };
+  "ontology-schema": { request: { limit?: number; cursor?: string; operationId?: string }; value: EngineDocument };
   "constraints-list": { request: { limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
 };
 

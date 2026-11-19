@@ -19,7 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { connectToPage, readDevToolsPort } from "./cdp.mjs";
-import { createFixtures, createLiteRuntimeStub } from "./fixtures.mjs";
+import { createFixtures, createLiteRuntimeStub, fakeCorpus } from "./fixtures.mjs";
 import { createFakeToolbox } from "../../support/fake-engine-tools.mjs";
 
 const execute = promisify(execFile);
@@ -206,6 +206,13 @@ export async function runScenario(options, scenario) {
       const created = await session.engineApi("/v1/docs/drives", { method: "POST", headers: { "idempotency-key": `t1-${name}-${driveName}`.replace(/[^A-Za-z0-9_-]/gu, "-").padEnd(16, "0") }, body: { name: driveName, backend: "fs", config: { root: folder } } });
       assert.ok(created.status === 201 || created.status === 200, `drive create answered ${created.status} ${JSON.stringify(created.body).slice(0, 200)}`);
       const driveId = created.body.id;
+      if (engineKind === "fake") {
+        // The fake engine processes nothing: it is told what a settled source holds (published files and the entities they name).
+        const current = JSON.parse(await fs.readFile(path.join(stateDirectory, "fake-docs.json"), "utf8"));
+        const corpus = fakeCorpus(driveId);
+        await session.fakeDocs({ ...current, files: [...(current.files ?? []), ...corpus.files], entities: [...(current.entities ?? []), ...corpus.entities] });
+        return { driveId, states: corpus.files.map((file) => file.state) };
+      }
       await session.engineApi(`/v1/docs/drives/${driveId}:sync`, { method: "POST", body: {}, headers: { "idempotency-key": `t1-sync-${driveId}`.padEnd(16, "0") } });
       const settled = new Set(["published", "failed", "skipped", "unsupported"]);
       const started = Date.now();

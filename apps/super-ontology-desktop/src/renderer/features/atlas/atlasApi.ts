@@ -5,37 +5,60 @@ import { superDriveApi } from "../../model/superDriveApi";
 import type { AtlasSource, DbCatalog, DbForeignKey, DbTable } from "./adapter";
 
 /**
- * The atlas source on the real bridge. Tables and foreign keys come from the read-only query surface (`oo ontology query`), so a
- * database is described by its own `information_schema`; nothing is cached here and nothing is written.
+ * The atlas source on the real bridge. Tables and foreign keys come from the schema surface (`oo ontology schema`, docs-api 1.12):
+ * the Gateway's tables with their columns and the published relationships, one page at a time. Nothing is cached here and
+ * nothing is written; the database is never read through `information_schema`, which the Gateway refuses.
  */
-const TABLES_SQL = "SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('information_schema', 'pg_catalog') ORDER BY 1, 2";
-const FOREIGN_KEYS_SQL = "SELECT tc.table_schema, tc.table_name, ccu.table_schema, ccu.table_name FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND tc.constraint_schema = ccu.constraint_schema WHERE tc.constraint_type = 'FOREIGN KEY'";
-const MAX_ROWS = 2000;
+const PAGE = 100;
+/** At most this many pages (a few thousand tables); a larger database is shown as far as it was read. */
+const MAX_PAGES = 30;
 
 const text = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : null);
+const record = (value: unknown): Record<string, unknown> => (typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {});
 
-/** Reads `[schema, table]` rows; a row that is not two strings is skipped, not trusted. */
-export function parseTables(rows: unknown[][]): DbTable[] {
+const split = (qualified: string): DbTable | null => {
+  const dot = qualified.indexOf(".");
+  return dot > 0 && dot < qualified.length - 1 ? { schema: qualified.slice(0, dot), table: qualified.slice(dot + 1) } : null;
+};
+
+/** Reads the `tables` of one schema page; a row that is not a qualified name is skipped, not trusted. */
+export function parseTables(rows: unknown[]): DbTable[] {
   const out: DbTable[] = [];
-  for (const row of rows) { const schema = text(row[0]); const table = text(row[1]); if (schema && table) out.push({ schema, table }); }
+  for (const row of rows) {
+    const item = record(row);
+    const table = split(text(item.qualified_name) ?? "");
+    if (!table) continue;
+    out.push(Array.isArray(item.columns) ? { ...table, columns: item.columns.length } : table);
+  }
   return out;
 }
 
-export function parseForeignKeys(rows: unknown[][]): DbForeignKey[] {
+/** Reads the `relationships` of one schema page into table to table foreign keys (a relationship over several columns is one edge). */
+export function parseForeignKeys(rows: unknown[]): DbForeignKey[] {
   const out: DbForeignKey[] = [];
   for (const row of rows) {
-    const [fs, ft, ts, tt] = [text(row[0]), text(row[1]), text(row[2]), text(row[3])];
-    if (fs && ft && ts && tt) out.push({ from: { schema: fs, table: ft }, to: { schema: ts, table: tt } });
+    const item = record(row);
+    const from = split(text(record(item.from).table) ?? "");
+    const to = split(text(record(item.to).table) ?? "");
+    if (from && to) out.push({ from, to });
   }
   return out;
 }
 
 async function catalog(): Promise<ApiResult<DbCatalog>> {
-  const tables = await invoke("atlas-sql", { sql: TABLES_SQL, maxRows: MAX_ROWS });
-  if (!tables.ok) return tables;
-  // Foreign keys are a refinement: when only they fail the tables still show.
-  const keys = await invoke("atlas-sql", { sql: FOREIGN_KEYS_SQL, maxRows: MAX_ROWS });
-  return { ok: true, value: { tables: parseTables(tables.value.rows), foreignKeys: keys.ok ? parseForeignKeys(keys.value.rows) : [] } };
+  const tables: DbTable[] = [];
+  const keys: DbForeignKey[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const read = await invoke("ontology-schema", { limit: PAGE, ...(cursor ? { cursor } : {}) });
+    // The first page decides: no database side at all is the caller's partial state; a later page failing keeps what was read.
+    if (!read.ok) return page === 0 ? read : { ok: true, value: { tables, foreignKeys: keys } };
+    tables.push(...parseTables(read.value.tables as unknown[]));
+    keys.push(...parseForeignKeys(read.value.relationships as unknown[]));
+    cursor = text(read.value.next_cursor) ?? undefined;
+    if (!cursor) break;
+  }
+  return { ok: true, value: { tables, foreignKeys: keys } };
 }
 
 export const atlasSource: AtlasSource = {

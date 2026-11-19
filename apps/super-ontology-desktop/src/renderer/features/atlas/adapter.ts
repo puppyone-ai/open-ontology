@@ -6,10 +6,11 @@ import { SOURCE_TONE, type AtlasData, type AtlasGroup, type AtlasLink, type Atla
 /**
  * The data adapter of the atlas: turns what the engine and the database side already answer into groups, members and links.
  * The engine is asked for nothing new: the entity listing, the entity page (facts whose object is another entity), the
- * document to table links, the Drive and file listings, and the read-only query surface for tables and foreign keys.
+ * document to table links, the Drive and file listings, and the schema surface (`GET /v1/ontology/schema`) for tables and foreign keys.
  * A side that fails is left out and named in `partial`; the rest still shows (part of the "partial success" state of D86).
  */
-export type DbTable = { schema: string; table: string };
+/** `columns` is the column count when the schema surface described the table. */
+export type DbTable = { schema: string; table: string; columns?: number };
 export type DbForeignKey = { from: DbTable; to: DbTable };
 export type DbCatalog = { tables: DbTable[]; foreignKeys: DbForeignKey[] };
 
@@ -139,9 +140,9 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
       for (const table of catalog.value.tables) {
         const id = tableId(table);
         tableIds.set(`${table.schema}.${table.table}`, id);
-        members.push({ id, group: dbGroupId(table.schema), label: table.table, ref: { kind: "table", table: `${table.schema}.${table.table}` }, weight: 0, born: null });
+        members.push({ id, group: dbGroupId(table.schema), label: table.table, ref: { kind: "table", table: `${table.schema}.${table.table}` }, weight: table.columns ?? 0, born: null });
       }
-      for (const fk of catalog.value.foreignKeys) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key");
+      for (const fk of catalog.value.foreignKeys) if (tableIds.has(`${fk.from.schema}.${fk.from.table}`) && tableIds.has(`${fk.to.schema}.${fk.to.table}`)) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key");
     } else if (catalog.error.code !== "ONTOLOGY_NOT_CONFIGURED") partial.add("tables");
     emit();
 
