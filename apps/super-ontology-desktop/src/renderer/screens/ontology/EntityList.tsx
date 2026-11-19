@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, EmptyState, Notice, Select, Skeleton } from "@open-ontology/design-system";
 import { Network, Search } from "lucide-react";
@@ -7,16 +7,23 @@ import { useLoad } from "../../hooks/useLoad";
 import { ENTITY_TYPE_VALUES } from "../../../shared/super-ontology/docs-api.generated";
 import { ontologyApi } from "../../model/superDriveOntologyApi";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
+import { selectOntologyVersion } from "../../model/superDriveSelectors";
 import { isEngineReady } from "../../model/superDriveStateModel";
 
 export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
   const { t } = useLocalization();
   const errorText = useErrorText();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
+  const version = useSuperDriveSelector(selectOntologyVersion);
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
   const [applied, setApplied] = useState("");
-  const result = useLoad(() => ontologyApi.searchEntities({ q: applied, type: type || undefined, limit: 100 }), [applied, type, ready], { enabled: ready });
+  // The list follows the typing after a short pause; Enter applies it at once.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setApplied(query.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const result = useLoad(() => ontologyApi.searchEntities({ q: applied, type: type || undefined, limit: 100 }), [applied, type, ready, version], { enabled: ready });
   // People, organizations and projects first: the documents the engine also lists as entities are noise on a first look.
   const items = [...(result.value?.items ?? [])].sort((a, b) => Number(a.type === "Document") - Number(b.type === "Document"));
 

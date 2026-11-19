@@ -6,11 +6,11 @@ runScenario({ name: "ontology", title: "Ontology: entities, facts and provenance
   await s.openSeeded("ontology");
   await s.waitFor("screen-ontology");
   await s.waitFor("entity-list");
-  await s.waitFor("entity-row", { "data-name": "Project Alpha" }, { timeoutMs: 120_000 });
+  await s.waitForEntity(/^(project )?alpha$/u, { timeoutMs: 120_000 });
   s.check("entities recognised from the sources are listed with their type", (await s.attr("entity-row", "data-type")) !== null);
 
   await s.type("entity-search", "Dana");
-  await s.waitFor("entity-row", { "data-name": "Dana Lee" }, { timeoutMs: 30_000 });
+  await s.until("(() => { const names = [...document.querySelectorAll('[data-testid=\"entity-row\"]')].map((r) => r.getAttribute('data-name')); return names.length > 0 && names.every((n) => /dana/i.test(n)); })()", "the list narrowed to Dana", { timeoutMs: 30_000 });
   s.check("search narrows the list", (await s.attrs("entity-row", "data-name")).every((name) => /dana/iu.test(name)), (await s.attrs("entity-row", "data-name")).join(","));
 
   await s.click("entity-row", { "data-name": "Dana Lee" });

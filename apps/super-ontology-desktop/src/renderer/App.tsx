@@ -31,7 +31,8 @@ function Shell() {
   useEffect(() => {
     if (decided.current || !drivesLoaded) return;
     decided.current = true;
-    if (app.firstRunOpen && driveCount > 0) app.closeFirstRun(true);
+    // Not when the person already started the steps: the drive they just added would otherwise close the first run under them.
+    if (app.firstRunOpen && driveCount > 0 && window.sessionStorage.getItem("so.firstRun.engaged") !== "1") app.closeFirstRun(true);
   }, [app, drivesLoaded, driveCount]);
   return (
     <div className="so-app" data-testid="app-root" data-screen={app.firstRunOpen ? "first-run" : app.section}>

@@ -142,7 +142,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
       case "seedSource": {
         const folder = text(step.path);
         for (let attempt = 0; attempt < 240; attempt += 1) { try { if ((await engineApi("/v1/docs/health")).status === 200) break; } catch { /* not yet */ } await sleep(500); }
-        const created = await engineApi("/v1/docs/drives", { method: "POST", headers: { "idempotency-key": `t2-${scenario.id}-${step.name}-${Date.now()}` }, body: { name: step.name, backend: "fs", config: { root: folder } } });
+        const created = await engineApi("/v1/docs/drives", { method: "POST", headers: { "idempotency-key": `t2-${scenario.id}-${step.name}-${Date.now()}`.replace(/[^A-Za-z0-9_-]/gu, "-").padEnd(16, "0") }, body: { name: step.name, backend: "fs", config: { root: folder } } });
         if (![200, 201].includes(created.status)) throw new Error(`source create answered ${created.status}`);
         await engineApi(`/v1/docs/drives/${created.body.id}:sync`, { method: "POST", body: {}, headers: { "idempotency-key": `t2-sync-${created.body.id}-${Date.now()}` } });
         const settled = new Set(["parsed", "published", "failed", "skipped", "unsupported"]);

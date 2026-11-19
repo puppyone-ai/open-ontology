@@ -201,6 +201,11 @@
 | SO-F-S19-32 | D85 | merged | feat/super-ontology (App 车道并入) | 7964c606e → 7964c606e | — | apps/super-ontology-desktop/ | Wire the preload channels into the renderer and carry the test ids on its screens |
 | SO-F-S19-33 | D85 | merged | feat/super-ontology (App 车道并入) | 4ac16c81a → 4ac16c81a | — | apps/super-ontology-desktop/ | Polish the screens after the review of the real window |
 | SO-F-S19-34 | D85 | merged | feat/super-ontology (App 车道并入) | a93cb23ee → fcf126c88 | — | apps/super-ontology-desktop/ | Refresh the third-party notice for the renderer dependencies |
+| SO-F-S19-41 | D86 | merged | feat/super-ontology (App 车道 E 并入) | f1e45f89e → f1e45f89e | — | apps/super-ontology-desktop/ | Fix stale Home counts, add database sources, eight-language catalog and whole-pixel layout |
+| SO-F-S19-44 | D86 | merged | feat/super-ontology (App 车道 E 并入) | 908039fac → 908039fac | — | apps/super-ontology-desktop/ | Leave database sources to the connector lane and keep the first run steady |
+| SO-F-S19-45 | D86 | merged | feat/super-ontology (App 车道 E 并入) | 383b34b0d → 383b34b0d | — | apps/super-ontology-desktop/ | Fix the T2 source seed key and the T1 scenario list |
+| SO-F-S19-46 | D86 | merged | feat/super-ontology (App 车道 E 并入) | ead08af90 → ead08af90 | — | apps/super-ontology-desktop/ | Make T1 fail when a scenario fails, and add the database and visual suites |
+| SO-F-S19-47 | D86 | merged | feat/super-ontology (App 车道 E 并入) | 72bedef6b → bc4f35ce3 | — | apps/super-ontology-desktop/ | Record the app's npm dependencies and list every bundled package in the notice |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

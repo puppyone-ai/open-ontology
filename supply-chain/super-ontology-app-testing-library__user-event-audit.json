@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@testing-library/user-event",
+    "version": "14.6.7",
+    "official_source": "https://registry.npmjs.org/@testing-library/user-event/14.6.7",
+    "repository": "https://github.com/testing-library/user-event",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-09-02T01:56:32.109Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 78,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: npm >=6, node >=12 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/testing-library__user-event-14.6.7/LICENSE",
+        "sha256": "b5a4028c49c48f820831421de69c8ea83d621a062914bf16739fd0703c7c9fba"
+      }
+    ],
+    "digest": "sha256:9dc44924eca3c29c8d94b416eaa5cefa8d41d1a27b303fbc093c415e5c0b557a",
+    "registry_integrity": "sha512-MPCpX8bxe8zS+JmmTwLp8jd0dy1rAm60Te/SL8JrQM3qvQJcBOs1d7IefJMyZzqM3EWBrDn/LWDt1BCGu4ASfg==",
+    "registry_shasum": "c453ccfcaffed110cc79048ed18fccb0f4224f3b",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through @testing-library/user-event)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

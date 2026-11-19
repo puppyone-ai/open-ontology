@@ -91,7 +91,9 @@ function adjustDriveCounts(draft: Draft, driveId: string, from: string | null, t
   const counts: Record<string, unknown> = { ...(current.counts ?? {}) };
   if (from) counts[from] = Math.max(0, (asNumber(counts[from]) ?? 0) - 1);
   if (to) counts[to] = (asNumber(counts[to]) ?? 0) + 1;
-  drives.byId[driveId] = { ...current, counts };
+  // The engine reports files_total as the sum of the per-state counts; keep the two in step so Home and Sources do not stay at 0.
+  const filesTotal = Object.values(counts).reduce<number>((sum, value) => sum + (asNumber(value) ?? 0), 0);
+  drives.byId[driveId] = { ...current, counts, files_total: filesTotal };
 }
 
 function removeFromFolders(draft: Draft, fileId: string) {

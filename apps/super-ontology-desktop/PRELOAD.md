@@ -98,7 +98,7 @@ interface ShellInfo {
   releaseUrl: string;
 }
 interface ShellSettings {
-  language: "system" | "en" | "zh-Hans";
+  language: "system" | "en" | "zh-Hans" | "es" | "pt-BR" | "fr" | "de" | "ja" | "ko";
   ooExecutable: string | null;    // absolute path chosen by the user; main-owned, writable only via engine-set-executable
   runtime: "auto" | "docker" | "lite";
   keepEngineOnQuit: boolean;
@@ -106,7 +106,7 @@ interface ShellSettings {
 }
 ```
 
-`writeSettings` rejects (SO_INVALID_REQUEST) on a key outside the list and otherwise resolves with the full settings; it accepts `language` only (the app is light-only, D87: there is no theme setting); the other keys are read-only to the renderer and change through the engine channels above.
+`writeSettings` rejects (SO_INVALID_REQUEST) on a key outside the list and otherwise resolves with the full settings; it accepts `language` only (any of the eight languages; the app is light-only, D87: there is no theme setting); the other keys are read-only to the renderer and change through the engine channels above.
 
 ## Main-side ownership
 

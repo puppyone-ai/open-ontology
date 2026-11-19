@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export const LANGUAGES = Object.freeze(["system", "en", "zh-Hans"]);
+export const LANGUAGES = Object.freeze(["system", "en", "zh-Hans", "es", "pt-BR", "fr", "de", "ja", "ko"]);
 export const RUNTIMES = Object.freeze(["auto", "docker", "lite"]);
 /** Keys the renderer may write through `shell:write-settings`; everything else is owned by main. */
 export const RENDERER_WRITABLE = Object.freeze(["language"]);

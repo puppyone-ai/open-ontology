@@ -6,7 +6,7 @@ import { useLoad } from "../hooks/useLoad";
 import { useErrorText, useRelativeTime } from "../hooks/useText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
-import { selectDrives, selectPendingReviewTotal } from "../model/superDriveSelectors";
+import { selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
 
@@ -29,10 +29,11 @@ export function Home() {
   const engine = useSuperDriveSelector((s) => s.engine);
   const ready = isEngineReady(engine);
   const pending = useSuperDriveSelector(selectPendingReviewTotal);
+  const version = useSuperDriveSelector(selectOntologyVersion);
   const loadedDrives = useSuperDriveSelector((s) => s.drives.loaded);
   const files = drives.reduce((sum, d) => sum + (d.files_total ?? 0), 0);
-  const entities = useLoad(() => ontologyApi.searchEntities({ q: "", limit: 200 }), [ready], { enabled: ready });
-  const versions = useLoad(() => ontologyApi.ontologyVersions({ limit: 6 }), [ready], { enabled: ready });
+  const entities = useLoad(() => ontologyApi.searchEntities({ q: "", limit: 200 }), [ready, version], { enabled: ready });
+  const versions = useLoad(() => ontologyApi.ontologyVersions({ limit: 6 }), [ready, version], { enabled: ready });
   const tokens = useLoad(() => agentApi.list(), [ready], { enabled: ready });
   const facts = versions.value?.items.reduce((sum, v) => sum + (v.facts_added ?? 0) - (v.facts_retracted ?? 0), 0) ?? 0;
   const entityCount = entities.value ? `${formatNumber(entities.value.items.length)}${entities.value.next_cursor ? "+" : ""}` : "–";

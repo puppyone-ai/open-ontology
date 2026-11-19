@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "lucide-react",
+    "version": "1.52.0",
+    "official_source": "https://registry.npmjs.org/lucide-react/1.52.0",
+    "repository": "https://github.com/lucide-icons/lucide",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-10-04T08:17:01.328Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 46,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: none declared (the build uses Node 24).",
+    "license_spdx": "ISC AND MIT",
+    "license_evidence": [
+      {
+        "spdx": "ISC",
+        "source": "licenses/super-ontology-app/lucide-react-1.52.0/LICENSE",
+        "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+      },
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/lucide-react-1.52.0/LICENSE",
+        "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+      }
+    ],
+    "digest": "sha256:b2fb3b9e2dbebb098f4d351ebefe03a51527049a3545b7657af17753bf655b8d",
+    "registry_integrity": "sha512-TUgPtl5ZI9WgxOcbu4ckaC5B3l1qxPQrCMgb6OfUB9owx/OvSJfcf93SMgUWAxRw5/1XDfh9uI5F5iNGXCcGDQ==",
+    "registry_shasum": "9945c4edc9550be7cc79808ec8a510c80512c727",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "ISC",
+    "dual_license_choice": null,
+    "relied_on_license": "ISC AND MIT (both apply: MIT covers the Feather-derived icons)",
+    "license_obligations": [
+      {
+        "spdx": "ISC",
+        "obligations": [
+          "Retain the copyright and permission notice in all copies."
+        ]
+      },
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "dependencies",
+    "role": "runtime: bundled into dist/renderer by vite and also packed with its production node_modules into app.asar",
+    "shipped_in_dmg": true,
+    "native_transitive": [],
+    "transitive_licenses": [],
+    "note": "runtime: bundled into dist/renderer by vite and also packed with its production node_modules into app.asar. The LICENSE file holds the ISC license plus an MIT license for icons derived from Feather; both are recorded. The manifest says ISC only."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through lucide-react)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

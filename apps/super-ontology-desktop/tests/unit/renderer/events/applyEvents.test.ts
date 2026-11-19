@@ -33,6 +33,15 @@ describe("applyEvents: file.state_changed", () => {
     expect(stale.files).toBe(newer.files);
   });
 
+  it("keeps files_total equal to the sum of the per-state counts (Home showed 0 files after an upload)", () => {
+    const state = baseState([]);
+    state.drives.byId[DRIVE_ID] = makeDrive({ counts: {}, files_total: 0 });
+    const added = applyEvents(state, [stateChanged(7, makeFile("a.md", { state: "queued" })), stateChanged(8, makeFile("b.md", { state: "stored" }))]);
+    expect(added.drives.byId[DRIVE_ID].files_total).toBe(2);
+    const moved = applyEvents(added, [stateChanged(9, makeFile("a.md", { state: "published" }))]);
+    expect(moved.drives.byId[DRIVE_ID].files_total).toBe(2);
+  });
+
   it("drops an event older than the page snapshot it would overwrite", () => {
     const state = baseState();
     expect(applyEvents(state, [stateChanged(4, makeFile("a.md", { state: "published" }))]).files["f-a.md"].state).toBe("queued");

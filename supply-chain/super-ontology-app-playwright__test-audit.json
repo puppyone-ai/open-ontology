@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@playwright/test",
+    "version": "1.63.0",
+    "official_source": "https://registry.npmjs.org/@playwright/test/1.63.0",
+    "repository": "https://github.com/microsoft/playwright",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-09-04T22:44:00.304Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 75,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node >=20 (the build uses Node 24).",
+    "license_spdx": "Apache-2.0",
+    "license_evidence": [
+      {
+        "spdx": "Apache-2.0",
+        "source": "licenses/super-ontology-app/playwright__test-1.63.0/LICENSE",
+        "sha256": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb"
+      },
+      {
+        "spdx": "Apache-2.0",
+        "source": "licenses/super-ontology-app/playwright__test-1.63.0/NOTICE",
+        "sha256": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d"
+      }
+    ],
+    "digest": "sha256:fc594f36b7b4aafece614ec6852ad728423215a76edd0a2a1821bb0c49539c4e",
+    "registry_integrity": "sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==",
+    "registry_shasum": "808020c46e8b6b91f9d628cd0ebcbb32bdfd8b6c",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "Apache-2.0",
+    "dual_license_choice": null,
+    "relied_on_license": "Apache-2.0",
+    "license_obligations": [
+      {
+        "spdx": "Apache-2.0",
+        "obligations": [
+          "On redistribution, include the license and any NOTICE text and state changes (build or test tool; nothing of it is shipped in the DMG)."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG. Apache-2.0; its NOTICE (Microsoft, derived from Puppeteer, Apache-2.0) is recorded as second evidence. Browser binaries are not downloaded by this record: they are fetched by playwright install only if the T1/T2 test scripts run it."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through @playwright/test)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

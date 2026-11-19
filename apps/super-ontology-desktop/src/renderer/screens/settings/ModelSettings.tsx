@@ -41,8 +41,8 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
         <option value="openai-compatible">{t("app.model.provider.openai")}</option>
         <option value="anthropic">Anthropic</option>
       </Select>
-      <TextField label={t("app.model.baseUrl")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://" error={touched ? urlError : null} spellCheck={false} />
-      <TextField label={t("app.model.model")} value={model} onChange={(e) => setModel(e.target.value)} error={touched && model.trim() === "" ? t("app.model.required") : null} spellCheck={false} />
+      <TextField label={t("app.model.baseUrl")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://" error={touched ? urlError : null} helper={t("app.model.baseUrl.help")} spellCheck={false} />
+      <TextField label={t("app.model.model")} value={model} onChange={(e) => setModel(e.target.value)} error={touched && model.trim() === "" ? t("app.model.required") : null} helper={t("app.model.model.help")} spellCheck={false} />
       <TextField label={t("app.model.key")} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
         placeholder={config?.configured ? t("app.model.key.saved") : undefined} error={touched && keyNeeded && apiKey.trim() === "" ? t("app.model.required") : null}
         helper={config?.configured ? t("app.model.key.keep") : t("app.model.key.note")} />

@@ -4,9 +4,10 @@ import { Badge, Button, Card, EmptyState, Icon, Notice, PageHeader, Skeleton } f
 import { ArrowLeft, FileText, ListTree } from "lucide-react";
 import { useApp } from "../../hooks/useApp";
 import { useErrorText, useRelativeTime } from "../../hooks/useText";
-import type { Evidence, Fact } from "../../../shared/super-ontology/docs-api.generated";
+import type { Fact } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
+import { groupEvidence, type EvidenceGroup } from "../../model/evidenceChips";
 import type { EntityDetail } from "../../model/superDriveOntologyTypes";
 
 function factObject(fact: Fact): string {
@@ -17,17 +18,16 @@ function factObject(fact: Fact): string {
   return first === undefined ? JSON.stringify(value) : String(first);
 }
 
-/** A source the fact came from: the file name, then where in it. One click opens the file in its source. */
-function SourceChip({ evidence }: { evidence: Evidence }) {
+/** A source the fact came from: the file name, then where in it (several anchors of one file share the chip). One click opens the file in its source. */
+function SourceChip({ group }: { group: EvidenceGroup }) {
   const { t } = useLocalization();
   const app = useApp();
-  const name = evidence.path.slice(evidence.path.lastIndexOf("/") + 1);
-  const anchor = evidence.src.includes("#") ? `#${evidence.src.slice(evidence.src.indexOf("#") + 1).replace(/\]$/u, "")}` : "";
+  const anchors = group.anchors.length > 0 ? group.anchors.map((anchor) => `#${anchor}`).join(" ") : "";
   return (
-    <button type="button" className="so-source-chip" data-testid="evidence-link" data-file={evidence.path} onClick={() => app.openFile(evidence.file_id)} aria-label={t("app.ontology.evidence.open", { path: evidence.path })}>
+    <button type="button" className="so-source-chip" data-testid="evidence-link" data-file={group.path} onClick={() => app.openFile(group.fileId)} aria-label={t("app.ontology.evidence.open", { path: group.path })}>
       <Icon icon={FileText} size={16} className="so-source-chip-icon" />
-      <span className="so-source-chip-name so-truncate">{name}</span>
-      {anchor && <span className="so-source-chip-anchor so-mono so-truncate">{anchor}</span>}
+      <span className="so-source-chip-name so-truncate">{group.name}</span>
+      {anchors && <span className="so-source-chip-anchor so-mono so-truncate" title={anchors}>{anchors}</span>}
     </button>
   );
 }
@@ -90,7 +90,7 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
                   </p>
                   <p className="so-fact-meta">{[fact.valid_from ? t("app.ontology.validFrom", { date: fact.valid_from }) : null, fact.recorded_at ? relative(fact.recorded_at) : null, t("app.ontology.confidence", { value: Math.round(fact.confidence_bp / 100) })].filter(Boolean).join(" · ")}</p>
                   {(fact.evidence ?? []).slice(0, 2).map((evidence) => evidence.quote ? <blockquote key={`q-${evidence.id}`} className="so-quote">{evidence.quote}</blockquote> : null)}
-                  {(fact.evidence ?? []).length > 0 && <div className="so-source-row">{(fact.evidence ?? []).slice(0, 3).map((evidence) => <SourceChip key={evidence.id} evidence={evidence} />)}</div>}
+                  {(fact.evidence ?? []).length > 0 && <div className="so-source-row">{groupEvidence(fact.evidence ?? []).slice(0, 3).map((group) => <SourceChip key={group.fileId || group.path} group={group} />)}</div>}
                 </article>
               ))}
             </Card>
