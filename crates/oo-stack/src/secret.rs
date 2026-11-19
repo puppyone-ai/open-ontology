@@ -123,16 +123,16 @@ impl SecretStore {
     }
 }
 
-/// One trailing line ending is the editor's or `echo`'s, not part of the secret (other
-/// CLIs strip it the same way); anything beyond that single newline is kept.
-fn strip_one_newline(mut text: String) -> String {
-    if text.ends_with('\n') {
-        text.pop();
-        if text.ends_with('\r') {
-            text.pop();
-        }
+/// A single-line secret (password, key, token) loses the one line ending that an editor or
+/// `echo` added, as other CLIs do. Multi-line material (a PEM chain) is returned exactly.
+fn strip_one_newline(text: String) -> String {
+    let body = text
+        .strip_suffix("\r\n")
+        .or_else(|| text.strip_suffix('\n'));
+    match body {
+        Some(body) if !body.contains('\n') => body.to_owned(),
+        _ => text,
     }
-    text
 }
 
 fn checked_text(bytes: Vec<u8>) -> Result<String> {
@@ -248,7 +248,12 @@ mod tests {
             ("plain", "pw", "pw"),
             ("lf", "pw\n", "pw"),
             ("crlf", "pw\r\n", "pw"),
-            ("two", "pw\n\n", "pw\n"),
+            ("two", "pw\n\n", "pw\n\n"),
+            (
+                "pem",
+                "-----BEGIN X-----\nabc\n-----END X-----\n",
+                "-----BEGIN X-----\nabc\n-----END X-----\n",
+            ),
         ] {
             store.write_new(name, raw.as_bytes()).unwrap();
             assert_eq!(store.read(name).unwrap(), want, "{name}");
