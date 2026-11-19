@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@formatjs/fast-memoize",
+    "version": "3.1.2",
+    "official_source": "https://registry.npmjs.org/@formatjs/fast-memoize/3.1.2",
+    "repository": "https://github.com/formatjs/formatjs",
+    "manifests": [
+      "packages/design-system/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-04-13T20:19:18.837Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 219,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: none declared (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/formatjs__fast-memoize-3.1.2/LICENSE.md",
+        "sha256": "b1cc980e28e9e48f377db191578a9361494ca7117185b69dd66cabaf5b460fb7"
+      }
+    ],
+    "digest": "sha256:1d6179b5193577b79532ea3d0c617ad4d61fe02859ffe03c1514ece8460604a1",
+    "registry_integrity": "sha512-vPnriihkfK0lzoQGaXq+qXH23VsYyansRTkTgo2aTG0k1NjLFyZimFVdfj4C9JkSE5dm7CEngcQ5TTc1yAyBfQ==",
+    "registry_shasum": "d207dcffdabc5d16bde127fd7e3b4a52d8405af5",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "transitive runtime dependency of intl-messageformat",
+    "role": "runtime: transitive runtime dependency of intl-messageformat, bundled into dist/renderer and packed into app.asar",
+    "shipped_in_dmg": true,
+    "native_transitive": [],
+    "note": "runtime: transitive runtime dependency of intl-messageformat, bundled into dist/renderer and packed into app.asar."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through @formatjs/fast-memoize)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

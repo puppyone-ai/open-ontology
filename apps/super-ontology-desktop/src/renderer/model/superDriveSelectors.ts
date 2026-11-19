@@ -45,3 +45,6 @@ export const selectDriftedShareCount = (state: SuperDriveState): number => (
 /** Notices that are not tied to a control and fade on their own (reconnect catch-up, batch results). */
 export const selectNotices = (state: SuperDriveState) => state.notices;
 export const selectConnectionLabel = (state: SuperDriveState) => (state.connection.resyncing ? "resyncing" : state.connection.state);
+
+/** The newest ontology version any Drive has published, from `ontology.version_published`: screens that read the ontology load again when it moves. */
+export const selectOntologyVersion = (state: SuperDriveState): number => Object.values(state.ontology).reduce((newest, known) => Math.max(newest, known.n), 0);

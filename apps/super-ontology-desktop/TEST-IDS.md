@@ -42,7 +42,7 @@ Rules:
 | `firstrun-file-row` **(T1)** | step 3: one row per file | `data-name`, `data-state` (the engine's file state) |
 | `firstrun-continue` | step 3: leave processing in the background and go on | |
 | `firstrun-see-ontology` **(T1)** | step 3: go on to what was found (the files may still be processing) | |
-| `firstrun-open-ontology` | step 4: open the Ontology screen | |
+| `firstrun-open-ontology` `first-fact` | step 4: open the Ontology screen; the first fact with its source | |
 | `firstrun-connect-agent` | step 4: go on to the agent step | |
 | `firstrun-create-token` **(T1)** | step 5: create the read-only token | |
 | `firstrun-agent-claude` `firstrun-agent-cursor` `firstrun-agent-codex` `firstrun-agent-generic` | step 5: agent choice | `data-selected` |
@@ -56,7 +56,7 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-home` **(T1)** | the Home screen | |
-| `home-count-sources` `home-count-entities` `home-count-facts` **(T1)** | scale numbers | `data-count` |
+| `home-count-sources` `home-count-files` `home-count-entities` `home-count-facts` **(T1)** | scale numbers | `data-count` |
 | `home-freshness` | freshness line | `data-state` |
 | `home-pending` | number waiting for confirmation (links to Ontology review) | `data-count` |
 | `home-next-step` | the next-step suggestion card | `data-step` |

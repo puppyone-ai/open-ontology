@@ -11,6 +11,7 @@ files:
   - resources/bootstrap/**
   - dist/renderer/**
   - package.json
+  - "!node_modules/**"
   - "!**/*.map"
   - "!**/*.d.ts"
   - "!**/*.d.mts"
@@ -20,7 +21,7 @@ extraResources:
     filter: ["oo", "oo-docs-engine", "oo-bundle.json"]
   - from: build/generated/legal
     to: legal
-electronLanguages: [en, zh_CN]
+electronLanguages: [en, zh_CN, es, pt_BR, fr, de, ja, ko]
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.icns

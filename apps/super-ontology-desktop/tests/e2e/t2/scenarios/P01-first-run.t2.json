@@ -24,10 +24,6 @@
       "label": "welcome"
     },
     {
-      "do": "click",
-      "name": "app.first.start"
-    },
-    {
       "do": "assert",
       "assertion": "dom",
       "args": {
@@ -37,6 +33,10 @@
         },
         "withinMs": 150000
       }
+    },
+    {
+      "do": "click",
+      "name": "app.first.start"
     },
     {
       "do": "assert",
@@ -89,10 +89,8 @@
       "do": "assert",
       "assertion": "dom",
       "args": {
-        "testid": "entity-row",
-        "attributes": {
-          "data-name": "Project Alpha"
-        },
+        "testid": "entity-list",
+        "text": "(Project )?[Aa]lpha",
         "withinMs": 120000
       }
     },

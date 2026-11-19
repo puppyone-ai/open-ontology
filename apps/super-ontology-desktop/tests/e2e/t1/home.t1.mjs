@@ -9,6 +9,8 @@ runScenario({ name: "home", title: "Home shows the size and state of the ontolog
   await s.waitFor("statusbar-engine", { "data-state": "running" });
   await s.until("Number(document.querySelector('[data-testid=\"home-count-sources\"]')?.getAttribute('data-count')) === 1", "one source counted");
   s.check("one source is counted", true);
+  await s.until("Number(document.querySelector('[data-testid=\"home-count-files\"]')?.getAttribute('data-count')) >= 3", "files counted", { timeoutMs: 90_000, interval: 1000 });
+  s.check("the files of the source are counted (Home showed 0 files once)", true);
   await s.until("Number(document.querySelector('[data-testid=\"home-count-entities\"]')?.getAttribute('data-count')) >= 2", "entities counted", { timeoutMs: 90_000, interval: 1000 });
   await s.until("Number(document.querySelector('[data-testid=\"home-count-facts\"]')?.getAttribute('data-count')) >= 1", "facts counted", { timeoutMs: 90_000, interval: 1000 });
   s.check("entities and facts from the fixture files are counted", true);

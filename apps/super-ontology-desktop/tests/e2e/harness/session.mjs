@@ -6,7 +6,8 @@
 //                            PostgreSQL, no Docker, no container. Markdown fixtures need no parser.
 //   engine "fake":           the app starts tests/support/fake-oo.mjs instead (no database); `s.fakeDocs(...)` sets what it answers.
 //
-// Environment: SO_T1_OO_BIN (absolute path of an `oo` built with docs, with `oo-docs-engine` next to it), SO_T1_ENGINE,
+// Environment: SO_T1_PACKAGED_APP (path of a built `Super Ontology.app`: that executable is launched instead of electron + the source tree, with the oo it bundles;
+//               the native-dialog queue does not exist there, so steps that answer a dialog are skipped: `session.packaged`), SO_T1_OO_BIN (absolute path of an `oo` built with docs, with `oo-docs-engine` next to it), SO_T1_ENGINE,
 // SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder).
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
@@ -38,13 +39,14 @@ async function firstExisting(candidates) {
 
 /**
  * @param {{ name: string, title?: string, engine?: "real" | "fake", timeoutMs?: number, language?: string, settings?: object,
- *   window?: { width: number, height: number } }} options
+ *   window?: { width: number, height: number }, firstRun?: boolean }} options
  * @param {(session: object) => Promise<void>} scenario
  */
 export async function runScenario(options, scenario) {
-  const { name, title = name, timeoutMs = 280_000, language = "en", settings = {}, window: size = { width: 1280, height: 820 } } = options;
+  const { name, title = name, timeoutMs = 280_000, language = "en", settings = {}, window: size = { width: 1280, height: 820 }, firstRun = false } = options;
   const engineKind = process.env.SO_T1_ENGINE ?? options.engine ?? "real";
   const appRoot = process.env.SO_APP_ROOT ?? defaultAppRoot;
+  const packagedApp = process.env.SO_T1_PACKAGED_APP ? path.join(process.env.SO_T1_PACKAGED_APP, "Contents", "MacOS", "Super Ontology") : null;
   const stamp = new Date().toISOString().replaceAll(":", "-");
   const reportDirectory = path.join(process.env.SO_T1_REPORTS ?? path.join(defaultAppRoot, "artifacts", "t1"), stamp, name);
   await fs.mkdir(reportDirectory, { recursive: true });
@@ -58,7 +60,7 @@ export async function runScenario(options, scenario) {
 
   const report = { name, title, engine: engineKind, ok: false, skipped: null, started: new Date().toISOString(), checks: [], notes: [], timings: {}, error: null };
   const state = { child: null, page: null, toolbox: null, ooBinary: null };
-  const session = { report, reportDirectory, root, userData, stateDirectory, fixtures, queueFile, engine: engineKind };
+  const session = { packaged: Boolean(packagedApp), report, reportDirectory, root, userData, stateDirectory, fixtures, queueFile, engine: engineKind };
   const log = (line) => console.log(`[t1:${name}] ${line}`);
 
   // ---- engine arrangement
@@ -77,7 +79,8 @@ export async function runScenario(options, scenario) {
     // app's preflight see "an embedded runtime is present", like the folder the DMG ships.
     const lite = await createLiteRuntimeStub(root);
     environment.SUPER_ONTOLOGY_LITE_DIR = lite;
-    Object.assign(appSettings, { ooExecutable: state.ooBinary, runtime: "lite" });
+    // The packaged app runs its own bundled `oo` (no executable is set); a DMG built without the PostgreSQL runtime folder still gets the stub.
+    Object.assign(appSettings, packagedApp ? { runtime: "lite" } : { ooExecutable: state.ooBinary, runtime: "lite" });
   } else {
     state.toolbox = await createFakeToolbox();
     Object.assign(appSettings, { ooExecutable: await state.toolbox.install("oo", "fake-oo"), runtime: "auto" });
@@ -110,6 +113,12 @@ export async function runScenario(options, scenario) {
       const css = `${selector(id)}${filter}`;
       await session.until(`!!document.querySelector(${JSON.stringify(css)})`, `${css}`, options);
       return css;
+    },
+    /** Waits for an entity row whose name matches the pattern (the engine names the project "Project Alpha" or "alpha" depending on how its file arrived) and returns that name. */
+    async waitForEntity(pattern, options = {}) {
+      const source = pattern.source;
+      await session.until(`[...document.querySelectorAll('[data-testid="entity-row"]')].some((row) => new RegExp(${JSON.stringify(source)}, "iu").test(row.getAttribute('data-name') ?? ''))`, `an entity matching ${source}`, options);
+      return evaluate(`[...document.querySelectorAll('[data-testid="entity-row"]')].map((row) => row.getAttribute('data-name')).find((name) => new RegExp(${JSON.stringify(source)}, "iu").test(name ?? ''))`);
     },
     exists: (id) => evaluate(`!!document.querySelector(${q(id)})`),
     count: (id) => evaluate(`document.querySelectorAll(${q(id)}).length`),
@@ -194,7 +203,7 @@ export async function runScenario(options, scenario) {
       assert.ok(created.status === 201 || created.status === 200, `drive create answered ${created.status} ${JSON.stringify(created.body).slice(0, 200)}`);
       const driveId = created.body.id;
       await session.engineApi(`/v1/docs/drives/${driveId}:sync`, { method: "POST", body: {}, headers: { "idempotency-key": `t1-sync-${driveId}`.padEnd(16, "0") } });
-      const settled = new Set(["parsed", "published", "failed", "skipped", "unsupported"]);
+      const settled = new Set(["published", "failed", "skipped", "unsupported"]);
       const started = Date.now();
       while (Date.now() - started < limit) {
         const { body } = await session.engineApi(`/v1/docs/drives/${driveId}/files?limit=200`);
@@ -219,16 +228,25 @@ export async function runScenario(options, scenario) {
 
   // ---- app process
   async function launch() {
-    const electronPath = createRequire(path.join(appRoot, "package.json"))("electron");
     const out = await fs.open(path.join(reportDirectory, "app.log"), "w");
-    state.child = spawn(electronPath, [path.join(harnessDirectory, "electron-main.mjs"), "--remote-debugging-port=0", `--user-data-dir=${userData}`, "--disable-renderer-backgrounding"], {
-      env: { ...environment, SO_APP_ROOT: appRoot, SUPER_ONTOLOGY_USER_DATA: userData, SO_T1_DIALOG_QUEUE: queueFile },
-      stdio: ["ignore", out.fd, out.fd],
-    });
+    if (packagedApp) {
+      state.child = spawn(packagedApp, ["--remote-debugging-port=0", `--user-data-dir=${userData}`, "--disable-renderer-backgrounding"], { env: { ...environment, SUPER_ONTOLOGY_USER_DATA: userData }, stdio: ["ignore", out.fd, out.fd] });
+    } else {
+      const electronPath = createRequire(path.join(appRoot, "package.json"))("electron");
+      state.child = spawn(electronPath, [path.join(harnessDirectory, "electron-main.mjs"), "--remote-debugging-port=0", `--user-data-dir=${userData}`, "--disable-renderer-backgrounding"], {
+        env: { ...environment, SO_APP_ROOT: appRoot, SUPER_ONTOLOGY_USER_DATA: userData, SO_T1_DIALOG_QUEUE: queueFile },
+        stdio: ["ignore", out.fd, out.fd],
+      });
+    }
     state.exited = new Promise((resolve) => { state.child.once("exit", resolve); });
     const port = await readDevToolsPort(userData);
     state.page = await connectToPage(port, { urlPattern: /^(app|http):/u });
     await state.page.send("Page.enable");
+    // Only the first-run scenario starts on the welcome overlay; every other scenario starts like a returning user (the overlay would sit on top of the navigation).
+    if (!firstRun) {
+      await state.page.send("Page.addScriptToEvaluateOnNewDocument", { source: "try { localStorage.setItem('so.firstRun.done', '1'); } catch {}" });
+      await state.page.send("Page.reload");
+    }
     await state.page.send("Emulation.setDeviceMetricsOverride", { width: size.width, height: size.height, deviceScaleFactor: 1, mobile: false }).catch(() => {});
     await session.until("document.readyState === 'complete'", "page load", { timeoutMs: 30_000 });
   }
@@ -238,7 +256,7 @@ export async function runScenario(options, scenario) {
 
   async function quit() {
     if (!state.child || state.child.exitCode !== null) return;
-    try { await state.page?.send("Browser.close"); } catch { /* the connection closes with the app */ }
+    try { await Promise.race([state.page?.send("Browser.close"), wait(5_000)]); } catch { /* the connection closes with the app */ }
     const gone = await Promise.race([state.exited.then(() => true), wait(20_000).then(() => false)]);
     if (!gone) { state.child.kill("SIGKILL"); await state.exited; }
     state.page = null;

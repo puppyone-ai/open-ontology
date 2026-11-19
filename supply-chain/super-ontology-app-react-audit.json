@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "react",
+    "version": "19.3.0",
+    "official_source": "https://registry.npmjs.org/react/19.3.0",
+    "repository": "https://github.com/react/react",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-09-09T17:21:30.071Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 70,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node >=0.10.0 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/react-19.3.0/LICENSE",
+        "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+      }
+    ],
+    "digest": "sha256:5a4024110c49476e1538a70fd65b9e59d038fcc280b78eb933c24e10453afbf9",
+    "registry_integrity": "sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==",
+    "registry_shasum": "e20aa3a14687075ce863351b5878b0608c3fbfb2",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "dependencies",
+    "role": "runtime: bundled into dist/renderer by vite and also packed with its production node_modules into app.asar",
+    "shipped_in_dmg": true,
+    "native_transitive": [],
+    "transitive_licenses": [],
+    "note": "runtime: bundled into dist/renderer by vite and also packed with its production node_modules into app.asar."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (no advisory path through react)",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

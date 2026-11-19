@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "typescript-eslint",
+    "version": "8.71.1",
+    "official_source": "https://registry.npmjs.org/typescript-eslint/8.71.1",
+    "repository": "https://github.com/typescript-eslint/typescript-eslint",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-10-05T17:08:41.691Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 44,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node ^18.18.0 || ^20.9.0 || >=21.1.0 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/typescript-eslint-8.71.1/LICENSE",
+        "sha256": "2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0"
+      }
+    ],
+    "digest": "sha256:ce87ddb9bdfa120f116bc6a7a2042f6179559e82af754785988f6be0e77fcc55",
+    "registry_integrity": "sha512-oiNVPC3/NbV1FpaHU07l8O6ynqG9v4PAiW2WvTrAmZdR0f2HI/gE668ElMLCK7Xbsu5k2fK5C4fXNiq05j7/nQ==",
+    "registry_shasum": "dabf06af972d975ea25b27d73e161193ea41075d",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (advisory ids GHSA-g3hv-75wg-m249; dispositions in the same file)",
+    "disposition": "resolved-before-adoption",
+    "known_exploitable_high_severity": false,
+    "disposition_note": "Open advisories exist on transitive dependencies of this package; none is exploitable in the shipped artifact (see the dispositions in the evidence file). The disposition value is the closest allowed by the record shape: the advisories are NOT patched, they are judged not reachable. Flagged for owner review.",
+    "residual_advisories": [
+      {
+        "id": "GHSA-g3hv-75wg-m249",
+        "severity": "moderate",
+        "module": "minimatch",
+        "vulnerable": ">=7.0.0 <11.0.1",
+        "patched": ">=11.0.1",
+        "found_versions": [
+          "10.2.6",
+          "9.0.9"
+        ],
+        "title": "minimatch has potential denial of service via globparts amplification"
+      }
+    ]
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}
