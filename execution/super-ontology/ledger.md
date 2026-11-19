@@ -161,6 +161,12 @@
 | SO-B-S17-03 | D83 | merged | feat/super-ontology (WP2 分支并入) | 766f2900c → 766f2900c | — | — | 装入器接入 0150–0152 |
 | SO-B-S17-04 | D83 | merged | feat/super-ontology (WP2 分支并入) | f66b870ec → f66b870ec | — | — | docs-api 1.6：令牌与链接路由 |
 | SO-B-S17-05 | D83 | merged | feat/super-ontology (WP2 分支并入) | 9cf41fce6 → 26878a66c | — | — | 令牌、吊销、投影增量与跨源链接的测试 |
+| SO-B-S14-02 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 67e555dcf → d656d8923 | — | — | Install a pinned FFmpeg-free OpenCV wheel and a pinned uv in the Docker-free runtime |
+| SO-B-S14-03 | L8 | merged | feat/super-ontology (车道 G 分支并入) | e37e09578 → e37e09578 | — | — | Prove the Docker-free runtime ships no FFmpeg from a fresh HOME |
+| SO-B-S14-04 | L8 | merged | feat/super-ontology (车道 G 分支并入) | b0467c48b → b0467c48b | — | — | Build the release engine with objectstore-s3 beside oo |
+| SO-B-S14-05 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 3ebaa1319 → 3ebaa1319 | — | — | Record the Docker-free distribution decisions in the ADR |
+| SO-B-S14-06 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 4e70ce2e9 → 4e70ce2e9 | — | — | Pass the pinned runtime artifacts through the WP1 CLI input run |
+| SO-B-S14-07 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 27076f436 → 27076f436 | — | — | Record the lane G WP1 and CLI-only matrix runs |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
