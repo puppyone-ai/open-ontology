@@ -3,6 +3,7 @@
 # page the owner already created, and only when the owner sets `attach` to true.
 # actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
 # actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# The bundled oo is built here with tools/docs-release/build_docs_distribution.sh (the deploy files are embedded in it).
 # Node.js and pnpm are installed by hand below (no third-party action): the Node tarball is checked against nodejs.org SHASUMS256.txt.
 # The DMG is unsigned (CSC_IDENTITY_AUTO_DISCOVERY=false, identity null in electron-builder.yml). Signing and notarization are the owner's:
 # adding them means a Developer ID secret set and a changed `identity` in electron-builder.yml; nothing here reads any secret.
@@ -14,9 +15,6 @@ on:
     inputs:
       release_tag:
         description: "Existing release the DMG belongs to (for example v0.2.1). Used for the file name check and the optional upload."
-        required: true
-      cli_run_id:
-        description: "Run id of a successful cli-binaries workflow; its cli-darwin-arm64 artifact supplies the bundled oo."
         required: true
       attach:
         description: "Attach the DMG to the release page (needs the release to exist). Default: only keep it as a run artifact."
@@ -50,10 +48,8 @@ jobs:
       - name: Validate inputs
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-          CLI_RUN_ID: ${{ inputs.cli_run_id }}
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]
-          [[ "$CLI_RUN_ID" =~ ^[0-9]+$ ]]
       - name: Node.js and pnpm
         run: |
           set -euo pipefail
@@ -77,15 +73,17 @@ jobs:
           pnpm run check:brand
           pnpm run gen:notice:check
           pnpm test
-      - name: Fetch the bundled oo
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: Build the bundled oo (release, docs feature) and its engine
         env:
-          GH_TOKEN: ${{ github.token }}
-          CLI_RUN_ID: ${{ inputs.cli_run_id }}
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
           set -euo pipefail
-          gh run download "$CLI_RUN_ID" --repo "$GITHUB_REPOSITORY" --name cli-darwin-arm64 --dir "$RUNNER_TEMP/oo"
-          test -f "$RUNNER_TEMP/oo/oo"
+          tools/docs-release/build_docs_distribution.sh "$RUNNER_TEMP/oo" release
           echo "OO_BINARY=$RUNNER_TEMP/oo/oo" >> "$GITHUB_ENV"
+          echo "OO_DOCS_ENGINE_BINARY=$RUNNER_TEMP/oo/oo-docs-engine" >> "$GITHUB_ENV"
       - name: Build the DMG
         working-directory: apps/super-ontology-desktop
         env:

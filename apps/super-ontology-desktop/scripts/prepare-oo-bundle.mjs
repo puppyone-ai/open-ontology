@@ -1,4 +1,4 @@
-// Puts the `oo` binary into build/oo-bundle/ (it ends up as Resources/oo/oo). The binary is an input of the build: a path given with
+// Puts the `oo` binary and the `oo-docs-engine` it starts (found next to it) into build/oo-bundle/ (it ends up as Resources/oo/oo). The binary is an input of the build: a path given with
 // --binary or OO_BINARY (CI downloads the arm64 artifact of the cli-binaries workflow and passes --sha256 from its checksum file).
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -15,6 +15,8 @@ if (!source || !path.isAbsolute(source) || !fs.existsSync(source)) {
   console.error("Give the oo binary as an absolute path: --binary <path> or OO_BINARY.");
   process.exit(2);
 }
+const engineSource = option("--engine") ?? process.env.OO_DOCS_ENGINE_BINARY ?? path.join(path.dirname(source), "oo-docs-engine");
+if (!fs.existsSync(engineSource)) { console.error("oo-docs-engine was not found next to oo: give --engine <path> or OO_DOCS_ENGINE_BINARY."); process.exit(2); }
 const bytes = fs.readFileSync(source);
 const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
 if (expected && expected.toLowerCase() !== sha256) { console.error("sha256 of the oo binary does not match the expected value."); process.exit(3); }
@@ -28,5 +30,8 @@ const directory = path.join(root, "build", "oo-bundle");
 fs.rmSync(directory, { recursive: true, force: true });
 fs.mkdirSync(directory, { recursive: true });
 fs.writeFileSync(path.join(directory, "oo"), bytes, { mode: 0o755 });
-fs.writeFileSync(path.join(directory, "oo-bundle.json"), `${JSON.stringify({ version, sha256, bytes: bytes.length }, null, 2)}\n`);
+const engineBytes = fs.readFileSync(engineSource);
+fs.writeFileSync(path.join(directory, "oo-docs-engine"), engineBytes, { mode: 0o755 });
+const engineSha256 = crypto.createHash("sha256").update(engineBytes).digest("hex");
+fs.writeFileSync(path.join(directory, "oo-bundle.json"), `${JSON.stringify({ version, sha256, bytes: bytes.length, engineSha256 }, null, 2)}\n`);
 console.log(`oo ${version} bundled (sha256 ${sha256.slice(0, 12)}...)`);
