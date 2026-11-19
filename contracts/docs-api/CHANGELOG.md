@@ -1,6 +1,6 @@
 # docs-api changelog
 
-Contract between the Open Ontology docs engine (`oo serve`) and Puppyone Desktop Super Drive.
+Contract between the Open Ontology docs engine (`oo serve`) and its clients: the `oo` CLI, MCP tools and the Super Ontology app.
 Rules: spec `specs/super-ontology/50-commit-and-traceability.md` §6. A minor version only adds optional
 fields, endpoints, or enum values; clients ignore unknown fields and show unknown enum values as unknown.
 
