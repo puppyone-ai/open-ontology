@@ -1,0 +1,32 @@
+{
+  "name": "@open-ontology/super-ontology-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Super Ontology: the desktop app for Open Ontology",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "electron/main/index.mjs",
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "12.10.1"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build-renderer.mjs",
+    "test": "vitest run --config config/vitest.config.ts",
+    "check:brand": "node scripts/check-brand.mjs",
+    "gen:icon": "node scripts/gen-icon.mjs",
+    "gen:notice": "node scripts/gen-notice.mjs",
+    "gen:notice:check": "node scripts/gen-notice.mjs --check",
+    "prepare:oo": "node scripts/prepare-oo-bundle.mjs",
+    "dist:mac": "pnpm run gen:icon && pnpm run gen:notice && pnpm run build && pnpm run prepare:oo && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.yml --mac dmg --arm64 --publish never"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "44.11.1",
+    "electron-builder": "26.18.1",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

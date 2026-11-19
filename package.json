@@ -17,6 +17,9 @@
     "test:visual": "pnpm --filter @open-ontology/web test:visual",
     "test:a11y": "pnpm --filter @open-ontology/web test:a11y",
     "storybook": "pnpm --filter @open-ontology/web storybook",
-    "build-storybook": "pnpm --filter @open-ontology/web build-storybook"
+    "build-storybook": "pnpm --filter @open-ontology/web build-storybook",
+    "desktop:dev": "pnpm --filter @open-ontology/super-ontology-desktop dev",
+    "desktop:test": "pnpm --filter @open-ontology/super-ontology-desktop test",
+    "desktop:dist": "pnpm --filter @open-ontology/super-ontology-desktop dist:mac"
   }
 }

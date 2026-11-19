@@ -1,0 +1,128 @@
+# Super Ontology desktop app: macOS arm64 DMG, built on demand by the owner.
+# This workflow has no tag, push or schedule trigger and publishes nothing by itself: the last job attaches the DMG to a release
+# page the owner already created, and only when the owner sets `attach` to true.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# Node.js and pnpm are installed by hand below (no third-party action): the Node tarball is checked against nodejs.org SHASUMS256.txt.
+# The DMG is unsigned (CSC_IDENTITY_AUTO_DISCOVERY=false, identity null in electron-builder.yml). Signing and notarization are the owner's:
+# adding them means a Developer ID secret set and a changed `identity` in electron-builder.yml; nothing here reads any secret.
+
+name: super-ontology-desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release the DMG belongs to (for example v0.2.1). Used for the file name check and the optional upload."
+        required: true
+      cli_run_id:
+        description: "Run id of a successful cli-binaries workflow; its cli-darwin-arm64 artifact supplies the bundled oo."
+        required: true
+      attach:
+        description: "Attach the DMG to the release page (needs the release to exist). Default: only keep it as a run artifact."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: super-ontology-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24.21.0"
+  PNPM_VERSION: "12.10.1"
+
+jobs:
+  dmg:
+    name: dmg-arm64
+    runs-on: macos-15
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate inputs
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          CLI_RUN_ID: ${{ inputs.cli_run_id }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]
+          [[ "$CLI_RUN_ID" =~ ^[0-9]+$ ]]
+      - name: Node.js and pnpm
+        run: |
+          set -euo pipefail
+          base="https://nodejs.org/dist/v${NODE_VERSION}"
+          archive="node-v${NODE_VERSION}-darwin-arm64.tar.gz"
+          curl -fsSL "$base/$archive" -o "$RUNNER_TEMP/$archive"
+          curl -fsSL "$base/SHASUMS256.txt" -o "$RUNNER_TEMP/SHASUMS256.txt"
+          (cd "$RUNNER_TEMP" && grep " $archive\$" SHASUMS256.txt | shasum -a 256 -c -)
+          mkdir -p "$RUNNER_TEMP/node"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/node" --strip-components 1
+          echo "$RUNNER_TEMP/node/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/node/bin/npm" install --global --prefix "$RUNNER_TEMP/node" "pnpm@${PNPM_VERSION}"
+      - name: Install (frozen lockfile)
+        run: |
+          node --version
+          pnpm --version
+          pnpm install --frozen-lockfile --filter @open-ontology/super-ontology-desktop
+      - name: Gates and unit tests
+        working-directory: apps/super-ontology-desktop
+        run: |
+          pnpm run check:brand
+          pnpm run gen:notice:check
+          pnpm test
+      - name: Fetch the bundled oo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLI_RUN_ID: ${{ inputs.cli_run_id }}
+        run: |
+          set -euo pipefail
+          gh run download "$CLI_RUN_ID" --repo "$GITHUB_REPOSITORY" --name cli-darwin-arm64 --dir "$RUNNER_TEMP/oo"
+          test -f "$RUNNER_TEMP/oo/oo"
+          echo "OO_BINARY=$RUNNER_TEMP/oo/oo" >> "$GITHUB_ENV"
+      - name: Build the DMG
+        working-directory: apps/super-ontology-desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          pnpm run gen:icon
+          pnpm run gen:notice
+          pnpm run build
+          pnpm run prepare:oo
+          pnpm exec electron-builder --config electron-builder.yml --mac dmg --arm64 --publish never
+          shasum -a 256 release/*.dmg | tee release/SHA256SUMS
+          cat build/oo-bundle/oo-bundle.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: super-ontology-dmg-arm64
+          path: |
+            apps/super-ontology-desktop/release/*.dmg
+            apps/super-ontology-desktop/release/SHA256SUMS
+          if-no-files-found: error
+
+  attach:
+    name: attach-to-release
+    needs: dmg
+    if: ${{ inputs.attach }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    environment: release
+    steps:
+      - name: Upload to the release page
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name super-ontology-dmg-arm64 --dir dist
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          gh release upload "$RELEASE_TAG" dist/*.dmg dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber

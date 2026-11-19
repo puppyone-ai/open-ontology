@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'">
+<title>Super Ontology</title>
+<link rel="stylesheet" href="./bootstrap.css">
+</head>
+<body>
+<main class="stage">
+  <section class="welcome" aria-labelledby="title">
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="./mark.svg#mark"/></svg>
+    <h1 id="title">Super Ontology</h1>
+    <p id="lead" class="lead"></p>
+    <div class="progress" role="progressbar" aria-labelledby="step" aria-valuemin="0" aria-valuemax="100"><span id="bar"></span></div>
+    <p id="step" class="step" role="status" aria-live="polite"></p>
+    <p id="detail" class="detail"></p>
+    <div class="actions">
+      <button id="primary" type="button" class="primary" hidden></button>
+      <button id="secondary" type="button" class="secondary" hidden></button>
+    </div>
+  </section>
+</main>
+<footer class="statusbar" aria-label="Status">
+  <button id="engine" type="button" class="status" aria-describedby="engine-state"><span id="dot" class="dot"></span><span id="engine-label"></span><span id="engine-state"></span></button>
+  <span id="jobs" class="jobs" hidden></span>
+</footer>
+<script src="./bootstrap.js"></script>
+</body>
+</html>

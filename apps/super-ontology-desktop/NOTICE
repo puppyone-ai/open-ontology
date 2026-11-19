@@ -1,0 +1,29 @@
+Super Ontology
+Copyright 2026 The contributors of this repository
+
+Super Ontology is the desktop app of Open Ontology. First-party files of the app are made
+available under the Apache License, Version 2.0, the same as the rest of the repository
+(see LICENSE). It does not grant rights in third-party code, data, or marks.
+
+Attribution
+-----------
+
+This product includes software developed at puppyone (https://www.puppyone.ai/).
+
+Parts of the app (the renderer under src/renderer, the design system package
+packages/design-system, and the Electron main-process service under
+electron/main/super-ontology) are adapted from the Super Drive of Puppyone
+(https://github.com/puppyone-ai/puppyone), Copyright 2025 puppyone authors, licensed
+under the Apache License, Version 2.0. The adapted files were changed: product names,
+identifiers, protocol names and application storage locations were renamed; the cloud,
+account, agent, Git and update parts were removed; the engine start-up was rewritten to
+locate and start `oo serve`. No logo, icon, font or other brand asset of that project is used.
+
+Third-party software
+--------------------
+
+The package contains Electron (MIT) with Chromium and Node.js; their license texts are in the
+application bundle (LICENSE and LICENSES.chromium.html next to the Electron Framework). The
+other packages shipped inside the app are listed in THIRD_PARTY_NOTICES.md, which is generated
+by `pnpm --filter @open-ontology/super-ontology-desktop gen:notice`. The `oo` binary shipped in
+Resources/oo is built from this repository and carries the notices of the repository NOTICE.
