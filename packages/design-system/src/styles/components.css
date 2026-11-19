@@ -99,7 +99,7 @@
   .so-menu-separator { height: 1px; margin: var(--so-space-1) calc(-1 * var(--so-space-1)); background: var(--so-line); }
 
   /* ---------- Fields ---------- */
-  .so-field { display: grid; gap: 6px; min-width: 0; }
+  .so-field { display: grid; gap: 6px; align-content: start; min-width: 0; }
   .so-field-label { color: var(--so-text); font-size: var(--so-text-sm); font-weight: var(--so-weight-medium); }
   .so-field-optional { margin-inline-start: var(--so-space-2); color: var(--so-text-muted); font-weight: var(--so-weight-regular); }
   .so-field-helper, .so-field-error { font-size: var(--so-text-xs); line-height: 1.4; }

@@ -39,8 +39,10 @@ try {
         const arg = rest.join(":");
         if (kind === "click") await page.locator(arg).first().click();
         else if (kind === "fill") { const [selector, text] = arg.split("|"); await page.locator(selector).first().fill(text); }
+        else if (kind === "fillunique") { const [selector, prefix] = arg.split("|"); await page.locator(selector).first().fill(`${prefix}-${Date.now().toString(36)}`); }
         else if (kind === "press") await page.keyboard.press(arg);
         else if (kind === "wait") await page.waitForTimeout(Number(arg));
+        else if (kind === "scroll") await page.locator("#so-main").evaluate((el, y) => { el.scrollTop = y; }, Number(arg));
         else if (kind === "hover") await page.locator(arg).first().hover();
         await page.waitForTimeout(250);
       }

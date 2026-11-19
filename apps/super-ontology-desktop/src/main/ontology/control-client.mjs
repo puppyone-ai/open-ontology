@@ -68,12 +68,15 @@ export const ROUTES = Object.freeze(rawRoutes);
 
 const invalid = () => new SuperOntologyError("SO_INVALID_REQUEST");
 
+/** A colon is a legal path character (RFC 3986) and entity keys carry one (`person:<id>`); the engine does not decode `%3A` in a path segment. */
+const encodeSegment = (value) => encodeURIComponent(value).replace(/%3A/gu, ":");
+
 function buildPath(definition, params = {}) {
   return definition.template.replace(/\{([a-z]+)\}/gu, (_whole, name) => {
     const pattern = definition.params?.[name];
     const value = params[name];
     if (!pattern || typeof value !== "string" || !pattern.test(value)) throw invalid();
-    return name === "path" ? value.split("/").map(encodeURIComponent).join("/") : encodeURIComponent(value);
+    return name === "path" ? value.split("/").map(encodeURIComponent).join("/") : encodeSegment(value);
   });
 }
 

@@ -185,7 +185,7 @@ export function createSuperOntologyService({
   const handlers = {
     ...controlHandlers,
     ...suggestHandlers,
-    ...createEnterpriseHandlers({ client }),
+    ...createEnterpriseHandlers({ client, lifecycle, tokenDirectory: stateDir ? path.join(path.dirname(stateDir), "agent-tokens") : null, fsPromises }),
     ...createFileHandlers({ client, tokens: driveFileTokens }),
     ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, mediaDecoder, hostMount }),
     ...Object.fromEntries(["drive-create", "drive-update", "drive-delete"].map((name) => [name, watchesDrives(name, controlHandlers[name])])),

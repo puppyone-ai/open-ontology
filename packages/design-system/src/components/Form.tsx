@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { cx } from "./cx";
 
-type FieldShell = { label: string; helper?: string; error?: string | null; optionalLabel?: string; className?: string };
+type FieldShell = { label: string; helper?: string; error?: string | null; optionalLabel?: string; className?: string; /** The label stays for assistive tech but is not drawn (a toolbar control that names itself by position). */ labelHidden?: boolean };
 
 /** Wires label, helper and error text to a control: `error` replaces `helper` and is announced. */
 function useField(helper?: string, error?: string | null) {
@@ -13,10 +13,10 @@ function useField(helper?: string, error?: string | null) {
   return { id, helperId, errorId, describedBy: [errorId, helperId].filter(Boolean).join(" ") || undefined };
 }
 
-function FieldFrame({ id, label, helper, error, helperId, errorId, optionalLabel, className, children }: FieldShell & { id: string; helperId?: string; errorId?: string; children: ReactNode }) {
+function FieldFrame({ id, label, helper, error, helperId, errorId, optionalLabel, className, labelHidden, children }: FieldShell & { id: string; helperId?: string; errorId?: string; children: ReactNode }) {
   return (
     <div className={cx("so-field", className)} data-invalid={error ? "true" : undefined}>
-      <label className="so-field-label" htmlFor={id}>
+      <label className={labelHidden ? "so-visually-hidden" : "so-field-label"} htmlFor={id}>
         {label}
         {optionalLabel && <span className="so-field-optional">{optionalLabel}</span>}
       </label>
@@ -27,31 +27,31 @@ function FieldFrame({ id, label, helper, error, helperId, errorId, optionalLabel
 }
 
 export const TextField = forwardRef<HTMLInputElement, FieldShell & Omit<InputHTMLAttributes<HTMLInputElement>, "className">>(function TextField(
-  { label, helper, error, optionalLabel, className, ...rest }, ref,
+  { label, helper, error, optionalLabel, className, labelHidden, ...rest }, ref,
 ) {
   const f = useField(helper, error);
   return (
-    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className}>
+    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className} labelHidden={labelHidden}>
       <input ref={ref} id={f.id} className="so-input" aria-invalid={error ? true : undefined} aria-describedby={f.describedBy} {...rest} />
     </FieldFrame>
   );
 });
 
 export const TextArea = forwardRef<HTMLTextAreaElement, FieldShell & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "className">>(function TextArea(
-  { label, helper, error, optionalLabel, className, rows = 3, ...rest }, ref,
+  { label, helper, error, optionalLabel, className, labelHidden, rows = 3, ...rest }, ref,
 ) {
   const f = useField(helper, error);
   return (
-    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className}>
+    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className} labelHidden={labelHidden}>
       <textarea ref={ref} id={f.id} rows={rows} className="so-input so-textarea" aria-invalid={error ? true : undefined} aria-describedby={f.describedBy} {...rest} />
     </FieldFrame>
   );
 });
 
-export function Select({ label, helper, error, optionalLabel, className, children, ...rest }: FieldShell & Omit<SelectHTMLAttributes<HTMLSelectElement>, "className">) {
+export function Select({ label, helper, error, optionalLabel, className, labelHidden, children, ...rest }: FieldShell & Omit<SelectHTMLAttributes<HTMLSelectElement>, "className">) {
   const f = useField(helper, error);
   return (
-    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className}>
+    <FieldFrame id={f.id} label={label} helper={helper} error={error} helperId={f.helperId} errorId={f.errorId} optionalLabel={optionalLabel} className={className} labelHidden={labelHidden}>
       <span className="so-select-wrap">
         <select id={f.id} className="so-input so-select" aria-invalid={error ? true : undefined} aria-describedby={f.describedBy} {...rest}>{children}</select>
         <Icon icon={ChevronDown} className="so-select-chevron" />

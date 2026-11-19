@@ -102,7 +102,9 @@ export type BatchResult = { results: { id: string; status: "ok" | "conflict" | "
 
 /** An Agent token (docs-api 1.6). The `ooa_` secret is shown once; the renderer keeps it only while the screen that shows it is open. */
 export type AgentScope = "docs:read" | "docs:suggest" | "docs:write";
-export type AgentTokenIssued = { id: string; token: string; name: string; scopes: string[]; drive_ids: string[]; all_drives: boolean; expires_in_seconds: number; expires_at: string };
+export type AgentTokenIssued = { id: string; token: string; name: string; scopes: string[]; drive_ids: string[]; all_drives: boolean; expires_in_seconds: number; expires_at: string;
+  /** Where the app also saved the secret (owner-only file), and the loopback address an Agent calls; both are added by the main process. */
+  token_file?: string | null; endpoint?: string | null };
 export type AgentTokenInfo = { id: string; name: string; scopes: string[]; drive_ids?: string[]; all_drives?: boolean; expires_at?: string | null; revoked_at?: string | null; last_used_at?: string | null; created_at?: string };
 
 /** Audit of Shares (docs-api 1.4): who shared what to which agent and when. Read-only; the engine's table is append-only and hash-chained. */

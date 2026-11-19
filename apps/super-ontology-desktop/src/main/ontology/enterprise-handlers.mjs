@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { SuperOntologyError } from "../../shared/super-ontology/errors.mjs";
 import { ensure } from "./response-guards.mjs";
 
@@ -12,7 +14,7 @@ const isToken = (value) => isObject(value) && typeof value.id === "string" && ty
  * IPC handlers of the audit of Shares (read-only, with its hash-chain check) and of the Agent tokens. The token comes back once, to the dialog that shows it; nothing here logs it,
  * keeps it or puts it in an error (an engine message never reaches the renderer either).
  */
-export function createEnterpriseHandlers({ client }) {
+export function createEnterpriseHandlers({ client, lifecycle = null, tokenDirectory = null, fsPromises = fs }) {
   const call = (name, options) => client.request(name, options);
   return {
     "audit-shares": async ({ driveId, agent, tenant, since, until }) => {
@@ -31,7 +33,16 @@ export function createEnterpriseHandlers({ client }) {
       };
       const { value } = await call("agentTokenCreate", { body });
       if (!isToken(value)) throw new SuperOntologyError("SO_RESPONSE_INVALID");
-      return value;
+      // The secret also goes to a private file an Agent can read by path, so a config never has to contain it.
+      let tokenFile = null;
+      if (tokenDirectory) {
+        await fsPromises.mkdir(tokenDirectory, { recursive: true, mode: 0o700 });
+        tokenFile = path.join(tokenDirectory, `${name.replace(/[^A-Za-z0-9._-]/gu, "_")}.token`);
+        const temporary = `${tokenFile}.${process.pid}.tmp`;
+        await fsPromises.writeFile(temporary, `${value.token}\n`, { mode: 0o600 });
+        await fsPromises.rename(temporary, tokenFile);
+      }
+      return { ...value, token_file: tokenFile, endpoint: lifecycle?.credentials?.()?.baseUrl ?? null };
     },
     "agent-token-list": async () => {
       const { value } = await call("agentTokenList", {});

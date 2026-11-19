@@ -50,6 +50,7 @@
   .so-weak { color: var(--so-text-muted); }
   .so-mono { font-family: var(--so-font-mono); font-size: var(--so-text-xs); }
   .so-metric { display: grid; gap: var(--so-space-1); padding: var(--so-space-4); }
+  .so-form { display: grid; gap: var(--so-space-4); padding: var(--so-space-4); align-content: start; }
   .so-metric-value { font-size: var(--so-text-xl); font-weight: var(--so-weight-semibold); line-height: 36px; letter-spacing: -0.01em; }
   .so-metric-label { color: var(--so-text-2); }
   .so-metric-hint { color: var(--so-text-muted); font-size: var(--so-text-xs); }
@@ -105,4 +106,14 @@
   .so-firstrun-title { font-size: var(--so-text-xl); font-weight: var(--so-weight-semibold); line-height: 36px; letter-spacing: -0.01em; }
   .so-firstrun-lead { color: var(--so-text-2); font-size: var(--so-text-md); text-wrap: pretty; }
   .so-firstrun-actions { display: flex; align-items: center; gap: var(--so-space-3); }
+}
+
+@layer so-app {
+  .so-brief { color: var(--so-text); line-height: 1.55; overflow-wrap: anywhere; }
+  .so-brief h1, .so-brief h2, .so-brief h3 { margin: var(--so-space-4) 0 var(--so-space-2); font-weight: var(--so-weight-semibold); }
+  .so-brief h1 { font-size: var(--so-text-lg); } .so-brief h2 { font-size: var(--so-text-md); } .so-brief h3 { font-size: var(--so-text-sm); }
+  .so-brief p { margin: 0 0 var(--so-space-2); }
+  .so-brief ul, .so-brief ol { margin: 0 0 var(--so-space-2); padding-inline-start: var(--so-space-5); list-style: revert; }
+  .so-brief code { padding: 1px 4px; border-radius: 4px; background: var(--so-inset); }
+  .so-brief table { border-collapse: collapse; margin-bottom: var(--so-space-2); } .so-brief th, .so-brief td { padding: 4px 8px; border: 1px solid var(--so-line); }
 }

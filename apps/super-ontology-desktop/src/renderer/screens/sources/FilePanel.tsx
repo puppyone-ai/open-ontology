@@ -22,7 +22,7 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   const retry = async () => { setRetrying(true); await actions.retryFiles([fileId]); setRetrying(false); };
 
   return (
-    <Card className="so-metric" aria-label={t("app.sources.panel.title")} role="complementary" data-testid="file-panel" style={{ position: "sticky", top: 0 }}>
+    <Card className="so-form" aria-label={t("app.sources.panel.title")} role="complementary" data-testid="file-panel" style={{ position: "sticky", top: 0 }}>
       <div className="so-row">
         <h2 className="so-section-title so-grow so-truncate">{record?.name ?? record?.path ?? <Skeleton width={160} height={16} />}</h2>
         <IconButton icon={X} label={t("app.common.close")} size="compact" onClick={onClose} />

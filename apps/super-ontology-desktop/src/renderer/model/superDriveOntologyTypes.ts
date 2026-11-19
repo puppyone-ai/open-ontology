@@ -14,7 +14,7 @@ export type EntityDetail = EntityRef & {
 };
 
 /** An entity search row: the reference plus the counts the engine adds. */
-export type EntitySearchRow = EntityRef & { facts?: number; files?: number; aliases?: string[]; matched_alias?: string | null };
+export type EntitySearchRow = EntityRef & { counts?: { facts?: number; aliases?: number }; facts?: number; files?: number; aliases?: string[]; matched_alias?: string | null };
 
 /** The pieces of a share request the dialog edits; the main process maps them to the contract. */
 export type ShareSettings = {
