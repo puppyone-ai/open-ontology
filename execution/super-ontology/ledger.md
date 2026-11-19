@@ -211,6 +211,17 @@
 | SO-B-S15-09 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | fde636761 → fde636761 | — | testing/super-ontology/bench/longmemeval-v2/ | Show complete, compact trees for distinct pages |
 | SO-B-S15-10 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | d19477961 → d19477961 | — | testing/super-ontology/bench/longmemeval-v2/ | Retrieve every page a question compares |
 | SO-F-S19-62 | D88 | merged | feat/super-ontology (App 车道 G 并入) | 541239f88 → 541239f88 | — | apps/super-ontology-desktop/ | Give the atlas one calm palette, quieter links, clearer labels and a source-only split |
+| SO-B-S19-50 | D88 | merged | feat/super-ontology (App 车道并入) | 7199341b2 → 7199341b2 | — | apps/super-ontology-desktop/ | Accept every doctor-supported database kind in oo source add and test all resolved address |
+| SO-F-S19-50 | D88 | merged | feat/super-ontology (App 车道并入) | f17b13b35 → f17b13b35 | — | apps/super-ontology-desktop/ | Add the CLI parity bridge: database sources, pipeline jobs, Gateway queries, diagnostics |
+| SO-F-S19-51 | D88 | merged | feat/super-ontology (App 车道并入) | 1e08be37b → 1e08be37b | — | apps/super-ontology-desktop/ | Add database sources, Query, ontology YAML files and Diagnostics to the app |
+| SO-F-S19-52 | D88 | merged | feat/super-ontology (App 车道并入) | 1cff3fe64 → 1cff3fe64 | — | apps/super-ontology-desktop/ | Translate the CLI parity strings into the six other app languages |
+| SO-F-S19-53 | D88 | merged | feat/super-ontology (App 车道并入) | 722e6020f → 00c8f9ad3 | — | apps/super-ontology-desktop/ | Add T1 scenarios, visual tests and the parity matrix for the CLI parity screens |
+| SO-F-S19-54 | D88 | merged | feat/super-ontology (App 车道并入) | a5dae044f → a5dae044f | — | apps/super-ontology-desktop/ | Repair the merge with the atlas: Ontology tabs, app state, T1 order and test ids |
+| SO-F-S19-63 | D88 | merged | feat/super-ontology (App 车道并入) | 681bae617 → 681bae617 | — | apps/super-ontology-desktop/ | Keep group labels clear of members and tell the kinds of source apart |
+| SO-B-S18-10 | D88 | merged | feat/super-ontology (车道 L 并入) | 31de80533 → 31de80533 | — | — | Add GET /v1/ontology/schema and oo ontology schema |
+| SO-B-S18-11 | D88 | merged | feat/super-ontology (车道 L 并入) | 45ec7e0e7 → 43f287894 | — | — | Test the ontology schema route on the real Gateway |
+| SO-F-S19-70 | D88 | merged | feat/super-ontology (车道 L 并入) | 25b385a39 → 25b385a39 | — | — | Read the atlas database side from the ontology schema channel |
+| SO-F-S19-71 | D88 | merged | feat/super-ontology (车道 L 并入) | 8b9c37867 → 8b9c37867 | — | — | Make the atlas T1 settle on the fake and on the real engine |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

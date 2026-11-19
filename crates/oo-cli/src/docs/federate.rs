@@ -17,6 +17,7 @@ const SEARCH: &str = "oo.ontology.search/v1";
 const ENTITY: &str = "oo.ontology.entity/v1";
 const SOURCES: &str = "oo.ontology.sources/v1";
 const QUERY: &str = "oo.ontology.query/v1";
+const SCHEMA: &str = "oo.ontology.schema/v1";
 
 /// What the caller may do: the owner's control token, or an introspected Agent token.
 struct Principal {
@@ -183,6 +184,21 @@ pub fn doc_urn(drive: &str, key: &str) -> String {
 
 pub fn db_urn(source: &str, table: &str, pk: &str) -> String {
     format!("oo:db/{source}/{table}/{}", pct_encode(pk))
+}
+
+/// URN of a table (the prefix of its row URNs): `oo:db/<source>/<schema.table>`.
+pub fn table_urn(source: &str, table: &str) -> String {
+    format!("oo:db/{source}/{table}")
+}
+
+/// URN of a column: `oo:db/<source>/<schema.table>#<column>`.
+pub fn column_urn(source: &str, table: &str, column: &str) -> String {
+    format!("oo:db/{source}/{table}#{}", pct_encode(column))
+}
+
+/// URN of a relationship of the published graph: `oo:db/<source>/relationship/<id>`.
+pub fn relationship_urn(source: &str, id: &str) -> String {
+    format!("oo:db/{source}/relationship/{}", pct_encode(id))
 }
 
 pub fn parse_urn(s: &str) -> Option<Urn> {
@@ -878,6 +894,119 @@ impl Ctx<'_> {
         Ok(json!({"protocol": SOURCES, "items": items}))
     }
 
+    /// `GET /v1/ontology/schema`: the database side of the ontology, read-only and scoped by the token.
+    /// Tables and columns come from the Gateway (`/v1/tables`, `/v1/tables/{t}`, with the token's profile), relationships
+    /// from the role pack's published graph (`/v1/knowledge/relationships/graph.json`), document links from the engine
+    /// (`/v1/docs/links`, the token's Drives). Pages are windows of the sorted table list; a relationship or link is
+    /// in the page of its `from` table (its table), so every edge appears exactly once across pages.
+    async fn schema(&self, limit: usize, cursor: Option<&str>) -> Result<Value, Fail> {
+        let Some(profile) = self.db() else {
+            return Err(fail(
+                403,
+                "ONTOLOGY_SCOPE_DENIED",
+                "the token has no db:read or names no Gateway profile",
+            ));
+        };
+        let mut warnings: Vec<String> = Vec::new();
+        let (list, meta) = gateway(profile, "/v1/tables", None).await?;
+        let names = gateway_table_names(&list);
+        let total = names.len();
+        let (start, end) = schema_window(cursor, limit, total)?;
+        let page = &names[start..end];
+        let mut tables = Vec::new();
+        for t in page {
+            let d = match gateway(profile, &format!("/v1/tables/{}", pct_encode(t)), None).await {
+                Ok((v, _)) => Some(v),
+                Err(f) => {
+                    warnings.push(format!("{t}: {}", f.2));
+                    None
+                }
+            };
+            tables.push(table_item(profile, t, d.as_ref()));
+        }
+        let mut relationships = Vec::new();
+        let mut rel_status = "ok";
+        match gateway(profile, "/v1/knowledge/relationships/graph.json", None).await {
+            Ok((v, _)) => {
+                let mut graphs = vec![
+                    serde_json::from_str::<Value>(v["text"].as_str().unwrap_or(""))
+                        .unwrap_or(Value::Null),
+                ];
+                if let Some(pages) = graphs[0]["pages"].as_array().cloned() {
+                    graphs.clear();
+                    for p in pages
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .take(SCHEMA_GRAPH_PAGES)
+                    {
+                        if let Ok((v, _)) =
+                            gateway(profile, &format!("/v1/knowledge/{p}"), None).await
+                            && let Ok(g) =
+                                serde_json::from_str::<Value>(v["text"].as_str().unwrap_or(""))
+                        {
+                            graphs.push(g);
+                        }
+                    }
+                }
+                for g in &graphs {
+                    relationships.extend(relationship_items(profile, g).into_iter().filter(|r| {
+                        r["from"]["table"]
+                            .as_str()
+                            .is_some_and(|t| page.iter().any(|p| p == t))
+                    }));
+                }
+                relationships.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+            }
+            Err(f) => {
+                rel_status = "unavailable";
+                warnings.push(format!("relationships: {}", f.2));
+            }
+        }
+        let mut doc_links = Vec::new();
+        let doc_status = if self.docs() {
+            let drives = self.drives().await?;
+            let ruled: Vec<String> = self
+                .rules(&drives)
+                .await
+                .into_iter()
+                .map(|r| r.table)
+                .collect();
+            for t in page.iter().filter(|t| ruled.contains(t)) {
+                for l in self
+                    .links(&format!("db_table={t}&limit={SCHEMA_LINKS_PER_TABLE}"))
+                    .await
+                {
+                    let mut it = link_item(&l, true, profile);
+                    it["table_urn"] = json!(table_urn(profile, t));
+                    it["row_urn"] = json!(db_urn(profile, t, l["db_key"].as_str().unwrap_or("")));
+                    doc_links.push(it);
+                }
+            }
+            "ok"
+        } else {
+            "skipped"
+        };
+        let header = |n: &str| {
+            meta.iter()
+                .find(|(k, _)| k == n)
+                .map_or(Value::Null, |(_, v)| json!(v))
+        };
+        Ok(json!({
+            "protocol": SCHEMA,
+            "source": {"kind": "database", "profile": profile},
+            "tables": tables, "relationships": relationships, "doc_links": doc_links,
+            "total_tables": total,
+            "next_cursor": if end < total { json!(format!("t{end}")) } else { Value::Null },
+            "sides": {"db": {"status": "ok", "count": tables.len()},
+                      "relationships": {"status": rel_status, "count": relationships.len()},
+                      "docs": {"status": doc_status, "count": doc_links.len()}},
+            "warnings": warnings,
+            "provenance": {"kind": "gateway_schema", "source": profile,
+                "knowledge_version": list["knowledge_version"], "policy_version": list["policy_version"],
+                "pack_digest": list["pack_digest"], "publication_id": header("x-oo-publication-id")},
+        }))
+    }
+
     async fn query(&self, sql: &str, max_rows: u32) -> Result<Value, Fail> {
         let Some(profile) = self.db() else {
             return Err(fail(
@@ -903,6 +1032,94 @@ impl Ctx<'_> {
             "row_count": rows.rows.len(), "truncated": rows.truncated, "provenance": prov}),
         )
     }
+}
+
+/// Largest page of `GET /v1/ontology/schema`: one Gateway `describe` call per table.
+const SCHEMA_MAX_TABLES: usize = 100;
+const SCHEMA_LINKS_PER_TABLE: usize = 200;
+const SCHEMA_GRAPH_PAGES: usize = 20;
+
+/// Table names of the Gateway's `GET /v1/tables`, sorted, only names that can be a URN part.
+fn gateway_table_names(list: &Value) -> Vec<String> {
+    let mut v: Vec<String> = list["tables"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|t| t["name"].as_str())
+        .filter(|n| is_table(n))
+        .map(str::to_owned)
+        .collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
+/// One table of the schema answer from the Gateway's `GET /v1/tables/{schema.table}`.
+fn table_item(source: &str, table: &str, describe: Option<&Value>) -> Value {
+    let (schema, name) = table.split_once('.').unwrap_or(("", table));
+    let details = describe.map(|d| d["column_details"].as_array().cloned().unwrap_or_default());
+    let names: Vec<String> = describe
+        .and_then(|d| d["columns"].as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|c| c.as_str().map(str::to_owned))
+        .collect();
+    let columns: Vec<Value> = names
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let d = details
+                .iter()
+                .flatten()
+                .find(|d| d["name"].as_str() == Some(c));
+            json!({"urn": column_urn(source, table, c), "name": c, "position": i + 1,
+                   "type": d.map_or(Value::Null, |d| d["type"].clone()),
+                   "type_oid": d.map_or(Value::Null, |d| d["type_oid"].clone())})
+        })
+        .collect();
+    json!({"urn": table_urn(source, table), "qualified_name": table, "schema": schema, "name": name,
+           "column_count": columns.len(), "columns": columns,
+           "columns_status": if describe.is_some() { "ok" } else { "error" }})
+}
+
+/// Edges of the published relationship graph (`relationships/graph.json` of the role pack, ontology layer 3.5).
+fn relationship_items(source: &str, graph: &Value) -> Vec<Value> {
+    let end = |e: &Value| {
+        let t = e["dataset"].as_str().unwrap_or("");
+        json!({"table": t, "urn": table_urn(source, t),
+               "columns": e["columns"], "column_urns": e["columns"].as_array().into_iter().flatten()
+                   .filter_map(|c| c.as_str()).map(|c| column_urn(source, t, c)).collect::<Vec<_>>()})
+    };
+    graph["relationships"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|r| r["id"].is_string() && is_table(r["from"]["dataset"].as_str().unwrap_or("")))
+        .map(|r| {
+            let id = r["id"].as_str().unwrap_or("");
+            json!({"urn": relationship_urn(source, id), "id": id, "from": end(&r["from"]), "to": end(&r["to"]),
+                   "cardinality": r["cardinality"], "join_hint": r["join_hint"], "provenance": r["provenance"],
+                   "confidence": r["confidence"]})
+        })
+        .collect()
+}
+
+/// The `[start, start+limit)` window of `total` tables named by an opaque cursor.
+fn schema_window(cursor: Option<&str>, limit: usize, total: usize) -> Result<(usize, usize), Fail> {
+    let start = match cursor {
+        None | Some("") => 0,
+        Some(c) => c
+            .strip_prefix('t')
+            .and_then(|n| n.parse::<usize>().ok())
+            .ok_or_else(|| {
+                fail(
+                    400,
+                    "ONTOLOGY_BAD_REQUEST",
+                    "cursor is the next_cursor of an earlier answer",
+                )
+            })?,
+    };
+    Ok((start.min(total), (start.saturating_add(limit)).min(total)))
 }
 
 fn cell(v: Option<&Value>) -> String {
@@ -1053,6 +1270,17 @@ async fn run(head: &Head, body: &[u8], cfg: &ProxyConfig, addr: SocketAddr) -> R
             cx.search(q, qv("type").unwrap_or(""), limit).await
         }
         ("GET", "sources") => cx.sources().await,
+        ("GET", "schema") => {
+            let n = match qv("limit") {
+                None => 50,
+                Some(l) => l
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|n| (1..=SCHEMA_MAX_TABLES).contains(n))
+                    .ok_or_else(|| fail(400, "ONTOLOGY_BAD_REQUEST", "limit is 1..=100"))?,
+            };
+            cx.schema(n, qv("cursor")).await
+        }
         ("GET", rest) if rest.starts_with("entities/") => {
             cx.entity(&pct_decode(&rest["entities/".len()..]), qv("key_col"))
                 .await
@@ -1345,6 +1573,77 @@ mod tests {
             (401, Some("ONTOLOGY_TOKEN_INVALID"))
         );
         let (s, _) = call(addr, "nonsense", "/v1/ontology/search?q=acme").await;
+        assert_eq!(s, 401);
+    }
+
+    #[test]
+    fn schema_pages_and_urns_are_stable() {
+        assert_eq!(
+            table_urn("salesgw", "sales.orders"),
+            "oo:db/salesgw/sales.orders"
+        );
+        assert_eq!(
+            column_urn("salesgw", "sales.orders", "customer id"),
+            "oo:db/salesgw/sales.orders#customer%20id"
+        );
+        // the table URN is the prefix of its row URNs
+        assert!(
+            db_urn("salesgw", "sales.orders", "7")
+                .starts_with(&table_urn("salesgw", "sales.orders"))
+        );
+        assert_eq!(schema_window(None, 2, 5).unwrap(), (0, 2));
+        assert_eq!(schema_window(Some("t2"), 2, 5).unwrap(), (2, 4));
+        assert_eq!(schema_window(Some("t4"), 2, 5).unwrap(), (4, 5));
+        assert_eq!(schema_window(Some("t99"), 2, 5).unwrap(), (5, 5));
+        assert!(schema_window(Some("7"), 2, 5).is_err());
+        let list = json!({"tables": [{"name": "sales.orders"}, {"name": "sales.customers"}, {"name": "x; drop"}, {"name": "sales.orders"}]});
+        assert_eq!(
+            gateway_table_names(&list),
+            ["sales.customers", "sales.orders"]
+        );
+    }
+
+    #[test]
+    fn schema_items_carry_types_and_edges() {
+        let d = json!({"table": "sales.orders", "columns": ["id", "customer_id"],
+            "column_details": [{"name": "id", "type": "int8", "type_oid": 20}]});
+        let t = table_item("gw", "sales.orders", Some(&d));
+        assert_eq!(t["schema"], "sales");
+        assert_eq!(t["column_count"], 2);
+        assert_eq!(t["columns"][0]["type"], "int8");
+        assert_eq!(t["columns"][1]["type"], Value::Null);
+        assert_eq!(t["columns"][1]["urn"], "oo:db/gw/sales.orders#customer_id");
+        assert_eq!(
+            table_item("gw", "sales.orders", None)["columns_status"],
+            "error"
+        );
+        let g = json!({"relationships": [{"id": "orders_to_customers", "cardinality": "many_to_one", "join_hint": "left",
+            "provenance": "declared_fk", "confidence": 1.0,
+            "from": {"dataset": "sales.orders", "columns": ["customer_id"]}, "to": {"dataset": "sales.customers", "columns": ["id"]}},
+            {"id": 3, "from": {"dataset": "sales.orders"}}]});
+        let r = relationship_items("gw", &g);
+        assert_eq!(r.len(), 1);
+        assert_eq!(r[0]["urn"], "oo:db/gw/relationship/orders_to_customers");
+        assert_eq!(r[0]["from"]["urn"], "oo:db/gw/sales.orders");
+        assert_eq!(r[0]["to"]["column_urns"][0], "oo:db/gw/sales.customers#id");
+    }
+
+    #[tokio::test]
+    async fn ontology_schema_needs_db_read_and_a_good_cursor() {
+        let addr = fake_engine().await;
+        let (s, v) = call(addr, "ooa_good", "/v1/ontology/schema").await;
+        assert_eq!(
+            (s, v["code"].as_str()),
+            (403, Some("ONTOLOGY_SCOPE_DENIED")),
+            "{v}"
+        );
+        let (s, v) = call(addr, "ooa_good", "/v1/ontology/schema?limit=0").await;
+        assert_eq!(
+            (s, v["code"].as_str()),
+            (400, Some("ONTOLOGY_BAD_REQUEST")),
+            "{v}"
+        );
+        let (s, _) = call(addr, "ooa_revoked", "/v1/ontology/schema").await;
         assert_eq!(s, 401);
     }
 

@@ -141,6 +141,8 @@ const server = http.createServer((request, response) => {
     return;
   }
   const docs = fakeDocs();
+  // The model the engine holds (`docs.model`, set by a scenario): the database pipeline reads it when the first stack file is written.
+  if (request.method === "GET" && request.url?.split("?")[0] === "/v1/docs/config/model") { send(200, docs?.model ?? { configured: false }); return; }
   if (docs && request.method === "GET" && request.url?.startsWith("/v1/docs/drives")) {
     const url = new URL(request.url, "http://127.0.0.1");
     const files = url.pathname.match(/^\/v1\/docs\/drives\/([^/]+)\/(files|tree)$/u);
@@ -162,6 +164,30 @@ const server = http.createServer((request, response) => {
     if (url.pathname === "/v1/docs/drives") { send(200, { items: docs.drives ?? [], next_cursor: null, as_of_seq: docs.as_of_seq ?? 1 }); return; }
     const one = (docs.drives ?? []).find((drive) => url.pathname === `/v1/docs/drives/${drive.id}`);
     if (one) { send(200, one); return; }
+  }
+  // The ontology a scenario seeded (`docs.entities`), its versions, the document to table links and the database schema (`docs.schema`, docs-api 1.12).
+  if (docs && request.method === "GET") {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    if (docs.entities && url.pathname === "/v1/docs/entities") {
+      const q = (url.searchParams.get("q") ?? "").toLowerCase();
+      const type = url.searchParams.get("type");
+      const matched = docs.entities.filter((entity) => (!q || entity.name.toLowerCase().includes(q)) && (!type || entity.type === type));
+      const limit = Number(url.searchParams.get("limit") ?? 0);
+      const from = Number(url.searchParams.get("cursor") ?? 0) || 0;
+      const items = limit > 0 ? matched.slice(from, from + limit) : matched;
+      send(200, { items, next_cursor: limit > 0 && from + limit < matched.length ? String(from + limit) : null, as_of_seq: docs.as_of_seq ?? 1 });
+      return;
+    }
+    const entity = docs.entities ? url.pathname.match(/^\/v1\/docs\/entities\/([^/:]+)$/u) : null;
+    const known = entity ? docs.entities.find((item) => item.key === decodeURIComponent(entity[1]) || item.id === entity[1]) : null;
+    if (known) { send(200, known); return; }
+    if (docs.entities && url.pathname === "/v1/docs/ontology/versions") { send(200, { items: docs.versions ?? [], next_cursor: null, as_of_seq: docs.as_of_seq ?? 1 }); return; }
+    if (docs.entities && url.pathname === "/v1/docs/links") { send(200, { items: docs.links ?? [], agent_db: docs.schema ? "bound" : "unbound" }); return; }
+    if (url.pathname === "/v1/ontology/schema") {
+      if (docs.schema) { send(200, docs.schema); return; }
+      send(403, { code: "ONTOLOGY_SCOPE_DENIED", message: "the token has no db:read or names no Gateway profile", retryable: false, details: {} });
+      return;
+    }
   }
   // Share preview and creation (the Share dialog compiles a pack on its Settings step, then creates the Share).
   if (request.method === "POST" && request.url?.split("?")[0] === "/v1/docs/context-packs:compile") {

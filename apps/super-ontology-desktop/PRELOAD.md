@@ -44,7 +44,7 @@ Same names and request/response shapes as the earlier Super Drive bridge (`share
 `events-subscribe events-since events-unsubscribe upload-start upload-cancel files-retry files-retry-matching file-detail file-blocks file-preview-url`
 `suggestions-list suggestions-digest suggestion-diff suggestion-decide suggestions-decide-source`
 `entities-search entity-detail resolve review-list review-decide pack-compile pack-read shares-list share-get share-mount share-refresh share-revoke share-reveal share-updates share-group-refresh`
-`usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel`
+`usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel atlas-links ontology-schema`
 `cloud-mode-read cloud-mode-set audit-shares audit-verify cloud-token-create cloud-token-revoke`
 `agent-token-create agent-token-list agent-token-revoke agent-connect-snippet` (Agent > Connect, below)
 `engine-connect-remote engine-disconnect-remote` (below)
@@ -114,3 +114,26 @@ interface ShellSettings {
 * Every handler is registered through `electron/main/ipc-registry.mjs`, which checks the sender is the app window's main frame loaded from the app's own origin (`app://renderer` in production, the Vite dev URL in development).
 * Content-Security-Policy and navigation are fixed by main; the renderer cannot open new windows (`openExternal` only).
 * Drive files are served on the `oo-drive:` scheme (`file-preview-url` values), registered by main.
+
+## CLI parity channels (lane F, D88)
+
+Sixteen request/response channels carry the `oo` command line into the app (volume 25 section 7.1). The main process builds every argument vector itself and runs `oo` without a shell; no request carries a host path or an argument of `oo`, and no result carries a secret. Validators: `src/shared/super-ontology/cli-requests.mjs`; handlers: `electron/main/super-ontology/cli-handlers.mjs`. The preload repeats the names (a test keeps them equal).
+
+Every answer except `cli-db-kinds`, `cli-job-*`, `cli-gateway-*`, `cli-diagnostics` and `cli-ontology-export` is `CliResult`: `{ ok, exit, data, error: { code, message, hint } | null, cli }`. A failing command is `ok: false` with the CLI's own code, message and hint, never a throw; only a missing `oo` (`SO_OO_MISSING`, `SO_OO_INVALID`), a bad request or a busy job throws. `cli` is the equivalent command, shown to the person and copyable (passwords are never in it: they go to `oo` on stdin or a private file).
+
+| Channel | Does | `oo` command |
+|---|---|---|
+| `cli-db-kinds` | Database kinds, which ones the CLI can drive, the stack file path | none |
+| `cli-db-list` | Database sources in the stack file | `oo source ls --config <stack> --json` |
+| `cli-db-check` | Connection check before saving (resolve, port, TLS, sign-in); writes nothing | `oo init --engine <kind> --host ... --password-file <private file> --json` |
+| `cli-db-add` | First source creates the stack file (`oo init --config`), later ones add | `oo source add <kind> ... --password-stdin --json` |
+| `cli-db-remove` / `cli-db-test` | Remove / reachability | `oo source rm|test <name> --config <stack> --json` |
+| `cli-doctor` | Read-only probe of sources and model | `oo doctor --config <stack> --json` |
+| `cli-pipeline` | `status` (build state) or `freshness` (needs a Gateway) | `oo status --config <stack> --json` / `oo freshness --summary ...` |
+| `cli-job-start` / `cli-job-read` | Background `up`, `build`, `down` and a polled, redacted tail of its output | `oo <action> --config <stack> --yes --json` |
+| `cli-gateway-read` / `cli-gateway-set` / `cli-gateway-clear` | The Gateway the query tab talks to: origin, transport, token file and CA file grants; saved in `gateway.json` (0600) beside the engine state | none |
+| `cli-query` | `query`, `validate`, `tables`, `describe`, `freshness`, `knowledge-search`, `knowledge-cat` | `oo query|validate|tables|describe|freshness|knowledge ... --gateway ... --token-file ...` |
+| `cli-diagnostics` | Versions, readiness, runtime, serve status, paths | `oo --version`, `oo check`, `oo docs runtime status`, `oo serve --status` |
+| `cli-ontology-export` | Writes YAML files into a new folder inside a granted directory | (none; the equivalent shown is `oo ontology export --format yaml`) |
+
+New `pick-path` purposes: `ca-file` (a PEM file) and `export-dir` (a folder). Environment overrides, for tests and development only: `SO_CLI_OO` (the `oo` to run) and `SO_CLI_HOME` (the home whose `.config/open-ontology/secrets` holds credential files).

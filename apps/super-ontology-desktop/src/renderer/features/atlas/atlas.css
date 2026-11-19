@@ -37,6 +37,11 @@
   .so-atlas-list-head[aria-expanded="true"] .so-atlas-list-chevron { rotate: 90deg; }
   .so-atlas-list-name { flex: 1 1 auto; min-width: 0; }
   .so-atlas-count { flex: none; font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+  .so-atlas-kind { flex: none; width: 12px; height: 12px; margin-inline: -1px; }
+  .so-atlas-list-group[data-tone="ink"] .so-atlas-kind { color: var(--so-accent); }
+  .so-atlas-list-group[data-tone="dusk"] .so-atlas-kind { color: rgb(96, 92, 170); }
+  .so-atlas-list-group[data-tone="sand"] .so-atlas-kind { color: rgb(143, 122, 96); }
+  .so-atlas-list-group[data-tone="mist"] .so-atlas-kind { color: rgb(76, 132, 150); }
   .so-atlas-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 22%, transparent); }
   .so-atlas-list-group[data-tone="ink"] .so-atlas-swatch { color: var(--so-accent); }
   .so-atlas-list-group[data-tone="steel"] .so-atlas-swatch { color: rgb(64, 104, 160); }

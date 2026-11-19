@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffAtlas, loadAtlas, pool } from "../../../../src/renderer/features/atlas/adapter";
+import { diffAtlas, driveSource, loadAtlas, pool } from "../../../../src/renderer/features/atlas/adapter";
 import { ENTITY_TYPE_VALUES, fakeAtlasSource, syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 import { parseForeignKeys, parseTables } from "../../../../src/renderer/features/atlas/atlasApi";
 
@@ -80,6 +80,14 @@ describe("atlas data adapter", () => {
     expect(source.calls.entities).toBeUndefined();
   });
 
+  it("tells the kinds of source apart: My files, a folder, a bucket, a database, each with its own tint", async () => {
+    expect([["My files", "fs"], ["Notes", "fs"], ["Backups", "s3"], ["Lake", "r2"]].map(([name, backend]) => driveSource({ name: name!, backend: backend! }))).toEqual(["files", "folder", "bucket", "bucket"]);
+    const { data } = await loadAtlas(fakeAtlasSource(corpus()), { mode: "source" });
+    const byKind = new Map(data.groups.map((g) => [g.source, g.tone]));
+    expect([...byKind.keys()].sort()).toEqual(["bucket", "database", "files", "folder"]);
+    expect(new Set(byKind.values()).size).toBe(4);
+  });
+
   it("a link to a table without a schema resolves by table name when it is unambiguous", async () => {
     const data = corpus();
     const source = fakeAtlasSource(data);
@@ -123,7 +131,7 @@ describe("atlas data adapter", () => {
   });
 
   it("reads database rows defensively", () => {
-    expect(parseTables([["public", "orders"], ["public"], [1, 2], ["", "x"]])).toEqual([{ schema: "public", table: "orders" }]);
-    expect(parseForeignKeys([["a", "b", "c", "d"], ["a", "b", "c"]])).toEqual([{ from: { schema: "a", table: "b" }, to: { schema: "c", table: "d" } }]);
+    expect(parseTables([{ qualified_name: "public.orders", columns: [{}, {}] }, { qualified_name: "nodot" }, 7, { qualified_name: ".x" }, { qualified_name: "a.b" }])).toEqual([{ schema: "public", table: "orders", columns: 2 }, { schema: "a", table: "b" }]);
+    expect(parseForeignKeys([{ from: { table: "a.b" }, to: { table: "c.d" } }, { from: { table: "a.b" }, to: {} }, null])).toEqual([{ from: { schema: "a", table: "b" }, to: { schema: "c", table: "d" } }]);
   });
 });

@@ -42,8 +42,21 @@ import super_ontology_gateway as realgw  # noqa: E402
 import super_ontology_nodocker as nd  # noqa: E402
 
 REPO = l2.REPO
-LANE = os.environ.get("OO_TEST_LANE", "super-ontology-wp3b")
+LANE = os.environ.get("OO_TEST_LANE", "super-ontology-l1")
 CHECKS = []
+
+
+def _col(n, t, s):
+    return {"name": n, "data_type": t, "semantic_type": s, "pii": "none",
+            "classification": {"state": "confirmed", "by": "fixture/test"}, "provenance": "declared"}
+
+
+# a second published table and a foreign key between them: what `oo ontology schema` has to show (docs-api 1.12)
+realgw.RealGateway.EXTRA_DATASETS = [{"schema_version": "oos/v1", "dataset": "sales.orders", "label": "Orders", "tier": "raw", "primary_key": ["id"],
+                                      "columns": [_col("id", "bigint", "identifier"), _col("customer_id", "bigint", "foreign_key"), _col("total", "bigint", "quantity")]}]
+realgw.RealGateway.RELATIONSHIPS = [{"name": "orders_to_customers", "from": {"dataset": "sales.orders", "columns": ["customer_id"]},
+                                     "to": {"dataset": "sales.customers", "columns": ["id"]}, "cardinality": "many_to_one", "join_hint": "left",
+                                     "provenance": "declared_fk"}]
 
 
 def check(name, cond, detail=""):
@@ -328,7 +341,46 @@ def main():
               and s8["sides"]["docs"]["status"] == "ok" and {i["side"] for i in s8["items"]} == {"doc"}, (s8, err))
         code, o, err = ag.json("ontology", "query", "SELECT credit_limit FROM sales.customers", env=benv, state=False)
         check("the wrong profile cannot query", code != 0 and "ONTOLOGY_GATEWAY_REFUSED" in err, err)
-        cli.json("agent", "token", "revoke", "badprofile")
+
+        # the schema surface: tables, columns, relationships and document links, scoped by the token, paged
+        code, sc, err = ag.json("ontology", "schema", env=aenv, state=False)
+        tables = {t["qualified_name"]: t for t in (sc or {}).get("tables", [])}
+        check("schema lists the published tables with their columns", code == 0 and sc["protocol"] == "oo.ontology.schema/v1"
+              and sorted(tables) == ["sales.customers", "sales.orders"] and sc["total_tables"] == 2 and sc["next_cursor"] is None, (sc, err))
+        cust = {c["name"]: c for c in tables["sales.customers"]["columns"]}
+        check("schema columns carry names, types and URNs (the Gateway lists them by name)", sorted(cust) == ["credit_limit", "id", "name"]
+              and [c["name"] for c in tables["sales.customers"]["columns"]] == sorted(cust) and cust["id"]["type"] == "int8" and cust["name"]["type"] == "text"
+              and tables["sales.customers"]["urn"] == "oo:db/salesgw/sales.customers"
+              and cust["id"]["urn"] == "oo:db/salesgw/sales.customers#id", tables)
+        check("a published table without a physical table still lists its columns, untyped",
+              [c["name"] for c in tables["sales.orders"]["columns"]] == ["customer_id", "id", "total"]
+              and tables["sales.orders"]["columns_status"] == "ok", tables["sales.orders"])
+        rel = next((r for r in sc["relationships"] if r["id"] == "orders_to_customers"), None)
+        check("schema shows the foreign key between the tables", rel and rel["from"]["table"] == "sales.orders" and rel["from"]["columns"] == ["customer_id"]
+              and rel["to"]["table"] == "sales.customers" and rel["to"]["columns"] == ["id"] and rel["provenance"] == "declared_fk"
+              and rel["cardinality"] == "many_to_one" and rel["urn"] == "oo:db/salesgw/relationship/orders_to_customers", sc["relationships"])
+        dl = next((x for x in sc["doc_links"] if x["row_urn"] == db["urn"]), None)
+        check("schema links the table's row to its document entity", dl and dl["target"]["urn"] == doc["urn"] and dl["table_urn"] == "oo:db/salesgw/sales.customers"
+              and sc["sides"]["docs"]["status"] == "ok" and sc["sides"]["relationships"]["status"] == "ok", sc["doc_links"])
+        check("schema cites the published pack", sc["provenance"]["kind"] == "gateway_schema" and sc["provenance"]["pack_digest"], sc["provenance"])
+        code, p1, err = ag.json("ontology", "schema", "--limit", "1", env=aenv, state=False)
+        code2, p2, err2 = ag.json("ontology", "schema", "--limit", "1", "--cursor", (p1 or {}).get("next_cursor") or "t1", env=aenv, state=False)
+        seen = [t["qualified_name"] for t in p1["tables"] + p2["tables"]]
+        check("schema pages the sorted table list", code == 0 and code2 == 0 and seen == ["sales.customers", "sales.orders"]
+              and p1["next_cursor"] and p2["next_cursor"] is None, (p1, p2, err, err2))
+        check("a relationship comes once, in the page of its from table", [r["id"] for r in p1["relationships"]] == []
+              and [r["id"] for r in p2["relationships"]] == ["orders_to_customers"], (p1["relationships"], p2["relationships"]))
+        code, o, err = ag.json("ontology", "schema", "--cursor", "garbage", env=aenv, state=False)
+        check("a bad cursor is a 400", code != 0 and "ONTOLOGY_BAD_REQUEST" in err, err)
+        code, out, err = ag.run("ontology", "schema", env=aenv, state=False)
+        check("schema human output names tables, the key and the source", code == 0 and "sales.orders" in out and "rel orders_to_customers" in out
+              and "[source] gateway salesgw schema" in out, out)
+        code, o, err = ag.json("ontology", "schema", env={"OO_ENDPOINT": endpoint, "OO_AGENT_TOKEN_FILE": str(ro)}, state=False)
+        check("docs-only token cannot read the database schema", code != 0 and "ONTOLOGY_SCOPE_DENIED" in err, err)
+        code, o, err = ag.json("ontology", "schema", env={"OO_ENDPOINT": endpoint, "OO_AGENT_TOKEN_FILE": str(badp)}, state=False)
+        check("the wrong profile cannot read the schema", code != 0 and "ONTOLOGY_GATEWAY_" in err, err)
+        st, b = raw_call(port, bot.read_text().strip(), "POST", "/v1/ontology/schema", {})
+        check("the schema route is read-only", st == 404, (st, b))
 
         # MCP, the same tools, the same token
         mcp = Mcp(bindir / "oo", {"PATH": base["PATH"], "HOME": str(work / "agent-home")}, endpoint, bot)
@@ -341,6 +393,8 @@ def main():
             i.get("kind") == "block" and i["provenance"]["path"].endswith("澄海物流.md") for i in res["items"]), res)
         err_flag, res = mcp.tool("ontology_query", {"sql": "SELECT credit_limit FROM sales.customers WHERE name='Acme Ltd'"})
         check("mcp query cites its source", not err_flag and res["provenance"]["publication_id"] == pub_id, res)
+
+        cli.json("agent", "token", "revoke", "badprofile")
 
         # negatives
         code, o, err = ag.json("ontology", "query", "DELETE FROM sales.customers", env=aenv, state=False)
@@ -378,7 +432,7 @@ def main():
         check("revoked token fails on MCP", err_flag and "ONTOLOGY_TOKEN_INVALID" in json.dumps(res), res)
         log = (gw.work / "gateway.stderr").read_text()
         paths = {ln.split("path=")[1].split()[0] for ln in log.splitlines() if "path=" in ln}
-        check("the Gateway saw only the proxy's calls", paths and paths <= {"/v1/query", "/v1/freshness"}, paths)
+        check("the Gateway saw only the proxy's calls", paths and paths <= {"/v1/query", "/v1/freshness", "/v1/tables", "/v1/tables/item", "/v1/knowledge/item"}, paths)
         check("the Gateway admitted the queries in its audit WAL", gw.audit_records() > 0)
         check("no secret in the Gateway log", gwtoken not in log and gw.password not in log)
 

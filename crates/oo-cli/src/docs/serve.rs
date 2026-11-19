@@ -406,7 +406,10 @@ fn choose_runtime(args: &ServeArgs) -> Result<RuntimeKind, u8> {
     let compose_ok = if own_database || !docker_usable() {
         false
     } else {
-        match compose::usable(args.deploy_dir.as_deref(), resolve_state(args).ok().as_deref()) {
+        match compose::usable(
+            args.deploy_dir.as_deref(),
+            resolve_state(args).ok().as_deref(),
+        ) {
             Ok(()) => true,
             Err(why) => {
                 eprintln!("oo serve: the compose runtime cannot start here ({why})");

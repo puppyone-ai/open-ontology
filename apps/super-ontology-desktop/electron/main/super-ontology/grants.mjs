@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
-export const GRANT_PURPOSES = Object.freeze(["drive-root", "mount-target", "oo-executable", "token-file"]);
+export const GRANT_PURPOSES = Object.freeze(["drive-root", "mount-target", "oo-executable", "token-file", "ca-file", "export-dir"]);
 /** Purposes whose grant may be used more than once (a dialog can retry the same target). */
-const REUSABLE_PURPOSES = new Set(["mount-target"]);
+const REUSABLE_PURPOSES = new Set(["mount-target", "ca-file"]);
 
 /**
  * Keeps renderer-visible paths separate from the authority to act on them

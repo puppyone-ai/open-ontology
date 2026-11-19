@@ -1,4 +1,5 @@
 import { invalidRequest } from "./errors.mjs";
+import { CLI_CHANNELS, CLI_OPERATION_ID_REQUIRED, createCliRequestFields } from "./cli-requests.mjs";
 import { ONTOLOGY_CHANNELS, ONTOLOGY_OPERATION_ID_REQUIRED, createOntologyRequestFields } from "./ontology-requests.mjs";
 
 export const SUPER_ONTOLOGY_CHANNEL_PREFIX = "super-ontology:";
@@ -23,6 +24,7 @@ export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   ...ONTOLOGY_CHANNELS,
   ...ENTERPRISE_CHANNELS,
   ...AGENT_CHANNELS,
+  ...CLI_CHANNELS,
 ]);
 
 /** Push channels main -> renderer. Same duplication rule as above. */
@@ -150,6 +152,7 @@ export const field = Object.freeze({
  */
 const REQUEST_FIELDS = Object.freeze({
   ...createOntologyRequestFields(field),
+  ...createCliRequestFields(field),
   "engine-read": Object.freeze({}),
   "engine-preflight": Object.freeze({}),
   "engine-start": Object.freeze({ keepEngineOnQuit: field.optional(field.boolean) }),
@@ -157,7 +160,7 @@ const REQUEST_FIELDS = Object.freeze({
   "engine-restart": Object.freeze({}),
   "engine-set-keep": Object.freeze({ keepEngineOnQuit: field.boolean }),
   "engine-reveal-logs": Object.freeze({ target: field.optional(field.enum(["logs", "state"])) }),
-  "pick-path": Object.freeze({ purpose: field.enum(["drive-root", "mount-target", "oo-executable", "token-file"]) }),
+  "pick-path": Object.freeze({ purpose: field.enum(["drive-root", "mount-target", "oo-executable", "token-file", "ca-file", "export-dir"]) }),
   "engine-set-executable": Object.freeze({ grantId: field.grantId }),
   "engine-connect-remote": Object.freeze({ url: field.string(2048), tokenGrantId: field.grantId }),
   "engine-disconnect-remote": Object.freeze({}),
@@ -270,7 +273,7 @@ function checkDriveCreateShape(parsed) {
 }
 
 /** Channels with host side effects must carry an `operationId` (it becomes the Idempotency-Key). */
-export const OPERATION_ID_REQUIRED = Object.freeze(["drive-create", "my-files-ensure", "drive-sync", "files-retry", "files-retry-matching", ...ONTOLOGY_OPERATION_ID_REQUIRED]);
+export const OPERATION_ID_REQUIRED = Object.freeze(["drive-create", "my-files-ensure", "drive-sync", "files-retry", "files-retry-matching", ...ONTOLOGY_OPERATION_ID_REQUIRED, ...CLI_OPERATION_ID_REQUIRED]);
 
 /** @returns {Readonly<Record<string, unknown>>} a validated, frozen copy; throws SuperOntologyError(SO_INVALID_REQUEST). */
 export function parseSuperOntologyRequest(channel, raw) {

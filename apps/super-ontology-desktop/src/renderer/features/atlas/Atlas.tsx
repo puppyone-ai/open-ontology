@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, EmptyState, IconButton, Notice, Segmented, Skeleton } from "@open-ontology/design-system";
 import { Maximize2, Network, Play, Search, ZoomIn, ZoomOut } from "lucide-react";
@@ -44,6 +44,10 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const [matches, setMatches] = useState<SceneNode[]>([]);
   const [selected, setSelected] = useState<Inspected | null>(null);
   const [tick, setTick] = useState(0);
+  /** Built-in entity types are named in the person's language; sources keep their own names. */
+  const named = useCallback((data: AtlasData): AtlasData => ({ ...data, groups: data.groups.map((g) => (g.kind === "type" ? { ...g, label: t(`super-drive.entity.type.${g.label}`) } : g)) }), [t]);
+  const shownLive = useMemo(() => named(live), [named, live]);
+  const shownCanvas = useMemo(() => (canvasData ? named(canvasData) : null), [named, canvasData]);
   const handle = useRef<AtlasCanvasHandle>(null);
   const liveRef = useRef<AtlasData>(live);
   const matchAt = useRef(0);
@@ -79,7 +83,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
         const mine = signal;
         void loadAtlas(source, { mode, signal: mine }).then(({ data }) => {
           if (mine.aborted) return;
-          handle.current?.apply(diffAtlas(liveRef.current, data));
+          handle.current?.apply(diffAtlas(liveRef.current, data).map((op) => (op.type === "bud" && op.group?.kind === "type" ? { ...op, group: { ...op.group, label: t(`super-drive.entity.type.${op.group.label}`) } } : op)));
           liveRef.current = data;
           setLive(data);
         }).catch(() => undefined);
@@ -93,7 +97,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
       if (rest.length !== ops.length) refresh();
     });
     return () => { stop(); signal.aborted = true; if (timer) clearTimeout(timer); };
-  }, [ready, status, mode, source, subscribe]);
+  }, [ready, status, mode, source, subscribe, t]);
 
   const changeMode = (next: AtlasMode) => { window.localStorage.setItem(MODE_KEY, next); setMode(next); setQuery(""); };
 
@@ -152,11 +156,11 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
         <div className="so-atlas-stage"><EmptyState icon={Network} title={t("app.atlas.empty.title")} description={t("app.atlas.empty.body")} /></div>
       ) : view === "list" ? (
         <div className="so-atlas-stage so-atlas-stage-list">
-          <AtlasList data={live} query={query} onOpen={(member: AtlasMember) => open(member.ref)} />
+          <AtlasList data={shownLive} query={query} onOpen={(member: AtlasMember) => open(member.ref)} />
         </div>
       ) : (
         <div className="so-atlas-stage" data-busy={status === "loading" ? "true" : undefined}>
-          {canvasData && <AtlasCanvas data={canvasData} reducedMotion={reduced} handle={handle} onOpen={(node) => open(node.ref)} onSelect={onSelect} />}
+          {shownCanvas && <AtlasCanvas data={shownCanvas} reducedMotion={reduced} handle={handle} onOpen={(node) => open(node.ref)} onSelect={onSelect} />}
           <div className="so-atlas-overlay so-atlas-overlay-start">
             <Button size="compact" icon={Play} onClick={() => handle.current?.playGrowth()} disabled={reduced} data-testid="atlas-play">{t("app.atlas.play")}</Button>
             <span className="so-weak so-atlas-tally" data-testid="atlas-tally">{t("app.atlas.tally", { items: live.members.length, links: live.links.length })}</span>

@@ -7,6 +7,8 @@ const PICKER_OPTIONS = Object.freeze({
   "mount-target": { titleKey: "pick.mountTarget", properties: ["openDirectory", "createDirectory"] },
   "oo-executable": { titleKey: "pick.ooExecutable", properties: ["openFile"] },
   "token-file": { titleKey: "pick.tokenFile", properties: ["openFile"] },
+  "ca-file": { titleKey: "pick.caFile", properties: ["openFile"] },
+  "export-dir": { titleKey: "pick.exportDir", properties: ["openDirectory", "createDirectory"] },
 });
 
 /**
@@ -26,7 +28,7 @@ export function createNativePathPicker({ dialog, translate, getOwnerWindow = () 
     if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) return null;
     const canonical = await fsPromises.realpath(result.filePaths[0]);
     const stat = await fsPromises.stat(canonical);
-    if (purpose === "oo-executable" || purpose === "token-file") {
+    if (purpose === "oo-executable" || purpose === "token-file" || purpose === "ca-file") {
       if (!stat.isFile()) return null;
       if (purpose === "oo-executable") await fsPromises.access(canonical, fsConstants.X_OK);
     } else if (!stat.isDirectory()) {

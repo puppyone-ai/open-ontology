@@ -758,9 +758,18 @@ fn free_loopback_port() -> Option<u16> {
 
 /// The compose files of `deploy/docs` that the runtime needs, built into the binary so a release `oo` is self-contained.
 const EMBEDDED_DEPLOY: [(&str, &str); 3] = [
-    ("compose.yaml", include_str!("../../../../deploy/docs/compose.yaml")),
-    ("images.lock.json", include_str!("../../../../deploy/docs/images.lock.json")),
-    ("postgres.sh", include_str!("../../../../deploy/docs/postgres.sh")),
+    (
+        "compose.yaml",
+        include_str!("../../../../deploy/docs/compose.yaml"),
+    ),
+    (
+        "images.lock.json",
+        include_str!("../../../../deploy/docs/images.lock.json"),
+    ),
+    (
+        "postgres.sh",
+        include_str!("../../../../deploy/docs/postgres.sh"),
+    ),
 ];
 
 /// Write the embedded files to `<state>/deploy/docs` (replacing them only when they differ) and return that directory.
@@ -1093,7 +1102,8 @@ mod tests {
 
     #[test]
     fn the_embedded_deploy_files_are_written_once_into_the_state_dir() {
-        let state = std::env::temp_dir().join(format!("oo-compose-embedded-{}", std::process::id()));
+        let state =
+            std::env::temp_dir().join(format!("oo-compose-embedded-{}", std::process::id()));
         let _ = fs::remove_dir_all(&state);
         let dir = materialise_deploy(&state).expect("written");
         assert_eq!(dir, state.join("deploy").join("docs"));

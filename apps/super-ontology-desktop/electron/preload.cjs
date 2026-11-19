@@ -12,10 +12,14 @@ const CHANNELS = new Set([
   "entities-search", "entity-detail", "resolve", "review-list", "review-decide", "pack-compile", "pack-read", "shares-list",
   "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save", "fact-correct", "entity-merge", "entity-split", "constraints-list",
-  "media-decode", "media-decode-cancel", "atlas-links", "atlas-sql",
+  "media-decode", "media-decode-cancel", "atlas-links", "ontology-schema",
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
   "engine-connect-remote", "engine-disconnect-remote",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
+  "cli-db-kinds", "cli-db-list", "cli-db-check", "cli-db-add", "cli-db-remove", "cli-db-test",
+  "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read",
+  "cli-gateway-read", "cli-gateway-set", "cli-gateway-clear", "cli-query",
+  "cli-diagnostics", "cli-ontology-export",
 ]);
 const PUSH_CHANNELS = ["engine-changed", "events", "connection-changed", "resync-required", "upload-progress"];
 const NOTICE_KINDS = new Set(["notice", "third-party", "license"]);

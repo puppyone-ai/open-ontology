@@ -8,6 +8,25 @@ export const FIXTURE_FILES = Object.freeze({
   "Notes/kickoff.md": "# Kickoff notes\n\nProject Alpha starts in March. Dana Lee leads the team.\n",
 });
 
+/**
+ * What the fake engine knows once the fixture folder is "processed": the files as published and the entities their front matter names.
+ * The fake engine never parses anything, so a scenario that needs documents and entities on it gets them from here.
+ */
+export function fakeCorpus(driveId) {
+  const now = new Date().toISOString();
+  const pad = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "f")}`;
+  const files = Object.entries(FIXTURE_FILES).map(([relative, text], index) => ({
+    id: pad(index + 1), drive_id: driveId, path: relative, name: relative.split("/").pop(), size: Buffer.byteLength(text), format: "md",
+    state: "published", state_since: now, retryable: false, pending_review: 0,
+  }));
+  const entity = (index, key, type, name, files) => ({ id: pad(100 + index), key, type, name, status: "active", counts: { facts: 2, aliases: 0 }, files, aliases: [], facts: [], revision: 1 });
+  const entities = [
+    entity(1, "project-alpha", "Project", "Project Alpha", [files[0].path]),
+    entity(2, "dana-lee", "Person", "Dana Lee", [files[1].path]),
+  ];
+  return { files, entities };
+}
+
 /** The folder every scenario registers as a source ("Sample docs"), plus the same files for the managed-files drop. */
 export async function createFixtures(root) {
   const folder = path.join(root, "Sample docs");

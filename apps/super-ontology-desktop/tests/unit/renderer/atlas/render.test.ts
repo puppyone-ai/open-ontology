@@ -76,7 +76,7 @@ describe("atlas drawing", () => {
     const alphas = new Set<number>();
     const target: Record<string, unknown> = {};
     const ctx = new Proxy(target, {
-      get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : () => undefined),
+      get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : name === "measureText" ? () => ({ width: 40 }) : () => undefined),
       set: (t, name: string, value) => { if (name === "globalAlpha") alphas.add(value as number); t[name] = value; return true; },
     }) as unknown as CanvasRenderingContext2D;
     const stats = drawAtlas(ctx, scene, state(scene, { focus: focus.idx, selected: focus.idx, lit }));
@@ -88,9 +88,29 @@ describe("atlas drawing", () => {
     const scene = new AtlasScene(syntheticAtlas({ groups: 2, members: 10, seed: 1 }));
     const rects: number[][] = [];
     const target: Record<string, unknown> = { fillRect: (...a: number[]) => rects.push(a) };
-    const ctx = new Proxy(target, { get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : () => undefined), set: (t, n: string, v) => { t[n] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+    const ctx = new Proxy(target, { get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : name === "measureText" ? () => ({ width: 40 }) : () => undefined), set: (t, n: string, v) => { t[n] = v; return true; } }) as unknown as CanvasRenderingContext2D;
     drawAtlas(ctx, scene, state(scene, { dpr: 3 }));
     expect(rects[0]).toEqual([0, 0, 3000, 2100]);
+  });
+});
+
+describe("group labels", () => {
+  it("sit below their cell at every zoom, so no glyph lands on a member", () => {
+    for (const zoom of [0.4, 1, 2.5]) {
+      const scene = new AtlasScene(syntheticAtlas({ groups: 4, members: 160, seed: 6, dbShare: 0 }));
+      settle(scene);
+      const camera = { ...fitCamera(scene.bounds(), 1000, 700), k: zoom, x: 500 - 0 * zoom, y: 350 };
+      const texts: { text: string; y: number }[] = [];
+      const target: Record<string, unknown> = { fillText: (text: string, _x: number, y: number) => texts.push({ text, y }), measureText: () => ({ width: 40 }) };
+      const ctx = new Proxy(target, { get: (t, n: string) => (n in t ? t[n] : n === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : () => undefined), set: (t, n: string, v) => { t[n] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+      drawAtlas(ctx, scene, state(scene, { camera, dpr: 1 }));
+      for (const group of scene.groups) {
+        const label = texts.find((t) => t.text === group.label);
+        if (!label) continue;
+        const centre = group.y * zoom + camera.y;
+        expect(label.y, `${group.label} at zoom ${zoom}`).toBeGreaterThan(centre + group.r * zoom - 1);
+      }
+    }
   });
 });
 

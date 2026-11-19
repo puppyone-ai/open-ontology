@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600">
-<defs><radialGradient id="group-dusk" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(96, 92, 170, 0.045)"/><stop offset="1" stop-color="rgba(96, 92, 170, 0.13)"/></radialGradient><radialGradient id="member-dusk" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(96, 92, 170, 0.16)"/><stop offset="1" stop-color="rgba(96, 92, 170, 0.34)"/></radialGradient><radialGradient id="group-ink" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(47, 74, 208, 0.045)"/><stop offset="1" stop-color="rgba(47, 74, 208, 0.13)"/></radialGradient><radialGradient id="member-ink" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(47, 74, 208, 0.16)"/><stop offset="1" stop-color="rgba(47, 74, 208, 0.34)"/></radialGradient><radialGradient id="group-mist" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(76, 132, 150, 0.045)"/><stop offset="1" stop-color="rgba(76, 132, 150, 0.13)"/></radialGradient><radialGradient id="member-mist" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(76, 132, 150, 0.16)"/><stop offset="1" stop-color="rgba(76, 132, 150, 0.34)"/></radialGradient><radialGradient id="group-steel" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(64, 104, 160, 0.045)"/><stop offset="1" stop-color="rgba(64, 104, 160, 0.13)"/></radialGradient><radialGradient id="member-steel" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(64, 104, 160, 0.16)"/><stop offset="1" stop-color="rgba(64, 104, 160, 0.34)"/></radialGradient><radialGradient id="group-stone" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(108, 104, 100, 0.045)"/><stop offset="1" stop-color="rgba(108, 104, 100, 0.13)"/></radialGradient><radialGradient id="member-stone" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(108, 104, 100, 0.16)"/><stop offset="1" stop-color="rgba(108, 104, 100, 0.34)"/></radialGradient></defs>
+<defs><radialGradient id="group-dusk" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(96, 92, 170, 0.045)"/><stop offset="1" stop-color="rgba(96, 92, 170, 0.13)"/></radialGradient><radialGradient id="member-dusk" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(96, 92, 170, 0.16)"/><stop offset="1" stop-color="rgba(96, 92, 170, 0.34)"/></radialGradient><radialGradient id="group-ink" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(47, 74, 208, 0.045)"/><stop offset="1" stop-color="rgba(47, 74, 208, 0.13)"/></radialGradient><radialGradient id="member-ink" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(47, 74, 208, 0.16)"/><stop offset="1" stop-color="rgba(47, 74, 208, 0.34)"/></radialGradient><radialGradient id="group-mist" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(76, 132, 150, 0.045)"/><stop offset="1" stop-color="rgba(76, 132, 150, 0.13)"/></radialGradient><radialGradient id="member-mist" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(76, 132, 150, 0.16)"/><stop offset="1" stop-color="rgba(76, 132, 150, 0.34)"/></radialGradient><radialGradient id="group-steel" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(64, 104, 160, 0.045)"/><stop offset="1" stop-color="rgba(64, 104, 160, 0.13)"/></radialGradient><radialGradient id="member-steel" cx="36%" cy="32%" r="70%"><stop offset="0" stop-color="rgba(64, 104, 160, 0.16)"/><stop offset="1" stop-color="rgba(64, 104, 160, 0.34)"/></radialGradient></defs>
 <rect width="960" height="600" fill="#fafaf9"/>
 <g fill="none" stroke="rgba(87, 83, 78, 0.3)" stroke-width="1" stroke-linecap="round">
 <path d="M534 345.9 L458.6 285.5" stroke-width="0.6"/>
@@ -88,8 +88,8 @@
 <circle cx="361" cy="424.1" r="65.4" fill="url(#group-steel)" stroke="rgba(64, 104, 160, 0.5)" stroke-width="1"/>
 <circle cx="503.8" cy="107" r="59" fill="url(#group-dusk)" stroke="rgba(96, 92, 170, 0.5)" stroke-width="1"/>
 <circle cx="630.8" cy="497.4" r="54.6" fill="url(#group-mist)" stroke="rgba(76, 132, 150, 0.5)" stroke-width="1"/>
-<circle cx="219.6" cy="263.1" r="51.3" fill="url(#group-steel)" stroke="rgba(64, 104, 160, 0.5)" stroke-width="1"/>
-<circle cx="744.1" cy="147.2" r="47.6" fill="url(#group-stone)" stroke="rgba(108, 104, 100, 0.5)" stroke-width="1"/>
+<circle cx="219.6" cy="263.1" r="51.3" fill="url(#group-mist)" stroke="rgba(76, 132, 150, 0.5)" stroke-width="1"/>
+<circle cx="744.1" cy="147.2" r="47.6" fill="url(#group-mist)" stroke="rgba(76, 132, 150, 0.5)" stroke-width="1"/>
 <circle cx="515.8" cy="301.4" r="6" fill="url(#member-ink)" stroke="rgba(47, 74, 208, 0.62)" stroke-width="1"/>
 <circle cx="499.2" cy="310" r="5.7" fill="url(#member-ink)" stroke="rgba(47, 74, 208, 0.62)" stroke-width="1"/>
 <circle cx="510" cy="285" r="7.4" fill="url(#member-ink)" stroke="rgba(47, 74, 208, 0.62)" stroke-width="1"/>
@@ -164,26 +164,26 @@
 <circle cx="659.2" cy="507.8" r="7.4" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
 <circle cx="601.3" cy="509.6" r="6.7" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
 <circle cx="645.1" cy="467" r="6.1" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
-<circle cx="226.9" cy="263.1" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="210.2" cy="271.6" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="221" cy="246.7" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="231.4" cy="278.5" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="197.9" cy="259.2" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="240.1" cy="250" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="212.7" cy="288.6" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="206.5" cy="237.9" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="248" cy="273.4" r="3.9" fill="url(#member-steel)" stroke="rgba(64, 104, 160, 0.62)" stroke-width="1"/>
-<circle cx="751.4" cy="147.2" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="734.7" cy="155.8" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="745.5" cy="130.9" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="755.9" cy="162.6" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="722.4" cy="143.4" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="764.6" cy="134.2" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<circle cx="737.2" cy="172.7" r="3.9" fill="url(#member-stone)" stroke="rgba(108, 104, 100, 0.62)" stroke-width="1"/>
-<text x="508.5" y="213.4" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Alder</text>
-<text x="361" y="347.7" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Birch</text>
-<text x="503.8" y="37" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Cedar</text>
-<text x="630.8" y="431.8" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Dune</text>
-<text x="219.6" y="200.8" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Ember</text>
-<text x="744.1" y="88.6" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Fjord</text>
+<circle cx="226.9" cy="263.1" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="210.2" cy="271.6" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="221" cy="246.7" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="231.4" cy="278.5" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="197.9" cy="259.2" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="240.1" cy="250" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="212.7" cy="288.6" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="206.5" cy="237.9" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="248" cy="273.4" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="751.4" cy="147.2" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="734.7" cy="155.8" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="745.5" cy="130.9" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="755.9" cy="162.6" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="722.4" cy="143.4" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="764.6" cy="134.2" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<circle cx="737.2" cy="172.7" r="3.9" fill="url(#member-mist)" stroke="rgba(76, 132, 150, 0.62)" stroke-width="1"/>
+<text x="508.5" y="390.4" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Alder</text>
+<text x="361" y="501.5" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Birch</text>
+<text x="503.8" y="178" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Cedar</text>
+<text x="630.8" y="564" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Dune</text>
+<text x="219.6" y="326.4" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Ember</text>
+<text x="744.1" y="206.8" text-anchor="middle" font-size="12" font-weight="500" fill="#1c1917">Fjord</text>
 </svg>
