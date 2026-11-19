@@ -237,7 +237,8 @@ fn secret_files_fail_closed() {
     std::fs::create_dir(&dir).unwrap();
     let store = SecretStore::create(dir.join("secrets")).unwrap();
     store.write_new("key", b"synthetic-fixture\n").unwrap();
-    assert_eq!(store.read("key").unwrap(), "synthetic-fixture\n");
+    // one trailing newline is not part of the secret
+    assert_eq!(store.read("key").unwrap(), "synthetic-fixture");
     assert!(store.write_new("key", b"replacement").is_err());
     assert!(store.read("../key").is_err());
     symlink(dir.join("secrets/key"), dir.join("secrets/link")).unwrap();
