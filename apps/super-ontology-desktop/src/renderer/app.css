@@ -88,6 +88,7 @@
   .so-split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--so-space-5); align-items: start; }
   .so-pill-row { display: flex; flex-wrap: wrap; gap: var(--so-space-1); }
   .so-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 var(--so-space-2); border: 1px solid var(--so-line); border-radius: 12px; background: var(--so-panel); color: var(--so-text-2); font-size: var(--so-text-xs); }
+  .so-metric .so-definition-row { grid-template-columns: 76px minmax(0, 1fr); gap: var(--so-space-3); padding: var(--so-space-2) 0; }
   .so-fact { display: grid; gap: var(--so-space-1); padding: var(--so-space-3) var(--so-space-4); border-bottom: 1px solid var(--so-line); }
   .so-fact:last-child { border-bottom: 0; }
   .so-quote { margin: 0; padding-inline-start: var(--so-space-3); border-inline-start: 2px solid var(--so-line-strong); color: var(--so-text-2); font-size: var(--so-text-xs); }

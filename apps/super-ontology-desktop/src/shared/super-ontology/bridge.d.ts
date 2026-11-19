@@ -138,6 +138,8 @@ export type SuperOntologyChannelMap = {
   "engine-reveal-logs": { request: { target?: "logs" | "state"; operationId?: string }; value: { revealed: true } };
   "drives-list": { request: { operationId?: string }; value: EngineDrive[] };
   "drive-get": { request: { driveId: string; operationId?: string }; value: EngineDrive };
+  /** Creates (or returns) the default managed Drive "My files": a folder inside the app's own data directory, so dropping files needs no setup. */
+  "my-files-ensure": { request: { operationId: string }; value: EngineDrive };
   "drive-create": {
     request:
       | { operationId: string; name: string; backend: "fs"; rootGrantId: string; exclude?: string[]; allowPrefixes?: string[]; denyPrefixes?: string[]; modelEnabled?: boolean; llmDailyCalls?: number }

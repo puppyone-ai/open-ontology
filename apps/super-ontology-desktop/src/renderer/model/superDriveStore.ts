@@ -361,6 +361,14 @@ export function createSuperDriveStore({
     return ok(result.value);
   }
 
+  async function ensureMyFiles(): Promise<ActionResult<Drive>> {
+    const result = await api.ensureMyFiles({ operationId: createId() });
+    if (!result.ok) return failureOf(result);
+    upsertDrive(result.value);
+    void loadFolder({ driveId: result.value.id, path: "" });
+    return ok(result.value);
+  }
+
   async function deleteDrive(driveId: string): Promise<ActionResult<Drive>> {
     const current = state.drives.byId[driveId];
     if (!current) return { ok: false, error: { code: "DOCS_SOURCE_DRIVE_NOT_FOUND", retryable: false, details: {} } };
@@ -719,6 +727,7 @@ export function createSuperDriveStore({
       openExternal: (url: string) => api.openExternal(url),
       loadDrives,
       createDrive,
+      ensureMyFiles,
       updateDrive,
       deleteDrive,
       syncDrive,

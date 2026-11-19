@@ -101,6 +101,8 @@ export type SuperDriveApi = OntologyApi & {
   listDrives(): Promise<ApiResult<Drive[]>>;
   getDrive(driveId: string): Promise<ApiResult<Drive>>;
   createDrive(input: DriveCreateInput): Promise<ApiResult<Drive>>;
+  /** The default managed Drive "My files" (created on first use). */
+  ensureMyFiles(input: { operationId: string }): Promise<ApiResult<Drive>>;
   updateDrive(input: { driveId: string; revision: number; patch: DrivePatchRequest }): Promise<ApiResult<Drive>>;
   deleteDrive(input: { driveId: string; revision: number }): Promise<ApiResult<Drive>>;
   syncDrive(input: { operationId: string; driveId: string; deep?: boolean; confirmMassDelete?: number }): Promise<ApiResult<SyncInfo | { status: string }>>;
@@ -149,6 +151,7 @@ export const superDriveApi: SuperDriveApi = {
   setRuntime: async (runtime) => validated(await invoke("engine-set-runtime", { runtime }), asSnapshot),
   listDrives: async () => validated(await invoke("drives-list", {}), (value) => (Array.isArray(value) && value.every(isDrive) ? (value as Drive[]) : null)),
   getDrive: async (driveId) => validated(await invoke("drive-get", { driveId }), asDrive),
+  ensureMyFiles: async (input) => validated(await invoke("my-files-ensure", input), asDrive),
   createDrive: async (input) => validated(await invoke("drive-create", { ...input, backend: input.backend ?? "fs" } as SuperOntologyChannelMap["drive-create"]["request"]), asDrive),
   updateDrive: async ({ driveId, revision, patch }) => validated(await invoke("drive-update", { driveId, revision, patch }), asDrive),
   deleteDrive: async ({ driveId, revision }) => validated(await invoke("drive-delete", { driveId, revision }), asDrive),

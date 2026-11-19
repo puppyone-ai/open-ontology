@@ -14,7 +14,7 @@ export const ENTERPRISE_CHANNELS = Object.freeze([
 export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
   "engine-reveal-logs", "pick-path", "engine-set-executable",
-  "drives-list", "drive-get", "drive-create", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
+  "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
   "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel",
   "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
   "suggestions-list", "suggestions-digest", "suggestion-diff", "suggestion-decide", "suggestions-decide-source",
@@ -173,6 +173,7 @@ const REQUEST_FIELDS = Object.freeze({
   "drives-list": Object.freeze({}),
   "drive-get": Object.freeze({ driveId: field.uuid }),
   // fs needs `rootGrantId`; s3 needs `endpoint`, `bucket` and the two keys. The handler checks which set applies.
+  "my-files-ensure": Object.freeze({}),
   "drive-create": Object.freeze({
     name: field.string(128),
     backend: field.enum(["fs", "s3", "oss", "cos", "r2"]),
@@ -247,7 +248,7 @@ function checkDriveCreateShape(parsed) {
 }
 
 /** Channels with host side effects must carry an `operationId` (it becomes the Idempotency-Key). */
-export const OPERATION_ID_REQUIRED = Object.freeze(["drive-create", "drive-sync", "files-retry", "files-retry-matching", ...ONTOLOGY_OPERATION_ID_REQUIRED]);
+export const OPERATION_ID_REQUIRED = Object.freeze(["drive-create", "my-files-ensure", "drive-sync", "files-retry", "files-retry-matching", ...ONTOLOGY_OPERATION_ID_REQUIRED]);
 
 /** @returns {Readonly<Record<string, unknown>>} a validated, frozen copy; throws SuperOntologyError(SO_INVALID_REQUEST). */
 export function parseSuperOntologyRequest(channel, raw) {

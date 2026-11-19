@@ -28,7 +28,9 @@ try {
     const page = await context.newPage();
     await page.addInitScript(() => { if (!window.localStorage.getItem("so.firstRun.done") && !window.sessionStorage.getItem("so.shot.firstRun")) window.localStorage.setItem("so.firstRun.done", "1"); });
     for (const spec of specs) {
-      const [name, steps = ""] = spec.split("=");
+      const cut = spec.indexOf("=");
+      const name = cut < 0 ? spec : spec.slice(0, cut);
+      const steps = cut < 0 ? "" : spec.slice(cut + 1);
       await page.goto(base);
       await page.waitForSelector("[data-testid=app-root]");
       await page.waitForTimeout(800);

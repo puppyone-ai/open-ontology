@@ -35,7 +35,7 @@ import { createUploadService } from "./upload-service.mjs";
  * @param {{
  *   logger?: any,
  *   platformHost?: { platform: string, executableDiscovery?: { captureEnvironment: Function } },
- *   paths?: { stateDir?: string, logsDir?: string, settingsFile?: string },
+ *   paths?: { stateDir?: string, logsDir?: string, settingsFile?: string, managedFilesDir?: string },
  *   broadcast?: (channel: string, payload: unknown) => void,
  *   pickPath?: (input: { sender: object, purpose: string }) => Promise<string | null>,
  *   revealPath?: (absolutePath: string) => void,
@@ -165,7 +165,7 @@ export function createSuperOntologyService({
     ...(fetchImpl ? { fetchImpl } : {}), ...(timers ? { timers } : {}), ...(bridgeTuning ? { tuning: bridgeTuning } : {}),
   });
 
-  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles });
+  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles, managedFilesDir: paths.managedFilesDir ?? (stateDir ? path.join(path.dirname(stateDir), "My files") : null), fsPromises });
   // Write-back of accepted editor suggestions (F-S8-03). The journal records suggestion, Share, files and evidence for every write;
   // `onFileWritten` lets the host nudge the Git auto-commit flow (its watcher also sees the change).
   const writeback = createWriteback({
