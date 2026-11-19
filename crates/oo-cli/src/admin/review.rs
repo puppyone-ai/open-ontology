@@ -481,9 +481,9 @@ fn synthesize_confirm(
     }
     let base = adj::load(adjudication).map_err(Failure::local)?;
     let overrides: Option<adj::Overrides> = match doc.get("overrides").filter(|v| !v.is_null()) {
-        Some(v) => Some(
-            serde_json::from_value(v.clone()).map_err(|_| Failure::local("OVERRIDE_SHAPE"))?,
-        ),
+        Some(v) => {
+            Some(serde_json::from_value(v.clone()).map_err(|_| Failure::local("OVERRIDE_SHAPE"))?)
+        }
         None => None,
     };
     let effective = match &overrides {
@@ -986,12 +986,22 @@ mod tests {
             confirm: Some(&confirm),
             overrides: None,
         };
-        assert!(confirm_once(&fixture, &source, &out, &mut None).ok().unwrap().is_some());
+        assert!(
+            confirm_once(&fixture, &source, &out, &mut None)
+                .ok()
+                .unwrap()
+                .is_some()
+        );
         // A reason is required; other protocols are not this path.
         put(json!({"protocol":BUILD_REVIEW,"reason":""}));
         assert!(synthesize_confirm(Some(&file), &fixture, &out).is_err());
         put(json!({"protocol":"oo.owner-review/v1"}));
-        assert!(synthesize_confirm(Some(&file), &fixture, &out).ok().unwrap().is_none());
+        assert!(
+            synthesize_confirm(Some(&file), &fixture, &out)
+                .ok()
+                .unwrap()
+                .is_none()
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 
