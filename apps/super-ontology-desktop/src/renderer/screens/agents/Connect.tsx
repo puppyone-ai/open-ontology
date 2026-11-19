@@ -33,9 +33,8 @@ export function Connect({ compact = false }: { compact?: boolean } = {}) {
   const [issued, setIssued] = useState<AgentTokenIssued | null>(null);
   const [snippet, setSnippet] = useState<AgentConnectSnippet | null>(null);
   const [revoking, setRevoking] = useState<{ id: string; name: string } | null>(null);
-  const prefix = compact ? "firstrun" : "agent";
 
-  const taken = (tokens.value?.items ?? []).some((token) => token.name === name && !token.revoked_at);
+  const taken = (tokens.value?.items ?? []).some((token) => token.name === name && !token.revoked_at && token.id !== issued?.id);
   const nameError = touched && !NAME.test(name) ? t("app.connect.name.bad") : taken || (error?.code === "DOCS_ENGINE_BAD_REQUEST" && error.details.pointer === "/name") ? t("app.connect.name.taken") : null;
   const create = async () => {
     setTouched(true);
@@ -94,7 +93,7 @@ export function Connect({ compact = false }: { compact?: boolean } = {}) {
               <Notice tone="warning" title={t("app.connect.once.title")}>{t("app.connect.once.body")}</Notice>
               <CopyBlock label={t("app.connect.token")} value={issued.token} copyLabel={t("app.common.copy")} copiedLabel={t("app.common.copied")} valueTestId="agent-token-secret" />
               <div className="so-stack">
-                <Segmented<AgentKind> label={t("app.connect.agent")} value={kind} onChange={setKind} options={AGENT_KINDS.map((value) => ({ value, label: t(`app.connect.agent.${value}`), testId: `${prefix}-agent-${value}` }))} />
+                <Segmented<AgentKind> label={t("app.connect.agent")} value={kind} onChange={setKind} options={AGENT_KINDS.map((value) => ({ value, label: t(`app.connect.agent.${value}`), testId: compact ? `firstrun-agent-${value}` : `agent-kind-${value}` }))} />
                 <p className="so-muted">{t(`app.connect.where.${kind}`)}</p>
                 {snippet ? <CopyBlock label={t("app.connect.config")} value={snippet.text} copyLabel={t("app.common.copy")} copiedLabel={t("app.common.copied")} valueTestId={compact ? "firstrun-config-text" : "agent-config-text"} copyTestId={compact ? "firstrun-config-copy" : "agent-config-copy"} /> : <Skeleton height={96} radius={8} />}
                 {snippet && <CopyBlock label={t("app.connect.cli.title")} value={snippet.cli} copyLabel={t("app.common.copy")} copiedLabel={t("app.common.copied")} valueTestId={compact ? "firstrun-cli-line" : "agent-cli-line"} multiline />}

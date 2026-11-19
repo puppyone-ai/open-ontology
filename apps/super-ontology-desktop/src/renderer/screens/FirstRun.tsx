@@ -56,8 +56,10 @@ export function FirstRun() {
     if (engine.status === "idle" || engine.status === "stopped") void actions.startEngine();
   }, [engine, actions]);
 
-  const addFiles = async (list: FileList | null) => {
-    if (!list || list.length === 0) return;
+  const addFiles = async (picked: FileList | null) => {
+    // The input is cleared right after this call: keep the File objects, not the live list.
+    const list = picked ? Array.from(picked) : [];
+    if (list.length === 0) return;
     const drive = await actions.ensureMyFiles();
     if (!drive.ok) { setError(drive.error); return; }
     setError(null);

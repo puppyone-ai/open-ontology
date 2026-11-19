@@ -14,7 +14,7 @@ const option = (name, fallback) => { const i = args.indexOf(name); return i >= 0
 const outDir = args[0] && !args[0].startsWith("--") ? path.resolve(args[0]) : null;
 if (!outDir) { console.error("usage: electron-shots.mjs <out-dir> [--oo <path>] [--corpus <dir>]"); process.exit(2); }
 const oo = option("--oo", process.env.SUPER_ONTOLOGY_OO_BINARY);
-const corpus = path.resolve(option("--corpus", path.join(os.tmpdir(), "so-corpus")));
+const corpus = path.resolve(option("--corpus", "/tmp/so-corpus"));
 fs.mkdirSync(outDir, { recursive: true });
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "so-shots-"));
 fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ language: "en", runtime: "auto" }));
@@ -49,48 +49,48 @@ const waitFor = (fn, arg, timeout = 120_000) => page.waitForFunction(fn, arg, { 
 
 try {
   await page.waitForSelector("[data-testid=app-root]", { timeout: 30_000 });
-  // First run covers the empty app: skip it, shoot the empty screens, then bring it back from Settings.
-  await waitFor(() => document.querySelector("[data-testid=first-run]") !== null);
+  // First run covers the empty app: skip it, shoot the empty screens, then bring it back.
+  const ready = () => waitFor(() => document.querySelector("[data-testid=firstrun-progress]")?.getAttribute("data-state") === "ready");
+  await app$("[data-testid=screen-first-run]").waitFor({ timeout: 60_000 });
   await shot("first-run-welcome");
-  await waitFor(() => /Engine ready|Healthy|Ready/iu.test(document.querySelector("[data-testid=first-engine]")?.textContent ?? ""));
+  await ready();
   await shot("first-run-welcome-ready");
   await textButton("Skip").click();
-  await pause(600);
+  await pause(800);
   await shot("home-empty");
   for (const section of ["sources", "ontology", "agents"]) { await go(section); await shot(`${section}-empty`); }
-  await go("agents");
-  await shot("agents-connect-no-source");
 
   // Real first run: My files -> upload -> reading -> ontology -> agent.
-  await go("settings");
-  await textButton("first run").click().catch(() => {});
-  await pause(500);
-  if (!(await page.locator("[data-testid=first-run]").count())) { await page.evaluate(() => { window.localStorage.removeItem("so.firstRun.done"); }); await page.reload(); await page.waitForSelector("[data-testid=app-root]"); await pause(1500); }
-  await waitFor(() => /ready/iu.test(document.querySelector("[data-testid=first-engine]")?.textContent ?? ""));
-  await app$("[data-testid=first-start]").click();
+  await page.evaluate(() => { window.localStorage.removeItem("so.firstRun.done"); });
+  await page.reload(); await page.waitForSelector("[data-testid=app-root]"); await pause(1500);
+  await ready();
+  await app$("[data-testid=firstrun-start]").click();
   await pause(400);
   await shot("first-run-add");
   const files = fs.readdirSync(corpus).filter((name) => /\.(md|txt)$/u.test(name)).map((name) => path.join(corpus, name));
   await page.locator("input[type=file]").first().setInputFiles(files);
-  await pause(600);
+  await pause(1200);
   await shot("first-run-reading");
-  await waitFor(() => /see|ontology|found/iu.test(document.querySelector("[data-testid=first-run] h1")?.textContent ?? "") && !/Reading/iu.test(document.querySelector("[data-testid=first-run] h1")?.textContent ?? ""), undefined, 240_000);
-  await pause(800);
-  await shot("first-run-see");
-  await textButton("Continue").click();
-  await pause(600);
-  await shot("first-run-agent-step1");
-  await textButton("Create").click();
+  await waitFor(() => { const rows = [...document.querySelectorAll("[data-testid=firstrun-file-row]")]; return rows.length > 0 && rows.every((r) => ["parsed", "published"].includes(r.getAttribute("data-state") ?? "")); }, undefined, 240_000);
   await pause(1500);
+  await shot("first-run-reading-done");
+  await app$("[data-testid=firstrun-see-ontology]").click();
+  await pause(1500);
+  await shot("first-run-see");
+  await app$("[data-testid=firstrun-connect-agent]").click();
+  await pause(800);
+  await shot("first-run-agent-step1");
+  await app$("[data-testid=firstrun-token-create] button, [data-testid=firstrun-create-token]").last().click();
+  await pause(2000);
   await shot("first-run-agent-step2");
-  await textButton("Done").click();
+  await textButton("Finish").click();
   await pause(800);
 
   // Every screen with data.
   await go("home"); await shot("home");
   await go("sources"); await shot("sources-list");
-  await textButton("Add source").click(); await pause(300); await shot("add-source-menu");
-  await page.getByRole("menuitem").filter({ hasText: /cloud|S3|bucket/iu }).first().click().catch(async () => { await page.keyboard.press("Escape"); });
+  await app$("[data-testid=add-source]").click(); await pause(300); await shot("add-source-menu");
+  await app$("[data-testid=add-source-cloud]").click();
   await pause(400); await shot("add-cloud-dialog");
   await page.keyboard.press("Escape"); await pause(300);
   await page.locator("[data-testid=source-row]").first().click(); await pause(900); await shot("source-detail");
@@ -99,20 +99,22 @@ try {
   await page.locator("[data-testid=entity-list] button").first().click(); await pause(1200); await shot("ontology-entity");
   await go("ontology");
   for (const [tab, name] of [["Review", "ontology-review"], ["Conflicts", "ontology-conflicts"]]) {
-    await page.getByRole("tab", { name: new RegExp(tab, "iu") }).first().click().catch(() => {}); await pause(700); await shot(name);
+    await app$(`[data-testid=ontology-tab-${tab.toLowerCase()}]`).click(); await pause(700); await shot(name);
   }
   await go("agents"); await shot("agents-connect");
   await page.getByRole("tab", { name: /packs/iu }).first().click().catch(() => {}); await pause(700); await shot("agents-packs");
   await page.getByRole("tab", { name: /access|log/iu }).first().click().catch(() => {}); await pause(700); await shot("agents-access");
   await page.getByRole("tab", { name: /connect/iu }).first().click().catch(() => {}); await pause(500);
-  await textButton("Create").click(); await pause(1500); await shot("agents-token-config");
+  await await app$("[data-testid=agent-token-name] input, input[data-testid=agent-token-name]").first().fill("claude-demo"); await app$("[data-testid=agent-token-submit]").click(); await pause(2000); await shot("agents-token-config");
+  await app$("[data-testid=agent-kind-codex]").click(); await pause(500); await shot("agents-token-config-codex");
+  await app$("[data-testid=agent-token-revoke]").first().hover(); await shot("state-revoke-hover");
   for (const tab of ["General", "Engine", "Model", "Privacy", "About"]) {
     await go("settings");
-    await page.getByRole("tab", { name: new RegExp(tab, "iu") }).first().click().catch(() => {}); await pause(700); await shot(`settings-${tab.toLowerCase()}`);
+    await app$(`[data-testid=settings-section-${tab.toLowerCase()}]`).click(); await pause(900); await shot(`settings-${tab.toLowerCase()}`);
   }
   // Interaction states on one control: hover / focus / pressed / disabled.
   await go("sources");
-  const add = textButton("Add source");
+  const add = app$("[data-testid=add-source]");
   await add.hover(); await shot("state-button-hover");
   await page.keyboard.press("Tab"); await shot("state-focus-ring");
   await page.setViewportSize?.({ width: 960, height: 640 }).catch(() => {});

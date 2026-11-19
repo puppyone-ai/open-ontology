@@ -20,7 +20,7 @@
   code, kbd, pre, samp { font-family: var(--so-font-mono); font-size: var(--so-text-xs); }
   ::selection { background: var(--so-focus-ring); }
   :focus { outline: none; }
-  :focus-visible { outline: 2px solid var(--so-focus-ring); outline-offset: 1px; border-radius: var(--so-radius-control); }
+  :focus-visible { outline: 2px solid var(--so-focus); outline-offset: 2px; }
   [hidden] { display: none !important; }
   .so-visually-hidden {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
@@ -35,6 +35,8 @@
   *:hover::-webkit-scrollbar-thumb { background-color: var(--so-line-strong); background-clip: content-box; }
 
   @media (prefers-reduced-motion: reduce) {
+    /* A stopped spinner reads as a hang: it pulses instead of turning. */
+    .so-spinner { animation: so-pulse 1.6s ease-in-out infinite !important; animation-duration: 1.6s !important; animation-iteration-count: infinite !important; }
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   }
 }

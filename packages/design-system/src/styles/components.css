@@ -124,7 +124,7 @@
     background: var(--so-panel); color: var(--so-text); font-size: var(--so-text-sm);
     transition: border-color var(--so-duration-fast) var(--so-ease), box-shadow var(--so-duration-fast) var(--so-ease), background-color var(--so-duration-fast) var(--so-ease);
   }
-  .so-input::placeholder { color: var(--so-text-weak); }
+  .so-input::placeholder { color: var(--so-text-muted); opacity: 1; }
   .so-input:hover:not(:disabled):not(:focus) { border-color: var(--so-text-weak); }
   .so-input:focus-visible, .so-input:focus { border-color: var(--so-accent); box-shadow: 0 0 0 2px var(--so-focus-ring); outline: none; }
   .so-input:disabled { background: var(--so-inset); color: var(--so-text-weak); cursor: not-allowed; }
@@ -133,7 +133,7 @@
   .so-textarea { height: auto; padding: var(--so-space-2) var(--so-space-3); line-height: var(--so-leading); resize: vertical; }
   .so-select-wrap { position: relative; display: block; }
   .so-select { appearance: none; padding-inline-end: 32px; }
-  .so-select-chevron { position: absolute; top: 50%; inset-inline-end: var(--so-space-3); translate: 0 -50%; color: var(--so-text-muted); pointer-events: none; }
+  .so-select-chevron { position: absolute; top: calc((var(--so-control) - 16px) / 2); inset-inline-end: var(--so-space-3); color: var(--so-text-muted); pointer-events: none; }
 
   .so-switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--so-space-4); min-width: 0; }
   .so-switch-text { display: grid; min-width: 0; gap: 2px; }
@@ -161,6 +161,7 @@
   .so-segmented-item { height: 24px; padding: 0 var(--so-space-3); border: 0; border-radius: 4px; background: transparent; color: var(--so-text-2); font-size: var(--so-text-xs); font-weight: var(--so-weight-medium); transition: background-color var(--so-duration-fast) var(--so-ease), color var(--so-duration-fast) var(--so-ease); }
   .so-segmented-item:disabled { color: var(--so-text-weak); cursor: not-allowed; }
   .so-segmented-item:hover:not(:disabled) { color: var(--so-text); }
+  .so-segmented-item:active:not(:disabled) { background: var(--so-press); }
   .so-segmented-item[aria-checked="true"] { background: var(--so-panel); color: var(--so-text); box-shadow: 0 0 0 1px var(--so-line); }
 
   /* ---------- Status, badges, notices, empty ---------- */
@@ -222,6 +223,8 @@
   .so-tabs { display: flex; gap: var(--so-space-4); border-bottom: 1px solid var(--so-line); }
   .so-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 2px; border: 0; background: transparent; color: var(--so-text-2); font-weight: var(--so-weight-medium); transition: color var(--so-duration-fast) var(--so-ease); }
   .so-tab:hover { color: var(--so-text); }
+  .so-tab:active { color: var(--so-accent); }
+  .so-tab:focus-visible { border-radius: 4px; outline-offset: -2px; }
   .so-tab[aria-selected="true"] { color: var(--so-text); }
   .so-tab[aria-selected="true"]::after { content: ""; position: absolute; inset-inline: 0; bottom: -1px; height: 2px; border-radius: 1px; background: var(--so-accent); }
   .so-tab-count { color: var(--so-text-muted); font-weight: var(--so-weight-regular); font-size: var(--so-text-xs); }

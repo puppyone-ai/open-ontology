@@ -22,6 +22,7 @@ export function Sources() {
   const app = useApp();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [initial, setInitial] = useState<{ fileId: string; path: string } | null>(null);
+  useEffect(() => { setDetailId(null); setInitial(null); }, [app.navTick]);
   const focus = app.focusFile;
   const { consumeFocusFile } = app;
   useEffect(() => {

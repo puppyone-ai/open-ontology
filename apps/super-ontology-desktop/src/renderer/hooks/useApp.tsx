@@ -11,6 +11,8 @@ export type Nav = {
   agentsTab: AgentsTab;
   settingsTab: SettingsTab;
   navCollapsed: boolean;
+  /** Counts navigation clicks: choosing a section again leaves its detail page. */
+  navTick: number;
 };
 
 type Api = Nav & {
@@ -32,11 +34,11 @@ const Context = createContext<Api | null>(null);
 const FIRST_RUN_KEY = "so.firstRun.done";
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1" });
+  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1", navTick: 0 });
   const [focusFile, setFocusFile] = useState<string | null>(null);
   const [firstRunOpen, setFirstRunOpen] = useState(() => window.localStorage.getItem(FIRST_RUN_KEY) !== "1");
   const go = useCallback<Api["go"]>((section, tab) => setNav((c) => ({
-    ...c, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab,
+    ...c, navTick: c.navTick + 1, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab,
   })), []);
   const value = useMemo<Api>(() => ({
     ...nav,

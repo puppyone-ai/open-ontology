@@ -40,8 +40,10 @@ export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => vo
   const error = fileError ?? folder.error;
   const errorText = useErrorText();
 
-  const addFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const addFiles = async (picked: FileList | null) => {
+    // The input is cleared right after this call: keep the File objects, not the live list.
+    const files = picked ? Array.from(picked) : [];
+    if (files.length === 0) return;
     const drive = await actions.ensureMyFiles();
     if (!drive.ok) { setError(drive.error); return; }
     setError(null);

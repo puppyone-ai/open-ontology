@@ -349,7 +349,6 @@
   "first.reading.title": "正在读取你的文件",
   "first.reading.body": "每个文件都会被读取，并找出其中的人物、项目和决定。",
   "first.reading.waiting": "等待文件到达…",
-  "first.reading.skip": "继续",
   "first.reading.leave": "可以先离开，处理会继续。",
   "first.see.title": "这是它找到的内容",
   "first.see.body": "每一条事实都指向它所出自的那句话。",

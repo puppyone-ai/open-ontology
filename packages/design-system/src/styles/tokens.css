@@ -27,6 +27,8 @@
     --so-accent-press: #2339a3;
     --so-accent-soft: #eef1fd;
     --so-focus-ring: rgba(47, 74, 208, 0.3);
+    /* The keyboard focus indicator is the solid accent: 3:1 against every surface it can sit on (7:1 on white). */
+    --so-focus: #2f4ad0;
 
     /* State colours with a soft background each */
     --so-success: #15803d;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { PageHeader, Tabs } from "@open-ontology/design-system";
 import { useApp, type OntologyTab } from "../hooks/useApp";
@@ -14,6 +14,7 @@ export function Ontology() {
   const app = useApp();
   const pending = useSuperDriveSelector(selectPendingReviewTotal);
   const [entityKey, setEntityKey] = useState<string | null>(null);
+  useEffect(() => { setEntityKey(null); }, [app.navTick]);
 
   if (app.ontologyTab === "entities" && entityKey) return <EntityPage entityKey={entityKey} onBack={() => setEntityKey(null)} onOpen={setEntityKey} />;
   return (
