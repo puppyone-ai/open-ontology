@@ -2,7 +2,7 @@
  * One file's full presentation (20-frontend §4.1): the state row plus every refinement the table lists, computed from the
  * file's fields alone. `FileStateBadge`, the details pane and the banners all read this, so a state is described in one place.
  */
-import type { FileSummary } from "./contract/docsApi.generated";
+import type { FileSummary } from "../../shared/super-ontology/docs-api.generated";
 import {
   BLOCKED_REASONS, FILE_STATE_PRESENTATION, presentedFileState, type IconName, type PresentedFileState, type Tone,
 } from "./superDriveStateModel";

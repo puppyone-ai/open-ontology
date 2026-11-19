@@ -1,4 +1,4 @@
-import type { Drive, FileSummary, Share } from "./contract/docsApi.generated";
+import type { Drive, FileSummary, Share } from "../../shared/super-ontology/docs-api.generated";
 import { baseName, parentPath, parseFolderKey, type FolderKey } from "./superDriveRoute";
 import type { EngineEvent, FileRecord, FolderPage, SuperDriveState } from "./superDriveState";
 

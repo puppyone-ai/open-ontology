@@ -5,7 +5,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Eye, FolderOpen, PackagePlus, RefreshCw, Trash2 } from "lucide-react";
 import { useErrorText, useRelativeTime } from "../../hooks/useText";
-import type { Share } from "../../model/contract/docsApi.generated";
+import type { Share } from "../../../shared/super-ontology/docs-api.generated";
 import { createOperationId } from "../../model/operationIds";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { selectDrives } from "../../model/superDriveSelectors";

@@ -5,7 +5,7 @@
  */
 import type { EngineSnapshot } from "../../shared/super-ontology/bridge";
 import { ENGINE_STATUSES } from "../../shared/super-ontology/engine-contract.mjs";
-import { FILE_STATE_VALUES, FRESHNESS_STATE_VALUES, type FileState, type FreshnessState } from "./contract/docsApi.generated";
+import { FILE_STATE_VALUES, FRESHNESS_STATE_VALUES, type FileState, type FreshnessState } from "../../shared/super-ontology/docs-api.generated";
 
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 

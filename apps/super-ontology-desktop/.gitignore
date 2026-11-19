@@ -5,3 +5,4 @@ release/
 build/oo-bundle/
 build/generated/
 build/icon.iconset/
+/artifacts/

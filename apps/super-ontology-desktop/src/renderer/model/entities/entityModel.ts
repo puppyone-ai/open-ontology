@@ -1,4 +1,4 @@
-import type { EntityRef, Fact } from "../contract/docsApi.generated";
+import type { EntityRef, Fact } from "../../../shared/super-ontology/docs-api.generated";
 
 /** Entity types in the order the entities tab lists them (people first); anything else goes to "other". */
 export const ENTITY_TYPE_ORDER = ["Person", "Organization", "Project", "Decision", "Document", "Topic", "Event", "Term"] as const;

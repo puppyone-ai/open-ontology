@@ -4,7 +4,7 @@ import { Card, EmptyState, PageHeader, StatusDot } from "@open-ontology/design-s
 import { Cloud, FolderOpen, HardDrive } from "lucide-react";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
 import { selectDrives } from "../model/superDriveSelectors";
-import type { Drive } from "../model/contract/docsApi.generated";
+import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 import { AddSourceMenu } from "./sources/AddSource";
 import { SourceDetail } from "./sources/SourceDetail";
 

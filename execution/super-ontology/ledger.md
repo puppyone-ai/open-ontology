@@ -188,6 +188,10 @@
 | SO-F-S19-04 | D85 | merged | feat/super-ontology (App 车道 A 并入) | f2f07cca7 → f2f07cca7 | — | apps/super-ontology-desktop/ | Add the placeholder icon, the Apache attribution and the notice generation |
 | SO-F-S19-05 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 8bce99757 → 081cd185c | — | apps/super-ontology-desktop/ | Add the owner-triggered workflow that builds the Super Ontology DMG |
 | SO-F-S19-06 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 2645cefa6 → e5c0062a2 | — | apps/super-ontology-desktop/ | Bundle the release oo with its docs engine in the Super Ontology app |
+| SO-F-S19-21 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 1ba30642d → 061afee5c | — | apps/super-ontology-desktop/ | Generate the app contract modules straight from contracts |
+| SO-F-S19-22 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 26ae0586a → 26ae0586a | — | apps/super-ontology-desktop/ | Port the main-process and contract test suites with the fake engine |
+| SO-F-S19-23 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 1feab20f8 → 1feab20f8 | — | apps/super-ontology-desktop/ | Port the renderer data and service layer unit suites |
+| SO-F-S19-24 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 6b108c2a5 → a83942ec2 | — | apps/super-ontology-desktop/ | List the test ids the renderer and the T1 scenarios agree on |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

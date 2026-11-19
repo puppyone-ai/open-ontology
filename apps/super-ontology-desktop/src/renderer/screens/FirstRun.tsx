@@ -10,7 +10,7 @@ import { selectDrives } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine, type Tone as ModelTone } from "../model/superDriveStateModel";
 import { getUploadQueue } from "../model/uploadStore";
 import type { EntitySearchRow } from "../model/superDriveOntologyTypes";
-import type { Fact } from "../model/contract/docsApi.generated";
+import type { Fact } from "../../shared/super-ontology/docs-api.generated";
 import type { SuperDriveError } from "../model/superDriveErrors";
 import { AppMark } from "../shell/AppMark";
 import { Connect } from "./agents/Connect";

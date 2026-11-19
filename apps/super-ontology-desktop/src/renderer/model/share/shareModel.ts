@@ -1,4 +1,4 @@
-import type { Share, ShareState } from "../contract/docsApi.generated";
+import type { Share, ShareState } from "../../../shared/super-ontology/docs-api.generated";
 
 export type ShareIconName = "Share2" | "FolderOpen" | "TriangleAlert" | "RotateCw" | "Clock3" | "Unlink" | "LoaderCircle" | "CircleHelp";
 export type ShareTone = "success" | "warning" | "neutral" | "info";

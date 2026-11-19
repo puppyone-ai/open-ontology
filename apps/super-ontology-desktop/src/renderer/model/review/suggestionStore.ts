@@ -1,4 +1,4 @@
-import type { Suggestion, SuggestionDigest, SuggestionDiff } from "../contract/docsApi.generated";
+import type { Suggestion, SuggestionDigest, SuggestionDiff } from "../../../shared/super-ontology/docs-api.generated";
 import type { SuperDriveApi } from "../superDriveApi";
 import { toSuperDriveError, type SuperDriveError } from "../superDriveErrors";
 import { digestView, type DigestView } from "./suggestionModel";

@@ -4,7 +4,7 @@ import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, No
 import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useErrorText } from "../../hooks/useText";
 import { useDriveFolderPages } from "../../model/browser/useDriveFolderPages";
-import type { Drive } from "../../model/contract/docsApi.generated";
+import type { Drive } from "../../../shared/super-ontology/docs-api.generated";
 import { formatBytes } from "../../model/format";
 import { getUploadQueue, useUploadQueueState } from "../../model/uploadStore";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";

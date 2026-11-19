@@ -4,7 +4,7 @@ import { Badge, Button, Card, EmptyState, Notice, PageHeader, Skeleton } from "@
 import { ArrowLeft, FileText, ListTree } from "lucide-react";
 import { useApp } from "../../hooks/useApp";
 import { useErrorText, useRelativeTime } from "../../hooks/useText";
-import type { Evidence, Fact } from "../../model/contract/docsApi.generated";
+import type { Evidence, Fact } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 import type { EntityDetail } from "../../model/superDriveOntologyTypes";

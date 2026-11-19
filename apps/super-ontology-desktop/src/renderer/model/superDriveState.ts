@@ -1,5 +1,5 @@
 import type { ConnectionSnapshot, EngineEvent, EngineSnapshot } from "../../shared/super-ontology/bridge";
-import type { Constraint, Drive, FileSummary, ModelConfig, ReviewGroup, ReviewItem, Share, ShareUpdate, TreeDir } from "./contract/docsApi.generated";
+import type { Constraint, Drive, FileSummary, ModelConfig, ReviewGroup, ReviewItem, Share, ShareUpdate, TreeDir } from "../../shared/super-ontology/docs-api.generated";
 import { LruMap } from "./lruMap";
 import { INITIAL_ROUTE, type FolderKey, type SuperDriveRoute } from "./superDriveRoute";
 import type { SuperDriveError } from "./superDriveErrors";

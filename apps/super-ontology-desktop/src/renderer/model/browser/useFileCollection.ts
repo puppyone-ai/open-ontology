@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import type { TreeDir } from "../contract/docsApi.generated";
+import type { TreeDir } from "../../../shared/super-ontology/docs-api.generated";
 import type { FileRecord } from "../superDriveState";
 import { presentFile } from "../superDriveFileView";
 import type { MenuActionId, MenuTarget } from "./fileMenuModel";

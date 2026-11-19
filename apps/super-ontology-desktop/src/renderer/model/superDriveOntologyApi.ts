@@ -33,7 +33,7 @@ import {
   type Share,
   type ShareUpdate,
   type Usage,
-} from "./contract/docsApi.generated";
+} from "../../shared/super-ontology/docs-api.generated";
 import type { EntityDetail, EntitySearchRow } from "./superDriveOntologyTypes";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);

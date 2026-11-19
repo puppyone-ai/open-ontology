@@ -2,7 +2,7 @@
  * Presentation model of agent suggestions (docs-api 1.3, 20-frontend §3.5.4): which ones are already in effect, which wait for a
  * person, how they group for the day's digest, and the line of the file a suggestion would change. Pure functions, no UI.
  */
-import type { Suggestion, SuggestionDigest, SuggestionDiff } from "../contract/docsApi.generated";
+import type { Suggestion, SuggestionDigest, SuggestionDiff } from "../../../shared/super-ontology/docs-api.generated";
 
 export const SUGGESTION_KIND_ORDER = ["new_fact", "supersede", "correction", "preference", "type_change"] as const;
 

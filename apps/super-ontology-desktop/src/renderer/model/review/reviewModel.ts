@@ -1,4 +1,4 @@
-import type { ReviewGroup, ReviewItem } from "../contract/docsApi.generated";
+import type { ReviewGroup, ReviewItem } from "../../../shared/super-ontology/docs-api.generated";
 
 /** The review kinds with their glyph, tone and the decisions each one offers (20-frontend section 4.3). */
 export type ReviewKindId = ReviewItem["kind"];

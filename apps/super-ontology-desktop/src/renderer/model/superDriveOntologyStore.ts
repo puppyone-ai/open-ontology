@@ -1,5 +1,5 @@
 import type { ReviewBySource, ReviewDecisionItem } from "../../shared/super-ontology/bridge";
-import type { ContextPack, Fact, ModelConfig, ReviewGroup, ReviewItem, RevokeResult, Share, ShareUpdate, Usage } from "./contract/docsApi.generated";
+import type { ContextPack, Fact, ModelConfig, ReviewGroup, ReviewItem, RevokeResult, Share, ShareUpdate, Usage } from "../../shared/super-ontology/docs-api.generated";
 import type { ApiResult } from "./bridgeInvoke";
 import { toSuperDriveError, type SuperDriveError } from "./superDriveErrors";
 import type { OntologyApi } from "./superDriveOntologyApi";

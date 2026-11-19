@@ -3,7 +3,7 @@
  * a viewer reads, a suggester may also write suggestions that wait for a person, and an editor's accepted suggestions are written
  * back into the files by Desktop, which it can do for a folder Drive on this computer and not for object storage.
  */
-import type { Drive, Suggestion } from "../contract/docsApi.generated";
+import type { Drive, Suggestion } from "../../../shared/super-ontology/docs-api.generated";
 
 export type ShareRole = "viewer" | "suggester" | "editor";
 export const SHARE_ROLES: readonly ShareRole[] = ["viewer", "suggester", "editor"];

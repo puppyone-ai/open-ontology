@@ -20,7 +20,7 @@ import type {
 } from "../../shared/super-ontology/bridge";
 import { installBridgeReader, invoke, readBridge, validated, type ApiResult } from "./bridgeInvoke";
 import { ontologyApi, type OntologyApi } from "./superDriveOntologyApi";
-import { isDrive, isFileSummary, isSuggestion, isSuggestionDigest, isSuggestionDiff, type Drive, type FileSummary, type Page, type Suggestion, type SuggestionDigest, type SuggestionDiff, type SyncInfo, type Tree } from "./contract/docsApi.generated";
+import { isDrive, isFileSummary, isSuggestion, isSuggestionDigest, isSuggestionDiff, type Drive, type FileSummary, type Page, type Suggestion, type SuggestionDigest, type SuggestionDiff, type SyncInfo, type Tree } from "../../shared/super-ontology/docs-api.generated";
 
 export type { ApiResult };
 

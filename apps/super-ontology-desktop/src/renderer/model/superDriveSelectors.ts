@@ -1,4 +1,4 @@
-import type { Drive } from "./contract/docsApi.generated";
+import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 import { driveForRoute, folderKey, type FolderFilter } from "./superDriveRoute";
 import { createEmptyFolderPage, type FileRecord, type FolderPage, type SuperDriveState } from "./superDriveState";
 

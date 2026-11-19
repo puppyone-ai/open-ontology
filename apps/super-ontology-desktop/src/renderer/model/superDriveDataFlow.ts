@@ -1,4 +1,4 @@
-import type { Drive } from "./contract/docsApi.generated";
+import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 import type { EngineSnapshot } from "../../shared/super-ontology/bridge";
 
 /**

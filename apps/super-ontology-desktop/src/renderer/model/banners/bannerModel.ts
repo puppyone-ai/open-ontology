@@ -3,7 +3,7 @@
  * function of the engine snapshot, the connection and the active Drive, so the stack and its tests need no UI.
  */
 import type { ConnectionSnapshot, EngineSnapshot } from "../../../shared/super-ontology/bridge";
-import type { Drive } from "../contract/docsApi.generated";
+import type { Drive } from "../../../shared/super-ontology/docs-api.generated";
 import type { Tone } from "../superDriveStateModel";
 
 export type BannerKind =

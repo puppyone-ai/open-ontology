@@ -7,7 +7,7 @@ import { presentReviewKind, subjectView } from "../../model/review/reviewModel";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { selectDrives } from "../../model/superDriveSelectors";
 import { reviewKey } from "../../model/superDriveState";
-import type { ReviewItem } from "../../model/contract/docsApi.generated";
+import type { ReviewItem } from "../../../shared/super-ontology/docs-api.generated";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 
 function describe(item: ReviewItem, t: ReturnType<typeof useLocalization>["t"]): { title: string; detail: string } {

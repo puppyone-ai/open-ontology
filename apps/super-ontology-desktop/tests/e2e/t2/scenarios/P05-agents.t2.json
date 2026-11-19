@@ -1,0 +1,91 @@
+{
+  "id": "P05",
+  "title": "Agents: create a token, copy-ready text without the secret, revoke",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.agents"
+    },
+    {
+      "do": "click",
+      "name": "app.connect.name"
+    },
+    {
+      "do": "typeFocused",
+      "text": "t2-reader"
+    },
+    {
+      "do": "click",
+      "name": "app.connect.create"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "agent-token-secret",
+        "text": "^ooa_",
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.connect.agent.claude"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "agent-config-text",
+        "text": "open-ontology"
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "no-secret-in-page",
+      "args": {
+        "allowAgentToken": true
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.connect.tokens.revoke"
+    },
+    {
+      "do": "click",
+      "name": "app.connect.tokens.revoke"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "agent-token-row",
+        "attributes": {
+          "data-name": "t2-reader",
+          "data-state": "revoked"
+        },
+        "withinMs": 30000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "agents"
+    }
+  ]
+}

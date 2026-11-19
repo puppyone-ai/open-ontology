@@ -1,19 +1,21 @@
 #!/usr/bin/env node
-// Generates the app's docs-api TypeScript and plain-JS contract modules straight from contracts/docs-api/* of this repository.
+// Generates the app's contract modules straight from contracts/ (docs-api, doc-ir, context-pack). There is no vendored copy of the
+// contract files: the inputs are read from the repository, and the outputs are checked in because the packaged app cannot read contracts/.
 //   node scripts/gen-contract.mjs           write the generated files
-//   node scripts/gen-contract.mjs --check   fail if a generated file is out of date
+//   node scripts/gen-contract.mjs --check   fail when any generated file differs from what contracts/ produces now (drift)
+// Outputs (all under src/shared/super-ontology/):
+//   docs-contract.generated.mjs / .d.mts   plain JS for the main process: error detail allow-list, retryability, event types
+//   docs-api.generated.ts                  types, structural guards, endpoints, error codes and event types for the renderer
+//   doc-ir.generated.ts, context-pack.generated.ts   types of the two companion schemas
+// Only Node built-ins are used, so the check runs on any CI runner.
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repositoryRoot = path.resolve(appRoot, "../..");
-const contractDirectory = path.join(repositoryRoot, "contracts/docs-api");
-const outputPath = path.join(appRoot, "src/renderer/features/super-drive/contract/docsApi.generated.ts");
-// The main process cannot read contracts/ (it is not packaged) nor import TypeScript: it gets plain JS.
-const mainOutputPath = path.join(appRoot, "src/shared/super-ontology/docs-contract.generated.mjs");
-const mainTypesPath = path.join(appRoot, "src/shared/super-ontology/docs-contract.generated.d.mts");
+const contractsRoot = path.resolve(appRoot, "..", "..", "contracts");
+const outDirectory = path.join(appRoot, "src", "shared", "super-ontology");
 
 const mode = process.argv[2];
 if (mode !== undefined && mode !== "--check") {
@@ -21,32 +23,36 @@ if (mode !== undefined && mode !== "--check") {
   process.exit(2);
 }
 
-const readText = (file) => fs.readFileSync(path.join(contractDirectory, file), "utf8");
-const readJson = (file) => JSON.parse(readText(file));
+const INPUTS = {
+  schema: "docs-api/docs-api.v1.schema.json",
+  errors: "docs-api/errors.v1.json",
+  events: "docs-api/events.v1.schema.json",
+  changelog: "docs-api/CHANGELOG.md",
+  docIr: "docs-ir/doc-ir.v1.schema.json",
+  contextPack: "context-pack/context-pack.v1.schema.json",
+};
+const readText = (relative) => fs.readFileSync(path.join(contractsRoot, relative), "utf8");
+const readJson = (relative) => JSON.parse(readText(relative));
+const sha256 = (relative) => createHash("sha256").update(fs.readFileSync(path.join(contractsRoot, relative))).digest("hex");
+const fingerprints = Object.fromEntries(Object.values(INPUTS).map((relative) => [relative, sha256(relative).slice(0, 16)]));
 
-const schema = readJson("docs-api.v1.schema.json");
-const errors = readJson("errors.v1.json");
-const events = readJson("events.v1.schema.json");
+const schema = readJson(INPUTS.schema);
+const errors = readJson(INPUTS.errors);
+const events = readJson(INPUTS.events);
 
 const problems = [];
-const schemaVersion = schema["x-docs-api-version"];
-for (const [label, version] of [["errors", errors.api_version], ["events", events["x-docs-api-version"]]]) {
-  if (version !== schemaVersion) problems.push(`the schema says ${schemaVersion} but the ${label} file says ${version}`);
+// The contract version is the newest section of the docs-api CHANGELOG ("## 1.11 (...)"); every file must agree on the schema line.
+const sections = [...readText(INPUTS.changelog).matchAll(/^## (\d+(?:\.\d+)*(?:-[A-Za-z0-9]+)?)(?: |$)/gmu)].map((m) => m[1]);
+const numeric = sections.filter((version) => /^\d+(\.\d+)*$/u.test(version));
+const contractVersion = numeric.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1) ?? sections.at(-1);
+if (!contractVersion) problems.push("docs-api/CHANGELOG.md has no version section");
+for (const [label, version] of [["schema", schema["x-docs-api-version"]], ["errors", errors.api_version], ["events", events["x-docs-api-version"]]]) {
+  if (version !== schema["x-docs-api-version"]) problems.push(`the ${label} file says ${version} but the schema says ${schema["x-docs-api-version"]}`);
 }
-// The contract version is the newest numbered section of CHANGELOG.md; the schema keeps the freeze label.
-const changelogHeadings = [...readText("CHANGELOG.md").matchAll(/^## (\d+\.\d+)(?: |$)/gmu)].map((match) => match[1]);
-if (changelogHeadings.length === 0) problems.push("CHANGELOG.md has no numbered contract section");
-const contractVersion = changelogHeadings.sort((left, right) => {
-  const [lm, ln] = left.split(".").map(Number);
-  const [rm, rn] = right.split(".").map(Number);
-  return rm - lm || rn - ln;
-})[0] ?? schemaVersion;
-const sourceDigest = createHash("sha256")
-  .update(["docs-api.v1.schema.json", "errors.v1.json", "events.v1.schema.json", "CHANGELOG.md"].map((file) => fs.readFileSync(path.join(contractDirectory, file))).join("\u0000"))
-  .digest("hex");
 
 // ---------------------------------------------------------------- naming helpers
 const snake = (name) => name.replace(/([a-z0-9])([A-Z])/gu, "$1_$2").toUpperCase();
+const pascal = (name) => name.split(/[_-]/u).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
 const literal = (value) => JSON.stringify(value);
 const comment = (text, indent = "") => (text
   ? `${indent}/** ${String(text).replace(/\*\//gu, "* /").replace(/\s+/gu, " ").trim()} */\n`
@@ -56,9 +62,9 @@ const comment = (text, indent = "") => (text
 const enumArrays = []; // { name, values, path }
 
 function refName(ref) {
-  const match = /^#\/\$defs\/([A-Za-z0-9]+)$/u.exec(ref);
+  const match = /^#\/\$defs\/([A-Za-z0-9_]+)$/u.exec(ref);
   if (!match) throw new Error(`Unsupported $ref: ${ref}`);
-  return match[1];
+  return pascal(match[1]);
 }
 
 function typeOf(node, where) {
@@ -66,7 +72,7 @@ function typeOf(node, where) {
   if (node.$ref) return refName(node.$ref) === "Page" ? "Page<unknown>" : refName(node.$ref);
   if (node.enum) return node.enum.map(literal).join(" | ");
   if (node.const !== undefined) return literal(node.const);
-  if (node.oneOf) return node.oneOf.map((entry) => typeOf(entry, where)).join(" | ");
+  if (node.oneOf || node.anyOf) return (node.oneOf ?? node.anyOf).map((entry) => typeOf(entry, where)).join(" | ");
   if (node.allOf) return node.allOf.map((entry) => `(${typeOf(entry, where)})`).join(" & ");
   const types = Array.isArray(node.type) ? node.type : [node.type];
   return [...new Set(types.map((type) => {
@@ -110,7 +116,7 @@ function collectEnums(node, pathParts) {
 // A shallow structural guard: required keys present and primitive kinds right. It deliberately accepts unknown
 // enum values and extra fields (forward compatibility, 10 §8.1); use the enum guards to detect unknown values.
 function primitiveCheck(node) {
-  if (!node || node.$ref || node.enum || node.const !== undefined || node.oneOf || node.allOf) return null;
+  if (!node || node.$ref || node.enum || node.const !== undefined || node.oneOf || node.anyOf || node.allOf) return null;
   const types = Array.isArray(node.type) ? node.type : [node.type];
   const checks = types.map((type) => ({
     string: (v) => `typeof ${v} === "string"`,
@@ -139,13 +145,15 @@ function guardFor(name, node) {
   return lines.join("\n");
 }
 
+
+const BANNER = `// @generated by scripts/gen-contract.mjs from contracts/. Do not edit by hand; run \`node scripts/gen-contract.mjs\`.`;
 const defs = schema.$defs;
 const out = [];
-out.push(`// @generated by scripts/gen-contract.mjs from contracts/docs-api/*. Do not edit by hand.
-// Source: contracts/docs-api sha256 ${sourceDigest.slice(0, 12)}, docs-api ${contractVersion}.
+out.push(`${BANNER}
+// Source: docs-api ${contractVersion} (${fingerprints[INPUTS.schema]}).
 
 export const DOCS_API_VERSION = ${literal(contractVersion)};
-export const DOCS_API_SOURCE = ${literal({ path: "contracts/docs-api", sha256: sourceDigest })} as const;
+export const DOCS_API_FINGERPRINTS = ${literal(fingerprints)} as const;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -156,9 +164,7 @@ export type Page<T> = { items: T[]; next_cursor: string | null; as_of_seq: numbe
 
 out.push("// ---- enums (top level and nested) ----");
 for (const [name, node] of Object.entries(defs)) collectEnums(node, [name]);
-for (const { name, values, where } of enumArrays) {
-  out.push(`/** ${where} */\nexport const ${name} = ${literal(values)} as const;`);
-}
+for (const { name, values, where } of enumArrays) out.push(`/** ${where} */\nexport const ${name} = ${literal(values)} as const;`);
 out.push("");
 
 out.push("// ---- types and structural guards ----");
@@ -240,49 +246,62 @@ export function isPersistentDocsEvent(type: string): boolean {
   return (DOCS_PERSISTENT_EVENT_TYPES as readonly string[]).includes(type);
 }
 `);
+const docsApiTs = `${out.join("\n")}\n`;
 
-const generated = `${out.join("\n")}\n`;
+// Companion schemas: types only (no enum tables or guards).
+function companionTs(relative, rootName) {
+  const root = readJson(relative);
+  const lines = [`${BANNER}`, `// Source: ${relative} (${fingerprints[relative]}).`, ""];
+  for (const [name, node] of Object.entries(root.$defs ?? {})) lines.push(`${comment(node.description)}export type ${pascal(name)} = ${typeOf(node, name)};`);
+  lines.push(`${comment(root.description)}export type ${rootName} = ${typeOf({ ...root, $defs: undefined }, rootName)};`, "");
+  return lines.join("\n");
+}
+const docIrTs = companionTs(INPUTS.docIr, "DocIr");
+const contextPackTs = companionTs(INPUTS.contextPack, "ContextPack");
 
 const detailKeysByCode = Object.fromEntries(codes.map((entry) => [entry.code, entry.detailKeys]));
 const retryableByCode = Object.fromEntries(codes.map((entry) => [entry.code, entry.retryable]));
-const generatedMain = `// Generated by scripts/gen-contract.mjs from contracts/docs-api (docs-api ${contractVersion}). Do not edit.
+const mainJs = `// @generated by scripts/gen-contract.mjs from contracts/docs-api (docs-api ${contractVersion}). Do not edit by hand.
+export const DOCS_API_VERSION = ${literal(contractVersion)};
 /** Allow-list of \`details\` keys per engine error code (errors.v1.json); everything else is dropped before it reaches the renderer. */
 export const DOCS_ERROR_DETAIL_KEYS = Object.freeze(${JSON.stringify(detailKeysByCode, null, 2)});
 export const DOCS_ERROR_RETRYABLE = Object.freeze(${JSON.stringify(retryableByCode, null, 2)});
 export const DOCS_PERSISTENT_EVENT_TYPES = Object.freeze(${literal(persistent)});
 export const DOCS_TRANSIENT_EVENT_TYPES = Object.freeze(${literal(transient)});
 `;
-const generatedMainTypes = `// Generated by scripts/gen-contract.mjs. Do not edit.
+const mainTypes = `// @generated by scripts/gen-contract.mjs. Do not edit by hand.
+export const DOCS_API_VERSION: string;
 export const DOCS_ERROR_DETAIL_KEYS: Readonly<Record<string, readonly string[]>>;
 export const DOCS_ERROR_RETRYABLE: Readonly<Record<string, boolean>>;
 export const DOCS_PERSISTENT_EVENT_TYPES: readonly string[];
 export const DOCS_TRANSIENT_EVENT_TYPES: readonly string[];
 `;
-const outputs = [[outputPath, generated], [mainOutputPath, generatedMain], [mainTypesPath, generatedMainTypes]];
+const outputs = [
+  ["docs-contract.generated.mjs", mainJs],
+  ["docs-contract.generated.d.mts", mainTypes],
+  ["docs-api.generated.ts", docsApiTs],
+  ["doc-ir.generated.ts", docIrTs],
+  ["context-pack.generated.ts", contextPackTs],
+].map(([name, content]) => [path.join(outDirectory, name), content]);
 
-if (mode === "--check") {
+if (problems.length === 0 && mode === "--check") {
   for (const [file, content] of outputs) {
-    const relative = path.relative(repositoryRoot, file);
+    const relative = path.relative(appRoot, file);
     if (!fs.existsSync(file)) problems.push(`${relative} is missing`);
-    else if (fs.readFileSync(file, "utf8") !== content) {
-      problems.push(`${relative} is out of date; run node scripts/gen-contract.mjs`);
-    }
+    else if (fs.readFileSync(file, "utf8") !== content) problems.push(`${relative} is out of date with contracts/; run node scripts/gen-contract.mjs`);
   }
-  if (problems.length > 0) {
-    console.error("Contract check failed:");
-    for (const problem of problems) console.error(`- ${problem}`);
-    process.exit(1);
-  }
-  console.log(`Contract OK: docs-api ${contractVersion} sha256 ${sourceDigest.slice(0, 12)}, ${enumArrays.length} enums, ${endpoints.length} endpoints, ${codes.length} error codes, ${eventTypes.length} event types.`);
+}
+if (problems.length > 0) {
+  console.error(`contract ${mode === "--check" ? "check" : "generation"} failed:`);
+  for (const problem of problems) console.error(`- ${problem}`);
+  process.exit(1);
+}
+if (mode === "--check") {
+  console.log(`contract OK: docs-api ${contractVersion}, ${enumArrays.length} enums, ${endpoints.length} endpoints, ${codes.length} error codes, ${eventTypes.length} event types.`);
 } else {
-  if (problems.length > 0) {
-    console.error("Cannot generate:");
-    for (const problem of problems) console.error(`- ${problem}`);
-    process.exit(1);
-  }
   for (const [file, content] of outputs) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
-    console.log(`Wrote ${path.relative(repositoryRoot, file)}.`);
+    console.log(`wrote ${path.relative(appRoot, file)}`);
   }
 }

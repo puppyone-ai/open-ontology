@@ -1,4 +1,4 @@
-import type { RefreshPolicy, ShareRole } from "../contract/docsApi.generated";
+import type { RefreshPolicy, ShareRole } from "../../../shared/super-ontology/docs-api.generated";
 import { shellQuote } from "../format";
 
 /** Values the delivery step turns into the equivalent `oo context mount` line (10 section 7.9). */

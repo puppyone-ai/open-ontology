@@ -1,4 +1,4 @@
-import type { Alias, EntityRef, Fact } from "./contract/docsApi.generated";
+import type { Alias, EntityRef, Fact } from "../../shared/super-ontology/docs-api.generated";
 
 /** `GET entities/{eid}` (contract `Entity`): the reference plus what the engine knows about it. */
 export type EntityDetail = EntityRef & {

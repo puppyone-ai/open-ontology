@@ -1,5 +1,5 @@
 import type { ConnectionSnapshot, EngineEvent, EngineFileDetail, EngineSnapshot, SuperOntologyPush } from "../../shared/super-ontology/bridge";
-import type { Drive, FileSummary } from "./contract/docsApi.generated";
+import type { Drive, FileSummary } from "../../shared/super-ontology/docs-api.generated";
 import { createOperationId } from "./operationIds";
 import { sourceSeconds } from "./details/mediaModel";
 import { toSuperDriveError, type SuperDriveError } from "./superDriveErrors";

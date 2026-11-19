@@ -1,4 +1,4 @@
-import type { Drive } from "./contract/docsApi.generated";
+import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 
 export type SuperDriveSection = "files" | "review" | "suggestions" | "shares" | "engine" | "settings";
 export type DetailsTab = "overview" | "blocks" | "entities" | "shares" | "speakers";

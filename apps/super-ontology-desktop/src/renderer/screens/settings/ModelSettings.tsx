@@ -3,7 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, DefinitionList, Dialog, Notice, Section, Select, Skeleton, TextField } from "@open-ontology/design-system";
 import { Pencil } from "lucide-react";
 import { useErrorText } from "../../hooks/useText";
-import type { ModelConfig } from "../../model/contract/docsApi.generated";
+import type { ModelConfig } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isEngineReady } from "../../model/superDriveStateModel";

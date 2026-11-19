@@ -4,7 +4,7 @@ import { Button, Card, EmptyState, Notice, Select, Skeleton } from "@open-ontolo
 import { Network, Search } from "lucide-react";
 import { useErrorText } from "../../hooks/useText";
 import { useLoad } from "../../hooks/useLoad";
-import { ENTITY_TYPE_VALUES } from "../../model/contract/docsApi.generated";
+import { ENTITY_TYPE_VALUES } from "../../../shared/super-ontology/docs-api.generated";
 import { ontologyApi } from "../../model/superDriveOntologyApi";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { isEngineReady } from "../../model/superDriveStateModel";

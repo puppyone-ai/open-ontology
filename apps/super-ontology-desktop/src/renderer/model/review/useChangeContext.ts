@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SuggestionDiff } from "../contract/docsApi.generated";
+import type { SuggestionDiff } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions } from "../SuperDriveProvider";
 
 type Change = SuggestionDiff["changes"][number];
