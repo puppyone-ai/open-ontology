@@ -1,4 +1,6 @@
-//! Database sources for `oo source` (D83): `oo source add postgres|mysql|oracle|sqlserver|db2|kingbase|dm8`
+//! Database sources for `oo source` (D83): `oo source add <kind>` for every database kind (postgres, mysql,
+//! mariadb, tidb, oceanbase, polardb, opengauss, kingbase, sqlserver, oracle, db2, dm8,
+//! clickhouse, doris, starrocks, mongodb, opensearch)
 //! registers the database in the stack file the existing pipeline reads
 //! (`stack.yaml`, `oo.stack/v1`), without touching how that pipeline works. Only
 //! the `sources` list changes, through the pipeline's own parser and validator;
@@ -19,30 +21,100 @@ use super::source::{
     env_value, own_secret_file_of, prompt_hidden, read_stdin_text, slug, store_secret,
 };
 
-pub const KINDS: &[&str] = &[
-    "postgres",
-    "mysql",
-    "oracle",
-    "sqlserver",
-    "db2",
-    "kingbase",
-    "dm8",
-];
-
-pub fn is_db_kind(kind: &str) -> bool {
-    KINDS.contains(&kind)
+/// How a kind treats the trust anchor (`tls_ca`), as its connector does.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tls {
+    /// Verified TLS only: the CA is required.
+    Required,
+    /// A CA is required except for this machine's own loopback address.
+    LoopbackPlain,
+    /// The transport takes no CA through the stack file (the driver owns TLS).
+    Driver,
+    /// A CA is optional (the isolated worker mounts it).
+    Optional,
 }
 
-fn default_port(kind: &str) -> u16 {
-    match kind {
-        "mysql" => 3306,
-        "oracle" => 1521,
-        "sqlserver" => 1433,
-        "db2" => 50000,
-        "kingbase" => 54321,
-        "dm8" => 5236,
-        _ => 5432,
+struct Kind {
+    name: &'static str,
+    /// The `engine` written to the stack file; the pipeline's family selector.
+    engine: &'static str,
+    port: u16,
+    tls: Tls,
+    /// The explicit scope the kind needs: `schema.table`, or the unit below.
+    unit: &'static str,
+}
+
+const fn kind(
+    name: &'static str,
+    engine: &'static str,
+    port: u16,
+    tls: Tls,
+    unit: &'static str,
+) -> Kind {
+    Kind {
+        name,
+        engine,
+        port,
+        tls,
+        unit,
     }
+}
+
+const TABLE: &str = "schema.table";
+const TABLES: &[Kind] = &[
+    kind("postgres", "postgres", 5432, Tls::Required, TABLE),
+    kind("mysql", "mysql", 3306, Tls::Required, TABLE),
+    kind("mariadb", "mariadb", 3306, Tls::Required, TABLE),
+    kind("tidb", "tidb", 4000, Tls::Required, TABLE),
+    kind("oceanbase", "oceanbase", 2881, Tls::Required, TABLE),
+    // PolarDB MySQL is a deployment variant of the MySQL family, not a family.
+    kind("polardb", "mysql-polardb", 3306, Tls::Required, TABLE),
+    kind("opengauss", "opengauss", 5432, Tls::Required, TABLE),
+    kind("kingbase", "kingbase", 54321, Tls::Required, TABLE),
+    kind("sqlserver", "sqlserver", 1433, Tls::Required, TABLE),
+    kind("oracle", "oracle", 1521, Tls::Driver, TABLE),
+    kind("db2", "db2", 50000, Tls::Optional, TABLE),
+    kind("dm8", "dm8", 5236, Tls::Driver, TABLE),
+    // ClickHouse, Doris and StarRocks are read over the MySQL wire (D88).
+    kind("clickhouse", "clickhouse", 9004, Tls::LoopbackPlain, TABLE),
+    kind("doris", "doris", 9030, Tls::LoopbackPlain, TABLE),
+    kind("starrocks", "starrocks", 9030, Tls::LoopbackPlain, TABLE),
+    kind(
+        "mongodb",
+        "mongodb",
+        27017,
+        Tls::LoopbackPlain,
+        "database.collection",
+    ),
+    kind(
+        "opensearch",
+        "opensearch",
+        9200,
+        Tls::LoopbackPlain,
+        "schema.index",
+    ),
+];
+
+fn kind_of(name: &str) -> Option<&'static Kind> {
+    TABLES.iter().find(|k| k.name == name)
+}
+
+pub fn is_db_kind(kind: &str) -> bool {
+    kind_of(kind).is_some()
+}
+
+/// Every database kind `oo source add` takes, in documentation order.
+#[cfg(test)]
+fn kinds() -> impl Iterator<Item = &'static str> {
+    TABLES.iter().map(|k| k.name)
+}
+
+fn spec_port(kind: &str) -> u16 {
+    kind_of(kind).map_or(5432, |k| k.port)
+}
+
+fn loopback(host: &str) -> bool {
+    matches!(host, "127.0.0.1" | "::1" | "localhost")
 }
 
 fn err(code: &str, msg: impl Into<String>) -> CliError {
@@ -204,7 +276,7 @@ pub fn build_source(
     let user = p.opt("--user").ok_or_else(|| bad("--user is required"))?;
     let port = match p.opt("--port") {
         Some(v) => v.parse::<u16>().map_err(|_| bad("--port is a number"))?,
-        None => default_port(kind),
+        None => spec_port(kind),
     };
     let tls_ca = match (p.opt("--tls-ca-file"), p.opt("--tls-ca-ref")) {
         (Some(_), Some(_)) => return Err(bad("choose --tls-ca-file or --tls-ca-ref")),
@@ -218,14 +290,31 @@ pub fn build_source(
         (None, None) => None,
     };
     let include: Vec<String> = p.all("--include").iter().map(|s| (*s).to_owned()).collect();
-    if matches!(kind, "postgres" | "mysql" | "kingbase") && tls_ca.is_none() {
+    let spec = kind_of(kind).ok_or_else(|| bad(format!("{kind} is not a database kind")))?;
+    let needs_ca = match spec.tls {
+        Tls::Required => true,
+        Tls::LoopbackPlain => !loopback(host),
+        Tls::Driver | Tls::Optional => false,
+    };
+    if needs_ca && tls_ca.is_none() {
         return Err(bad(format!(
-            "{kind} sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref"
+            "{kind} sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref{}",
+            if spec.tls == Tls::LoopbackPlain {
+                " (plain text is only for 127.0.0.1)"
+            } else {
+                ""
+            }
         )));
     }
-    if kind != "oracle" && include.is_empty() {
+    if tls_ca.is_some() && spec.tls == Tls::Driver {
         return Err(bad(format!(
-            "{kind} sources need an explicit scope: --include <schema.table> (repeatable)"
+            "{kind} takes no trust anchor through the stack file; its transport owns TLS"
+        )));
+    }
+    if include.is_empty() && !matches!(kind, "oracle") {
+        return Err(bad(format!(
+            "{kind} sources need an explicit scope: --include <{}> (repeatable)",
+            spec.unit
         )));
     }
     let mut scope = stack::Scope::default();
@@ -235,7 +324,7 @@ pub fn build_source(
     scope.exclude = p.all("--exclude").iter().map(|s| (*s).to_owned()).collect();
     Ok(Source {
         id: name.to_owned(),
-        engine: kind.to_owned(),
+        engine: spec.engine.to_owned(),
         host: host.to_owned(),
         port,
         database: database.to_owned(),
@@ -394,15 +483,12 @@ pub fn test(p: &Parsed, name: &str) -> Result<(), CliError> {
         .iter()
         .find(|x| x.id == name)
         .ok_or_else(|| bad(format!("no source {name}")))?;
-    // Every address the name resolves to is tried: `localhost` yields ::1 first, and a
-    // database published on 127.0.0.1 only must still count as reachable.
     let reach = (src.host.as_str(), src.port)
         .to_socket_addrs()
         .ok()
-        .is_some_and(|mut a| {
-            a.any(|a| {
-                std::net::TcpStream::connect_timeout(&a, std::time::Duration::from_secs(5)).is_ok()
-            })
+        .and_then(|mut a| a.next())
+        .is_some_and(|a| {
+            std::net::TcpStream::connect_timeout(&a, std::time::Duration::from_secs(5)).is_ok()
         });
     let report = json!({"name": name, "backend": src.engine, "reachable": reach, "ok": reach,
         "note": "TCP reachability only; `oo doctor` signs in and reads the catalog"});
@@ -492,41 +578,157 @@ mod tests {
         assert!(!v.to_string().contains("/secret/path"));
     }
 
+    const BASE: [&str; 8] = [
+        "--name",
+        "src",
+        "--host",
+        "db.local",
+        "--database",
+        "app",
+        "--user",
+        "ro",
+    ];
+
+    fn with(extra: &[&'static str]) -> Parsed {
+        let mut a = BASE.to_vec();
+        a.extend_from_slice(extra);
+        parsed(&a)
+    }
+
     #[test]
-    fn every_doctor_engine_is_a_source_kind_with_its_port_and_scope_rule() {
-        let base = [
-            "--name",
-            "x",
-            "--host",
-            "h",
-            "--database",
-            "d",
-            "--user",
-            "u",
+    fn every_kind_maps_to_the_pipeline_family_and_default_port() {
+        let want = [
+            ("postgres", "postgres", 5432),
+            ("mysql", "mysql", 3306),
+            ("mariadb", "mariadb", 3306),
+            ("tidb", "tidb", 4000),
+            ("oceanbase", "oceanbase", 2881),
+            ("polardb", "mysql-polardb", 3306),
+            ("opengauss", "opengauss", 5432),
+            ("kingbase", "kingbase", 54321),
+            ("sqlserver", "sqlserver", 1433),
+            ("oracle", "oracle", 1521),
+            ("db2", "db2", 50000),
+            ("dm8", "dm8", 5236),
+            ("clickhouse", "clickhouse", 9004),
+            ("doris", "doris", 9030),
+            ("starrocks", "starrocks", 9030),
+            ("mongodb", "mongodb", 27017),
+            ("opensearch", "opensearch", 9200),
         ];
-        for (kind, port) in [
-            ("sqlserver", 1433),
-            ("db2", 50000),
-            ("kingbase", 54321),
-            ("dm8", 5236),
+        assert_eq!(kinds().count(), want.len());
+        for (kind, engine, port) in want {
+            let extra: &[&'static str] = if matches!(kind, "oracle" | "dm8") {
+                &["--include", "S.T"]
+            } else {
+                &["--tls-ca-ref", "env:CA", "--include", "S.T"]
+            };
+            let s = build_source(&with(extra), kind, "src", "env:P".into())
+                .ok()
+                .unwrap_or_else(|| panic!("{kind} builds"));
+            assert_eq!((s.engine.as_str(), s.port), (engine, port), "{kind}");
+            assert_eq!(s.scope.include, vec!["S.T"], "{kind}");
+        }
+    }
+
+    #[test]
+    fn verified_tls_kinds_refuse_a_missing_trust_anchor() {
+        for kind in [
+            "postgres",
+            "mysql",
+            "mariadb",
+            "tidb",
+            "oceanbase",
+            "polardb",
+            "opengauss",
+            "kingbase",
+            "sqlserver",
+            "clickhouse",
+            "doris",
+            "starrocks",
+            "mongodb",
+            "opensearch",
         ] {
-            assert!(is_db_kind(kind));
-            let e = build_source(&parsed(&base), kind, "x", "r".into())
+            let e = build_source(&with(&["--include", "S.T"]), kind, "src", "x".into())
+                .err()
+                .unwrap_or_else(|| panic!("{kind} needs a CA"));
+            assert!(e.message.contains("trust anchor"), "{kind}: {}", e.message);
+        }
+    }
+
+    #[test]
+    fn plain_text_is_for_loopback_analytic_and_document_kinds_only() {
+        for kind in ["clickhouse", "doris", "starrocks", "mongodb", "opensearch"] {
+            let a = [
+                "--name",
+                "src",
+                "--host",
+                "127.0.0.1",
+                "--database",
+                "app",
+                "--user",
+                "ro",
+                "--include",
+                "S.T",
+            ];
+            assert!(
+                build_source(&parsed(&a), kind, "src", "x".into()).is_ok(),
+                "{kind} on loopback"
+            );
+        }
+        let a = [
+            "--name",
+            "src",
+            "--host",
+            "127.0.0.1",
+            "--database",
+            "app",
+            "--user",
+            "ro",
+            "--include",
+            "S.T",
+        ];
+        let e = build_source(&parsed(&a), "mariadb", "src", "x".into())
+            .err()
+            .unwrap();
+        assert!(e.message.contains("trust anchor"));
+    }
+
+    #[test]
+    fn scope_is_explicit_and_names_the_unit_of_each_kind() {
+        for (kind, unit) in [
+            ("mariadb", "schema.table"),
+            ("mongodb", "database.collection"),
+            ("opensearch", "schema.index"),
+        ] {
+            let e = build_source(&with(&["--tls-ca-ref", "env:CA"]), kind, "src", "x".into())
                 .err()
                 .unwrap();
-            let expect = if kind == "kingbase" {
-                "trust anchor"
-            } else {
-                "explicit scope"
-            };
-            assert!(e.message.contains(expect), "{kind}: {}", e.message);
-            let mut a = base.to_vec();
-            a.extend(["--tls-ca-ref", "env:CA", "--include", "s.t"]);
-            let s = build_source(&parsed(&a), kind, "x", "r".into())
-                .ok()
-                .unwrap();
-            assert_eq!((s.port, s.engine.as_str()), (port, kind));
+            assert!(e.message.contains(unit), "{kind}: {}", e.message);
         }
-        assert!(!is_db_kind("mariadb"));
+    }
+
+    #[test]
+    fn oracle_and_dm8_take_no_trust_anchor_but_db2_may() {
+        for kind in ["oracle", "dm8"] {
+            let e = build_source(
+                &with(&["--tls-ca-ref", "env:CA", "--include", "S.T"]),
+                kind,
+                "s",
+                "x".into(),
+            )
+            .err()
+            .unwrap();
+            assert!(e.message.contains("owns TLS"), "{kind}");
+        }
+        assert!(
+            build_source(
+                &with(&["--tls-ca-ref", "env:CA", "--include", "S.T"]),
+                "db2",
+                "s",
+                "x".into()
+            )
+            .is_ok()
+        );
     }
 }

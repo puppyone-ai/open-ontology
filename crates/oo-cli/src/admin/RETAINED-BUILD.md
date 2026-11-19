@@ -20,6 +20,9 @@ The runtime stack contains only renamed references; `owner.json` binds the
 original stack hash and mount paths, not credential bytes. Changed credential
 bytes require explicit rotation. `oo status` exposes only whether model
 sources are configured. A HOME inside Git is rejected for these copies.
+A completed build saves the Gateway profile named after the source in the CLI config
+directory (`OO_CONFIG_DIR`, default `$HOME/.config/open-ontology`) and selects it; tests and
+agents set `OO_BUILD_NO_PROFILE=1` (or `OO_CONFIG_DIR`) to leave the owner's profiles alone.
 
 `oo build` then runs each phase as a one-shot container of the pinned runtime
 image with the deployment's `work`, `home` and read-only `pki` mounts. Before

@@ -443,13 +443,16 @@ pub(super) fn run(
             if cycle.is_none() {
                 let profile = issued_profile(config)?;
                 let name = &stack.sources[0].id;
-                let directory = crate::lifecycle::directory()?;
-                match crate::profile::load(&directory, name) {
-                    Ok(saved) if saved == profile => {
-                        crate::profile::select(&directory, name).map_err(Failure::local)?;
-                    }
-                    _ => {
-                        crate::profile::save(&directory, name, &profile).map_err(Failure::local)?
+                // Tests and agents that must not touch the owner's CLI profile set
+                // OO_BUILD_NO_PROFILE (or point OO_CONFIG_DIR elsewhere).
+                if profile_may_be_saved() {
+                    let directory = crate::lifecycle::directory()?;
+                    match crate::profile::load(&directory, name) {
+                        Ok(saved) if saved == profile => {
+                            crate::profile::select(&directory, name).map_err(Failure::local)?;
+                        }
+                        _ => crate::profile::save(&directory, name, &profile)
+                            .map_err(Failure::local)?,
                     }
                 }
                 let readiness = crate::lifecycle::runtime()?
@@ -518,6 +521,12 @@ pub(super) fn issued_profile(config: &Path) -> Result<Value> {
         "token_file":state.join("first-user.token"),"ca_file":root.join("consumer/ca.crt"),
         "client_pem":root.join("consumer/client.pem")}),
     )
+}
+
+/// False when OO_BUILD_NO_PROFILE is set: the build then leaves every profile
+/// file (and the active-profile pointer) untouched.
+fn profile_may_be_saved() -> bool {
+    std::env::var_os("OO_BUILD_NO_PROFILE").is_none()
 }
 
 fn review_pending(chain: &Value, state: &Path) -> bool {

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::{IsTerminal, Read, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use oo_core::api::payload_sha256;
@@ -447,7 +447,11 @@ fn summary(command: &Value) -> Result<Value> {
             Some("rejected") => {
                 rejections.insert(id.into(), json!(text(&value["reason"])?));
             }
-            _ => return Err(Failure::local("REVIEW_EDGE_DECISION")),
+            _ => {
+                return Err(Failure::local(
+                    "REVIEW_EDGE_DECISION: an adjudicated edge needs the one confirmation; pass --review-file with {\"protocol\":\"oo.build-review/v1\",\"reason\":\"...\",\"overrides\":optional}",
+                ));
+            }
         }
     }
     bridge(
@@ -456,6 +460,57 @@ fn summary(command: &Value) -> Result<Value> {
         "core":command["draft"]["review"]["summary"]["core_entities"],
         "orphan_threshold":command["orphan_threshold"]}),
     )
+}
+
+pub(super) const BUILD_REVIEW: &str = "oo.build-review/v1";
+
+/// `{"protocol":"oo.build-review/v1","reason":"...","overrides":{oo.adjudication-overrides/v1}?}`:
+/// the owner's one decision as a file, for agents and the app. The summary hash is
+/// recomputed after the overrides, so the confirmation binds exactly what is published.
+fn synthesize_confirm(
+    decision_file: Option<&Path>,
+    adjudication: &Path,
+    out: &Path,
+) -> Result<Option<(PathBuf, Option<PathBuf>)>> {
+    use crate::tui::adjudication as adj;
+    let Some(doc) = decision_file.and_then(|f| read(f).ok()) else {
+        return Ok(None);
+    };
+    if doc["protocol"] != BUILD_REVIEW {
+        return Ok(None);
+    }
+    let base = adj::load(adjudication).map_err(Failure::local)?;
+    let overrides: Option<adj::Overrides> = match doc.get("overrides").filter(|v| !v.is_null()) {
+        Some(v) => {
+            Some(serde_json::from_value(v.clone()).map_err(|_| Failure::local("OVERRIDE_SHAPE"))?)
+        }
+        None => None,
+    };
+    let effective = match &overrides {
+        Some(o) => adj::apply(&base, o).map_err(Failure::local)?,
+        None => base.clone(),
+    };
+    let confirmation = adj::confirm(
+        &base,
+        overrides.as_ref(),
+        &adj::summary_sha256(&effective),
+        doc["reason"].as_str().unwrap_or_default(),
+        &adj::now_rfc3339(),
+    )
+    .map_err(Failure::local)?;
+    let confirm_path = out.with_extension("confirm.json");
+    let _ = fs::remove_file(&confirm_path);
+    adj::write_new(&confirm_path, &confirmation).map_err(Failure::local)?;
+    let overrides_path = match &overrides {
+        Some(o) if !o.items.is_empty() => {
+            let path = out.with_extension("overrides.json");
+            let _ = fs::remove_file(&path);
+            adj::write_new(&path, &json!(o)).map_err(Failure::local)?;
+            Some(path)
+        }
+        _ => None,
+    };
+    Ok(Some((confirm_path, overrides_path)))
 }
 
 /// Recheck a recovered output before the publisher consumes it; file existence is not a receipt.
@@ -593,13 +648,30 @@ pub(super) fn review_with(
     out: &Path,
     source: &Adjudicated,
 ) -> Result<Value> {
-    // Build's existing review-file option also accepts the single D28 confirmation.
+    // Build's existing review-file option also accepts the single D28 confirmation,
+    // or a plain `oo.build-review/v1` decision (reason + optional edge overrides)
+    // that is turned into the bound confirmation here, without a screen.
+    let beside_early = out
+        .parent()
+        .unwrap_or(Path::new("."))
+        .join("adjudication.json");
+    let adjudication_path = source
+        .adjudication
+        .map(Path::to_path_buf)
+        .or_else(|| beside_early.exists().then_some(beside_early));
+    let synthesized = match &adjudication_path {
+        Some(path) => synthesize_confirm(decision_file, path, out)?,
+        None => None,
+    };
     let confirm_source = Adjudicated {
         raw_input: source.raw_input,
         adjudication: source.adjudication,
-        confirm: decision_file
-            .filter(|path| read(path).is_ok_and(|v| v["protocol"] == "oo.publish-confirm/v1")),
-        overrides: source.overrides,
+        confirm: synthesized.as_ref().map(|s| s.0.as_path()).or(decision_file
+            .filter(|path| read(path).is_ok_and(|v| v["protocol"] == "oo.publish-confirm/v1"))),
+        overrides: synthesized
+            .as_ref()
+            .and_then(|s| s.1.as_deref())
+            .or(source.overrides),
     };
     let (decision_file, source) = if confirm_source.confirm.is_some() {
         (None, &confirm_source)
@@ -883,6 +955,56 @@ pub(super) fn run(args: &[String]) -> Result<Invocation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn build_review_file_becomes_the_bound_confirmation_without_a_screen() {
+        use crate::tui::adjudication as adj;
+        let dir = std::env::temp_dir().join(format!("oo-review-brf-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/adjudication.json");
+        let base = adj::load(&fixture).unwrap();
+        let file = dir.join("decision.json");
+        let put = |v: Value| {
+            let _ = fs::remove_file(&file);
+            adj::write_new(&file, &v).unwrap();
+        };
+        put(json!({"protocol":BUILD_REVIEW,"reason":"Owner reviewed the edges"}));
+        let out = dir.join("reviewed.json");
+        let (confirm, overrides) = synthesize_confirm(Some(&file), &fixture, &out)
+            .ok()
+            .unwrap()
+            .unwrap();
+        assert!(overrides.is_none());
+        let doc = read(&confirm).ok().unwrap();
+        assert_eq!(doc["protocol"], "oo.publish-confirm/v1");
+        assert_eq!(doc["summary_sha256"], json!(base.summary_sha256));
+        // It is accepted by the same binding check the confirm screen uses.
+        let source = Adjudicated {
+            raw_input: None,
+            adjudication: Some(&fixture),
+            confirm: Some(&confirm),
+            overrides: None,
+        };
+        assert!(
+            confirm_once(&fixture, &source, &out, &mut None)
+                .ok()
+                .unwrap()
+                .is_some()
+        );
+        // A reason is required; other protocols are not this path.
+        put(json!({"protocol":BUILD_REVIEW,"reason":""}));
+        assert!(synthesize_confirm(Some(&file), &fixture, &out).is_err());
+        put(json!({"protocol":"oo.owner-review/v1"}));
+        assert!(
+            synthesize_confirm(Some(&file), &fixture, &out)
+                .ok()
+                .unwrap()
+                .is_none()
+        );
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn adjudicated_confirm_file_must_match_the_recomputed_summary() {
         use crate::tui::adjudication as adj;

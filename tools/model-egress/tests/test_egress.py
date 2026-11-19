@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from model_egress import Egress, Refusal, read_key, server, validate_url
+from model_egress import Egress, Refusal, json_body, read_key, server, validate_url
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -68,6 +68,16 @@ class Replay:
 
 
 class Tests(unittest.TestCase):
+    def test_event_stream_labelled_non_stream_reply_is_accepted(self):
+        body = {'choices': [{'message': {'content': 'ok'}}], 'usage': {'prompt_tokens': 1}}
+        plain = json.dumps(body).encode()
+        self.assertEqual(json_body(plain), body)
+        self.assertEqual(json_body(plain + b'data: [DONE]'), body)
+        self.assertEqual(json_body(b'data: ' + plain + b'\n\ndata: [DONE]\n\n'), body)
+        for bad in (b'', b'not json', plain + b'garbage', b'data: {}\ndata: {}', b'{"a":1} {"b":2}'):
+            with self.assertRaises(ValueError):
+                json_body(bad)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)

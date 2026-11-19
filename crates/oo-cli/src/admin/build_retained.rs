@@ -56,7 +56,7 @@ pub(super) fn configuration(runtime: &Value) -> Result<Value> {
         || !runtime["gateway"].is_object()
         || runtime["builder"]["model"]["call_limit"]
             .as_u64()
-            .is_none_or(|n| !(1..=6).contains(&n))
+            .is_none_or(|n| !(1..=4096).contains(&n))
     {
         return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
     }
@@ -671,7 +671,9 @@ mod tests {
             .ok()
             .unwrap();
         assert_ne!(first, configuration(&runtime).ok().unwrap());
-        runtime["builder"]["model"]["call_limit"] = json!(7);
+        runtime["builder"]["model"]["call_limit"] = json!(14);
+        assert!(configuration(&runtime).is_ok());
+        runtime["builder"]["model"]["call_limit"] = json!(4097);
         assert!(configuration(&runtime).is_err());
         runtime["builder"]["model"]["call_limit"] = json!(6);
         save(&model, &json!({"model":{"key":"inline-not-allowed"}}))

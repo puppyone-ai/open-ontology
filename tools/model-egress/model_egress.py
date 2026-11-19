@@ -109,6 +109,25 @@ def validate_url(value):
     return url
 
 
+def json_body(raw):
+    """A non-stream reply as JSON. Some gateways label it text/event-stream and add a
+    trailing `data: [DONE]`, or send one `data: {json}` event: accept both, nothing else."""
+    try:
+        return json.loads(raw)
+    except ValueError:
+        text = raw.decode('utf-8', 'strict').strip()
+        if text.startswith('data:'):
+            events = [line[5:].strip() for line in text.splitlines() if line.startswith('data:')]
+            events = [e for e in events if e and e != '[DONE]']
+            if len(events) == 1:
+                return json.loads(events[0])
+            raise ValueError('events')
+        body, end = json.JSONDecoder().raw_decode(text)
+        if text[end:].strip() not in ('data: [DONE]', '[DONE]'):
+            raise ValueError('trailing')
+        return body
+
+
 def error_code(status, body):
     # Never relay error messages: providers sometimes echo headers/request bodies.
     error = body.get('error', {}) if isinstance(body, dict) else {}
@@ -304,7 +323,7 @@ class Egress:
                 if len(raw) > MAX_BYTES:
                     raise Refusal('RESPONSE_BUDGET')
                 try:
-                    body = json.loads(raw)
+                    body = json_body(raw)
                 except ValueError:
                     raise Refusal('UPSTREAM_PROTOCOL') from None
                 if response.status != 200 or not isinstance(body, dict) or 'error' in body:

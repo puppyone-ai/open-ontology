@@ -1,12 +1,34 @@
 //! Feature-isolated helper: references on stdin, never credential values in argv.
-use oo_connectors::engine::{ReadBudget, SourceEngine, TableRef};
+use oo_connectors::engine::{EngineFamily, ReadBudget, SourceEngine, TableRef};
 use oo_connectors::mysql::{EngineOptions, MysqlConfig, MysqlEngine};
+use oo_connectors::olap::{OlapConfig, OlapEngine, OlapTls};
 use oo_stack::{secret::SecretStore, stack::Source};
 use serde_json::{Value, json};
 use std::io::{self, Read};
 
 #[path = "../../../../crates/oo-cli/src/admin/inspect.rs"]
 mod inspection;
+
+fn family_of(engine: &str) -> Result<EngineFamily, &'static str> {
+    match engine.split('-').next().unwrap_or("") {
+        // PolarDB MySQL is a deployment variant of the MySQL family.
+        "mysql" | "polardb" | "auto" => Ok(EngineFamily::Mysql),
+        "mariadb" => Ok(EngineFamily::Mariadb),
+        "tidb" => Ok(EngineFamily::Tidb),
+        "oceanbase" => Ok(EngineFamily::Oceanbase),
+        "clickhouse" => Ok(EngineFamily::Clickhouse),
+        "doris" => Ok(EngineFamily::Doris),
+        "starrocks" => Ok(EngineFamily::Starrocks),
+        _ => Err("ENGINE_NOT_AVAILABLE"),
+    }
+}
+
+fn is_olap(family: &EngineFamily) -> bool {
+    matches!(
+        family,
+        EngineFamily::Clickhouse | EngineFamily::Doris | EngineFamily::Starrocks
+    )
+}
 
 fn run() -> Result<Value, &'static str> {
     let mut body = String::new();
@@ -22,20 +44,56 @@ fn run() -> Result<Value, &'static str> {
         serde_json::from_value(value["source"].clone()).map_err(|_| "MYSQL_DOCTOR_INPUT")?;
     let tables: Vec<TableRef> =
         serde_json::from_value(value["tables"].clone()).map_err(|_| "MYSQL_DOCTOR_INPUT")?;
-    let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
+    let family = family_of(&source.engine)?;
+    let loopback = matches!(source.host.as_str(), "localhost" | "127.0.0.1" | "::1" | "host.docker.internal");
+    // Analytic engines may be plaintext only on this host's own loopback.
+    let ca = match (&source.tls_ca, is_olap(&family) && loopback) {
+        (Some(ca), _) => Some(ca),
+        (None, true) => None,
+        (None, false) => return Err("SOURCE_TLS_CA_REQUIRED"),
+    };
     let store = match value["secrets_dir"].as_str() {
         Some(path) => SecretStore::open(path)?,
         None => SecretStore::from_home()?,
     };
     // Validate the file using the private-store rules before handing its path
     // to the existing connector, whose TLS client verifies the hostname.
-    store.read(&ca.secret_ref)?;
+    let ca_file = match ca {
+        Some(ca) => {
+            store.read(&ca.secret_ref)?;
+            Some(store.path(&ca.secret_ref)?)
+        }
+        None => None,
+    };
+    if is_olap(&family) {
+        let config = OlapConfig {
+            host: source.host.clone(),
+            port: source.port,
+            database: source.database.clone(),
+            user: source.user.clone(),
+            tls: ca_file.map(|ca_file| OlapTls { ca_file, server_name: None }),
+            connect_timeout_ms: 10_000,
+        };
+        let mut engine = OlapEngine::new(
+            family,
+            config,
+            store.read(&source.password.secret_ref)?.into(),
+            ReadBudget::default(),
+        )
+        .map_err(|_| "OLAP_CONFIG")?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|_| "MYSQL_DOCTOR_RUNTIME")?;
+        return Ok(runtime.block_on(inspection::inspect(&mut engine, &tables, &source.sync.mode)));
+    }
+    let ca_file = ca_file.ok_or("SOURCE_TLS_CA_REQUIRED")?;
     let config = MysqlConfig {
         mysql_host: source.host.clone(),
         mysql_port: source.port,
         mysql_database: source.database.clone(),
         mysql_user: source.user.clone(),
-        mysql_ca_file: store.path(&ca.secret_ref)?,
+        mysql_ca_file: ca_file,
         mysql_tls_server_name: None,
         // The connector receives resolved bytes, not a file:/env: locator.
         secret_ref: oo_connectors::SecretRef::new("secret://source-password")
@@ -46,7 +104,8 @@ fn run() -> Result<Value, &'static str> {
         source_id: source.id.clone(),
         ..Default::default()
     };
-    let mut engine = MysqlEngine::new(
+    let mut engine = MysqlEngine::new_family(
+        family,
         config,
         store.read(&source.password.secret_ref)?.into(),
         options,
