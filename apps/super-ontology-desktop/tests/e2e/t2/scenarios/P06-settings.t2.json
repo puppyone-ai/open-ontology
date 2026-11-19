@@ -20,8 +20,20 @@
       "do": "relaunch"
     },
     {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
       "do": "click",
-      "name": "app.nav.settings"
+      "name": "app.nav.settings",
+      "until": "screen-settings"
     },
     {
       "do": "click",
@@ -69,6 +81,10 @@
       }
     },
     {
+      "do": "click",
+      "name": "app.settings.tab.about"
+    },
+    {
       "do": "assert",
       "assertion": "dom",
       "args": {
@@ -80,8 +96,20 @@
       "do": "relaunch"
     },
     {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
       "do": "click",
-      "name": "app.nav.sources"
+      "name": "app.nav.sources",
+      "until": "screen-sources"
     },
     {
       "do": "assert",

@@ -20,12 +20,28 @@
       "do": "relaunch"
     },
     {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
       "do": "click",
-      "name": "app.nav.agents"
+      "name": "app.nav.agents",
+      "until": "screen-agents"
     },
     {
       "do": "click",
       "name": "app.connect.name"
+    },
+    {
+      "do": "press",
+      "chord": "cmd+a"
     },
     {
       "do": "typeFocused",
@@ -62,6 +78,10 @@
       "args": {
         "allowAgentToken": true
       }
+    },
+    {
+      "do": "scroll",
+      "testid": "agent-token-revoke"
     },
     {
       "do": "click",

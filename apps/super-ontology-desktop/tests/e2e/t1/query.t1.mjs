@@ -14,6 +14,13 @@ runScenario({ name: "query", title: "Query, tables, knowledge, files and diagnos
   await s.click("nav-ontology");
   await s.click("ontology-tab-query");
   await s.waitFor("query-gateway", { "data-state": "disconnected" });
+  // A packaged app has neither the native-dialog queue nor the canned `oo` this scenario drives (it runs its own bundled oo), so the token
+  // file cannot be granted: the packaged run proves the tab renders its disconnected state and stops here; the full path runs from source.
+  if (s.packaged) {
+    s.check("the packaged Query tab shows the Gateway as disconnected", (await s.count("query-gateway-token")) === 1);
+    await s.shot("query-packaged-disconnected");
+    return;
+  }
   await s.answerDialog(token);
   await s.click("query-gateway-token");
   await s.until("document.querySelector('[data-testid=\"query-gateway\"]').textContent.includes('gateway.token')", "the chosen token file");

@@ -20,8 +20,20 @@
       "do": "relaunch"
     },
     {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
       "do": "click",
-      "name": "app.nav.sources"
+      "name": "app.nav.sources",
+      "until": "screen-sources"
     },
     {
       "do": "assert",
@@ -50,7 +62,8 @@
     },
     {
       "do": "click",
-      "name": "app.nav.sources"
+      "name": "app.nav.sources",
+      "until": "screen-sources"
     },
     {
       "do": "click",
@@ -63,6 +76,22 @@
     {
       "do": "chooseFolder",
       "path": "${secondDocs}"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-source-detail",
+        "attributes": {
+          "data-name": "Second docs"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
     },
     {
       "do": "assert",

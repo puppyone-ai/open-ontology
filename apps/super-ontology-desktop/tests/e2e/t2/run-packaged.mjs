@@ -12,7 +12,7 @@
 // Limits: a scenario gets at most 2 attempts of 5 minutes each. Fixtures are created once, up front, and chosen by full path.
 // Scenario file: scenarios/<id>-<name>.t2.json; names are message keys of the app catalog (`app.<key>`, resolved per locale) or, when a
 // step says `"literal": true`, text a person would read (an entity or source name from the fixtures).
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -28,11 +28,13 @@ export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
 export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
-const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
 const ATTEMPT_MS = 5 * 60_000;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
 
+const osa = (script) => new Promise((resolve) => { execFile("osascript", ["-e", script], (error, stdout) => resolve(error ? "" : String(stdout).trim())); });
+const sheetCount = (pid) => osa(`tell application "System Events" to tell (first process whose unix id is ${pid}) to return count of sheets of window 1`).then((value) => Number(value) || 0);
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 /** The accessible name of a message key: the catalog text up to its first placeholder. */
@@ -131,6 +133,30 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     child = null;
     cdp = null;
   };
+  // Text goes in as a paste: a keystroke is read by the user's input method (a Chinese one turns "t2" into a character), a paste is not.
+  async function paste(value) {
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(value); });
+    await peekaboo.press("cmd+v");
+    await sleep(500);
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
+  async function chooseFolder(folder) {
+    for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
+    await peekaboo.press("cmd+shift+g", { native: true });
+    await sleep(800);
+    await peekaboo.press("cmd+v", { native: true });
+    await sleep(800);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await peekaboo.nativeReturn(36);
+      await sleep(1500);
+      if ((await sheetCount(child.pid)) === 0) break;
+    }
+    await sleep(1500);
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
   async function engineApi(route, { method = "GET", body, headers = {} } = {}) {
     const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8"));
     const token = (await fs.readFile(info.token_file ?? path.join(stateDirectory, "serve.token"), "utf8")).trim();
@@ -168,15 +194,28 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "launch": await launch(); break;
         case "relaunch": await quit(); await launch(); break;
         case "quit": await quit(); break;
-        case "click": await peekaboo.click(nameOf()); break;
-        case "type": await peekaboo.click(nameOf()); await peekaboo.type(text(step.text)); break;
+        // `until`: a test id the click must bring up (a screen); a click that the app swallowed while it was still booting is repeated.
+        case "click": {
+          await peekaboo.click(nameOf());
+          // The accessibility press of a control is sometimes acknowledged and not acted on; the next tries use a real mouse click.
+          for (let again = 0; step.until && again < 3; again += 1) {
+            const arrived = await assertions.dom({ cdp, args: { testid: step.until, withinMs: 5000 } });
+            if (arrived.ok) break;
+            await peekaboo.click(nameOf(), { strategy: again === 0 ? "synthOnly" : again === 1 ? "synthFirst" : "actionOnly" });
+          }
+          break;
+        }
+        case "type": await peekaboo.click(nameOf()); await paste(text(step.text)); break;
         case "press": await peekaboo.press(step.chord); break;
-        case "typeFocused": await peekaboo.type(text(step.text)); break;
-        // The native open panel: Go to folder (Cmd+Shift+G), the full path, Return to go there, Return to choose it.
-        case "chooseFolder": await sleep(800); await peekaboo.press("cmd+shift+g", { native: true }); await sleep(600); await peekaboo.type(text(step.path), { native: true }); await sleep(300); for (const code of [36, 76, 36]) { await peekaboo.nativeReturn(code); await sleep(2000); } break;
+        case "typeFocused": await paste(text(step.text)); break;
+        // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
+        // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
+        case "chooseFolder": await chooseFolder(text(step.path)); break;
+        // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
+        case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
-        case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); break;
+        case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); if (step.elements) await fs.writeFile(path.join(directory, `${label}-${step.label}.elements.json`), JSON.stringify((await peekaboo.elements()).map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1)); break;
         case "assert": {
           const result = await assertions[step.assertion]({ cdp, args: step.args ?? {}, locale, directory, variables, profile });
           if (!result.ok) throw new Error(`assertion ${step.assertion} failed: ${result.detail}`);
@@ -191,6 +230,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   } catch (error) {
     run.error = error instanceof Error ? error.stack : String(error);
     await peekaboo.see(path.join(directory, "failure.png")).catch(() => undefined);
+    await peekaboo.elements().then((list) => fs.writeFile(path.join(directory, "failure.elements.json"), JSON.stringify(list.map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1))).catch(() => undefined);
     await fs.writeFile(path.join(directory, "renderer-console.json"), JSON.stringify(cdp?.console() ?? [], null, 2)).catch(() => undefined);
   } finally {
     recording?.kill("SIGINT");
