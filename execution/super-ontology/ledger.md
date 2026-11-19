@@ -146,6 +146,12 @@
 | SO-B-S18-07 | D83 | merged | feat/super-ontology (WP3b 分支并入) | 591eed52c → 591eed52c | — | — | Search facts and blocks through the unified ontology search |
 | SO-B-S18-08 | D83 | merged | feat/super-ontology (WP3b 分支并入) | ce5d422e6 → ce5d422e6 | — | — | Make the unified search fit the Gateway SQL guard |
 | SO-B-S18-09 | D83 | merged | feat/super-ontology (WP3b 分支并入) | ab7ee3d1e → 5d5abe689 | — | — | Run the CLI-first end to end against the real OO Gateway |
+| SO-B-S16-08 | D83 | merged | feat/super-ontology (车道 F 分支并入) | 89a4ab519 → 89a4ab519 | — | — | Install the Docker-free document parser runtime from oo itself |
+| SO-B-S16-09 | D83 | merged | feat/super-ontology (车道 F 分支并入) | 4804931b7 → 4804931b7 | — | — | Start the daemon from the first oo source add on a fresh HOME |
+| SO-B-S16-10 | D83 | merged | feat/super-ontology (车道 F 分支并入) | d6012a50e → d6012a50e | — | — | Lock the rebuilt ocr-parser image with the text-layer fill |
+| SO-B-S16-11 | D83 | merged | feat/super-ontology (车道 F 分支并入) | 5224a5bb9 → 5224a5bb9 | — | — | Prove docx and pdf publish from a fresh HOME without Docker |
+| SO-B-S16-12 | D83 | merged | feat/super-ontology (车道 F 分支并入) | ba022bf4c → ba022bf4c | — | — | Test the CLI-only paths no script covered |
+| SO-B-S16-13 | D83 | merged | feat/super-ontology (车道 F 分支并入) | 6d88bafef → 63cdef04d | — | — | Record the F1 evidence and refresh the OCR subset measurement |
 | SO-B-S18-01 | D83 | merged | feat/super-ontology (WP3 分支并入) | a0c7e4863 → a0c7e4863 | — | — | docs-api 1.7：统一本体查询接口 |
 | SO-B-S18-02 | D83 | merged | feat/super-ontology (WP3 分支并入) | 53c983147 → 04e772972 | — | — | /v1/ontology/* 代理、oo ontology search/entity/query/sources、oo agent token |
 | SO-B-S18-03 | D83 | merged | feat/super-ontology (WP3 分支并入) | c213e6aeb → c213e6aeb | — | — | MCP 统一工具与 oo mcp --stdio |
