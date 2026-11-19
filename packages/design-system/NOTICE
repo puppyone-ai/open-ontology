@@ -1,0 +1,7 @@
+Open Ontology design system
+Copyright the Open Ontology contributors. Licensed under the Apache License, Version 2.0.
+
+The localization runtime in src/localization (locale resolution, message formatting, the React provider) and the focus-trap
+and keyboard handling of the dialog and menu primitives are adapted from the Puppyone Desktop project
+(https://github.com/puppyone-ai/puppyone, Apache License 2.0, Copyright the Puppyone authors). They were modified: renamed
+packages and identifiers, removed product-specific code, and new styling driven by this package's own tokens.

@@ -1,0 +1,40 @@
+@layer so-base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--so-canvas);
+    color: var(--so-text);
+    font: var(--so-weight-regular) var(--so-text-sm) / var(--so-leading) var(--so-font-ui);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+  }
+  h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
+  ul, ol { padding: 0; list-style: none; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: default; }
+  a { color: var(--so-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  code, kbd, pre, samp { font-family: var(--so-font-mono); font-size: var(--so-text-xs); }
+  ::selection { background: var(--so-focus-ring); }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--so-focus-ring); outline-offset: 1px; border-radius: var(--so-radius-control); }
+  [hidden] { display: none !important; }
+  .so-visually-hidden {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* Quiet scrollbars: thin, visible on hover only. */
+  * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  *:hover { scrollbar-color: var(--so-line-strong) transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 8px; background: transparent; background-clip: content-box; }
+  *:hover::-webkit-scrollbar-thumb { background-color: var(--so-line-strong); background-clip: content-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+}
