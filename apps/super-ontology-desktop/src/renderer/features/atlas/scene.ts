@@ -1,6 +1,6 @@
 import { collapsedRadius, discBounds, expandedRadius, GOLDEN_ANGLE, memberRadius, phyllotaxisAnchors, spiralPoint } from "./layout";
 import type { SimNodeSpec } from "./simulation";
-import type { AtlasData, AtlasGroup, AtlasGroupKind, AtlasLink, AtlasLinkKind, AtlasMember, AtlasOp, AtlasRef, AtlasTone } from "./model";
+import type { AtlasData, AtlasGroup, AtlasGroupKind, AtlasSourceKind, AtlasLink, AtlasLinkKind, AtlasMember, AtlasOp, AtlasRef, AtlasTone } from "./model";
 
 /**
  * The state of the atlas: cells, their sizes, how far each has grown, pulsed or faded, and the links between them. A pure
@@ -13,6 +13,8 @@ export type SceneNode = {
   /** `idx` of the group (the node's own `idx` for a group). */
   group: number;
   groupKind: AtlasGroupKind;
+  /** Groups only: the kind of source, for the glyph next to the label. */
+  source: AtlasSourceKind | null;
   tone: AtlasTone;
   label: string;
   ref: AtlasRef | null;
@@ -110,7 +112,7 @@ export class AtlasScene {
 
   private makeGroup(group: AtlasGroup, x: number, y: number, r: number): SceneNode {
     const node: SceneNode = {
-      idx: this.nodes.length, id: group.id, kind: "group", group: this.nodes.length, groupKind: group.kind, tone: group.tone, label: group.label, ref: null,
+      idx: this.nodes.length, id: group.id, kind: "group", group: this.nodes.length, groupKind: group.kind, source: group.source ?? null, tone: group.tone, label: group.label, ref: null,
       weight: 0, born: null, x, y, rBase: r, r, appear: 1, delay: 0, shown: true, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(group.id),
       ox: 0, oy: 0, ax: x, ay: y, expanded: false, spiralNext: 0, members: [], count: 0,
     };
@@ -128,7 +130,7 @@ export class AtlasScene {
     const spot = spiralPoint(parent.spiralNext);
     parent.spiralNext += 1;
     const node: SceneNode = {
-      idx: this.nodes.length, id: member.id, kind: "member", group: owner, groupKind: parent.groupKind, tone: parent.tone, label: member.label, ref: member.ref,
+      idx: this.nodes.length, id: member.id, kind: "member", group: owner, groupKind: parent.groupKind, source: null, tone: parent.tone, label: member.label, ref: member.ref,
       weight: member.weight, born: member.born, x: parent.x, y: parent.y, rBase: memberRadius(member.weight), r: memberRadius(member.weight),
       appear: grow ? 0 : parent.expanded ? 1 : 0, delay: 0, shown: parent.expanded, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(member.id),
       ox: spot.x, oy: spot.y, ax: 0, ay: 0, expanded: false, spiralNext: 0, members: [], count: 0,

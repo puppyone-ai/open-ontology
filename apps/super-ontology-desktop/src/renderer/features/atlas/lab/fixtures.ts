@@ -48,7 +48,7 @@ export function syntheticAtlas(options: SyntheticOptions): AtlasData {
   for (let i = 0; i < options.groups; i += 1) {
     const db = i >= options.groups - dbGroups;
     const name = !db && options.names ? options.names[i]! : `${WORDS[i % WORDS.length]}${i >= WORDS.length ? ` ${Math.floor(i / WORDS.length) + 1}` : ""}`;
-    groups.push({ id: db ? dbGroupId(name) : `g:type:${name}`, kind: db ? "db" : "type", label: name, tone: db ? (i % 2 ? "stone" : "steel") : TONES[i % 5]! });
+    groups.push({ id: db ? dbGroupId(name) : `g:type:${name}`, kind: db ? "db" : "type", label: name, tone: db ? "mist" : TONES[i % 5]!, ...(db ? { source: "database" as const } : {}) });
   }
   // A skewed split, so a few groups are big and many are small, as real ontologies are.
   const weights = groups.map((_, i) => 1 / (i + 1.5) ** 0.9);
@@ -112,8 +112,8 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
   // Without explicit files, every document-to-table link gets a file of its own ("notes/<entity>.md") in one Drive, so source mode has them to link from.
   const docLinks = data.links.filter((l) => l.kind === "link").map((l) => (l.a.startsWith("e:") ? [l.a.slice(2), l.b.slice(2)] : [l.b.slice(2), l.a.slice(2)]) as [string, string]);
   const driveId = uuid(900);
-  const driveNames = ["Team docs", "Research", "Archive"];
-  const drives = extra.drives ?? driveNames.map((name, i) => ({ id: i === 0 ? driveId : uuid(901 + i), name, backend: "fs", config: {}, status: "active", revision: 1, counts: {}, created_at: "2026-11-01T00:00:00Z" } as Drive));
+  const driveNames = [["My files", "fs"], ["Team docs", "fs"], ["Archive", "s3"]] as const;
+  const drives = extra.drives ?? driveNames.map(([name, backend], i) => ({ id: i === 0 ? driveId : uuid(901 + i), name, backend, config: {}, status: "active", revision: 1, counts: {}, created_at: "2026-11-01T00:00:00Z" } as Drive));
   const fileOf = (id: number, drive: string, path: string) => ({ id: uuid(id), drive_id: drive, path, state: "published", state_since: "2026-11-01T00:00:00Z", retryable: false, pending_review: 0 }) as FileSummary;
   const fillers = extra.files || drives.length < 3 ? [] : entities.slice(0, 240).map((m, i) => fileOf(8000 + i, drives[i % 3 === 0 ? 1 : i % 3 === 1 ? 2 : 0]!.id, `${m.label.toLowerCase().replace(/ /g, "-")}.md`));
   const fileRows = extra.files ?? [...docLinks.map(([key], i) => fileOf(5000 + i, driveId, `notes/${key}.md`)), ...fillers];

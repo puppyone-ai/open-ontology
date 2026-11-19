@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Icon } from "@open-ontology/design-system";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Database, File, Folder, Package } from "lucide-react";
 import type { AtlasData, AtlasMember } from "./model";
 
 /**
@@ -9,6 +9,7 @@ import type { AtlasData, AtlasMember } from "./model";
  * with the same search. Rows past `PAGE` per group wait behind "Show more", so ten thousand members stay a short document.
  */
 const PAGE = 100;
+const SOURCE_ICON = { files: File, folder: Folder, bucket: Package, database: Database } as const;
 export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.count.files", db: "app.atlas.count.tables" } as const;
 
 export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void }) {
@@ -42,7 +43,7 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
           <li key={group.id} className="so-atlas-list-group" data-tone={group.tone}>
             <button type="button" className="so-atlas-list-head" aria-expanded={expanded} onClick={() => toggle(group.id)} data-testid="atlas-list-group" data-group={group.id}>
               <Icon icon={ChevronRight} className="so-atlas-list-chevron" />
-              <span className="so-atlas-swatch" aria-hidden="true" />
+              {group.source ? (() => { const Glyph = SOURCE_ICON[group.source]; return <Glyph className="so-atlas-kind" size={12} strokeWidth={1.5} absoluteStrokeWidth aria-hidden="true" focusable="false" />; })() : <span className="so-atlas-swatch" aria-hidden="true" />}
               <span className="so-atlas-list-name so-truncate">{group.label}</span>
               <span className="so-weak so-atlas-count">{t(COUNT_KEY[group.kind], { count: members.length })}</span>
             </button>

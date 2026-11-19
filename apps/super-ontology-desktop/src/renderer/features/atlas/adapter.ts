@@ -1,7 +1,7 @@
 import type { Drive, FileSummary, LinkList, OntologyVersion, Page } from "../../../shared/super-ontology/docs-api.generated";
 import type { ApiResult } from "../../model/bridgeInvoke";
 import type { EntityDetail, EntitySearchRow } from "../../model/superDriveOntologyTypes";
-import type { AtlasData, AtlasGroup, AtlasLink, AtlasMember, AtlasMode, AtlasOp, AtlasPartial, AtlasTone } from "./model";
+import { SOURCE_TONE, type AtlasData, type AtlasGroup, type AtlasLink, type AtlasMember, type AtlasMode, type AtlasOp, type AtlasPartial, type AtlasSourceKind, type AtlasTone } from "./model";
 
 /**
  * The data adapter of the atlas: turns what the engine and the database side already answer into groups, members and links.
@@ -39,8 +39,9 @@ export type LoadOptions = {
 export type LoadResult = { data: AtlasData; truncated: boolean };
 
 const TYPE_TONE: Record<string, AtlasTone> = { Person: "ink", Organization: "steel", Project: "dusk", Decision: "sand", Document: "stone", Topic: "mist", Event: "dusk", Term: "steel", Thing: "sand" };
-const DB_TONES: AtlasTone[] = ["mist", "steel"];
-const DRIVE_TONES: AtlasTone[] = ["ink", "dusk", "sand", "stone"];
+/** The managed default Drive is "My files"; any other fs Drive is a folder on this computer; the rest are object-store buckets. */
+export const MY_FILES_NAME = "My files";
+export const driveSource = (drive: { name: string; backend: string }): AtlasSourceKind => (drive.backend !== "fs" ? "bucket" : drive.name === MY_FILES_NAME ? "files" : "folder");
 const PAGE = 200;
 
 export const entityId = (key: string) => `e:${key}`;
@@ -109,11 +110,11 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
     if (!drives.ok) partial.add("files");
     else {
       let budget = maxFiles;
-      let driveIndex = 0;
       for (const drive of drives.value) {
         if (drive.status === "deleted" || signal?.aborted) continue;
         const gid = driveGroupId(drive.id);
-        groups.set(gid, { id: gid, kind: "drive", label: drive.name, tone: DRIVE_TONES[driveIndex++ % DRIVE_TONES.length]! });
+        const kind = driveSource(drive);
+        groups.set(gid, { id: gid, kind: "drive", label: drive.name, tone: SOURCE_TONE[kind], source: kind });
         const found = await pages((cursor) => source.files({ driveId: drive.id, limit: PAGE, cursor }), budget, signal);
         if (!found.ok) partial.add("files");
         truncated ||= found.truncated;
@@ -134,7 +135,7 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
     const catalog = await source.catalog();
     if (catalog.ok) {
       const schemas = [...new Set(catalog.value.tables.map((t) => t.schema))].sort();
-      schemas.forEach((schema, index) => groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: schema, tone: DB_TONES[index % DB_TONES.length]! }));
+      for (const schema of schemas) groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: schema, tone: SOURCE_TONE.database, source: "database" });
       for (const table of catalog.value.tables) {
         const id = tableId(table);
         tableIds.set(`${table.schema}.${table.table}`, id);

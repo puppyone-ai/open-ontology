@@ -11,7 +11,11 @@ export type AtlasRef =
   | { kind: "file"; fileId: string; path: string }
   | { kind: "table"; table: string };
 
-export type AtlasGroup = { id: string; kind: AtlasGroupKind; label: string; tone: AtlasTone };
+/** What kind of source a `drive` or `db` group is: My files, a local folder, an object-store bucket, a database. */
+export type AtlasSourceKind = "files" | "folder" | "bucket" | "database";
+export type AtlasGroup = { id: string; kind: AtlasGroupKind; label: string; tone: AtlasTone; source?: AtlasSourceKind };
+
+export const SOURCE_TONE: Record<AtlasSourceKind, AtlasTone> = { files: "ink", folder: "dusk", bucket: "sand", database: "mist" };
 
 export type AtlasMember = {
   id: string;
