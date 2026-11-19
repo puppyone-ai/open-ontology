@@ -277,6 +277,25 @@ async fn run() -> ExitCode {
             stages::set_current_parser(&id, &version);
         }
     }
+    // `GET /health` says what the sidecars say now (10 §4.4.4): a dead one is `unavailable`, not `ok`.
+    if let Some(c) = &sidecar {
+        let doc = c.clone();
+        health.watch_sidecar("parser", move || doc.healthy()).await;
+        if c.ocr_client().is_some() {
+            let ocr = c.clone();
+            health
+                .watch_sidecar("ocr_parser", move || {
+                    ocr.ocr_client().is_some_and(|o| o.healthy())
+                })
+                .await;
+        }
+    }
+    if let Some(m) = &media {
+        let client = m.client.clone();
+        health
+            .watch_sidecar("media_parser", move || client.healthy())
+            .await;
+    }
     let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
     handlers.extend(stages::handlers_with_runtime(
         &pool,
