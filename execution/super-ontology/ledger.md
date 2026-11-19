@@ -210,6 +210,7 @@
 | SO-F-S19-61 | D88 | merged | feat/super-ontology (App 车道 G 并入) | 96e9c43ba → 96e9c43ba | — | apps/super-ontology-desktop/ | Refresh the third-party notice for the layout dependency |
 | SO-B-S15-09 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | fde636761 → fde636761 | — | testing/super-ontology/bench/longmemeval-v2/ | Show complete, compact trees for distinct pages |
 | SO-B-S15-10 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | d19477961 → d19477961 | — | testing/super-ontology/bench/longmemeval-v2/ | Retrieve every page a question compares |
+| SO-F-S19-62 | D88 | merged | feat/super-ontology (App 车道 G 并入) | 541239f88 → 541239f88 | — | apps/super-ontology-desktop/ | Give the atlas one calm palette, quieter links, clearer labels and a source-only split |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
