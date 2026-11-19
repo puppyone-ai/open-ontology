@@ -141,3 +141,26 @@ treats the rest as held out:
 5. Dataset size: 1,870 trajectories, 451 questions, 29 question images; the
    rest of the row is correct (reader Qwen3.5-9B, judge gpt-5.2, Apache-2.0,
    LAFS over 1-200 s, empty board, the reference frontier numbers).
+
+## Our run setup (recorded per coordinator decision, 2026-11-18)
+
+* Reader precision: the paper and harness serve the official `Qwen/Qwen3.5-9B`
+  checkpoint (bf16 safetensors) with vLLM; no quantization is mentioned. We use
+  the same official weights, revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a`
+  (4 shards, 19.3 GB), in bf16 on `mlx-vlm` 0.8.0 (`mlx-lm` 0.32.2) on an Apple
+  M4 Max, because vLLM does not run on this host. The model id served is
+  `Qwen/Qwen3.5-9B`; thinking on; harness sampling defaults.
+* A first attempt used llama.cpp `llama-server` 0.5.0 (build 11146, commit
+  7fe450e19) with `unsloth/Qwen3.5-9B-GGUF` `Qwen3.5-9B-BF16.gguf` (sha256
+  `daebe40eeea7057c1cdf35ac56d13f507d8bf12171bbb7a6b6b0d3f05439159a`, matches the
+  HF etag) and `mmproj-BF16.gguf` (sha256
+  `853698ce7aa6c7ba732478bad280240969ddf7b0fcbf93900046f63903a83383`). It was
+  dropped after 28 dev reads for throughput; no reported number uses it.
+* Judge: `cb/gpt-5.2` on the proxy endpoint named by
+  `~/.config/open-ontology/secrets/model-endpoint-9r` (path only), recorded as
+  "gpt-5.2 via proxy endpoint". Before relying on it we checked it on
+  known-labelled dev items (gold answer as response must score 1, a
+  premise-following or generic answer must score 0); the endpoint returned
+  HTTP 429 for every request from 2026-11-18 11:50 PT on, so that check could
+  not run on it. A stand-in model on the same endpoint agreed on 20/20 such
+  items; it is not used for any reported number.

@@ -1,0 +1,40 @@
+{
+  "benchmark": {
+    "repo": "https://github.com/xiaowu0162/LongMemEval-V2",
+    "commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+    "data": "https://huggingface.co/datasets/xiaowu0162/longmemeval-v2",
+    "data_revision": "f152293e235517d504809563c833d7190b8c713b",
+    "tier": "small"
+  },
+  "reader": {
+    "model": "Qwen/Qwen3.5-9B",
+    "weights_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "dtype": "bf16 (official safetensors)",
+    "runtime": "mlx-vlm 0.8.0 server, --max-num-seqs 8 --enable-thinking --max-tokens 20000, MLX_VLM_TOKEN_QUEUE_TIMEOUT=86400",
+    "host": "Apple M4 Max, 128 GB",
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "thinking": true,
+    "max_completion_tokens": 20000,
+    "memory_context_max_tokens": 200000
+  },
+  "judge": {
+    "model": "gpt-5.2 via proxy endpoint (cb/gpt-5.2)",
+    "reasoning_effort": "medium",
+    "max_completion_tokens": 4096,
+    "endpoint": "file reference only: ~/.config/open-ontology/secrets/model-endpoint-9r"
+  },
+  "dev_split": "sha256(question id) first byte < 0x56 -> 159 dev questions (65 enterprise, 94 web); 292 held out",
+  "command": "tools/oo-bench/longmemeval_v2/run_lme_v2.py --lme-repo <checkout> --data-root <data> --domain <web|enterprise> --split <dev|all> --output-dir runs/<name>/oo_<domain>_small --budget-tokens <B> --engine-params '<json>' --reader-url http://127.0.0.1:8024/v1 --reader-concurrency 4 --judge-endpoint-file <file> --judge-key-file <file>  (env OO_LME_ENGINE=<lme_v2_memory binary>)",
+  "engine": {
+    "binary": "cargo build --release -p oo-docs --example lme_v2_memory",
+    "engine_commit": "13dd028e9",
+    "budget_tokens": 32000,
+    "engine_params": {
+      "full_top": 1,
+      "phrase_boost": 25,
+      "coverage_note": true
+    }
+  }
+}
