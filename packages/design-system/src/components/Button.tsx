@@ -5,7 +5,8 @@ import { Spinner } from "./Spinner";
 import { Tooltip } from "./Tooltip";
 import { cx } from "./cx";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+/** `quiet-danger` is a neutral secondary button that turns red on hover: for destructive actions that sit in a list and must not shout. */
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet-danger";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -70,5 +71,17 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         {loading ? <Spinner size={16} /> : <Icon icon={icon} />}
       </button>
     </Tooltip>
+  );
+});
+
+export type LinkButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { icon?: LucideIcon; children: ReactNode };
+
+/** A text-only action in the accent colour, optionally ending in an icon (a chevron for "go to"). Same states and timings as a Button. */
+export const LinkButton = forwardRef<HTMLButtonElement, LinkButtonProps>(function LinkButton({ icon, children, className, type = "button", ...rest }, ref) {
+  return (
+    <button ref={ref} type={type} className={cx("so-link", className)} {...rest}>
+      <span className="so-link-label">{children}</span>
+      {icon && <Icon icon={icon} className="so-link-glyph" />}
+    </button>
   );
 });

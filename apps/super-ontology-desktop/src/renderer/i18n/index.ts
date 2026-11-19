@@ -33,7 +33,17 @@ export async function loadCatalogBundle(locale: AppLocale): Promise<LocaleCatalo
 }
 
 const systemLanguages = (): readonly string[] => (navigator.languages?.length ? navigator.languages : [navigator.language || "en"]);
+/** Inside the Electron shell the language is the shell's setting (it also drives the native menu); a plain browser keeps it in localStorage. */
+type ShellLanguage = { readSettings(): Promise<{ language: string }>; writeSettings(patch: { language: string }): Promise<unknown> };
+const shellOf = (): ShellLanguage | null => (window as unknown as { superOntology?: { shell?: ShellLanguage } }).superOntology?.shell ?? null;
+let hostedPreference: AppLanguagePreference | null = null;
+export async function adoptShellLanguage(): Promise<void> {
+  const shell = shellOf();
+  if (!shell) return;
+  try { const value = (await shell.readSettings()).language; if (isSelectableAppLanguagePreference(value)) hostedPreference = value; } catch { /* keep the stored preference */ }
+}
 const readPreference = (): AppLanguagePreference => {
+  if (hostedPreference) return hostedPreference;
   const value = window.localStorage.getItem(STORAGE_KEY);
   return isSelectableAppLanguagePreference(value) ? value : "system";
 };
@@ -46,6 +56,7 @@ export function createLocaleClient(): LocaleClient & { getState: () => LocaleSta
     getState,
     async setLanguagePreference(preference: AppLanguagePreference) {
       window.localStorage.setItem(STORAGE_KEY, preference);
+      if (shellOf()) { hostedPreference = preference; void shellOf()?.writeSettings({ language: preference }).catch(() => {}); }
       const state = getState();
       for (const listener of listeners) listener(state);
       return state;

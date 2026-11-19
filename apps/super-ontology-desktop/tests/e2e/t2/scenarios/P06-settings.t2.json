@@ -24,6 +24,10 @@
       "name": "app.nav.settings"
     },
     {
+      "do": "click",
+      "name": "app.settings.tab.engine"
+    },
+    {
       "do": "assert",
       "assertion": "dom",
       "args": {
@@ -36,7 +40,7 @@
     },
     {
       "do": "click",
-      "name": "app.settings.engine.stop"
+      "name": "app.engine.stop"
     },
     {
       "do": "assert",
@@ -51,7 +55,7 @@
     },
     {
       "do": "click",
-      "name": "app.settings.engine.start"
+      "name": "app.engine.start"
     },
     {
       "do": "assert",

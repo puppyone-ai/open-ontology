@@ -18,16 +18,16 @@ import { fileView, TONE, useFileStateText } from "./fileView";
 type Filter = "all" | "processing" | "ready" | "attention";
 const GROUPS: Record<Exclude<Filter, "all">, FileFilterGroup[]> = { processing: ["processing"], ready: ["published"], attention: ["failed", "skipped"] };
 
-export function SourceDetail({ drive, onBack }: { drive: Drive; onBack: () => void }) {
+export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; initial?: { fileId: string; path: string } | null; onBack: () => void }) {
   const t$ = useLocalization();
   const { t, formatNumber, formatDate } = t$;
   const actions = useSuperDriveActions();
   const errorText = useErrorText();
   const stateText = useFileStateText();
-  const [path, setPath] = useState("");
+  const [path, setPath] = useState(() => (initial ? initial.path.split("/").slice(0, -1).join("/") : ""));
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initial?.fileId ?? null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<SuperDriveError | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -63,7 +63,7 @@ export function SourceDetail({ drive, onBack }: { drive: Drive; onBack: () => vo
   const pickFiles = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="so-page" data-wide={selected ? "" : undefined} data-testid="screen-source-detail"
+    <div className="so-page" data-wide={selected ? "" : undefined} data-testid="screen-source-detail" data-name={drive.name}
       onDragOver={(event) => { if (!readOnly) { event.preventDefault(); setDragging(true); } }} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }} onDrop={onDrop}>
       <div style={{ margin: "calc(-1 * var(--so-space-2)) 0 var(--so-space-2)" }}>
         <Button variant="ghost" size="compact" icon={ArrowLeft} onClick={onBack}>{t("app.sources.title")}</Button>
@@ -71,7 +71,7 @@ export function SourceDetail({ drive, onBack }: { drive: Drive; onBack: () => vo
       <PageHeader title={drive.name} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
         actions={<>
           {fresh && <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} />}
-          <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }}>{t("app.sources.sync")}</Button>
+          <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }} data-testid="source-sync">{t("app.sources.sync")}</Button>
           {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { if (e.target.files) void getUploadQueue().enqueueFiles(drive.id, path, e.target.files); e.target.value = ""; }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
           <IconButton ref={menuAnchor} icon={MoreHorizontal} label={t("app.sources.more")} variant="secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} />
           <Menu anchor={menuAnchor} open={menu} onClose={() => setMenu(false)} ariaLabel={t("app.sources.more")} placement="bottom-end">
@@ -106,7 +106,7 @@ export function SourceDetail({ drive, onBack }: { drive: Drive; onBack: () => vo
       </nav>
 
       <div className={selected ? "so-split" : undefined}>
-        <Card className="so-dropzone-host" data-dragging={dragging ? "true" : undefined} style={{ overflow: "hidden", outline: dragging ? "2px solid var(--so-accent)" : undefined }}>
+        <Card className="so-dropzone-host" data-testid="file-panel" data-dragging={dragging ? "true" : undefined} style={{ overflow: "hidden", outline: dragging ? "2px solid var(--so-accent)" : undefined }}>
           {initialLoading ? (
             <div className="so-list" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width={16} height={16} /><Skeleton width={`${40 + (i % 3) * 15}%`} height={13} /></div>)}</div>
           ) : page.error && files.length === 0 ? (
@@ -128,7 +128,7 @@ export function SourceDetail({ drive, onBack }: { drive: Drive; onBack: () => vo
                   const view = fileView(file);
                   const label = stateText(view);
                   return (
-                    <tr key={file.id} data-selectable aria-selected={selected === file.id} onClick={() => setSelected(file.id)} data-testid="file-row">
+                    <tr key={file.id} data-selectable aria-selected={selected === file.id} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(file.id); } }} onClick={() => setSelected(file.id)} data-testid="file-row" data-name={file.name ?? file.path} data-state={file.state}>
                       <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip></span></td>
                       <td><span className="so-row"><StatusDot tone={TONE[view.tone]} label={label} pulse={view.busy} />{view.reviewCount > 0 && <Badge tone="warning">{formatNumber(view.reviewCount)}</Badge>}</span></td>
                       <td data-numeric className="so-muted">{formatBytes(file.size, t$)}</td>

@@ -11,24 +11,10 @@ import type { SuperDriveError } from "../../model/superDriveErrors";
 import { createOperationId } from "../../model/operationIds";
 
 /** The one way in: files into "My files" (no setup), a folder on this computer, a bucket, or (CLI) a database. */
-export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => void }) {
+export function useAddFolder(onOpened?: (driveId: string) => void) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const anchor = useRef<HTMLButtonElement>(null);
-  const input = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
-  const [cloud, setCloud] = useState(false);
   const [error, setError] = useState<SuperDriveError | null>(null);
-  const errorText = useErrorText();
-
-  const addFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const drive = await actions.ensureMyFiles();
-    if (!drive.ok) { setError(drive.error); return; }
-    setError(null);
-    await getUploadQueue().enqueueFiles(drive.value.id, "", files);
-    onOpened?.(drive.value.id);
-  };
   const addFolder = async () => {
     const picked = await actions.pickDriveRoot();
     if (!picked.ok) { setError(picked.error); return; }
@@ -39,17 +25,39 @@ export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => vo
     setError(null);
     onOpened?.(created.value.id);
   };
+  return { addFolder, error };
+}
 
+export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => void }) {
+  const { t } = useLocalization();
+  const actions = useSuperDriveActions();
+  const anchor = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [cloud, setCloud] = useState(false);
+  const [fileError, setError] = useState<SuperDriveError | null>(null);
+  const folder = useAddFolder(onOpened);
+  const error = fileError ?? folder.error;
+  const errorText = useErrorText();
+
+  const addFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const drive = await actions.ensureMyFiles();
+    if (!drive.ok) { setError(drive.error); return; }
+    setError(null);
+    await getUploadQueue().enqueueFiles(drive.value.id, "", files);
+    onOpened?.(drive.value.id);
+  };
   return (
     <>
       <Button ref={anchor} variant="primary" icon={Plus} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-testid="add-source">{t("app.sources.add")}</Button>
       <input ref={input} type="file" multiple hidden onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} />
       <Menu anchor={anchor} open={open} onClose={() => setOpen(false)} ariaLabel={t("app.sources.add")}>
-        <MenuItem icon={FileUp} label={t("app.sources.add.files")} closeMenu={() => setOpen(false)} onSelect={() => input.current?.click()} />
-        <MenuItem icon={Folder} label={t("app.sources.add.folder")} closeMenu={() => setOpen(false)} onSelect={() => { void addFolder(); }} />
-        <MenuItem icon={Cloud} label={t("app.sources.add.cloud")} closeMenu={() => setOpen(false)} onSelect={() => setCloud(true)} />
+        <MenuItem icon={FileUp} label={t("app.sources.add.files")} closeMenu={() => setOpen(false)} onSelect={() => input.current?.click()} testId="add-source-files" />
+        <MenuItem icon={Folder} label={t("app.sources.add.folder")} closeMenu={() => setOpen(false)} onSelect={() => { void folder.addFolder(); }} testId="add-source-folder" />
+        <MenuItem icon={Cloud} label={t("app.sources.add.cloud")} closeMenu={() => setOpen(false)} onSelect={() => setCloud(true)} testId="add-source-cloud" />
         <MenuSeparator />
-        <MenuItem icon={Database} label={t("app.sources.add.database")} disabled onSelect={() => undefined} />
+        <MenuItem icon={Database} label={t("app.sources.add.database")} disabled onSelect={() => undefined} testId="add-source-database" />
       </Menu>
       {error && <div className="so-visually-hidden" role="alert">{errorText(error)}</div>}
       {cloud && <CloudStorageDialog onClose={() => setCloud(false)} onCreated={(id) => { setCloud(false); onOpened?.(id); }} />}
@@ -61,7 +69,7 @@ const PROVIDERS: ReadonlyArray<{ value: ObjectStoreBackend; label: string }> = [
   { value: "s3", label: "Amazon S3 / S3-compatible" }, { value: "oss", label: "Alibaba Cloud OSS" }, { value: "cos", label: "Tencent Cloud COS" }, { value: "r2", label: "Cloudflare R2" },
 ];
 
-function CloudStorageDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (driveId: string) => void }) {
+export function CloudStorageDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (driveId: string) => void }) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
   const errorText = useErrorText();
@@ -91,8 +99,8 @@ function CloudStorageDialog({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <Dialog title={t("app.sources.cloud.title")} description={t("app.sources.cloud.description")} onClose={busy ? undefined : onClose} closeLabel={t("app.common.close")}
-      footer={<><Button variant="ghost" onClick={onClose} disabled={busy}>{t("app.common.cancel")}</Button><Button variant="primary" loading={busy} onClick={() => { void submit(); }}>{t("app.sources.cloud.connect")}</Button></>}>
-      {error && <Notice tone="danger" title={t("app.sources.cloud.failed")}>{errorText(error)}</Notice>}
+      footer={<><Button variant="ghost" onClick={onClose} disabled={busy} data-testid="add-source-cancel">{t("app.common.cancel")}</Button><Button variant="primary" loading={busy} onClick={() => { void submit(); }} data-testid="add-source-confirm">{t("app.sources.cloud.connect")}</Button></>}>
+      {error && <Notice tone="danger" title={t("app.sources.cloud.failed")} testId="add-source-error">{errorText(error)}</Notice>}
       <Select label={t("app.sources.cloud.provider")} value={backend} onChange={(event) => setBackend(event.target.value as ObjectStoreBackend)}>
         {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
       </Select>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
-import { Badge, Button, Card, EmptyState, Notice, PageHeader, Skeleton } from "@open-ontology/design-system";
+import { Badge, Button, Card, EmptyState, Icon, Notice, PageHeader, Skeleton } from "@open-ontology/design-system";
 import { ArrowLeft, FileText, ListTree } from "lucide-react";
 import { useApp } from "../../hooks/useApp";
 import { useErrorText, useRelativeTime } from "../../hooks/useText";
@@ -17,18 +17,23 @@ function factObject(fact: Fact): string {
   return first === undefined ? JSON.stringify(value) : String(first);
 }
 
-function EvidenceQuote({ evidence }: { evidence: Evidence }) {
+/** A source the fact came from: the file name, then where in it. One click opens the file in its source. */
+function SourceChip({ evidence }: { evidence: Evidence }) {
   const { t } = useLocalization();
   const app = useApp();
+  const name = evidence.path.slice(evidence.path.lastIndexOf("/") + 1);
+  const anchor = evidence.src.includes("#") ? `#${evidence.src.slice(evidence.src.indexOf("#") + 1).replace(/\]$/u, "")}` : "";
   return (
-    <figure style={{ margin: 0, gap: "var(--so-space-1)" }} className="so-stack">
-      {evidence.quote && <blockquote className="so-quote">{evidence.quote}</blockquote>}
-      <figcaption className="so-row">
-        <FileText size={16} strokeWidth={1.5} className="so-weak so-icon" aria-hidden="true" />
-        <Button variant="ghost" size="compact" onClick={() => app.go("sources")} aria-label={t("app.ontology.evidence.open", { path: evidence.path })}><span className="so-mono so-truncate" style={{ maxWidth: 360 }}>{evidence.src.replace(/^\[src:|\]$/g, "")}</span></Button>
-      </figcaption>
-    </figure>
+    <button type="button" className="so-source-chip" data-testid="evidence-link" data-file={evidence.path} onClick={() => app.openFile(evidence.file_id)} aria-label={t("app.ontology.evidence.open", { path: evidence.path })}>
+      <Icon icon={FileText} size={16} className="so-source-chip-icon" />
+      <span className="so-source-chip-name so-truncate">{name}</span>
+      {anchor && <span className="so-source-chip-anchor so-mono so-truncate">{anchor}</span>}
+    </button>
   );
+}
+
+function EntityLink({ entity, onOpen }: { entity: { key: string; name: string }; onOpen: (key: string) => void }) {
+  return <button type="button" className="so-entity-link" onClick={() => onOpen(entity.key)}>{entity.name}</button>;
 }
 
 /** One entity: what is known about it as a timeline of facts, every one with the sentence it came from. */
@@ -53,10 +58,11 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
 
   const facts = (entity?.facts ?? []).filter((fact) => fact.status !== "rejected");
   const ordered = [...facts].sort((a, b) => (a.valid_from ?? a.recorded_at ?? "").localeCompare(b.valid_from ?? b.recorded_at ?? ""));
+  const sourceCount = new Set(ordered.flatMap((fact) => (fact.evidence ?? []).map((evidence) => evidence.file_id))).size;
   const aliases = (entity?.aliases ?? []).map((a) => a.alias).filter((a): a is string => Boolean(a));
 
   return (
-    <div className="so-page" data-testid="screen-entity">
+    <div className="so-page" data-testid="screen-entity" data-name={entity?.name}>
       <div style={{ margin: "calc(-1 * var(--so-space-2)) 0 var(--so-space-2)" }}><Button variant="ghost" size="compact" icon={ArrowLeft} onClick={onBack}>{t("app.ontology.title")}</Button></div>
       {error ? (
         <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => setTick((n) => n + 1)}>{t("app.common.retry")}</Button>}>{errorText(error)}</Notice>
@@ -64,24 +70,27 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
         <div className="so-stack" aria-busy="true"><Skeleton width={220} height={28} /><Skeleton width={320} height={14} /><Skeleton height={96} radius={8} /></div>
       ) : (
         <>
-          <PageHeader title={entity.name} description={[t(`super-drive.entity.type.${entity.type}`), entity.label ?? null].filter(Boolean).join(" · ")} actions={entity.status === "merged" ? <Badge>{t("app.ontology.merged")}</Badge> : undefined} />
-          {aliases.length > 0 && <div className="so-pill-row" style={{ marginBottom: "var(--so-space-5)" }} aria-label={t("app.ontology.aliases")}>{aliases.map((alias) => <span key={alias} className="so-chip">{alias}</span>)}</div>}
+          <PageHeader title={entity.name} titleAdornment={<Badge>{t(`super-drive.entity.type.${entity.type}`)}</Badge>}
+            description={[entity.label && entity.label !== entity.name ? entity.label : null, t("app.ontology.summary", { facts: ordered.length, sources: sourceCount, aliases: aliases.length })].filter(Boolean).join(" · ")}
+            actions={entity.status === "merged" ? <Badge>{t("app.ontology.merged")}</Badge> : undefined} />
+          {aliases.length > 0 && <div className="so-row" style={{ marginBottom: "var(--so-space-5)" }} data-wrap><span className="so-weak">{t("app.ontology.aliases")}</span><span className="so-pill-row" role="list">{aliases.map((alias) => <span key={alias} role="listitem" className="so-chip">{alias}</span>)}</span></div>}
           <h2 className="so-section-title" style={{ marginBottom: "var(--so-space-3)" }}>{t("app.ontology.timeline")}</h2>
           {ordered.length === 0 ? (
             <Card><EmptyState icon={ListTree} title={t("app.ontology.nofacts.title")} description={t("app.ontology.nofacts.body")} compact /></Card>
           ) : (
-            <Card data-testid="fact-list">
+            <Card className="so-facts" data-testid="fact-list">
               {ordered.map((fact) => (
-                <article key={fact.id} className="so-fact">
-                  <div className="so-row" data-wrap>
-                    {fact.subject.key !== entity.key && <Button variant="ghost" size="compact" onClick={() => onOpen(fact.subject.key)}>{fact.subject.name}</Button>}
-                    <span className="so-list-title">{fact.predicate.replace(/_/g, " ")}</span>
-                    <span className="so-grow">{fact.object ? <Button variant="ghost" size="compact" onClick={() => onOpen(fact.object!.key)}>{fact.object.name}</Button> : factObject(fact)}</span>
+                <article key={fact.id} className="so-fact" data-testid="fact-row" data-predicate={fact.predicate} data-state={fact.status}>
+                  <p className="so-fact-line">
+                    {fact.subject.key === entity.key ? <span className="so-fact-self">{fact.subject.name}</span> : <EntityLink entity={fact.subject} onOpen={onOpen} />}
+                    <span className="so-fact-predicate">{fact.predicate.replace(/_/g, " ")}</span>
+                    {fact.object ? <EntityLink entity={fact.object} onOpen={onOpen} /> : <span>{factObject(fact)}</span>}
                     {fact.status === "retracted" && <Badge>{t("app.ontology.retracted")}</Badge>}
                     {fact.status === "draft" && <Badge tone="warning">{t("app.ontology.draft")}</Badge>}
-                  </div>
-                  <span className="so-list-sub">{[fact.valid_from ? t("app.ontology.validFrom", { date: fact.valid_from }) : null, fact.recorded_at ? relative(fact.recorded_at) : null, t("app.ontology.confidence", { value: Math.round(fact.confidence_bp / 100) })].filter(Boolean).join(" · ")}</span>
-                  {(fact.evidence ?? []).slice(0, 2).map((evidence) => <EvidenceQuote key={evidence.id} evidence={evidence} />)}
+                  </p>
+                  <p className="so-fact-meta">{[fact.valid_from ? t("app.ontology.validFrom", { date: fact.valid_from }) : null, fact.recorded_at ? relative(fact.recorded_at) : null, t("app.ontology.confidence", { value: Math.round(fact.confidence_bp / 100) })].filter(Boolean).join(" · ")}</p>
+                  {(fact.evidence ?? []).slice(0, 2).map((evidence) => evidence.quote ? <blockquote key={`q-${evidence.id}`} className="so-quote">{evidence.quote}</blockquote> : null)}
+                  {(fact.evidence ?? []).length > 0 && <div className="so-source-row">{(fact.evidence ?? []).slice(0, 3).map((evidence) => <SourceChip key={evidence.id} evidence={evidence} />)}</div>}
                 </article>
               ))}
             </Card>

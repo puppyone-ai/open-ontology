@@ -87,11 +87,11 @@ export function Checkbox({ checked, onChange, label, disabled }: { checked: bool
   );
 }
 
-export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: ReadonlyArray<{ value: T; label: string }>; onChange: (value: T) => void; label: string }) {
+export function Segmented<T extends string>({ value, options, onChange, label, disabled = false }: { value: T; options: ReadonlyArray<{ value: T; label: string; testId?: string }>; onChange: (value: T) => void; label: string; disabled?: boolean }) {
   return (
-    <div className="so-segmented" role="radiogroup" aria-label={label}>
+    <div className="so-segmented" role="radiogroup" aria-label={label} aria-disabled={disabled || undefined}>
       {options.map((option) => (
-        <button key={option.value} type="button" role="radio" aria-checked={option.value === value} tabIndex={option.value === value ? 0 : -1} className="so-segmented-item" onClick={() => onChange(option.value)}
+        <button key={option.value} type="button" role="radio" aria-checked={option.value === value} tabIndex={option.value === value ? 0 : -1} className="so-segmented-item" disabled={disabled} data-testid={option.testId} data-selected={option.value === value ? "true" : undefined} onClick={() => onChange(option.value)}
           onKeyDown={(event) => {
             const i = options.findIndex((o) => o.value === value);
             const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;

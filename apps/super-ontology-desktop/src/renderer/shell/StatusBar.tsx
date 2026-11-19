@@ -17,18 +17,19 @@ export function StatusBar() {
   }, 0));
   const presented = presentEngine(engine);
   const label = t(presented.pillId);
+  const engineState = presented.status === "healthy" || presented.status === "degraded" ? "running" : ["starting", "probing", "restarting"].includes(presented.status) ? "starting" : "unavailable";
   return (
     <footer className="so-statusbar">
       <Tooltip label={t("app.status.openEngine")}>
-        <button type="button" className="so-statusbar-button" onClick={() => app.go("settings", { settings: "engine" })} data-testid="statusbar-engine">
+        <button type="button" className="so-statusbar-button" onClick={() => app.go("settings", { settings: "engine" })} data-testid="statusbar-engine" data-state={engineState}>
           <StatusDot tone={TONE[presented.tone]} label={t("app.status.engine", { state: label })} pulse={presented.busy} />
         </button>
       </Tooltip>
-      {processing > 0 && (
-        <button type="button" className="so-statusbar-button" onClick={() => app.go("sources")} data-testid="statusbar-jobs">
+      {processing > 0 ? (
+        <button type="button" className="so-statusbar-button" onClick={() => app.go("sources")} data-testid="statusbar-jobs" data-count={processing}>
           <StatusDot tone="accent" label={t("app.status.jobs", { count: processing })} pulse />
         </button>
-      )}
+      ) : <span hidden data-testid="statusbar-jobs" data-count="0" />}
     </footer>
   );
 }

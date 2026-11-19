@@ -33,6 +33,7 @@ export function Nav() {
         aria-label={collapsed ? (n > 0 ? t("app.nav.withCount", { label, count: n }) : label) : undefined}
         onClick={() => app.go(section)}
         data-testid={`nav-${section}`}
+        data-active={app.section === section ? "true" : undefined}
       >
         <Icon icon={glyph} size={20} />
         {!collapsed && <span className="so-nav-label">{label}</span>}

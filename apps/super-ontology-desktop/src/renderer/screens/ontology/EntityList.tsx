@@ -25,9 +25,9 @@ export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
       <form className="so-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); setApplied(query.trim()); }}>
         <div className="so-search">
           <Search size={16} strokeWidth={1.5} className="so-search-icon so-icon" aria-hidden="true" />
-          <input className="so-input" type="search" value={query} onChange={(e) => { setQuery(e.target.value); if (e.target.value === "") setApplied(""); }} placeholder={t("app.ontology.search")} aria-label={t("app.ontology.search")} />
+          <input className="so-input" type="search" data-testid="entity-search" value={query} onChange={(e) => { setQuery(e.target.value); if (e.target.value === "") setApplied(""); }} placeholder={t("app.ontology.search")} aria-label={t("app.ontology.search")} />
         </div>
-        <div style={{ width: 180 }}><Select label={t("app.ontology.type")} value={type} onChange={(e) => setType(e.target.value)} labelHidden>
+        <div style={{ width: 180 }}><Select data-testid="entity-type-filter" label={t("app.ontology.type")} value={type} onChange={(e) => setType(e.target.value)} labelHidden>
           <option value="">{t("app.ontology.type.all")}</option>
           {ENTITY_TYPE_VALUES.map((value) => <option key={value} value={value}>{t(`super-drive.entity.type.${value}`)}</option>)}
         </Select></div>
@@ -41,7 +41,7 @@ export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
       ) : (
         <Card className="so-list" data-testid="entity-list">
           {items.map((entity) => (
-            <button key={entity.id} type="button" className="so-list-row" onClick={() => onOpen(entity.key)} data-testid="entity-row">
+            <button key={entity.id} type="button" className="so-list-row" onClick={() => onOpen(entity.key)} data-testid="entity-row" data-name={entity.name} data-type={entity.type}>
               <span className="so-list-lead so-weak" aria-hidden="true">{entity.name.slice(0, 1).toUpperCase()}</span>
               <span className="so-list-text">
                 <span className="so-list-title so-truncate">{entity.name}</span>

@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { ensure } from "./response-guards.mjs";
 
@@ -24,7 +22,7 @@ export function connectSnippet({ agent, profile }) {
  * IPC handlers of Agent › Connect (docs-api 1.6). The `ooa_` token comes back once, to the dialog that shows it; nothing here logs
  * it, keeps it or puts it in an error.
  */
-export function createAgentHandlers({ client, lifecycle = null, tokenDirectory = null, fsPromises = fs }) {
+export function createAgentHandlers({ client }) {
   const call = (name, options) => client.request(name, options);
   return {
     "agent-token-create": async ({ name, scopes, driveIds, allDrives, gwProfile, label, expiresInSeconds }) => {
@@ -37,16 +35,7 @@ export function createAgentHandlers({ client, lifecycle = null, tokenDirectory =
       };
       const { value } = await call("agentTokenCreate", { body });
       if (!isToken(value)) throw new SuperOntologyError("SO_RESPONSE_INVALID");
-      // The secret also goes to a private file an Agent can read by path, so a config never has to contain it.
-      let tokenFile = null;
-      if (tokenDirectory) {
-        await fsPromises.mkdir(tokenDirectory, { recursive: true, mode: 0o700 });
-        tokenFile = path.join(tokenDirectory, `${name.replace(/[^A-Za-z0-9._-]/gu, "_")}.token`);
-        const temporary = `${tokenFile}.${process.pid}.tmp`;
-        await fsPromises.writeFile(temporary, `${value.token}\n`, { mode: 0o600 });
-        await fsPromises.rename(temporary, tokenFile);
-      }
-      return { ...value, token_file: tokenFile, endpoint: lifecycle?.credentials?.()?.baseUrl ?? null };
+      return value;
     },
     "agent-token-list": async () => {
       const { value } = await call("agentTokenList", {});

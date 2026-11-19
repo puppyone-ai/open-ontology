@@ -1,8 +1,8 @@
 export { cx } from "./components/cx";
 export { Icon } from "./icons/Icon";
 export type { IconSize } from "./icons/Icon";
-export { Button, IconButton } from "./components/Button";
-export type { ButtonProps, ButtonVariant, IconButtonProps } from "./components/Button";
+export { Button, IconButton, LinkButton } from "./components/Button";
+export type { ButtonProps, ButtonVariant, IconButtonProps, LinkButtonProps } from "./components/Button";
 export { Spinner, Skeleton, ProgressBar } from "./components/Spinner";
 export { Tooltip } from "./components/Tooltip";
 export { Dialog } from "./components/Dialog";

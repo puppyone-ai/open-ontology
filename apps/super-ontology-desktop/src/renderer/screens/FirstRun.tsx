@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, Notice, ProgressBar, Spinner, StatusDot } from "@open-ontology/design-system";
-import { ArrowRight, Check, FileUp } from "lucide-react";
+import { ArrowRight, Check, Cloud, FileUp, Folder } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useErrorText } from "../hooks/useText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
@@ -14,12 +14,13 @@ import type { Fact } from "../../shared/super-ontology/docs-api.generated";
 import type { SuperDriveError } from "../model/superDriveErrors";
 import { AppMark } from "../shell/AppMark";
 import { Connect } from "./agents/Connect";
-import { AddSourceMenu } from "./sources/AddSource";
+import { CloudStorageDialog, useAddFolder } from "./sources/AddSource";
 import { fileView } from "./sources/fileView";
 import type { Tone } from "@open-ontology/design-system";
 
 const TONE: Record<ModelTone, Tone> = { neutral: "neutral", info: "accent", success: "success", warning: "warning", danger: "danger" };
 type Step = 1 | 2 | 3 | 4 | 5;
+const STEP_NAMES = ["welcome", "sources", "understanding", "ontology", "agent"] as const;
 
 function Dots({ step }: { step: Step }) {
   const { t } = useLocalization();
@@ -78,13 +79,16 @@ export function FirstRun() {
       if (first) void ontologyApi.entityDetail({ entityIdOrKey: first.key }).then((detail) => { if (detail.ok) setFact(detail.value.facts?.find((f) => (f.evidence ?? []).length > 0) ?? null); });
     });
   }, [step, ready]);
-  useEffect(() => { if (step === 3 && drives.length > 0 && processing === 0 && published > 0) setStep(4); }, [step, drives.length, processing, published]);
+  const understood = drives.length > 0 && processing === 0 && published > 0;
+  const { addFolder, error: folderError } = useAddFolder(() => setStep(3));
+  const [cloud, setCloud] = useState(false);
+  const engineState = ready ? "ready" : !engine || ["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) ? "starting" : "error";
 
   const finish = (to?: "ontology" | "agents") => { app.closeFirstRun(true); if (to) app.go(to, to === "agents" ? { agents: "connect" } : { ontology: "entities" }); };
 
   return (
-    <div className="so-firstrun" role="dialog" aria-modal="true" aria-label={t("app.first.title")} data-testid="first-run">
-      <div className="so-firstrun-head"><span className="so-row"><span style={{ color: "var(--so-accent)" }}><AppMark size={20} /></span><strong>Super Ontology</strong></span><Button variant="ghost" onClick={() => finish()}>{t("app.first.skip")}</Button></div>
+    <div className="so-firstrun" role="dialog" aria-modal="true" aria-label={t("app.first.title")} data-testid="screen-first-run" data-step={STEP_NAMES[step - 1]}>
+      <div className="so-firstrun-head"><span className="so-row"><span style={{ color: "var(--so-accent)" }}><AppMark size={20} /></span><strong>Super Ontology</strong></span><span className="so-row">{step > 1 && <span data-testid="firstrun-progress" data-state={engineState}><StatusDot tone={ready ? "success" : engineState === "error" ? "danger" : "neutral"} label={ready ? t("app.first.engine.ready") : t("app.first.engine.starting")} pulse={engineState === "starting"} /></span>}<Button variant="ghost" onClick={() => finish()}>{t("app.first.skip")}</Button></span></div>
       <div className="so-firstrun-body">
         <div className="so-firstrun-card">
           <Dots step={step} />
@@ -92,32 +96,35 @@ export function FirstRun() {
             <>
               <h1 className="so-firstrun-title">{t("app.first.welcome.title")}</h1>
               <p className="so-firstrun-lead">{t("app.first.welcome.body")}</p>
-              <Card className="so-form" role="status" aria-live="polite" data-testid="first-engine">
+              <Card className="so-form" role="status" aria-live="polite" data-testid="firstrun-progress" data-state={engineState}>
                 <div className="so-row">
                   {ready ? <StatusDot tone="success" label={t("app.first.engine.ready")} /> : <><Spinner size={16} label={t("app.first.engine.starting")} /><span>{engine?.status === "starting" || engine?.status === "probing" || !engine ? t("app.first.engine.starting") : t(presented.messageId, presented.values as Record<string, string>)}</span></>}
                 </div>
                 {!ready && engine && !["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) && <Notice tone={presented.tone === "danger" ? "danger" : "warning"} title={t(presented.pillId)} action={<Button size="compact" onClick={() => finish()}>{t("app.first.engine.settings")}</Button>}>{t("app.first.engine.help")}</Notice>}
               </Card>
-              <div className="so-firstrun-actions"><Button variant="primary" onClick={() => setStep(2)} data-testid="first-start">{t("app.first.start")}</Button></div>
+              <div className="so-firstrun-actions"><Button variant="primary" onClick={() => setStep(2)} data-testid="firstrun-start">{t("app.first.start")}</Button></div>
             </>
           )}
           {step === 2 && (
             <>
               <h1 className="so-firstrun-title">{t("app.first.add.title")}</h1>
               <p className="so-firstrun-lead">{t("app.first.add.body")}</p>
-              <div className="so-dropzone" data-active={dragging ? "" : undefined} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void addFiles(e.dataTransfer.files); }}>
+              <div className="so-dropzone" data-testid="firstrun-dropzone" data-active={dragging ? "" : undefined} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void addFiles(e.dataTransfer.files); }}>
                 <span className="so-list-lead"><FileUp size={20} strokeWidth={1.5} aria-hidden="true" /></span>
                 <span className="so-dropzone-title">{t("app.first.add.drop")}</span>
                 <span className="so-weak">{t("app.first.add.local")}</span>
                 <input ref={input} type="file" multiple hidden onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
-                <Button variant="primary" icon={FileUp} disabled={!ready} onClick={() => input.current?.click()}>{t("app.first.add.choose")}</Button>
+                <Button variant="primary" icon={FileUp} disabled={!ready} onClick={() => input.current?.click()} data-testid="firstrun-pick-files">{t("app.first.add.choose")}</Button>
               </div>
               {error && <Notice tone="danger" title={t("app.sources.actionFailed")}>{errorText(error)}</Notice>}
               {!ready && <p className="so-weak" role="status">{t("app.first.add.waiting")}</p>}
+              {folderError && <Notice tone="danger" title={t("app.sources.actionFailed")}>{errorText(folderError)}</Notice>}
               <div className="so-row" data-wrap>
                 <span className="so-muted">{t("app.first.add.other")}</span>
-                <AddSourceMenu onOpened={() => setStep(3)} />
+                <Button icon={Folder} disabled={!ready} onClick={() => { void addFolder(); }} data-testid="firstrun-pick-folder">{t("app.first.add.folder")}</Button>
+                <Button icon={Cloud} disabled={!ready} onClick={() => setCloud(true)} data-testid="firstrun-connect-cloud">{t("app.first.add.cloud")}</Button>
               </div>
+              {cloud && <CloudStorageDialog onClose={() => setCloud(false)} onCreated={() => { setCloud(false); setStep(3); }} />}
               <div className="so-firstrun-actions"><Button variant="ghost" onClick={() => setStep(1)}>{t("app.first.back")}</Button>{drives.length > 0 && <Button onClick={() => setStep(3)}>{t("app.first.continue")}</Button>}</div>
             </>
           )}
@@ -128,11 +135,11 @@ export function FirstRun() {
               <Card className="so-list" aria-live="polite">
                 {files.length === 0 ? <div className="so-list-row"><Spinner size={16} /><span>{t("app.first.reading.waiting")}</span></div> : files.slice(0, 8).map((file) => {
                   const view = fileView(file);
-                  return <div key={file.id} className="so-list-row"><span className="so-list-text"><span className="so-list-title so-truncate">{file.name ?? file.path}</span></span><StatusDot tone={TONE[view.tone]} label={t(view.messageId, view.values as Record<string, string>)} pulse={view.busy} /></div>;
+                  return <div key={file.id} className="so-list-row" data-testid="firstrun-file-row" data-name={file.name ?? file.path} data-state={file.state}><span className="so-list-text"><span className="so-list-title so-truncate">{file.name ?? file.path}</span></span><StatusDot tone={TONE[view.tone]} label={t(view.messageId, view.values as Record<string, string>)} pulse={view.busy} /></div>;
                 })}
               </Card>
               <ProgressBar label={t("app.first.reading.title")} value={fileCount > 0 ? published / fileCount : null} />
-              <div className="so-firstrun-actions"><Button variant="primary" onClick={() => setStep(4)}>{t("app.first.reading.skip")}</Button><span className="so-weak">{t("app.first.reading.leave")}</span></div>
+              <div className="so-firstrun-actions"><Button variant="primary" icon={ArrowRight} onClick={() => setStep(4)} data-testid="firstrun-see-ontology">{t("app.first.reading.done")}</Button>{!understood && <span className="so-weak">{t("app.first.reading.leave")}</span>}</div>
             </>
           )}
           {step === 4 && (
@@ -147,7 +154,7 @@ export function FirstRun() {
                   <span className="so-list-sub so-mono">{fact.evidence?.[0]?.path}</span>
                 </Card>
               )}
-              <div className="so-firstrun-actions"><Button variant="primary" icon={ArrowRight} onClick={() => setStep(5)}>{t("app.first.continue")}</Button><Button variant="ghost" onClick={() => finish("ontology")}>{t("app.first.see.open")}</Button></div>
+              <div className="so-firstrun-actions"><Button variant="primary" icon={ArrowRight} onClick={() => setStep(5)} data-testid="firstrun-connect-agent">{t("app.first.see.agent")}</Button><Button variant="ghost" onClick={() => finish("ontology")} data-testid="firstrun-open-ontology">{t("app.first.see.open")}</Button></div>
             </>
           )}
           {step === 5 && (

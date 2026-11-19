@@ -22,6 +22,10 @@ type Api = Nav & {
   firstRunOpen: boolean;
   openFirstRun: () => void;
   closeFirstRun: (completed: boolean) => void;
+  /** Opens the source that holds a file and selects it (an evidence link). */
+  focusFile: string | null;
+  openFile: (fileId: string) => void;
+  consumeFocusFile: () => void;
 };
 
 const Context = createContext<Api | null>(null);
@@ -29,6 +33,7 @@ const FIRST_RUN_KEY = "so.firstRun.done";
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1" });
+  const [focusFile, setFocusFile] = useState<string | null>(null);
   const [firstRunOpen, setFirstRunOpen] = useState(() => window.localStorage.getItem(FIRST_RUN_KEY) !== "1");
   const go = useCallback<Api["go"]>((section, tab) => setNav((c) => ({
     ...c, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab,
@@ -40,10 +45,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAgentsTab: (agentsTab) => setNav((c) => ({ ...c, agentsTab })),
     setSettingsTab: (settingsTab) => setNav((c) => ({ ...c, settingsTab })),
     toggleNav: () => setNav((c) => { window.localStorage.setItem("so.nav.collapsed", c.navCollapsed ? "0" : "1"); return { ...c, navCollapsed: !c.navCollapsed }; }),
+    focusFile,
+    openFile: (fileId) => { setFocusFile(fileId); setNav((c) => ({ ...c, section: "sources" })); },
+    consumeFocusFile: () => setFocusFile(null),
     firstRunOpen,
     openFirstRun: () => setFirstRunOpen(true),
     closeFirstRun: (completed) => { if (completed) window.localStorage.setItem(FIRST_RUN_KEY, "1"); setFirstRunOpen(false); },
-  }), [nav, go, firstRunOpen]);
+  }), [nav, go, firstRunOpen, focusFile]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

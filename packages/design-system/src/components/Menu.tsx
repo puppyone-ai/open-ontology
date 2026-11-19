@@ -89,13 +89,14 @@ export function Menu({ anchor, open, onClose, children, ariaLabel, placement }: 
   );
 }
 
-export function MenuItem({ icon, label, shortcut, tone, disabled, onSelect, closeMenu }: { icon?: LucideIcon; label: string; shortcut?: string; tone?: "danger"; disabled?: boolean; onSelect: () => void; closeMenu?: () => void }) {
+export function MenuItem({ icon, label, shortcut, tone, disabled, onSelect, closeMenu, testId }: { testId?: string; icon?: LucideIcon; label: string; shortcut?: string; tone?: "danger"; disabled?: boolean; onSelect: () => void; closeMenu?: () => void }) {
   return (
     <button
       type="button"
       role="menuitem"
       className="so-menu-item"
       data-tone={tone}
+      data-testid={testId}
       aria-disabled={disabled || undefined}
       tabIndex={-1}
       onClick={() => { if (disabled) return; closeMenu?.(); onSelect(); }}

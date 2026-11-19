@@ -25,7 +25,7 @@
     },
     {
       "do": "click",
-      "name": "app.firstRun.start"
+      "name": "app.first.start"
     },
     {
       "do": "assert",
@@ -50,7 +50,7 @@
     },
     {
       "do": "click",
-      "name": "app.firstRun.pickFolder"
+      "name": "app.first.add.folder"
     },
     {
       "do": "chooseFolder",
@@ -79,7 +79,11 @@
     },
     {
       "do": "click",
-      "name": "app.firstRun.seeOntology"
+      "name": "app.first.reading.done"
+    },
+    {
+      "do": "click",
+      "name": "app.first.see.open"
     },
     {
       "do": "assert",
@@ -98,7 +102,7 @@
     },
     {
       "do": "click",
-      "name": "app.firstRun.connectAgent"
+      "name": "app.nav.agents"
     },
     {
       "do": "click",

@@ -15,7 +15,7 @@ export function SettingsScreen() {
       <PageHeader title={t("app.settings.title")} />
       <div style={{ marginBottom: "var(--so-space-5)" }}>
         <Tabs<SettingsTab> label={t("app.settings.title")} value={app.settingsTab} onChange={app.setSettingsTab}
-          tabs={[{ value: "general", label: t("app.settings.tab.general") }, { value: "engine", label: t("app.settings.tab.engine") }, { value: "model", label: t("app.settings.tab.model") }, { value: "privacy", label: t("app.settings.tab.privacy") }, { value: "about", label: t("app.settings.tab.about") }]} />
+          tabs={[{ value: "general", label: t("app.settings.tab.general"), testId: "settings-section-general" }, { value: "engine", label: t("app.settings.tab.engine"), testId: "settings-section-engine" }, { value: "model", label: t("app.settings.tab.model"), testId: "settings-section-model" }, { value: "privacy", label: t("app.settings.tab.privacy"), testId: "settings-section-privacy" }, { value: "about", label: t("app.settings.tab.about"), testId: "settings-section-about" }]} />
       </div>
       {app.settingsTab === "general" && <General />}
       {app.settingsTab === "engine" && <EngineSettings />}

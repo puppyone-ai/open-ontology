@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { cx } from "./cx";
 
-export function PageHeader({ title, description, actions, id }: { title: string; description?: string; actions?: ReactNode; id?: string }) {
+export function PageHeader({ title, titleAdornment, description, actions, id }: { title: string; titleAdornment?: ReactNode; description?: string; actions?: ReactNode; id?: string }) {
   return (
     <header className="so-page-header">
       <div className="so-page-heading">
-        <h1 className="so-page-title" id={id}>{title}</h1>
+        <div className="so-page-title-row"><h1 className="so-page-title" id={id}>{title}</h1>{titleAdornment}</div>
         {description && <p className="so-page-description">{description}</p>}
       </div>
       {actions && <div className="so-page-actions">{actions}</div>}
@@ -30,7 +30,7 @@ export function Section({ title, description, actions, children, className }: { 
   );
 }
 
-export function Tabs<T extends string>({ value, tabs, onChange, label }: { value: T; tabs: ReadonlyArray<{ value: T; label: string; count?: number }>; onChange: (value: T) => void; label: string }) {
+export function Tabs<T extends string>({ value, tabs, onChange, label }: { value: T; tabs: ReadonlyArray<{ value: T; label: string; count?: number; testId?: string }>; onChange: (value: T) => void; label: string }) {
   return (
     <div className="so-tabs" role="tablist" aria-label={label}>
       {tabs.map((tab, index) => (
@@ -42,6 +42,8 @@ export function Tabs<T extends string>({ value, tabs, onChange, label }: { value
           aria-selected={tab.value === value}
           tabIndex={tab.value === value ? 0 : -1}
           className="so-tab"
+          data-testid={tab.testId}
+          data-active={tab.value === value ? "true" : undefined}
           onClick={() => onChange(tab.value)}
           onKeyDown={(event) => {
             const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;

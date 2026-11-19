@@ -24,10 +24,10 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
 const NOTICE_ICON: Record<Exclude<Tone, "neutral" | "accent">, LucideIcon> = { success: CheckCircle2, warning: AlertTriangle, danger: AlertCircle };
 
 /** An inline message: what happened, why, and the next step. */
-export function Notice({ tone = "accent", title, children, action, role }: { tone?: Exclude<Tone, "neutral">; title?: string; children?: ReactNode; action?: ReactNode; role?: "status" | "alert" }) {
+export function Notice({ tone = "accent", title, children, action, role, testId }: { testId?: string; tone?: Exclude<Tone, "neutral">; title?: string; children?: ReactNode; action?: ReactNode; role?: "status" | "alert" }) {
   const glyph = tone === "accent" ? Info : NOTICE_ICON[tone];
   return (
-    <div className="so-notice" data-tone={tone} role={role ?? (tone === "danger" ? "alert" : "status")}>
+    <div className="so-notice" data-tone={tone} data-testid={testId} role={role ?? (tone === "danger" ? "alert" : "status")}>
       <Icon icon={glyph} className="so-notice-icon" />
       <div className="so-notice-body">
         {title && <p className="so-notice-title">{title}</p>}
@@ -58,7 +58,7 @@ let writeClipboard: (value: string) => Promise<void> = (value) => navigator.clip
 export function setClipboardWriter(writer: (value: string) => Promise<void>): void { writeClipboard = writer; }
 
 /** A command or config the user copies. The copy button announces the result. */
-export function CopyBlock({ label, value, copyLabel, copiedLabel, multiline = false }: { label: string; value: string; copyLabel: string; copiedLabel: string; multiline?: boolean }) {
+export function CopyBlock({ label, value, copyLabel, copiedLabel, multiline = false, valueTestId, copyTestId }: { label: string; value: string; copyLabel: string; copiedLabel: string; multiline?: boolean; valueTestId?: string; copyTestId?: string }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
@@ -73,9 +73,9 @@ export function CopyBlock({ label, value, copyLabel, copiedLabel, multiline = fa
     <div className="so-copy" data-multiline={multiline ? "true" : undefined}>
       <div className="so-copy-head">
         <span className="so-copy-label">{label}</span>
-        <Button size="compact" variant="ghost" icon={copied ? Check : Copy} onClick={copy} disabled={!value} aria-label={`${copyLabel}: ${label}`}>{copied ? copiedLabel : copyLabel}</Button>
+        <Button size="compact" variant="ghost" icon={copied ? Check : Copy} onClick={copy} disabled={!value} aria-label={`${copyLabel}: ${label}`} data-testid={copyTestId}>{copied ? copiedLabel : copyLabel}</Button>
       </div>
-      <pre className="so-copy-value" tabIndex={0} aria-label={label}>{value}</pre>
+      <pre className="so-copy-value" tabIndex={0} aria-label={label} data-testid={valueTestId}>{value}</pre>
       <span className="so-visually-hidden" role="status">{copied ? copiedLabel : ""}</span>
     </div>
   );

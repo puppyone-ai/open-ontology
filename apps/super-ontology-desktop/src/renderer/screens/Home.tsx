@@ -1,6 +1,6 @@
 import { useLocalization } from "@open-ontology/design-system/localization";
-import { Button, Card, EmptyState, Notice, PageHeader, Section, Skeleton, StatusDot } from "@open-ontology/design-system";
-import { Bot, FolderPlus, ListChecks, Network, Sparkles } from "lucide-react";
+import { Button, Card, EmptyState, Icon, LinkButton, Notice, PageHeader, Section, Skeleton, StatusDot } from "@open-ontology/design-system";
+import { Bot, ChevronRight, Compass, FileText, FolderOpen, FolderPlus, ListChecks, Network, Quote, Shapes, Sparkles, type LucideIcon } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useLoad } from "../hooks/useLoad";
 import { useErrorText, useRelativeTime } from "../hooks/useText";
@@ -10,12 +10,11 @@ import { selectDrives, selectPendingReviewTotal } from "../model/superDriveSelec
 import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
 
-function Metric({ label, value, hint, onClick, loading }: { label: string; value: string; hint?: string; onClick: () => void; loading?: boolean }) {
+function Metric({ label, value, count, icon, onClick, loading, testId }: { label: string; value: string; count: number | null; icon: LucideIcon; onClick: () => void; loading?: boolean; testId: string }) {
   return (
-    <Card as="div" className="so-metric so-metric-button" role="button" tabIndex={0} onClick={onClick} onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}>
-      <span className="so-metric-value">{loading ? <Skeleton width={56} height={28} /> : value}</span>
-      <span className="so-metric-label">{label}</span>
-      {hint && <span className="so-metric-hint">{hint}</span>}
+    <Card as="div" className="so-metric so-metric-button" role="button" tabIndex={0} onClick={onClick} onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }} data-testid={testId} data-count={count ?? undefined} aria-busy={loading || undefined}>
+      <span className="so-metric-head"><Icon icon={icon} size={16} className="so-metric-icon" /><span className="so-metric-label">{label}</span></span>
+      <span className="so-metric-value">{loading ? <Skeleton width={48} height={24} /> : value}</span>
     </Card>
   );
 }
@@ -44,6 +43,9 @@ export function Home() {
   if (pending > 0) suggestions.push({ id: "review", icon: ListChecks, title: t("app.home.next.review.title", { count: pending }), body: t("app.home.next.review.body"), action: t("app.home.next.review.action"), run: () => app.go("ontology", { ontology: "review" }) });
   if (drives.length > 0 && tokens.status === "ready" && tokens.value.items.length === 0) suggestions.push({ id: "agent", icon: Bot, title: t("app.home.next.agent.title"), body: t("app.home.next.agent.body"), action: t("app.home.next.agent.action"), run: () => app.go("agents", { agents: "connect" }) });
 
+  if (suggestions.length === 0 && loadedDrives) suggestions.push({ id: "explore", icon: Compass, title: t("app.home.next.explore.title"), body: t("app.home.next.explore.body"), action: t("app.home.next.explore.action"), run: () => app.go("ontology", { ontology: "entities" }) });
+  const next = suggestions[0];
+
   return (
     <div className="so-page" data-testid="screen-home">
       <PageHeader title={t("app.home.title")} description={t("app.home.description")} />
@@ -57,28 +59,24 @@ export function Home() {
       )}
 
       <div className="so-grid" data-cols="4" style={{ marginBottom: "var(--so-space-6)" }}>
-        <Metric label={t("app.home.metric.sources")} value={formatNumber(drives.length)} loading={!loadedDrives && ready} onClick={() => app.go("sources")} />
-        <Metric label={t("app.home.metric.files")} value={formatNumber(files)} loading={!loadedDrives && ready} onClick={() => app.go("sources")} />
-        <Metric label={t("app.home.metric.entities")} value={entityCount} loading={entities.status === "loading" && !entities.value && ready} onClick={() => app.go("ontology", { ontology: "entities" })} />
-        <Metric label={t("app.home.metric.facts")} value={versions.value ? formatNumber(Math.max(0, facts)) : "–"} loading={versions.status === "loading" && !versions.value && ready} onClick={() => app.go("ontology", { ontology: "entities" })} />
+        <Metric icon={FolderOpen} testId="home-count-sources" count={drives.length} label={t("app.home.metric.sources")} value={formatNumber(drives.length)} loading={!loadedDrives && ready} onClick={() => app.go("sources")} />
+        <Metric icon={FileText} testId="home-count-files" count={files} label={t("app.home.metric.files")} value={formatNumber(files)} loading={!loadedDrives && ready} onClick={() => app.go("sources")} />
+        <Metric icon={Shapes} testId="home-count-entities" count={entities.value ? entities.value.items.length : null} label={t("app.home.metric.entities")} value={entityCount} loading={entities.status === "loading" && !entities.value && ready} onClick={() => app.go("ontology", { ontology: "entities" })} />
+        <Metric icon={Quote} testId="home-count-facts" count={versions.value ? Math.max(0, facts) : null} label={t("app.home.metric.facts")} value={versions.value ? formatNumber(Math.max(0, facts)) : "–"} loading={versions.status === "loading" && !versions.value && ready} onClick={() => app.go("ontology", { ontology: "entities" })} />
       </div>
 
-      {suggestions.length > 0 && (
+      {next && (
         <Section title={t("app.home.next.title")}>
-          <div className="so-grid" data-cols={suggestions.length > 1 ? "2" : undefined}>
-            {suggestions.map((s) => (
-              <Card key={s.id} className="so-metric">
-                <div className="so-row"><span className="so-list-lead"><s.icon size={16} strokeWidth={1.5} aria-hidden="true" /></span><span className="so-list-title so-grow">{s.title}</span></div>
-                <p className="so-muted">{s.body}</p>
-                <div><Button variant={s.id === "source" ? "primary" : "secondary"} onClick={s.run}>{s.action}</Button></div>
-              </Card>
-            ))}
-          </div>
+          <Card className="so-next" data-testid="home-next-step" data-step={next.id}>
+            <span className="so-next-icon"><Icon icon={next.icon} size={20} /></span>
+            <span className="so-list-text"><span className="so-list-title">{next.title}</span><span className="so-muted">{next.body}</span></span>
+            <Button variant={next.id === "source" ? "primary" : "secondary"} onClick={next.run}>{next.action}</Button>
+          </Card>
         </Section>
       )}
 
       {drives.length > 0 && (
-        <Section title={t("app.home.sources.title")} actions={<Button size="compact" variant="ghost" onClick={() => app.go("sources")}>{t("app.home.sources.all")}</Button>}>
+        <Section title={t("app.home.sources.title")} actions={<LinkButton icon={ChevronRight} onClick={() => app.go("sources")}>{t("app.home.sources.all")}</LinkButton>}>
           <Card className="so-list">
             {drives.slice(0, 5).map((drive) => {
               const fresh = drive.freshness?.state;

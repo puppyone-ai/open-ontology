@@ -21,7 +21,7 @@ export function Ontology() {
       <PageHeader title={t("app.ontology.title")} description={t("app.ontology.description")} />
       <div style={{ marginBottom: "var(--so-space-5)" }}>
         <Tabs<OntologyTab> label={t("app.ontology.title")} value={app.ontologyTab} onChange={app.setOntologyTab}
-          tabs={[{ value: "entities", label: t("app.ontology.tab.entities") }, { value: "review", label: t("app.ontology.tab.review"), count: pending > 0 ? pending : undefined }, { value: "conflicts", label: t("app.ontology.tab.conflicts") }]} />
+          tabs={[{ value: "entities", label: t("app.ontology.tab.entities"), testId: "ontology-tab-entities" }, { value: "review", label: t("app.ontology.tab.review"), count: pending > 0 ? pending : undefined, testId: "ontology-tab-review" }, { value: "conflicts", label: t("app.ontology.tab.conflicts"), testId: "ontology-tab-conflicts" }]} />
       </div>
       {app.ontologyTab === "entities" && <EntityList onOpen={setEntityKey} />}
       {app.ontologyTab === "review" && <ReviewQueue />}

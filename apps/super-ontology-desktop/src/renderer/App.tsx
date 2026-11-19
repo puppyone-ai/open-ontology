@@ -34,7 +34,7 @@ function Shell() {
     if (app.firstRunOpen && driveCount > 0) app.closeFirstRun(true);
   }, [app, drivesLoaded, driveCount]);
   return (
-    <div className="so-app" data-testid="app-root">
+    <div className="so-app" data-testid="app-root" data-screen={app.firstRunOpen ? "first-run" : app.section}>
       <Nav />
       <main className="so-main" id="so-main" tabIndex={-1}>
         <Screen />

@@ -267,5 +267,6 @@ export type SuperOntologyBridge = {
   /** App shell (settings, notices, clipboard); absent in the browser development bridge. */
   shell?: {
     copyToClipboard: (text: string) => Promise<true>;
+    readNotice?: (kind: "notice" | "third-party" | "license") => Promise<string>;
   };
 };
