@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { handlerResult } from "./handler-result.mjs";
 import { ensure, isItemPage, isPage } from "./response-guards.mjs";
 

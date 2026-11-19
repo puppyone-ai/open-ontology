@@ -1,11 +1,11 @@
-// Sandboxed preload: it cannot import shared modules, so the channel lists below repeat shared/super-ontology/requests.mjs
+// Sandboxed preload: it cannot import shared modules, so the channel lists below repeat src/shared/super-ontology/requests.mjs
 // (a unit test keeps them equal). The only global is `window.superOntology` (see PRELOAD.md).
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const CHANNELS = new Set([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
   "engine-reveal-logs", "pick-path", "engine-set-executable",
-  "drives-list", "drive-get", "drive-create", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
+  "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
   "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel",
   "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
   "suggestions-list", "suggestions-digest", "suggestion-diff", "suggestion-decide", "suggestions-decide-source",

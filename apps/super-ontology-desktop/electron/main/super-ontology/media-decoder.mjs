@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 /** A long recording takes minutes to decode; the cap is a safety net, the user can cancel at any time. */
 export const DEFAULT_DECODE_TIMEOUT_MS = 30 * 60 * 1000;

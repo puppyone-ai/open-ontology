@@ -41,7 +41,9 @@ Rules:
 | `firstrun-connect-cloud` `firstrun-connect-database` | step 2: secondary entries | |
 | `firstrun-file-row` **(T1)** | step 3: one row per file | `data-name`, `data-state` (the engine's file state) |
 | `firstrun-continue` | step 3: leave processing in the background and go on | |
-| `firstrun-see-ontology` **(T1)** | step 4: open Ontology | |
+| `firstrun-see-ontology` **(T1)** | step 3: go on to what was found (the files may still be processing) | |
+| `firstrun-open-ontology` | step 4: open the Ontology screen | |
+| `firstrun-connect-agent` | step 4: go on to the agent step | |
 | `firstrun-create-token` **(T1)** | step 5: create the read-only token | |
 | `firstrun-agent-claude` `firstrun-agent-cursor` `firstrun-agent-codex` `firstrun-agent-generic` | step 5: agent choice | `data-selected` |
 | `firstrun-config-text` **(T1)** | step 5: the connection text | |
@@ -72,6 +74,7 @@ Rules:
 | `screen-source-detail` **(T1)** | one source's page | `data-name` |
 | `source-sync` | start a sync | |
 | `file-panel` `file-row` **(T1)** | file list of a source | row: `data-name`, `data-state` |
+| `file-detail-panel` | the side panel of the selected file | |
 | `file-drop` | drop target inside a managed source | |
 
 ## Ontology
@@ -95,7 +98,7 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-agents` **(T1)** | the Agents screen | |
-| `agent-token-create` **(T1)** | opens the create form | |
+| `agent-token-create` **(T1)** | the create form (always open; `firstrun-token-create` inside the first run) | |
 | `agent-token-name` `agent-token-submit` **(T1)** | the form | |
 | `agent-token-secret` **(T1)** | the token, shown once | |
 | `agent-token-list` `agent-token-row` `agent-token-revoke` **(T1)** | existing tokens | row: `data-name`, `data-state` = `active` `revoked` |
@@ -111,7 +114,8 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-settings` **(T1)** | the Settings screen | |
-| `settings-section-engine` `settings-section-model` `settings-section-storage` `settings-section-privacy` `settings-section-about` | sections | |
+| `settings-section-engine` `settings-section-about` **(T1)** | tabs of Settings used by a scenario | `data-active` |
+| `settings-section-general` `settings-section-model` `settings-section-privacy` | the other tabs | `data-active` |
 | `engine-status` **(T1)** | engine state text | `data-state` = the engine status (`healthy` `stopped` `starting` `crashed` ...) |
 | `engine-start` `engine-stop` `engine-restart` **(T1)** | engine controls | |
 | `engine-runtime-select` | runtime choice | `data-value` = `auto` `docker` `lite` |

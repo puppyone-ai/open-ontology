@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 const SERVE_PROTOCOL = "oo.docs.serve/v1";
 const TOKEN_PATTERN = /^oodt_[A-Za-z0-9_-]{43}$/u;

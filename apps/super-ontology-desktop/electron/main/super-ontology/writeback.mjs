@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 /** File types whose lines Desktop edits as text. Everything else is refused: a suggestion must not corrupt a binary. */
 const TEXT_FILE = /\.(md|markdown|txt)$/iu;

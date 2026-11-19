@@ -1,4 +1,4 @@
-import { CONNECTION_STATES, ENGINE_STATUSES } from "../../../shared/super-ontology/engine-contract.mjs";
+import { CONNECTION_STATES, ENGINE_STATUSES } from "../../../src/shared/super-ontology/engine-contract.mjs";
 
 /**
  * The skeleton never probes or starts anything: it reports a fixed idle

@@ -3,7 +3,7 @@
 // contract files: the inputs are read from the repository, and the outputs are checked in because the packaged app cannot read contracts/.
 //   node scripts/gen-contract.mjs           write the generated files
 //   node scripts/gen-contract.mjs --check   fail when any generated file differs from what contracts/ produces now (drift)
-// Outputs (all under shared/super-ontology/):
+// Outputs (all under src/shared/super-ontology/):
 //   docs-contract.generated.mjs / .d.mts   plain JS for the main process: error detail allow-list, retryability, event types
 //   docs-api.generated.ts                  types, structural guards, endpoints, error codes and event types for the renderer
 //   doc-ir.generated.ts, context-pack.generated.ts   types of the two companion schemas
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractsRoot = path.resolve(appRoot, "..", "..", "contracts");
-const outDirectory = path.join(appRoot, "shared", "super-ontology");
+const outDirectory = path.join(appRoot, "src", "shared", "super-ontology");
 
 const mode = process.argv[2];
 if (mode !== undefined && mode !== "--check") {

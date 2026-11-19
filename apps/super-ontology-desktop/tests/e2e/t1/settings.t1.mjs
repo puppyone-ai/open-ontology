@@ -6,6 +6,7 @@ runScenario({ name: "settings", title: "Settings: engine controls and About" }, 
   await s.engineUp();
   await s.click("nav-settings");
   await s.waitFor("screen-settings");
+  await s.click("settings-section-engine");
   await s.waitFor("engine-status", { "data-state": "healthy" });
   s.check("the engine is healthy and owned by the app", true);
 
@@ -23,6 +24,7 @@ runScenario({ name: "settings", title: "Settings: engine controls and About" }, 
   await s.waitFor("engine-status", { "data-state": "healthy" }, { timeoutMs: 150_000 });
   s.check("a restart ends healthy", true);
 
+  await s.click("settings-section-about");
   await s.waitFor("about-version");
   s.check("About names a version", /\d+\.\d+\.\d+/u.test(await s.text("about-version")), (await s.text("about-version")).trim());
   await s.shot("settings");

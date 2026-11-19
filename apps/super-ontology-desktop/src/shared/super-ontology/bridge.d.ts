@@ -107,6 +107,14 @@ export type CloudMode = "local" | "cloud";
 /** `configured`: this build has a Cloud endpoint the allow-list accepts. `host` is the name to show; `remoteUrl` is what `oo context mount --remote` is given. */
 export type CloudModeState = { mode: CloudMode; configured: boolean; host: string | null; remoteUrl: string | null };
 
+/** An Agent token (docs-api 1.6). The `ooa_` secret is shown once; the renderer keeps it only while the screen that shows it is open. */
+export type AgentScope = "docs:read" | "docs:suggest" | "docs:write" | "db:read";
+export type AgentTokenIssued = { id: string; token: string; name: string; scopes: string[]; drive_ids: string[]; all_drives: boolean; gw_profile?: string | null; expires_in_seconds: number; expires_at: string;
+  /** Where the app also saved the secret (owner-only file), and the loopback address an Agent calls; both are added by the main process. */
+  token_file?: string | null; endpoint?: string | null };
+export type AgentTokenInfo = { id: string; name: string; scopes: string[]; drive_ids?: string[]; all_drives?: boolean; expires_at?: string | null; revoked_at?: string | null; last_used_at?: string | null; created_at?: string };
+export type AgentConnectSnippet = { agent: string; format: "json" | "toml"; text: string; cli: string };
+
 /** Audit of Shares (docs-api 1.4): who shared what to which agent and when. Read-only; the engine's table is append-only and hash-chained. */
 export type AuditShareRecord = {
   seq: number; at: string; actor: string; tenant?: string | null; drive_id?: string | null; share_id: string; agent?: string | null;
@@ -143,6 +151,12 @@ export type SuperOntologyChannelMap = {
   "engine-set-keep": { request: { keepEngineOnQuit: boolean; operationId?: string }; value: EngineSnapshot };
   "engine-reveal-logs": { request: { target?: "logs" | "state"; operationId?: string }; value: { revealed: true } };
   "drives-list": { request: { operationId?: string }; value: EngineDrive[] };
+  /** Creates (or returns) the default managed Drive "My files": a folder inside the app's own data directory, so dropping files needs no setup. */
+  "my-files-ensure": { request: { operationId: string }; value: EngineDrive };
+  "agent-token-create": { request: { name: string; scopes: AgentScope[]; driveIds?: string[]; allDrives?: boolean; gwProfile?: string; label?: string; expiresInSeconds?: number; operationId?: string }; value: AgentTokenIssued };
+  "agent-token-list": { request: { operationId?: string }; value: { items: AgentTokenInfo[] } };
+  "agent-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: boolean } };
+  "agent-connect-snippet": { request: { agent: "generic" | "claude" | "cursor" | "codex"; profile: string; operationId?: string }; value: AgentConnectSnippet };
   "drive-get": { request: { driveId: string; operationId?: string }; value: EngineDrive };
   "drive-create": {
     request:
@@ -248,4 +262,11 @@ export type SuperOntologyBridge = {
   subscribe: (callback: (push: SuperOntologyPush) => void) => () => void;
   /** Host paths of dropped or picked files (preload only); `unreadable` counts files with no path. */
   pathsForFiles: (files: ArrayLike<File>) => { paths: string[]; unreadable: number };
+  /** Opens an http(s) URL in the system browser. */
+  openExternal?: (url: string) => Promise<void>;
+  /** App shell (settings, notices, clipboard); absent in the browser development bridge. */
+  shell?: {
+    copyToClipboard: (text: string) => Promise<true>;
+    readNotice?: (kind: "notice" | "third-party" | "license") => Promise<string>;
+  };
 };

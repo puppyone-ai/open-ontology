@@ -28,6 +28,7 @@ runScenario({ name: "first-run", title: "First run: welcome to an agent token", 
 
   // 4. The ontology: the first entity with a fact that links back to its source.
   await s.click("firstrun-see-ontology");
+  await s.click("firstrun-open-ontology");
   await s.waitFor("screen-ontology");
   await s.waitFor("entity-row", { "data-name": "Project Alpha" }, { timeoutMs: 90_000 });
   s.check("an entity recognised from the dropped files is listed", true);
@@ -47,7 +48,7 @@ runScenario({ name: "first-run", title: "First run: welcome to an agent token", 
   } else {
     await s.click("nav-agents");
     await s.waitFor("screen-agents");
-    await s.click("agent-token-create");
+    await s.waitFor("agent-token-create");
     await s.type("agent-token-name", "first-run-reader");
     await s.click("agent-token-submit");
     await s.waitFor("agent-token-secret");

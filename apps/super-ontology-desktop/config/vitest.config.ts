@@ -13,8 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@so-main": at("SO_MAIN_DIR", "electron/main/super-ontology"),
-      "@so-shared": at("SO_SHARED_DIR", "shared/super-ontology"),
-      "@so-contract": at("SO_SHARED_DIR", "shared/super-ontology"),
+      "@so-shared": at("SO_SHARED_DIR", "src/shared/super-ontology"),
+      "@so-contract": at("SO_SHARED_DIR", "src/shared/super-ontology"),
       "@so-model": at("SO_MODEL_DIR", "src/renderer/model"),
     },
   },

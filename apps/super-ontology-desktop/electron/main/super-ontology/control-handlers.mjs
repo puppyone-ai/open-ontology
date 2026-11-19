@@ -1,7 +1,11 @@
-import { SuperOntologyError, pickDetails } from "../../../shared/super-ontology/errors.mjs";
+import fs from "node:fs/promises";
+import { SuperOntologyError, pickDetails } from "../../../src/shared/super-ontology/errors.mjs";
 import { handlerResult } from "./handler-result.mjs";
 import { ensure, isBatchResult, isDrive, isFileSummary, isPage, isSyncInfo, isTree } from "./response-guards.mjs";
 
+/** Name of the default managed Drive; the one source a person never has to configure. */
+export const MY_FILES_NAME = "My files";
+const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const DRIVE_PAGE_LIMIT = 200;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -37,7 +41,7 @@ function policyOf({ allowPrefixes, denyPrefixes }) {
  * renderer-visible value; grants are resolved to host paths here and nowhere
  * else.
  */
-export function createControlHandlers({ client, grants, lifecycle, secretFiles }) {
+export function createControlHandlers({ client, grants, lifecycle, secretFiles, managedFilesDir = null, fsPromises = fs }) {
   const call = (name, options) => client.request(name, options);
 
   async function readDrive(driveId) {
@@ -97,6 +101,19 @@ export function createControlHandlers({ client, grants, lifecycle, secretFiles }
     },
 
     "drive-get": async ({ driveId }) => readDrive(driveId),
+
+    /** The default managed Drive: a folder in the app's data directory. Idempotent; found again by its name and backend. */
+    "my-files-ensure": async ({ operationId }) => {
+      if (!managedFilesDir) throw new SuperOntologyError("SO_INVALID_REQUEST");
+      await fsPromises.mkdir(managedFilesDir, { recursive: true, mode: 0o700 });
+      const { value: listed } = await call("drivesList", { query: { limit: 200 } });
+      ensure(listed, isPage);
+      const existing = listed.items.find((item) => isObject(item) && item.name === MY_FILES_NAME && item.backend === "fs" && item.status !== "deleting" && item.status !== "deleted");
+      if (existing) return ensure(existing, isDrive);
+      const { value, replayed } = await call("driveCreate", { body: { name: MY_FILES_NAME, backend: "fs", config: { root: managedFilesDir } }, operationId });
+      ensure(value, isDrive);
+      return handlerResult(value, { replayed });
+    },
 
     "drive-create": async (request, { sender } = {}) => {
       const { operationId, name, backend, exclude, modelEnabled, llmDailyCalls } = request;

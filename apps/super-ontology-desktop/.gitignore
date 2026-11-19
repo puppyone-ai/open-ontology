@@ -1,5 +1,6 @@
 node_modules/
 dist/
+out/
 release/
 build/oo-bundle/
 build/generated/

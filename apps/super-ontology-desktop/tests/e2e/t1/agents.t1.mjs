@@ -6,7 +6,7 @@ runScenario({ name: "agents", title: "Agents: token, connection text, revoke" },
   await s.openSeeded("agents");
   await s.waitFor("screen-agents");
 
-  await s.click("agent-token-create");
+  await s.waitFor("agent-token-create");
   await s.type("agent-token-name", "t1-reader");
   await s.click("agent-token-submit");
   await s.waitFor("agent-token-secret");

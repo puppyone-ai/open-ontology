@@ -2,7 +2,7 @@
 // Source: docs-api 1.11 (4cfe67272ed483c4).
 
 export const DOCS_API_VERSION = "1.11";
-export const DOCS_API_FINGERPRINTS = {"docs-api/docs-api.v1.schema.json":"4cfe67272ed483c4","docs-api/errors.v1.json":"b97a18519f1e8200","docs-api/events.v1.schema.json":"56d0bfa0bc79716a","docs-api/CHANGELOG.md":"6a7d3cc43c8dc89a","docs-ir/doc-ir.v1.schema.json":"43f26b0d8d4f0130","context-pack/context-pack.v1.schema.json":"51cd6ff1d72c309d"} as const;
+export const DOCS_API_FINGERPRINTS = {"docs-api/docs-api.v1.schema.json":"4cfe67272ed483c4","docs-api/errors.v1.json":"b97a18519f1e8200","docs-api/events.v1.schema.json":"56d0bfa0bc79716a","docs-api/CHANGELOG.md":"2cd0d0e44e2d4fc8","docs-ir/doc-ir.v1.schema.json":"43f26b0d8d4f0130","context-pack/context-pack.v1.schema.json":"51cd6ff1d72c309d"} as const;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
