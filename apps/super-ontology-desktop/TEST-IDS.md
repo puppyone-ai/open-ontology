@@ -82,7 +82,11 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-ontology` **(T1)** | the Ontology screen | |
-| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the three views | `data-active` |
+| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the views | `data-active` |
+| `ontology-tab-atlas` **(T1)** | the atlas view | `data-active` |
+| `atlas` `atlas-search` `atlas-matches` `atlas-tally` `atlas-partial` `atlas-truncated` `atlas-inspector` `atlas-open` `atlas-play` `atlas-fit` `atlas-mode-type` `atlas-mode-source` `atlas-view-graph` | the atlas screen: search, matches, counts, notices, inspector, controls | |
+| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` |
+| `atlas-view-list` `atlas-list` `atlas-list-group` `atlas-list-member` **(T1)** | the keyboard list that lists the same cells | group: `data-group`; member: `data-name` |
 | `entity-search` **(T1)** | search field | |
 | `entity-type-filter` | type filter | |
 | `entity-list` `entity-row` **(T1)** | entity list | row: `data-name`, `data-type` |

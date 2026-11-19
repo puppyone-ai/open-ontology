@@ -241,3 +241,20 @@ describe("lists", () => {
     await expect(handlers["share-get"]({ shareId: SHARE.id })).rejects.toMatchObject({ code: "SO_RESPONSE_INVALID" });
   });
 });
+
+describe("atlas channels (D88)", () => {
+  it("reads the document to table links and one read-only SELECT, nothing else", async () => {
+    const { handlers, calls } = make({ responses: { linksList: { value: { items: [], agent_db: "bound" } }, ontologyQuery: { value: { columns: ["a"], rows: [["x"]] } } } });
+    expect(await handlers["atlas-links"]({})).toEqual({ items: [], agent_db: "bound" });
+    expect(await handlers["atlas-sql"]({ sql: "SELECT 1", maxRows: 5 })).toEqual({ columns: ["a"], rows: [["x"]] });
+    expect(calls.find(([name]) => name === "ontologyQuery")[1].body).toEqual({ sql: "SELECT 1", max_rows: 5 });
+    expect(ROUTES.ontologyQuery.method).toBe("POST");
+    expect(ROUTES.linksList.method).toBe("GET");
+  });
+  it("validates the request", () => {
+    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "" })).toThrow();
+    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1", maxRows: 5000 })).toThrow();
+    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1", extra: 1 })).toThrow();
+    expect(parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1" })).toEqual({ sql: "SELECT 1" });
+  });
+});

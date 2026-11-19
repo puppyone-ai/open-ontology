@@ -200,6 +200,16 @@ export function createOntologyHandlers({ client, grants, revealPath = () => {}, 
       return ensure(value, isUsage);
     },
 
+    "atlas-links": async () => {
+      const { value } = await call("linksList", {});
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.items));
+    },
+
+    "atlas-sql": async ({ sql, maxRows }) => {
+      const { value } = await call("ontologyQuery", { body: { sql, ...(maxRows ? { max_rows: maxRows } : {}) } });
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.columns) && Array.isArray(v.rows));
+    },
+
     "ontology-versions": async ({ limit, cursor }) => {
       const { value } = await call("ontologyVersions", { query: { limit, cursor } });
       return ensure(value, isPage);

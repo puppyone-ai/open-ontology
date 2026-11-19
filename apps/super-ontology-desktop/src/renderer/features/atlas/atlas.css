@@ -1,0 +1,51 @@
+@layer so-app {
+  .so-atlas-spacer { flex: 1 1 auto; }
+  .so-atlas-matches { font-size: var(--so-text-sm); font-variant-numeric: tabular-nums; }
+  .so-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+  /* The stage: a light canvas inside a hairline frame; the canvas fills it and the overlays sit on it. */
+  .so-atlas-stage { position: relative; height: clamp(420px, calc(100vh - 300px), 820px); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-canvas); overflow: hidden; }
+  .so-atlas-stage[data-busy] { opacity: 0.7; transition: opacity var(--so-duration) var(--so-ease); }
+  .so-atlas-stage-list { overflow: auto; background: var(--so-panel); }
+  .so-atlas-canvas { position: absolute; inset: 0; }
+  .so-atlas-surface { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; outline: none; }
+  .so-atlas-surface:active { cursor: grabbing; }
+  .so-atlas-surface:focus-visible { box-shadow: inset 0 0 0 2px var(--so-focus-ring); }
+
+  .so-atlas-overlay { position: absolute; bottom: var(--so-space-3); display: flex; align-items: center; gap: var(--so-space-2); }
+  .so-atlas-overlay-start { inset-inline-start: var(--so-space-3); }
+  .so-atlas-overlay-end { inset-inline-end: var(--so-space-3); flex-direction: column; align-items: stretch; }
+  .so-atlas-tally { font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+
+  .so-atlas-inspector { position: absolute; top: var(--so-space-3); inset-inline-start: var(--so-space-3); display: grid; gap: var(--so-space-1); width: 240px; padding: var(--so-space-3); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); }
+  .so-atlas-inspector .so-button { margin-top: var(--so-space-2); justify-self: start; }
+  .so-atlas-inspector-title { margin: 0; font-size: var(--so-text-md); font-weight: var(--so-weight-semibold); }
+  .so-atlas-inspector-sub, .so-atlas-inspector-line { margin: 0; font-size: var(--so-text-sm); }
+  .so-atlas-inspector-line { color: var(--so-text-2); font-variant-numeric: tabular-nums; }
+
+  /* Equivalent list view. */
+  .so-atlas-list, .so-atlas-list-members { margin: 0; padding: 0; list-style: none; }
+  .so-atlas-list { padding: var(--so-space-2); }
+  .so-atlas-list-group + .so-atlas-list-group { border-top: 1px solid var(--so-line); }
+  .so-atlas-list-head, .so-atlas-list-row { display: flex; align-items: center; gap: var(--so-space-2); width: 100%; border: 0; border-radius: var(--so-radius-control); background: transparent; color: var(--so-text); text-align: start; transition: background-color var(--so-duration-fast) var(--so-ease); }
+  .so-atlas-list-head { height: 36px; padding: 0 var(--so-space-2); font-weight: var(--so-weight-medium); }
+  .so-atlas-list-row { height: 32px; padding: 0 var(--so-space-2) 0 calc(var(--so-space-2) + 16px + var(--so-space-2) + 10px + var(--so-space-2)); color: var(--so-text-2); }
+  .so-atlas-list-head:hover, .so-atlas-list-row:hover { background: var(--so-hover); }
+  .so-atlas-list-head:active, .so-atlas-list-row:active { background: var(--so-press); }
+  .so-atlas-list-head:focus-visible, .so-atlas-list-row:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--so-focus-ring); }
+  .so-atlas-list-chevron { flex: none; transition: rotate var(--so-duration-fast) var(--so-ease); }
+  .so-atlas-list-head[aria-expanded="true"] .so-atlas-list-chevron { rotate: 90deg; }
+  .so-atlas-list-name { flex: 1 1 auto; min-width: 0; }
+  .so-atlas-count { flex: none; font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+  .so-atlas-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 22%, transparent); }
+  .so-atlas-list-group[data-tone="ink"] .so-atlas-swatch { color: var(--so-accent); }
+  .so-atlas-list-group[data-tone="moss"] .so-atlas-swatch { color: var(--so-success); }
+  .so-atlas-list-group[data-tone="sand"] .so-atlas-swatch { color: var(--so-warning); }
+  .so-atlas-list-group[data-tone="clay"] .so-atlas-swatch { color: var(--so-danger); }
+  .so-atlas-list-group[data-tone="stone"] .so-atlas-swatch { color: var(--so-text-2); }
+  .so-atlas-inspector[data-tone="ink"] { border-inline-start: 3px solid var(--so-accent); }
+  .so-atlas-inspector[data-tone="moss"] { border-inline-start: 3px solid var(--so-success); }
+  .so-atlas-inspector[data-tone="sand"] { border-inline-start: 3px solid var(--so-warning); }
+  .so-atlas-inspector[data-tone="clay"] { border-inline-start: 3px solid var(--so-danger); }
+  .so-atlas-inspector[data-tone="stone"] { border-inline-start: 3px solid var(--so-text-weak); }
+}
