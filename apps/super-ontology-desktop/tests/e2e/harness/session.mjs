@@ -44,7 +44,8 @@ async function firstExisting(candidates) {
  */
 export async function runScenario(options, scenario) {
   const { name, title = name, timeoutMs = 280_000, language = "en", settings = {}, window: size = { width: 1280, height: 820 }, firstRun = false } = options;
-  const engineKind = process.env.SO_T1_ENGINE ?? options.engine ?? "real";
+  // A scenario that declares the fake engine (it adds a database through the canned `oo`, which a real engine knows nothing of) keeps it: the run-wide switch only moves the others.
+  const engineKind = options.engine === "fake" ? "fake" : (process.env.SO_T1_ENGINE ?? options.engine ?? "real");
   const appRoot = process.env.SO_APP_ROOT ?? defaultAppRoot;
   const packagedApp = process.env.SO_T1_PACKAGED_APP ? path.join(process.env.SO_T1_PACKAGED_APP, "Contents", "MacOS", "Super Ontology") : null;
   const stamp = new Date().toISOString().replaceAll(":", "-");
