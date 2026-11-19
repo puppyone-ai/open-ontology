@@ -61,12 +61,14 @@ def sh(argv, **kw):
 
 
 def wait_for_free(ev):
+    """At most two Super Ontology stacks run at once on the host (30 section 7): count other lanes, not containers."""
     while True:
         out = sh(["docker", "ps", "--filter", "label=oo.lane", "--format", "{{.Names}} {{.Label \"oo.lane\"}}"]).stdout
-        busy = [l for l in out.splitlines() if "super-ontology" in l and LANE not in l and "-pg" not in l.split()[0]]
-        if not busy:
+        lanes = {l.split()[-1] for l in out.splitlines()
+                 if "super-ontology" in l.split()[-1] and l.split()[-1] != LANE and "-pg" not in l.split()[0]}
+        if len(lanes) < 2:
             return
-        ev.log(f"  another stack is up ({len(busy)} containers), waiting")
+        ev.log(f"  {len(lanes)} other stacks are up, waiting for a slot")
         time.sleep(30)
 
 
