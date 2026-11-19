@@ -192,6 +192,15 @@
 | SO-F-S19-22 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 26ae0586a → 26ae0586a | — | apps/super-ontology-desktop/ | Port the main-process and contract test suites with the fake engine |
 | SO-F-S19-23 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 1feab20f8 → 1feab20f8 | — | apps/super-ontology-desktop/ | Port the renderer data and service layer unit suites |
 | SO-F-S19-24 | D85 | merged | feat/super-ontology (App 车道 C 并入) | 6b108c2a5 → a83942ec2 | — | apps/super-ontology-desktop/ | List the test ids the renderer and the T1 scenarios agree on |
+| SO-F-S19-10 | D85 | merged | feat/super-ontology (App 车道并入) | c1ec14759 → c1ec14759 | — | apps/super-ontology-desktop/ | Add the Super Ontology design system package |
+| SO-F-S19-11 | D85 | merged | feat/super-ontology (App 车道并入) | 414f6fa42 → 414f6fa42 | — | apps/super-ontology-desktop/ | Add the Super Ontology app data and service layer |
+| SO-F-S19-12 | D85 | merged | feat/super-ontology (App 车道并入) | bf2200e95 → bf2200e95 | — | apps/super-ontology-desktop/ | Add the app shell and the Home screen |
+| SO-F-S19-13 | D85 | merged | feat/super-ontology (App 车道并入) | 365879373 → 365879373 | — | apps/super-ontology-desktop/ | Add the Sources screen |
+| SO-F-S19-14 | D85 | merged | feat/super-ontology (App 车道并入) | 9e1425054 → 9e1425054 | — | apps/super-ontology-desktop/ | Add the Ontology and Agents screens |
+| SO-F-S19-15 | D85 | merged | feat/super-ontology (App 车道并入) | ed3b88cbe → ed3b88cbe | — | apps/super-ontology-desktop/ | Add Settings and the five-step first run |
+| SO-F-S19-32 | D85 | merged | feat/super-ontology (App 车道并入) | 7964c606e → 7964c606e | — | apps/super-ontology-desktop/ | Wire the preload channels into the renderer and carry the test ids on its screens |
+| SO-F-S19-33 | D85 | merged | feat/super-ontology (App 车道并入) | 4ac16c81a → 4ac16c81a | — | apps/super-ontology-desktop/ | Polish the screens after the review of the real window |
+| SO-F-S19-34 | D85 | merged | feat/super-ontology (App 车道并入) | a93cb23ee → fcf126c88 | — | apps/super-ontology-desktop/ | Refresh the third-party notice for the renderer dependencies |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
