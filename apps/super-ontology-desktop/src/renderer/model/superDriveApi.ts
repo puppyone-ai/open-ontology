@@ -6,7 +6,6 @@ import type {
   EngineSnapshot,
   PickPathPurpose,
   PickPathValue,
-  SuperOntologyBridge,
   UploadStartValue,
   AuditShareRecord,
   AuditSharesQuery,
@@ -16,11 +15,8 @@ import type {
   EngineFileDetail,
   EnginePage,
   SuggestionWriteback,
-  SuperOntologyChannel,
   SuperOntologyChannelMap,
-  SuperOntologyFailure,
   SuperOntologyPush,
-  SuperOntologyResult,
 } from "../../shared/super-ontology/bridge";
 import { installBridgeReader, invoke, readBridge, validated, type ApiResult } from "./bridgeInvoke";
 import { ontologyApi, type OntologyApi } from "./superDriveOntologyApi";

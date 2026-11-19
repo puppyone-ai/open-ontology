@@ -5,15 +5,20 @@
   "license": "Apache-2.0",
   "type": "module",
   "description": "Super Ontology desktop app.",
-  "engines": { "node": "24.21.0", "pnpm": "12.10.1" },
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "12.10.1"
+  },
   "scripts": {
     "dev:renderer": "vite --config vite.renderer.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts",
     "gen:contract": "node scripts/gen-contract.mjs",
     "check:contract": "node scripts/gen-contract.mjs --check",
     "types": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint --config eslint.config.mjs .",
-    "test": "vitest run --config vitest.config.ts"
+    "lint": "eslint --config eslint.config.mjs src scripts *.ts",
+    "test": "vitest run --config vitest.config.ts",
+    "dev:bridge": "node scripts/dev-bridge.mjs",
+    "shots": "node scripts/ui-shots.mjs"
   },
   "dependencies": {
     "@open-ontology/design-system": "workspace:*",
@@ -25,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
