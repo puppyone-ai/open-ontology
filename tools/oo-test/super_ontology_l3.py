@@ -218,7 +218,17 @@ class Lab:
 
     def sync(self, paths=None, drive_id=None, ok=(200, 201, 202, 204)):
         body = {"paths": paths} if paths else {}
-        return self.req("POST", f"/v1/docs/drives/{drive_id or self.drive_id}:sync", body, ok=ok)
+        # 10 6.1: a full sync answers 409 DOCS_SOURCE_SYNC_RUNNING while a poll
+        # sweep runs (every Drive polls). That sweep may have listed the tree
+        # before this caller's change, so wait for it to end and ask again.
+        for _ in range(240):
+            try:
+                return self.req("POST", f"/v1/docs/drives/{drive_id or self.drive_id}:sync", body, ok=ok)
+            except RuntimeError as e:
+                if paths or "DOCS_SOURCE_SYNC_RUNNING" not in str(e):
+                    raise
+                time.sleep(0.5)
+        raise RuntimeError("sync still running after 120 s")
 
     def kill_sidecar_workers(self):
         r = comp.exec_py(self.sidecar_id(), KILL_WORKERS)

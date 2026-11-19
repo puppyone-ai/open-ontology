@@ -107,12 +107,22 @@ def sh(cmd, **kw):
 
 
 def wait_for_free():
+    """At most two Super Ontology stacks run at once on the host (30 section 7): wait for a slot, and say so.
+
+    A cell container is a stack of its own lane. The count is the number of other lanes with a container up, a lone
+    database container (`-pg`) is not a stack. It used to wait for no other lane at all, silently, so a run beside the
+    other lanes looked hung."""
+    waited = 0
     while True:
         names = sh(["docker", "ps", "--filter", "label=oo.lane", "--format", "{{.Names}} {{.Label \"oo.lane\"}}"]).stdout
-        # A compose stack of another lane (engine or sidecar containers) blocks us; a lone database container does not.
-        if not [l for l in names.splitlines() if "super-ontology" in l.split(" ")[-1] and "be6" not in l and "-pg" not in l.split(" ")[0]]:
+        others = {l.split(" ")[-1] for l in names.splitlines()
+                  if "super-ontology" in l.split(" ")[-1] and l.split(" ")[-1] != LANE and "-pg" not in l.split(" ")[0]}
+        if len(others) < 2:
             return
+        if waited % 120 == 0:
+            print(f"  {len(others)} other stacks are up, waiting for a slot ({waited} s)", flush=True)
         time.sleep(20)
+        waited += 20
 
 
 def make_inputs(d):

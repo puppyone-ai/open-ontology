@@ -52,6 +52,8 @@ comp.LANE = os.environ.get("OO_TEST_LANE", "super-ontology-a7")
 # for a host where the locked ids are not (the lock itself is the integration thread's).
 DEPLOY = Path(os.environ.get("OO_ACCEPT_DEPLOY_DIR", REPO / "deploy/docs"))
 WORKING = {"stored", "queued", "parsing", "parsed", "extracting", "indexed", "outdated"}
+# the sample Drive of super_ontology_l6_samples.py: 8 files and the degraded OCR picture
+N_FILES = 9
 MEETING = "Meetings/周会 参会=小王、小李.wav"
 D49_EDIT_SECONDS = 30.0
 D49_MD_SECONDS = 7.0  # D49 as calibrated at L3 (2026-11-17): md/txt detected to published, p95
@@ -128,7 +130,7 @@ def main():
                            capture_output=True, text=True)
         ev.command(["python3", "tools/oo-test/super_ontology_l6_samples.py", "<drive>"])
         listing = p.stdout.strip().splitlines()
-        ev.check("0 the sample script writes 8 synthetic files", p.returncode == 0 and listing and listing[-1] == "8 files", listing[-1] if listing else p.stderr[-200:])
+        ev.check("0 the sample script writes 9 synthetic files", p.returncode == 0 and listing and listing[-1] == f"{N_FILES} files", listing[-1] if listing else p.stderr[-200:])
 
         ev.log("\n## 1. start the compose runtime with the ocr and media sidecars")
         lock = json.loads((DEPLOY / "images.lock.json").read_text())
@@ -165,7 +167,7 @@ def main():
             states = sorted({f["state"] for f in fs.values()})
             if not seen or seen[-1][1] != states:
                 seen.append((round(time.time() - t0, 1), states))
-            return len(fs) == 8 and not any(f["state"] in WORKING and f["state"] != "indexed" for f in fs.values())
+            return len(fs) == N_FILES and not any(f["state"] in WORKING and f["state"] != "indexed" for f in fs.values())
 
         l2.wait_until(1500, settled, step=5)
         ev.log("  states seen: " + json.dumps(seen, ensure_ascii=False))
