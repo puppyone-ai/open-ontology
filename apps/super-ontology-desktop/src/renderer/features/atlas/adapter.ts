@@ -38,8 +38,9 @@ export type LoadOptions = {
 
 export type LoadResult = { data: AtlasData; truncated: boolean };
 
-const TYPE_TONE: Record<string, AtlasTone> = { Person: "ink", Organization: "moss", Project: "sand", Decision: "clay", Document: "stone", Topic: "ink", Event: "moss", Term: "sand", Thing: "stone" };
-const DB_TONES: AtlasTone[] = ["moss", "stone"];
+const TYPE_TONE: Record<string, AtlasTone> = { Person: "ink", Organization: "steel", Project: "dusk", Decision: "sand", Document: "stone", Topic: "mist", Event: "dusk", Term: "steel", Thing: "sand" };
+const DB_TONES: AtlasTone[] = ["mist", "steel"];
+const DRIVE_TONES: AtlasTone[] = ["ink", "dusk", "sand", "stone"];
 const PAGE = 200;
 
 export const entityId = (key: string) => `e:${key}`;
@@ -92,7 +93,8 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
   if (versionResult.ok) for (const version of versionResult.value.items) versions.push({ n: version.n, asOf: version.as_of });
   versions.sort((a, b) => a.n - b.n);
 
-  // Documents side.
+  const filesByPath = new Map<string, string>();
+  // Documents side. Type mode groups by entity type only; source mode by source (a Drive, or a database schema) only.
   if (mode === "type") {
     const found = await pages((cursor) => source.entities({ limit: PAGE, cursor }), maxEntities, signal);
     if (!found.ok) partial.add("entities");
@@ -107,16 +109,18 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
     if (!drives.ok) partial.add("files");
     else {
       let budget = maxFiles;
+      let driveIndex = 0;
       for (const drive of drives.value) {
         if (drive.status === "deleted" || signal?.aborted) continue;
         const gid = driveGroupId(drive.id);
-        groups.set(gid, { id: gid, kind: "drive", label: drive.name, tone: "ink" });
+        groups.set(gid, { id: gid, kind: "drive", label: drive.name, tone: DRIVE_TONES[driveIndex++ % DRIVE_TONES.length]! });
         const found = await pages((cursor) => source.files({ driveId: drive.id, limit: PAGE, cursor }), budget, signal);
         if (!found.ok) partial.add("files");
         truncated ||= found.truncated;
         budget -= found.items.length;
         for (const file of found.items) {
           if (file.state === "deleted" || file.state === "superseded") continue;
+          filesByPath.set(`${drive.id}|${file.path}`, fileId(file.id));
           members.push({ id: fileId(file.id), group: gid, label: file.path.split("/").pop() || file.path, ref: { kind: "file", fileId: file.id, path: file.path }, weight: 0, born: null });
         }
       }
@@ -124,35 +128,40 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
   }
   emit();
 
-  // Database side: tables are members of their schema, foreign keys are links.
+  // Database side, source mode only: tables are members of their schema, foreign keys are links.
   const tableIds = new Map<string, string>();
-  const catalog = await source.catalog();
-  if (catalog.ok) {
-    const schemas = [...new Set(catalog.value.tables.map((t) => t.schema))].sort();
-    schemas.forEach((schema, index) => groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: schema, tone: DB_TONES[index % DB_TONES.length]! }));
-    for (const table of catalog.value.tables) {
-      const id = tableId(table);
-      tableIds.set(`${table.schema}.${table.table}`, id);
-      members.push({ id, group: dbGroupId(table.schema), label: table.table, ref: { kind: "table", table: `${table.schema}.${table.table}` }, weight: 0, born: null });
-    }
-    for (const fk of catalog.value.foreignKeys) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key");
-  } else if (catalog.error.code !== "ONTOLOGY_NOT_CONFIGURED") partial.add("tables");
-  emit();
-
-  // Document entity to table row links.
-  if (mode === "type") {
-    const linkList = await source.links();
-    if (linkList.ok) {
-      const bySuffix = new Map<string, string | null>();
-      for (const [name, id] of tableIds) { const short = name.slice(name.indexOf(".") + 1); bySuffix.set(short, bySuffix.has(short) ? null : id); }
-      for (const item of linkList.value.items) {
-        if (item.status === "rejected") continue;
-        const target = tableIds.get(item.db_table) ?? bySuffix.get(item.db_table) ?? null;
-        if (target) addLink(links, entityId(item.doc_entity_key), target, "link");
+  if (mode === "source") {
+    const catalog = await source.catalog();
+    if (catalog.ok) {
+      const schemas = [...new Set(catalog.value.tables.map((t) => t.schema))].sort();
+      schemas.forEach((schema, index) => groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: schema, tone: DB_TONES[index % DB_TONES.length]! }));
+      for (const table of catalog.value.tables) {
+        const id = tableId(table);
+        tableIds.set(`${table.schema}.${table.table}`, id);
+        members.push({ id, group: dbGroupId(table.schema), label: table.table, ref: { kind: "table", table: `${table.schema}.${table.table}` }, weight: 0, born: null });
       }
-    } else partial.add("links");
+      for (const fk of catalog.value.foreignKeys) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key");
+    } else if (catalog.error.code !== "ONTOLOGY_NOT_CONFIGURED") partial.add("tables");
     emit();
 
+    // Document to table links: a file whose entity matches a row links to that table.
+    if (tableIds.size > 0) {
+      const linkList = await source.links();
+      if (linkList.ok) {
+        const bySuffix = new Map<string, string | null>();
+        for (const [name, id] of tableIds) { const short = name.slice(name.indexOf(".") + 1); bySuffix.set(short, bySuffix.has(short) ? null : id); }
+        for (const item of linkList.value.items) {
+          if (item.status === "rejected") continue;
+          const target = tableIds.get(item.db_table) ?? bySuffix.get(item.db_table) ?? null;
+          const from = item.provenance?.file?.map((f) => filesByPath.get(`${item.drive_id}|${f.path}`)).find((id) => id !== undefined);
+          if (target && from) addLink(links, from, target, "link");
+        }
+      } else partial.add("links");
+    }
+    emit();
+  }
+
+  if (mode === "type") {
     // Relations: facts whose object is another entity. Only the most connected entities are read, a few at a time.
     const known = new Set(members.map((m) => m.id));
     const queue = members.filter((m) => m.ref.kind === "entity" && m.weight > 0).sort((a, b) => b.weight - a.weight).slice(0, options.relationBudget ?? 150);

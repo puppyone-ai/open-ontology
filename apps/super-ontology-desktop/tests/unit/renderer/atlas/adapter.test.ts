@@ -7,20 +7,32 @@ const corpus = () => syntheticAtlas({ groups: 6, members: 80, linkRatio: 1, vers
 const ids = (list: { id: string }[]) => list.map((x) => x.id).sort();
 
 describe("atlas data adapter", () => {
-  it("builds groups, members and every kind of link from what the engine answers", async () => {
+  it("type mode groups by entity type only: no source, table or database appears", async () => {
     const data = corpus();
-    const { data: loaded, truncated } = await loadAtlas(fakeAtlasSource(data), { mode: "type" });
+    const source = fakeAtlasSource(data);
+    const { data: loaded, truncated } = await loadAtlas(source, { mode: "type" });
     expect(truncated).toBe(false);
-    expect(ids(loaded.groups)).toEqual(ids(data.groups));
-    expect(ids(loaded.members)).toEqual(ids(data.members));
-    for (const kind of ["fact", "link", "foreign_key"] as const) {
-      expect(loaded.links.filter((l) => l.kind === kind).length, kind).toBe(data.links.filter((l) => l.kind === kind).length);
-    }
+    expect(loaded.groups.every((g) => g.kind === "type")).toBe(true);
+    expect(ids(loaded.members)).toEqual(ids(data.members.filter((m) => m.ref.kind === "entity")));
+    expect(loaded.links.every((l) => l.kind === "fact")).toBe(true);
+    expect(loaded.links.length).toBe(data.links.filter((l) => l.kind === "fact").length);
+    expect(source.calls.catalog).toBeUndefined();
     expect(loaded.versions.map((v) => v.n)).toEqual(data.versions.map((v) => v.n));
     expect(loaded.partial).toEqual([]);
-    const entity = loaded.members.find((m) => m.ref.kind === "entity")!;
+    const entity = loaded.members[0]!;
     expect(entity.born).toBe(data.members.find((m) => m.id === entity.id)!.born);
-    expect(loaded.groups.find((g) => g.kind === "db")).toBeTruthy();
+  });
+
+  it("source mode groups by source only (Drives and database schemas) and links files to tables and tables to tables", async () => {
+    const data = corpus();
+    const { data: loaded } = await loadAtlas(fakeAtlasSource(data), { mode: "source" });
+    expect(loaded.groups.every((g) => g.kind === "drive" || g.kind === "db")).toBe(true);
+    expect(loaded.groups.some((g) => g.kind === "drive")).toBe(true);
+    expect(ids(loaded.groups.filter((g) => g.kind === "db"))).toEqual(ids(data.groups.filter((g) => g.kind === "db")));
+    expect(ids(loaded.members.filter((m) => m.ref.kind === "table"))).toEqual(ids(data.members.filter((m) => m.ref.kind === "table")));
+    expect(loaded.members.some((m) => m.ref.kind === "entity")).toBe(false);
+    expect(loaded.links.filter((l) => l.kind === "foreign_key").length).toBe(data.links.filter((l) => l.kind === "foreign_key").length);
+    expect(loaded.links.filter((l) => l.kind === "link").length).toBe(data.links.filter((l) => l.kind === "link").length);
   });
 
   it("pages the entity list until it ends and stops at the cap, saying so", async () => {
@@ -47,13 +59,14 @@ describe("atlas data adapter", () => {
 
   it("names the part that failed and keeps the rest", async () => {
     const data = corpus();
-    const noDb = await loadAtlas(fakeAtlasSource(data, { failCatalog: true }), { mode: "type" });
+    const noDb = await loadAtlas(fakeAtlasSource(data, { failCatalog: true }), { mode: "source" });
     expect(noDb.data.partial).toContain("tables");
-    expect(noDb.data.members.some((m) => m.ref.kind === "entity")).toBe(true);
+    expect(noDb.data.members.some((m) => m.ref.kind === "file")).toBe(true);
     expect(noDb.data.groups.some((g) => g.kind === "db")).toBe(false);
-    const noLinks = await loadAtlas(fakeAtlasSource(data, { failLinks: true }), { mode: "type" });
+    const noLinks = await loadAtlas(fakeAtlasSource(data, { failLinks: true }), { mode: "source" });
     expect(noLinks.data.partial).toContain("links");
     expect(noLinks.data.links.some((l) => l.kind === "link")).toBe(false);
+    expect(noLinks.data.links.some((l) => l.kind === "foreign_key")).toBe(true);
   });
 
   it("source mode groups files by Drive and skips deleted and superseded ones", async () => {
@@ -72,7 +85,7 @@ describe("atlas data adapter", () => {
     const source = fakeAtlasSource(data);
     const links = source.links;
     source.links = async () => { const r = await links(); if (!r.ok) return r; return { ok: true, value: { ...r.value, items: r.value.items.map((i) => ({ ...i, db_table: i.db_table.slice(i.db_table.indexOf(".") + 1) })) } }; };
-    const { data: loaded } = await loadAtlas(source, { mode: "type" });
+    const { data: loaded } = await loadAtlas(source, { mode: "source" });
     expect(loaded.links.filter((l) => l.kind === "link").length).toBeGreaterThan(0);
   });
 
@@ -103,7 +116,7 @@ describe("atlas data adapter", () => {
   it("carries a new group with the first member that needs it", () => {
     const before = corpus();
     const after = structuredClone(before);
-    after.groups.push({ id: "g:type:Fresh", kind: "type", label: "Fresh", tone: "sand" });
+    after.groups.push({ id: "g:type:Fresh", kind: "type", label: "Fresh", tone: "dusk" });
     after.members.push({ id: "e:fresh-1", group: "g:type:Fresh", label: "Fresh one", ref: { kind: "entity", key: "fresh-1" }, weight: 1, born: null });
     const bud = diffAtlas(before, after).find((op) => op.type === "bud");
     expect(bud).toMatchObject({ type: "bud", group: { id: "g:type:Fresh" } });

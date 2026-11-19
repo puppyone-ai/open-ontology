@@ -27,6 +27,28 @@
       "d3-quadtree 3.0.2 (ISC)",
       "d3-timer 3.0.2 (ISC)"
     ],
-    "note": "3.0.1 differs from 3.0.0 only in packaging (dist ESM entry); sources diffed. d3-zoom was considered and not adopted: zoom and pan are about 40 lines of our own camera code."
+    "note": "3.0.1 differs from 3.0.0 only in packaging (dist ESM entry); sources diffed. d3-zoom was considered and not adopted: zoom and pan are about 40 lines of our own camera code.",
+    "upstream_manifest_license": "ISC",
+    "relied_on_license": "ISC",
+    "license_evidence": [
+      {
+        "spdx": "ISC",
+        "source": "licenses/super-ontology-app/d3-force-3.0.1/LICENSE",
+        "sha256": "2a6d2d5f32ba0b755ddbc1c833f766e30cdbe6ebe9a6d4e3e24427721f0b63d3"
+      }
+    ],
+    "digest": "sha256:8e6c6ec6c684d1246eed13fc7874c32d830f4bda092877677c4718c86d511238",
+    "registry_integrity": "sha512-kAaaHLFebBYwgi5cYBXAI8vKrQFMCD2MEswj2QuPKKbdU1wYLc8WXtS7O8F/b6POCIe3gJjY6hkDstHi1yMETQ==",
+    "lockfile_integrity_matches_registry": true,
+    "license_obligations": [
+      {
+        "spdx": "ISC",
+        "obligations": [
+          "Retain the copyright and permission notice in all copies."
+        ]
+      }
+    ],
+    "weak_copyleft_review": null,
+    "default_features_disabled": false
   }
 }

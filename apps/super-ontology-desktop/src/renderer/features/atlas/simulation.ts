@@ -16,7 +16,7 @@ type Body = SimulationNodeDatum & { idx: number; r: number; ax: number; ay: numb
 
 const PULL = 0.16;
 const MEMBER_PAD = 0.8;
-const GROUP_PAD = 14;
+const GROUP_PAD = 24;
 
 export class SimCore {
   private readonly bodies = new Map<number, Body>();

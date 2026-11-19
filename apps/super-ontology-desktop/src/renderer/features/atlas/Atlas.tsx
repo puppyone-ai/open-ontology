@@ -9,7 +9,7 @@ import { isEngineReady } from "../../model/superDriveStateModel";
 import { atlasSource } from "./atlasApi";
 import { diffAtlas, loadAtlas, type AtlasSource } from "./adapter";
 import { AtlasCanvas, type AtlasCanvasHandle } from "./AtlasCanvas";
-import { AtlasList } from "./AtlasList";
+import { AtlasList, COUNT_KEY } from "./AtlasList";
 import { opsForEvents } from "./events";
 import { emptyAtlas, type AtlasData, type AtlasMember, type AtlasMode, type AtlasRef } from "./model";
 import type { SceneNode } from "./scene";
@@ -17,7 +17,7 @@ import { useReducedMotion } from "./useReducedMotion";
 import "./atlas.css";
 
 /** What the inspector shows about the selected cell: a copy, so the scene can keep moving under it. */
-type Inspected = { id: string; label: string; kind: "group" | "member"; groupLabel: string; tone: SceneNode["tone"]; count: number; weight: number; links: number; ref: AtlasRef | null };
+type Inspected = { id: string; label: string; kind: "group" | "member"; groupKind: SceneNode["groupKind"]; groupLabel: string; tone: SceneNode["tone"]; count: number; weight: number; links: number; ref: AtlasRef | null };
 
 const MODE_KEY = "so.atlas.mode";
 const REFRESH_DELAY_MS = 1200;
@@ -107,7 +107,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
     if (!node) { setSelected(null); return; }
     const scene = handle.current?.controller()?.scene;
     setSelected({
-      id: node.id, label: node.label, kind: node.kind, groupLabel: scene?.owner(node).label ?? node.label, tone: node.tone,
+      id: node.id, label: node.label, kind: node.kind, groupKind: node.groupKind, groupLabel: scene?.owner(node).label ?? node.label, tone: node.tone,
       count: node.count, weight: node.weight, links: scene?.neighbors(node.idx).size ?? 0, ref: node.ref,
     });
   }, []);
@@ -159,7 +159,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
           {canvasData && <AtlasCanvas data={canvasData} reducedMotion={reduced} handle={handle} onOpen={(node) => open(node.ref)} onSelect={onSelect} />}
           <div className="so-atlas-overlay so-atlas-overlay-start">
             <Button size="compact" icon={Play} onClick={() => handle.current?.playGrowth()} disabled={reduced} data-testid="atlas-play">{t("app.atlas.play")}</Button>
-            <span className="so-weak so-atlas-tally" data-testid="atlas-tally">{t("app.atlas.tally", { cells: live.members.length, links: live.links.length })}</span>
+            <span className="so-weak so-atlas-tally" data-testid="atlas-tally">{t("app.atlas.tally", { items: live.members.length, links: live.links.length })}</span>
           </div>
           <div className="so-atlas-overlay so-atlas-overlay-end">
             <IconButton icon={ZoomIn} label={t("app.atlas.zoomIn")} shortcut="+" variant="secondary" size="compact" onClick={() => handle.current?.zoomIn()} />
@@ -169,7 +169,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
           {selected && (
             <aside className="so-atlas-inspector" data-testid="atlas-inspector" data-tone={selected.tone}>
               <p className="so-atlas-inspector-title so-truncate">{selected.label}</p>
-              <p className="so-weak so-atlas-inspector-sub so-truncate">{selected.kind === "group" ? t("app.atlas.inspect.group", { count: selected.count }) : selected.groupLabel}</p>
+              <p className="so-weak so-atlas-inspector-sub so-truncate">{selected.kind === "group" ? t(COUNT_KEY[selected.groupKind], { count: selected.count }) : selected.groupLabel}</p>
               {selected.kind === "member" && selected.weight > 0 && <p className="so-atlas-inspector-line">{t("app.ontology.facts", { count: selected.weight })}</p>}
               {selected.links > 0 && <p className="so-atlas-inspector-line">{t("app.atlas.linked", { count: selected.links })}</p>}
               {selected.ref && selected.ref.kind !== "table" && <Button size="compact" variant="primary" onClick={() => open(selected.ref)} data-testid="atlas-open">{selected.ref.kind === "entity" ? t("app.atlas.open.entity") : t("app.atlas.open.file")}</Button>}

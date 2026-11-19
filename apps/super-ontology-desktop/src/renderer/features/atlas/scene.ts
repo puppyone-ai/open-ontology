@@ -90,7 +90,7 @@ export class AtlasScene {
     for (const member of data.members) sizes.set(member.group, (sizes.get(member.group) ?? 0) + 1);
     const radii = data.groups.map((group) => (open ? expandedRadius(sizes.get(group.id) ?? 0) : collapsedRadius(sizes.get(group.id) ?? 0)));
     const anchors = phyllotaxisAnchors(radii);
-    this.anchorScale = radii.length ? (radii.reduce((a, b) => a + b, 0) / radii.length) * 1.9 : 60;
+    this.anchorScale = radii.length ? (radii.reduce((a, b) => a + b, 0) / radii.length) * 2.3 : 60;
     data.groups.forEach((group, index) => {
       const node = this.makeGroup(group, anchors[index]!.x, anchors[index]!.y, radii[index]!);
       node.expanded = open;

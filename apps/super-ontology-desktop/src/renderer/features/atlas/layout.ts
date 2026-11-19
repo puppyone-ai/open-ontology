@@ -30,7 +30,7 @@ export function phyllotaxisAnchors(radii: readonly number[]): { x: number; y: nu
   const count = radii.length;
   if (count === 0) return [];
   const mean = radii.reduce((sum, value) => sum + value, 0) / count;
-  const scale = mean * 1.9;
+  const scale = mean * 2.3;
   const order = radii.map((radius, index) => ({ radius, index })).sort((a, b) => b.radius - a.radius || a.index - b.index);
   const anchors = new Array<{ x: number; y: number }>(count);
   order.forEach(({ index }, rank) => {

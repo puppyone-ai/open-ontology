@@ -1,7 +1,7 @@
 /** The atlas data model (D88, 25 section 7.3): what the adapter produces and the scene consumes. Plain data, no engine types. */
 
-/** Low-saturation tints of the ink-blue accent and the status colours; the renderer maps them to concrete colours. */
-export type AtlasTone = "ink" | "moss" | "sand" | "clay" | "stone";
+/** One cool low-saturation family around the ink-blue accent plus warm neutrals; never the status colours. */
+export type AtlasTone = "ink" | "steel" | "dusk" | "mist" | "sand" | "stone";
 
 /** `type`: an entity type (members are entities). `drive`: a document source (members are files). `db`: a database (members are tables). */
 export type AtlasGroupKind = "type" | "drive" | "db";
