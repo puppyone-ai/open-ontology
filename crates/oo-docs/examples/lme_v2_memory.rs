@@ -325,6 +325,7 @@ impl Memory {
         phrase_boost: i64,
         coverage_note: bool,
         phrase_counts: bool,
+        compact: bool,
     ) -> Value {
         let q = strip_scaffold(text);
         let mut items: Vec<String> = Vec::new();
@@ -357,7 +358,6 @@ impl Memory {
             ));
         }
         used += dused;
-        let digest_count = items.len();
 
         // Windows grouped by observation; the latest sighting of a unit wins.
         let mut per_state: BTreeMap<usize, (i64, Vec<usize>, usize)> = BTreeMap::new();
@@ -421,15 +421,21 @@ impl Memory {
         }
         order.sort_by(|a, b| per_state[b].0.cmp(&per_state[a].0).then(a.cmp(b)));
         let mut pages: HashMap<String, usize> = HashMap::new();
+        let mut full_left = full_top;
         for si in order {
             let (_, hits, sightings) = &per_state[&si];
             let seen = pages.entry(self.page_key(si)).or_insert(0);
             if *seen >= per_page {
                 continue;
             }
+            // Complete trees go to the best observation of distinct pages, so a
+            // page can be checked for what it does not show.
+            let full = full_left > 0 && *seen == 0;
             *seen += 1;
-            let full = items.len() < full_top + digest_count;
-            let item = self.render(si, hits, *sightings, full);
+            let item = self.render(si, hits, *sightings, full, compact);
+            if full {
+                full_left -= 1;
+            }
             let n = tokens::count(&item);
             if used + n > budget {
                 if used + 400 > budget {
@@ -452,8 +458,20 @@ impl Memory {
         format!("{}\u{1}{url}", st.title)
     }
 
-    fn render(&self, si: usize, hits: &[usize], sightings: usize, full: bool) -> String {
+    fn render(
+        &self,
+        si: usize,
+        hits: &[usize],
+        sightings: usize,
+        full: bool,
+        compact: bool,
+    ) -> String {
         let st = &self.states[si];
+        let shown = if compact {
+            compact_tree(&st.lines)
+        } else {
+            st.lines.iter().map(|l| Some(l.clone())).collect()
+        };
         let mut out = self.header(si, sightings);
         let n = st.lines.len();
         let mut keep = vec![full; n];
@@ -474,7 +492,8 @@ impl Memory {
             "Accessibility tree (excerpt):\n"
         });
         let mut skipped = 0;
-        for (i, line) in st.lines.iter().enumerate() {
+        for (i, line) in shown.iter().enumerate() {
+            let Some(line) = line else { continue };
             if keep[i] {
                 if skipped > 0 {
                     out.push_str(&format!("\t... ({skipped} lines not shown)\n"));
@@ -491,6 +510,64 @@ impl Memory {
         }
         out
     }
+}
+
+/// Attributes that never change what a page offers.
+const NOISE_ATTRS: &[&str] = &[
+    ", clickable",
+    ", visible",
+    ", focused",
+    ", atomic",
+    ", live='polite'",
+    ", live='assertive'",
+    ", relevant='additions text'",
+    ", relevant='all'",
+];
+
+fn quoted_name(line: &str) -> Option<&str> {
+    let a = line.find('\'')?;
+    let b = line.rfind('\'')?;
+    (b > a).then(|| &line[a + 1..b])
+}
+
+fn is_glyph(text: &str) -> bool {
+    let t = text.trim();
+    (t.len() == 6 && t.starts_with("\\u"))
+        || (t.chars().count() == 1 && t.chars().all(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)))
+}
+
+/// Compact view of an accessibility tree, one entry per source line
+/// (`None` = dropped): element ids and no-op attributes go, and a
+/// `StaticText` that only repeats its parent's name (or is an icon glyph)
+/// is dropped. Every label, value and state stays.
+fn compact_tree(lines: &[String]) -> Vec<Option<String>> {
+    let mut parents: Vec<(usize, String)> = Vec::new();
+    let mut out = Vec::with_capacity(lines.len());
+    for line in lines {
+        let depth = line.len() - line.trim_start_matches('\t').len();
+        while parents.last().is_some_and(|(d, _)| *d >= depth) {
+            parents.pop();
+        }
+        let body = strip_bids(line.trim_start_matches('\t'));
+        let name = quoted_name(&body).unwrap_or("").to_string();
+        if let Some(text) = body.strip_prefix("StaticText ") {
+            let text = quoted_name(text).unwrap_or(text);
+            let repeats = parents
+                .last()
+                .is_some_and(|(_, p)| !text.is_empty() && p.contains(text));
+            if repeats || is_glyph(text) || text.is_empty() {
+                out.push(None);
+                continue;
+            }
+        }
+        let mut body = body;
+        for a in NOISE_ATTRS {
+            body = body.replace(a, "");
+        }
+        out.push(Some(format!("{}{body}", "\t".repeat(depth))));
+        parents.push((depth, name));
+    }
+    out
 }
 
 /// Remove browser element ids (`[112] `, `[a51] `): they differ between
@@ -626,6 +703,7 @@ fn main() {
                     req.get("phrase_counts")
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
+                    req.get("compact").and_then(Value::as_bool).unwrap_or(false),
                 ),
                 Some("stats") => json!({
                     "ok": true,
@@ -664,6 +742,28 @@ mod tests {
                  "accessibility_tree": "RootWebArea 'Incident list'\n\t[40] button 'Filters'"}
             ]
         })
+    }
+
+    #[test]
+    fn compact_tree_keeps_labels_and_drops_repeats() {
+        let lines: Vec<String> = [
+            "RootWebArea 'Incident', focused",
+            "\t[b56] link 'Back', clickable, visible",
+            "\t\tStaticText '\\uf132'",
+            "\t\tStaticText 'Back'",
+            "\t[b62] combobox 'State', clickable, visible, expanded=False",
+            "\t\tStaticText 'New'",
+        ]
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+        let c = compact_tree(&lines);
+        assert_eq!(c[0].as_deref(), Some("RootWebArea 'Incident'"));
+        assert_eq!(c[1].as_deref(), Some("\tlink 'Back'"));
+        assert_eq!(c[2], None);
+        assert_eq!(c[3], None);
+        assert_eq!(c[4].as_deref(), Some("\tcombobox 'State', expanded=False"));
+        assert_eq!(c[5].as_deref(), Some("\t\tStaticText 'New'"));
     }
 
     #[test]
@@ -710,6 +810,7 @@ mod tests {
             0,
             false,
             false,
+            false,
         );
         let items = q["items"].as_array().unwrap();
         let first = items[0].as_str().unwrap();
@@ -726,12 +827,24 @@ mod tests {
                 0,
                 0,
                 false,
+                false,
                 false
             ),
             q
         );
         // The budget bounds the reply.
-        let small = mem.query("Depreciation", 10, 0, usize::MAX, false, 0, 0, false, false);
+        let small = mem.query(
+            "Depreciation",
+            10,
+            0,
+            usize::MAX,
+            false,
+            0,
+            0,
+            false,
+            false,
+            false,
+        );
         assert!(small["items"].as_array().unwrap().is_empty());
         // The exact-text check reports hits and misses as counts.
         let check = mem.query(
@@ -744,6 +857,7 @@ mod tests {
             0,
             false,
             true,
+            false,
         );
         let note = check["items"][0].as_str().unwrap();
         assert!(note.contains("\"depreciation\" in 2 of them"), "{note}");
