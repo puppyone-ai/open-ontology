@@ -149,3 +149,17 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `docs:read` and a `drive_id` of its set (`all_drives` may omit it); an unknown drive is 403 as on `/entities`.
 - `OntologySearchResult` items add the optional `kind` (`entity` | `fact` | `block`), `text`, `fact_key` and `predicate`; absent `kind`
   means `entity`, as in 1.7. Fact and block items keep their file anchor in `provenance`. No new error code. Additive.
+
+## 1.10 (Desktop defects D1 and D2, lane H)
+
+- `DriveCreate.config` also accepts `DriveConfigCloud` (one `secret_ref` to a JSON credential), the shape the engine already served for
+  `s3`, `oss`, `cos` and `r2`. `DriveConfigS3` (two `{secret_ref}`: `access_key_id`, `secret_access_key`, optional `session_token`)
+  is now served by the engine too, for all four backends. Before, the engine took only the single `secret_ref`, so a Desktop that
+  followed the contract got 400. The two shapes cannot be mixed (400 at `/config/secret_ref`). Each reference of the pair resolves to the
+  plain value (surrounding whitespace is dropped). `endpoint` is optional in `DriveConfigS3` (derived from `region` or `account_id`
+  as for `DriveConfigCloud`), and it gains `account_id`, `internal`, `policy`. `GET /drives` returns the references as given.
+- `Health.components.parser` is `unavailable` with `code` `DOCS_ENGINE_PARSER_UNAVAILABLE` while the configured doc-parser fails its
+  `/healthz` (it was always `ok`); the engine `status` is then `degraded`. New optional components `ocr_parser` and `media_parser`
+  (present only when those sidecars are configured) follow the same rule. New code `DOCS_ENGINE_PARSER_UNAVAILABLE` (no HTTP status;
+  it appears in a health component only). Additive.
+
