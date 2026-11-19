@@ -219,8 +219,53 @@ pub fn parse(text: &str) -> Result<Stack> {
         };
         serde_saphyr::from_str_with_options(text, options).map_err(|_| "STACK_SCHEMA")?
     };
+    let mut stack = stack;
+    resolve_file_refs(&mut stack);
     validate(&stack)?;
     Ok(stack)
+}
+
+/// `file:` references name their file by an absolute path. A directory on that path may
+/// be a symbolic link (macOS `/tmp`, `/var`), which the secret reader refuses by design, so
+/// the directory part is resolved once here, when the configuration is read. The file
+/// itself is never resolved: a link as the last component stays refused.
+fn resolve_file_refs(stack: &mut Stack) {
+    fn fix(reference: &mut SecretRef) {
+        reference.secret_ref = resolved_file_ref(&reference.secret_ref);
+    }
+    for source in &mut stack.sources {
+        fix(&mut source.password);
+        if let Some(ca) = &mut source.tls_ca {
+            fix(ca);
+        }
+        if let Some(ssh) = &mut source.ssh {
+            if let Some(key) = &mut ssh.key {
+                fix(key);
+            }
+            if let Some(password) = &mut ssh.password {
+                fix(password);
+            }
+        }
+    }
+    fix(&mut stack.model.key);
+    if let ModelEndpoint::Secret(reference) = &mut stack.model.base_url {
+        fix(reference);
+    }
+}
+
+/// `file:/a/link/dir/name` becomes `file:/a/real/dir/name` when the directory exists.
+pub fn resolved_file_ref(reference: &str) -> String {
+    let Some(path) = reference.strip_prefix("file:") else {
+        return reference.to_owned();
+    };
+    let path = std::path::Path::new(path);
+    match (path.parent(), path.file_name()) {
+        (Some(parent), Some(name)) if path.is_absolute() => match std::fs::canonicalize(parent) {
+            Ok(real) => format!("file:{}", real.join(name).display()),
+            Err(_) => reference.to_owned(),
+        },
+        _ => reference.to_owned(),
+    }
 }
 
 pub fn secret_name(name: &str) -> bool {
@@ -474,4 +519,36 @@ pub fn validate(stack: &Stack) -> Result<()> {
         return Err("STACK_GATEWAY");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod symlink_tests {
+    use super::*;
+
+    #[test]
+    fn symlinked_directories_in_file_references_are_resolved_but_the_file_is_not() {
+        let base = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-stack-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("real")).unwrap();
+        std::os::unix::fs::symlink(base.join("real"), base.join("link")).unwrap();
+        std::fs::write(base.join("real/pw"), "x").unwrap();
+        std::os::unix::fs::symlink(base.join("real/pw"), base.join("real/alias")).unwrap();
+        let via = format!("file:{}/link/pw", base.display());
+        assert_eq!(
+            resolved_file_ref(&via),
+            format!("file:{}/real/pw", base.display())
+        );
+        // the last component stays as written, so a link there is still refused later
+        let alias = format!("file:{}/link/alias", base.display());
+        assert_eq!(
+            resolved_file_ref(&alias),
+            format!("file:{}/real/alias", base.display())
+        );
+        for same in ["env:X", "name", "file:relative/x", "file:/no/such/dir/x"] {
+            assert_eq!(resolved_file_ref(same), same);
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
