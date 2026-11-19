@@ -80,6 +80,10 @@
       }
     },
     {
+      "do": "scroll",
+      "testid": "agent-token-revoke"
+    },
+    {
       "do": "click",
       "name": "app.connect.tokens.revoke"
     },

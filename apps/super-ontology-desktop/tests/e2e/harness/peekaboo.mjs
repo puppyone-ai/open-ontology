@@ -42,7 +42,8 @@ export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS
       try {
         const data = JSON.parse(stdout).data;
         const exact = (data.ui_elements ?? []).filter((element) => element.is_actionable && (element.label === name || element.title === name));
-        const element = exact.find((entry) => ["button", "checkbox", "textField", "radioButton", "link", "menuItem"].includes(entry.role)) ?? exact[0];
+        // The last one: a dialog is the last thing in the page, and its button shares the name of the button that opened it.
+        const element = exact.filter((entry) => ["button", "checkbox", "textField", "radioButton", "link", "menuItem"].includes(entry.role)).at(-1) ?? exact.at(-1);
         if (element) found = { id: element.id, snapshot: data.snapshot_id };
       } catch { /* not JSON: fall back to the query */ }
       const options = ["--foreground", "--wait-for", "10s", ...(right ? ["--right"] : []), ...(double ? ["--double"] : []), ...(modifiers ? ["--modifiers", modifiers] : []), ...(strategy ? ["--input-strategy", strategy] : [])];
@@ -55,6 +56,8 @@ export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS
     /** Return through System Events (the open panel needs Return, keypad Enter, Return: complete the path, go there, choose). */
     nativeReturn: (code = 36) => run("osascript", ["-e", `tell application "System Events" to key code ${code}`], {}),
     press: (chord, { native = false } = {}) => call(["press", chord, ...(native ? [] : target), "--foreground"]),
+    /** Scrolls the page under the pointer: what is below the fold is not in the accessibility tree until it is scrolled to. */
+    scroll: (direction = "down", amount = 10) => call(["scroll", "--direction", direction, "--amount", String(amount), ...target, "--foreground"]),
     /** The accessibility elements of the app's window as Peekaboo reports them (name, role, whether they can be acted on): for the evidence of a failed run. */
     elements: async () => { const { stdout } = await retrying(() => call(["see", ...target, "--json", "--web-focus"])); return JSON.parse(stdout).data?.ui_elements ?? []; },
     see: (path, { json = false } = {}) => retrying(() => call(["see", ...target, "--path", path, "--format", "png", ...(json ? ["--json"] : [])])),

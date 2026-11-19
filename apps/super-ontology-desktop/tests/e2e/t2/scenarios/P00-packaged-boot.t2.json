@@ -2,7 +2,8 @@
   "id": "P00",
   "title": "The packaged app opens, starts its engine and quits cleanly",
   "locales": [
-    "en"
+    "en",
+    "zh-Hans"
   ],
   "closes": "volume 25 section 6",
   "steps": [

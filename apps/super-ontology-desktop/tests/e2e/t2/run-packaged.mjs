@@ -28,7 +28,7 @@ export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
 export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
-const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
 const ATTEMPT_MS = 5 * 60_000;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
@@ -211,6 +211,8 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
         // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
         case "chooseFolder": await chooseFolder(text(step.path)); break;
+        // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
+        case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
         case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); if (step.elements) await fs.writeFile(path.join(directory, `${label}-${step.label}.elements.json`), JSON.stringify((await peekaboo.elements()).map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1)); break;
