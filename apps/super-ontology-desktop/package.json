@@ -16,6 +16,8 @@
     "build": "node scripts/build-renderer.mjs",
     "test": "vitest run --config config/vitest.config.ts",
     "check:brand": "node scripts/check-brand.mjs",
+    "gen:contract": "node scripts/gen-contract.mjs",
+    "gen:contract:check": "node scripts/gen-contract.mjs --check",
     "gen:icon": "node scripts/gen-icon.mjs",
     "gen:notice": "node scripts/gen-notice.mjs",
     "gen:notice:check": "node scripts/gen-notice.mjs --check",
