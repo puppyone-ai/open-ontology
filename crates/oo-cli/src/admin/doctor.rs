@@ -110,6 +110,28 @@ fn mysql(source: &Source, tables: &[TableRef]) -> Value {
     result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
 }
 
+/// Absolute `file:` secret paths named by a source: the helper in the image sees only the
+/// owner's secret store, so each of these files is bound read-only at the same path.
+fn file_secret_paths(source: &Value) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut refs = vec![&source["password"], &source["tls_ca"]];
+    if source["ssh"].is_object() {
+        refs.extend([&source["ssh"]["key"], &source["ssh"]["password"]]);
+    }
+    for reference in refs {
+        if let Some(path) = reference["secret_ref"]
+            .as_str()
+            .and_then(|r| r.strip_prefix("file:"))
+            && path.starts_with('/')
+            && !path.contains([',', ':', '\n'])
+            && !found.iter().any(|f| f == path)
+        {
+            found.push(path.to_owned());
+        }
+    }
+    found
+}
+
 /// One-shot `oo-mysql-doctor` from the pinned lite runtime image. It sees only
 /// the owner's secret store, read-only; a loopback source is this host.
 fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
@@ -145,7 +167,11 @@ fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
             "oo.lane={}",
             super::lite::lane(std::path::Path::new("/nonexistent"))
         ))
-        .args(["--env", "HOME=/home/oo"])
+        .args(["--env", "HOME=/home/oo"]);
+    for path in file_secret_paths(source) {
+        command.arg("--volume").arg(format!("{path}:{path}:ro"));
+    }
+    command
         .arg("--volume")
         .arg(format!(
             "{}:/home/oo/.config/open-ontology/secrets:ro",
@@ -645,6 +671,23 @@ mod tests {
         s.engine = "dm8".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Dameng);
         assert!(matches!(registry()[&EngineFamily::Dameng], Adapter::Dm8));
+    }
+
+    #[test]
+    fn helper_container_gets_exactly_the_file_secrets_the_source_names() {
+        let source = json!({
+            "password":{"secret_ref":"file:/private/tmp/a/pw"},
+            "tls_ca":{"secret_ref":"file:/private/tmp/a/ca"},
+            "ssh":{"key":{"secret_ref":"file:/private/tmp/a/pw"},"password":{"secret_ref":"named-secret"}},
+        });
+        assert_eq!(
+            file_secret_paths(&source),
+            vec!["/private/tmp/a/pw", "/private/tmp/a/ca"]
+        );
+        for refused in ["file:relative/x", "file:/a,b/x", "env:X", "name"] {
+            let one = json!({"password":{"secret_ref":refused},"tls_ca":null});
+            assert!(file_secret_paths(&one).is_empty(), "{refused}");
+        }
     }
 
     #[test]
