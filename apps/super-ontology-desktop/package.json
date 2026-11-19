@@ -15,6 +15,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build-renderer.mjs",
     "test": "vitest run --config config/vitest.config.ts",
+    "test:t1": "node tests/e2e/run-t1.mjs",
+    "test:t2": "node tests/e2e/t2/run-packaged.mjs",
     "check:brand": "node scripts/check-brand.mjs",
     "gen:contract": "node scripts/gen-contract.mjs",
     "gen:contract:check": "node scripts/gen-contract.mjs --check",

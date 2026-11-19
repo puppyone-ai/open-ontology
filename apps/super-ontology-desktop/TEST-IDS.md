@@ -36,7 +36,7 @@ Rules:
 | `firstrun-progress` | step 1 inline progress while `oo` is located and `oo serve` starts | `data-state` = `locating` `starting` `ready` `error` |
 | `firstrun-error` `firstrun-retry` | step 1 failure text and retry | |
 | `firstrun-dropzone` **(T1)** | step 2 drop target (my files, no configuration) | |
-| `firstrun-pick-files` **(T1)** | step 2: choose files from a dialog | |
+| `firstrun-pick-files` | step 2: choose files from a dialog (T1 drops files instead: the native dialog has no file purpose) | |
 | `firstrun-pick-folder` | step 2: choose a local folder | |
 | `firstrun-connect-cloud` `firstrun-connect-database` | step 2: secondary entries | |
 | `firstrun-file-row` **(T1)** | step 3: one row per file | `data-name`, `data-state` (the engine's file state) |
