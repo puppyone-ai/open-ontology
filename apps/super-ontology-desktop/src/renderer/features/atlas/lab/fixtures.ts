@@ -37,7 +37,7 @@ export function seeded(seed: number): () => number {
   };
 }
 
-const TONES: AtlasTone[] = ["ink", "moss", "sand", "clay", "stone"];
+const TONES: AtlasTone[] = ["ink", "steel", "dusk", "mist", "sand", "stone"];
 const WORDS = ["Alder", "Birch", "Cedar", "Dune", "Ember", "Fjord", "Grove", "Harbor", "Iris", "Juniper", "Kelp", "Lumen", "Moss", "Nectar", "Orchid", "Pebble", "Quartz", "Reed", "Sage", "Tundra", "Umber", "Vale", "Willow", "Yarrow", "Zephyr"];
 
 export function syntheticAtlas(options: SyntheticOptions): AtlasData {
@@ -48,7 +48,7 @@ export function syntheticAtlas(options: SyntheticOptions): AtlasData {
   for (let i = 0; i < options.groups; i += 1) {
     const db = i >= options.groups - dbGroups;
     const name = !db && options.names ? options.names[i]! : `${WORDS[i % WORDS.length]}${i >= WORDS.length ? ` ${Math.floor(i / WORDS.length) + 1}` : ""}`;
-    groups.push({ id: db ? dbGroupId(name) : `g:type:${name}`, kind: db ? "db" : "type", label: name, tone: db ? (i % 2 ? "stone" : "moss") : TONES[i % 3]! });
+    groups.push({ id: db ? dbGroupId(name) : `g:type:${name}`, kind: db ? "db" : "type", label: name, tone: db ? (i % 2 ? "stone" : "steel") : TONES[i % 5]! });
   }
   // A skewed split, so a few groups are big and many are small, as real ontologies are.
   const weights = groups.map((_, i) => 1 / (i + 1.5) ** 0.9);
@@ -109,6 +109,14 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
   const rows: EntitySearchRow[] = entities.map((m) => ({ id: idOf.get(m.id)!, key: (m.ref as { key: string }).key, type: typeOf(m.group) as EntitySearchRow["type"], name: m.label, counts: { facts: m.weight }, since_version: m.born } as EntitySearchRow));
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const factLinks = data.links.filter((l) => l.kind === "fact");
+  // Without explicit files, every document-to-table link gets a file of its own ("notes/<entity>.md") in one Drive, so source mode has them to link from.
+  const docLinks = data.links.filter((l) => l.kind === "link").map((l) => (l.a.startsWith("e:") ? [l.a.slice(2), l.b.slice(2)] : [l.b.slice(2), l.a.slice(2)]) as [string, string]);
+  const driveId = uuid(900);
+  const driveNames = ["Team docs", "Research", "Archive"];
+  const drives = extra.drives ?? driveNames.map((name, i) => ({ id: i === 0 ? driveId : uuid(901 + i), name, backend: "fs", config: {}, status: "active", revision: 1, counts: {}, created_at: "2026-11-01T00:00:00Z" } as Drive));
+  const fileOf = (id: number, drive: string, path: string) => ({ id: uuid(id), drive_id: drive, path, state: "published", state_since: "2026-11-01T00:00:00Z", retryable: false, pending_review: 0 }) as FileSummary;
+  const fillers = extra.files || drives.length < 3 ? [] : entities.slice(0, 240).map((m, i) => fileOf(8000 + i, drives[i % 3 === 0 ? 1 : i % 3 === 1 ? 2 : 0]!.id, `${m.label.toLowerCase().replace(/ /g, "-")}.md`));
+  const fileRows = extra.files ?? [...docLinks.map(([key], i) => fileOf(5000 + i, driveId, `notes/${key}.md`)), ...fillers];
   return {
     calls,
     entities: async ({ limit, cursor }) => {
@@ -129,14 +137,14 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
       return ok({ ...row, facts } as unknown as EntityDetail);
     },
     versions: async () => { count("versions"); return ok({ items: data.versions.map((v) => ({ n: v.n, as_of: v.asOf, published_at: v.asOf })), next_cursor: null, as_of_seq: 1 }); },
-    drives: async () => { count("drives"); return ok(extra.drives ?? []); },
-    files: async ({ driveId }) => { count("files"); return ok({ items: (extra.files ?? []).filter((f) => f.drive_id === driveId), next_cursor: null, as_of_seq: 1 }); },
+    drives: async () => { count("drives"); return ok(drives); },
+    files: async ({ driveId }) => { count("files"); return ok({ items: fileRows.filter((f) => f.drive_id === driveId), next_cursor: null, as_of_seq: 1 }); },
     links: async () => {
       count("links");
       if (extra.failLinks) return { ok: false, error: { code: "SO_ENGINE_UNREACHABLE", retryable: true, details: {} } };
       const items = data.links.filter((l) => l.kind === "link").map((l) => {
         const [doc, table] = l.a.startsWith("e:") ? [l.a, l.b] : [l.b, l.a];
-        return { drive_id: uuid(900), doc_entity_key: doc.slice(2), db_table: table.slice(2), db_key: "1", status: "auto", provenance: { file: [], table_row: { table: table.slice(2), key: "1" } } };
+        return { drive_id: driveId, doc_entity_key: doc.slice(2), db_table: table.slice(2), db_key: "1", status: "auto", provenance: { file: [{ path: `notes/${doc.slice(2)}.md`, file_version: "v1", block_id: "b1", anchor: {} }], table_row: { table: table.slice(2), key: "1" } } };
       });
       return ok({ items, agent_db: "bound" } as unknown as LinkList);
     },

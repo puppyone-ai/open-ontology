@@ -9,10 +9,9 @@ import { fakeAtlasSource } from "./fixtures";
 export type LabBridge = { bridge: SuperOntologyBridge; push(events: EngineEvent[]): void; replace(data: AtlasData): void; calls: Record<string, number> };
 
 const snapshot = { revision: 1, status: "healthy", reason: null, code: null, preflight: null, health: { events_head: 0 }, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: null, mode: "local", remote: null, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 } };
-const DRIVE = { id: "00000000-0000-4000-8000-000000000001", name: "Team docs", backend: "fs", config: {}, status: "active", revision: 1, counts: {}, files_total: 0, created_at: "2026-11-01T00:00:00Z" };
 
 export function createLabBridge(initial: AtlasData): LabBridge {
-  let source = fakeAtlasSource(initial, { drives: [DRIVE as never], files: [] });
+  let source = fakeAtlasSource(initial);
   const listeners = new Set<(push: SuperOntologyPush) => void>();
   const calls: Record<string, number> = {};
   let seq = 0;
@@ -31,7 +30,8 @@ export function createLabBridge(initial: AtlasData): LabBridge {
       calls[channel] = (calls[channel] ?? 0) + 1;
       switch (channel) {
         case "engine-read": case "engine-preflight": case "engine-start": return ok(snapshot);
-        case "drives-list": return ok([DRIVE]);
+        case "drives-list": return source.drives();
+        case "files-list": return source.files({ driveId: String(request.driveId), limit: Number(request.limit ?? 200), cursor: request.cursor as string | undefined });
         case "events-subscribe": return ok({ instanceId: "lab", lastSeq: 0, connection: snapshot.connection });
         case "entities-search": return source.entities({ limit: Number(request.limit ?? 100), cursor: request.cursor as string | undefined });
         case "entity-detail": return source.entity(String(request.entityIdOrKey));
@@ -49,6 +49,6 @@ export function createLabBridge(initial: AtlasData): LabBridge {
     bridge,
     calls,
     push: (events) => { seq += events.length; for (const listener of [...listeners]) listener({ channel: "events", payload: { instanceId: "lab", events: events.map((event, i) => ({ seq: seq - events.length + i + 1, ...event })), lastSeq: seq } }); },
-    replace: (data) => { source = fakeAtlasSource(data, { drives: [DRIVE as never], files: [] }); },
+    replace: (data) => { source = fakeAtlasSource(data); },
   };
 }

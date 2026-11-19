@@ -135,6 +135,12 @@ try {
       });
       await frames("live-update", 5000, 100);
       await shot("10-live-updated", 400);
+      await page.locator("[data-testid=atlas-mode-source]").click();
+      await page.waitForTimeout(4000);
+      await shot("12-source-mode");
+      await page.locator("[data-testid=atlas-view-list]").click();
+      await page.locator("[data-testid=atlas-list-group]").first().click();
+      await shot("13-source-list");
       await context.close();
     };
     await run(1);

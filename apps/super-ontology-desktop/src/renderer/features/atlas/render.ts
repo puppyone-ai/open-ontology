@@ -26,8 +26,6 @@ export type DrawState = {
 export type DrawStats = { members: number; labels: number; links: number };
 
 const TAU = Math.PI * 2;
-const LINK_ZOOM = 0.35;
-const MAX_MEMBER_LINKS = 4000;
 const MAX_LABELS = 260;
 
 const STYLE = {
@@ -127,59 +125,42 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     return { x: node.x + d.dx, y: node.y + d.dy, scale: d.scale };
   };
 
-  // 1. Links. Group to group while a group is folded; cell to cell where both ends are open. Hairlines, stone, receding.
+  // 1. Links, behind everything: gentle curves, very light. Between groups they are aggregated (width by how many links they stand for);
+  //    links between single cells only appear around the focused or selected cell.
   ctx.lineCap = "round";
   const stone = TONE_RGB.stone;
   for (const link of scene.groupLinks) {
     const a = nodes[link.a]!, b = nodes[link.b]!;
     if (!shown(a) || !shown(b)) continue;
-    if (a.expanded && b.expanded && k >= LINK_ZOOM) continue;
     const pa = place(a), pb = place(b);
     if (!inView(pa.x, pa.y, a.r) && !inView(pb.x, pb.y, b.r)) continue;
     const near = lit === null || (lit.has(a.idx) && lit.has(b.idx));
-    ctx.globalAlpha = near ? 1 : 0.18;
-    ctx.lineWidth = Math.min(4, 0.8 + Math.log2(1 + link.weight) * 0.45) / k;
-    ctx.strokeStyle = rgba(near && lit !== null ? TONE_RGB.ink : stone, near && lit !== null ? 0.6 : 0.3);
+    ctx.globalAlpha = near ? 1 : 0.5;
+    ctx.lineWidth = Math.min(5, 0.9 + Math.log2(1 + link.count) * 0.55) / k;
+    ctx.strokeStyle = rgba(near && lit !== null ? TONE_RGB.ink : stone, near && lit !== null ? 0.3 : 0.09);
     const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
-    const bend = 0.08;
+    const bend = 0.16;
     ctx.beginPath();
     ctx.moveTo(pa.x, pa.y);
     ctx.quadraticCurveTo(mx - (pb.y - pa.y) * bend, my + (pb.x - pa.x) * bend, pb.x, pb.y);
     ctx.stroke();
     stats.links += 1;
   }
-  const drawMemberLinks = (focusOnly: boolean) => {
+  if (lit !== null) {
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1.2 / k;
+    ctx.strokeStyle = rgba(TONE_RGB.ink, 0.42);
     ctx.beginPath();
-    let count = 0;
     for (const link of scene.links) {
       const a = nodes[link.a]!, b = nodes[link.b]!;
-      if (a.group === b.group && !(a.expanded || b.expanded) && a.kind === "group") continue;
-      if (!(a.appear > 0.5 && b.appear > 0.5 && a.alive && b.alive)) continue;
-      const touches = lit !== null && lit.has(a.idx) && lit.has(b.idx);
-      if (focusOnly !== touches) continue;
-      if (!touches && !(inView(a.x, a.y, 0) || inView(b.x, b.y, 0))) continue;
+      if (!(lit.has(a.idx) && lit.has(b.idx) && a.appear > 0.5 && b.appear > 0.5 && a.alive && b.alive)) continue;
       const pa = place(a), pb = place(b);
+      const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
       ctx.moveTo(pa.x, pa.y);
-      ctx.lineTo(pb.x, pb.y);
+      ctx.quadraticCurveTo(mx - (pb.y - pa.y) * 0.12, my + (pb.x - pa.x) * 0.12, pb.x, pb.y);
       stats.links += 1;
-      count += 1;
-      if (!focusOnly && count >= MAX_MEMBER_LINKS) break;
     }
-    return count;
-  };
-  if (k >= LINK_ZOOM || lit !== null) {
-    // The more links there are, the fainter each one: a dense ontology reads as texture, a sparse one as lines.
-    const density = Math.min(1, Math.sqrt(40 / Math.max(40, scene.links.length)));
-    ctx.globalAlpha = lit !== null ? 0.12 : 1;
-    ctx.lineWidth = hairline;
-    ctx.strokeStyle = rgba(stone, 0.07 + 0.2 * density);
-    if (drawMemberLinks(false) > 0) ctx.stroke();
-    if (lit !== null) {
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 1.4 / k;
-      ctx.strokeStyle = rgba(TONE_RGB.ink, 0.75);
-      if (drawMemberLinks(true) > 0) ctx.stroke();
-    }
+    ctx.stroke();
   }
   ctx.lineCap = "butt";
   ctx.globalAlpha = 1;
@@ -271,11 +252,11 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
       box = [sx - w / 2, sy - h / 2, sx + w / 2, sy + h / 2];
     }
     taken.push(box);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(250, 250, 249, 0.92)";
-    ctx.strokeText(text, sx, sy);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "rgba(250, 250, 249, 0.94)";
+    ctx.strokeText(text, sx, Math.round(sy));
     ctx.fillStyle = color;
-    ctx.fillText(text, sx, sy);
+    ctx.fillText(text, sx, Math.round(sy));
     stats.labels += 1;
   };
   const wanted = (node: SceneNode) => node.idx === state.focus || node.idx === state.selected || hits.has(node.idx) || (lit !== null && lit.has(node.idx) && node.kind === "member" && k > 0.5);
@@ -290,10 +271,12 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   for (const { node, strong } of candidates) {
     if (stats.labels >= MAX_LABELS) break;
     const p = place(node);
-    const sx = p.x * k + camera.x, sy = p.y * k + camera.y;
+    const sx = Math.round(p.x * k + camera.x), sy = Math.round(p.y * k + camera.y);
     if (sx < -60 || sx > width + 60 || sy < -20 || sy > height + 20) continue;
+    const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif';
+    ctx.font = node.kind === "group" ? `600 13px ${FONT}` : `500 12px ${FONT}`;
     if (node.kind === "group") {
-      if (node.expanded) label(node.label, sx, sy - node.r * k - 11, strong, TEXT);
+      if (node.expanded) label(node.label, sx, sy - node.r * k + 15, true, TEXT);
       else {
         label(node.label, sx, sy + node.r * k + 11, strong, TEXT);
         if (node.r * k > 18) { ctx.fillStyle = rgba(TONE_RGB[node.tone], 0.95); ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif'; ctx.fillText(String(node.count), sx, sy); ctx.font = '500 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif'; }
