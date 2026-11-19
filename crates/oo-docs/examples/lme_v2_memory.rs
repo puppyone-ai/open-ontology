@@ -324,6 +324,7 @@ impl Memory {
         full_top: usize,
         phrase_boost: i64,
         coverage_note: bool,
+        phrase_counts: bool,
     ) -> Value {
         let q = strip_scaffold(text);
         let mut items: Vec<String> = Vec::new();
@@ -362,6 +363,30 @@ impl Memory {
         let mut per_state: BTreeMap<usize, (i64, Vec<usize>, usize)> = BTreeMap::new();
         let mut order: Vec<usize> = Vec::new();
         let phrases = quoted_phrases(&q);
+        if phrase_counts && !phrases.is_empty() {
+            // An exact-text check, like a grep over the memory: how many
+            // observed page states contain each quoted phrase. A miss is a
+            // fact about the memory, not an answer.
+            let mut parts: Vec<String> = Vec::new();
+            for p in &phrases {
+                let mut states: Vec<usize> = self
+                    .units
+                    .iter()
+                    .filter(|u| u.lower.contains(p.as_str()))
+                    .flat_map(|u| u.seen.iter().map(|(si, _)| *si))
+                    .collect();
+                states.sort_unstable();
+                states.dedup();
+                parts.push(format!("\"{p}\" in {} of them", states.len()));
+            }
+            let note = format!(
+                "Exact-text check over all {} observed page states (case-insensitive): {}.\n",
+                self.states.len(),
+                parts.join("; ")
+            );
+            used += tokens::count(&note);
+            items.push(note);
+        }
         let mut ranked = self.windows.search(&q, 600);
         if phrase_boost > 0 && !phrases.is_empty() {
             for (u, score) in &mut ranked {
@@ -598,6 +623,9 @@ fn main() {
                     req.get("coverage_note")
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
+                    req.get("phrase_counts")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 ),
                 Some("stats") => json!({
                     "ok": true,
@@ -681,6 +709,7 @@ mod tests {
             0,
             0,
             false,
+            false,
         );
         let items = q["items"].as_array().unwrap();
         let first = items[0].as_str().unwrap();
@@ -696,12 +725,28 @@ mod tests {
                 false,
                 0,
                 0,
+                false,
                 false
             ),
             q
         );
         // The budget bounds the reply.
-        let small = mem.query("Depreciation", 10, 0, usize::MAX, false, 0, 0, false);
+        let small = mem.query("Depreciation", 10, 0, usize::MAX, false, 0, 0, false, false);
         assert!(small["items"].as_array().unwrap().is_empty());
+        // The exact-text check reports hits and misses as counts.
+        let check = mem.query(
+            "Is there a \"Depreciation\" or `Amortization` checkbox?",
+            4000,
+            0,
+            usize::MAX,
+            false,
+            0,
+            0,
+            false,
+            true,
+        );
+        let note = check["items"][0].as_str().unwrap();
+        assert!(note.contains("\"depreciation\" in 2 of them"), "{note}");
+        assert!(note.contains("\"amortization\" in 0 of them"), "{note}");
     }
 }

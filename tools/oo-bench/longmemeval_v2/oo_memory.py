@@ -31,7 +31,14 @@ class OntologyMemory(Memory):
         self._digest_share = int(memory_params.get("digest_share_pct", 20))
         self._query_options = {
             k: memory_params[k]
-            for k in ("per_page", "full_top", "phrase_boost", "coverage_note", "agg_sum")
+            for k in (
+                "per_page",
+                "full_top",
+                "phrase_boost",
+                "coverage_note",
+                "phrase_counts",
+                "agg_sum",
+            )
             if k in memory_params
         }
         engine_args: list[str] = []

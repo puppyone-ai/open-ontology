@@ -132,8 +132,10 @@ def main() -> None:
 def install_transport_guards(harness, metrics) -> None:
     """Two transport-only wrappers; prompts, sampling and scoring are unchanged.
 
-    * Reader outputs are saved to `reader_outputs.json` as they arrive and
-      reused on a rerun, so a crash in scoring never repeats hours of reading.
+    * Reader outputs are saved to `reader_outputs.json` as they arrive, with
+      the sha256 of the exact prompt messages, and reused only for a
+      byte-identical prompt, so a crash in scoring never repeats hours of
+      reading and a changed prompt is always read again.
     * A rate-limited or unavailable judge (HTTP 429/5xx through the proxy) is
       retried with backoff instead of failing the run.
     """
@@ -142,9 +144,19 @@ def install_transport_guards(harness, metrics) -> None:
 
     original_reader = harness.generate_all_reader_outputs
 
+    def prompt_sha(row) -> str:
+        blob = json.dumps(row["messages"], sort_keys=True, ensure_ascii=True)
+        return hashlib.sha256(blob.encode()).hexdigest()
+
     async def cached_reader(args, prompt_rows):
         path = Path(args.output_dir) / "reader_outputs.json"
         done = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        # Reuse an output only for the byte-identical prompt it was read from.
+        done = {
+            q: o
+            for q, o in done.items()
+            if any(r["question_id"] == q and o.get("prompt_sha256") == prompt_sha(r) for r in prompt_rows)
+        }
         todo = [r for r in prompt_rows if r["question_id"] not in done]
         lock = asyncio.Lock()
         gate = asyncio.Semaphore(args.reader_max_concurrent_requests)
@@ -152,12 +164,16 @@ def install_transport_guards(harness, metrics) -> None:
         async def one(row):
             async with gate:
                 out = await original_reader(args, [row])
+            out[row["question_id"]]["prompt_sha256"] = prompt_sha(row)
             async with lock:
                 done.update(out)
                 path.write_text(json.dumps(done, ensure_ascii=True), encoding="utf-8")
 
         await asyncio.gather(*(one(r) for r in todo))
-        return {r["question_id"]: done[r["question_id"]] for r in prompt_rows}
+        return {
+            r["question_id"]: {k: v for k, v in done[r["question_id"]].items() if k != "prompt_sha256"}
+            for r in prompt_rows
+        }
 
     harness.generate_all_reader_outputs = cached_reader
 
