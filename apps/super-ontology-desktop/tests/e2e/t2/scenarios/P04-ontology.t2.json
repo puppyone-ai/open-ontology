@@ -20,8 +20,20 @@
       "do": "relaunch"
     },
     {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
       "do": "click",
-      "name": "app.nav.ontology"
+      "name": "app.nav.ontology",
+      "until": "screen-ontology"
     },
     {
       "do": "assert",

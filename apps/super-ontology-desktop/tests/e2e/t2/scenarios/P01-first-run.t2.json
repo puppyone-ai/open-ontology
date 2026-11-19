@@ -100,7 +100,8 @@
     },
     {
       "do": "click",
-      "name": "app.nav.agents"
+      "name": "app.nav.agents",
+      "until": "screen-agents"
     },
     {
       "do": "click",

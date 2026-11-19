@@ -21,7 +21,8 @@
     },
     {
       "do": "click",
-      "name": "app.nav.home"
+      "name": "app.nav.home",
+      "until": "screen-home"
     },
     {
       "do": "assert",
