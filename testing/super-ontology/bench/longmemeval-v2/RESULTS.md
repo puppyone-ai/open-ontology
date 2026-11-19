@@ -1,42 +1,43 @@
 # LongMemEval-V2 (Small): OO results so far
 
-Status 2026-11-18 23:10 PT: **dev only, judge pending, no test-split (held-out) result, nothing submitted.**
-Rules and the dev/held-out split: `RULES.md`. Exact configs: `configs/`. Per-question
-dev logs (no gold answers, prompt sha256 for each read): `results/`.
+Status 2026-11-19 PT: **dev only; judge pending; held-out (test) run in progress;
+nothing submitted.** Rules and the dev/held-out split: `RULES.md`. Exact configs:
+`configs/`. Per-question dev logs (no gold answers, prompt sha256 per read):
+`results/`.
 
 ## Dev split (159 questions: 65 enterprise, 94 web)
 
-The official judge (gpt-5.2 via proxy endpoint) returned HTTP 429 for every request
-from 2026-11-18 11:50 to the end of this lane (over 11 hours), so the 59 dev
-questions scored by the judge (`llm_abstention_checker`, `llm_gotchas_checker`)
-have no score yet. The other 100 use the official rule scorers
-(`eval_from_spec`) and are final.
+The official judge (gpt-5.2 via proxy endpoint) has answered every request with
+HTTP 429 since 2026-11-18 11:50 PT, so the 59 dev questions it scores
+(`llm_abstention_checker`, `llm_gotchas_checker`) have no score yet. The other 100
+use the official rule scorers (`eval_from_spec`) and are final.
 
-| Run | Engine | Budget | Rule-scored accuracy (100 q) | static / dynamic / procedure | UNKNOWN (all 159) | UNKNOWN on false-premise (49) | Query latency mean / max | Context tokens (Qwen) |
-|---|---|---|---|---|---|---|---|---|
-| dev1 baseline | `0a33fe389` | 24k | **52/100** | 22/47, 11/27, 19/26 | 50 | 25 | 2.9 ms / 8 ms | 22.7k |
-| dev2 | `13dd028e9` (+ complete top tree, phrase boost, coverage line) | 32k | **57/100** | 23/47, 15/27, 19/26 | 47 | 22 | 2.9 ms / 5.4 ms | 30.9k |
-| final config | `190b222a2` (dev2 + exact-text phrase check) | 32k | partial: on the 8 enterprise questions re-read so far, same rule score, UNKNOWN 3 -> 2 | | | | | |
+| Run | Engine | Rule-scored acc (100 q) | UNKNOWN (159) | UNKNOWN on false-premise (49) | Query latency mean / max | Context tokens (Qwen) |
+|---|---|---|---|---|---|---|
+| dev1 baseline | `0a33fe389`, 24k | 52/100 | 50 | 25 | 2.9 / 8 ms | 22.7k |
+| dev2 | `13dd028e9`, 32k, complete top tree, phrase boost, coverage line | 57/100 | 47 | 22 | 2.9 / 5 ms | 30.9k |
+| dev4 | `fde636761`, + exact-text check, complete compact trees of 3 distinct pages | 57/100 | 38 | 20 | 72 / 270 ms | 29.9k |
+| **dev5 = final config** | `d19477961`, + every compared page retrieved | **61/100** | **31** | **18** | 15 / 40 ms | 30.0k |
 
-An UNKNOWN always scores 0. About half of the false-premise questions were answered
-UNKNOWN; the exact-text check (commit `190b222a2`) targets them.
-
-Reader cost per question (dev2): ~31k prompt tokens, ~5.5k completion tokens
-(thinking on), local bf16; about 10-25 questions per hour on the M4 Max host.
+An UNKNOWN always scores 0. From baseline to final config, UNKNOWN answers went
+from 50 to 31 and the rule-scored accuracy from 52 % to 61 %; whether the
+false-premise answers that are no longer UNKNOWN are judged correct needs the judge.
+dev3 (`190b222a2`, exact-text check only) was read on enterprise only and is
+superseded.
 
 ## Against the leaderboard
 
-The board is empty. The reference frontier's fastest point is RAG slice+notes,
-51.0 % at 0.2 s; any sub-second point above 51.0 % has positive LAFS gain.
-OO's query latency is ~3 ms. The rule-scored dev accuracy (57 %) is **not** comparable
-to 51.0 %: it excludes the 37 % of questions that need the judge, among them the
-false-premise questions where OO's reader still answers UNKNOWN about half the time.
-No LAFS number is claimed until a full official run is scored.
+The board is empty. The fastest reference point is RAG slice+notes, 51.0 % at
+0.2 s; any sub-second point above 51.0 % has positive LAFS gain. OO's query latency
+is ~15 ms. Rule-scored dev accuracy is **not** comparable to 51.0 %: it excludes the
+37 % of questions that need the judge. No LAFS number is claimed until the full
+official run is scored.
 
-## Final run (not done)
+## Final run (in progress, low priority)
 
-`runs/final` (config `configs/final.json`, all 451 questions) was started and
-paused: 349 reads remain (98 dev reads were reused, only where the prompt
-sha256 matched a dev read under the same engine output). At this host's reader
-throughput that is about 30 hours, and the judge must be back. The run resumes
-with the same command; outputs are cached per prompt hash.
+`runs/final2` = config `configs/final.json` on all 451 questions. The 159 dev
+questions reuse the dev5 reads (prompt sha256 identical); the 292 held-out
+questions are read once, at `nice -n 15` beside other lanes. A finisher script
+runs the judge known-label check as soon as the endpoint answers, waits for
+both domains to be scored by the official harness, then builds the draft package
+with the official `build_submission_step_1/2` (not submitted).
