@@ -131,7 +131,7 @@ describe("atlas data adapter", () => {
   });
 
   it("reads database rows defensively", () => {
-    expect(parseTables([["public", "orders"], ["public"], [1, 2], ["", "x"]])).toEqual([{ schema: "public", table: "orders" }]);
-    expect(parseForeignKeys([["a", "b", "c", "d"], ["a", "b", "c"]])).toEqual([{ from: { schema: "a", table: "b" }, to: { schema: "c", table: "d" } }]);
+    expect(parseTables([{ qualified_name: "public.orders", columns: [{}, {}] }, { qualified_name: "nodot" }, 7, { qualified_name: ".x" }, { qualified_name: "a.b" }])).toEqual([{ schema: "public", table: "orders", columns: 2 }, { schema: "a", table: "b" }]);
+    expect(parseForeignKeys([{ from: { table: "a.b" }, to: { table: "c.d" } }, { from: { table: "a.b" }, to: {} }, null])).toEqual([{ from: { schema: "a", table: "b" }, to: { schema: "c", table: "d" } }]);
   });
 });

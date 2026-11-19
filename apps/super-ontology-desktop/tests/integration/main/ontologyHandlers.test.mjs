@@ -243,18 +243,26 @@ describe("lists", () => {
 });
 
 describe("atlas channels (D88)", () => {
-  it("reads the document to table links and one read-only SELECT, nothing else", async () => {
-    const { handlers, calls } = make({ responses: { linksList: { value: { items: [], agent_db: "bound" } }, ontologyQuery: { value: { columns: ["a"], rows: [["x"]] } } } });
+  it("reads the document to table links and the read-only database schema, nothing else", async () => {
+    const schema = { protocol: "oo.ontology.schema/v1", tables: [], relationships: [], doc_links: [], next_cursor: null };
+    const { handlers, calls } = make({ responses: { linksList: { value: { items: [], agent_db: "bound" } }, ontologySchema: { value: schema } } });
     expect(await handlers["atlas-links"]({})).toEqual({ items: [], agent_db: "bound" });
-    expect(await handlers["atlas-sql"]({ sql: "SELECT 1", maxRows: 5 })).toEqual({ columns: ["a"], rows: [["x"]] });
-    expect(calls.find(([name]) => name === "ontologyQuery")[1].body).toEqual({ sql: "SELECT 1", max_rows: 5 });
-    expect(ROUTES.ontologyQuery.method).toBe("POST");
+    expect(await handlers["ontology-schema"]({ limit: 5, cursor: "t5" })).toEqual(schema);
+    expect(calls.find(([name]) => name === "ontologySchema")[1].query).toEqual({ limit: 5, cursor: "t5" });
+    expect(ROUTES.ontologySchema.method).toBe("GET");
     expect(ROUTES.linksList.method).toBe("GET");
+    expect(handlers["atlas-sql"]).toBeUndefined();
+  });
+  it("rejects an answer that is not a schema", async () => {
+    const { handlers } = make({ responses: { ontologySchema: { value: { columns: [] } } } });
+    await expect(handlers["ontology-schema"]({})).rejects.toMatchObject({ code: "SO_RESPONSE_INVALID" });
   });
   it("validates the request", () => {
-    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "" })).toThrow();
-    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1", maxRows: 5000 })).toThrow();
-    expect(() => parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1", extra: 1 })).toThrow();
-    expect(parseSuperOntologyRequest("atlas-sql", { sql: "SELECT 1" })).toEqual({ sql: "SELECT 1" });
+    expect(() => parseSuperOntologyRequest("ontology-schema", { limit: 0 })).toThrow();
+    expect(() => parseSuperOntologyRequest("ontology-schema", { limit: 500 })).toThrow();
+    expect(() => parseSuperOntologyRequest("ontology-schema", { sql: "SELECT 1" })).toThrow();
+    expect(() => parseSuperOntologyRequest("atlas-sql", {})).toThrow();
+    expect(parseSuperOntologyRequest("ontology-schema", {})).toEqual({});
+    expect(parseSuperOntologyRequest("ontology-schema", { limit: 100, cursor: "t100" })).toEqual({ limit: 100, cursor: "t100" });
   });
 });

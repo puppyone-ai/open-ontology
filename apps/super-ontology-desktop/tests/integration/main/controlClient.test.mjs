@@ -91,8 +91,8 @@ describe("control client", () => {
       expect(server.requests[0].path).toBe(`/v1/docs/drives/${DRIVE_ID}/files?path=a+b&state=parsed%2Cpublished&limit=50&recursive=true`);
     });
 
-    it("only has routes under /v1/docs (plus the one read-only ontology query of the atlas) and has no hosted-service path", async () => {
-      for (const definition of Object.values(ROUTES)) expect(definition.template.startsWith("/v1/docs/") || definition.template === "/v1/ontology/query").toBe(true);
+    it("only has routes under /v1/docs (plus the one read-only ontology schema of the atlas) and has no hosted-service path", async () => {
+      for (const definition of Object.values(ROUTES)) expect(definition.template.startsWith("/v1/docs/") || definition.template === "/v1/ontology/schema").toBe(true);
       const source = await readFile(path.join(process.env.SO_MAIN_DIR ?? fileURLToPath(new URL("../../../electron/main/super-ontology", import.meta.url)), "control-client.mjs"), "utf8");
       expect(source).not.toMatch(/cloud:api-request|cloudEndpoint|process\.env/u);
     });
