@@ -48,7 +48,16 @@ fn read_text(path: &Path) -> Result<String> {
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(path)
-        .map_err(|_| Failure::local("REVIEW_FILE_IO"))?;
+        .map_err(|e| {
+            Failure::local(format!(
+                "REVIEW_FILE_IO: cannot open the review file ({}); it must exist as a regular file, not a symbolic link, with mode 0600",
+                match e.kind() {
+                    std::io::ErrorKind::NotFound => "not found",
+                    std::io::ErrorKind::PermissionDenied => "permission denied",
+                    _ => "not a readable regular file",
+                }
+            ))
+        })?;
     let meta = file
         .metadata()
         .map_err(|_| Failure::local("REVIEW_FILE_IO"))?;
@@ -57,7 +66,9 @@ fn read_text(path: &Path) -> Result<String> {
         || meta.mode() & 0o777 != 0o600
         || meta.len() > MAX_BYTES
     {
-        return Err(Failure::local("REVIEW_PRIVATE_FILE_REQUIRED"));
+        return Err(Failure::local(
+            "REVIEW_PRIVATE_FILE_REQUIRED: the review file must be a regular file with mode 0600 (chmod 600) and at most the size limit",
+        ));
     }
     let mut text = String::new();
     file.take(MAX_BYTES + 1)
