@@ -55,6 +55,8 @@ nodes, 8,100,498 rows in `kg.csv`).
   (`pred_rank` a JSON list of node ids).
 - Every submission is stored as `pending_review`; a maintainer approves or
   rejects it (`review_submission.py`). Only approved entries are displayed.
+- Submissions are filed under method name + team; only the latest one per
+  folder is shown, so each KB/split needs its own method name.
 - No rule restricts which models may be used (the paper's own baselines
   include GPT-4 and Claude-3 rerankers; an approved entry uses gpt-4o-mini).
   No written rule on training data; the README asks to use the official
@@ -72,7 +74,7 @@ Paper baselines hard-coded in `app.py` plus approved submissions under
 | test / Amazon | AvaTaR (claude-3-opus), paper baseline | 49.97 | 69.16 | 60.57 | 58.70 | 2024 |
 | test-0.1 / MAG | Papr v2 (Papr.ai), approved 2026-02-12 | 83.19 | 92.04 | n/a | n/a | 2026-01-08 |
 | test-0.1 / Prime | GPT4 Reranker, paper baseline | 18.28 | 37.28 | 34.05 | 26.55 | 2024 |
-| test-0.1 / Amazon | GritLM-7b / voyage-l2 (Hit@1 43.29); Claude3 Reranker 45.49 | 45.49 | 71.13 | 53.77 | 55.91 | 2024 |
+| test-0.1 / Amazon | Claude3 Reranker, paper baseline | 45.49 | 71.13 | 53.77 | 55.91 | 2024 |
 | human / Prime | AvaTaR (gpt-4-turbo) | 33.03 | 51.37 | 53.34 | 41.00 | 2024 |
 | human / MAG | Claude3 Reranker | 38.10 | 45.24 | 35.95 | 42.00 | 2024 |
 | human / Amazon | AvaTaR (gpt-4-turbo) | 58.32 | 76.54 | 42.43 | 65.91 | 2024 |
