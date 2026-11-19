@@ -1,0 +1,20 @@
+export const SUPER_ONTOLOGY_CHANNEL_PREFIX: "super-ontology:";
+export const SUPER_ONTOLOGY_CHANNELS: readonly string[];
+export const SUPER_ONTOLOGY_PUSH_CHANNELS: readonly string[];
+export function parseSuperOntologyRequest(channel: string, raw: unknown): Readonly<{ operationId?: string }>;
+export const field: Readonly<{
+  enum: (values: readonly string[]) => (value: unknown) => string;
+  boolean: (value: unknown) => boolean;
+  grantId: (value: unknown) => string;
+  uuid: (value: unknown) => string;
+  int: (min: number, max: number) => (value: unknown) => number;
+  string: (maxLength: number, options?: { minLength?: number }) => (value: unknown) => string;
+  drivePath: (value: unknown) => string;
+  cursor: (value: unknown) => string;
+  stringList: (maxItems: number, maxLength: number) => (value: unknown) => string[];
+  fileStates: (value: unknown) => string[];
+  drivePatch: (value: unknown) => Record<string, unknown>;
+  optional: (validate: (value: unknown) => unknown) => { optional: true; validate: (value: unknown) => unknown };
+}>;
+export const OPERATION_ID_REQUIRED: readonly string[];
+export const AGENT_CHANNELS: readonly string[];

@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light;
+  --canvas: #fafaf9; --panel: #ffffff; --inset: #f4f4f2; --line: #e7e5e4;
+  --text: #1c1917; --text-2: #57534e; --text-3: #a8a29e;
+  --accent: #2f4ad0; --accent-hover: #2840b8; --accent-soft: #eef1fd;
+  --ok: #15803d; --busy: #2f4ad0; --warn: #b45309; --fail: #b91c1c;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; display: grid; grid-template-rows: 1fr 32px; background: var(--canvas); color: var(--text); font: 13px/1.45 -apple-system, "SF Pro Text", "PingFang SC", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.stage { display: grid; place-items: center; padding: 48px 24px; }
+.welcome { width: min(440px, 100%); }
+.mark { width: 40px; height: 40px; color: var(--accent); }
+h1 { margin: 16px 0 4px; font-size: 28px; line-height: 1.2; font-weight: 600; letter-spacing: 0; }
+.lead { margin: 0 0 32px; font-size: 15px; color: var(--text-2); }
+.progress { height: 4px; border-radius: 2px; background: var(--inset); overflow: hidden; }
+.progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 200ms var(--ease), background-color 120ms var(--ease); }
+.progress.indeterminate span { width: 35%; animation: slide 1.2s var(--ease) infinite; }
+.progress.done span { width: 100%; background: var(--ok); }
+.progress.failed span { width: 100%; background: var(--fail); }
+@keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+.step { margin: 12px 0 0; font-size: 13px; color: var(--text); }
+.detail { margin: 4px 0 0; min-height: 20px; color: var(--text-2); overflow-wrap: anywhere; }
+.actions { display: flex; gap: 8px; margin-top: 24px; min-height: 32px; }
+button { height: 32px; padding: 0 16px; border-radius: 6px; font: inherit; cursor: pointer; transition: background-color 120ms var(--ease), border-color 120ms var(--ease); }
+button:focus-visible { outline: 2px solid rgb(47 74 208 / 0.3); outline-offset: 1px; }
+button[hidden] { display: none; }
+.primary { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.secondary { border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+.secondary:hover { background: var(--inset); }
+.statusbar { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-top: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--text-2); }
+.status { display: inline-flex; align-items: center; gap: 8px; height: 24px; padding: 0 8px; border: 0; background: transparent; color: inherit; font-size: 12px; }
+.status:hover { background: var(--inset); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.dot[data-tone="ok"] { background: var(--ok); } .dot[data-tone="busy"] { background: var(--busy); }
+.dot[data-tone="warn"] { background: var(--warn); } .dot[data-tone="fail"] { background: var(--fail); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } .progress.indeterminate span { width: 100%; opacity: 0.4; } }

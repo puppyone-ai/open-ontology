@@ -22,8 +22,12 @@ interface SuperOntologyBridge {
     readSettings(): Promise<ShellSettings>;
     writeSettings(patch: Partial<ShellSettings>): Promise<ShellSettings>;       // validated, unknown keys rejected
     onSettingsChanged(callback: (settings: ShellSettings) => void): () => void;
+    /** Native menu items that need the renderer: "open-settings" | "open-about". */
+    onMenuCommand(callback: (command: "open-settings" | "open-about") => void): () => void;
     readNotice(kind: "notice" | "third-party" | "license"): Promise<string>;    // About page text
-    openReleasePage(): Promise<void>;                                            // v1 has no auto-update
+    /** Clipboard only. Main refuses text over 16 KB and calls while the window is not focused. The app never writes into another app's config file. */
+    copyToClipboard(text: string): Promise<true>;
+    openReleasePage(): Promise<boolean>;                                            // v1 has no auto-update
   };
 }
 ```
@@ -42,6 +46,8 @@ Same names and request/response shapes as the earlier Super Drive bridge (`share
 `entities-search entity-detail resolve review-list review-decide pack-compile pack-read shares-list share-get share-mount share-refresh share-revoke share-reveal share-updates share-group-refresh`
 `usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel`
 `cloud-mode-read cloud-mode-set audit-shares audit-verify cloud-token-create cloud-token-revoke`
+`agent-token-create agent-token-list agent-token-revoke agent-connect-snippet` (Agent > Connect, below)
+`engine-connect-remote engine-disconnect-remote` (below)
 
 Differences from the earlier bridge:
 
@@ -52,6 +58,30 @@ Differences from the earlier bridge:
   * `engine-disconnect-remote` request `{ operationId?: string }` -> `EngineSnapshot`; back to local mode (no auto-start).
 * `EngineSnapshot` gains `mode: "local" | "remote"` and `remote: { host: string } | null` (hosts only, never the token). `EnginePreflight.oo.source` is `"user" | "path" | "bundled" | null`.
 * `EngineStatus` is unchanged; the Docker-related statuses stay valid (runtime `docker` is still supported when Docker runs; `auto` prefers the embedded `lite` runtime of `oo serve`).
+
+## Agent > Connect channels
+
+Agent tokens are docs-api 1.6 (`ooa_`); the token is shown once and only in the result of the create call.
+
+```ts
+"agent-token-create": {
+  request: { name: string /* ^[A-Za-z0-9._-]{1,64}$, one live token per name */;
+             scopes: ("docs:read" | "docs:suggest" | "docs:write" | "db:read")[];   // 1..4, unique
+             driveIds?: string[]; allDrives?: boolean;   // exactly one of the two when any docs:* scope is given
+             gwProfile?: string; label?: string; expiresInSeconds?: number /* 60..2592000 */; operationId?: string };
+  value: { id: string; token: string /* ooa_..., once */; name: string; scopes: string[]; drive_ids: string[]; all_drives: boolean;
+           gw_profile: string | null; expires_in_seconds: number; expires_at: string };   // engine document, verbatim
+};
+"agent-token-list":   { request: {}; value: { items: AgentTokenInfo[] } };               // never the token or a hash
+"agent-token-revoke": { request: { tokenId: string }; value: { revoked: boolean } };
+"agent-connect-snippet": {
+  request: { agent: "generic" | "claude" | "cursor" | "codex"; profile: string };
+  value: { agent: string; format: "json" | "toml"; text: string; cli: string };            // text = what `oo mcp-config` prints; cli = that command line
+};
+```
+
+The snippet never contains a credential (the profile holds a private reference to it). Getting text onto the clipboard is the renderer's explicit
+`shell.copyToClipboard(text)` after a click; the app has no channel that writes into another application's configuration files.
 
 ## Push channels (`subscribe`)
 
@@ -69,7 +99,6 @@ interface ShellInfo {
 }
 interface ShellSettings {
   language: "system" | "en" | "zh-Hans";
-  theme: "system" | "light" | "dark";
   ooExecutable: string | null;    // absolute path chosen by the user; main-owned, writable only via engine-set-executable
   runtime: "auto" | "docker" | "lite";
   keepEngineOnQuit: boolean;
@@ -77,7 +106,7 @@ interface ShellSettings {
 }
 ```
 
-`writeSettings` accepts `language`, `theme` only; the other keys are read-only to the renderer and change through the engine channels above.
+`writeSettings` rejects (SO_INVALID_REQUEST) on a key outside the list and otherwise resolves with the full settings; it accepts `language` only (the app is light-only, D87: there is no theme setting); the other keys are read-only to the renderer and change through the engine channels above.
 
 ## Main-side ownership
 
