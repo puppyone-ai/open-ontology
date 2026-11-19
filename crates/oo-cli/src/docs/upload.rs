@@ -522,29 +522,34 @@ pub fn host_root(state: &Path, drive: &Value) -> Result<PathBuf, CliError> {
     }
 }
 
-/// The credential text behind a Drive's `secret_ref`.
+/// The credential text behind a Drive: its `secret_ref`, or the JSON made from the pair `access_key_id` and
+/// `secret_access_key` (and `session_token`), each a `{"secret_ref"}` that holds the plain value (docs-api 1.10).
 pub fn read_drive_secret(config: &Value) -> Result<String, CliError> {
-    let reference = config["secret_ref"].as_str().ok_or_else(|| {
-        CliError::new(
-            exit::OTHER,
-            "SO_SOURCE_NO_CREDENTIAL",
-            "the Drive has no secret_ref",
-        )
-    })?;
-    let store = oo_stack::secret::SecretStore::from_home().map_err(|c| {
-        CliError::new(
-            exit::OTHER,
-            "SO_SOURCE_NO_CREDENTIAL",
-            format!("secret store: {c}"),
-        )
-    })?;
-    store.read(reference).map_err(|c| {
-        CliError::new(
-            exit::OTHER,
-            "SO_SOURCE_NO_CREDENTIAL",
-            format!("credential `{reference}` cannot be read ({c})"),
-        )
-    })
+    let no_cred = |m: &str| CliError::new(exit::OTHER, "SO_SOURCE_NO_CREDENTIAL", m.to_owned());
+    let store = oo_stack::secret::SecretStore::from_home()
+        .map_err(|c| no_cred(&format!("secret store: {c}")))?;
+    let read = |reference: &str| {
+        store
+            .read(reference)
+            .map_err(|c| no_cred(&format!("credential `{reference}` cannot be read ({c})")))
+    };
+    if let Some(reference) = config["secret_ref"].as_str() {
+        return read(reference);
+    }
+    let part = |key: &str| -> Result<Option<String>, CliError> {
+        match config[key]["secret_ref"].as_str() {
+            Some(r) => Ok(Some(read(r)?.trim().to_owned())),
+            None => Ok(None),
+        }
+    };
+    let (Some(id), Some(secret)) = (part("access_key_id")?, part("secret_access_key")?) else {
+        return Err(no_cred("the Drive has no secret_ref"));
+    };
+    let mut cred = json!({"access_key_id": id, "secret_access_key": secret});
+    if let Some(t) = part("session_token")? {
+        cred["session_token"] = json!(t);
+    }
+    Ok(cred.to_string())
 }
 
 pub fn s3_target(drive: &Value) -> Result<S3Target, CliError> {
