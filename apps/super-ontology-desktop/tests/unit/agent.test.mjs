@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { connectSnippet, createAgentHandlers } from "../../electron/main/super-ontology/agent-handlers.mjs";
-import { parseSuperOntologyRequest } from "../../shared/super-ontology/requests.mjs";
+import { parseSuperOntologyRequest } from "../../src/shared/super-ontology/requests.mjs";
 
 describe("agent connect snippets", () => {
   it("match the shapes `oo mcp-config` prints and carry no credential", () => {

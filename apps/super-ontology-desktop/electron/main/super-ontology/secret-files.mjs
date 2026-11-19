@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 const SECRET_FIELDS = Object.freeze(["access_key_id", "secret_access_key", "session_token"]);
 const FILE_MODE = 0o600;

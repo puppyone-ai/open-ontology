@@ -1,5 +1,5 @@
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { driveFileUrl } from "./drive-file-protocol.mjs";
 import { ensure, isDrive, isFileSummary, isPage } from "./response-guards.mjs";
 

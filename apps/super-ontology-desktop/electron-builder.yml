@@ -7,7 +7,7 @@ directories:
   buildResources: build
 files:
   - electron/**
-  - shared/**
+  - src/shared/**
   - resources/bootstrap/**
   - dist/renderer/**
   - package.json

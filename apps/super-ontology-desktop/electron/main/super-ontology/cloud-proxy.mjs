@@ -1,4 +1,4 @@
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 /**
  * This app has no hosted service: the second base of the control client is never configured, so every call stays on the

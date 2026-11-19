@@ -1,10 +1,10 @@
 import { unwrapHandlerResult } from "./super-ontology/handler-result.mjs";
-import { toErrorResult } from "../../shared/super-ontology/errors.mjs";
+import { toErrorResult } from "../../src/shared/super-ontology/errors.mjs";
 import {
   SUPER_ONTOLOGY_CHANNEL_PREFIX,
   SUPER_ONTOLOGY_CHANNELS,
   parseSuperOntologyRequest,
-} from "../../shared/super-ontology/requests.mjs";
+} from "../../src/shared/super-ontology/requests.mjs";
 
 /**
  * Register only on the application's trusted-frame IPC facade, never on raw

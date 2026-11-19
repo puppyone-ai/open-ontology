@@ -11,7 +11,7 @@ import { resolveLanguage } from "../../electron/main/strings.mjs";
 import { isExternalUrl } from "../../electron/main/window.mjs";
 import { compareVersions, createEngineLocator } from "../../electron/main/super-ontology/engine-locator.mjs";
 import { normalizeRemoteUrl } from "../../electron/main/super-ontology/remote-engine.mjs";
-import { SUPER_ONTOLOGY_CHANNELS, SUPER_ONTOLOGY_PUSH_CHANNELS } from "../../shared/super-ontology/requests.mjs";
+import { SUPER_ONTOLOGY_CHANNELS, SUPER_ONTOLOGY_PUSH_CHANNELS } from "../../src/shared/super-ontology/requests.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const tmp = () => fs.mkdtemp(path.join(os.tmpdir(), "so-shell-"));

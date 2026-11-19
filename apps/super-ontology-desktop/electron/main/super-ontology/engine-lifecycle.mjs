@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { runBoundedProcessProbe } from "../platform/common/bounded-process-probe.mjs";
 import { classifyHealth, engineBaseUrl, fetchEngineHealth } from "./engine-health.mjs";
 import { readServeCredentials } from "./serve-credentials.mjs";

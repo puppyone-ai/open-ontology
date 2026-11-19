@@ -1,4 +1,4 @@
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 export { readTokenFile } from "./serve-credentials.mjs";
 

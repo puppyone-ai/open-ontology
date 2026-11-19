@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { runBoundedProcessProbe } from "../platform/common/bounded-process-probe.mjs";
 import { createEnginePreflight } from "./docker-preflight.mjs";
 import { createLiteRuntimeProbe } from "./lite-runtime.mjs";
-import { RUNTIME_CHOICES } from "../../../shared/super-ontology/engine-contract.mjs";
+import { RUNTIME_CHOICES } from "../../../src/shared/super-ontology/engine-contract.mjs";
 import { createEngineLifecycle } from "./engine-lifecycle.mjs";
 import { createEngineLocator } from "./engine-locator.mjs";
 import { createCloudProxy } from "./cloud-proxy.mjs";
@@ -38,7 +38,7 @@ import { createUploadService } from "./upload-service.mjs";
  * @param {{
  *   logger?: any,
  *   platformHost?: { platform: string, executableDiscovery?: { captureEnvironment: Function } },
- *   paths?: { stateDir?: string, logsDir?: string, liteRuntimeDir?: string, exchangeDir?: string },
+ *   paths?: { stateDir?: string, managedFilesDir?: string, logsDir?: string, liteRuntimeDir?: string, exchangeDir?: string },
  *   settings?: { read: () => Promise<object>, update: (patch: object) => Promise<object> },
  *   bundledExecutable?: () => (string | null),
  *   broadcast?: (channel: string, payload: unknown) => void,
@@ -175,7 +175,7 @@ export function createSuperOntologyService({
     ...(fetchImpl ? { fetchImpl } : {}), ...(timers ? { timers } : {}), ...(bridgeTuning ? { tuning: bridgeTuning } : {}),
   });
 
-  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles });
+  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles, managedFilesDir: paths.managedFilesDir ?? (stateDir ? path.join(path.dirname(stateDir), "My files") : null), fsPromises });
   // Write-back of accepted editor suggestions (F-S8-03). The journal records suggestion, Share, files and evidence for every write;
   // `onFileWritten` lets the host nudge the Git auto-commit flow (its watcher also sees the change).
   const writeback = createWriteback({
@@ -198,7 +198,7 @@ export function createSuperOntologyService({
     ...controlHandlers,
     ...suggestHandlers,
     ...createEnterpriseHandlers({ client }),
-    ...createAgentHandlers({ client }),
+    ...createAgentHandlers({ client, lifecycle, tokenDirectory: stateDir ? path.join(path.dirname(stateDir), "agent-tokens") : null, fsPromises }),
     ...createFileHandlers({ client, tokens: driveFileTokens }),
     ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, mediaDecoder, hostMount }),
     ...Object.fromEntries(["drive-create", "drive-update", "drive-delete"].map((name) => [name, watchesDrives(name, controlHandlers[name])])),

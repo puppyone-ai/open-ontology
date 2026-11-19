@@ -61,7 +61,7 @@ async function main() {
   const service = createSuperOntologyService({
     logger,
     platformHost: { platform: "macos" },
-    paths: { stateDir: path.join(engineRoot, "state"), logsDir: path.join(engineRoot, "logs") },
+    paths: { stateDir: path.join(engineRoot, "state"), logsDir: path.join(engineRoot, "logs"), managedFilesDir: path.join(userData, "My files") },
     settings,
     bundledExecutable: () => bundledExecutablePath({ resourcesPath, appRoot }),
     readEnvironment: createEnvironmentReader(),

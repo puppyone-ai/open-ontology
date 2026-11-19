@@ -6,7 +6,7 @@ import fsDefault from "node:fs/promises";
 import { constants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 
 export const MOUNT_DIR = ".context";
 const SUGGEST_DIR = "suggest";

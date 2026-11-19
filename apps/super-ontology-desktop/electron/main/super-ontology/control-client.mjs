@@ -1,4 +1,4 @@
-import { SuperOntologyError, pickDetails } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError, pickDetails } from "../../../src/shared/super-ontology/errors.mjs";
 import { CLOUD_PROXY_PATH_PREFIX, CLOUD_ROUTE_NAMES } from "./cloud-proxy.mjs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
@@ -71,6 +71,9 @@ const rawRoutes = {
 /** Routes the engine's cloud entry accepts carry `cloud: true`: in Cloud proxy mode they go through a hosted service, the rest stay local. */
 export const ROUTES = Object.freeze(Object.fromEntries(Object.entries(rawRoutes).map(([name, definition]) => [name, CLOUD_ROUTE_NAMES.includes(name) ? Object.freeze({ ...definition, cloud: true }) : definition])));
 
+/** A colon is a legal path character (RFC 3986) and entity keys carry one (`person:<id>`); the engine does not decode `%3A` in a path segment. */
+const encodeSegment = (value) => encodeURIComponent(value).replace(/%3A/gu, ":");
+
 const invalid = () => new SuperOntologyError("SO_INVALID_REQUEST");
 
 function buildPath(definition, params = {}) {
@@ -78,7 +81,7 @@ function buildPath(definition, params = {}) {
     const pattern = definition.params?.[name];
     const value = params[name];
     if (!pattern || typeof value !== "string" || !pattern.test(value)) throw invalid();
-    return name === "path" ? value.split("/").map(encodeURIComponent).join("/") : encodeURIComponent(value);
+    return name === "path" ? value.split("/").map(encodeURIComponent).join("/") : encodeSegment(value);
   });
 }
 

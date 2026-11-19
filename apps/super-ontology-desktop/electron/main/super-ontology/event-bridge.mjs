@@ -1,4 +1,4 @@
-import { SuperOntologyError } from "../../../shared/super-ontology/errors.mjs";
+import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
 import { createSseParser } from "./sse-parser.mjs";
 
 export const BRIDGE_DEFAULTS = Object.freeze({
