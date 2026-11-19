@@ -49,8 +49,8 @@ On a local lite deployment, build runs every stage (load, Self-build, publicatio
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
 --resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
-adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
-"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
+adjudicated edges, that file is {\"protocol\":\"oo.build-review/v1\",\"reason\":\"...\",
+\"overrides\":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
