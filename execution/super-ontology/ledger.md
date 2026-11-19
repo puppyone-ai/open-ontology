@@ -181,6 +181,13 @@
 | SO-B-S15-06 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 190b222a2 → 190b222a2 | — | testing/super-ontology/bench/longmemeval-v2/ | Report exact-text hits and misses for quoted phrases |
 | SO-B-S15-07 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 675fe7a89 → 675fe7a89 | — | testing/super-ontology/bench/longmemeval-v2/ | Add the LongMemEval-V2 dev run logs |
 | SO-B-S15-08 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | bd9e46479 → 77198369f | — | testing/super-ontology/bench/longmemeval-v2/ | Record the LongMemEval-V2 run setup, configs and dev results |
+| SO-B-S16-14 | D83 | merged | feat/super-ontology (App 车道 A 并入) | 928cb5487 → 928cb5487 | — | apps/super-ontology-desktop/ | Embed the compose deploy files in oo and write them to the state dir on first use |
+| SO-F-S19-01 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 83e0e752b → 83e0e752b | — | apps/super-ontology-desktop/ | Define the preload interface of the standalone Super Ontology app |
+| SO-F-S19-02 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 98f711d5d → 98f711d5d | — | apps/super-ontology-desktop/ | Add the Super Ontology app package, build config and dependency records |
+| SO-F-S19-03 | D85 | merged | feat/super-ontology (App 车道 A 并入) | f8f460048 → f8f460048 | — | apps/super-ontology-desktop/ | Add the main process, preload and engine bootstrap of the Super Ontology app |
+| SO-F-S19-04 | D85 | merged | feat/super-ontology (App 车道 A 并入) | f2f07cca7 → f2f07cca7 | — | apps/super-ontology-desktop/ | Add the placeholder icon, the Apache attribution and the notice generation |
+| SO-F-S19-05 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 8bce99757 → 081cd185c | — | apps/super-ontology-desktop/ | Add the owner-triggered workflow that builds the Super Ontology DMG |
+| SO-F-S19-06 | D85 | merged | feat/super-ontology (App 车道 A 并入) | 2645cefa6 → e5c0062a2 | — | apps/super-ontology-desktop/ | Bundle the release oo with its docs engine in the Super Ontology app |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
