@@ -9,7 +9,11 @@ const execute = promisify(execFile);
 // Peekaboo runs in-process (`--no-remote`) instead of asking a bridge host that may not hold them. SO_PEEKABOO_FLAGS overrides it.
 const DEFAULT_FLAGS = (process.env.SO_PEEKABOO_FLAGS ?? "--no-remote").split(" ").filter(Boolean);
 
-export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS, run = (file, args, options) => execute(file, args, { maxBuffer: 16 * 1024 * 1024, ...options }) } = {}) {
+// Chromium nests the page deep in the accessibility tree; with Peekaboo's default depth the text fields and the buttons of a screen's body are cut off
+// ("ax_truncated_depth") and cannot be addressed by name. Walk deeper.
+const AX_ENV = { PEEKABOO_AX_MAX_DEPTH: process.env.PEEKABOO_AX_MAX_DEPTH ?? "40" };
+
+export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS, run = (file, args, options) => execute(file, args, { maxBuffer: 16 * 1024 * 1024, ...options, env: { ...process.env, ...AX_ENV, ...options?.env } }) } = {}) {
   // Each launch is a new process: the harness points Peekaboo at that exact PID (`PID:<n>`) and drops cached snapshots, so a click never
   // resolves to the window of the process a previous scenario or relaunch ended ("window not found" / "snapshot is stale").
   const target = ["--app", app];
@@ -30,7 +34,20 @@ export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS
       return { granted: missing.length === 0 && /Required\): Granted/u.test(stdout), missing, raw: stdout };
     },
     // A click by name resolves against the latest snapshot, which shows the screen BEFORE the previous action; observe first so the name is looked up on what is on screen now.
-    click: (name, { right = false, double = false, modifiers } = {}) => retrying(async () => { await call(["see", ...target, "--json"]); return call(["click", name, ...target, "--foreground", "--wait-for", "10s", ...(right ? ["--right"] : []), ...(double ? ["--double"] : []), ...(modifiers ? ["--modifiers", modifiers] : [])]); }, 4),
+    // A query matches by substring ("Ontology" also finds the row "Ontology version 1" on Home), so the observation is searched for an element whose accessible
+    // name IS the name and that one is clicked by its id; only a name nothing is called exactly goes to Peekaboo as a query.
+    click: (name, { right = false, double = false, modifiers, strategy } = {}) => retrying(async () => {
+      const { stdout } = await call(["see", ...target, "--json", "--web-focus"]);
+      let found = null;
+      try {
+        const data = JSON.parse(stdout).data;
+        const exact = (data.ui_elements ?? []).filter((element) => element.is_actionable && (element.label === name || element.title === name));
+        const element = exact.find((entry) => ["button", "checkbox", "textField", "radioButton", "link", "menuItem"].includes(entry.role)) ?? exact[0];
+        if (element) found = { id: element.id, snapshot: data.snapshot_id };
+      } catch { /* not JSON: fall back to the query */ }
+      const options = ["--foreground", "--wait-for", "10s", ...(right ? ["--right"] : []), ...(double ? ["--double"] : []), ...(modifiers ? ["--modifiers", modifiers] : []), ...(strategy ? ["--input-strategy", strategy] : [])];
+      return call(found ? ["click", "--on", found.id, "--snapshot", found.snapshot, ...target, ...options] : ["click", name, ...target, ...options]);
+    }, 4),
     /** Types into the focused element: click the field first. */
     // `native`: the window in front is the app's own open panel (a second window of the process, so a process target is ambiguous): no target, the keys go to the key window.
     // Peekaboo refuses to confirm typing into a window it cannot pin (the open panel), so that one goes through System Events (same Accessibility grant).
@@ -38,6 +55,8 @@ export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS
     /** Return through System Events (the open panel needs Return, keypad Enter, Return: complete the path, go there, choose). */
     nativeReturn: (code = 36) => run("osascript", ["-e", `tell application "System Events" to key code ${code}`], {}),
     press: (chord, { native = false } = {}) => call(["press", chord, ...(native ? [] : target), "--foreground"]),
+    /** The accessibility elements of the app's window as Peekaboo reports them (name, role, whether they can be acted on): for the evidence of a failed run. */
+    elements: async () => { const { stdout } = await retrying(() => call(["see", ...target, "--json", "--web-focus"])); return JSON.parse(stdout).data?.ui_elements ?? []; },
     see: (path, { json = false } = {}) => retrying(() => call(["see", ...target, "--path", path, "--format", "png", ...(json ? ["--json"] : [])])),
   });
 }
