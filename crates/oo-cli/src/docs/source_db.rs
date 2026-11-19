@@ -104,7 +104,8 @@ pub fn is_db_kind(kind: &str) -> bool {
 }
 
 /// Every database kind `oo source add` takes, in documentation order.
-pub fn kinds() -> impl Iterator<Item = &'static str> {
+#[cfg(test)]
+fn kinds() -> impl Iterator<Item = &'static str> {
     TABLES.iter().map(|k| k.name)
 }
 
