@@ -257,7 +257,12 @@ def docker_command(argv,env):
 def docker(argv,env):
     p=subprocess.run(docker_command(argv,env),capture_output=True,env=env,timeout=180)
     if p.returncode:
-        raise ValueError('LITE_DOCKER_FAILED')
+        # The tool's own last line says why (no daemon, bad context, unknown flag); keep it
+        # short and printable, so an isolated HOME or a stopped Docker is not a mystery.
+        last=(p.stderr.decode('utf-8','replace').strip().splitlines() or [''])[-1]
+        why=''.join(c for c in last if c.isprintable() and c not in '\\"')[:160]
+        raise ValueError('LITE_DOCKER_FAILED: docker '+' '.join(argv[:2])+' exited '+str(p.returncode)+(': '+why if why else '')
+                         +' (set DOCKER_HOST or OO_LITE_SUBNET if this process runs with a different HOME)')
     return p.stdout
 
 
