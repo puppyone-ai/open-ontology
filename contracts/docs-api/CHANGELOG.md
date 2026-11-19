@@ -163,3 +163,13 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   (present only when those sidecars are configured) follow the same rule. New code `DOCS_ENGINE_PARSER_UNAVAILABLE` (no HTTP status;
   it appears in a health component only). Additive.
 
+## 1.11 (Desktop findings, lane I)
+
+- `POST /files:retry` also accepts a file parked as `unsupported` with `DOCS_PARSE_CODEC_UNAVAILABLE` (a recording whose codec the media
+  sidecar cannot decode). That is the last step of the host decode hand-over (spec 10 17.2): the host writes the decoded WAV, frames and
+  `manifest.json` under `<exchange>/<sha256 of the file>/`, then retries the file; the engine parses it again and reads the output.
+  Before, the answer was `not_retryable` with `state:unsupported` and the file stayed parked. Every other `unsupported` file is still
+  `not_retryable`. The file goes through `outdated` (the table's own edge) and not through `queued`; its old facts, if any, stay valid.
+- Engine behaviour, no field: an object-store Drive (`s3`, `oss`, `cos`, `r2`) is polled for changes like a local one, every
+  `sync.s3_poll_seconds` of `docs.json` (default 300; the key is not `object_poll_seconds`). Before, only `fs` Drives were polled, so a
+  change in a bucket showed only after an explicit `POST /drives/{id}:sync`.

@@ -1119,6 +1119,7 @@
     },
     "RetryRequest": {
       "type": "object",
+      "description": "Files in parse_failed or extract_partial, and (1.11) files parked as unsupported with DOCS_PARSE_CODEC_UNAVAILABLE after the host wrote its decoded output to the exchange directory (spec 10 17.2). Any other file answers not_retryable.",
       "additionalProperties": false,
       "required": [
         "file_ids"
