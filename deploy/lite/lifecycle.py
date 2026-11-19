@@ -17,6 +17,19 @@ import urllib.parse
 import uuid
 from datetime import datetime, timezone
 
+def model_call_limit(stack):
+    """Builder model-call budget: 6 covers two tables; each further table adds 4 (batch + repairs).
+    A wildcard scope is sized as 32 tables. OO_LITE_MODEL_CALL_LIMIT (1..4096) overrides."""
+    raw=os.environ.get('OO_LITE_MODEL_CALL_LIMIT')
+    if raw is not None:
+        if not raw.isdigit() or not 1<=int(raw)<=4096:raise ValueError('model call limit')
+        return int(raw)
+    tables=0
+    for source in stack.get('sources',[]):
+        include=(source.get('scope') or {}).get('include') or ['*']
+        tables+=32 if any('*' in i for i in include) else len(include)
+    return min(4096,6+4*max(0,tables-2))
+
 def publication_health(history, services_up, now=None):
     published=history.get('data_published_at')
     # An unchanged source is current data, not an overdue one: health follows
@@ -548,7 +561,7 @@ def provision_retained(root,argv,env,request,port):
         'library_id':'library','secrets_dir':'/home/oo/.config/open-ontology/secrets',
         'builder_script':'/opt/oo/pg-builder/retained_build.py',
         'builder':{'project':'lite','psql_command':['psql','service=agent'],
-                   'model':{'stack':'/work/operator/model.json','egress':'/opt/oo/model_egress.py','call_limit':6}},
+                   'model':{'stack':'/work/operator/model.json','egress':'/opt/oo/model_egress.py','call_limit':model_call_limit(stack)}},
         'publisher_config':'/work/operator/publisher.json','gateway_login':DATA_LOGIN,
         'gateway':{'runtime_dir':'/work/operator/gateway','gateway_url':public,
                    'ca_file':'/pki/lite-ca-cert','client_pem':'/pki/lite-admin.pem',
