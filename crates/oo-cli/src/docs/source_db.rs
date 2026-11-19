@@ -1,4 +1,4 @@
-//! Database sources for `oo source` (D83): `oo source add postgres|mysql|oracle`
+//! Database sources for `oo source` (D83): `oo source add postgres|mysql|oracle|sqlserver|db2|kingbase|dm8`
 //! registers the database in the stack file the existing pipeline reads
 //! (`stack.yaml`, `oo.stack/v1`), without touching how that pipeline works. Only
 //! the `sources` list changes, through the pipeline's own parser and validator;
@@ -19,7 +19,15 @@ use super::source::{
     env_value, own_secret_file_of, prompt_hidden, read_stdin_text, slug, store_secret,
 };
 
-pub const KINDS: &[&str] = &["postgres", "mysql", "oracle"];
+pub const KINDS: &[&str] = &[
+    "postgres",
+    "mysql",
+    "oracle",
+    "sqlserver",
+    "db2",
+    "kingbase",
+    "dm8",
+];
 
 pub fn is_db_kind(kind: &str) -> bool {
     KINDS.contains(&kind)
@@ -29,6 +37,10 @@ fn default_port(kind: &str) -> u16 {
     match kind {
         "mysql" => 3306,
         "oracle" => 1521,
+        "sqlserver" => 1433,
+        "db2" => 50000,
+        "kingbase" => 54321,
+        "dm8" => 5236,
         _ => 5432,
     }
 }
@@ -206,17 +218,15 @@ pub fn build_source(
         (None, None) => None,
     };
     let include: Vec<String> = p.all("--include").iter().map(|s| (*s).to_owned()).collect();
-    if matches!(kind, "postgres" | "mysql") {
-        if tls_ca.is_none() {
-            return Err(bad(
-                "postgres and mysql sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref",
-            ));
-        }
-        if include.is_empty() {
-            return Err(bad(
-                "postgres and mysql sources need an explicit scope: --include <schema.table> (repeatable)",
-            ));
-        }
+    if matches!(kind, "postgres" | "mysql" | "kingbase") && tls_ca.is_none() {
+        return Err(bad(format!(
+            "{kind} sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref"
+        )));
+    }
+    if kind != "oracle" && include.is_empty() {
+        return Err(bad(format!(
+            "{kind} sources need an explicit scope: --include <schema.table> (repeatable)"
+        )));
     }
     let mut scope = stack::Scope::default();
     if !include.is_empty() {
@@ -384,12 +394,15 @@ pub fn test(p: &Parsed, name: &str) -> Result<(), CliError> {
         .iter()
         .find(|x| x.id == name)
         .ok_or_else(|| bad(format!("no source {name}")))?;
+    // Every address the name resolves to is tried: `localhost` yields ::1 first, and a
+    // database published on 127.0.0.1 only must still count as reachable.
     let reach = (src.host.as_str(), src.port)
         .to_socket_addrs()
         .ok()
-        .and_then(|mut a| a.next())
-        .is_some_and(|a| {
-            std::net::TcpStream::connect_timeout(&a, std::time::Duration::from_secs(5)).is_ok()
+        .is_some_and(|mut a| {
+            a.any(|a| {
+                std::net::TcpStream::connect_timeout(&a, std::time::Duration::from_secs(5)).is_ok()
+            })
         });
     let report = json!({"name": name, "backend": src.engine, "reachable": reach, "ok": reach,
         "note": "TCP reachability only; `oo doctor` signs in and reads the catalog"});
@@ -477,5 +490,43 @@ mod tests {
         let v = public(&s);
         assert_eq!(v["config"]["secret_ref"], "(set)");
         assert!(!v.to_string().contains("/secret/path"));
+    }
+
+    #[test]
+    fn every_doctor_engine_is_a_source_kind_with_its_port_and_scope_rule() {
+        let base = [
+            "--name",
+            "x",
+            "--host",
+            "h",
+            "--database",
+            "d",
+            "--user",
+            "u",
+        ];
+        for (kind, port) in [
+            ("sqlserver", 1433),
+            ("db2", 50000),
+            ("kingbase", 54321),
+            ("dm8", 5236),
+        ] {
+            assert!(is_db_kind(kind));
+            let e = build_source(&parsed(&base), kind, "x", "r".into())
+                .err()
+                .unwrap();
+            let expect = if kind == "kingbase" {
+                "trust anchor"
+            } else {
+                "explicit scope"
+            };
+            assert!(e.message.contains(expect), "{kind}: {}", e.message);
+            let mut a = base.to_vec();
+            a.extend(["--tls-ca-ref", "env:CA", "--include", "s.t"]);
+            let s = build_source(&parsed(&a), kind, "x", "r".into())
+                .ok()
+                .unwrap();
+            assert_eq!((s.port, s.engine.as_str()), (port, kind));
+        }
+        assert!(!is_db_kind("mariadb"));
     }
 }

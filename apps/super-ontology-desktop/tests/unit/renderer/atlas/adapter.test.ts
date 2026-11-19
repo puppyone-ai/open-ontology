@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffAtlas, loadAtlas, pool } from "../../../../src/renderer/features/atlas/adapter";
+import { diffAtlas, driveSource, loadAtlas, pool } from "../../../../src/renderer/features/atlas/adapter";
 import { ENTITY_TYPE_VALUES, fakeAtlasSource, syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 import { parseForeignKeys, parseTables } from "../../../../src/renderer/features/atlas/atlasApi";
 
@@ -78,6 +78,14 @@ describe("atlas data adapter", () => {
     expect(docs.map((m) => m.label)).toEqual(["doc-1.md", "doc-4.md"]);
     expect(data.groups.find((g) => g.kind === "drive")?.label).toBe("Docs");
     expect(source.calls.entities).toBeUndefined();
+  });
+
+  it("tells the kinds of source apart: My files, a folder, a bucket, a database, each with its own tint", async () => {
+    expect([["My files", "fs"], ["Notes", "fs"], ["Backups", "s3"], ["Lake", "r2"]].map(([name, backend]) => driveSource({ name: name!, backend: backend! }))).toEqual(["files", "folder", "bucket", "bucket"]);
+    const { data } = await loadAtlas(fakeAtlasSource(corpus()), { mode: "source" });
+    const byKind = new Map(data.groups.map((g) => [g.source, g.tone]));
+    expect([...byKind.keys()].sort()).toEqual(["bucket", "database", "files", "folder"]);
+    expect(new Set(byKind.values()).size).toBe(4);
   });
 
   it("a link to a table without a schema resolves by table name when it is unambiguous", async () => {

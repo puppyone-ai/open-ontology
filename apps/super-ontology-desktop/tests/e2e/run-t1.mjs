@@ -11,8 +11,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const only = option("--only")?.split(",");
-const order = ["engine-boot", "first-run", "home", "sources", "ontology", "atlas", "agents", "settings"];
-const selected = order.filter((name) => !only || only.includes(name));
+const order = ["engine-boot", "first-run", "home", "sources", "databases", "ontology", "atlas", "query", "agents", "settings"];
+// Needs labelled local database containers (see the scenario header); never part of a default run.
+const optional = ["databases-live"];
+const selected = (only ? [...order, ...optional] : order).filter((name) => !only || only.includes(name));
 const env = { ...process.env, ...(option("--engine") ? { SO_T1_ENGINE: option("--engine") } : {}) };
 const ATTEMPT_MS = 5 * 60_000;
 

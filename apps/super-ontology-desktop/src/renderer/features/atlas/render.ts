@@ -81,6 +81,22 @@ function spriteFor(tone: AtlasTone, devRadius: number, dpr: number) {
   return sprite;
 }
 
+/** 12px kind glyphs of a source (My files, folder, bucket, database): simple outlines on a 12 unit grid, drawn with the label. */
+const GLYPHS: Record<string, string> = {
+  files: "M3 1.5h4.2L9.5 4v6.5H3zM7.2 1.5V4h2.3",
+  folder: "M1.5 3h3l1.2 1.3h4.8v5.7h-9z",
+  bucket: "M2 3.6c0 .9 1.8 1.4 4 1.4s4-.5 4-1.4-1.8-1.4-4-1.4-4 .5-4 1.4zM2 3.6l1 6.6h6l1-6.6",
+  database: "M2 3c0 .9 1.8 1.6 4 1.6S10 3.9 10 3 8.2 1.4 6 1.4 2 2.1 2 3zM2 3v6c0 .9 1.8 1.6 4 1.6S10 9.9 10 9V3M2 6c0 .9 1.8 1.6 4 1.6S10 6.9 10 6",
+};
+const glyphPaths = new Map<string, Path2D>();
+const glyphPath = (kind: string): Path2D | null => {
+  if (typeof Path2D === "undefined" || !GLYPHS[kind]) return null;
+  let path = glyphPaths.get(kind);
+  if (!path) { path = new Path2D(GLYPHS[kind]); glyphPaths.set(kind, path); }
+  return path;
+};
+export const GLYPH_PX = 12;
+
 export const clearSpriteCache = (): void => sprites.clear();
 
 // ---- motion -----------------------------------------------------------------------------------------------------
@@ -240,23 +256,41 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
   const taken: [number, number, number, number][] = [];
-  const label = (text: string, sx: number, sy0: number, strong: boolean, color: string) => {
-    const w = text.length * 6.7 + 8, h = 16;
-    const overlaps = (box: [number, number, number, number]) => taken.some((t) => box[0] < t[2] && box[2] > t[0] && box[1] < t[3] && box[3] > t[1]);
+  const label = (text: string, sx: number, sy0: number, strong: boolean, color: string, glyph?: { kind: string; rgb: Rgb }) => {
+    const tw = ctx.measureText(text).width;
+    const gw = glyph ? GLYPH_PX + 5 : 0;
+    const w = tw + gw + 8, h = 16;
+    const box = (cy: number): [number, number, number, number] => [sx - w / 2, cy - h / 2, sx + w / 2, cy + h / 2];
+    const overlaps = (b: [number, number, number, number]) => taken.some((t) => b[0] < t[2] && b[2] > t[0] && b[1] < t[3] && b[3] > t[1]);
     let sy = sy0;
-    let box: [number, number, number, number] = [sx - w / 2, sy - h / 2, sx + w / 2, sy + h / 2];
-    // A label that matters steps aside (up, then down) for another one; an ordinary one is simply left out.
-    for (let attempt = 0; overlaps(box); attempt += 1) {
+    let b = box(sy);
+    // A label that matters steps aside (further down, never onto its own cell) for another one; an ordinary one is simply left out.
+    for (let attempt = 0; overlaps(b); attempt += 1) {
       if (!strong || attempt >= 4) return;
-      sy = sy0 + (attempt % 2 === 0 ? -1 : 1) * h * (Math.floor(attempt / 2) + 1);
-      box = [sx - w / 2, sy - h / 2, sx + w / 2, sy + h / 2];
+      sy = sy0 + h * (attempt + 1);
+      b = box(sy);
     }
-    taken.push(box);
+    taken.push(b);
+    const left = Math.round(sx - (tw + gw) / 2);
+    const y = Math.round(sy);
+    ctx.textAlign = "left";
     ctx.lineWidth = 4;
     ctx.strokeStyle = "rgba(250, 250, 249, 0.94)";
-    ctx.strokeText(text, sx, Math.round(sy));
+    ctx.strokeText(text, left + gw, y);
     ctx.fillStyle = color;
-    ctx.fillText(text, sx, Math.round(sy));
+    ctx.fillText(text, left + gw, y);
+    ctx.textAlign = "center";
+    const path = glyph ? glyphPath(glyph.kind) : null;
+    if (glyph && path) {
+      ctx.save();
+      ctx.translate(left, y - GLYPH_PX / 2);
+      ctx.lineWidth = 1.2;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = rgba(glyph.rgb, 0.9);
+      ctx.stroke(path);
+      ctx.restore();
+    }
     stats.labels += 1;
   };
   const wanted = (node: SceneNode) => node.idx === state.focus || node.idx === state.selected || hits.has(node.idx) || (lit !== null && lit.has(node.idx) && node.kind === "member" && k > 0.5);
@@ -276,10 +310,10 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif';
     ctx.font = node.kind === "group" ? `600 13px ${FONT}` : `500 12px ${FONT}`;
     if (node.kind === "group") {
-      if (node.expanded) label(node.label, sx, sy - node.r * k + 15, true, TEXT);
-      else {
-        label(node.label, sx, sy + node.r * k + 11, strong, TEXT);
-        if (node.r * k > 18) { ctx.fillStyle = rgba(TONE_RGB[node.tone], 0.95); ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif'; ctx.fillText(String(node.count), sx, sy); ctx.font = '500 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif'; }
+      {
+        // Always just below the cell, so no glyph ever lands on a member; strong so it steps aside for a neighbour instead of vanishing.
+        label(node.label, sx, sy + node.r * k + 12, true, TEXT, node.source ? { kind: node.source, rgb: TONE_RGB[node.tone] } : undefined);
+        if (!node.expanded && node.r * k > 18) { ctx.fillStyle = rgba(TONE_RGB[node.tone], 0.95); ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif'; ctx.fillText(String(node.count), sx, sy); ctx.font = '500 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif'; }
       }
     } else label(node.label, sx, sy + node.r * k + 10, strong, strong ? TEXT : TEXT_WEAK);
   }

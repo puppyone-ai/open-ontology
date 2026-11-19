@@ -9,6 +9,7 @@ import { EMPTY_S3_FORM, isAllowedEndpoint, missingS3Fields, objectStoreFields, t
 import type { ObjectStoreBackend } from "../../model/superDriveApi";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 import { createOperationId } from "../../model/operationIds";
+import { AddDatabaseDialog } from "./AddDatabase";
 
 /** The one way in: files into "My files" (no setup), a folder on this computer, a bucket, or (CLI) a database. */
 export function useAddFolder(onOpened?: (driveId: string) => void) {
@@ -28,13 +29,14 @@ export function useAddFolder(onOpened?: (driveId: string) => void) {
   return { addFolder, error };
 }
 
-export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => void }) {
+export function AddSourceMenu({ onOpened, onDatabaseAdded }: { onOpened?: (driveId: string) => void; onDatabaseAdded?: (name: string) => void }) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
   const anchor = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [cloud, setCloud] = useState(false);
+  const [database, setDatabase] = useState(false);
   const [fileError, setError] = useState<SuperDriveError | null>(null);
   const folder = useAddFolder(onOpened);
   const error = fileError ?? folder.error;
@@ -59,9 +61,10 @@ export function AddSourceMenu({ onOpened }: { onOpened?: (driveId: string) => vo
         <MenuItem icon={Folder} label={t("app.sources.add.folder")} closeMenu={() => setOpen(false)} onSelect={() => { void folder.addFolder(); }} testId="add-source-folder" />
         <MenuItem icon={Cloud} label={t("app.sources.add.cloud")} closeMenu={() => setOpen(false)} onSelect={() => setCloud(true)} testId="add-source-cloud" />
         <MenuSeparator />
-        <MenuItem icon={Database} label={t("app.sources.add.database")} disabled onSelect={() => undefined} testId="add-source-database" />
+        <MenuItem icon={Database} label={t("app.sources.add.database")} closeMenu={() => setOpen(false)} onSelect={() => setDatabase(true)} testId="add-source-database" />
       </Menu>
       {error && <div className="so-visually-hidden" role="alert">{errorText(error)}</div>}
+      {database && <AddDatabaseDialog onClose={() => setDatabase(false)} onAdded={(name) => { setDatabase(false); onDatabaseAdded?.(name); }} />}
       {cloud && <CloudStorageDialog onClose={() => setCloud(false)} onCreated={(id) => { setCloud(false); onOpened?.(id); }} />}
     </>
   );

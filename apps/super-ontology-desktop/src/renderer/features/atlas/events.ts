@@ -33,7 +33,7 @@ export function opsForEvent(event: EngineEvent, context: EventContext): AtlasOp[
       if (context.hasMember(member)) return [{ type: "pulse", id: member }];
       const group = driveGroupId(drive);
       const cell: AtlasMember = { id: member, group, label: path.split("/").pop() || path, ref: { kind: "file", fileId: id, path }, weight: 0, born: null };
-      return [{ type: "bud", member: cell, group: context.hasGroup(group) ? undefined : { id: group, kind: "drive", label: drive.slice(0, 8), tone: "ink" } }];
+      return [{ type: "bud", member: cell, group: context.hasGroup(group) ? undefined : { id: group, kind: "drive", label: drive.slice(0, 8), tone: "dusk", source: "folder" } }];
     }
     case "file.removed": {
       const id = str(data.file_id);
