@@ -125,3 +125,10 @@ MAG 136 s (1.87 M nodes, 7.8 M IR blocks), Amazon 200 s (1.04 M nodes,
 - The reranker is a 2026 frontier model; the 2024 paper baselines on the
   board used GPT-4-class models. The board allows any model; our
   description says which one.
+
+## Replay without a model
+
+`replay/llm-replies.jsonl.gz` holds every model reply of the dev and
+official runs, keyed by `sha256(model, tag, prompt)`. Unpack it to the path
+given as `--cache` and rerun any config: no model is called and the
+predictions come out byte-identical (checked on the Prime dev run).
