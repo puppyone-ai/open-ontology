@@ -285,6 +285,9 @@ jobs:
         with:
           toolchain: "1.98.1"
           components: rustfmt, clippy
+      - name: desktop contract drift
+        shell: bash
+        run: node apps/super-ontology-desktop/scripts/gen-contract.mjs --check
       - name: contracts
         id: record
         shell: bash
