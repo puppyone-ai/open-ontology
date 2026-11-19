@@ -13,6 +13,7 @@
 use std::collections::BTreeMap;
 
 pub mod lexical;
+pub mod walk;
 
 /// The only model version this build can compute.
 pub const MODEL_VERSION: &str = "hashgram/1";
