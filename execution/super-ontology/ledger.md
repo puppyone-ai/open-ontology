@@ -167,6 +167,13 @@
 | SO-B-S14-05 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 3ebaa1319 → 3ebaa1319 | — | — | Record the Docker-free distribution decisions in the ADR |
 | SO-B-S14-06 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 4e70ce2e9 → 4e70ce2e9 | — | — | Pass the pinned runtime artifacts through the WP1 CLI input run |
 | SO-B-S14-07 | L8 | merged | feat/super-ontology (车道 G 分支并入) | 27076f436 → 27076f436 | — | — | Record the lane G WP1 and CLI-only matrix runs |
+| SO-B-S15-02 | D84 | merged | feat/super-ontology (打榜车道并入) | 0b993fe5d → 0b993fe5d | — | testing/super-ontology/bench/ | Add the bm25/1 lexical retrieval channel to oo-docs |
+| SO-B-S15-11 | D84 | merged | feat/super-ontology (打榜车道并入) | d0c7f5288 → 1e02d8a11 | — | testing/super-ontology/bench/ | Add the walk/1 anchored graph ranking channel to oo-docs |
+| SO-B-S15-12 | D84 | merged | feat/super-ontology (打榜车道并入) | dffaafefb → dffaafefb | — | testing/super-ontology/bench/ | Record the verified STaRK and GraphRAG-Bench leaderboard rules |
+| SO-B-S15-13 | D84 | merged | feat/super-ontology (打榜车道并入) | 5f2890577 → 0cc970163 | — | testing/super-ontology/bench/ | Drive STaRK knowledge bases through the oo-docs engine |
+| SO-B-S15-14 | D84 | merged | feat/super-ontology (打榜车道并入) | 2ab7fa33f → 2ab7fa33f | — | testing/super-ontology/bench/ | Weight graph anchors by specificity in walk/2 |
+| SO-B-S15-15 | D84 | merged | feat/super-ontology (打榜车道并入) | 2dbf396c2 → a1080d804 | — | testing/super-ontology/bench/ | Drive GraphRAG-Bench corpora through the oo-docs engine |
+| SO-B-S15-16 | D84 | merged | feat/super-ontology (打榜车道并入) | f49aca78d → a133e3f6f | — | testing/super-ontology/bench/ | Freeze the STaRK configs and record the dev runs |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
