@@ -17,6 +17,10 @@ Waits while another Super Ontology compose stack is up. No credential is written
       (jumping in Desktop is phase two, F-S10-07)
   A5  H.264/AAC mp4 and AAC m4a: unsupported with DOCS_PARSE_CODEC_UNAVAILABLE (no host decoder on Linux);
       macOS host decode is a Desktop helper, phase two (F-S10-05); ffmpeg -buildconf is the L1 cell docs-media
+  A5b host decode completion (lane I): the host writes WAV + manifest to the exchange directory after the file was parked,
+      `files:retry` makes the engine parse it again, the recording is published with utterances (F-S10-05 handshake)
+  A1b a deliberately degraded picture (tools/super-ontology/make_lowconf_image.py) comes back as an OCR block with the
+      `low_text_confidence` flag (mean score < 0.8): the Desktop T1 state for the low-confidence mark
   A7  change a fact a Share used, refresh: BRIEF lists the change after the head
   A8  parser version bump (container run): outdated, old facts stay published meanwhile, no retraction churn, DOC-G10 judges
   A10 a media job is running while a Markdown edit publishes: its latency stays within the D49 bound
@@ -88,6 +92,9 @@ def make_inputs(root: Path):
     (root / "Meetings").mkdir()
     page = root / "Scans/纪要.png"
     render_page(page, SCAN_LINES)
+    sys.path.insert(0, str(REPO / "tools/super-ontology"))
+    import make_lowconf_image
+    make_lowconf_image.render(str(root / "Scans/低清晰.png"))
     # An image-only pdf (no text layer): sips converts the png.
     sh(["sips", "-s", "format", "pdf", str(page), "--out", str(root / "Scans/扫描件.pdf")])
     ff = ["ffmpeg", "-nostdin", "-v", "error", "-y"]
@@ -158,7 +165,9 @@ def main(argv=None):
             p.write_text(text, encoding="utf-8")
         # ---- oo serve --runtime compose with the ocr and media sidecars
         lock = json.loads((REPO / "deploy/docs/images.lock.json").read_text())
-        env = dict(os.environ, OO_DOCS_PROFILES="ocr,media", OO_DOCS_LANE=LANE, OO_DOCS_DEPLOY_DIR=str(REPO / "deploy/docs"),
+        exchange = work / "exchange"
+        exchange.mkdir(mode=0o755)
+        env = dict(os.environ, OO_DOCS_PROFILES="ocr,media", OO_DOCS_LANE=LANE, OO_DOCS_EXCHANGE=str(exchange), OO_DOCS_DEPLOY_DIR=str(REPO / "deploy/docs"),
                    OO_DOCS_MEDIA_IMAGE=lock["media_parser"]["tag"], OO_DOCS_OCR_IMAGE=lock["ocr_parser"]["tag"])
         argv = [str(oo), "serve", "--runtime", "compose", "--json", "--port", "0", "--state-dir", str(state)]
         ev.command(argv)
@@ -191,6 +200,13 @@ def main(argv=None):
         text = "".join(b.get("text", "") for p in ("Scans/纪要.png", "Scans/扫描件.pdf") for b in blocks(p))
         hit = sum(1 for w in ("星火计划", "林川", "年度计划会纪要") if w in text)
         ev.check("A1 the OCR text carries the planted words", hit == 3, f"{hit}/3 words in {len(text)} chars")
+        # A1b: the low-confidence mark
+        lp = "Scans/低清晰.png"
+        ev.check("A1b the degraded picture is published", state_of(lp) == "published", f"{state_of(lp)} {code_of(lp)}")
+        lb = blocks(lp) if state_of(lp) == "published" else []
+        ev.check("A1b its OCR block carries low_text_confidence", any("low_text_confidence" in (b.get("flags") or []) for b in lb),
+                 json.dumps([[b.get("flags"), (b.get("text") or "")[:12]] for b in lb], ensure_ascii=False)[:200])
+        ev.check("A1b the clear scan is not marked", not any("low_text_confidence" in (b.get("flags") or []) for b in blocks("Scans/纪要.png")))
         # A3: the meeting file and its speaker_identity items
         mp = "Meetings/周会 参会=小王、小李.wav"
         ev.check("A3 the meeting is published", state_of(mp) == "published", f"{state_of(mp)} {code_of(mp)}")
@@ -219,6 +235,27 @@ def main(argv=None):
         # A5
         for p in ("Meetings/录屏h264.mp4", "Meetings/讲话.m4a"):
             ev.check(f"A5 {p} is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE", state_of(p) == "unsupported" and code_of(p) == "DOCS_PARSE_CODEC_UNAVAILABLE", f"{state_of(p)} {code_of(p)}")
+        # A5b: host decode completion. The m4a was parked; the host now writes the decoded WAV and a manifest to the
+        # exchange directory (the layout `media_parser.ffmpeg.load_host_decode` reads) and the file is retried.
+        import hashlib
+        m4a = "Meetings/讲话.m4a"
+        raw = (drive_root / m4a).read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        out = exchange / digest
+        out.mkdir()
+        sh(["ffmpeg", "-nostdin", "-v", "error", "-y", "-i", str(drive_root / m4a), "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(out / "audio.wav")], check=True)
+        wav_sha = hashlib.sha256((out / "audio.wav").read_bytes()).hexdigest()
+        (out / "manifest.json").write_text(json.dumps({"source_blob_sha256": digest, "audio": "audio.wav", "files": {wav_sha: "audio.wav"},
+                                                       "helper_version": "test-helper/1"}))
+        out.chmod(0o755)
+        (out / "audio.wav").chmod(0o644)
+        (out / "manifest.json").chmod(0o644)
+        st, rr = api.request("POST", "/v1/docs/files:retry", {"file_ids": [fs[m4a]["id"]]})
+        ev.check("A5b files:retry accepts the parked recording", st == 200 and rr["results"][0]["status"] == "ok", json.dumps(rr, ensure_ascii=False)[:160])
+        done = l2.wait_until(600, lambda: (lambda f: f if f.get("state") in ("published", "parse_failed", "unsupported") else None)(files(api, did)[m4a]), step=5)
+        ev.check("A5b the recording is published after the host decode", bool(done) and done["state"] == "published", json.dumps({k: (done or {}).get(k) for k in ("state", "state_code")}))
+        st, bl = api.request("GET", f"/v1/docs/files/{fs[m4a]['id']}/blocks?limit=100")
+        ev.check("A5b it has utterances", st == 200 and any(b.get("kind") == "utterance" for b in bl.get("items", [])), f"{len(bl.get('items', [])) if st == 200 else st} blocks")
         # A7: Share, change a fact it used, refresh, BRIEF head lists the change
         body = {"drive_id": did, "scope": ["Projects"], "task": "星火计划"}
         t1 = work / "m1"
