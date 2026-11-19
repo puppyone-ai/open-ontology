@@ -222,6 +222,17 @@
 | SO-B-S18-11 | D88 | merged | feat/super-ontology (车道 L 并入) | 45ec7e0e7 → 43f287894 | — | — | Test the ontology schema route on the real Gateway |
 | SO-F-S19-70 | D88 | merged | feat/super-ontology (车道 L 并入) | 25b385a39 → 25b385a39 | — | — | Read the atlas database side from the ontology schema channel |
 | SO-F-S19-71 | D88 | merged | feat/super-ontology (车道 L 并入) | 8b9c37867 → 8b9c37867 | — | — | Make the atlas T1 settle on the fake and on the real engine |
+| SO-B-S19-51 | D88 | merged | feat/super-ontology (车道 K 并入) | d9e10668d → d9e10668d | — | — | Probe the MySQL-wire, analytic and openGauss families in oo doctor |
+| SO-B-S19-52 | D88 | merged | feat/super-ontology (车道 K 并入) | 85131044d → 85131044d | — | — | Add oo source add for every remaining database kind |
+| SO-B-S19-53 | D88 | merged | feat/super-ontology (车道 K 并入) | 7abe56c5d → 7abe56c5d | — | — | Keep the kind listing for tests only |
+| SO-B-S19-54 | D88 | merged | feat/super-ontology (车道 K 并入) | 2958ec10f → 56fe206df | — | — | Pin the locally built arm64 lite runtime image |
+| SO-B-S19-56 | D88 | merged | feat/super-ontology (车道 K 并入) | 82337bb28 → 82337bb28 | — | — | Scale the Builder model-call budget with the schema |
+| SO-B-S19-57 | D88 | merged | feat/super-ontology (车道 K 并入) | f78fdb6db → f78fdb6db | — | — | Let a build review file carry the one confirmation and its edge decisions |
+| SO-B-S19-58 | D88 | merged | feat/super-ontology (车道 K 并入) | 6a76a7292 → 6a76a7292 | — | — | Accept a non-stream reply that the gateway labels as an event stream |
+| SO-B-S19-59 | D88 | merged | feat/super-ontology (车道 K 并入) | 60b4973f8 → 60b4973f8 | — | — | Escape the quotes in the build review help text |
+| SO-B-S19-60 | D88 | merged | feat/super-ontology (车道 K 并入) | 9a0ab26be → 9a0ab26be | — | — | Export the owner's reviewed ontology as YAML |
+| SO-B-S19-61 | D88 | merged | feat/super-ontology (车道 K 并入) | 3131990b0 → 3131990b0 | — | — | Let a build leave the owner's CLI profiles alone |
+| SO-B-S19-62 | D88 | merged | feat/super-ontology (车道 K 并入) | 3797e7b01 → 3797e7b01 | — | — | Make the build review test write private files and format the review module |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
