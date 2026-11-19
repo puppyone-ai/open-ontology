@@ -46,17 +46,18 @@
     }
   },
   "ocr_parser": {
-    "image": "sha256:3d0587bef2dd82135d75ecfe1b9eeca9458ebf37a1acda2e3dd3069b8647561a",
+    "image": "sha256:0cf31a45314128263a936c25eb0eaf7333988d7335f87b08db41df8c306e1685",
     "tag": "oo-docs-ocr-parser:dev",
     "size_bytes": 2840151386,
     "platform": "linux/arm64",
-    "lane": "super-ontology-bint",
+    "lane": "super-ontology-f1",
     "dockerfile_sha256": "cfcdbbc5fb3db11d7e121feae14bfc57389770a6f0660e5d773e1d45e6a1abf6",
     "requirements_lock_sha256": "799cab4223743091b47fb4f3853359d3e76ccd92b5199071a8ee85e1749532cc",
     "models_lock_sha256": "ce55f2297cb26a1bed83f81181ff05668c1311499d28b496493da9d81b35d430",
     "sbom": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json",
     "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
-    "note": "built before the final notices; doc_parser/ re-overlaid from the tree in one layer (adds /v1/embed); rebuild rewrites the digest"
+    "note": "rebuilt 2026-11-18 from the tree at 68788500f with the merged text-layer fill (5f4c7b0ef, adapter version 2); build: docker build --label oo.lane=super-ontology-f1 --build-context dp=tools/doc-parser -t oo-docs-ocr-parser:dev tools/ocr-parser (layers cached, so the dependency set is that of the earlier build)",
+    "adapter_version": "2"
   },
   "media_parser": {
     "image": "sha256:9709aa9a11f6f49194ff9b8dc1b354e539e64f66d87d47175132f4397e138919",

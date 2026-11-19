@@ -17,6 +17,7 @@ pub mod federate;
 pub mod mounts;
 pub mod ontology;
 pub mod proxy;
+pub mod runtime;
 pub mod s3io;
 pub mod secrets;
 pub mod serve;

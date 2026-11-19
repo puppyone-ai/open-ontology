@@ -1,14 +1,14 @@
 {
  "files": 44,
  "pages": 56,
- "entities_scored": 86,
- "entities_found": 83,
- "core_type_recall": 0.9651,
+ "entities_scored": 90,
+ "entities_found": 87,
+ "core_type_recall": 0.9667,
  "by_type": {
   "Decision": "10/10",
   "Document": "41/44",
   "Event": "5/5",
-  "Organization": "4/4",
+  "Organization": "8/8",
   "Person": "9/9",
   "Project": "4/4",
   "Term": "5/5",
@@ -19,6 +19,12 @@
   "速记0601",
   "速记0828"
  ],
+ "engine_path_pdf": {
+  "entities_scored": 14,
+  "entities_found": 14,
+  "recall": 1.0,
+  "missed": []
+ },
  "embedded_char_recall": {
   "chart.png": 0.9412,
   "screenshot.png": 1.0

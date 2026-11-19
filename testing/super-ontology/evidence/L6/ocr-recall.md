@@ -7,9 +7,10 @@ Run: `tools/ocr-parser/scanned_subset.py render` then `measure`, inside the `oo-
 | Measure | Value | Target |
 |---|---|---|
 | Subset | 44 files, 56 page images: every pdf page of the golden Proposals (pdfium bitmaps), and the md, txt, docx and pptx text of the golden set drawn on A4 pages with a CJK font, then degraded like a scan (paper grey, noise, skew up to 0.4 degree, blur) | |
-| Core-type recall (name or alias found in the OCR text of an anchor file; 86 entities with an anchor file in the subset) | **0.9651** (83 of 86) | >= 0.65 |
-| By D15 type | Decision 10/10, Document 41/44, Event 5/5, Organization 4/4, Person 9/9, Project 4/4, Term 5/5, Topic 5/5 | |
+| Core-type recall (name or alias found in the OCR text of an anchor file; 90 entities with an anchor file in the subset) | **0.9667** (87 of 90) | >= 0.65 |
+| By D15 type | Decision 10/10, Document 41/44, Event 5/5, Organization 8/8, Person 9/9, Project 4/4, Term 5/5, Topic 5/5 | |
 | Missed | three Document entities whose name is a file label (`速记0412`, `速记0601`, `速记0828`) and not text in the page | |
+| Engine path, the 14 digital-pdf entities through the adapter's pdf path with the text-layer fill (adapter version 2, image rebuilt 2026-11-18) | **1.0** (14 of 14) | |
 | Embedded chart and screenshot text, character recall (ocr-parser, standalone image) | chart 0.9412, screenshot 1.0, mean **0.9706** | >= 0.9 |
 | Embedded chart and screenshot text, character recall (doc-parser RapidOCR path, PP-OCRv5 mobile ONNX, host run) | chart 1.0, screenshot 1.0 | >= 0.9 |
 

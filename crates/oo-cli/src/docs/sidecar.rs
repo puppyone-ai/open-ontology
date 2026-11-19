@@ -34,7 +34,7 @@ pub fn probe(dir: &Path) -> Result<SidecarEnv, String> {
     let python = dir.join("venv/bin/python");
     let missing = |what: &str| {
         format!(
-            "no parser sidecar: {what} is missing in {} (build it with tools/oo-test/super_ontology_nodocker.py --sidecar, or set OO_DOCS_SIDECAR_DIR); docx, pdf and other Office files stay unsupported without Docker",
+            "no parser sidecar: {what} is missing in {} (run `oo docs runtime install`, or set OO_DOCS_SIDECAR_DIR); docx, pdf and other Office files stay unsupported without Docker",
             dir.display()
         )
     };

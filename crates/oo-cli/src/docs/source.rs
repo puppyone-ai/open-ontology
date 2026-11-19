@@ -383,6 +383,14 @@ pub fn run(rest: &[String]) -> u8 {
     };
     let result = rt.block_on(async {
         let state = state_of(&p)?;
+        // A folder or bucket source needs the daemon; a fresh HOME has none yet (D83: zero config).
+        if sub == "add"
+            && p.pos
+                .first()
+                .is_some_and(|k| matches!(k.as_str(), "fs" | "s3" | "oss" | "cos" | "r2"))
+        {
+            super::autostart::ensure(&state, false)?;
+        }
         let conn = Daemon::connect(&state);
         // A database source lives in the stack file, not in the daemon.
         let db_name = p.pos.first().map(String::as_str).filter(|n| {
