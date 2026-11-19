@@ -2620,7 +2620,14 @@ pub async fn rebuild_drive(pool: &PgPool, drive_id: &str) -> Result<u32, crate::
     Ok(n)
 }
 
-type RetryRow = (String, Option<String>, Option<String>, Option<String>, bool);
+type RetryRow = (
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<String>,
+);
 
 /// What `retry_file` did.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2647,20 +2654,27 @@ pub async fn retry_file(
     let row: Option<RetryRow> = sqlx::query_as(
         "SELECT f.state, f.current_version_id::text, f.drive_id::text, \
                 (SELECT fv.b3 FROM _oo_docs.file_version fv WHERE fv.id = f.current_version_id), \
-                f.deleted_at IS NOT NULL \
+                f.deleted_at IS NOT NULL, f.state_code \
            FROM _oo_docs.file f WHERE f.id = $1::uuid FOR UPDATE",
     )
     .bind(file_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let Some((state_text, version_id, drive_id, b3, deleted)) = row else {
+    let Some((state_text, version_id, drive_id, b3, deleted, state_code)) = row else {
         return Ok(RetryResult::NotFound);
     };
     let b3 = b3.unwrap_or_default();
     let (Some(version_id), Some(drive_id)) = (version_id, drive_id) else {
         return Ok(RetryResult::NotRetryable(state_text));
     };
-    if deleted || !matches!(state_text.as_str(), "parse_failed" | "extract_partial") {
+    // A recording parked for want of a decoder (`DOCS_PARSE_CODEC_UNAVAILABLE`)
+    // waits for the host to hand over decoded output (10 17.2): the retry goes
+    // through `outdated` (the table's own edge) and parses it again.
+    let host_decode = state_text == "unsupported"
+        && state_code.as_deref() == Some("DOCS_PARSE_CODEC_UNAVAILABLE");
+    if deleted
+        || !(host_decode || matches!(state_text.as_str(), "parse_failed" | "extract_partial"))
+    {
         return Ok(RetryResult::NotRetryable(state_text));
     }
     state::transition_in_tx(
@@ -2668,7 +2682,11 @@ pub async fn retry_file(
         &Transition {
             file_id,
             expect_from: FileState::parse(&state_text),
-            to: FileState::Queued,
+            to: if host_decode {
+                FileState::Outdated
+            } else {
+                FileState::Queued
+            },
             code: None,
             retryable: false,
             version_id: Some(&version_id),
