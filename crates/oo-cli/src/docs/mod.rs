@@ -5,6 +5,7 @@
 //! engine and a token-checking reverse proxy, `oo context` talks to the proxy.
 
 pub mod agent;
+pub mod artifacts;
 pub mod autostart;
 pub mod client;
 pub mod compose;
