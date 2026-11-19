@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Dialog, Notice, Segmented, Select, StatusDot, TextArea, TextField } from "@open-ontology/design-system";
 import { FolderOpen, PlugZap } from "lucide-react";
@@ -41,6 +41,7 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState<"check" | "add" | null>(null);
   const [result, setResult] = useState<{ kind: "check" | "add"; value: CliResult<{ checks?: { name: string; status: string; detail: string }[] }> } | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const kind = dbKind(form.kind);
   const bad = useMemo(() => new Set(validateForm(form)), [form]);
   const set = (patch: Partial<Form>) => { setForm((current) => ({ ...current, ...patch })); setResult(null); };
@@ -78,6 +79,8 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
     setResult({ kind: "add", value: value as CliResult<{ checks?: { name: string; status: string; detail: string }[] }> });
   };
 
+  // A long form scrolls: bring the outcome of Test connection or Add into view so it is never missed.
+  useEffect(() => { if (result) resultRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" }); }, [result]);
   const failure = result && !result.value.ok ? result.value : null;
   const checks = result?.kind === "check" && result.value.ok ? result.value.data?.checks ?? [] : result?.kind === "check" ? result.value.data?.checks ?? [] : [];
   return (
@@ -87,8 +90,10 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
         {kind?.preflight && <Button variant="secondary" icon={PlugZap} loading={busy === "check"} disabled={busy === "add"} onClick={() => { void test(); }} data-testid="add-database-test">{t("app.db.test")}</Button>}
         <Button variant="primary" loading={busy === "add"} disabled={busy === "check"} onClick={() => { void submit(); }} data-testid="add-database-confirm">{t("app.db.add")}</Button>
       </>}>
+      <div ref={resultRef} className="so-db-result">
       {failure?.error && <CliErrorNotice error={failure.error} cli={failure.cli} title={result?.kind === "check" ? t("app.db.check.failed") : t("app.db.add.failed")} testId="add-database-error" />}
       {result?.kind === "check" && result.value.ok && <Notice tone="success" title={t("app.db.check.ok")} testId="add-database-check-ok">{t("app.db.check.okBody")}</Notice>}
+      </div>
       <Select label={t("app.db.kind")} value={form.kind} onChange={(event) => set({ kind: event.target.value, port: "" })} data-testid="add-database-kind">
         <optgroup label={t("app.db.kind.ready")}>{DB_KINDS.filter((k) => k.wired).map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</optgroup>
         <optgroup label={t("app.db.kind.pending")}>{unwired.map((k) => <option key={k.id} value={k.id} disabled>{k.label}</option>)}</optgroup>

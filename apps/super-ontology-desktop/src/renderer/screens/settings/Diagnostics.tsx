@@ -51,6 +51,7 @@ export function Diagnostics() {
 
   if (!report) return <Skeleton height={220} />;
   const version = (report.version?.data as { version?: string } | null)?.version ?? null;
+  const installed = (report.runtime?.data as { installed?: boolean } | null)?.installed === true;
   const serving = (report.serve?.data as { running?: boolean } | null)?.running === true;
   const checkError = report.check && !report.check.ok ? report.check.error : null;
   return (
@@ -66,8 +67,8 @@ export function Diagnostics() {
             {checkError && <CliErrorNotice error={checkError} cli={report.check?.cli} title={t("app.diag.check.failed")} testId="diag-check-error" />}
             {report.check?.ok && <span>{t("app.diag.check.ok")}</span>}
           </Row>
-          <Row testId="diag-runtime" title={t("app.diag.runtime")} tone={toneOf(report.runtime)} status={report.runtime ? (report.runtime.ok ? t("app.diag.ok") : t("app.diag.attention")) : t("app.diag.unknown")} cli={report.runtime?.cli ?? "oo docs runtime status --json"}>
-            {report.runtime?.error ? report.runtime.error.message : report.runtime?.data ? <span className="so-mono">{JSON.stringify(report.runtime.data).slice(0, 240)}</span> : null}
+          <Row testId="diag-runtime" title={t("app.diag.runtime")} tone={report.runtime?.ok ? (installed ? "success" : "neutral") : toneOf(report.runtime)} status={report.runtime ? (report.runtime.ok ? (installed ? t("app.diag.ok") : t("app.diag.missing")) : t("app.diag.attention")) : t("app.diag.unknown")} cli={report.runtime?.cli ?? "oo docs runtime status --json"}>
+            {report.runtime?.error ? report.runtime.error.message : report.runtime?.data ? (installed ? t("app.diag.found") : t("app.diag.missing")) : null}
           </Row>
           <Row testId="diag-serve" title={t("app.diag.serve")} tone={report.serve ? (serving ? "success" : "neutral") : "neutral"} status={report.serve ? (serving ? t("app.diag.running") : t("app.diag.stopped")) : t("app.diag.unknown")} cli={report.serve?.cli ?? "oo serve --status --json"}>
             {report.serve?.error?.message}

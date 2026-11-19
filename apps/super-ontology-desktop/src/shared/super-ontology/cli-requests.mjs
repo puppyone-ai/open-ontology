@@ -33,6 +33,11 @@ export function createCliRequestFields(field) {
     if (parsed.length === 0) throw invalidRequest();
     return parsed;
   };
+  /** A PEM certificate: printable text with line breaks, no other control characters. */
+  const pem = (value) => {
+    if (typeof value !== "string" || value.length < 1 || value.length > 65536 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) throw invalidRequest();
+    return value;
+  };
   const text = (max, min = 0) => field.string(max, { minLength: min });
   const connection = {
     kind: field.enum(DB_WIRED_KIND_IDS),
@@ -42,7 +47,7 @@ export function createCliRequestFields(field) {
     user: field.string(128),
     /** Write-only: reaches `oo` on its standard input or a private file; never returned, logged or put in a command line. */
     password: field.string(1024),
-    tlsCaPem: field.optional(field.string(65536)),
+    tlsCaPem: field.optional(pem),
     tlsCaGrantId: field.optional(field.grantId),
   };
   const exportFiles = (value) => {

@@ -4,6 +4,10 @@ import { CopyBlock, Notice } from "@open-ontology/design-system";
 import { ChevronRight, Terminal } from "lucide-react";
 import type { CliError } from "../../../shared/super-ontology/bridge";
 import { hasNextStep } from "../../model/cliApi";
+import { useErrorText } from "../../hooks/useText";
+
+/** Test ids derived from a `testId` prop (`<id>-toggle`, `<id>-value`, `<id>-copy`); spelled out here so TEST-IDS.md and its conformance test can find them. */
+export const DERIVED_TEST_IDS = ["database-import-cli-toggle", "database-import-cli-value", "query-cli-toggle", "query-cli-value", "query-describe-cli-toggle"] as const;
 
 /** "Equivalent command" (D88): every action says which `oo` command does the same thing, one click to copy. */
 export function CliCommand({ command, testId = "cli-command" }: { command: string; testId?: string }) {
@@ -27,7 +31,9 @@ export function CliCommand({ command, testId = "cli-command" }: { command: strin
 export function CliErrorNotice({ error, cli, title, testId = "cli-error" }: { error: CliError; cli?: string; title: string; testId?: string }) {
   const { t } = useLocalization();
   const next = hasNextStep(error);
-  const detail = error.message || t("app.cli.error.noMessage");
+  const bridgeText = useErrorText();
+  // A failure of the bridge itself (no command ran) has no CLI message: use the app's own sentence for its code.
+  const detail = error.message || (error.code.startsWith("SO_") ? bridgeText({ code: error.code, retryable: false, details: {} }) : t("app.cli.error.noMessage"));
   return (
     <Notice tone="danger" title={title} testId={testId}>
       <span className="so-cli-error-code so-mono">{error.code}</span>

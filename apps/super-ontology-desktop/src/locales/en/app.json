@@ -597,5 +597,8 @@
   "diag.doctor.model": "Model",
   "diag.doctor.noSources": "No database sources yet.",
   "sources.back": "Back to sources",
-  "cli.next.PROFILE_READ": "No oo profile is saved on this computer yet. One is created when you connect an Agent or sign in to a Gateway."
+  "cli.next.PROFILE_READ": "No oo profile is saved on this computer yet. One is created when you connect an Agent or sign in to a Gateway.",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "The runtime image for the pipeline is not installed. Install the release runtime, or set OO_LITE_RUNTIME_IMAGE, then import again.",
+  "cli.next.SECRET_FILE": "A credential file can be read by other users. Run chmod 600 on it, or add the source again from the app.",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "The MySQL doctor helper is missing. Install oo-mysql-doctor beside oo, or use the runtime image."
 }

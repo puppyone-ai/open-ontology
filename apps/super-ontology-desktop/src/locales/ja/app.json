@@ -597,5 +597,8 @@
   "diag.doctor.failed": "doctor を実行できませんでした",
   "diag.doctor.model": "モデル",
   "diag.doctor.noSources": "データベースソースはまだありません。",
-  "sources.back": "ソース一覧に戻る"
+  "sources.back": "ソース一覧に戻る",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "パイプライン用のランタイムイメージがインストールされていません。リリース版ランタイムをインストールするか OO_LITE_RUNTIME_IMAGE を設定して、もう一度インポートしてください。",
+  "cli.next.SECRET_FILE": "資格情報ファイルが他のユーザーから読み取れます。chmod 600 を実行するか、アプリからソースを追加し直してください。",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "MySQL doctor ヘルパーがありません。oo-mysql-doctor を oo の隣にインストールするか、ランタイムイメージを使ってください。"
 }

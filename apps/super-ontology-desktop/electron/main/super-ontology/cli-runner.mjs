@@ -70,8 +70,10 @@ export function failureOf(result) {
   const docs = [...jsonLines(result.stdout), ...jsonLines(result.stderr), ...[parseJson(result.stdout)].filter(Boolean)];
   const doc = docs.find((d) => d.error && typeof d.error === "object") ?? docs.find((d) => typeof d.message === "string") ?? null;
   const error = doc?.error && typeof doc.error === "object" ? doc.error : doc;
-  const code = typeof error?.code === "string" ? error.code : typeof error?.message === "string" && /^[A-Z0-9_]{3,64}$/u.test(error.message) ? error.message : "SO_CLI_FAILED";
+  // The CLI's class-style errors carry `CODE` or `CODE: text` in `message`.
+  const coded = typeof error?.message === "string" ? /^([A-Z][A-Z0-9_]{2,63})(?::\s*(.*))?$/su.exec(error.message) : null;
+  const code = typeof error?.code === "string" ? error.code : coded ? coded[1] : "SO_CLI_FAILED";
   const plain = redact(result.stderr).split(/\n/u).find((line) => line.trim() && !line.trim().startsWith("{")) ?? `oo exited with ${result.code}`;
-  const message = redact(typeof error?.message === "string" && error.message !== code ? error.message : plain);
+  const message = redact(coded ? (coded[2] ?? "") : typeof error?.message === "string" && error.message !== code ? error.message : plain);
   return { code, message: message.slice(0, 600), hint: typeof doc?.hint === "string" ? redact(doc.hint).slice(0, 600) : null };
 }

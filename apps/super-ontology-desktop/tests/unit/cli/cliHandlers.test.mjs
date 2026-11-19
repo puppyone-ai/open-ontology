@@ -20,6 +20,7 @@ beforeEach(async () => {
   log = path.join(root, "calls.jsonl");
   grantsIssued = new Map([["ca-grant", path.join(root, "ca.pem")], ["token-grant", path.join(root, "token")]]);
   await fs.mkdir(path.join(root, "data", "state"), { recursive: true });
+  await fs.writeFile(path.join(root, "ca.pem"), "-----BEGIN CERTIFICATE-----\nMIIBsynthetic\n-----END CERTIFICATE-----\n", { mode: 0o644 });
   handlers = createCliHandlers({ locator: null, grants, stateDir: path.join(root, "data", "state"), client: { request: async () => ({ value: model }) }, environment: { SO_CLI_OO: FAKE, SO_CLI_HOME: path.join(root, "home"), FAKE_OO_LOG: log }, homedir: () => root });
   process.env.FAKE_OO_LOG = log;
 });
@@ -44,6 +45,12 @@ describe("request validation", () => {
     expect(parseSuperOntologyRequest("cli-db-add", { ...base, name: "shop", include: ["public.customers"], ...op }).name).toBe("shop");
     for (const bad of ["a b", "a;drop", "a'b", ""]) expect(() => parseSuperOntologyRequest("cli-db-add", { ...base, name: "shop", include: [bad], ...op })).toThrow();
     expect(() => parseSuperOntologyRequest("cli-db-add", { ...base, name: "shop", include: [], ...op })).toThrow();
+  });
+  it("accepts a pasted certificate with line breaks and nothing else odd", () => {
+    const pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n";
+    const { tlsCaGrantId: _drop, ...noGrant } = base;
+    expect(parseSuperOntologyRequest("cli-db-check", { ...noGrant, tlsCaPem: pem }).tlsCaPem).toBe(pem);
+    expect(() => parseSuperOntologyRequest("cli-db-check", { ...noGrant, tlsCaPem: `${pem}\u0000` })).toThrow();
   });
   it("never accepts a host path or an oo argument vector", () => {
     expect(() => parseSuperOntologyRequest("cli-db-check", { ...base, args: ["--help"] })).toThrow();
@@ -179,6 +186,7 @@ describe("runner helpers", () => {
   it("reads the error document from either stream and the last json line", () => {
     expect(failureOf({ code: 1, stdout: '{"x":1}\n', stderr: '{"error":{"code":"A_B","message":"nope"}}' })).toMatchObject({ code: "A_B", message: "nope" });
     expect(failureOf({ code: 2, stdout: "", stderr: '{"class":"local","message":"READINESS_TRANSPORT","hint":"check"}' })).toMatchObject({ code: "READINESS_TRANSPORT", hint: "check" });
+    expect(failureOf({ code: 1, stdout: "", stderr: '{"class":"local","message":"LITE_IMAGE_DIGEST_REQUIRED: install the image"}' })).toMatchObject({ code: "LITE_IMAGE_DIGEST_REQUIRED", message: "install the image" });
     expect(failureOf({ timedOut: true, stdout: "", stderr: "" }).code).toBe("SO_TIMEOUT");
     expect(parseJson("noise\n{\"a\":1}\n")).toEqual({ a: 1 });
   });

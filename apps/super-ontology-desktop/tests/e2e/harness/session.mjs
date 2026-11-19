@@ -67,6 +67,10 @@ export async function runScenario(options, scenario) {
   const appSettings = { language, ...settings };
   const environment = { ...process.env };
   delete environment.ELECTRON_RUN_AS_NODE;
+  // The CLI parity screens keep credential files under a home of their own, never the real one; `cliOo: "fake"` points them at a canned `oo`.
+  environment.SO_CLI_HOME = path.join(root, "cli-home");
+  environment.FAKE_OO_LOG = path.join(root, "cli-calls.jsonl");
+  if (options.cliOo === "fake") environment.SO_CLI_OO = path.join(harnessDirectory, "..", "..", "support", "fake-oo-cli.mjs");
   if (engineKind === "real") {
     state.ooBinary = await firstExisting([process.env.SO_T1_OO_BIN, path.join(repoRoot, "target", "debug", "oo"), path.join(repoRoot, "target", "release", "oo")]);
     if (!state.ooBinary) {

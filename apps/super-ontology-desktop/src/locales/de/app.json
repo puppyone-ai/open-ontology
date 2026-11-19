@@ -597,5 +597,8 @@
   "diag.doctor.failed": "Der Doctor konnte nicht laufen",
   "diag.doctor.model": "Modell",
   "diag.doctor.noSources": "Noch keine Datenbankquellen.",
-  "sources.back": "Zurück zu Quellen"
+  "sources.back": "Zurück zu Quellen",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "Das Laufzeit-Image für die Pipeline ist nicht installiert. Installieren Sie die Release-Laufzeit oder setzen Sie OO_LITE_RUNTIME_IMAGE und importieren Sie erneut.",
+  "cli.next.SECRET_FILE": "Eine Zugangsdatei ist für andere Benutzer lesbar. Führen Sie chmod 600 darauf aus oder fügen Sie die Quelle in der App neu hinzu.",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "Das MySQL-Doctor-Hilfsprogramm fehlt. Installieren Sie oo-mysql-doctor neben oo oder nutzen Sie das Laufzeit-Image."
 }

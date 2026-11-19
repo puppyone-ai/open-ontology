@@ -5,7 +5,7 @@ import { ArrowLeft, Database, Play, RefreshCw, ShieldCheck, Trash2 } from "lucid
 import { dbKind } from "../../../shared/super-ontology/db-kinds.mjs";
 import type { CliError, CliJobState, CliResult, DbSourceInfo } from "../../../shared/super-ontology/bridge";
 import { invoke } from "../../model/bridgeInvoke";
-import { runCli, withOperation } from "../../model/cliApi";
+import { hasNextStep, runCli, withOperation } from "../../model/cliApi";
 import { createOperationId } from "../../model/operationIds";
 import { CliCommand, CliErrorNotice } from "../shared/Cli";
 
@@ -103,7 +103,7 @@ export function DatabaseDetail({ source, onBack, onRemoved }: { source: DbSource
         actions={<><Button variant="secondary" icon={Trash2} onClick={() => { setRemoveError(null); setConfirmRemove(true); }} data-testid="database-remove">{t("app.db.remove")}</Button></>} />
 
       <Section title={t("app.db.section.connection")}>
-        <Card>
+        <Card className="so-db-card">
           <DefinitionList items={[
             { label: t("app.db.kind"), value: kind?.label ?? source.backend },
             { label: t("app.db.host"), value: <span className="so-mono">{config.host}:{config.port}</span> },
@@ -131,6 +131,7 @@ export function DatabaseDetail({ source, onBack, onRemoved }: { source: DbSource
         {doctor?.ok && (
           <Card className="so-db-doctor" data-testid="database-doctor-result" data-status={mine?.status ?? doctor.data?.status}>
             <div className="so-db-doctor-head"><StatusDot tone={mine?.status === "blocked" ? "danger" : mine?.status === "ok" || mine?.status === "ready" ? "success" : "warning"} label={t("app.db.doctor.status", { status: mine?.status ?? doctor.data?.status ?? "unknown" })} />{mine?.error && <span className="so-mono">{mine.error}</span>}</div>
+            {mine?.error && hasNextStep({ code: mine.error.split(/[ :]/u)[0], message: "", hint: null }) && <p className="so-db-next" data-testid="database-doctor-next">{t(`app.cli.next.${mine.error.split(/[ :]/u)[0]}`)}</p>}
             {mine?.probe?.capabilities && (
               <ul className="so-db-caps" aria-label={t("app.db.doctor.capabilities")}>
                 {Object.entries(mine.probe.capabilities).map(([name, cap]) => <li key={name} data-state={cap.state}><span className="so-mono">{name}</span><span className="so-weak">{cap.state}{cap.reason ? ` · ${cap.reason}` : ""}</span></li>)}

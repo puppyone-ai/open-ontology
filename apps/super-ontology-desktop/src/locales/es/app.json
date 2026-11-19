@@ -597,5 +597,8 @@
   "diag.doctor.failed": "No se pudo ejecutar el doctor",
   "diag.doctor.model": "Modelo",
   "diag.doctor.noSources": "Aún no hay fuentes de base de datos.",
-  "sources.back": "Volver a las fuentes"
+  "sources.back": "Volver a las fuentes",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "La imagen de ejecución del pipeline no está instalada. Instale el runtime de la versión o defina OO_LITE_RUNTIME_IMAGE y vuelva a importar.",
+  "cli.next.SECRET_FILE": "Otros usuarios pueden leer un archivo de credenciales. Ejecute chmod 600 sobre él o vuelva a añadir la fuente desde la app.",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "Falta el asistente de diagnóstico de MySQL. Instale oo-mysql-doctor junto a oo o use la imagen de ejecución."
 }

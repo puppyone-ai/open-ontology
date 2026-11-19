@@ -55,26 +55,26 @@ const scalar = (value: unknown): string => {
   return JSON.stringify(text);
 };
 
-/** A deterministic YAML 1.2 subset writer (block style, sorted keys) for ontology documents. */
-export function toYaml(value: unknown, indent = 0): string {
+/** A deterministic YAML 1.2 subset writer (block style; keys sorted unless `sort` is false) for ontology documents. */
+export function toYaml(value: unknown, indent = 0, sort = true): string {
   const pad = "  ".repeat(indent);
   if (Array.isArray(value)) {
     if (value.length === 0) return `${pad}[]\n`;
     return value.map((item) => {
       if (isObject(item) || Array.isArray(item)) {
-        const inner = toYaml(item, indent + 1);
+        const inner = toYaml(item, indent + 1, sort);
         return `${pad}-${inner.startsWith(`${"  ".repeat(indent + 1)}[]`) ? " []\n" : `\n${inner}`}`;
       }
       return `${pad}- ${scalar(item)}\n`;
     }).join("");
   }
   if (isObject(value)) {
-    const keys = Object.keys(value).sort();
+    const keys = sort ? Object.keys(value).sort() : Object.keys(value);
     if (keys.length === 0) return `${pad}{}\n`;
     return keys.map((key) => {
       const item = value[key];
       const label = PLAIN.test(key) ? key : JSON.stringify(key);
-      if ((isObject(item) && Object.keys(item).length > 0) || (Array.isArray(item) && item.length > 0)) return `${pad}${label}:\n${toYaml(item, indent + 1)}`;
+      if ((isObject(item) && Object.keys(item).length > 0) || (Array.isArray(item) && item.length > 0)) return `${pad}${label}:\n${toYaml(item, indent + 1, sort)}`;
       if (typeof item === "string" && item.includes("\n")) return `${pad}${label}: |\n${item.split("\n").map((line) => `${pad}  ${line}`).join("\n")}\n`;
       return `${pad}${label}: ${isObject(item) ? "{}" : Array.isArray(item) ? "[]" : scalar(item)}\n`;
     }).join("");

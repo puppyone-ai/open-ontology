@@ -597,5 +597,8 @@
   "diag.doctor.model": "模型",
   "diag.doctor.noSources": "还没有数据库来源。",
   "sources.back": "返回来源",
-  "cli.next.PROFILE_READ": "这台电脑上还没有保存 oo 配置。连接 Agent 或登录 Gateway 时会创建。"
+  "cli.next.PROFILE_READ": "这台电脑上还没有保存 oo 配置。连接 Agent 或登录 Gateway 时会创建。",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "流水线的运行时镜像尚未安装。请安装发布版运行时，或设置 OO_LITE_RUNTIME_IMAGE，然后重新导入。",
+  "cli.next.SECRET_FILE": "有凭证文件可被其他用户读取。请对其执行 chmod 600，或在应用中重新添加该来源。",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "缺少 MySQL doctor 辅助程序。请把 oo-mysql-doctor 安装在 oo 旁边，或使用运行时镜像。"
 }

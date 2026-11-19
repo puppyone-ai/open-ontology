@@ -15,7 +15,8 @@ type OntologyFile = { id: string; name: string; group: "version" | "gateway"; te
 /** The YAML manifest of one ontology version (what the engine records about it). */
 export function versionYaml(version: OntologyVersion): string {
   const { n, as_of, published_at, facts_added, facts_retracted, gates, covers_drive_rev, pinned_by } = version;
-  return `# Ontology version ${n}\n${toYaml({ version: n, as_of, published_at, facts_added, facts_retracted, covers_drive_rev, pinned_by, gates })}`;
+  const present = Object.fromEntries(Object.entries({ version: n, as_of, published_at, facts_added, facts_retracted, covers_drive_rev, pinned_by, gates }).filter(([, value]) => value !== undefined && value !== null));
+  return `# Ontology version ${n}\n${toYaml(present, 0, false)}`;
 }
 
 export function YamlView({ text, name }: { text: string; name: string }) {
@@ -126,13 +127,13 @@ export function OntologyFiles() {
         <Card className="so-files-viewer">
           {!selected ? <EmptyState icon={FileText} title={t("app.files.pick")} description={t("app.files.pickBody")} /> : (
             <>
+              <h3 className="so-card-title so-mono so-truncate" data-testid="ontology-file-title" title={selected.name}>{selected.name}</h3>
               <div className="so-toolbar so-files-head">
-                <h3 className="so-card-title so-mono so-truncate" data-testid="ontology-file-title">{selected.name}</h3>
-                <span className="so-toolbar-spacer" />
-                <Select label={t("app.files.compare")} labelHidden value={compareId} onChange={(e) => setCompareId(e.target.value)} data-testid="ontology-file-compare">
+                <Select label={t("app.files.compare")} labelHidden className="so-files-compare" value={compareId} onChange={(e) => setCompareId(e.target.value)} data-testid="ontology-file-compare">
                   <option value="">{t("app.files.compare.none")}</option>
                   {files.filter((f) => f.id !== selected.id && f.group === selected.group).map((f) => <option key={f.id} value={f.id}>{t("app.files.compare.with", { name: f.name })}</option>)}
                 </Select>
+                <span className="so-toolbar-spacer" />
                 <Button size="compact" variant="ghost" icon={copied ? Check : Copy} onClick={() => { void copy(); }} data-testid="ontology-file-copy">{copied ? t("app.common.copied") : t("app.common.copy")}</Button>
                 <Button size="compact" variant="secondary" icon={Download} onClick={() => { void doExport(); }} data-testid="ontology-file-export">{t("app.files.export")}</Button>
               </div>

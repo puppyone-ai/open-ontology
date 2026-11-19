@@ -597,5 +597,8 @@
   "diag.doctor.failed": "Le doctor n'a pas pu s'exécuter",
   "diag.doctor.model": "Modèle",
   "diag.doctor.noSources": "Aucune source de base de données.",
-  "sources.back": "Retour aux sources"
+  "sources.back": "Retour aux sources",
+  "cli.next.LITE_IMAGE_DIGEST_REQUIRED": "L'image d'exécution du pipeline n'est pas installée. Installez l'exécution de la version ou définissez OO_LITE_RUNTIME_IMAGE, puis relancez l'import.",
+  "cli.next.SECRET_FILE": "Un fichier d'identifiants est lisible par d'autres utilisateurs. Exécutez chmod 600 dessus ou ajoutez de nouveau la source depuis l'app.",
+  "cli.next.MYSQL_DOCTOR_INSTALL": "L'assistant doctor MySQL est absent. Installez oo-mysql-doctor à côté de oo ou utilisez l'image d'exécution."
 }

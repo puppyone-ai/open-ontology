@@ -71,6 +71,19 @@ Rules:
 | `add-source` **(T1)** | opens the add menu | |
 | `add-source-files` `add-source-folder` `add-source-cloud` `add-source-database` | menu entries | |
 | `add-source-confirm` `add-source-cancel` `add-source-error` | the add form | |
+| `add-database-name` `add-database-host` `add-database-port` `add-database-database` `add-database-user` `add-database-password` `add-database-ca-pem` `add-database-include` `add-database-kind` **(T1)** | the Add database fields | |
+| `add-database-exclude` | the Add database fields | |
+| `add-database-test` `add-database-confirm` **(T1)** | its buttons | |
+| `add-database-cancel` | its buttons | |
+| `add-database-check` `add-database-check-ok` **(T1)** | connection check steps, success notice, failure notice | check: `data-state` = `ok` `blocked` |
+| `add-database-checks` `add-database-error` | connection check steps, success notice, failure notice | check: `data-state` = `ok` `blocked` |
+| `screen-database-detail` **(T1)** | one database's page | `data-name` |
+| `database-test` `database-doctor` `database-doctor-result` `database-test-result` **(T1)** | reachability test and the read-only doctor | result: `data-status` |
+| `database-import` `database-import-progress` `database-import-done` `database-pipeline` **(T1)** | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `unknown` |
+| `database-import-log` | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `unknown` |
+| `database-remove` `database-remove-confirm` **(T1)** | remove the source | |
+| `database-import-cli-toggle` `database-import-cli-value` **(T1)** | the equivalent commands | |
+| `database-import-cli` | the equivalent commands | |
 | `screen-source-detail` **(T1)** | one source's page | `data-name` |
 | `source-sync` | start a sync | |
 | `file-panel` `file-row` **(T1)** | file list of a source | row: `data-name`, `data-state` |
@@ -82,7 +95,22 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-ontology` **(T1)** | the Ontology screen | |
-| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the three views | `data-active` |
+| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the first three views | `data-active` |
+| `ontology-tab-query` `ontology-tab-files` **(T1)** | Query and Files | |
+| `query-gateway` `query-gateway-token` `query-gateway-connect` **(T1)** | the Gateway the queries use | gateway: `data-state` = `connected` `disconnected` |
+| `query-gateway-url` `query-gateway-ca` `query-gateway-transport` `query-gateway-disconnect` | the Gateway the queries use | gateway: `data-state` = `connected` `disconnected` |
+| `query-sql-input` `query-validate` `query-run` `query-valid` **(T1)** | read-only SQL | |
+| `query-error` `query-max-rows` | read-only SQL | |
+| `query-result` `query-cli-toggle` `query-cli-value` **(T1)** | the result table | result: `data-rows` |
+| `query-result-summary` `query-copy-csv` `query-copy-json` `query-truncated` `query-cli` | the result table | result: `data-rows` |
+| `query-mode-tables` `query-mode-knowledge` **(T1)** | the three query modes | |
+| `query-mode-sql` | the three query modes | |
+| `query-table-row` `query-describe` `query-describe-cli-toggle` **(T1)** | tables and describe | row: `data-name` |
+| `query-tables` `query-describe-cli` `query-tables-filter` `query-tables-cli` `query-tables-error` | tables and describe | row: `data-name` |
+| `query-knowledge-input` `query-knowledge-run` `query-knowledge-hit` `query-cat-body` **(T1)** | knowledge search and cat | hit: `data-name` |
+| `query-knowledge` `query-knowledge-prefix` `query-knowledge-error` `query-knowledge-cli` `query-cat` `query-cat-cli` | knowledge search and cat | hit: `data-name` |
+| `ontology-files` **(T1)** | ontology YAML files, version diff, export | row: `data-name` |
+| `ontology-file-row` `ontology-file-title` `ontology-file-compare` `ontology-file-copy` `ontology-file-export` `ontology-yaml` `ontology-diff` `ontology-file-exported` `ontology-files-prefix` `ontology-files-gateway-load` | ontology YAML files, version diff, export | row: `data-name` |
 | `entity-search` **(T1)** | search field | |
 | `entity-type-filter` | type filter | |
 | `entity-list` `entity-row` **(T1)** | entity list | row: `data-name`, `data-type` |
@@ -116,6 +144,8 @@ Rules:
 | `screen-settings` **(T1)** | the Settings screen | |
 | `settings-section-engine` `settings-section-about` **(T1)** | tabs of Settings used by a scenario | `data-active` |
 | `settings-section-general` `settings-section-model` `settings-section-privacy` | the other tabs | `data-active` |
+| `settings-section-diagnostics` `settings-diagnostics` `diag-oo` `diag-check` `diag-runtime` `diag-serve` **(T1)** | Diagnostics | |
+| `diag-refresh` `diag-copy` `diag-doctor` `diag-doctor-result` | Diagnostics | |
 | `engine-status` **(T1)** | engine state text | `data-state` = the engine status (`healthy` `stopped` `starting` `crashed` ...) |
 | `engine-start` `engine-stop` `engine-restart` **(T1)** | engine controls | |
 | `engine-runtime-select` | runtime choice | `data-value` = `auto` `docker` `lite` |

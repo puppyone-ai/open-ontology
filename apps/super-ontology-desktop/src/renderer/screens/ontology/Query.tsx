@@ -214,7 +214,7 @@ function Knowledge() {
   const body = typeof (cat.result?.data as { content?: unknown } | null)?.content === "string" ? (cat.result?.data as { content: string }).content : cat.result?.data ? JSON.stringify(cat.result.data, null, 2) : "";
   return (
     <div className="so-split so-query-knowledge" data-testid="query-knowledge">
-      <Card>
+      <Card className="so-query-tables-list">
         <form className="so-query-search" onSubmit={doSearch} role="search">
           <TextField label={t("app.query.knowledge.search")} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("app.query.knowledge.placeholder")} helper={t("app.query.knowledge.help")} spellCheck={false} data-testid="query-knowledge-input" />
           <TextField label={t("app.query.knowledge.prefix")} optionalLabel={t("app.db.optional")} value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="tables/" spellCheck={false} data-testid="query-knowledge-prefix" />

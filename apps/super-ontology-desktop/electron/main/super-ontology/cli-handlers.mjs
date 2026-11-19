@@ -72,18 +72,25 @@ export function createCliHandlers({
 
   function requireDataDir() { if (!dataDir) throw new SuperOntologyError("SO_SERVE_STATE_DIR_INVALID"); }
 
-  /** The CA given as a granted file or pasted PEM -> an absolute path `oo` can read, plus a cleanup for a temporary file. */
+  /**
+   * The CA given as a granted file or pasted PEM -> a private (0600) copy in the secrets folder that `oo` can read: `oo` refuses
+   * credential files that other users can read, and a certificate someone picked is usually world-readable. `temporary` copies are
+   * removed by the caller when the work is done without saving anything.
+   */
   async function resolveCa({ tlsCaGrantId, tlsCaPem }, sender, label) {
     if (tlsCaGrantId && tlsCaPem) throw new SuperOntologyError("SO_INVALID_REQUEST");
-    if (tlsCaGrantId) return { file: grants.resolve(sender, tlsCaGrantId, "ca-file"), temporary: false };
-    if (tlsCaPem) {
-      if (!/-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----/u.test(tlsCaPem)) throw new SuperOntologyError("SO_INVALID_REQUEST");
-      const dir = await ensureSecretsDir();
-      const file = path.join(dir, `ca_${slug(label)}_${randomBytes(4).toString("hex")}.pem`);
-      await writePrivate(file, tlsCaPem.endsWith("\n") ? tlsCaPem : `${tlsCaPem}\n`);
-      return { file, temporary: false };
-    }
-    return { file: null, temporary: false };
+    let pem = null;
+    if (tlsCaGrantId) {
+      const source = grants.resolve(sender, tlsCaGrantId, "ca-file");
+      try { pem = await fsPromises.readFile(source, "utf8"); } catch { throw new SuperOntologyError("SO_INVALID_REQUEST"); }
+      if (pem.length > 65536) throw new SuperOntologyError("SO_INVALID_REQUEST");
+    } else if (tlsCaPem) pem = tlsCaPem;
+    if (pem === null) return { file: null };
+    if (!/-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----/u.test(pem)) throw new SuperOntologyError("SO_INVALID_REQUEST");
+    const dir = await ensureSecretsDir();
+    const file = path.join(dir, `ca_${slug(label)}_${randomBytes(4).toString("hex")}.pem`);
+    await writePrivate(file, pem.endsWith("\n") ? pem : `${pem}\n`);
+    return { file };
   }
 
   const kindOf = (id) => { const kind = dbKind(id); if (!kind || !kind.wired) throw new SuperOntologyError("SO_INVALID_REQUEST"); return kind; };
@@ -134,12 +141,16 @@ export function createCliHandlers({
         ca = await resolveCa(request, sender, label);
         const args = ["init", "--engine", kind.id, "--host", request.host, "--port", String(portOf(kind, request.port)), kind.nameField === "service" ? "--service" : "--database", request.database, "--user", request.user, "--password-file", pwFile, ...(ca.file ? ["--ca-file", ca.file] : []), "--json"];
         const display = ["init", "--engine", kind.id, "--host", request.host, "--port", String(portOf(kind, request.port)), kind.nameField === "service" ? "--service" : "--database", request.database, "--user", request.user, "--password-file", "<password file>", ...(ca.file ? ["--ca-file", ca.file] : []), "--json"];
-        const result = await call(args, { timeoutMs: 45_000, cliArgs: display });
-        if (result.ok && result.data && result.data.signed_in === false) { result.ok = false; result.error = { code: "SO_CHECK_NOT_SIGNED_IN", message: "The database was reached but did not accept the sign-in.", hint: null }; }
+        const result = await call(args, { timeoutMs: 45_000, cliArgs: display, accept: [0, 1] });
+        if (result.ok && result.data?.signed_in === false) {
+          const blocked = (result.data.checks ?? []).find((c) => c.status === "blocked");
+          result.ok = false;
+          result.error = { code: blocked && blocked.name !== "sign_in" ? "SO_CHECK_BLOCKED" : "SO_CHECK_NOT_SIGNED_IN", message: blocked ? `${blocked.name}: ${blocked.detail}` : "The database was reached but did not accept the sign-in.", hint: null };
+        }
         return result;
       } finally {
         await fsPromises.rm(pwFile, { force: true }).catch(() => undefined);
-        if (ca.file && !request.tlsCaGrantId) await fsPromises.rm(ca.file, { force: true }).catch(() => undefined);
+        if (ca.file) await fsPromises.rm(ca.file, { force: true }).catch(() => undefined);
       }
     },
 
@@ -158,15 +169,15 @@ export function createCliHandlers({
       if (await stackExists()) {
         const args = ["source", "add", kind.id, ...common, "--config", stack, ...(ca.file ? ["--tls-ca-file", ca.file] : []), ...include, ...exclude, "--password-stdin", "--json"];
         const result = await call(args, { stdin: `${request.password}\n`, timeoutMs: 30_000 });
-        if (!result.ok && !request.tlsCaGrantId && ca.file) await cleanup([ca.file]);
+        if (!result.ok && ca.file) await cleanup([ca.file]);
         return result;
       }
       // The first source creates the stack file the pipeline reads (the model comes from the engine's model settings).
       const model = await modelForStack();
-      if (!model) { if (!request.tlsCaGrantId && ca.file) await cleanup([ca.file]); return { ok: false, exit: null, data: null, error: { code: FIRST_SOURCE_WITHOUT_MODEL, message: "A model is needed before the first database.", hint: null }, cli: "" }; }
+      if (!model) { if (ca.file) await cleanup([ca.file]); return { ok: false, exit: null, data: null, error: { code: FIRST_SOURCE_WITHOUT_MODEL, message: "A model is needed before the first database.", hint: null }, cli: "" }; }
       const pwFile = path.join(dir, `src_${slug(request.name)}_pw`);
       try { await writePrivate(pwFile, request.password); } catch {
-        if (!request.tlsCaGrantId && ca.file) await cleanup([ca.file]);
+        if (ca.file) await cleanup([ca.file]);
         return { ok: false, exit: null, data: null, error: { code: "SO_SOURCE_SECRET_EXISTS", message: "A credential file for this name already exists.", hint: null }, cli: "" };
       }
       const doc = {
@@ -179,11 +190,11 @@ export function createCliHandlers({
         await writePrivate(temp, `${JSON.stringify(doc, null, 2)}\n`);
         await fsPromises.rename(temp, stack);
       } catch {
-        await cleanup([temp, pwFile, ...(ca.file && !request.tlsCaGrantId ? [ca.file] : [])]);
+        await cleanup([temp, pwFile, ...(ca.file ? [ca.file] : [])]);
         throw new SuperOntologyError("SO_SECRET_STORE_UNAVAILABLE");
       }
       const result = await call(["init", "--config", stack, "--json"], { timeoutMs: 30_000 });
-      if (!result.ok) { await cleanup([stack, pwFile, ...(ca.file && !request.tlsCaGrantId ? [ca.file] : [])]); }
+      if (!result.ok) { await cleanup([stack, pwFile, ...(ca.file ? [ca.file] : [])]); }
       else result.data = { ...result.data, name: request.name, created_stack: true };
       return result;
     },
