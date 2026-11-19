@@ -174,6 +174,13 @@
 | SO-B-S15-14 | D84 | merged | feat/super-ontology (打榜车道并入) | 2ab7fa33f → 2ab7fa33f | — | testing/super-ontology/bench/ | Weight graph anchors by specificity in walk/2 |
 | SO-B-S15-15 | D84 | merged | feat/super-ontology (打榜车道并入) | 2dbf396c2 → a1080d804 | — | testing/super-ontology/bench/ | Drive GraphRAG-Bench corpora through the oo-docs engine |
 | SO-B-S15-16 | D84 | merged | feat/super-ontology (打榜车道并入) | f49aca78d → a133e3f6f | — | testing/super-ontology/bench/ | Freeze the STaRK configs and record the dev runs |
+| SO-B-S15-01 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 5ac110e52 → 5ac110e52 | — | testing/super-ontology/bench/longmemeval-v2/ | Record the verified LongMemEval-V2 leaderboard rules |
+| SO-B-S15-03 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 0a33fe389 → 0a33fe389 | — | testing/super-ontology/bench/longmemeval-v2/ | Drive LongMemEval-V2 trajectories through the oo-docs engine |
+| SO-B-S15-04 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 1e89a87fa → 1e89a87fa | — | testing/super-ontology/bench/longmemeval-v2/ | Run the official LongMemEval-V2 harness with the OO memory |
+| SO-B-S15-05 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 13dd028e9 → 13dd028e9 | — | testing/super-ontology/bench/longmemeval-v2/ | Tune trajectory evidence: element ids, gaps, coverage, phrases |
+| SO-B-S15-06 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 190b222a2 → 190b222a2 | — | testing/super-ontology/bench/longmemeval-v2/ | Report exact-text hits and misses for quoted phrases |
+| SO-B-S15-07 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | 675fe7a89 → 675fe7a89 | — | testing/super-ontology/bench/longmemeval-v2/ | Add the LongMemEval-V2 dev run logs |
+| SO-B-S15-08 | D84 | merged | feat/super-ontology (打榜车道 B1 并入) | bd9e46479 → 77198369f | — | testing/super-ontology/bench/longmemeval-v2/ | Record the LongMemEval-V2 run setup, configs and dev results |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
