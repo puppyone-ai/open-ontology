@@ -59,6 +59,19 @@ impl DiskProbe for DfProbe {
     }
 }
 
+/// How long a sidecar's `/healthz` answer is reused.
+const SIDECAR_CACHE: Duration = Duration::from_secs(2);
+
+/// One sidecar the engine uses, asked on `GET /healthz`.
+type SidecarCheck = std::sync::Arc<dyn Fn() -> bool + Send + Sync>;
+
+struct SidecarProbe {
+    /// The component name in `Health.components`.
+    component: &'static str,
+    check: SidecarCheck,
+    last: Option<(Instant, bool)>,
+}
+
 /// Everything the health answer needs besides the database.
 pub struct HealthProbe {
     pool: PgPool,
@@ -71,6 +84,8 @@ pub struct HealthProbe {
     sample: Mutex<Option<(Instant, SampleReport)>>,
     /// What the parse stage can read (`set_parser`); local md, txt, csv and xlsx by default.
     parser: Mutex<Value>,
+    /// The sidecars that are configured (`doc-parser`, `ocr-parser`, `media-parser`); empty when none is.
+    sidecars: tokio::sync::Mutex<Vec<SidecarProbe>>,
 }
 
 impl HealthProbe {
@@ -91,6 +106,7 @@ impl HealthProbe {
             parser: Mutex::new(serde_json::json!({
                 "kind": "local", "formats": ["md", "txt", "csv", "xlsx"]
             })),
+            sidecars: tokio::sync::Mutex::new(Vec::new()),
             ready: std::sync::atomic::AtomicBool::new(false),
             usage: Mutex::new(None),
             sample: Mutex::new(None),
@@ -111,6 +127,41 @@ impl HealthProbe {
         if let Ok(mut g) = self.parser.lock() {
             *g = v;
         }
+    }
+
+    /// Watch a configured sidecar: `component` is `parser` (doc-parser), `ocr_parser` or `media_parser`;
+    /// `check` is its `/healthz`. `GET /health` reports `unavailable` (and the engine `degraded`) while it fails.
+    pub async fn watch_sidecar(
+        &self,
+        component: &'static str,
+        check: impl Fn() -> bool + Send + Sync + 'static,
+    ) {
+        self.sidecars.lock().await.push(SidecarProbe {
+            component,
+            check: std::sync::Arc::new(check),
+            last: None,
+        });
+    }
+
+    /// Component objects of the watched sidecars, probing the stale ones in parallel.
+    async fn sidecar_components(&self) -> Vec<(&'static str, bool)> {
+        let mut probes = self.sidecars.lock().await;
+        let mut tasks = Vec::new();
+        for (i, p) in probes.iter().enumerate() {
+            if p.last.is_some_and(|(at, _)| at.elapsed() < SIDECAR_CACHE) {
+                continue;
+            }
+            let check = p.check.clone();
+            tasks.push((i, tokio::task::spawn_blocking(move || check())));
+        }
+        for (i, t) in tasks {
+            // A probe that panicked counts as down.
+            probes[i].last = Some((Instant::now(), t.await.unwrap_or(false)));
+        }
+        probes
+            .iter()
+            .map(|p| (p.component, p.last.is_some_and(|(_, ok)| ok)))
+            .collect()
     }
 
     pub fn set_ready(&self) {
@@ -215,10 +266,30 @@ impl HealthProbe {
             _ => (json!({}), 0, "up_to_date"),
         };
 
-        let component_states = [&db, &cas];
-        let degraded = component_states
+        // A sidecar that is down leaves the formats it serves queued (10 §4.4.4); the rest keeps working.
+        let sidecars = self.sidecar_components().await;
+        let sidecar_down = |name: &str| sidecars.iter().any(|(n, ok)| *n == name && !*ok);
+        let sidecar_component = |name: &str| -> Option<Value> {
+            sidecars.iter().find(|(n, _)| *n == name).map(|(_, ok)| {
+                if *ok {
+                    json!({ "status": "ok" })
+                } else {
+                    json!({ "status": "unavailable", "code": "DOCS_ENGINE_PARSER_UNAVAILABLE" })
+                }
+            })
+        };
+        let mut parser = json!({ "status": "ok", "detail": self.parser.lock().map_or(Value::Null, |g| g.clone()) });
+        if let Some(c) = sidecar_component("parser") {
+            parser["status"] = c["status"].clone();
+            if let Some(code) = c.get("code") {
+                parser["code"] = code.clone();
+            }
+        }
+        let degraded = [&db, &cas, &parser]
             .iter()
-            .any(|c| matches!(c["status"].as_str(), Some("degraded" | "unavailable")));
+            .any(|c| matches!(c["status"].as_str(), Some("degraded" | "unavailable")))
+            || sidecar_down("ocr_parser")
+            || sidecar_down("media_parser");
         let status = if !ready {
             "starting"
         } else if !db_ok {
@@ -228,18 +299,24 @@ impl HealthProbe {
         } else {
             "ok"
         };
+        let mut components = json!({
+            "db": db,
+            "parser": parser,
+            "model": { "status": "not_configured" },
+            "cas": cas,
+            "engine": { "status": if ready { "ok" } else { "starting" } },
+        });
+        for name in ["ocr_parser", "media_parser"] {
+            if let Some(c) = sidecar_component(name) {
+                components[name] = c;
+            }
+        }
         json!({
             "api_version": crate::API_VERSION.trim_start_matches("docs-api/"),
             "engine_version": crate::ENGINE_VERSION,
             "schema_versions": self.schema_versions,
             "status": status,
-            "components": {
-                "db": db,
-                "parser": { "status": "ok", "detail": self.parser.lock().map_or(Value::Null, |g| g.clone()) },
-                "model": { "status": "not_configured" },
-                "cas": cas,
-                "engine": { "status": if ready { "ok" } else { "starting" } },
-            },
+            "components": components,
             "queue": queue,
             "disk": disk,
             "events_head": head,

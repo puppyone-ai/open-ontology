@@ -104,20 +104,36 @@ pub fn rewrite_drive_root(
     }))
 }
 
-/// The `file:` credential of a `POST /v1/docs/drives` body of an object-store
-/// Drive (`config.secret_ref`): the engine reads it itself, so under the
-/// compose runtime the file must be visible there (D83).
+/// The `file:` credentials of a `POST /v1/docs/drives` body of an object-store
+/// Drive (`config.secret_ref`, or the `secret_ref` of `access_key_id`,
+/// `secret_access_key` and `session_token`): the engine reads them itself, so
+/// under the compose runtime the files must be visible there (D83).
 pub fn drive_secret_files(body: &[u8]) -> Vec<String> {
     let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
         return Vec::new();
     };
-    v.get("config")
-        .and_then(|c| c.get("secret_ref"))
-        .and_then(|r| r.as_str())
-        .and_then(|r| r.strip_prefix("file:"))
+    let Some(config) = v.get("config") else {
+        return Vec::new();
+    };
+    let refs = [
+        config.get("secret_ref"),
+        config
+            .get("access_key_id")
+            .and_then(|r| r.get("secret_ref")),
+        config
+            .get("secret_access_key")
+            .and_then(|r| r.get("secret_ref")),
+        config
+            .get("session_token")
+            .and_then(|r| r.get("secret_ref")),
+    ];
+    refs.into_iter()
+        .flatten()
+        .filter_map(|r| r.as_str())
+        .filter_map(|r| r.strip_prefix("file:"))
         .filter(|p| p.starts_with('/'))
-        .map(|p| vec![p.to_owned()])
-        .unwrap_or_default()
+        .map(str::to_owned)
+        .collect()
 }
 
 /// A parsed request head.
@@ -607,6 +623,12 @@ mod tests {
         assert_eq!(
             drive_secret_files(br#"{"config":{"bucket":"b","secret_ref":"file:/h/.config/open-ontology/secrets/src_a_s3"}}"#),
             ["/h/.config/open-ontology/secrets/src_a_s3"]
+        );
+        assert_eq!(
+            drive_secret_files(
+                br#"{"config":{"access_key_id":{"secret_ref":"file:/h/id"},"secret_access_key":{"secret_ref":"file:/h/sk"},"session_token":{"secret_ref":"env:T"}}}"#
+            ),
+            vec!["/h/id".to_owned(), "/h/sk".to_owned()]
         );
         assert!(drive_secret_files(br#"{"config":{"secret_ref":"env:X"}}"#).is_empty());
         assert!(drive_secret_files(br#"{"config":{"secret_ref":"name"}}"#).is_empty());

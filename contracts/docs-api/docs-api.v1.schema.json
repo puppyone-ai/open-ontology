@@ -278,7 +278,8 @@
               "$ref": "#/$defs/Component"
             },
             "parser": {
-              "$ref": "#/$defs/Component"
+              "$ref": "#/$defs/Component",
+              "description": "The parse stage. With a doc-parser sidecar configured it is unavailable (code DOCS_ENGINE_PARSER_UNAVAILABLE, 1.10) while the sidecar's /healthz fails and the engine status is degraded: pdf, docx and pptx wait, md, txt, csv and xlsx still work."
             },
             "model": {
               "$ref": "#/$defs/Component"
@@ -288,6 +289,14 @@
             },
             "engine": {
               "$ref": "#/$defs/Component"
+            },
+            "ocr_parser": {
+              "$ref": "#/$defs/Component",
+              "description": "1.10: the ocr-parser sidecar, present only when configured; unavailable when its /healthz fails."
+            },
+            "media_parser": {
+              "$ref": "#/$defs/Component",
+              "description": "1.10: the media-parser sidecar, present only when configured; unavailable when its /healthz fails."
             }
           }
         },
@@ -421,7 +430,6 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "endpoint",
         "bucket",
         "access_key_id",
         "secret_access_key"
@@ -464,6 +472,16 @@
             "type": "string",
             "maxLength": 256
           }
+        },
+        "account_id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
         }
       },
       "examples": [
@@ -476,8 +494,19 @@
           "secret_access_key": {
             "secret_ref": "file:/home/example/.config/oo/s3-secret"
           }
+        },
+        {
+          "bucket": "team-drive",
+          "region": "cn-hangzhou",
+          "access_key_id": {
+            "secret_ref": "env:OO_OSS_KEY_ID"
+          },
+          "secret_access_key": {
+            "secret_ref": "env:OO_OSS_KEY_SECRET"
+          }
         }
-      ]
+      ],
+      "description": "Drives of backend s3, r2, oss and cos (S3 compatible), credentials as two references (1.10: valid for all four backends, not only s3). Each of access_key_id, secret_access_key and session_token is {secret_ref} and resolves to the plain value. endpoint is optional for r2, oss and cos (derived from region, or account_id for r2); region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline. DriveConfigCloud is the alternative with one secret_ref that resolves to a JSON credential."
     },
     "DriveCreate": {
       "type": "object",
@@ -503,6 +532,9 @@
             },
             {
               "$ref": "#/$defs/DriveConfigS3"
+            },
+            {
+              "$ref": "#/$defs/DriveConfigCloud"
             }
           ]
         },
@@ -3630,7 +3662,7 @@
         "bucket",
         "secret_ref"
       ],
-      "description": "Drives of backend s3, r2, oss and cos (S3 compatible). region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline.",
+      "description": "Drives of backend s3, r2, oss and cos (S3 compatible), credentials as one secret_ref that resolves to the JSON {access_key_id, secret_access_key, session_token?} (oo source add writes this file). DriveConfigS3 is the alternative with two references; the two shapes cannot be mixed. region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline.",
       "properties": {
         "bucket": {
           "type": "string",

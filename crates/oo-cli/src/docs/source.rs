@@ -28,7 +28,7 @@ use super::client::{CliError, Daemon, exit};
 use super::docs_cmd::{Parsed, bad, drive_id, out, parse, rev_header, state_of};
 use super::upload::{host_root, read_drive_secret, s3_target};
 
-pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME\n  oo source add postgres|mysql|oracle --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...\n      registers the database in stack.yaml (created by `oo init`); postgres and mysql need --tls-ca-* and --include; password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)\n  oo source link ... (document-to-database entity links: `oo source link --help`)\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
+pub const HELP: &str = "Usage:\n  oo source add fs --name <n> --root <dir> [--exclude <glob>]...\n  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...\n      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME (a JSON credential) | --access-key-id-ref <ref> --secret-access-key-ref <ref> [--session-token-ref <ref>] (two references, each the plain value)\n  oo source add postgres|mysql|oracle --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...\n      registers the database in stack.yaml (created by `oo init`); postgres and mysql need --tls-ca-* and --include; password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>\n  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)\n  oo source link ... (document-to-database entity links: `oo source link --help`)\n  (all take --json and --state-dir <dir>; none prompts without a terminal)\n";
 
 pub(super) const VALUED: &[&str] = &[
     "--table",
@@ -60,6 +60,9 @@ pub(super) const VALUED: &[&str] = &[
     "--access-key-id-env",
     "--secret-access-key-env",
     "--session-token-env",
+    "--access-key-id-ref",
+    "--secret-access-key-ref",
+    "--session-token-ref",
 ];
 pub(super) const SWITCHES: &[&str] = &[
     "--no-force",
@@ -208,6 +211,46 @@ pub enum CredentialSource {
     Prompt,
 }
 
+/// `--access-key-id-ref` and `--secret-access-key-ref` (and `--session-token-ref`): the key pair as two
+/// references, each holding the plain value. `None` when neither is given.
+fn credential_refs(p: &Parsed) -> Result<Option<Vec<(&'static str, String)>>, CliError> {
+    let flags = [
+        ("--access-key-id-ref", "access_key_id"),
+        ("--secret-access-key-ref", "secret_access_key"),
+        ("--session-token-ref", "session_token"),
+    ];
+    let given: Vec<_> = flags.iter().filter(|(f, _)| p.opt(f).is_some()).collect();
+    if given.is_empty() {
+        return Ok(None);
+    }
+    if p.opt("--secret-ref").is_some()
+        || p.has("--credentials-stdin")
+        || p.opt("--access-key-id-env").is_some()
+        || p.opt("--secret-access-key-env").is_some()
+    {
+        return Err(bad(
+            "choose one credential source: --secret-ref, --credentials-stdin, the --*-env pair or the --*-ref pair",
+        ));
+    }
+    if p.opt("--access-key-id-ref").is_none() || p.opt("--secret-access-key-ref").is_none() {
+        return Err(bad(
+            "--access-key-id-ref and --secret-access-key-ref go together",
+        ));
+    }
+    let mut out = Vec::new();
+    for (flag, key) in flags {
+        if let Some(r) = p.opt(flag) {
+            if !oo_stack::stack::secret_reference(r) {
+                return Err(bad(format!(
+                    "{flag} is env:NAME, file:/absolute/path or a secret name"
+                )));
+            }
+            out.push((key, r.to_owned()));
+        }
+    }
+    Ok(Some(out))
+}
+
 pub fn credential_source(p: &Parsed, interactive: bool) -> Result<CredentialSource, CliError> {
     let reference = p.opt("--secret-ref");
     let id_env = p.opt("--access-key-id-env");
@@ -350,10 +393,15 @@ fn line(v: &Value) -> String {
 /// What may leave the CLI about a Drive: never the credential reference path in JSON.
 fn public(v: &Value) -> Value {
     let mut c = v.clone();
-    if let Some(cfg) = c["config"].as_object_mut()
-        && cfg.contains_key("secret_ref")
-    {
-        cfg.insert("secret_ref".into(), json!("(set)"));
+    if let Some(cfg) = c["config"].as_object_mut() {
+        if cfg.contains_key("secret_ref") {
+            cfg.insert("secret_ref".into(), json!("(set)"));
+        }
+        for key in ["access_key_id", "secret_access_key", "session_token"] {
+            if cfg.contains_key(key) {
+                cfg.insert(key.into(), json!({"secret_ref": "(set)"}));
+            }
+        }
     }
     c
 }
@@ -474,11 +522,18 @@ async fn add(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
             if p.has("--internal") {
                 cfg["internal"] = json!(true);
             }
-            let interactive = std::io::stdin().is_terminal() && !p.has("--non-interactive");
-            let src = credential_source(p, interactive)?;
-            let (reference, file) = acquire(src, &format!("src_{}_s3", slug(name)))?;
-            cfg["secret_ref"] = json!(reference);
-            created = file;
+            if let Some(pair) = credential_refs(p)? {
+                // The contract's pair of references (docs-api 1.10): nothing is written here.
+                for (key, reference) in pair {
+                    cfg[key] = json!({ "secret_ref": reference });
+                }
+            } else {
+                let interactive = std::io::stdin().is_terminal() && !p.has("--non-interactive");
+                let src = credential_source(p, interactive)?;
+                let (reference, file) = acquire(src, &format!("src_{}_s3", slug(name)))?;
+                cfg["secret_ref"] = json!(reference);
+                created = file;
+            }
             body["config"] = cfg;
         }
         other => {
@@ -770,6 +825,38 @@ mod tests {
             "src_{}_s3",
             slug("Acme Docs")
         )));
+    }
+
+    #[test]
+    fn the_key_pair_is_two_references_and_is_hidden_in_the_public_view() {
+        let p = parsed(&[
+            "--access-key-id-ref",
+            "env:ID",
+            "--secret-access-key-ref",
+            "file:/abs/sk",
+        ]);
+        let pair = credential_refs(&p).unwrap().unwrap();
+        assert_eq!(pair[0], ("access_key_id", "env:ID".to_owned()));
+        assert_eq!(pair[1], ("secret_access_key", "file:/abs/sk".to_owned()));
+        assert!(credential_refs(&parsed(&["--access-key-id-ref", "env:ID"])).is_err());
+        assert!(
+            credential_refs(&parsed(&[
+                "--access-key-id-ref",
+                "env:ID",
+                "--secret-access-key-ref",
+                "env:SK",
+                "--secret-ref",
+                "env:X"
+            ]))
+            .is_err()
+        );
+        assert!(credential_refs(&parsed(&[])).unwrap().is_none());
+        let v = json!({"config": {"access_key_id": {"secret_ref": "file:/x"}, "secret_access_key": {"secret_ref": "file:/y"}}});
+        assert_eq!(public(&v)["config"]["access_key_id"]["secret_ref"], "(set)");
+        assert_eq!(
+            public(&v)["config"]["secret_access_key"]["secret_ref"],
+            "(set)"
+        );
     }
 
     #[test]

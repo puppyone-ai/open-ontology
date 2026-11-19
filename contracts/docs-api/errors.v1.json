@@ -225,6 +225,16 @@
       "i18n_key": "super-drive.errors.DOCS_ENGINE_UNAUTHENTICATED"
     },
     {
+      "code": "DOCS_ENGINE_PARSER_UNAVAILABLE",
+      "http": null,
+      "state_code": false,
+      "retryable": true,
+      "meaning_zh": "解析 sidecar 不可用（health 组件代码；pdf、docx、pptx 等待，其余格式照常）",
+      "details": [],
+      "i18n_key": "super-drive.errors.DOCS_ENGINE_PARSER_UNAVAILABLE",
+      "added_by": "docs-api 1.10"
+    },
+    {
       "code": "DOCS_ENGINE_UNAVAILABLE",
       "http": 503,
       "state_code": false,

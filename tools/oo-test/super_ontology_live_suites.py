@@ -16,6 +16,7 @@ Kinds:
   bench     bench_compile / bench_scale: release build, OO_BENCH_OUT=<tmp file>, OO_SCALE_FILES small
             (the 10,000 file run with its asserts is `oo-test l3 run --suite super-ontology --bench scale10k`)
   faults    the failpoints feature and OO_DOCS_TEST_PG_CONTAINER (the Postgres restart test)
+  s3pg      drive_s3_family_live: pg + a RustFS in OO_S3_ENDPOINT/ACCESS/SECRET/BUCKET (skipped when unset)
   s3        download: needs a RustFS / MinIO; runs through super_ontology_s3.py with --with-s3, else skipped
 
 Usage: tools/oo-test/super_ontology_live_suites.py [--only a,b] [--skip a,b] [--with-s3] [--list]
@@ -55,6 +56,8 @@ KINDS = {
     "sidecar_formats": "docker",
     "sidecar_supervision": "docker",
     "l3_routing": "docker",
+    "health_sidecar_live": "docker",
+    "drive_s3_family_live": "s3pg",
 }
 
 
@@ -83,6 +86,8 @@ def run_target(name, kind, pg, env_base, timeout):
         env["OO_DOCS_TEST_PG_PORT"] = str(fixed.port)
         env["OO_DOCS_TEST_PG_CONTAINER"] = fixed.name
         argv += ["--features", "failpoints"]
+    if kind == "s3pg":
+        argv += ["--features", "objectstore-s3"]
     if kind == "bench":
         argv.append("--release")
         env["OO_SCALE_FILES"] = "1000"
@@ -165,6 +170,8 @@ def main(argv=None):
             elif kind == "s3":
                 rows.append(run_s3(args.run_id, timeout) if args.with_s3 else
                             {"target": name, "kind": kind, "status": "skipped", "reason": "needs an S3 store; rerun with --with-s3"})
+            elif kind == "s3pg" and not all(os.environ.get(k) for k in ("OO_S3_ENDPOINT", "OO_S3_ACCESS", "OO_S3_SECRET", "OO_S3_BUCKET")):
+                rows.append({"target": name, "kind": kind, "status": "skipped", "reason": "needs OO_S3_ENDPOINT, OO_S3_ACCESS, OO_S3_SECRET, OO_S3_BUCKET"})
             else:
                 rows.append(run_target(name, kind, pg, env, timeout))
             r = rows[-1]

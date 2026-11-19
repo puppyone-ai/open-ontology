@@ -335,9 +335,67 @@ fn policy_field(cfg: &Map<String, Value>, config: &mut Value) -> Result<(), ApiE
     Ok(())
 }
 
+#[cfg(feature = "objectstore-s3")]
+/// A `{"secret_ref": ...}` object of the key pair, as the contract's `SecretRef`.
+fn ref_object(cfg: &Map<String, Value>, key: &str) -> Result<Option<Value>, ApiError> {
+    let Some(v) = cfg.get(key) else {
+        return Ok(None);
+    };
+    let pointer = format!("/config/{key}");
+    let obj = v
+        .as_object()
+        .ok_or_else(|| ApiError::bad(&pointer, "expected {\"secret_ref\": ...}"))?;
+    only_keys(obj, &["secret_ref"], &pointer)?;
+    let reference = str_field(obj, "secret_ref", &pointer, 1, 2048)?
+        .ok_or_else(|| ApiError::bad(&format!("{pointer}/secret_ref"), "required"))?;
+    if !oo_connectors::objectstore_s3::opendal::is_secret_ref(reference) {
+        return Err(ApiError::bad(
+            &format!("{pointer}/secret_ref"),
+            "not a valid secret reference",
+        ));
+    }
+    Ok(Some(json!({ "secret_ref": reference })))
+}
+
+/// The credentials of an object-store Drive: exactly one of `secret_ref` and the pair.
+#[cfg(feature = "objectstore-s3")]
+fn credentials_fields(cfg: &Map<String, Value>, config: &mut Value) -> Result<(), ApiError> {
+    let pair = cfg.contains_key("access_key_id") || cfg.contains_key("secret_access_key");
+    if cfg.contains_key("secret_ref") {
+        if pair || cfg.contains_key("session_token") {
+            return Err(ApiError::bad(
+                "/config/secret_ref",
+                "give secret_ref or access_key_id and secret_access_key, not both",
+            ));
+        }
+        let reference = str_field(cfg, "secret_ref", "/config", 1, 2048)?
+            .ok_or_else(|| ApiError::bad("/config/secret_ref", "required"))?;
+        if !oo_connectors::objectstore_s3::opendal::is_secret_ref(reference) {
+            return Err(ApiError::bad(
+                "/config/secret_ref",
+                "not a valid secret reference",
+            ));
+        }
+        config["secret_ref"] = json!(reference);
+        return Ok(());
+    }
+    let id = ref_object(cfg, "access_key_id")?
+        .ok_or_else(|| ApiError::bad("/config/access_key_id", "required"))?;
+    let secret = ref_object(cfg, "secret_access_key")?
+        .ok_or_else(|| ApiError::bad("/config/secret_access_key", "required"))?;
+    config["access_key_id"] = id;
+    config["secret_access_key"] = secret;
+    if let Some(t) = ref_object(cfg, "session_token")? {
+        config["session_token"] = t;
+    }
+    Ok(())
+}
+
 /// `s3`, `r2`, `oss` and `cos` Drives: bucket, prefix, endpoint, region, path_style, exclude, policy and
-/// a `secret_ref`; `r2` also `account_id`, `oss` and `cos` also `internal`. Keys and secrets are never
-/// accepted inline (10 section 9).
+/// the credentials; `r2` also `account_id`, `oss` and `cos` also `internal`. Keys and secrets are never
+/// accepted inline (10 section 9). The credentials are one `secret_ref` (a JSON credential, `DriveConfigCloud`)
+/// or the contract's `access_key_id` and `secret_access_key` (and `session_token`), each `{"secret_ref"}`
+/// (`DriveConfigS3`, docs-api 1.10). Both shapes work for all four backends; the answer returns what was sent.
 #[cfg(feature = "objectstore-s3")]
 fn s3_config(backend: &str, cfg: &Map<String, Value>) -> Result<Value, ApiError> {
     let mut allowed = vec![
@@ -347,6 +405,9 @@ fn s3_config(backend: &str, cfg: &Map<String, Value>) -> Result<Value, ApiError>
         "region",
         "path_style",
         "secret_ref",
+        "access_key_id",
+        "secret_access_key",
+        "session_token",
         "exclude",
         "policy",
     ];
@@ -358,15 +419,8 @@ fn s3_config(backend: &str, cfg: &Map<String, Value>) -> Result<Value, ApiError>
     only_keys(cfg, &allowed, "/config")?;
     let bucket = str_field(cfg, "bucket", "/config", 1, 255)?
         .ok_or_else(|| ApiError::bad("/config/bucket", "required"))?;
-    let reference = str_field(cfg, "secret_ref", "/config", 1, 2048)?
-        .ok_or_else(|| ApiError::bad("/config/secret_ref", "required"))?;
-    if !oo_connectors::objectstore_s3::opendal::is_secret_ref(reference) {
-        return Err(ApiError::bad(
-            "/config/secret_ref",
-            "not a valid secret reference",
-        ));
-    }
-    let mut config = json!({ "bucket": bucket, "secret_ref": reference });
+    let mut config = json!({ "bucket": bucket });
+    credentials_fields(cfg, &mut config)?;
     for key in ["prefix", "endpoint", "region"] {
         if let Some(v) = str_field(cfg, key, "/config", 0, 1024)? {
             config[key] = json!(v);
