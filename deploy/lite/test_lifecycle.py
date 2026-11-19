@@ -12,6 +12,16 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_docker_failure_says_which_command_and_why(self):
+        proc=MagicMock(returncode=1,stdout=b'',stderr=b'noise\nCannot connect to the Docker daemon at unix:///x.sock\n')
+        with patch.object(lifecycle.subprocess,'run',return_value=proc):
+            with self.assertRaises(ValueError) as caught:
+                lifecycle.docker(['network','ls','-q'],{})
+        text=str(caught.exception)
+        self.assertIn('LITE_DOCKER_FAILED: docker network ls exited 1',text)
+        self.assertIn('Cannot connect to the Docker daemon',text)
+        self.assertIn('OO_LITE_SUBNET',text)
+
     def test_model_call_limit_scales_with_scope_and_can_be_set(self):
         def stack(*n):return {'sources':[{'scope':{'include':[f't{i}' for i in range(k)]}} for k in n]}
         with patch.dict(os.environ,{},clear=False):
