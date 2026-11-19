@@ -24,5 +24,31 @@
   "context_tokens_mean": 30900,
   "reader_prompt_tokens_mean": 31135,
   "reader_completion_tokens_mean": 5510
+ },
+ "dev4": {
+  "answered": 159,
+  "rule_scored": "57/100",
+  "rule_acc": 0.57,
+  "judge_pending": 59,
+  "unknown": 38,
+  "abstention_unknown": "20/49",
+  "query_latency_mean_s": 0.0717,
+  "query_latency_max_s": 0.2704,
+  "context_tokens_mean": 29859,
+  "reader_prompt_tokens_mean": 30093,
+  "reader_completion_tokens_mean": 5379
+ },
+ "dev5": {
+  "answered": 159,
+  "rule_scored": "61/100",
+  "rule_acc": 0.61,
+  "judge_pending": 59,
+  "unknown": 31,
+  "abstention_unknown": "18/49",
+  "query_latency_mean_s": 0.0153,
+  "query_latency_max_s": 0.0397,
+  "context_tokens_mean": 30028,
+  "reader_prompt_tokens_mean": 30263,
+  "reader_completion_tokens_mean": 5645
  }
 }

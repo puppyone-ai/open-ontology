@@ -51,6 +51,9 @@ const rawRoutes = {
   shareUpdates: route("GET", "/v1/docs/shares/{sid}/updates", { params: { sid: UUID } }),
   shareGroupRefresh: route("POST", "/v1/docs/share-groups/{gid}:refresh", { params: { gid: UUID }, idempotent: true, timeout: "share" }),
   constraintsList: route("GET", "/v1/docs/constraints"),
+  // Ontology atlas (D88): doc to table links (docs-api 1.6) and the read-only query surface (1.7); both read, neither writes.
+  linksList: route("GET", "/v1/docs/links"),
+  ontologyQuery: route("POST", "/v1/ontology/query"),
   factCorrect: route("POST", "/v1/docs/facts/{id}:correct", { params: { id: UUID }, idempotent: true, ifMatch: true }),
   entitiesMerge: route("POST", "/v1/docs/entities:merge", { idempotent: true, ifMatch: true }),
   entitySplit: route("POST", "/v1/docs/entities/{eid}:split", { params: { eid: KEY }, idempotent: true, ifMatch: true }),

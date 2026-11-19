@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@types/d3-force",
+    "version": "3.0.10",
+    "official_source": "https://registry.npmjs.org/@types/d3-force/3.0.10",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "seven_day_rule": "pass",
+    "license_spdx": "MIT",
+    "native_build": false,
+    "install_script": false,
+    "prohibited_license": false,
+    "features_enabled": [],
+    "publication_date": "2026-10-04T09:18:00.929Z",
+    "adoption_date": "2026-11-19T15:00:00Z",
+    "age_days_at_adoption": 46,
+    "purpose": "types only, build time, not shipped",
+    "upstream_manifest_license": "MIT",
+    "relied_on_license": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/@types__d3-force-3.0.10/LICENSE",
+        "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      }
+    ],
+    "digest": "sha256:8a44894e1fdb67399826cd1e653e6bdfe10328d26a5551702d60510f571ab96d",
+    "registry_integrity": "sha512-ZYeSaCF3p73RdOKcjj+swRlZfnYpK1EbaDiYICEEp5Q6sUiqFaFQ9qgoshp5CzIyyb/yD09kD9o2zEltCexlgw==",
+    "lockfile_integrity_matches_registry": true,
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "weak_copyleft_review": null,
+    "default_features_disabled": false
+  }
+}

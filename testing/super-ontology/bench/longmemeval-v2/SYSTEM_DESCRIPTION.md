@@ -22,13 +22,17 @@ benchmark it is used as a pure memory backend behind the official harness
   and digests. The context is, in order: a coverage line (how many
   trajectories and page states were searched), an exact-text check (how
   many page states contain each phrase the question quotes), up to 20 % of
-  the budget of workflow digests, then observations grouped by page state:
-  the best one with its complete accessibility tree, the others as
-  excerpts around the matching windows with "N lines not shown" markers.
-  Every observation carries its provenance tag
+  the budget of workflow digests, then, when the question compares named
+  pages ("A vs B", "(a/b/c)", "Among the A, B and C tables"), the best page
+  for each compared item, then observations grouped by page state: the best
+  observations of three distinct pages as complete trees, the rest (at most
+  two per page) as excerpts around the matching windows with "N lines not
+  shown" markers. Trees are shown compactly (element ids, no-op attributes
+  and static text that repeats its parent's label are dropped; every label,
+  value and state is kept). Every observation carries its provenance tag
   (`[src:trajectories/<file>#L<a>-L<b>]`), page title, URL, the action that
   led to it, the next action and the agent's thought. Budget: 32,000 tokens
-  (OO's `oo.token-estimate/v2`; about 29k Qwen tokens). Answers are never
+  (OO's `oo.token-estimate/v2`; about 30k Qwen tokens). Answers are never
   returned.
 * **Not used.** Trajectory screenshots, question images (the reader still
   receives the question image from the harness), embeddings, LLM calls at
@@ -36,14 +40,15 @@ benchmark it is used as a pure memory backend behind the official harness
 
 ## Operating point
 
-One point, `fast`: mean `memory.query` latency of a few milliseconds
+One point, `fast`: mean `memory.query` latency of about 15 ms on dev
 (single-threaded Rust process, measured by the harness).
 
 ## Run setup and deviations (disclosed)
 
 * Reader: official `Qwen/Qwen3.5-9B` weights (revision
   `c202236235762e1c871ad0ccb60c8ee5ba337b9a`, bf16 safetensors), served by
-  `mlx-vlm` 0.8.0 on Apple M4 Max (vLLM does not run on this host), with the
+  `mlx-vlm` 0.8.0 on Apple M4 Max (vLLM does not run on this host; run at
+  low CPU priority beside other jobs, which affects speed only), with the
   harness defaults: temperature 0.6, top_p 0.95, top_k 20, thinking on,
   20,000 max tokens, 200,000 memory-context cap.
 * Judge: gpt-5.2 via proxy endpoint (OpenAI-compatible), reasoning effort

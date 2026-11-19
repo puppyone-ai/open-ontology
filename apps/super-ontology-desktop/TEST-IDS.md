@@ -95,7 +95,6 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-ontology` **(T1)** | the Ontology screen | |
-| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the first three views | `data-active` |
 | `ontology-tab-query` `ontology-tab-files` **(T1)** | Query and Files | |
 | `query-gateway` `query-gateway-token` `query-gateway-connect` **(T1)** | the Gateway the queries use | gateway: `data-state` = `connected` `disconnected` |
 | `query-gateway-url` `query-gateway-ca` `query-gateway-transport` `query-gateway-disconnect` | the Gateway the queries use | gateway: `data-state` = `connected` `disconnected` |
@@ -111,6 +110,11 @@ Rules:
 | `query-knowledge` `query-knowledge-prefix` `query-knowledge-error` `query-knowledge-cli` `query-cat` `query-cat-cli` | knowledge search and cat | hit: `data-name` |
 | `ontology-files` **(T1)** | ontology YAML files, version diff, export | row: `data-name` |
 | `ontology-file-row` `ontology-file-title` `ontology-file-compare` `ontology-file-copy` `ontology-file-export` `ontology-yaml` `ontology-diff` `ontology-file-exported` `ontology-files-prefix` `ontology-files-gateway-load` | ontology YAML files, version diff, export | row: `data-name` |
+| `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the views | `data-active` |
+| `ontology-tab-atlas` **(T1)** | the atlas view | `data-active` |
+| `atlas` `atlas-search` `atlas-matches` `atlas-tally` `atlas-partial` `atlas-truncated` `atlas-inspector` `atlas-open` `atlas-play` `atlas-fit` `atlas-mode-type` `atlas-mode-source` `atlas-view-graph` | the atlas screen: search, matches, counts, notices, inspector, controls | |
+| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` |
+| `atlas-view-list` `atlas-list` `atlas-list-group` `atlas-list-member` **(T1)** | the keyboard list that lists the same cells | group: `data-group`; member: `data-name` |
 | `entity-search` **(T1)** | search field | |
 | `entity-type-filter` | type filter | |
 | `entity-list` `entity-row` **(T1)** | entity list | row: `data-name`, `data-type` |

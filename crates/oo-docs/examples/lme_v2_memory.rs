@@ -325,6 +325,8 @@ impl Memory {
         phrase_boost: i64,
         coverage_note: bool,
         phrase_counts: bool,
+        compact: bool,
+        alternatives: bool,
     ) -> Value {
         let q = strip_scaffold(text);
         let mut items: Vec<String> = Vec::new();
@@ -357,7 +359,6 @@ impl Memory {
             ));
         }
         used += dused;
-        let digest_count = items.len();
 
         // Windows grouped by observation; the latest sighting of a unit wins.
         let mut per_state: BTreeMap<usize, (i64, Vec<usize>, usize)> = BTreeMap::new();
@@ -421,15 +422,56 @@ impl Memory {
         }
         order.sort_by(|a, b| per_state[b].0.cmp(&per_state[a].0).then(a.cmp(b)));
         let mut pages: HashMap<String, usize> = HashMap::new();
+        let mut full_left = full_top;
+        if alternatives {
+            // A question that compares named pages ("A vs B", "(a/b/c)",
+            // "Among the A, B and C tables") gets the best observation of
+            // each one as a complete tree, so every compared page is present.
+            for alt in listed_alternatives(&q) {
+                // Best-ranked unit first; its latest sighting on a page not
+                // shown yet.
+                let pick =
+                    self.windows
+                        .search(&alt, 50)
+                        .into_iter()
+                        .find_map(|(u, _)| {
+                            let unit = &self.units[u as usize];
+                            let si =
+                                unit.seen.iter().map(|(si, _)| *si).max_by_key(|si| {
+                                    (self.states[*si].traj, self.states[*si].step)
+                                })?;
+                            (!pages.contains_key(&self.page_key(si))).then_some(si)
+                        });
+                let Some(si) = pick else {
+                    continue;
+                };
+                let item = format!(
+                    "Compared item \"{alt}\": best matching page\n{}",
+                    self.render(si, &[], 1, true, compact)
+                );
+                let n = tokens::count(&item);
+                if used + n > budget * 3 / 4 {
+                    continue;
+                }
+                used += n;
+                items.push(item);
+                *pages.entry(self.page_key(si)).or_insert(0) += 1;
+            }
+        }
         for si in order {
             let (_, hits, sightings) = &per_state[&si];
             let seen = pages.entry(self.page_key(si)).or_insert(0);
             if *seen >= per_page {
                 continue;
             }
+            // Complete trees go to the best observation of distinct pages, so a
+            // page can be checked for what it does not show.
+            let full = full_left > 0 && *seen == 0;
             *seen += 1;
-            let full = items.len() < full_top + digest_count;
-            let item = self.render(si, hits, *sightings, full);
+            let item = self.render(si, hits, *sightings, full, compact);
+            if full {
+                full_left -= 1;
+            }
             let n = tokens::count(&item);
             if used + n > budget {
                 if used + 400 > budget {
@@ -452,8 +494,20 @@ impl Memory {
         format!("{}\u{1}{url}", st.title)
     }
 
-    fn render(&self, si: usize, hits: &[usize], sightings: usize, full: bool) -> String {
+    fn render(
+        &self,
+        si: usize,
+        hits: &[usize],
+        sightings: usize,
+        full: bool,
+        compact: bool,
+    ) -> String {
         let st = &self.states[si];
+        let shown = if compact {
+            compact_tree(&st.lines)
+        } else {
+            st.lines.iter().map(|l| Some(l.clone())).collect()
+        };
         let mut out = self.header(si, sightings);
         let n = st.lines.len();
         let mut keep = vec![full; n];
@@ -474,7 +528,8 @@ impl Memory {
             "Accessibility tree (excerpt):\n"
         });
         let mut skipped = 0;
-        for (i, line) in st.lines.iter().enumerate() {
+        for (i, line) in shown.iter().enumerate() {
+            let Some(line) = line else { continue };
             if keep[i] {
                 if skipped > 0 {
                     out.push_str(&format!("\t... ({skipped} lines not shown)\n"));
@@ -491,6 +546,64 @@ impl Memory {
         }
         out
     }
+}
+
+/// Attributes that never change what a page offers.
+const NOISE_ATTRS: &[&str] = &[
+    ", clickable",
+    ", visible",
+    ", focused",
+    ", atomic",
+    ", live='polite'",
+    ", live='assertive'",
+    ", relevant='additions text'",
+    ", relevant='all'",
+];
+
+fn quoted_name(line: &str) -> Option<&str> {
+    let a = line.find('\'')?;
+    let b = line.rfind('\'')?;
+    (b > a).then(|| &line[a + 1..b])
+}
+
+fn is_glyph(text: &str) -> bool {
+    let t = text.trim();
+    (t.len() == 6 && t.starts_with("\\u"))
+        || (t.chars().count() == 1 && t.chars().all(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)))
+}
+
+/// Compact view of an accessibility tree, one entry per source line
+/// (`None` = dropped): element ids and no-op attributes go, and a
+/// `StaticText` that only repeats its parent's name (or is an icon glyph)
+/// is dropped. Every label, value and state stays.
+fn compact_tree(lines: &[String]) -> Vec<Option<String>> {
+    let mut parents: Vec<(usize, String)> = Vec::new();
+    let mut out = Vec::with_capacity(lines.len());
+    for line in lines {
+        let depth = line.len() - line.trim_start_matches('\t').len();
+        while parents.last().is_some_and(|(d, _)| *d >= depth) {
+            parents.pop();
+        }
+        let body = strip_bids(line.trim_start_matches('\t'));
+        let name = quoted_name(&body).unwrap_or("").to_string();
+        if let Some(text) = body.strip_prefix("StaticText ") {
+            let text = quoted_name(text).unwrap_or(text);
+            let repeats = parents
+                .last()
+                .is_some_and(|(_, p)| !text.is_empty() && p.contains(text));
+            if repeats || is_glyph(text) || text.is_empty() {
+                out.push(None);
+                continue;
+            }
+        }
+        let mut body = body;
+        for a in NOISE_ATTRS {
+            body = body.replace(a, "");
+        }
+        out.push(Some(format!("{}{body}", "\t".repeat(depth))));
+        parents.push((depth, name));
+    }
+    out
 }
 
 /// Remove browser element ids (`[112] `, `[a51] `): they differ between
@@ -514,6 +627,108 @@ fn strip_bids(text: &str) -> String {
         }
     }
     out.push_str(rest);
+    out
+}
+
+/// Items a question compares, each as a short search text: a slash list in
+/// parentheses ("forms (change request/problem)", each with the word before it),
+/// a "vs" chain, or "Among the A, B, and C <noun>" (the shared noun is added
+/// to every item). Empty when the question compares nothing.
+fn listed_alternatives(q: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    fn push(out: &mut Vec<String>, s: String) {
+        let s = s
+            .trim()
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_string();
+        if s.len() >= 2 && !out.contains(&s) {
+            out.push(s);
+        }
+    }
+    // (a/b/c) followed by an optional noun.
+    if let (Some(a), Some(b)) = (q.find('('), q.find(')')) {
+        let inner = &q[a + 1..b.max(a + 1)];
+        if inner.contains('/') {
+            let noun = q[..a].split_whitespace().last().unwrap_or("");
+            let noun = if noun.chars().all(char::is_alphabetic) {
+                noun
+            } else {
+                ""
+            };
+            for it in inner.split('/') {
+                push(&mut out, format!("{it} {noun}"));
+            }
+        }
+    }
+    // A vs B vs C, inside one sentence or clause.
+    let vs_from = out.len();
+    let normalized = q.replace(" vs. ", " vs ");
+    for clause in normalized.split(['.', '?', ':', ';', '\n']) {
+        if !clause.contains(" vs") {
+            continue;
+        }
+        let parts: Vec<&str> = clause.split(" vs").collect();
+        for (i, part) in parts.iter().enumerate() {
+            let words: Vec<&str> = part.split_whitespace().collect();
+            // The first item is the tail of the clause before " vs".
+            let take = words.len().min(4);
+            let slice = if i == 0 {
+                &words[words.len() - take..]
+            } else {
+                &words[..take]
+            };
+            push(&mut out, slice.join(" "));
+        }
+    }
+    let vs_to = out.len();
+    // Among the A, B, and C noun ...
+    if let Some(i) = q.find("Among the ").or_else(|| q.find("Among these ")) {
+        let rest = &q[i..];
+        let rest = &rest[rest.find(' ').map_or(0, |k| k + 1)..];
+        let rest = &rest[rest.find(' ').map_or(0, |k| k + 1)..];
+        let end = rest.find(['?', '.']).unwrap_or(rest.len());
+        let span = &rest[..end];
+        let span = match span
+            .find(", which")
+            .or_else(|| span.find(", how"))
+            .or_else(|| span.find(", what"))
+        {
+            Some(k) => &span[..k],
+            None => span,
+        };
+        if span.contains(',') && span.contains(" and ") {
+            let items: Vec<String> = span
+                .replace(", and ", ", ")
+                .replace(" and ", ", ")
+                .split(", ")
+                .map(str::to_string)
+                .collect();
+            let last = items.last().cloned().unwrap_or_default();
+            let tail: Vec<&str> = last.split_whitespace().skip(1).collect();
+            let tail = tail.join(" ");
+            for (k, it) in items.iter().enumerate() {
+                if k + 1 == items.len() {
+                    push(&mut out, it.clone());
+                } else {
+                    push(&mut out, format!("{it} {tail}"));
+                }
+            }
+        }
+    }
+    // "vs" items name no page kind; they get the one the question uses.
+    let lower = q.to_lowercase();
+    if let Some(noun) = ["form", "page", "table", "view", "list", "tab"]
+        .iter()
+        .find(|n| lower.contains(&format!(" {n}")))
+    {
+        for it in &mut out[vs_from..vs_to] {
+            if !it.to_lowercase().contains(noun) {
+                it.push(' ');
+                it.push_str(noun);
+            }
+        }
+    }
+    out.truncate(6);
     out
 }
 
@@ -626,6 +841,10 @@ fn main() {
                     req.get("phrase_counts")
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
+                    req.get("compact").and_then(Value::as_bool).unwrap_or(false),
+                    req.get("alternatives")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 ),
                 Some("stats") => json!({
                     "ok": true,
@@ -664,6 +883,61 @@ mod tests {
                  "accessibility_tree": "RootWebArea 'Incident list'\n\t[40] button 'Filters'"}
             ]
         })
+    }
+
+    #[test]
+    fn compact_tree_keeps_labels_and_drops_repeats() {
+        let lines: Vec<String> = [
+            "RootWebArea 'Incident', focused",
+            "\t[b56] link 'Back', clickable, visible",
+            "\t\tStaticText '\\uf132'",
+            "\t\tStaticText 'Back'",
+            "\t[b62] combobox 'State', clickable, visible, expanded=False",
+            "\t\tStaticText 'New'",
+        ]
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+        let c = compact_tree(&lines);
+        assert_eq!(c[0].as_deref(), Some("RootWebArea 'Incident'"));
+        assert_eq!(c[1].as_deref(), Some("\tlink 'Back'"));
+        assert_eq!(c[2], None);
+        assert_eq!(c[3], None);
+        assert_eq!(c[4].as_deref(), Some("\tcombobox 'State', expanded=False"));
+        assert_eq!(c[5].as_deref(), Some("\t\tStaticText 'New'"));
+    }
+
+    #[test]
+    fn compared_items_are_found() {
+        assert_eq!(
+            listed_alternatives("Among these five forms (change request/problem/user), which one?"),
+            vec!["change request forms", "problem forms", "user forms"]
+        );
+        assert_eq!(
+            listed_alternatives(
+                "I use forms. Create Change Request vs Problem vs Incident. Which?"
+            ),
+            vec![
+                "Create Change Request form",
+                "Problem form",
+                "Incident form"
+            ]
+        );
+        assert_eq!(
+            listed_alternatives("Create change request vs. create hardware asset: how many tabs?"),
+            vec!["Create change request tab", "create hardware asset tab"]
+        );
+        assert_eq!(
+            listed_alternatives(
+                "Among the Orders, Products, and Pages grid tables, which tables show Export?"
+            ),
+            vec![
+                "Orders grid tables",
+                "Products grid tables",
+                "Pages grid tables"
+            ]
+        );
+        assert!(listed_alternatives("Which button submits the form?").is_empty());
     }
 
     #[test]
@@ -710,6 +984,8 @@ mod tests {
             0,
             false,
             false,
+            false,
+            false,
         );
         let items = q["items"].as_array().unwrap();
         let first = items[0].as_str().unwrap();
@@ -726,12 +1002,26 @@ mod tests {
                 0,
                 0,
                 false,
+                false,
+                false,
                 false
             ),
             q
         );
         // The budget bounds the reply.
-        let small = mem.query("Depreciation", 10, 0, usize::MAX, false, 0, 0, false, false);
+        let small = mem.query(
+            "Depreciation",
+            10,
+            0,
+            usize::MAX,
+            false,
+            0,
+            0,
+            false,
+            false,
+            false,
+            false,
+        );
         assert!(small["items"].as_array().unwrap().is_empty());
         // The exact-text check reports hits and misses as counts.
         let check = mem.query(
@@ -744,6 +1034,8 @@ mod tests {
             0,
             false,
             true,
+            false,
+            false,
         );
         let note = check["items"][0].as_str().unwrap();
         assert!(note.contains("\"depreciation\" in 2 of them"), "{note}");

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "d3-dispatch",
+    "version": "3.0.2",
+    "official_source": "https://registry.npmjs.org/d3-dispatch/3.0.2",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "seven_day_rule": "pass",
+    "native_build": false,
+    "install_script": false,
+    "prohibited_license": false,
+    "features_enabled": [],
+    "publication_date": "2026-11-03",
+    "adoption_date": "2026-11-19T15:00:00Z",
+    "age_days_at_adoption": 16,
+    "note": "transitive runtime dependency of d3-force",
+    "license_spdx": "ISC",
+    "upstream_manifest_license": "ISC",
+    "relied_on_license": "ISC",
+    "license_evidence": [
+      {
+        "spdx": "ISC",
+        "source": "licenses/super-ontology-app/d3-dispatch-3.0.2/LICENSE",
+        "sha256": "2a6d2d5f32ba0b755ddbc1c833f766e30cdbe6ebe9a6d4e3e24427721f0b63d3"
+      }
+    ],
+    "digest": "sha256:a7761dc785dd08d6b3c57c92bb245b581cfe36e6a581687142a2b6f3df104b23",
+    "registry_integrity": "sha512-sAzH4Y4nsLo8eSqw5jKiZt+LU2wZmL/qS+OkxQGjhwazB/D7TY34R/QK1eshfGr7cZEKymKZ/Haem7m+lu98Sg==",
+    "lockfile_integrity_matches_registry": true,
+    "license_obligations": [
+      {
+        "spdx": "ISC",
+        "obligations": [
+          "Retain the copyright and permission notice in all copies."
+        ]
+      }
+    ],
+    "weak_copyleft_review": null,
+    "default_features_disabled": false
+  }
+}

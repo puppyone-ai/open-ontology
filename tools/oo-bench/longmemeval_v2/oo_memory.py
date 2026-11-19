@@ -37,6 +37,8 @@ class OntologyMemory(Memory):
                 "phrase_boost",
                 "coverage_note",
                 "phrase_counts",
+                "compact",
+                "alternatives",
                 "agg_sum",
             )
             if k in memory_params

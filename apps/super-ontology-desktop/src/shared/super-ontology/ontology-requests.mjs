@@ -13,6 +13,7 @@ export const ONTOLOGY_CHANNELS = Object.freeze([
   "shares-list", "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save",
   "fact-correct", "entity-merge", "entity-split", "constraints-list", "media-decode", "media-decode-cancel",
+  "atlas-links", "atlas-sql",
 ]);
 
 /** Channels of this module whose request must carry an `operationId`. */
@@ -137,6 +138,9 @@ export function createOntologyRequestFields(field) {
     "entity-merge": Object.freeze({ into: key, from: field.stringList(50, 200), revision: rev }),
     "entity-split": Object.freeze({ entityId: key, revision: rev, groups: splitGroups }),
     "constraints-list": Object.freeze({ limit, cursor: field.optional(field.cursor) }),
+    /** Ontology atlas (D88): the document to table links, and one read-only SELECT on the database side (tables and foreign keys). */
+    "atlas-links": Object.freeze({}),
+    "atlas-sql": Object.freeze({ sql: field.string(4096, { minLength: 1 }), maxRows: field.optional(field.int(1, 2000)) }),
     "media-decode": Object.freeze({ fileId: field.uuid }),
     "media-decode-cancel": Object.freeze({ fileId: field.uuid }),
   });
