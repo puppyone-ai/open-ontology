@@ -1,0 +1,86 @@
+{
+  "id": "P04",
+  "title": "Ontology: search an entity and follow a fact to its source",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.ontology"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "entity-row",
+        "attributes": {
+          "data-name": "Dana Lee"
+        },
+        "withinMs": 120000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.ontology.search"
+    },
+    {
+      "do": "typeFocused",
+      "text": "Dana"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "entity-row",
+        "attributes": {
+          "data-name": "Dana Lee"
+        }
+      }
+    },
+    {
+      "do": "click",
+      "name": "Dana Lee",
+      "literal": true
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "fact-row",
+        "min": 1,
+        "withinMs": 30000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.ontology.evidence.open"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "file-panel",
+        "withinMs": 30000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "evidence"
+    }
+  ]
+}

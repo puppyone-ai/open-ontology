@@ -1,0 +1,128 @@
+{
+  "id": "P01",
+  "title": "The first run on a clean profile: welcome, engine, first folder, the ontology, an agent token",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-first-run",
+        "attribute": "data-step",
+        "matches": "^welcome$"
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "welcome"
+    },
+    {
+      "do": "click",
+      "name": "app.firstRun.start"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "firstrun-progress",
+        "attributes": {
+          "data-state": "ready"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        }
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.firstRun.pickFolder"
+    },
+    {
+      "do": "chooseFolder",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "firstrun-file-row",
+        "min": 3,
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "understanding"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "firstrun-see-ontology",
+        "withinMs": 180000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.firstRun.seeOntology"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "entity-row",
+        "attributes": {
+          "data-name": "Project Alpha"
+        },
+        "withinMs": 120000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "ontology"
+    },
+    {
+      "do": "click",
+      "name": "app.firstRun.connectAgent"
+    },
+    {
+      "do": "click",
+      "name": "app.connect.create"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "agent-token-secret",
+        "text": "^ooa_",
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "no-secret-in-page",
+      "args": {
+        "allowAgentToken": true
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "agent"
+    }
+  ]
+}
