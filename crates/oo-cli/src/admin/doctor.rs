@@ -7,6 +7,7 @@ use std::time::Duration;
 use oo_connectors::engine::{EngineFamily, TableRef};
 use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
 use oo_connectors::postgres::PostgresEngine;
+use oo_connectors::postgres::opengauss::OpenGaussEngine;
 use oo_connectors::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SourceId, TableSelection,
@@ -27,6 +28,22 @@ enum Adapter {
     Sqlserver,
     Db2,
     Dm8,
+    Opengauss,
+}
+
+/// Families the feature-isolated `oo-mysql-doctor` helper probes: the MySQL
+/// wire family and the analytic engines on the same wire (no second driver).
+fn helper_family(family: EngineFamily) -> bool {
+    matches!(
+        family,
+        EngineFamily::Mysql
+            | EngineFamily::Mariadb
+            | EngineFamily::Tidb
+            | EngineFamily::Oceanbase
+            | EngineFamily::Clickhouse
+            | EngineFamily::Doris
+            | EngineFamily::Starrocks
+    )
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
@@ -34,6 +51,13 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
         (EngineFamily::Postgres, Adapter::Postgres),
         (EngineFamily::Kingbase, Adapter::Postgres),
         (EngineFamily::Mysql, Adapter::Mysql),
+        (EngineFamily::Mariadb, Adapter::Mysql),
+        (EngineFamily::Tidb, Adapter::Mysql),
+        (EngineFamily::Oceanbase, Adapter::Mysql),
+        (EngineFamily::Clickhouse, Adapter::Mysql),
+        (EngineFamily::Doris, Adapter::Mysql),
+        (EngineFamily::Starrocks, Adapter::Mysql),
+        (EngineFamily::Opengauss, Adapter::Opengauss),
         (EngineFamily::Oracle, Adapter::Oracle),
         (EngineFamily::Sqlserver, Adapter::Sqlserver),
         (EngineFamily::Db2, Adapter::Db2),
@@ -243,7 +267,17 @@ pub(super) fn family(source: &Source) -> Result<EngineFamily, &'static str> {
     let name = source.engine.split('-').next().unwrap_or("");
     match name {
         "postgres" | "postgresql" => Ok(EngineFamily::Postgres),
-        "mysql" => Ok(EngineFamily::Mysql),
+        // PolarDB MySQL is a deployment variant (`mysql-polardb`), not a new family.
+        "mysql" | "polardb" => Ok(EngineFamily::Mysql),
+        "mariadb" => Ok(EngineFamily::Mariadb),
+        "tidb" => Ok(EngineFamily::Tidb),
+        "oceanbase" => Ok(EngineFamily::Oceanbase),
+        "opengauss" => Ok(EngineFamily::Opengauss),
+        "clickhouse" => Ok(EngineFamily::Clickhouse),
+        "doris" => Ok(EngineFamily::Doris),
+        "starrocks" => Ok(EngineFamily::Starrocks),
+        "mongodb" => Ok(EngineFamily::Mongodb),
+        "opensearch" => Ok(EngineFamily::Opensearch),
         "oracle" => Ok(EngineFamily::Oracle),
         "sqlserver" => Ok(EngineFamily::Sqlserver),
         "db2" => Ok(EngineFamily::Db2),
@@ -301,6 +335,20 @@ pub(super) fn postgres(
     store: &SecretStore,
     tunnel: Option<std::sync::Arc<oo_connectors::transport::ssh::Tunnel>>,
 ) -> Result<PostgresEngine, String> {
+    let config = pg_config(source, tables, store, tunnel)?;
+    Ok(if family(source) == Ok(EngineFamily::Kingbase) {
+        PostgresEngine::new_kingbase(config)
+    } else {
+        PostgresEngine::new(config)
+    })
+}
+
+fn pg_config(
+    source: &Source,
+    tables: &[TableRef],
+    store: &SecretStore,
+    tunnel: Option<std::sync::Arc<oo_connectors::transport::ssh::Tunnel>>,
+) -> Result<PgSourceConfig, String> {
     let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
     let password = store.read(&source.password.secret_ref)?;
     let ca = store.read(&ca.secret_ref)?;
@@ -327,15 +375,10 @@ pub(super) fn postgres(
         )
     })()
     .map_err(|e: oo_connectors::SourceError| e.to_string())?;
-    let config = match tunnel {
-        Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string())?,
-        None => config,
-    };
-    Ok(if family(source) == Ok(EngineFamily::Kingbase) {
-        PostgresEngine::new_kingbase(config)
-    } else {
-        PostgresEngine::new(config)
-    })
+    match tunnel {
+        Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string()),
+        None => Ok(config),
+    }
 }
 
 async fn sources(stack: &Stack) -> Vec<Value> {
@@ -351,8 +394,13 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                     | Adapter::Mysql
                     | Adapter::Sqlserver
                     | Adapter::Db2
-                    | Adapter::Dm8,
+                    | Adapter::Dm8
+                    | Adapter::Opengauss,
                 ) => (),
+                // Document sources need a driver the lite helper does not link yet.
+                None if matches!(family, EngineFamily::Mongodb | EngineFamily::Opensearch) => {
+                    return Err("DOCUMENT_SOURCE_DOCTOR_NOT_AVAILABLE: connect and import run in the pipeline; the read-only probe needs the document driver in the helper".into());
+                }
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
@@ -364,7 +412,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
             Ok((family, store, selected, scope_error)) => {
                 // MySQL's helper owns its runtime and tunnel. Never block this
                 // runtime waiting for a child that needs its forwarding tasks.
-                let tunnel = if family == EngineFamily::Mysql {
+                let tunnel = if helper_family(family) {
                     Ok(None)
                 } else {
                     oo_connectors::transport::ssh::connect(source, &store).await
@@ -407,7 +455,17 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                                 }
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
-                            EngineFamily::Mysql => mysql(source, &selected),
+                            f if helper_family(f) => mysql(source, &selected),
+                            EngineFamily::Opengauss => {
+                                match pg_config(source, &selected, &store, tunnel.clone())
+                                    .map(OpenGaussEngine::new)
+                                {
+                                    Ok(mut engine) => {
+                                        inspect(&mut engine, &selected, &source.sync.mode).await
+                                    }
+                                    Err(error) => json!({"status":"blocked","error":error}),
+                                }
+                            }
                             EngineFamily::Sqlserver => {
                                 let config = (|| {
                                     let ca =
@@ -446,7 +504,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                             _ => unreachable!("registry checked above"),
                         };
                         if let Some(ssh) = &source.ssh
-                            && family != EngineFamily::Mysql
+                            && !helper_family(family)
                         {
                             report["tunnel"] = json!({"status":"ok","host_key_sha256":ssh.host_key_sha256,
                             "transport":"ssh-direct-tcpip"});
@@ -559,8 +617,23 @@ mod tests {
         let mut s = source();
         s.engine = "postgres-17".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Postgres);
+        // Compatible products keep their own family: never aliased to Postgres.
         s.engine = "opengauss".into();
-        assert!(family(&s).is_err());
+        assert_eq!(family(&s).unwrap(), EngineFamily::Opengauss);
+        for (engine, expected) in [
+            ("mariadb", EngineFamily::Mariadb),
+            ("tidb", EngineFamily::Tidb),
+            ("oceanbase", EngineFamily::Oceanbase),
+            ("mysql-polardb", EngineFamily::Mysql),
+            ("clickhouse", EngineFamily::Clickhouse),
+            ("doris", EngineFamily::Doris),
+            ("starrocks", EngineFamily::Starrocks),
+            ("mongodb", EngineFamily::Mongodb),
+            ("opensearch", EngineFamily::Opensearch),
+        ] {
+            s.engine = engine.into();
+            assert_eq!(family(&s).unwrap(), expected, "{engine}");
+        }
         s.engine = "kingbase".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Kingbase);
         assert!(matches!(
