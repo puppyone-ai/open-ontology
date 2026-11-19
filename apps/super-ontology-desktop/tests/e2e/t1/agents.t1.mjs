@@ -28,7 +28,9 @@ runScenario({ name: "agents", title: "Agents: token, connection text, revoke" },
   s.check("the engine knows the token", (listed.body?.items ?? []).some((token) => token.name === "t1-reader"), JSON.stringify((listed.body?.items ?? []).map((token) => token.name)));
   await s.click("agent-token-revoke", {});
   if (await s.exists("dialog-confirm")) await s.click("dialog-confirm");
-  await s.waitFor("agent-token-row", { "data-name": "t1-reader", "data-state": "revoked" });
-  s.check("a revoked token is shown as revoked", true);
+  // The engine lists live tokens only: a revoked one leaves the list (if it is still shown, it is marked revoked).
+  await s.until("!document.querySelector('[data-testid=\"agent-token-row\"][data-name=\"t1-reader\"]:not([data-state=\"revoked\"])')", "the token is no longer active in the list", { timeoutMs: 30_000 });
+  const after = await s.engineApi("/v1/docs/agent-tokens");
+  s.check("a revoked token no longer works", !(after.body?.items ?? []).some((token) => token.name === "t1-reader" && !token.revoked_at), JSON.stringify((after.body?.items ?? []).map((token) => [token.name, token.revoked_at])));
   await s.shot("agents");
 });

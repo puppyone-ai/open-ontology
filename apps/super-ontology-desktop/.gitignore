@@ -6,3 +6,4 @@ build/oo-bundle/
 build/generated/
 build/icon.iconset/
 /artifacts/
+test-results/

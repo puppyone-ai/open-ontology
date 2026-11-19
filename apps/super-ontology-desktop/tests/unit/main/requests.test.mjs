@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SO_ERROR_CODES, SuperOntologyError, toErrorResult } from "@so-shared/errors.mjs";
 import {
   AGENT_CHANNELS,
+  DATABASE_CHANNELS,
   ENTERPRISE_CHANNELS,
   SUPER_ONTOLOGY_CHANNELS,
   parseSuperOntologyRequest,
@@ -126,7 +127,7 @@ describe("parseSuperOntologyRequest", () => {
     // The L4 and L6 channels follow, exactly as ontology-requests.mjs lists them.
     expect([...SUPER_ONTOLOGY_CHANNELS].slice(33, 33 + ONTOLOGY_CHANNELS.length)).toEqual([...ONTOLOGY_CHANNELS]);
     // The L7 and L8 channels (Cloud mode, audit, runtime) come last.
-    expect([...SUPER_ONTOLOGY_CHANNELS].slice(33 + ONTOLOGY_CHANNELS.length)).toEqual([...ENTERPRISE_CHANNELS, ...AGENT_CHANNELS]);
+    expect([...SUPER_ONTOLOGY_CHANNELS].slice(33 + ONTOLOGY_CHANNELS.length)).toEqual([...ENTERPRISE_CHANNELS, ...AGENT_CHANNELS, ...DATABASE_CHANNELS]);
   });
 
   it("validates the upload channels", () => {

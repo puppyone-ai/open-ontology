@@ -41,6 +41,9 @@ export async function connectToPage(port, { urlPattern = /./u } = {}) {
       console_.push({ type: data.params.type, text: data.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" ") });
     }
   });
+  // A closed socket must settle every request still waiting: otherwise a caller awaiting one (the harness's `Browser.close`) never
+  // resumes and the process silently ends with exit code 0 before it wrote its report.
+  socket.addEventListener("close", () => { for (const { reject } of pending.values()) reject(new Error("the page connection closed")); pending.clear(); });
   const send = (method, params = {}) => new Promise((resolve, reject) => { nextId += 1; pending.set(nextId, { resolve, reject }); socket.send(JSON.stringify({ id: nextId, method, params })); });
   await send("Runtime.enable");
   return {

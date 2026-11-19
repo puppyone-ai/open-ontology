@@ -5,14 +5,15 @@ import { runScenario } from "../harness/session.mjs";
 
 const SETTLED = new Set(["parsed", "published"]);
 
-runScenario({ name: "first-run", title: "First run: welcome to an agent token", timeoutMs: 290_000 }, async (s) => {
+runScenario({ name: "first-run", title: "First run: welcome to an agent token", timeoutMs: 290_000, firstRun: true }, async (s) => {
   await s.waitFor("app-root", {}, { timeoutMs: 60_000 });
   await s.waitFor("screen-first-run");
   s.check("a fresh profile opens the first run at the welcome step", (await s.attr("screen-first-run", "data-step")) === "welcome");
 
   // 1. Welcome: one button; the engine is found and started with progress shown inline.
-  await s.click("firstrun-start");
+  // "Get started" stays disabled with the inline "getting things ready" state until the engine answers.
   await s.waitFor("firstrun-progress", { "data-state": "ready" }, { timeoutMs: 150_000 });
+  await s.click("firstrun-start");
   s.check("the engine started from the welcome step", true);
   await s.waitFor("statusbar-engine", { "data-state": "running" });
 
@@ -30,10 +31,10 @@ runScenario({ name: "first-run", title: "First run: welcome to an agent token", 
   await s.click("firstrun-see-ontology");
   await s.click("firstrun-open-ontology");
   await s.waitFor("screen-ontology");
-  await s.waitFor("entity-row", { "data-name": "Project Alpha" }, { timeoutMs: 90_000 });
+  const project = await s.waitForEntity(/^(project )?alpha$/u, { timeoutMs: 90_000 });
   s.check("an entity recognised from the dropped files is listed", true);
-  await s.click("entity-row", { "data-name": "Project Alpha" });
-  await s.waitFor("screen-entity", { "data-name": "Project Alpha" });
+  await s.click("entity-row", { "data-name": project });
+  await s.waitFor("screen-entity", { "data-name": project });
   await s.waitFor("fact-row");
   s.check("the entity page shows a fact", (await s.count("fact-row")) > 0);
   s.check("a fact has its evidence one step away", (await s.attr("evidence-link", "data-file")) !== null, String(await s.attr("evidence-link", "data-file")));
