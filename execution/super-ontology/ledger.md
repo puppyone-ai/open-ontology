@@ -244,6 +244,10 @@
 | SO-B-S19-70 | D88 | merged | feat/super-ontology (车道 K 并入) | 0347499de → 0347499de | — | — | Give the helper container the file secrets a source names |
 | SO-B-S19-71 | D88 | merged | feat/super-ontology (车道 K 并入) | 527f6f39c → 527f6f39c | — | — | Keep multi-line secrets exact when stripping the newline |
 | SO-B-S19-72 | D88 | merged | feat/super-ontology (车道 K 并入) | 839822527 → 839822527 | — | — | Pin the arm64 lite runtime with the secret and error fixes |
+| SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
+| SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
+| SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
+| SO-F-S19-84 | D85 | merged | feat/super-ontology (App 车道 N 并入) | bade9b011 → e236da74a | — | apps/super-ontology-desktop/ | Pick a dialog's own button, scroll to a control below the fold and run the boot check in b |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
