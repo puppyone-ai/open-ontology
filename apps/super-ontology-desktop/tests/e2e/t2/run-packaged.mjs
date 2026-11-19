@@ -123,6 +123,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     child.stderr.on("data", (chunk) => log.push(String(chunk)));
     child.once("exit", () => { fs.writeFile(path.join(directory, "main-process.log"), log.join("")).catch(() => undefined); });
     cdp = await connectToPage(await readDevToolsPort(profile), { urlPattern: /^app:/u });
+    await peekaboo.retarget(child.pid);
   };
   const quit = async () => {
     cdp?.close();
@@ -172,7 +173,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "press": await peekaboo.press(step.chord); break;
         case "typeFocused": await peekaboo.type(text(step.text)); break;
         // The native open panel: Go to folder (Cmd+Shift+G), the full path, Return to go there, Return to choose it.
-        case "chooseFolder": await sleep(800); await peekaboo.press("cmd+shift+g"); await sleep(600); await peekaboo.type(text(step.path)); await sleep(300); await peekaboo.press("return"); await sleep(800); await peekaboo.press("return"); break;
+        case "chooseFolder": await sleep(800); await peekaboo.press("cmd+shift+g", { native: true }); await sleep(600); await peekaboo.type(text(step.path), { native: true }); await sleep(300); for (const code of [36, 76, 36]) { await peekaboo.nativeReturn(code); await sleep(2000); } break;
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
         case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); break;
