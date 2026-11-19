@@ -1,0 +1,42 @@
+appId: org.open-ontology.super-ontology
+productName: Super Ontology
+copyright: Apache-2.0
+asar: true
+directories:
+  output: release
+  buildResources: build
+files:
+  - electron/**
+  - shared/**
+  - resources/bootstrap/**
+  - dist/renderer/**
+  - package.json
+  - "!**/*.map"
+  - "!**/*.d.ts"
+  - "!**/*.d.mts"
+extraResources:
+  - from: build/oo-bundle
+    to: oo
+    filter: ["oo", "oo-bundle.json"]
+  - from: build/generated/legal
+    to: legal
+electronLanguages: [en, zh_CN]
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64]
+  # Unsigned until the owner supplies a Developer ID: signing and notarization are switched on by the release workflow secrets.
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+dmg:
+  title: Super Ontology ${version}
+  artifactName: Super-Ontology-${version}-arm64.dmg
+  window: { width: 540, height: 380 }
+  contents:
+    - { x: 140, y: 190, type: file }
+    - { x: 400, y: 190, type: link, path: /Applications }

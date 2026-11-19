@@ -1,0 +1,6 @@
+node_modules/
+dist/
+release/
+build/oo-bundle/
+build/generated/
+build/icon.iconset/

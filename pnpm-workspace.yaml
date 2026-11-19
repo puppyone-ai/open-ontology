@@ -6,5 +6,7 @@ saveExact: true
 strictPeerDependencies: true
 autoInstallPeers: true
 allowBuilds:
+  electron: true
   esbuild: true
+  electron-winstaller: false
   msw: false

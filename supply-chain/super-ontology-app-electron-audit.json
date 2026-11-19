@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "electron",
+    "version": "44.11.1",
+    "official_source": "https://registry.npmjs.org/electron/44.11.1",
+    "repository": "https://github.com/electron/electron",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-11-11T01:57:01.959Z",
+    "adoption_date": "2026-11-19T11:50:00Z",
+    "age_days_at_adoption": 8,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node >= 22.12.0 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/electron-44.11.1-LICENSE",
+        "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+      }
+    ],
+    "digest": "sha512-pQdp3+NanyxVQxBxdHqnZ/Kj9gKBs8oeSGsmCb2R1yaFWuT91vbibR19o4pZdpkmBYDMl890+Ezt7qT/9zZjAA==",
+    "features_enabled": [],
+    "native_build": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": null,
+    "native_transitive": [
+      {
+        "ecosystem": "binary-release",
+        "name": "electron-v44.11.1-darwin-arm64.zip (Electron, Chromium, Node.js)",
+        "version": "44.11.1",
+        "official_source": "https://github.com/electron/electron/releases/tag/v44.11.1",
+        "repository": "https://github.com/electron/electron",
+        "manifests": [
+          "apps/super-ontology-desktop/package.json"
+        ],
+        "publication_date": "2026-11-11T01:57:01.959Z",
+        "adoption_date": "2026-11-19T11:50:00Z",
+        "age_days_at_adoption": 8,
+        "seven_day_rule": "pass",
+        "license_spdx": "MIT AND BSD-3-Clause",
+        "license_evidence": [
+          {
+            "spdx": "MIT",
+            "source": "licenses/super-ontology-app/electron-44.11.1-LICENSE",
+            "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+          }
+        ],
+        "license_obligations": [
+          {
+            "spdx": "MIT",
+            "obligations": [
+              "Retain the Electron notice."
+            ]
+          },
+          {
+            "spdx": "BSD-3-Clause",
+            "obligations": [
+              "Ship LICENSES.chromium.html with the app (electron-builder keeps it next to the Electron Framework)."
+            ]
+          }
+        ],
+        "digest": "sha256:5228a6e09b01e1f63b6017ab02090bfd07e0611b723ad9d1c3752b411dcf12cb",
+        "prohibited_license": false
+      }
+    ],
+    "note": "Shipped inside the app (the runtime). The binary zip is fetched at install by @electron/get and verified against checksums.json of the package. Line 44 is a supported major; the advisories listed for line 41 (a high certificate mitigation and several moderate permission items) are patched in 42.11.16 and later, so 41.x was not adopted."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json (2026-11-19, workspace lockfile; filtered to paths under apps__super-ontology-desktop)",
+    "evidence": "no advisory remains for electron 44.11.1; output kept in the session notes",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}
