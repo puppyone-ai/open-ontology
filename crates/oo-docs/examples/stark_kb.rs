@@ -63,6 +63,8 @@ struct Kb {
     unparsed: usize,
     max_words: usize,
     w_anchor: i64,
+    /// `--walk 2`: rank with `walk/2` (anchors weighted by specificity).
+    specific: bool,
 }
 
 fn s(v: &Value, k: &str) -> String {
@@ -136,6 +138,7 @@ impl Kb {
             unparsed: 0,
             max_words: 10,
             w_anchor: ANCHOR_W,
+            specific: false,
         };
         let f = std::fs::File::open(nodes_path).map_err(|e| format!("{nodes_path}: {e}"))?;
         for (i, line) in std::io::BufReader::new(f).lines().enumerate() {
@@ -425,7 +428,11 @@ impl Kb {
                 }
             }
         }
-        let scored = walk::rank(&self.graph, &anchors, type_ok, &bm, self.w_anchor, k);
+        let scored = if self.specific {
+            walk::rank_specific(&self.graph, &anchors, type_ok, &bm, self.w_anchor, k)
+        } else {
+            walk::rank(&self.graph, &anchors, type_ok, &bm, self.w_anchor, k)
+        };
         let anchor_out: Vec<Value> = groups
             .iter()
             .map(|(m, ids, rels)| {
@@ -504,6 +511,7 @@ fn main() {
     if let Some(w) = arg(&args, "--anchor-weight").and_then(|w| w.parse::<i64>().ok()) {
         kb.w_anchor = w;
     }
+    kb.specific = arg(&args, "--walk").as_deref() == Some("2");
     if let Some(w) = arg(&args, "--max-words").and_then(|w| w.parse::<usize>().ok()) {
         kb.max_words = w;
     }
