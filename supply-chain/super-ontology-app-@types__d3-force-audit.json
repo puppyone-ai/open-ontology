@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "@types/d3-force",
+    "version": "3.0.10",
+    "official_source": "https://registry.npmjs.org/@types/d3-force/3.0.10",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "seven_day_rule": "pass",
+    "license_spdx": "MIT",
+    "native_build": false,
+    "install_script": false,
+    "prohibited_license": false,
+    "features_enabled": [],
+    "publication_date": "2026-10-04T09:18:00.929Z",
+    "adoption_date": "2026-11-19T15:00:00Z",
+    "age_days_at_adoption": 46,
+    "purpose": "types only, build time, not shipped"
+  }
+}
