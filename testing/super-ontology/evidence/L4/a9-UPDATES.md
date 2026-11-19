@@ -4,8 +4,8 @@
 AIGC:
   Label: "1"
   ContentProducer: "<COMPANY>"
-  ProduceID: "0bcfb5ab-0fd1-44cc-88c7-6e265476dcb2/UPDATES.md"
-  ReservedCode1: "054680c8558eef31e86965da595d30eb6e4b0adee1f5b9f8408368c99371be8e"
+  ProduceID: "3709122d-307d-4bbb-8476-53d58024d35d/UPDATES.md"
+  ReservedCode1: "0579b380fb379e61c23ef9e4a8e8d82a2b6b1ca81e504806409eff99c9c5ba38"
   ContentPropagator: ""
   PropagateID: ""
   ReservedCode2: ""
@@ -14,10 +14,10 @@ AIGC:
 # UPDATES
 > 本文件只追加；其余文件内容不变。
 
-## #1 · v1 → v2 · warn · decisions.md#星图看板改用开源图表库
+## #1 · v2 → v3 · warn · decisions.md#星图看板改用开源图表库
 - 「林远舟 决定 星图看板改用开源图表库」 已被取代，新值：「星图看板恢复自研图表引擎 取代了 星图看板改用开源图表库」。
 - 建议：提交前运行 `oo context check`，读完本条后用 `oo context refresh` 升级。
 
-## #2 · v1 → v2 · info
-- 范围内出现了 7 条新事实，不影响已用事实。
+## #2 · v2 → v3 · info
+- 范围内出现了 9 条新事实，不影响已用事实。
 - 仅供参考，不影响已用事实。

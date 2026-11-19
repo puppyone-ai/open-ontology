@@ -1,5 +1,5 @@
 {
-  "run_id": "be2-l6rem-final",
+  "run_id": "l6e2e-20261118-221833",
   "checks": [
     {
       "check": "compose stack is up and healthy",
@@ -9,12 +9,12 @@
     {
       "check": "ocr-parser and media-parser run beside the engine",
       "ok": true,
-      "detail": "oo-docs-e401dae2e1bb-docs-engine-1 oo-docs-e401dae2e1bb-media-parser-1 oo-docs-e401dae2e1bb-ocr-parser-1 oo-docs-e401dae2e1bb-doc-parser-1 oo-docs-e401dae2e1bb-docs-db-1 oo-be2-l7-pg "
+      "detail": "oo-docs-67e65fc034b5-docs-engine-1 oo-docs-67e65fc034b5-media-parser-1 oo-docs-67e65fc034b5-ocr-parser-1 oo-docs-67e65fc034b5-doc-parser-1 oo-docs-67e65fc034b5-docs-db-1 "
     },
     {
       "check": "all files left the working states",
       "ok": true,
-      "detail": "{\"Meetings/周会 参会=小王、小李.wav\": \"published\", \"Meetings/录屏.webm\": \"published\", \"Meetings/录屏h264.mp4\": \"unsupported\", \"Meetings/讲话.m4a\": \"unsupported\", \"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\", \"Scans/扫描件.pdf\": \"published\", \"Scans/纪要.png\": \"published\"}"
+      "detail": "{\"Meetings/周会 参会=小王、小李.wav\": \"published\", \"Meetings/录屏.webm\": \"published\", \"Meetings/录屏h264.mp4\": \"unsupported\", \"Meetings/讲话.m4a\": \"unsupported\", \"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\", \"Scans/低清晰.png\": \"published\", \"Scans/扫描件.pdf\": \"published\", \"Scans/纪要.png\": \"published\"}"
     },
     {
       "check": "A1 Scans/纪要.png published",
@@ -32,6 +32,21 @@
       "detail": "3/3 words in 48 chars"
     },
     {
+      "check": "A1b the degraded picture is published",
+      "ok": true,
+      "detail": "published None"
+    },
+    {
+      "check": "A1b its OCR block carries low_text_confidence",
+      "ok": true,
+      "detail": "[[[\"low_text_confidence\"], \"2026年度计划会纪票\\n\"]]"
+    },
+    {
+      "check": "A1b the clear scan is not marked",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "check": "A3 the meeting is published",
       "ok": true,
       "detail": "published None"
@@ -44,17 +59,17 @@
     {
       "check": "A3 nothing is published under a named Person before confirmation",
       "ok": true,
-      "detail": "{\"as_of_seq\": 86, \"items\": [{\"counts\": {\"aliases\": 1, \"facts\": 2}, \"id\": \"d71d5547-c607-41bf-8383-1294d7eb6788\", \"key\": "
+      "detail": "{\"as_of_seq\": 127, \"items\": [{\"counts\": {\"aliases\": 1, \"facts\": 2}, \"id\": \"d886c17f-a2f5-4789-b578-edee27d48cd9\", \"key\":"
     },
     {
       "check": "A3 confirming S1 as 小王 succeeds",
       "ok": true,
-      "detail": "{\"accepted\": 1, \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"928a7235-01eb-4129-a482-dbd2c2604cd2\", \"status\": \"ok\"}]}"
+      "detail": "{\"accepted\": 1, \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"b4f40d78-1c96-4260-9770-7da4bbd06cd2\", \"status\": \"ok\"}]}"
     },
     {
       "check": "A3 after confirming, the fact's subject is the Person 小王",
       "ok": true,
-      "detail": "[{\"counts\": {\"aliases\": 1, \"facts\": 0}, \"id\": \"bd732b8b-334b-4561-9887-f7b01a217f85\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
+      "detail": "[{\"counts\": {\"aliases\": 1, \"facts\": 0}, \"id\": \"bad6a16e-93f4-451e-ac3d-c4d4aa173bf3\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
     },
     {
       "check": "A4 the screen recording is published",
@@ -87,6 +102,21 @@
       "detail": "unsupported DOCS_PARSE_CODEC_UNAVAILABLE"
     },
     {
+      "check": "A5b files:retry accepts the parked recording",
+      "ok": true,
+      "detail": "{\"results\": [{\"id\": \"6952f4e1-5376-4c53-8310-71330e324a99\", \"status\": \"ok\"}]}"
+    },
+    {
+      "check": "A5b the recording is published after the host decode",
+      "ok": true,
+      "detail": "{\"state\": \"published\", \"state_code\": null}"
+    },
+    {
+      "check": "A5b it has utterances",
+      "ok": true,
+      "detail": "1 blocks"
+    },
+    {
       "check": "A7 mount before the change",
       "ok": true,
       "detail": ""
@@ -104,7 +134,7 @@
     {
       "check": "A8 the drive has published facts before the bump",
       "ok": true,
-      "detail": "19 facts, 4 sidecar files"
+      "detail": "21 facts, 4 sidecar files"
     },
     {
       "check": "A8 the sidecar files were reprocessed with the new parser version",
@@ -114,12 +144,12 @@
     {
       "check": "A8 the old facts stayed published during the rerun",
       "ok": true,
-      "detail": "min 19 of 19"
+      "detail": "min 21 of 21"
     },
     {
       "check": "A8 no churn: same fact keys after, nothing retracted",
       "ok": true,
-      "detail": "19 facts, retracted 0"
+      "detail": "21 facts, retracted 0"
     },
     {
       "check": "A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it",
@@ -134,17 +164,17 @@
     {
       "check": "A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran",
       "ok": true,
-      "detail": "3.00 s (edit to BRIEF 6.3s)"
+      "detail": "2.03 s (edit to BRIEF 5.2s)"
     },
     {
       "check": "A10 the edit reached a new BRIEF within the L2 bound (30 s)",
       "ok": true,
-      "detail": "6.3s"
+      "detail": "5.2s"
     }
   ],
   "timings": {
-    "all_files_settled_seconds": 50.1,
-    "a10_edit_to_brief_seconds": 6.31,
-    "a10_detected_to_published_seconds": 3.0
+    "all_files_settled_seconds": 85.1,
+    "a10_edit_to_brief_seconds": 5.22,
+    "a10_detected_to_published_seconds": 2.03
   }
 }
