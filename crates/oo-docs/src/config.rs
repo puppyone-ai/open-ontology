@@ -232,6 +232,9 @@ impl EngineConfig {
             if let Some(n) = doc["sync"]["fs_poll_seconds"].as_u64() {
                 poll.interval = Duration::from_secs(n.max(1));
             }
+            if let Some(n) = doc["sync"]["s3_poll_seconds"].as_u64() {
+                poll.object_interval = Duration::from_secs(n.max(1));
+            }
             if let Some(b) = doc["sync"]["weekly_hash_audit"].as_bool() {
                 poll.weekly_audit = b;
             }
@@ -301,6 +304,7 @@ mod tests {
         assert_eq!(c.listen, "127.0.0.1:0".parse().unwrap());
         assert_eq!(c.ingest.max_file_bytes, 200 * 1024 * 1024);
         assert_eq!(c.poll.interval, Duration::from_secs(30));
+        assert_eq!(c.poll.object_interval, Duration::from_secs(300));
         assert_eq!(c.concurrency[&JobKind::Hash], 4);
         assert!(c.admin_database_url.is_none());
     }
@@ -395,12 +399,13 @@ mod tests {
     #[test]
     fn docs_json_overrides() {
         let json = r#"{"version":"oo.docs/v1","limits":{"max_file_bytes":1000},
-            "sync":{"fs_poll_seconds":5,"settle_seconds":0,"weekly_hash_audit":false},
+            "sync":{"fs_poll_seconds":5,"s3_poll_seconds":7,"settle_seconds":0,"weekly_hash_audit":false},
             "concurrency":{"hash":2,"extract_llm":4},"model":null,"unknown":{"x":1}}"#;
         let c = EngineConfig::from_parts(&env_of(BASE), Some(json)).unwrap();
         assert_eq!(c.ingest.max_file_bytes, 1000);
         assert_eq!(c.ingest.settle, Duration::ZERO);
         assert_eq!(c.poll.interval, Duration::from_secs(5));
+        assert_eq!(c.poll.object_interval, Duration::from_secs(7));
         assert!(!c.poll.weekly_audit);
         assert_eq!(c.concurrency[&JobKind::Hash], 2);
         assert_eq!(c.concurrency[&JobKind::ExtractLlm], 4);
