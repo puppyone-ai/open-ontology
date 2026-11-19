@@ -113,6 +113,7 @@ export type AgentTokenIssued = { id: string; token: string; name: string; scopes
   /** Where the app also saved the secret (owner-only file), and the loopback address an Agent calls; both are added by the main process. */
   token_file?: string | null; endpoint?: string | null };
 export type AgentTokenInfo = { id: string; name: string; scopes: string[]; drive_ids?: string[]; all_drives?: boolean; expires_at?: string | null; revoked_at?: string | null; last_used_at?: string | null; created_at?: string };
+export type DbSource = { name: string; kind: string; host: string; port: number; database: string; user: string; include: string[]; tls: boolean };
 export type AgentConnectSnippet = { agent: string; format: "json" | "toml"; text: string; cli: string };
 
 /** Audit of Shares (docs-api 1.4): who shared what to which agent and when. Read-only; the engine's table is append-only and hash-chained. */
@@ -157,6 +158,10 @@ export type SuperOntologyChannelMap = {
   "agent-token-list": { request: { operationId?: string }; value: { items: AgentTokenInfo[] } };
   "agent-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: boolean } };
   "agent-connect-snippet": { request: { agent: "generic" | "claude" | "cursor" | "codex"; profile: string; operationId?: string }; value: AgentConnectSnippet };
+  "db-sources-list": { request: { operationId?: string }; value: { items: DbSource[] } };
+  "db-source-add": { request: { kind: "postgres" | "mysql"; name: string; host: string; port: number; database: string; user: string; password: string; caPem: string; include: string[]; operationId?: string }; value: DbSource };
+  "db-source-test": { request: { name: string; operationId?: string }; value: { reachable: boolean } };
+  "db-source-remove": { request: { name: string; operationId?: string }; value: { removed: true } };
   "drive-get": { request: { driveId: string; operationId?: string }; value: EngineDrive };
   "drive-create": {
     request:

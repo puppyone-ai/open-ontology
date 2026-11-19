@@ -47,6 +47,7 @@ Same names and request/response shapes as the earlier Super Drive bridge (`share
 `usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel`
 `cloud-mode-read cloud-mode-set audit-shares audit-verify cloud-token-create cloud-token-revoke`
 `agent-token-create agent-token-list agent-token-revoke agent-connect-snippet` (Agent > Connect, below)
+`db-sources-list db-source-add db-source-test db-source-remove` (Sources > Add source > Database, below)
 `engine-connect-remote engine-disconnect-remote` (below)
 
 Differences from the earlier bridge:
@@ -83,6 +84,23 @@ Agent tokens are docs-api 1.6 (`ooa_`); the token is shown once and only in the 
 The snippet never contains a credential (the profile holds a private reference to it). Getting text onto the clipboard is the renderer's explicit
 `shell.copyToClipboard(text)` after a click; the app has no channel that writes into another application's configuration files.
 
+## Database sources
+
+Registered the way `oo source add postgres|mysql` does it: main runs that command with `--password-stdin`, so the password is never on a command line and
+the CLI keeps it as a 0600 file in `<engine dir>/secrets`; the stack file (`<engine dir>/db/stack.yaml`) carries only `file:` references. The trust anchor
+(PEM, required for postgres and mysql) is written as a 0600 file next to it. Nothing returns or logs a credential.
+
+```ts
+"db-sources-list":  { request: {}; value: { items: DbSource[] } };
+"db-source-add":    { request: { kind: "postgres" | "mysql"; name: string /* ^[A-Za-z0-9_-]{1,64}$ */; host: string; port: number; database: string; user: string;
+                                 password: string; caPem: string /* PEM certificate(s) */; include: string[] /* schema.table or schema.* */ }; value: DbSource };
+"db-source-test":   { request: { name: string }; value: { reachable: boolean } };   // TCP reachability; the full read-only probe is `oo doctor`
+"db-source-remove": { request: { name: string }; value: { removed: true } };         // also deletes the credential file the add created
+type DbSource = { name: string; kind: string; host: string; port: number; database: string; user: string; include: string[]; tls: boolean };
+```
+
+Errors: `SO_DB_SOURCE_INVALID` (a value the CLI refused), `SO_DB_SOURCE_EXISTS` (the name is taken), `SO_DB_SOURCE_FAILED` (anything else).
+
 ## Push channels (`subscribe`)
 
 `engine-changed events connection-changed resync-required upload-progress` (payloads unchanged).
@@ -98,7 +116,7 @@ interface ShellInfo {
   releaseUrl: string;
 }
 interface ShellSettings {
-  language: "system" | "en" | "zh-Hans";
+  language: "system" | "en" | "zh-Hans" | "es" | "pt-BR" | "fr" | "de" | "ja" | "ko";
   ooExecutable: string | null;    // absolute path chosen by the user; main-owned, writable only via engine-set-executable
   runtime: "auto" | "docker" | "lite";
   keepEngineOnQuit: boolean;
@@ -106,7 +124,7 @@ interface ShellSettings {
 }
 ```
 
-`writeSettings` rejects (SO_INVALID_REQUEST) on a key outside the list and otherwise resolves with the full settings; it accepts `language` only (the app is light-only, D87: there is no theme setting); the other keys are read-only to the renderer and change through the engine channels above.
+`writeSettings` rejects (SO_INVALID_REQUEST) on a key outside the list and otherwise resolves with the full settings; it accepts `language` only (any of the eight languages; the app is light-only, D87: there is no theme setting); the other keys are read-only to the renderer and change through the engine channels above.
 
 ## Main-side ownership
 

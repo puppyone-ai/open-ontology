@@ -54,7 +54,8 @@
     --so-text-md: 15px;
     --so-text-lg: 20px;
     --so-text-xl: 28px;
-    --so-leading: 1.45;
+    --so-leading: 20px; /* whole pixels: line boxes, rows and controls stay on the pixel grid (D86) */
+    --so-leading-xs: 16px;
     --so-weight-regular: 400;
     --so-weight-medium: 500;
     --so-weight-semibold: 600;

@@ -12,6 +12,9 @@ export const ENTERPRISE_CHANNELS = Object.freeze([
 /** Agent › Connect: Agent tokens (docs-api 1.6) and the connection text for an Agent. Nothing here writes into another app's files. */
 export const AGENT_CHANNELS = Object.freeze(["agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet"]);
 
+/** Sources › Add source › Database: the same registration `oo source add postgres|mysql` does, with the password handed over once. */
+export const DATABASE_CHANNELS = Object.freeze(["db-sources-list", "db-source-add", "db-source-test", "db-source-remove"]);
+
 /** Request/response channels implemented so far. `electron/preload.cjs` repeats this list (a sandboxed preload cannot import it); a test keeps both equal. */
 export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
@@ -23,6 +26,7 @@ export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   ...ONTOLOGY_CHANNELS,
   ...ENTERPRISE_CHANNELS,
   ...AGENT_CHANNELS,
+  ...DATABASE_CHANNELS,
 ]);
 
 /** Push channels main -> renderer. Same duplication rule as above. */
@@ -81,6 +85,10 @@ export const field = Object.freeze({
   pattern: (expression) => (value) => {
     if (typeof value !== "string" || !expression.test(value)) throw invalidRequest();
     return value;
+  },
+  patternList: (expression, maxItems) => (value) => {
+    if (!Array.isArray(value) || value.length === 0 || value.length > maxItems) throw invalidRequest();
+    return value.map((item) => field.pattern(expression)(item));
   },
   scopeList: (value) => {
     if (!Array.isArray(value) || value.length === 0 || value.length > 4 || new Set(value).size !== value.length) throw invalidRequest();
@@ -245,6 +253,20 @@ const REQUEST_FIELDS = Object.freeze({
   }),
   "agent-token-list": Object.freeze({}),
   "agent-token-revoke": Object.freeze({ tokenId: field.uuid }),
+  "db-sources-list": Object.freeze({}),
+  "db-source-add": Object.freeze({
+    kind: field.enum(["postgres", "mysql"]),
+    name: field.pattern(/^[A-Za-z0-9_-]{1,64}$/u),
+    host: field.pattern(/^[A-Za-z0-9._:-]{1,253}$/u),
+    port: field.int(1, 65535),
+    database: field.string(128, { minLength: 1 }),
+    user: field.string(128, { minLength: 1 }),
+    password: field.string(1024, { minLength: 1 }),
+    caPem: field.pattern(/^-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s-]{16,60000}-----END CERTIFICATE-----\s*$/u),
+    include: field.patternList(/^[A-Za-z0-9_$]{1,63}\.(?:[A-Za-z0-9_$]{1,63}|\*)$/u, 64),
+  }),
+  "db-source-test": Object.freeze({ name: field.pattern(/^[A-Za-z0-9_-]{1,64}$/u) }),
+  "db-source-remove": Object.freeze({ name: field.pattern(/^[A-Za-z0-9_-]{1,64}$/u) }),
   "agent-connect-snippet": Object.freeze({ agent: field.enum(["generic", "claude", "cursor", "codex"]), profile: field.pattern(/^[A-Za-z0-9._-]{1,64}$/u) }),
   "files-list": Object.freeze({
     driveId: field.uuid,

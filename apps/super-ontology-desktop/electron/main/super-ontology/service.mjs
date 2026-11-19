@@ -11,6 +11,7 @@ import { createCloudProxy } from "./cloud-proxy.mjs";
 import { createControlClient } from "./control-client.mjs";
 import { createControlHandlers } from "./control-handlers.mjs";
 import { createAgentHandlers } from "./agent-handlers.mjs";
+import { createDatabaseHandlers } from "./database-handlers.mjs";
 import { createEnterpriseHandlers } from "./enterprise-handlers.mjs";
 import { createEventBridge } from "./event-bridge.mjs";
 import { createDriveFileHandler, createDriveFileTokens } from "./drive-file-protocol.mjs";
@@ -199,6 +200,7 @@ export function createSuperOntologyService({
     ...suggestHandlers,
     ...createEnterpriseHandlers({ client }),
     ...createAgentHandlers({ client }),
+    ...createDatabaseHandlers({ lifecycle, directory: stateDir ? path.join(path.dirname(stateDir), "db") : null, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, stateDir, fsPromises }),
     ...createFileHandlers({ client, tokens: driveFileTokens }),
     ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, mediaDecoder, hostMount }),
     ...Object.fromEntries(["drive-create", "drive-update", "drive-delete"].map((name) => [name, watchesDrives(name, controlHandlers[name])])),

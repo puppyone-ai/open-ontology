@@ -16,6 +16,7 @@ const CHANNELS = new Set([
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
   "engine-connect-remote", "engine-disconnect-remote",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
+  "db-sources-list", "db-source-add", "db-source-test", "db-source-remove",
 ]);
 const PUSH_CHANNELS = ["engine-changed", "events", "connection-changed", "resync-required", "upload-progress"];
 const NOTICE_KINDS = new Set(["notice", "third-party", "license"]);

@@ -56,7 +56,7 @@ Rules:
 | id | element | attributes |
 |---|---|---|
 | `screen-home` **(T1)** | the Home screen | |
-| `home-count-sources` `home-count-entities` `home-count-facts` **(T1)** | scale numbers | `data-count` |
+| `home-count-sources` `home-count-files` `home-count-entities` `home-count-facts` **(T1)** | scale numbers | `data-count` |
 | `home-freshness` | freshness line | `data-state` |
 | `home-pending` | number waiting for confirmation (links to Ontology review) | `data-count` |
 | `home-next-step` | the next-step suggestion card | `data-step` |
@@ -70,7 +70,9 @@ Rules:
 | `source-list` `source-row` **(T1)** | one list for every kind of source | row: `data-name`, `data-kind` = `managed` `folder` `cloud` `database`, `data-state` = `idle` `syncing` `error` |
 | `add-source` **(T1)** | opens the add menu | |
 | `add-source-files` `add-source-folder` `add-source-cloud` `add-source-database` | menu entries | |
-| `add-source-confirm` `add-source-cancel` `add-source-error` | the add form | |
+| `add-source-confirm` `add-source-cancel` `add-source-error` | the add form (cloud and database) | |
+| `database-dialog` `db-kind` `db-name` `db-host` `db-port` `db-database` `db-user` `db-password` `db-ca` `db-tables` | the database form's dialog and fields | |
+| `db-source-list` `db-source-row` `db-source-test` `db-source-remove` `db-source-remove-confirm` | saved databases on Sources (`data-name`, `data-kind`) | |
 | `screen-source-detail` **(T1)** | one source's page | `data-name` |
 | `source-sync` | start a sync | |
 | `file-panel` `file-row` **(T1)** | file list of a source | row: `data-name`, `data-state` |

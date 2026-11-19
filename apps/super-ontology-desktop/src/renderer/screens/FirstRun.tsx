@@ -6,7 +6,7 @@ import { useApp } from "../hooks/useApp";
 import { useErrorText } from "../hooks/useText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
-import { selectDrives } from "../model/superDriveSelectors";
+import { selectDrives, selectOntologyVersion } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine, type Tone as ModelTone } from "../model/superDriveStateModel";
 import { getUploadQueue } from "../model/uploadStore";
 import type { EntitySearchRow } from "../model/superDriveOntologyTypes";
@@ -42,6 +42,7 @@ export function FirstRun() {
   const ready = isEngineReady(engine);
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const files = useSuperDriveSelector((s) => Object.values(s.files));
+  const version = useSuperDriveSelector(selectOntologyVersion);
   const presented = presentEngine(engine);
   const started = useRef(false);
   const [error, setError] = useState<SuperDriveError | null>(null);
@@ -80,7 +81,7 @@ export function FirstRun() {
       const first = people.find((e) => (e.counts?.facts ?? 0) > 0);
       if (first) void ontologyApi.entityDetail({ entityIdOrKey: first.key }).then((detail) => { if (detail.ok) setFact(detail.value.facts?.find((f) => (f.evidence ?? []).length > 0) ?? null); });
     });
-  }, [step, ready]);
+  }, [step, ready, version]);
   const understood = drives.length > 0 && processing === 0 && published > 0;
   const { addFolder, error: folderError } = useAddFolder(() => setStep(3));
   const [cloud, setCloud] = useState(false);
@@ -98,13 +99,13 @@ export function FirstRun() {
             <>
               <h1 className="so-firstrun-title">{t("app.first.welcome.title")}</h1>
               <p className="so-firstrun-lead">{t("app.first.welcome.body")}</p>
-              <Card className="so-form" role="status" aria-live="polite" data-testid="firstrun-progress" data-state={engineState}>
+              <Card id="firstrun-engine-state" className="so-form" role="status" aria-live="polite" data-testid="firstrun-progress" data-state={engineState}>
                 <div className="so-row">
                   {ready ? <StatusDot tone="success" label={t("app.first.engine.ready")} /> : <><Spinner size={16} label={t("app.first.engine.starting")} /><span>{engine?.status === "starting" || engine?.status === "probing" || !engine ? t("app.first.engine.starting") : t(presented.messageId, presented.values as Record<string, string>)}</span></>}
                 </div>
                 {!ready && engine && !["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) && <Notice tone={presented.tone === "danger" ? "danger" : "warning"} title={t(presented.pillId)} action={<Button size="compact" onClick={() => finish()}>{t("app.first.engine.settings")}</Button>}>{t("app.first.engine.help")}</Notice>}
               </Card>
-              <div className="so-firstrun-actions"><Button variant="primary" onClick={() => setStep(2)} data-testid="firstrun-start">{t("app.first.start")}</Button></div>
+              <div className="so-firstrun-actions"><Button variant="primary" disabled={!ready} aria-describedby="firstrun-engine-state" onClick={() => setStep(2)} data-testid="firstrun-start">{t("app.first.start")}</Button></div>
             </>
           )}
           {step === 2 && (
