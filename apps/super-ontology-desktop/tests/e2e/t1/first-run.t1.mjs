@@ -29,6 +29,9 @@ runScenario({ name: "first-run", title: "First run: welcome to an agent token", 
 
   // 4. The ontology: the first entity with a fact that links back to its source.
   await s.click("firstrun-see-ontology");
+  // The step fills in (entity chips, the first fact) above its buttons: let it settle before aiming at a button.
+  await s.until("!!document.querySelector('[data-testid=\"first-fact\"]')", "the first fact on the step", { timeoutMs: 60_000 }).catch(() => undefined);
+  await s.wait(500);
   await s.click("firstrun-open-ontology");
   await s.waitFor("screen-ontology");
   const project = await s.waitForEntity(/^(project )?alpha$/u, { timeoutMs: 90_000 });

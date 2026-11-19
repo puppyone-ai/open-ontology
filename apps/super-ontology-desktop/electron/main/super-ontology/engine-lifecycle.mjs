@@ -517,10 +517,6 @@ export function createEngineLifecycle({
     connectRemote,
     disconnectRemote,
     shutdown,
-    /** What the app found to run `oo` with (path and environment), for the commands it runs next to the engine; null before the first preflight. */
-    launchInfo() {
-      return launchContext?.ooPath ? { ooPath: launchContext.ooPath, environment: launchContext.environment } : null;
-    },
     /** An `engine.health_changed` event arrived: do not wait for the next poll. */
     pokeHealth() {
       if (credentials && !stale(generation) && ACTIVE_STATUSES.has(snapshots.peek().status)) schedulePoll(generation, 0);

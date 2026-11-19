@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { stubBridgeSource } from "./stub-bridge.mjs";
 
 const app = "http://127.0.0.1:5276/";
-type Scenario = { engine: "healthy" | "starting"; firstRun?: boolean; databases?: boolean };
+type Scenario = { engine: "healthy" | "starting"; firstRun?: boolean };
 
 async function open(page: Page, scenario: Scenario) {
   await page.clock.install({ time: new Date("2026-11-12T10:00:00Z") });
@@ -20,21 +20,11 @@ test.describe("screens", () => {
     await page.locator("[data-testid=home-count-entities][data-count]").waitFor();
     await expect(page).toHaveScreenshot("home.png");
   });
-  test("sources with a database", async ({ page }) => {
-    await open(page, { engine: "healthy", databases: true });
-    await page.locator("[data-testid=nav-sources]").click();
-    await page.locator("[data-testid=db-source-row]").waitFor();
-    await expect(page).toHaveScreenshot("sources.png");
-  });
-  test("database dialog: empty, then what is missing", async ({ page }) => {
+  test("sources", async ({ page }) => {
     await open(page, { engine: "healthy" });
     await page.locator("[data-testid=nav-sources]").click();
-    await page.locator("[data-testid=add-source]").first().click();
-    await page.locator("[data-testid=add-source-database]").click();
-    await page.locator("[data-testid=database-dialog]").waitFor();
-    await expect(page).toHaveScreenshot("database-dialog.png");
-    await page.locator("[data-testid=add-source-confirm]").click();
-    await expect(page).toHaveScreenshot("database-dialog-required.png");
+    await page.locator("[data-testid=screen-sources]").waitFor();
+    await expect(page).toHaveScreenshot("sources.png");
   });
   test("ontology entities", async ({ page }) => {
     await open(page, { engine: "healthy" });

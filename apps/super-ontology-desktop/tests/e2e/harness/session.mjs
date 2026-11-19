@@ -77,14 +77,10 @@ export async function runScenario(options, scenario) {
     }
     // The embedded runtime is the engine's own (`oo serve --runtime embedded` brings its PostgreSQL); the stub folder only lets the
     // app's preflight see "an embedded runtime is present", like the folder the DMG ships.
-    if (packagedApp) {
-      // The packaged app finds its own bundled `oo` and embedded runtime: nothing is arranged for it.
-      Object.assign(appSettings, { runtime: "lite" });
-    } else {
-      const lite = await createLiteRuntimeStub(root);
-      environment.SUPER_ONTOLOGY_LITE_DIR = lite;
-      Object.assign(appSettings, { ooExecutable: state.ooBinary, runtime: "lite" });
-    }
+    const lite = await createLiteRuntimeStub(root);
+    environment.SUPER_ONTOLOGY_LITE_DIR = lite;
+    // The packaged app runs its own bundled `oo` (no executable is set); a DMG built without the PostgreSQL runtime folder still gets the stub.
+    Object.assign(appSettings, packagedApp ? { runtime: "lite" } : { ooExecutable: state.ooBinary, runtime: "lite" });
   } else {
     state.toolbox = await createFakeToolbox();
     Object.assign(appSettings, { ooExecutable: await state.toolbox.install("oo", "fake-oo"), runtime: "auto" });

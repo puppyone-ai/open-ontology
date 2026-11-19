@@ -1,3 +1,4 @@
+/* global window */
 // A deterministic stand-in for the preload bridge, installed before the page loads: the built renderer shows fixed data, so its screens can be
 // compared pixel for pixel. Answers the channels the shown screens read; every other channel answers an empty page.
 export function stubBridgeSource(scenario) {
@@ -16,7 +17,6 @@ export function stubBridgeSource(scenario) {
         case "entities-search": return { items: entities, next_cursor: null };
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z" }], next_cursor: null };
         case "agent-token-list": return empty;
-        case "db-sources-list": return { items: scenario.databases ? [{ name: "orders-db", kind: "postgres", host: "db.internal", port: 5432, database: "demo", user: "reader", include: ["public.orders"], tls: true }] : [] };
         case "model-config-read": return { configured: false };
         case "events-subscribe": return { instanceId: "stub", seq: 0 };
         default: return empty;

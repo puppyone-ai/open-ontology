@@ -42,7 +42,7 @@ Rules:
 | `firstrun-file-row` **(T1)** | step 3: one row per file | `data-name`, `data-state` (the engine's file state) |
 | `firstrun-continue` | step 3: leave processing in the background and go on | |
 | `firstrun-see-ontology` **(T1)** | step 3: go on to what was found (the files may still be processing) | |
-| `firstrun-open-ontology` | step 4: open the Ontology screen | |
+| `firstrun-open-ontology` `first-fact` | step 4: open the Ontology screen; the first fact with its source | |
 | `firstrun-connect-agent` | step 4: go on to the agent step | |
 | `firstrun-create-token` **(T1)** | step 5: create the read-only token | |
 | `firstrun-agent-claude` `firstrun-agent-cursor` `firstrun-agent-codex` `firstrun-agent-generic` | step 5: agent choice | `data-selected` |
@@ -70,9 +70,7 @@ Rules:
 | `source-list` `source-row` **(T1)** | one list for every kind of source | row: `data-name`, `data-kind` = `managed` `folder` `cloud` `database`, `data-state` = `idle` `syncing` `error` |
 | `add-source` **(T1)** | opens the add menu | |
 | `add-source-files` `add-source-folder` `add-source-cloud` `add-source-database` | menu entries | |
-| `add-source-confirm` `add-source-cancel` `add-source-error` | the add form (cloud and database) | |
-| `database-dialog` `db-kind` `db-name` `db-host` `db-port` `db-database` `db-user` `db-password` `db-ca` `db-tables` | the database form's dialog and fields | |
-| `db-source-list` `db-source-row` `db-source-test` `db-source-remove` `db-source-remove-confirm` | saved databases on Sources (`data-name`, `data-kind`) | |
+| `add-source-confirm` `add-source-cancel` `add-source-error` | the add form | |
 | `screen-source-detail` **(T1)** | one source's page | `data-name` |
 | `source-sync` | start a sync | |
 | `file-panel` `file-row` **(T1)** | file list of a source | row: `data-name`, `data-state` |

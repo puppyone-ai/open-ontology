@@ -7,7 +7,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { dockerAvailable, startTlsPostgres } from "../tests/e2e/harness/postgres.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -20,7 +19,6 @@ fs.mkdirSync(outDir, { recursive: true });
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "so-shots-"));
 fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ language: "en", runtime: "auto" }));
 
-const pg = (await dockerAvailable().catch(() => false)) ? await startTlsPostgres(userData).catch((error) => { console.log("no database for the shots:", error.message); return null; }) : null;
 const languages = (option("--languages", "de,fr")).split(",").filter(Boolean);
 
 const app = await _electron.launch({
@@ -98,20 +96,6 @@ try {
   await pause(400); await shot("add-cloud-dialog");
   await page.keyboard.press("Escape"); await pause(300);
 
-  // Database source: the empty form, what the form says is missing, the saved row and its connection test.
-  await app$("[data-testid=add-source]").click(); await pause(300);
-  await app$("[data-testid=add-source-database]").click(); await pause(400);
-  await shot("add-database-dialog");
-  await app$("[data-testid=add-source-confirm]").click(); await pause(300); await shot("add-database-required");
-  if (pg) {
-    for (const [id, text] of [["db-name", "orders-db"], ["db-host", pg.host], ["db-port", String(pg.port)], ["db-database", pg.database], ["db-user", pg.user], ["db-password", pg.password], ["db-ca", pg.caPem.trim()], ["db-tables", "public.orders"]]) await page.locator(`[data-testid=${id}]`).fill(text);
-    await page.locator("[data-testid=db-port]").fill("99999"); await app$("[data-testid=add-source-confirm]").click(); await pause(300); await shot("add-database-invalid");
-    await page.locator("[data-testid=db-port]").fill(String(pg.port));
-    await shot("add-database-filled");
-    await app$("[data-testid=add-source-confirm]").click();
-    await app$("[data-testid=db-source-row]").waitFor({ timeout: 60_000 }); await pause(500); await shot("sources-with-database");
-    await app$("[data-testid=db-source-test]").click(); await pause(1200); await shot("database-reachable");
-  } else { await page.keyboard.press("Escape"); await pause(300); }
   await page.locator("[data-testid=source-row]").first().click(); await pause(900); await shot("source-detail");
   await page.locator("tr[data-selectable]").first().click(); await pause(900); await shot("source-file-panel");
   await go("ontology"); await shot("ontology-entities");
@@ -155,7 +139,6 @@ try {
     await go("home"); await shot(`lang-${language}-home`);
     await go("sources"); await shot(`lang-${language}-sources`);
     await app$("[data-testid=add-source]").click(); await pause(300); await shot(`lang-${language}-add-menu`);
-    await app$("[data-testid=add-source-database]").click(); await pause(400); await shot(`lang-${language}-database-dialog`);
     await page.keyboard.press("Escape"); await pause(300);
     await go("ontology"); await shot(`lang-${language}-ontology`);
     await go("agents"); await shot(`lang-${language}-agents`);
@@ -170,7 +153,6 @@ try {
   process.exitCode = 1;
 } finally {
   await app.close().catch(() => {});
-  await pg?.stop();
   fs.rmSync(userData, { recursive: true, force: true });
 }
 console.log(`${shots.length} states x 2 scales in ${outDir}`);

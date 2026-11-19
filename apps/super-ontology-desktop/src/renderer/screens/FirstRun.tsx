@@ -87,6 +87,8 @@ export function FirstRun() {
   const [cloud, setCloud] = useState(false);
   const engineState = ready ? "ready" : !engine || ["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) ? "starting" : "error";
 
+  useEffect(() => { if (step > 1) window.sessionStorage.setItem("so.firstRun.engaged", "1"); }, [step]);
+
   const finish = (to?: "ontology" | "agents") => { app.closeFirstRun(true); if (to) app.go(to, to === "agents" ? { agents: "connect" } : { ontology: "entities" }); };
 
   return (

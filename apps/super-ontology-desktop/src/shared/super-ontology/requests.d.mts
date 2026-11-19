@@ -10,7 +10,6 @@ export const field: Readonly<{
   int: (min: number, max: number) => (value: unknown) => number;
   string: (maxLength: number, options?: { minLength?: number }) => (value: unknown) => string;
   drivePath: (value: unknown) => string;
-  patternList: (expression: RegExp, maxItems: number) => (value: unknown) => string[];
   cursor: (value: unknown) => string;
   stringList: (maxItems: number, maxLength: number) => (value: unknown) => string[];
   fileStates: (value: unknown) => string[];
@@ -19,4 +18,3 @@ export const field: Readonly<{
 }>;
 export const OPERATION_ID_REQUIRED: readonly string[];
 export const AGENT_CHANNELS: readonly string[];
-export const DATABASE_CHANNELS: readonly string[];
