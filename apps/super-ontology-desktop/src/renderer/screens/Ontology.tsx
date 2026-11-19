@@ -8,6 +8,8 @@ import { EntityList } from "./ontology/EntityList";
 import { EntityPage } from "./ontology/EntityPage";
 import { ReviewQueue } from "./ontology/ReviewQueue";
 import { Conflicts } from "./ontology/Conflicts";
+import { QueryPanel } from "./ontology/Query";
+import { OntologyFiles } from "./ontology/OntologyFiles";
 
 export function Ontology() {
   const { t } = useLocalization();
@@ -22,10 +24,12 @@ export function Ontology() {
       <PageHeader title={t("app.ontology.title")} description={t("app.ontology.description")} />
       <div style={{ marginBottom: "var(--so-space-5)" }}>
         <Tabs<OntologyTab> label={t("app.ontology.title")} value={app.ontologyTab} onChange={app.setOntologyTab}
-          tabs={[{ value: "entities", label: t("app.ontology.tab.entities"), testId: "ontology-tab-entities" }, { value: "review", label: t("app.ontology.tab.review"), count: pending > 0 ? pending : undefined, testId: "ontology-tab-review" }, { value: "conflicts", label: t("app.ontology.tab.conflicts"), testId: "ontology-tab-conflicts" }]} />
+          tabs={[{ value: "entities", label: t("app.ontology.tab.entities"), testId: "ontology-tab-entities" }, { value: "review", label: t("app.ontology.tab.review"), count: pending > 0 ? pending : undefined, testId: "ontology-tab-review" }, { value: "conflicts", label: t("app.ontology.tab.conflicts"), testId: "ontology-tab-conflicts" }, { value: "query", label: t("app.ontology.tab.query"), testId: "ontology-tab-query" }, { value: "files", label: t("app.ontology.tab.files"), testId: "ontology-tab-files" }]} />
       </div>
       {app.ontologyTab === "entities" && <EntityList onOpen={setEntityKey} />}
       {app.ontologyTab === "review" && <ReviewQueue />}
+      {app.ontologyTab === "query" && <QueryPanel />}
+      {app.ontologyTab === "files" && <OntologyFiles />}
       {app.ontologyTab === "conflicts" && <Conflicts onOpenEntity={(key) => { app.setOntologyTab("entities"); setEntityKey(key); }} />}
     </div>
   );
