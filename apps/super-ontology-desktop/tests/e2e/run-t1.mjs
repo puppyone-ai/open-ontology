@@ -11,7 +11,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const only = option("--only")?.split(",");
-const order = ["engine-boot", "first-run", "home", "sources", "ontology", "agents", "settings", "database"];
+const order = ["engine-boot", "first-run", "home", "sources", "ontology", "agents", "settings"];
 const selected = order.filter((name) => !only || only.includes(name));
 const env = { ...process.env, ...(option("--engine") ? { SO_T1_ENGINE: option("--engine") } : {}) };
 const ATTEMPT_MS = 5 * 60_000;
