@@ -1,0 +1,66 @@
+Project A
+No Git
+0
+Project files
+Super Drive
+No Drive
+Register new Drive…
+Files
+Review
+Suggestions
+Shares
+Engine
+Settings
+Super Drive
+Healthy
+Drives
+Model
+Sharing
+Remote access
+Drives
+Register new Drive
+
+No Drives yet.
+
+Where your data goes
+Files in local folders: stay on this computer.
+Processing results: stay on this computer.
+Model: nothing is sent; content is processed on this computer with rules only.
+puppyone Cloud: not used.
+
+Your files and processing results always stay on this computer and are never uploaded to the puppyone cloud, unless you choose puppyone Cloud.
+
+Use on this computer
+Built-in Agent
+Terminal
+Register a Drive
+NAME
+WHERE ARE THE FILES?
+Folder on this computer
+S3-compatible storage
+Alibaba Cloud OSS
+Tencent Cloud COS
+Cloudflare R2
+ENDPOINTAN HTTPS:// ADDRESS; HTTP:// ONLY FOR STORAGE ON THIS COMPUTER.
+REGION (OPTIONAL)
+BUCKET
+FOLDER PREFIX (OPTIONAL)
+Use path-style addressing
+ACCESS KEY ID
+SECRET ACCESS KEY
+SESSION TOKEN (OPTIONAL)
+
+The keys are saved in a private file on this computer and are never shown again.
+
+puppyone only reads this bucket. It never changes or deletes your files.
+
+Which folders it may read
+ONLY THESE FOLDERS (ONE PER LINE; EMPTY MEANS EVERYTHING)
+NEVER THESE FOLDERS (ONE PER LINE)
+
+Write folder paths from the top of the Drive, like Projects/Payroll. A folder on the never list is not read, parsed or shown, and it wins over the other list.
+
+The engine couldn't understand the request
+
+Cancel
+Register

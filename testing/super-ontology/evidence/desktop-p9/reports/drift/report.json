@@ -1,0 +1,71 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:50:12.305Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the engine mounted the share",
+      "ok": true,
+      "detail": "200 active"
+    },
+    {
+      "check": "the share starts active",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the share list shows 'Needs refresh' with the counts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the toolbar and the sidebar carry a drift count",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the engine agrees: drifted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the preview says what changed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the old share ends as refreshed",
+      "ok": true,
+      "detail": "refreshed"
+    },
+    {
+      "check": "a new active share links back to it",
+      "ok": true,
+      "detail": "active"
+    },
+    {
+      "check": "the list shows the chain note on the new share",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the folder now holds the new share's BRIEF with what changed since the last version",
+      "ok": true,
+      "detail": "977 bytes"
+    },
+    {
+      "check": "the folder's SHARE.json names the new share",
+      "ok": true,
+      "detail": "e8f71545-3506-416b-8171-d2e11d8071e1"
+    }
+  ],
+  "timings": {
+    "editToDriftSeconds": 4.7
+  },
+  "notes": [
+    "edit to drift took 4.7 s (the card asks 5 s after the new version is published; the edit itself needs processing time first)"
+  ],
+  "error": null,
+  "driveFiles": 20
+}

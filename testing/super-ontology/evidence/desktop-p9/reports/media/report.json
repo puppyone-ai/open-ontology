@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:50:43.208Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the engine lists the recording",
+      "ok": true,
+      "detail": "stored "
+    }
+  ],
+  "timings": {},
+  "notes": [
+    "engine state of weekly-sync.m4a: stored ; rows: D-2026-01-周报每周五发送.mdPublished333 Bnow | D-2026-02-星图采用自研引擎.mdPublished324 Bnow | D-2026-03-知了客服采购外部模型.mdPublished322 Bnow | D-2026-04-周报改为每周四发送.mdPublished300 Bnow | D-2026-05-星图改用开源图表库.mdPublished457 Bnow | D-2026-06-办公迁至滨江.mdPublished254 Bnow | D-2026-08-取消周报.mdPublished296 Bnow | slides-talk.mp4Stored—now | weekly-sync.m4aStored—now | 周若溪.mdPublished172 Bnow | 孙晓棠.mdPublished144 Bnow | 林川.mdPub",
+    "the engine did not ask for a host decode in this runtime (no media parser sidecar): the codec card steps were not exercised"
+  ],
+  "error": null,
+  "driveFiles": 20
+}

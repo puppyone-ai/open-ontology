@@ -1,0 +1,79 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:48:56.439Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the engine accepts the recorded model",
+      "ok": true,
+      "detail": "200 {\"base_url\":\"http://127.0.0.1:58480/v1\",\"configured\":true,\"key_ref\":\"file:/private/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-review-O9xbag/model-secrets/model-key\",\"model\":\"recorded-model-1\",\"provider\":\"openai-compatible\",\"revision\":2,\"status\":\"ok\"} {\"configured\":false,\"revision\":1,\"status\":\"not_configured\"}"
+    },
+    {
+      "check": "the Drive uses the model",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "check": "the engine holds a pending item for a person",
+      "ok": true,
+      "detail": "low_confidence_fact"
+    },
+    {
+      "check": "the sidebar counts the pending items",
+      "ok": true,
+      "detail": "1 vs 1"
+    },
+    {
+      "check": "the queue is grouped by source file",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the page shows the count and a version",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a conflict has no whole-source accept (a person must choose a side)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the result is one status line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the engine's queue is empty",
+      "ok": true,
+      "detail": "0 left"
+    },
+    {
+      "check": "the engine recorded the decision as accepted",
+      "ok": true,
+      "detail": "1 accepted"
+    },
+    {
+      "check": "the page shows the engine's newest version",
+      "ok": true,
+      "detail": "v2 -> v2"
+    },
+    {
+      "check": "the page shows what the engine holds",
+      "ok": true,
+      "detail": "0 pending in the engine"
+    },
+    {
+      "check": "the page shows the empty queue",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {},
+  "notes": [
+    "pending kinds: low_confidence_fact"
+  ],
+  "error": null,
+  "driveFiles": 20
+}

@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:44:24.609Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the overview names the parser and the block count",
+      "ok": true,
+      "detail": "oo-md 1 · 4 blocks"
+    },
+    {
+      "check": "the overview lists the processing history up to Published",
+      "ok": true,
+      "detail": "now Stored / now Queued / now Parsing · attempt 1 / now Parsed · attempt 1 / now Extracting · attempt 1 / now Indexed, publishing · attempt 1 / now Published"
+    },
+    {
+      "check": "the file is the one that was searched for",
+      "ok": true,
+      "detail": "星火计划.md"
+    },
+    {
+      "check": "the parsed blocks are listed with their source lines",
+      "ok": true,
+      "detail": "4 blocks, first at Lines 1–5"
+    },
+    {
+      "check": "Locate highlights the block's own text in the snippet",
+      "ok": true,
+      "detail": "type: project\nname: 星火计划\nowner: 林川"
+    },
+    {
+      "check": "the Parsed content tab is the selected tab",
+      "ok": true,
+      "detail": "[\"false\",\"true\",\"false\",\"false\"]"
+    }
+  ],
+  "timings": {},
+  "timeline": [],
+  "error": null,
+  "driveFiles": 20
+}

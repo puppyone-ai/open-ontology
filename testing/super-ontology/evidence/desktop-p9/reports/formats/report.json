@@ -1,0 +1,79 @@
+{
+  "ok": true,
+  "skipped": null,
+  "title": "Super Drive formats and failures",
+  "nativeInput": false,
+  "started": "2026-11-19T01:44:50.438Z",
+  "checks": [
+    {
+      "check": "every file reached a final state or says why it waits",
+      "ok": true,
+      "detail": "{\"published\":28,\"unsupported\":28,\"encrypted\":2,\"too_large\":1}"
+    },
+    {
+      "check": "the Markdown, CSV and JSON files are published",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "an unknown format is unsupported",
+      "ok": true,
+      "detail": "unsupported"
+    },
+    {
+      "check": "a file over the size limit is too_large",
+      "ok": true,
+      "detail": "too_large"
+    },
+    {
+      "check": "docx-encrypted.docx is encrypted",
+      "ok": true,
+      "detail": "encrypted"
+    },
+    {
+      "check": "pdf-encrypted.pdf is encrypted",
+      "ok": true,
+      "detail": "encrypted"
+    },
+    {
+      "check": "the list shows the engine's state for every file of the folder",
+      "ok": true,
+      "detail": "{\"docx-encrypted.docx\":\"encrypted\",\"legacy.doc\":\"unsupported\",\"pdf-encrypted.pdf\":\"encrypted\",\"too-big.md\":\"too_large\",\"unknown-format.xyz\":\"unsupported\",\"zip-bomb-ratio.docx\":\"unsupported\",\"zip-bomb-size.xlsx\":\"unsupported\",\"zip-traversal.docx\":\"unsupported\"} vs {\"docx-encrypted.docx\":\"encrypted\",\"legacy.doc\":\"unsupported\",\"pdf-encrypted.pdf\":\"encrypted\",\"too-big.md\":\"too_large\",\"unknown-format.xyz\":\"unsupported\",\"zip-bomb-ratio.docx\":\"unsupported\",\"zip-bomb-size.xlsx\":\"unsupported\",\"zip-traversal.docx\":\"unsupported\"}"
+    },
+    {
+      "check": "a Cmd+click adds a second file to the selection",
+      "ok": true,
+      "detail": "2 selected"
+    },
+    {
+      "check": "the context menu offers the file's actions",
+      "ok": true,
+      "detail": "Open details, Copy path"
+    },
+    {
+      "check": "the upload service accepts a dropped path",
+      "ok": true,
+      "detail": "{\"ok\":true,\"value\":{\"batchId\":\"9663c804-e172-4de8-b39f-363c9dfb963f\",\"items\":[{\"itemId\":\"3c594014-b42f-415d-9819-62fb2fe1f97b\",\"name\":\"dropped.md\",\"relative\":\"d"
+    },
+    {
+      "check": "the uploaded file is stored, read and published",
+      "ok": true,
+      "detail": "published"
+    }
+  ],
+  "timings": {
+    "settleMs": 4035,
+    "note": "no file of this Drive failed to parse (the failure banner path was not exercised; fixtures missing?)"
+  },
+  "error": null,
+  "engineStates": {
+    "published": 28,
+    "unsupported": 28,
+    "encrypted": 2,
+    "too_large": 1
+  },
+  "failedFiles": [],
+  "notRun": [
+    "native Finder file drag (needs Accessibility and a Finder window): see t3-task-L3.md"
+  ]
+}

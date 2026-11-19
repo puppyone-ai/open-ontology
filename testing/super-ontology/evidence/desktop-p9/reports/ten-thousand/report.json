@@ -1,0 +1,96 @@
+{
+  "ok": true,
+  "skipped": null,
+  "title": "Super Drive 10000 files",
+  "nativeInput": false,
+  "started": "2026-11-19T01:53:20.332Z",
+  "checks": [
+    {
+      "check": "first paint of a 10000 file Drive is under 1000 ms",
+      "ok": true,
+      "detail": "128 ms (first row after 115 ms)"
+    },
+    {
+      "check": "the list knows all of them (rows announced to assistive technology)",
+      "ok": true,
+      "detail": "10001"
+    },
+    {
+      "check": "at most 120 rows are mounted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the whole list was scrolled to its end",
+      "ok": true,
+      "detail": "last mounted row index 10001 of 10001"
+    },
+    {
+      "check": "scrolling back up over the loaded list: frame interval p95 is at most 16.7 ms",
+      "ok": true,
+      "detail": "p50 8.3, p95 10, p99 16.7, max 18.1 ms over 998 frames"
+    },
+    {
+      "check": "scrolling down with the pages loading: frame interval p95 is at most 16.7 ms",
+      "ok": true,
+      "detail": "p50 8.3, p95 10, p99 16.8, max 25 ms over 998 frames"
+    },
+    {
+      "check": "no frame takes more than 100 ms",
+      "ok": true,
+      "detail": "down 25 ms, up 18.1 ms"
+    },
+    {
+      "check": "10000 state changes at once leave no frame over 100 ms",
+      "ok": true,
+      "detail": "p95 9.4, max 58.4 ms, 0 long tasks (longest 0 ms), first row updated after 175 ms"
+    },
+    {
+      "check": "the rows show the new state",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {
+    "firstPaintMs": 128,
+    "idleBaseline": {
+      "frames": 600,
+      "p50": 8.3,
+      "p95": 9.6,
+      "p99": 10.3,
+      "max": 10.4
+    },
+    "scrollDown": {
+      "frames": 998,
+      "p50": 8.3,
+      "p95": 10,
+      "p99": 16.8,
+      "max": 25
+    },
+    "scrollUp": {
+      "frames": 998,
+      "p50": 8.3,
+      "p95": 10,
+      "p99": 16.7,
+      "max": 18.1
+    },
+    "longTasksMs": [
+      71
+    ],
+    "flood": {
+      "frames": 193,
+      "p95": 9.4,
+      "max": 58.4,
+      "longTasks": 0,
+      "longestTaskMs": 0,
+      "firstRowMs": 175
+    }
+  },
+  "error": null,
+  "limits": {
+    "firstPaintMs": 1000,
+    "frameP95Ms": 16.7,
+    "frameMaxMs": 100
+  },
+  "renderer": "development dependencies"
+}

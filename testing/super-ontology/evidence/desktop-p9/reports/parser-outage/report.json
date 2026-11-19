@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "skipped": null,
+  "title": "Super Drive parser outage",
+  "nativeInput": false,
+  "started": "2026-11-19T01:46:17.212Z",
+  "checks": [],
+  "timings": {},
+  "error": "Error: Timed out waiting for the degraded engine\n    at until (file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/support/super-drive/electron-scenario.mjs:73:13)\n    at async file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/e2e/super-drive/processing/parser-outage.smoke.mjs:49:3\n    at async Object.execute (file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/support/super-drive/electron-scenario.mjs:252:9)"
+}
