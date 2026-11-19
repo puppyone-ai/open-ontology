@@ -756,9 +756,38 @@ fn free_loopback_port() -> Option<u16> {
     l.local_addr().ok().map(|a| a.port())
 }
 
-/// Find `deploy/docs`: `--deploy-dir`, `OO_DOCS_DEPLOY_DIR`, the working
-/// directory's `deploy/docs`, then the ancestors of this executable.
-pub fn find_deploy_dir(explicit: Option<&Path>) -> Option<PathBuf> {
+/// The compose files of `deploy/docs` that the runtime needs, built into the binary so a release `oo` is self-contained.
+const EMBEDDED_DEPLOY: [(&str, &str); 3] = [
+    ("compose.yaml", include_str!("../../../../deploy/docs/compose.yaml")),
+    ("images.lock.json", include_str!("../../../../deploy/docs/images.lock.json")),
+    ("postgres.sh", include_str!("../../../../deploy/docs/postgres.sh")),
+];
+
+/// Write the embedded files to `<state>/deploy/docs` (replacing them only when they differ) and return that directory.
+fn materialise_deploy(state: &Path) -> Option<PathBuf> {
+    let dir = state.join("deploy").join("docs");
+    fs::create_dir_all(&dir).ok()?;
+    for (name, text) in EMBEDDED_DEPLOY {
+        let path = dir.join(name);
+        if fs::read_to_string(&path).ok().as_deref() == Some(text) {
+            continue;
+        }
+        let tmp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
+        fs::write(&tmp, text).ok()?;
+        #[cfg(unix)]
+        if name.ends_with(".sh") {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&tmp, fs::Permissions::from_mode(0o755)).ok()?;
+        }
+        fs::rename(&tmp, &path).ok()?;
+    }
+    Some(dir)
+}
+
+/// Find `deploy/docs`: `--deploy-dir`, `OO_DOCS_DEPLOY_DIR` (both override and must be valid), the working
+/// directory's `deploy/docs`, the ancestors of this executable, and last the copy built into `oo`, which is
+/// written to `<state>/deploy/docs` on first use.
+pub fn find_deploy_dir(explicit: Option<&Path>, state: Option<&Path>) -> Option<PathBuf> {
     let ok = |p: &Path| p.join("compose.yaml").is_file() && p.join("images.lock.json").is_file();
     if let Some(p) = explicit {
         return ok(p).then(|| p.to_path_buf());
@@ -773,7 +802,10 @@ pub fn find_deploy_dir(explicit: Option<&Path>) -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         candidates.extend(exe.ancestors().map(|a| a.join("deploy/docs")));
     }
-    candidates.into_iter().find(|p| ok(p))
+    candidates
+        .into_iter()
+        .find(|p| ok(p))
+        .or_else(|| state.and_then(materialise_deploy))
 }
 
 fn image_id(reference: &str) -> Option<String> {
@@ -788,7 +820,7 @@ fn image_id(reference: &str) -> Option<String> {
 /// [`prepare`] (Docker answers, the compose plugin, the deploy files, the locked
 /// engine and parser images, the postgres image) without changing anything.
 /// `oo serve` in auto mode uses it to fall back to the Docker-free runtime.
-pub fn usable(deploy_dir: Option<&Path>) -> Result<(), String> {
+pub fn usable(deploy_dir: Option<&Path>, state: Option<&Path>) -> Result<(), String> {
     let arch = run(super::dockercli::docker().args(["info", "--format", "{{.Architecture}}"]))
         .ok()
         .filter(|o| o.status.success())
@@ -800,7 +832,7 @@ pub fn usable(deploy_dir: Option<&Path>) -> Result<(), String> {
         return Err("the docker compose plugin is missing".into());
     }
     let platform = platform_of(&arch).ok_or("unsupported Docker architecture")?;
-    let deploy = find_deploy_dir(deploy_dir).ok_or("deploy/docs was not found")?;
+    let deploy = find_deploy_dir(deploy_dir, state).ok_or("deploy/docs was not found")?;
     let lock: Value = fs::read_to_string(deploy.join("images.lock.json"))
         .ok()
         .and_then(|t| serde_json::from_str(&t).ok())
@@ -849,7 +881,7 @@ pub fn prepare(
     };
 
     // 2. image digests
-    let Some(deploy) = find_deploy_dir(deploy_dir) else {
+    let Some(deploy) = find_deploy_dir(deploy_dir, Some(state)) else {
         return fail(
             exit::ENGINE_MISSING,
             "deploy/docs was not found; set --deploy-dir or OO_DOCS_DEPLOY_DIR",
@@ -1058,6 +1090,21 @@ fn ensure_pki(pki: &Path, db_image: &str, uid: u32, gid: u32) -> Result<(String,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_embedded_deploy_files_are_written_once_into_the_state_dir() {
+        let state = std::env::temp_dir().join(format!("oo-compose-embedded-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&state);
+        let dir = materialise_deploy(&state).expect("written");
+        assert_eq!(dir, state.join("deploy").join("docs"));
+        for (name, text) in EMBEDDED_DEPLOY {
+            assert_eq!(fs::read_to_string(dir.join(name)).unwrap(), text);
+        }
+        assert!(dir.join("compose.yaml").is_file() && dir.join("images.lock.json").is_file());
+        let again = materialise_deploy(&state).expect("idempotent");
+        assert_eq!(again, dir);
+        let _ = fs::remove_dir_all(&state);
+    }
 
     fn lock() -> Value {
         let id = |c: char| format!("sha256:{}", c.to_string().repeat(64));

@@ -17,7 +17,7 @@ files:
 extraResources:
   - from: build/oo-bundle
     to: oo
-    filter: ["oo", "oo-bundle.json"]
+    filter: ["oo", "oo-docs-engine", "oo-bundle.json"]
   - from: build/generated/legal
     to: legal
 electronLanguages: [en, zh_CN]
