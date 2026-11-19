@@ -440,7 +440,7 @@
       "http": null,
       "state_code": true,
       "retryable": false,
-      "meaning_zh": "无可用解码器（D65）",
+      "meaning_zh": "无可用解码器（D65）；宿主机写好解码产物后可 files:retry（docs-api 1.11）",
       "details": [],
       "i18n_key": "super-drive.errors.DOCS_PARSE_CODEC_UNAVAILABLE",
       "added_by": "10 §8.8/§16.10, 00 D65"
