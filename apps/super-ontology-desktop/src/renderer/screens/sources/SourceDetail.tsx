@@ -70,7 +70,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
       </div>
       <PageHeader title={drive.name} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
         actions={<>
-          {fresh && <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} />}
+          {fresh && <span style={{ display: "contents" }} data-testid="source-freshness" data-freshness={fresh}><StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} /></span>}
           <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }} data-testid="source-sync">{t("app.sources.sync")}</Button>
           {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { if (e.target.files) void getUploadQueue().enqueueFiles(drive.id, path, e.target.files); e.target.value = ""; }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
           <IconButton ref={menuAnchor} icon={MoreHorizontal} label={t("app.sources.more")} variant="secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} />
