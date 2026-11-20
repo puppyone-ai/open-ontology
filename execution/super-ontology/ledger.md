@@ -291,6 +291,7 @@
 | SO-F-S20-14 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 743d5a885 → 743d5a885 | — | apps/super-ontology-desktop/ | Bring the language setting up to the sibling app's behaviour |
 | SO-F-S20-15 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 073bdba54 → 073bdba54 | — | apps/super-ontology-desktop/ | Keep the CLI cause first and settle terms after the visual review |
 | SO-F-S20-16 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 912375045 → 912375045 | — | apps/super-ontology-desktop/ | Add a locale screenshot tool and a language switch for the T1 runs |
+| SO-F-S20-30 | D46 | merged | feat/super-ontology (App 车道 W 并入) | f09ea9546 → f09ea9546 | — | apps/super-ontology-desktop/ | Drive the P07 open panel with checks and report the attempts it took |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
