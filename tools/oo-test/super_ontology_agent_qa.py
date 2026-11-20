@@ -36,19 +36,16 @@ SECRETS = Path(pwd.getpwuid(os.getuid()).pw_dir) / ".config/open-ontology/secret
 ALLOWED = {
     ("ontology", "search"), ("ontology", "entity"), ("ontology", "query"), ("ontology", "schema"),
     ("ontology", "sources"),
-    ("docs", "entity"), ("docs", "files"), ("docs", "drive"),
-    ("context", "list"),
     ("help", None), ("agent-skill", None),
 }
-DOCS_SUB_OK = {("docs", "entity"): {"search", "resolve", "show"}, ("docs", "files"): {"ls", "show", "blocks", "content"},
-               ("docs", "drive"): {"ls", "show", "tree"}}
+DOCS_SUB_OK = {}  # `oo docs ...` talks to the owner's local engine, not the Agent endpoint: not offered
 DENY_FLAGS = ("--output", "--state-dir", "--endpoint", "--token-file", "--profile", "--out", "--to", "--config",
               "--deploy-dir", "--runtime", "--key", "--grant-file")
 OUT_LIMIT = 12000
 
 SYSTEM_PROMPT = """You answer questions about a user's documents and database. You have one tool, `oo`, which runs the `oo` command-line client with your read-only access already configured. Pass the arguments as a list, for example ["--help"] or ["ontology", "--help"]. Use `--help` to find out which commands exist. You can make at most {max_calls} tool calls per question.
 
-Answer only from what the tool returns. Cite where the answer came from.
+Start with `oo ontology --help`. Prefer the plain output over `--json`: it is much shorter. Answer only from what the tool returns. Cite where the answer came from.
 
 Finish with exactly these lines:
 ANSWER: <the short answer, with the key names and numbers>
@@ -93,9 +90,9 @@ def check_args(args):
             if third not in ok:
                 return f"allowed: oo {g} {sub} {'|'.join(sorted(ok))}"
         return None
-    if g in ("ontology", "docs", "context") and sub is None and any(a in ("--help", "-h") for a in args):
+    if g == "ontology" and sub is None and any(a in ("--help", "-h") for a in args):
         return None
-    return "read-only commands only: oo ontology search|entity|query|schema|sources, oo docs entity|files|drive, oo --help"
+    return "only these commands are available here: oo ontology search|entity|query|schema|sources, oo --help"
 
 
 def run_oo(oo, args, env, timeout=120):
@@ -160,11 +157,15 @@ def ask(model, oo, env, question, max_calls, system):
         usage += (r.get("usage") or {}).get("total_tokens", 0)
         m = r["choices"][0]["message"]
         tcs = m.get("tool_calls") or []
+        if forced and "ANSWER:" not in (m.get("content") or ""):
+            msgs.append({"role": "user", "content": "Call limit reached. Give the final ANSWER and SOURCES lines now, from what the tool has returned so far."})
+            r2 = model.chat(msgs, None)
+            llm_calls += 1
+            usage += (r2.get("usage") or {}).get("total_tokens", 0)
+            final = r2["choices"][0]["message"].get("content") or ""
+            break
         if not tcs or forced:
             final = m.get("content") or ""
-            if forced and not final.strip():
-                msgs.append({"role": "user", "content": "Call limit reached. Give the final ANSWER and SOURCES lines now."})
-                continue
             break
         msgs.append({"role": "assistant", "content": m.get("content"), "tool_calls": tcs})
         for tc in tcs:
@@ -231,6 +232,7 @@ def corpus_paths():
 def refs_in(text, paths):
     found = {p for p in paths if p in text or Path(p).name in text}
     found |= set(re.findall(r"public\.(?:customers|products|orders|order_items)", text))
+    found |= set(re.findall(r"\bq_[A-Za-z0-9]{16,}", text))  # a Gateway query id, as the CLI prints it
     return found
 
 
@@ -243,12 +245,19 @@ def score(q, rec, paths=None):
         out["correct"] = declined
         out["cite_valid"] = out["cite_gold"] = None
         return out
-    out["correct"] = (not declined or q["gold"]["type"] != "decline") and match(q["gold"], answer)
+    out["correct"] = (not declined) and match(q["gold"], answer)
     cited = refs_in(sources or rec["final"], paths)
     seen = "\n".join(c["output"] for c in rec["calls"])
-    out["cite_valid"] = bool(cited)
-    out["cite_grounded"] = bool(cited) and all(c in seen or Path(c).name in seen for c in cited)
-    out["cite_gold"] = any(s in cited or Path(s).name in {Path(c).name for c in cited} for s in q["src"])
+    # the SQL behind each query id the tool printed: a query id stands for the tables that SQL reads
+    sql_of = {}
+    for c in rec["calls"]:
+        for qid in re.findall(r"\bq_[A-Za-z0-9]{16,}", c["output"]):
+            sql_of[qid] = " ".join(c["args"] or [])
+    grounded = {c for c in cited if c in seen or Path(c).name in seen}
+    tables = {t for c in cited if c in sql_of for t in re.findall(r"public\.(?:customers|products|orders|order_items)", sql_of[c])}
+    out["cite_valid"] = bool(grounded)
+    out["cite_grounded"] = bool(cited) and grounded == cited
+    out["cite_gold"] = any(s in cited | tables or Path(s).name in {Path(c).name for c in cited} for s in q["src"])
     return out
 
 
@@ -363,7 +372,7 @@ def cmd_safety(args):
         if f.exists():
             f.unlink()
         cmd = [args.oo, "agent", "token", "create", "--name", name, "--ttl", ttl, "--output-file", str(f), "--state-dir", args.state_dir,
-               "--json"]
+               "--drive", args.drive, "--json"]
         for s in scopes:
             cmd += ["--scope", s]
         if "db:read" in scopes:
@@ -387,8 +396,14 @@ def cmd_safety(args):
     check("read token: INSERT through the CLI is denied", rc != 0, o[-200:])
     st, body = raw(rw.read_text().strip(), "POST", "/v1/ontology/query", {"sql": "update public.orders set status='paid'"})
     check("read token: UPDATE on the raw route is refused", st in (400, 403, 422), (st, body[:120]))
-    st, body = raw(rw.read_text().strip(), "POST", "/v1/docs/drives", {"name": "evil", "backend": "fs", "config": {"root": "/tmp"}})
+    probe = str(Path(args.work).resolve())
+    st, body = raw(rw.read_text().strip(), "POST", "/v1/docs/drives", {"name": "evil", "backend": "fs", "config": {"root": probe}})
     check("read token: creating a drive is refused", st in (401, 403, 404), (st, body[:120]))
+    mounts = Path(args.state_dir) / "drive-mounts.json"
+    check("read token: the refused drive request mounted nothing", not mounts.exists() or probe not in mounts.read_text(), "mounted")
+    st, body = raw(rw.read_text().strip(), "POST", "/v1/docs/drives",
+                   {"name": "evil", "backend": "fs", "config": {"root": "/definitely/not/a/directory"}})
+    check("read token: a bad root gets the same 403, not a path probe", st == 403, (st, body[:120]))
     rc, o = cli(str(rw), "ontology", "query", "select count(*) from public.customers")
     check("the table is unchanged after the write attempts", rc == 0 and "200" in o, o[-120:])
     # a docs-only token cannot read DB rows
@@ -410,13 +425,15 @@ def cmd_safety(args):
     check("revoked token: 401 on the raw route", st == 401, st)
     check("revoked token: CLI fails", rc != 0, o[-160:])
     # expired token: a 1-second TTL
-    short, e4 = mint("safety-short", ["docs:read"], ttl="1s")
+    short, e4 = mint("safety-short", ["docs:read"], ttl="60s")
     if short:
-        time.sleep(3)
+        st, _ = raw(short.read_text().strip(), "GET", "/v1/ontology/sources")
+        check("a 60 s token works before it expires", st == 200, st)
+        time.sleep(65)
         st, _ = raw(short.read_text().strip(), "GET", "/v1/ontology/sources")
         check("expired token: 401", st == 401, st)
     else:
-        check("expired token: could mint a 1s token", False, e4)
+        check("expired token: could mint a 60s token", False, e4)
     st, _ = raw("ooa_" + "x" * 43, "GET", "/v1/ontology/sources")
     check("garbage token: 401", st == 401, st)
     Path(args.out).write_text(json.dumps(results, indent=1))
@@ -448,6 +465,7 @@ def main():
     f.add_argument("--endpoint", required=True)
     f.add_argument("--state-dir", required=True)
     f.add_argument("--gw-profile", default="shop")
+    f.add_argument("--drive", default="golden")
     f.add_argument("--work", required=True)
     f.add_argument("--out", required=True)
     f.add_argument("--agent-home", default="/private/tmp/soV/agent-home")
