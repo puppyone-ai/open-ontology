@@ -248,6 +248,9 @@
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
 | SO-F-S19-84 | D85 | merged | feat/super-ontology (App 车道 N 并入) | bade9b011 → e236da74a | — | apps/super-ontology-desktop/ | Pick a dialog's own button, scroll to a control below the fold and run the boot check in b |
+| SO-F-S19-90 | D88 | merged | feat/super-ontology (App 车道 P 并入) | 23d72a061 → 23d72a061 | — | apps/super-ontology-desktop/ | Record a real Builder draft of a synthetic shop as test data |
+| SO-F-S19-91 | D88 | merged | feat/super-ontology (App 车道 P 并入) | b065cf8a3 → b065cf8a3 | — | apps/super-ontology-desktop/ | Add all seventeen database kinds and the build review to the app |
+| SO-F-S19-92 | D88 | merged | feat/super-ontology (App 车道 P 并入) | afa67b278 → 07596c575 | — | apps/super-ontology-desktop/ | Prove the database path from Add to Query in the app |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
