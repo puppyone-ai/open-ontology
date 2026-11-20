@@ -55,8 +55,8 @@ export function stubBridgeSource(scenario) {
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
         case "drives-list": return drives;
-        case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request.driveId), next_cursor: null } : empty;
-        case "file-detail": return scenario.unlinked ? detail(request.fileId) : empty;
+        case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request?.driveId), next_cursor: null } : empty;
+        case "file-detail": return scenario.unlinked ? detail(request?.fileId) : empty;
         case "ask-run": return askAnswers[scenario.ask] ?? askAnswers.answered;
         case "entities-search": return { items: entities, next_cursor: null };
         case "agent-token-list": return empty;

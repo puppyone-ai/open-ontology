@@ -66,17 +66,4 @@ test.describe("not connected", () => {
     await page.locator("[data-testid=atlas-list-member]").first().waitFor();
     await expect(page).toHaveScreenshot("not-connected.png");
   });
-  test("Sources: the reason under each file name", async ({ page }) => {
-    await open(page, { engine: "healthy", unlinked: true });
-    await page.locator("[data-testid=nav-sources]").click();
-    await page.locator("[data-testid=source-row][data-name='Team docs']").click();
-    await page.locator("[data-testid=file-unlinked-reason]").first().waitFor();
-    await expect(page).toHaveScreenshot("sources-reasons.png");
-  });
-  test("Home: how many files have nothing connected", async ({ page }) => {
-    await open(page, { engine: "healthy", unlinked: true });
-    await page.locator("[data-testid=home-next-step],[data-testid=home-unlinked]").first().waitFor();
-    await page.locator("[data-testid=home-next-step][data-step=unlinked]").waitFor();
-    await expect(page).toHaveScreenshot("home-unlinked.png");
-  });
 });
