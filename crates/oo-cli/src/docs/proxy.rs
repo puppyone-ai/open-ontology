@@ -465,7 +465,11 @@ async fn serve_one(
         return Err(super::federate::serve(&head, &body, cfg).await);
     }
     let mut head = head;
-    if let Some(drives) = cfg.drives.clone()
+    // Mounting a host directory or a secret file into the engine is the owner's act: only the control
+    // token may cause it. An Agent token's request is forwarded as is and refused by the engine.
+    let control = token_ok(head.header("authorization"), &cfg.token_sha256);
+    if control
+        && let Some(drives) = cfg.drives.clone()
         && head.method == "POST"
         && head.path() == "/v1/docs/drives"
     {
@@ -503,7 +507,8 @@ async fn serve_one(
 
     // The engine's egress process lives in the engine container: the files the
     // model configuration names must be mounted there before it starts.
-    if let Some(drives) = cfg.drives.clone()
+    if control
+        && let Some(drives) = cfg.drives.clone()
         && head.method == "PUT"
         && head.path() == "/v1/docs/config/model"
     {
@@ -739,6 +744,61 @@ mod tests {
             r.starts_with("HTTP/1.1 422") && r.contains("DOCS_SOURCE_ROOT_MISSING"),
             "{r}"
         );
+        let _ = tx.send(true);
+        let _ = h.await;
+    }
+
+    #[tokio::test]
+    async fn an_agent_token_cannot_make_the_daemon_mount_a_directory() {
+        struct Counting(Arc<std::sync::atomic::AtomicUsize>);
+        impl DriveMounts for Counting {
+            fn mount(&self, _host_root: &str) -> Result<String, String> {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok("/drives/abc".into())
+            }
+            fn mount_secret_files(&self, _files: &[String]) -> Result<(), String> {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+        }
+        let (engine, seen) = fake_engine().await;
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        drop(l);
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut c = Arc::try_unwrap(cfg(port, Some(engine))).ok().unwrap();
+        c.drives = Some(Arc::new(Counting(calls.clone())));
+        let l = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+        let addr = l.local_addr().unwrap();
+        let (tx, rx) = watch::channel(false);
+        let h = tokio::spawn(serve(l, Arc::new(c), rx, Duration::from_secs(2)));
+        let send = |method: &str, path: &str, token: &str, body: &str| {
+            format!(
+                "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {token}\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let drive = r#"{"name":"d","backend":"fs","config":{"root":"/host/dir"}}"#;
+        let model = r#"{"provider":"p","base_url":"file:/h/e","model":"m","key_ref":"file:/h/k"}"#;
+        let agent = "ooa_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+        for (m, p, b) in [
+            ("POST", "/v1/docs/drives", drive),
+            ("PUT", "/v1/docs/config/model", model),
+        ] {
+            raw(addr, &send(m, p, agent, b)).await;
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(
+            !seen.lock().unwrap().is_empty(),
+            "the request still reaches the engine to be refused there"
+        );
+        for (m, p, b) in [
+            ("POST", "/v1/docs/drives", drive),
+            ("PUT", "/v1/docs/config/model", model),
+        ] {
+            raw(addr, &send(m, p, "oodt_secret", b)).await;
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
         let _ = tx.send(true);
         let _ = h.await;
     }

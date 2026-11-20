@@ -442,16 +442,35 @@ async fn gateway(
     if (200..300).contains(&s) && v.get("error").is_none() {
         Ok((v, meta))
     } else {
-        let code = v["error"]["code"]
-            .as_str()
-            .unwrap_or("GATEWAY_REFUSED")
-            .to_owned();
         Err(fail(
             if s == 401 || s == 403 { 403 } else { 422 },
             "ONTOLOGY_GATEWAY_REFUSED",
-            format!("the Gateway refused the query: {code}"),
+            refusal_text(&v),
         ))
     }
+}
+
+/// What the Gateway said about a refused query: its code, its message and its hint (they describe the
+/// SQL, such as an operator signature, and never row data), cut to a bounded length.
+fn refusal_text(v: &Value) -> String {
+    let e = &v["error"];
+    let mut text = format!(
+        "the Gateway refused the query: {}",
+        e["code"].as_str().unwrap_or("GATEWAY_REFUSED")
+    );
+    for key in ["message", "hint"] {
+        if let Some(t) = e[key].as_str().filter(|t| !t.trim().is_empty()) {
+            text.push_str(&format!("; {}: {}", key, t.trim()));
+        }
+    }
+    if text.len() > 600 {
+        let mut end = 600;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        text.truncate(end);
+    }
+    text
 }
 
 async fn gw_query(profile: &str, sql: &str, max_rows: u32) -> Result<Rows, Fail> {
@@ -1328,6 +1347,28 @@ fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_gateway_refusal_keeps_its_message_and_hint() {
+        let v = json!({"error": {"code": "FUNCTION_NOT_ALLOWED", "message": "operator signature is not allowed",
+            "hint": "argument_types=[int4,numeric]; cast one side"}});
+        let t = refusal_text(&v);
+        assert!(t.starts_with("the Gateway refused the query: FUNCTION_NOT_ALLOWED"));
+        assert!(
+            t.contains("operator signature is not allowed")
+                && t.contains("argument_types=[int4,numeric]")
+        );
+        assert_eq!(
+            refusal_text(&json!({"error": {"code": "X"}})),
+            "the Gateway refused the query: X"
+        );
+        assert_eq!(
+            refusal_text(&json!({})),
+            "the Gateway refused the query: GATEWAY_REFUSED"
+        );
+        let long = json!({"error": {"code": "X", "hint": "é".repeat(900)}});
+        assert!(refusal_text(&long).len() <= 600);
+    }
 
     #[test]
     fn the_query_body_is_closed_like_its_contract() {

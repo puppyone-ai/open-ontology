@@ -49,6 +49,16 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
             Some(Ok(Invocation::Help(agent::HELP.into())))
         }
         "agent" => std::process::exit(i32::from(agent::run(rest))),
+        "ontology"
+            if rest.is_empty()
+                || (rest.len() == 1 && matches!(rest[0].as_str(), "--help" | "-h")) =>
+        {
+            Some(Ok(Invocation::Help(format!(
+                "{}\n{}",
+                ontology::HELP.trim_end(),
+                crate::args::ONTOLOGY_ADMIN_HELP
+            ))))
+        }
         "ontology" if ontology::is_subcommand(rest) => {
             std::process::exit(i32::from(ontology::run(rest)))
         }

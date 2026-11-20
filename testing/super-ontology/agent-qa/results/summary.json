@@ -1,0 +1,362 @@
+{
+ "dev1-bundled-oo-cli": {
+  "total": {
+   "n": 15,
+   "correct": 2,
+   "accuracy": 0.133,
+   "cite_valid": "2/13",
+   "cite_gold": "2/13",
+   "avg_calls": 12.0,
+   "avg_latency_s": 15.9,
+   "hit_call_limit": 15
+  },
+  "file": {
+   "n": 5,
+   "correct": 0,
+   "accuracy": 0.0,
+   "cite_valid": "0/5",
+   "cite_gold": "0/5",
+   "avg_calls": 12.0,
+   "avg_latency_s": 16.9,
+   "hit_call_limit": 5
+  },
+  "db": {
+   "n": 5,
+   "correct": 2,
+   "accuracy": 0.4,
+   "cite_valid": "2/5",
+   "cite_gold": "2/5",
+   "avg_calls": 12.0,
+   "avg_latency_s": 17.0,
+   "hit_call_limit": 5
+  },
+  "cross": {
+   "n": 3,
+   "correct": 0,
+   "accuracy": 0.0,
+   "cite_valid": "0/3",
+   "cite_gold": "0/3",
+   "avg_calls": 12.0,
+   "avg_latency_s": 14.2,
+   "hit_call_limit": 3
+  },
+  "unanswerable": {
+   "n": 2,
+   "correct": 0,
+   "accuracy": 0.0,
+   "cite_valid": "0/0",
+   "cite_gold": "0/0",
+   "avg_calls": 12.0,
+   "avg_latency_s": 13.0,
+   "hit_call_limit": 2
+  }
+ },
+ "dev3-fixed-oo-cli": {
+  "total": {
+   "n": 15,
+   "correct": 15,
+   "accuracy": 1.0,
+   "cite_valid": "13/13",
+   "cite_gold": "13/13",
+   "avg_calls": 7.53,
+   "avg_latency_s": 25.8,
+   "hit_call_limit": 6
+  },
+  "file": {
+   "n": 5,
+   "correct": 5,
+   "accuracy": 1.0,
+   "cite_valid": "5/5",
+   "cite_gold": "5/5",
+   "avg_calls": 11.0,
+   "avg_latency_s": 29.6,
+   "hit_call_limit": 4
+  },
+  "db": {
+   "n": 5,
+   "correct": 5,
+   "accuracy": 1.0,
+   "cite_valid": "5/5",
+   "cite_gold": "5/5",
+   "avg_calls": 3.0,
+   "avg_latency_s": 19.4,
+   "hit_call_limit": 0
+  },
+  "cross": {
+   "n": 3,
+   "correct": 3,
+   "accuracy": 1.0,
+   "cite_valid": "3/3",
+   "cite_gold": "3/3",
+   "avg_calls": 7.67,
+   "avg_latency_s": 18.1,
+   "hit_call_limit": 1
+  },
+  "unanswerable": {
+   "n": 2,
+   "correct": 2,
+   "accuracy": 1.0,
+   "cite_valid": "0/0",
+   "cite_gold": "0/0",
+   "avg_calls": 10.0,
+   "avg_latency_s": 44.2,
+   "hit_call_limit": 1
+  }
+ },
+ "held-run1-cli": {
+  "total": {
+   "n": 30,
+   "correct": 27,
+   "accuracy": 0.9,
+   "cite_valid": "27/27",
+   "cite_gold": "25/27",
+   "avg_calls": 7.23,
+   "avg_latency_s": 23.8,
+   "hit_call_limit": 7
+  },
+  "file": {
+   "n": 10,
+   "correct": 8,
+   "accuracy": 0.8,
+   "cite_valid": "10/10",
+   "cite_gold": "8/10",
+   "avg_calls": 8.9,
+   "avg_latency_s": 27.9,
+   "hit_call_limit": 4
+  },
+  "db": {
+   "n": 10,
+   "correct": 9,
+   "accuracy": 0.9,
+   "cite_valid": "10/10",
+   "cite_gold": "10/10",
+   "avg_calls": 3.4,
+   "avg_latency_s": 18.5,
+   "hit_call_limit": 0
+  },
+  "cross": {
+   "n": 7,
+   "correct": 7,
+   "accuracy": 1.0,
+   "cite_valid": "7/7",
+   "cite_gold": "7/7",
+   "avg_calls": 9.0,
+   "avg_latency_s": 21.8,
+   "hit_call_limit": 1
+  },
+  "unanswerable": {
+   "n": 3,
+   "correct": 3,
+   "accuracy": 1.0,
+   "cite_valid": "0/0",
+   "cite_gold": "0/0",
+   "avg_calls": 10.33,
+   "avg_latency_s": 32.2,
+   "hit_call_limit": 2
+  }
+ },
+ "held-run2-cli-after-fixes": {
+  "total": {
+   "n": 30,
+   "correct": 29,
+   "accuracy": 0.967,
+   "cite_valid": "27/27",
+   "cite_gold": "26/27",
+   "avg_calls": 7.0,
+   "avg_latency_s": 22.9,
+   "hit_call_limit": 5
+  },
+  "file": {
+   "n": 10,
+   "correct": 9,
+   "accuracy": 0.9,
+   "cite_valid": "10/10",
+   "cite_gold": "9/10",
+   "avg_calls": 8.5,
+   "avg_latency_s": 23.8,
+   "hit_call_limit": 3
+  },
+  "db": {
+   "n": 10,
+   "correct": 10,
+   "accuracy": 1.0,
+   "cite_valid": "10/10",
+   "cite_gold": "10/10",
+   "avg_calls": 4.0,
+   "avg_latency_s": 17.8,
+   "hit_call_limit": 1
+  },
+  "cross": {
+   "n": 7,
+   "correct": 7,
+   "accuracy": 1.0,
+   "cite_valid": "7/7",
+   "cite_gold": "7/7",
+   "avg_calls": 7.71,
+   "avg_latency_s": 26.7,
+   "hit_call_limit": 0
+  },
+  "unanswerable": {
+   "n": 3,
+   "correct": 3,
+   "accuracy": 1.0,
+   "cite_valid": "0/0",
+   "cite_gold": "0/0",
+   "avg_calls": 10.33,
+   "avg_latency_s": 27.7,
+   "hit_call_limit": 1
+  }
+ },
+ "held-run3-mcp": {
+  "total": {
+   "n": 30,
+   "correct": 28,
+   "accuracy": 0.933,
+   "cite_valid": "27/27",
+   "cite_gold": "25/27",
+   "avg_calls": 6.37,
+   "avg_latency_s": 19.9,
+   "hit_call_limit": 3
+  },
+  "file": {
+   "n": 10,
+   "correct": 8,
+   "accuracy": 0.8,
+   "cite_valid": "10/10",
+   "cite_gold": "8/10",
+   "avg_calls": 8.3,
+   "avg_latency_s": 24.9,
+   "hit_call_limit": 3
+  },
+  "db": {
+   "n": 10,
+   "correct": 10,
+   "accuracy": 1.0,
+   "cite_valid": "10/10",
+   "cite_gold": "10/10",
+   "avg_calls": 3.0,
+   "avg_latency_s": 13.1,
+   "hit_call_limit": 0
+  },
+  "cross": {
+   "n": 7,
+   "correct": 7,
+   "accuracy": 1.0,
+   "cite_valid": "7/7",
+   "cite_gold": "7/7",
+   "avg_calls": 7.0,
+   "avg_latency_s": 20.6,
+   "hit_call_limit": 0
+  },
+  "unanswerable": {
+   "n": 3,
+   "correct": 3,
+   "accuracy": 1.0,
+   "cite_valid": "0/0",
+   "cite_gold": "0/0",
+   "avg_calls": 9.67,
+   "avg_latency_s": 24.8,
+   "hit_call_limit": 0
+  }
+ },
+ "safety": [
+  {
+   "check": "both tokens minted",
+   "ok": true,
+   "detail": "('', '')"
+  },
+  {
+   "check": "read token: SQL select works",
+   "ok": true,
+   "detail": "[\"n\"]\n[\"200\"]\n[source] gateway shop query q_G7NubNw3HpfiFVe11x3tEvNVYR (publication pub1_1f57e260eab66856fcf4ac9f9b2082c0f673a7f003a204afd70b85d33894f330)\n"
+  },
+  {
+   "check": "read token: DELETE through the CLI is denied",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"ONTOLOGY_READ_ONLY\",\"message\":\"only one read-only SELECT is accepted; the ontology is not writable through this surface\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "read token: INSERT through the CLI is denied",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"ONTOLOGY_READ_ONLY\",\"message\":\"only one read-only SELECT is accepted; the ontology is not writable through this surface\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "read token: UPDATE on the raw route is refused",
+   "ok": true,
+   "detail": "(403, '{\"code\":\"ONTOLOGY_READ_ONLY\",\"details\":{},\"message\":\"only one read-only SELECT is accepted; the ontology is not writable')"
+  },
+  {
+   "check": "read token: creating a drive is refused",
+   "ok": true,
+   "detail": "(403, '{\"code\":\"DOCS_SHARE_REFS_OUT_OF_SCOPE\",\"details\":{\"reason\":\"route\"},\"message\":\"an agent token cannot do this\",\"retryable')"
+  },
+  {
+   "check": "read token: the refused drive request mounted nothing",
+   "ok": true,
+   "detail": "mounted"
+  },
+  {
+   "check": "read token: a bad root gets the same 403, not a path probe",
+   "ok": true,
+   "detail": "(403, '{\"code\":\"DOCS_SHARE_REFS_OUT_OF_SCOPE\",\"details\":{\"reason\":\"route\"},\"message\":\"an agent token cannot do this\",\"retryable')"
+  },
+  {
+   "check": "the table is unchanged after the write attempts",
+   "ok": true,
+   "detail": " query q_wkNSuBLmaABxZgVUnPPfdvA6oo (publication pub1_1f57e260eab66856fcf4ac9f9b2082c0f673a7f003a204afd70b85d33894f330)\n"
+  },
+  {
+   "check": "docs-only token: row query is denied",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"ONTOLOGY_SCOPE_DENIED\",\"message\":\"the token has no db:read or names no Gateway profile\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "docs-only token: search returns no database rows",
+   "ok": true,
+   "detail": "({'doc'}, 'ersion 0b3ad6f6-b512-4784-a851-32caa4064de0) #{\"bbox\":[7200,11344,38400,12544],\"charspan\":[0,26],\"kind\":\"pdf\",\"page\":1}\\n')"
+  },
+  {
+   "check": "docs-only token: raw query route is 403",
+   "ok": true,
+   "detail": "(403, '{\"code\":\"ONTOLOGY_SCOPE_DENIED\",\"details\":{},\"message\":\"the token has no db:read or names no Gateway profile\",\"retryable')"
+  },
+  {
+   "check": "to-be-revoked token works first",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "revoked token: 401 on the raw route",
+   "ok": true,
+   "detail": "401"
+  },
+  {
+   "check": "revoked token: CLI fails",
+   "ok": true,
+   "detail": "{\"error\":{\"code\":\"ONTOLOGY_TOKEN_INVALID\",\"message\":\"the Agent token is invalid, expired or revoked\"},\"protocol\":\"oo.docs-error/v1\"}\n"
+  },
+  {
+   "check": "a 60 s token works before it expires",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "check": "expired token: 401",
+   "ok": true,
+   "detail": "401"
+  },
+  {
+   "check": "garbage token: 401",
+   "ok": true,
+   "detail": "401"
+  }
+ ],
+ "notes": {
+  "model": "gcli/grok-4.7 for ontology build and agent",
+  "max_calls": 12,
+  "temperature": 0,
+  "run1": "first held run, oo with fixes 11-15, serve = bundled 0.2.1 release, 3 doc files still extracting",
+  "run2": "held re-run after the fixes 14 and 18 that came from run1 failures: not independent evidence",
+  "run3": "held through oo mcp --stdio, same server as run2"
+ }
+}
