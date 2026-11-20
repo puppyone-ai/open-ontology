@@ -14,6 +14,18 @@ describe("Add database form", () => {
     expect(validateForm({ ...form, kind: "oracle", caPem: "" })).toEqual([]);
     expect(validateForm({ ...form, kind: "kingbase", caPem: "", caMode: "file", caGrant: { id: "grant-123", path: "/x/ca.pem" } })).toEqual([]);
   });
+  it("follows the CLI's trust-anchor rule for kinds that take plain text on this machine only", () => {
+    const doc = { ...form, kind: "mongodb", caPem: "", include: "shop.customers" };
+    expect(validateForm({ ...doc, host: "127.0.0.1" })).toEqual([]);
+    expect(validateForm({ ...doc, host: "localhost" })).toEqual([]);
+    expect(validateForm({ ...doc, host: "db.example.test" })).toEqual(["ca"]);
+    expect(validateForm({ ...doc, kind: "clickhouse", host: "db.example.test", caPem: form.caPem })).toEqual([]);
+  });
+  it("never asks for a certificate where the transport owns TLS", () => {
+    expect(validateForm({ ...form, kind: "dm8", caPem: "" })).toEqual([]);
+    expect(validateForm({ ...form, kind: "oracle", caPem: "" })).toEqual([]);
+    expect(validateForm({ ...form, kind: "sqlserver", caPem: "" })).toEqual(["ca"]);
+  });
   it("rejects table entries that could carry shell or SQL syntax", () => {
     expect(validateForm({ ...form, include: "public.a; drop" })).toEqual(["include"]);
     expect(validateForm({ ...form, include: "public.a,public.b" })).toEqual([]);

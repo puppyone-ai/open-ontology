@@ -3,8 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
-import { DB_KINDS, dbKind } from "../../../src/shared/super-ontology/db-kinds.mjs";
-import { displayCommand, failureOf, parseJson, redact, runOo } from "./cli-runner.mjs";
+import { DB_KINDS, caRequired, dbKind } from "../../../src/shared/super-ontology/db-kinds.mjs";
+import { digestReview, buildReviewDocument } from "../../../src/shared/super-ontology/review-digest.mjs";
+import { buildFailureOf, displayCommand, failureOf, parseJson, redact, runOo, summarizeBuild } from "./cli-runner.mjs";
 
 const slug = (name) => name.replace(/[^A-Za-z0-9]+/gu, "_").slice(0, 48);
 const MAX_JOB_LINES = 600;
@@ -94,6 +95,7 @@ export function createCliHandlers({
   }
 
   const kindOf = (id) => { const kind = dbKind(id); if (!kind || !kind.wired) throw new SuperOntologyError("SO_INVALID_REQUEST"); return kind; };
+  const caRefusal = (code, message) => ({ ok: false, exit: null, data: null, error: { code, message, hint: null }, cli: "" });
   const portOf = (kind, port) => port ?? kind.port;
 
   async function modelForStack() {
@@ -116,6 +118,69 @@ export function createCliHandlers({
 
   const jobs = new Map();
   let activeJob = null;
+
+  const stateRoot = () => (dataDir ? path.join(dataDir, ".oo") : null);
+  /** A private regular file the CLI wrote (not a link, not huge), parsed; null when it is not there or not usable. */
+  async function readStateJson(file, limit = 16 * 1024 * 1024) {
+    try {
+      const info = await fsPromises.lstat(file);
+      if (!info.isFile() || info.size > limit) return null;
+      return JSON.parse(await fsPromises.readFile(file, "utf8"));
+    } catch { return null; }
+  }
+  /** Where `oo build` keeps its stage record for a local deployment (read-only here: the CLI owns it). */
+  const chainFile = () => (stateRoot() ? path.join(stateRoot(), "lite", "work", "build", ".oo", "chain.json") : null);
+  async function readBuildState() {
+    const file = chainFile();
+    return file ? summarizeBuild(await readStateJson(file, 4 * 1024 * 1024)) : null;
+  }
+
+  /** The profile `oo build` saved for the finished import becomes the Gateway the Query screen uses. */
+  async function adoptProfile(name) {
+    if (!gatewayFile() || typeof name !== "string" || !/^[A-Za-z0-9_-]{1,64}$/u.test(name)) return false;
+    const profile = await readStateJson(path.join(home(), ".config", "open-ontology", "profiles", `${name}.json`), 65536);
+    if (!profile || typeof profile.gateway !== "string" || typeof profile.token_file !== "string") return false;
+    let origin;
+    try { origin = new URL(profile.gateway).origin; } catch { return false; }
+    const doc = { url: origin, transport: "production", tokenFile: profile.token_file, ...(typeof profile.ca_file === "string" ? { caFile: profile.ca_file } : {}) };
+    const file = gatewayFile();
+    const temp = `${file}.${process.pid}.tmp`;
+    await fsPromises.rm(temp, { force: true });
+    await writePrivate(temp, `${JSON.stringify(doc)}\n`);
+    await fsPromises.rename(temp, file);
+    return true;
+  }
+
+  /** One background `oo` run with a polled, redacted output tail. `after` runs when it ends (clean-up). */
+  async function startJob({ action, args, cliArgs = args, after = null }) {
+    if (activeJob && jobs.get(activeJob)?.state === "running") throw new SuperOntologyError("SO_UPLOAD_CONFLICT");
+    const exe = await executable();
+    const id = randomUUID();
+    const job = { id, action, state: "running", exit: null, lines: [], cli: displayCommand(cliArgs), startedAt: Date.now() };
+    jobs.set(id, job); activeJob = id;
+    for (const [key, old] of jobs) if (jobs.size > 8 && old.state !== "running") jobs.delete(key);
+    const onLine = (line) => {
+      job.lines.push(line);
+      if (job.lines.length > MAX_JOB_LINES) { const extra = job.lines.length - MAX_JOB_LINES; job.lines.splice(0, extra); job.dropped = (job.dropped ?? 0) + extra; }
+    };
+    const finish = async () => { if (after) await after(job).catch(() => undefined); };
+    void run(exe.path, args, { env: exe.env, timeoutMs: 30 * 60_000, onLine, maxBytes: 64 * 1024 * 1024 }).then(async (result) => {
+      job.exit = result.code;
+      const build = action === "build" ? summarizeBuild(parseJson(result.stdout)) : null;
+      if (build) job.build = build;
+      if (result.code === 0 && !result.timedOut) {
+        if (build?.profile) job.gateway = await adoptProfile(build.profile).catch(() => false);
+        job.state = "succeeded";
+      } else if (build?.review) {
+        job.state = "review";
+      } else {
+        job.error = build ? buildFailureOf(build, result) : failureOf(result);
+        job.state = "failed";
+      }
+      await finish();
+    }, async () => { job.error = { code: "SO_OO_INVALID", message: "oo could not be started.", hint: null }; job.state = "failed"; await finish(); });
+    return { jobId: id, cli: job.cli };
+  }
 
   return {
     "cli-db-kinds": async () => ({ kinds: DB_KINDS, stackFile: stackFile(), stackExists: await stackExists(), secretsDir: secretsDir() }),
@@ -157,7 +222,10 @@ export function createCliHandlers({
     "cli-db-add": async (request, { sender } = {}) => {
       requireDataDir();
       const kind = kindOf(request.kind);
-      if (kind.tls === "required" && !request.tlsCaGrantId && !request.tlsCaPem) return { ok: false, exit: null, data: null, error: { code: "SO_TLS_CA_REQUIRED", message: "A certificate authority is required.", hint: null }, cli: "" };
+      const hasCa = Boolean(request.tlsCaGrantId || request.tlsCaPem);
+      // The CLI's trust-anchor rule per kind (source_db.rs): required, required off this machine, refused, or optional.
+      if (caRequired(kind, request.host) && !hasCa) return caRefusal("SO_TLS_CA_REQUIRED", "A certificate authority is required.");
+      if (kind.tls === "driver" && hasCa) return caRefusal("SO_TLS_CA_NOT_ACCEPTED", "This kind takes no certificate authority.");
       const dir = await ensureSecretsDir();
       const stack = stackFile();
       const ca = await resolveCa(request, sender, request.name);
@@ -182,7 +250,7 @@ export function createCliHandlers({
       }
       const doc = {
         version: "oo.stack/v1",
-        sources: [{ id: request.name, engine: kind.id, host: request.host, port, database: request.database, user: request.user, password: { secret_ref: `file:${pwFile}` }, ...(ca.file ? { tls_ca: { secret_ref: `file:${ca.file}` } } : {}), scope: { include: request.include, exclude: request.exclude ?? [] } }],
+        sources: [{ id: request.name, engine: kind.engine, host: request.host, port, database: request.database, user: request.user, password: { secret_ref: `file:${pwFile}` }, ...(ca.file ? { tls_ca: { secret_ref: `file:${ca.file}` } } : {}), scope: { include: request.include, exclude: request.exclude ?? [] } }],
         model,
       };
       const temp = `${stack}.${process.pid}.tmp`;
@@ -213,29 +281,45 @@ export function createCliHandlers({
 
     "cli-job-start": async ({ action }) => {
       requireDataDir();
-      if (activeJob && jobs.get(activeJob)?.state === "running") throw new SuperOntologyError("SO_UPLOAD_CONFLICT");
-      const exe = await executable();
       const args = [action, "--config", stackFile(), "--yes", "--json"];
-      const id = randomUUID();
-      const job = { id, action, state: "running", exit: null, lines: [], cli: displayCommand(args), startedAt: Date.now() };
-      jobs.set(id, job); activeJob = id;
-      for (const [key, old] of jobs) if (jobs.size > 8 && old.state !== "running") jobs.delete(key);
-      const onLine = (line) => {
-        job.lines.push(line);
-        if (job.lines.length > MAX_JOB_LINES) { const extra = job.lines.length - MAX_JOB_LINES; job.lines.splice(0, extra); job.dropped = (job.dropped ?? 0) + extra; }
-      };
-      void run(exe.path, args, { env: exe.env, timeoutMs: 30 * 60_000, onLine, maxBytes: 64 * 1024 * 1024 }).then((result) => {
-        job.exit = result.code; job.state = result.code === 0 && !result.timedOut ? "succeeded" : "failed";
-        if (job.state === "failed") job.error = failureOf(result);
-      }, () => { job.state = "failed"; job.error = { code: "SO_OO_INVALID", message: "oo could not be started.", hint: null }; });
-      return { jobId: id, cli: job.cli };
+      // A build that already has a stage record continues from it; the CLI refuses a second fresh build.
+      if (action === "build" && (await readBuildState())) args.splice(1, 0, "--resume");
+      return startJob({ action, args });
     },
 
     "cli-job-read": async ({ jobId, since = 0 }) => {
       const job = jobs.get(jobId);
       if (!job) throw new SuperOntologyError("SO_INVALID_REQUEST");
       const base = job.dropped ?? 0;
-      return { jobId, action: job.action, state: job.state, exit: job.exit, error: job.error ?? null, cli: job.cli, startedAt: job.startedAt, offset: Math.max(since, base), next: base + job.lines.length, lines: job.lines.slice(Math.max(0, since - base)) };
+      const build = job.action === "build" ? (job.build ?? (job.state === "running" ? await readBuildState() : null)) : null;
+      return { jobId, action: job.action, state: job.state, exit: job.exit, error: job.error ?? null, cli: job.cli, startedAt: job.startedAt, offset: Math.max(since, base), next: base + job.lines.length, lines: job.lines.slice(Math.max(0, since - base)), build, gateway: job.gateway ?? null };
+    },
+
+    /** What a stopped build proposes (read from the CLI's own review files) and where each stage stands. */
+    "cli-review-read": async () => {
+      requireDataDir();
+      const root = stateRoot();
+      const [build, adjudication, input] = await Promise.all([readBuildState(), readStateJson(path.join(root, "adjudication.json")), readStateJson(path.join(root, "review-input.json"))]);
+      const digest = adjudication && input ? digestReview(adjudication, input) : null;
+      return { build, digest: build?.review ? digest : null };
+    },
+
+    /** The owner's decisions -> `oo.build-review/v1` in a private temporary folder -> `oo build --resume --review-file`. */
+    "cli-review-submit": async ({ reason, decisions }) => {
+      requireDataDir();
+      const adjudication = await readStateJson(path.join(stateRoot(), "adjudication.json"));
+      if (!adjudication) throw new SuperOntologyError("SO_INVALID_REQUEST");
+      let document;
+      try { document = buildReviewDocument(adjudication, decisions, reason); } catch (error) {
+        return { ok: false, error: { code: error instanceof Error && error.message === "REVIEW_FANOUT" ? "REVIEW_FANOUT" : "REVIEW_DECISION_INVALID", message: "", hint: null }, cli: "" };
+      }
+      const folder = await fsPromises.realpath(await fsPromises.mkdtemp(path.join(os.tmpdir(), "so-review-")));
+      await fsPromises.chmod(folder, 0o700);
+      const file = path.join(folder, "review.json");
+      const remove = () => fsPromises.rm(folder, { recursive: true, force: true });
+      try { await writePrivate(file, `${JSON.stringify(document)}\n`); } catch { await remove(); throw new SuperOntologyError("SO_SECRET_STORE_UNAVAILABLE"); }
+      const args = ["build", "--resume", "--config", stackFile(), "--review-file", file, "--yes", "--json"];
+      try { return { ok: true, ...(await startJob({ action: "build", args, cliArgs: args.map((arg) => (arg === file ? "<review.json>" : arg)), after: remove })) }; } catch (error) { await remove().catch(() => undefined); throw error; }
     },
 
     "cli-gateway-read": async () => {

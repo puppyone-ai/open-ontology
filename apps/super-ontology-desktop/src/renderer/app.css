@@ -184,6 +184,40 @@
   .so-db-caps li:last-child { border-bottom: 0; }
   .so-db-caps li[data-state="needs_setup"] .so-weak { color: var(--so-warning); }
   .so-db-next { margin: 0; color: var(--so-text); font-weight: var(--so-weight-medium); text-wrap: pretty; }
+  /* Import stages and the build review (D88): one row per stage, one card per group of relationships. */
+  .so-db-stages { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--so-line); border-radius: var(--so-radius-control); }
+  .so-db-stages li { display: flex; align-items: center; gap: var(--so-space-3); min-height: 36px; padding: 0 var(--so-space-3); border-bottom: 1px solid var(--so-line); min-width: 0; }
+  .so-db-stages li:last-child { border-bottom: 0; }
+  .so-db-stages li[data-state="review"] { background: var(--so-warning-soft); }
+  .so-db-stage-error { margin-inline-start: auto; color: var(--so-danger); font-size: var(--so-text-xs); }
+  .so-db-done-actions { display: flex; flex-wrap: wrap; gap: var(--so-space-2); margin-top: var(--so-space-3); }
+  .so-review-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; }
+  .so-review-stat { display: grid; gap: var(--so-space-1); padding: var(--so-space-4); border-inline-end: 1px solid var(--so-line); }
+  .so-review-stat:last-child { border-inline-end: 0; }
+  .so-review-stat-value { font-size: var(--so-text-lg); font-weight: var(--so-weight-medium); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .so-review-note { margin: var(--so-space-2) 0 0; text-wrap: pretty; }
+  .so-review-list { display: grid; margin: 0; padding: 0; list-style: none; }
+  .so-review-entities, .so-review-group, .so-review-confirm { padding: 0; }
+  .so-review-confirm { display: grid; gap: var(--so-space-3); padding: var(--so-space-4); }
+  .so-review-entity { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) 96px; align-items: center; gap: var(--so-space-3); min-height: 44px; padding: 0 var(--so-space-4); border-bottom: 1px solid var(--so-line); }
+  .so-review-entity:last-child { border-bottom: 0; }
+  .so-review-entity-name { font-weight: var(--so-weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .so-review-rows { text-align: end; font-variant-numeric: tabular-nums; }
+  .so-review-group + .so-review-group { margin-top: var(--so-space-3); }
+  .so-review-group-head { display: grid; gap: var(--so-space-1); padding: var(--so-space-3) var(--so-space-4); border-bottom: 1px solid var(--so-line); background: var(--so-inset); border-radius: var(--so-radius-card) var(--so-radius-card) 0 0; }
+  .so-review-group-title { margin: 0; font-size: var(--so-text-md); font-weight: var(--so-weight-medium); }
+  .so-review-relation { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--so-space-4); padding: var(--so-space-3) var(--so-space-4); border-bottom: 1px solid var(--so-line); transition: background-color var(--so-duration-fast) var(--so-ease); }
+  .so-review-relation:last-child { border-bottom: 0; }
+  .so-review-relation[data-changed="true"] { background: var(--so-accent-soft); }
+  .so-review-relation-main { display: grid; gap: var(--so-space-1); min-width: 0; }
+  .so-review-relation-main p { margin: 0; text-wrap: pretty; }
+  .so-review-edge { display: flex; flex-wrap: wrap; align-items: center; gap: var(--so-space-2); font-weight: var(--so-weight-medium); overflow-wrap: anywhere; }
+  .so-review-why { color: var(--so-text-2); }
+  .so-review-evidence { font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+  .so-review-fanout { color: var(--so-warning); font-size: var(--so-text-xs); }
+  .so-review-relation-side { display: grid; justify-items: end; gap: var(--so-space-2); }
+  .so-review-empty { margin: 0; padding: var(--so-space-4); }
+  .so-review-actions { display: flex; justify-content: flex-end; gap: var(--so-space-2); }
   .so-db-footer { display: flex; align-items: center; gap: var(--so-space-2); margin-top: var(--so-space-4); font-size: var(--so-text-xs); }
   .so-chip[data-tone="muted"] { color: var(--so-text-muted); text-decoration: line-through; text-decoration-color: var(--so-line-strong); }
 

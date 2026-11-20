@@ -6,14 +6,14 @@ Status: **done** = in the app and tested; **partial** = in the app with a stated
 |---|---|---|
 | `oo docs upload`, `oo source add fs` | Sources > Add source > Files / Folder | done (earlier lanes) |
 | `oo source add s3\|oss\|cos\|r2` (+ credential options) | Sources > Add source > Cloud storage | done (earlier lanes) |
-| `oo source add postgres\|mysql\|oracle\|sqlserver\|db2\|kingbase\|dm8` (`--host --port --database --user --password-stdin --tls-ca-* --include --exclude`) | Sources > Add source > Database | done; live-tested on PostgreSQL 16 and MySQL 8.0; other kinds covered by the canned `oo` |
-| `oo source add mariadb\|tidb\|oceanbase\|opengauss\|polardb\|doris\|starrocks\|clickhouse\|mongodb\|opensearch` | listed in the kind picker, disabled with a note | cli: the connectors exist in `oo-connectors`, but `oo source add` / `oo doctor` accept only the seven kinds above; needs a CLI change per kind |
+| `oo source add <kind>` for all 17 kinds: postgres mysql mariadb tidb oceanbase polardb opengauss kingbase sqlserver oracle db2 dm8 clickhouse doris starrocks mongodb opensearch (`--host --port --database --user --password-stdin --tls-ca-* --include --exclude`) | Sources > Add source > Database | done: the kind table (`db-kinds.mjs`) mirrors `source_db.rs` (stack engine, default port, TLS rule, scope unit: table, collection or index); live-tested from Add to Query on PostgreSQL 16 and MySQL 8.4; other kinds covered by the canned `oo` and the CLI's own tests |
 | `oo source ls\|show\|rm\|test` | Sources list, database page (Remove, Test connection) | done |
 | `oo source link ...` | not in the app | cli |
 | `oo init --engine ... --password-file` (connection check) | Add database > Test connection | done (postgres, mysql, oracle) |
 | `oo init --config`, `--catalog`, `--tables-*`, wizard, `--ssh` tunnel | first database writes the stack file; table scope is include/exclude | partial: no catalog browser, no SSH tunnel fields |
 | `oo doctor` | Database page > Run doctor; Settings > Diagnostics | done |
-| `oo up` / `oo build` / `oo down`, `oo status` | Database page > Import data (progress, log, freshness); `down`: channel only | partial: `up`+`build` in the UI, `down` and `build --resume/--review-file` via CLI |
+| `oo up` / `oo build [--resume] [--review-file]` / `oo down`, `oo status` | Database page > Import data (a row per stage, log, freshness, the cause of a failed stage with its next step); the build review (below); `down`: channel only | partial: everything but `down` is in the UI |
+| `oo build --review-file` (`oo.build-review/v1`, edge decisions as `oo.adjudication-override/v1`) | Database page > Review what was found: entities, relationships (declared, matched by name, found by values) with evidence, accept or reject each, one reason; then publish, Atlas source view, YAML files, Query | done (live-tested) |
 | `oo review`, `oo ontology open\|export\|graph` | Ontology > Files (YAML per version, diff, export) | partial: version manifests from the engine and Gateway YAML; the Pack export is `oo ontology export` |
 | `oo query`, `oo validate`, `oo tables`, `oo describe` | Ontology > Query (SQL, Tables) | done (`--expected-*`, `--client-pem`, `--connect-ip`, `--interface` not exposed) |
 | `oo knowledge search\|cat` | Ontology > Query > Knowledge | done |

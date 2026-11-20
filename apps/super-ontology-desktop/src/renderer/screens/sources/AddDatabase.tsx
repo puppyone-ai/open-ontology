@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Dialog, Notice, Segmented, Select, StatusDot, TextArea, TextField } from "@open-ontology/design-system";
 import { FolderOpen, PlugZap } from "lucide-react";
-import { DB_KINDS, HOST_NAME, SOURCE_NAME, TABLE_ENTRY, dbKind } from "../../../shared/super-ontology/db-kinds.mjs";
+import { DB_KINDS, HOST_NAME, SOURCE_NAME, TABLE_ENTRY, caAccepted, caRequired, dbKind } from "../../../shared/super-ontology/db-kinds.mjs";
 import type { CliResult, DbConnectionFields } from "../../../shared/super-ontology/bridge";
 import { invoke } from "../../model/bridgeInvoke";
 import { runCli, withOperation } from "../../model/cliApi";
@@ -23,7 +23,7 @@ export function validateForm(form: Form): Touched[] {
   if (form.database.trim() === "") bad.push("database");
   if (form.user.trim() === "") bad.push("user");
   if (form.password === "") bad.push("password");
-  if (kind?.tls === "required" && !(form.caMode === "paste" ? form.caPem.trim() !== "" : form.caGrant !== null)) bad.push("ca");
+  if (caRequired(kind, form.host) && !(form.caMode === "paste" ? form.caPem.trim() !== "" : form.caGrant !== null)) bad.push("ca");
   const include = lines(form.include);
   if (include.length === 0 || !include.every((entry) => TABLE_ENTRY.test(entry))) bad.push("include");
   return bad;
@@ -47,12 +47,14 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
   const set = (patch: Partial<Form>) => { setForm((current) => ({ ...current, ...patch })); setResult(null); };
   const required = t("app.db.required");
   const err = (field: Touched, message = required) => (touched && bad.has(field) ? message : null);
-  const unwired = DB_KINDS.filter((k) => !k.wired);
+  const withCa = caAccepted(kind);
+  const needCa = caRequired(kind, form.host);
+  const unit = kind?.unit ?? "table";
   const nameLabel = kind?.nameField === "service" ? t("app.db.service") : t("app.db.database");
 
   const fields = (): DbConnectionFields => ({
     kind: form.kind, host: form.host.trim(), ...(form.port ? { port: Number(form.port) } : {}), database: form.database.trim(), user: form.user.trim(), password: form.password,
-    ...(form.caMode === "paste" && form.caPem.trim() ? { tlsCaPem: form.caPem.trim() } : {}), ...(form.caMode === "file" && form.caGrant ? { tlsCaGrantId: form.caGrant.id } : {}),
+    ...(withCa && form.caMode === "paste" && form.caPem.trim() ? { tlsCaPem: form.caPem.trim() } : {}), ...(withCa && form.caMode === "file" && form.caGrant ? { tlsCaGrantId: form.caGrant.id } : {}),
   });
   const connectionBad = (["host", "port", "database", "user", "password", "ca"] as Touched[]).some((field) => bad.has(field));
 
@@ -95,10 +97,8 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
       {result?.kind === "check" && result.value.ok && <Notice tone="success" title={t("app.db.check.ok")} testId="add-database-check-ok">{t("app.db.check.okBody")}</Notice>}
       </div>
       <Select label={t("app.db.kind")} value={form.kind} onChange={(event) => set({ kind: event.target.value, port: "" })} data-testid="add-database-kind">
-        <optgroup label={t("app.db.kind.ready")}>{DB_KINDS.filter((k) => k.wired).map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</optgroup>
-        <optgroup label={t("app.db.kind.pending")}>{unwired.map((k) => <option key={k.id} value={k.id} disabled>{k.label}</option>)}</optgroup>
+        {DB_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
       </Select>
-      <p className="so-weak so-db-pending" data-testid="add-database-pending">{t("app.db.kind.pendingNote", { kinds: unwired.map((k) => k.label).join(", ") })}</p>
       <TextField label={t("app.db.name")} value={form.name} onChange={(e) => set({ name: e.target.value })} error={err("name", form.name === "" ? required : t("app.db.name.bad"))} placeholder={t("app.db.name.placeholder")} helper={t("app.db.name.help")} autoFocus maxLength={64} spellCheck={false} data-testid="add-database-name" />
       <div className="so-grid" data-cols="2">
         <TextField label={t("app.db.host")} value={form.host} onChange={(e) => set({ host: e.target.value })} error={err("host", form.host === "" ? required : t("app.db.host.bad"))} placeholder="db.example.test" spellCheck={false} data-testid="add-database-host" />
@@ -110,18 +110,20 @@ export function AddDatabaseDialog({ onClose, onAdded }: { onClose: () => void; o
         <TextField label={t("app.db.password")} type="password" value={form.password} onChange={(e) => set({ password: e.target.value })} error={err("password")} autoComplete="off" data-testid="add-database-password" />
       </div>
       <p className="so-weak">{t("app.db.password.help")}</p>
-      <div className="so-db-ca">
-        <div className="so-db-ca-head">
-          <span className="so-field-label">{t("app.db.ca")}{kind?.tls === "optional" ? <span className="so-weak"> · {t("app.db.optional")}</span> : null}</span>
-          <Segmented<"paste" | "file"> label={t("app.db.ca")} value={form.caMode} onChange={(caMode) => set({ caMode })} options={[{ value: "paste", label: t("app.db.ca.paste") }, { value: "file", label: t("app.db.ca.file") }]} />
+      {withCa ? (
+        <div className="so-db-ca" data-testid="add-database-ca" data-need={needCa ? "required" : "optional"}>
+          <div className="so-db-ca-head">
+            <span className="so-field-label">{t("app.db.ca")}{needCa ? null : <span className="so-weak"> · {t("app.db.optional")}</span>}</span>
+            <Segmented<"paste" | "file"> label={t("app.db.ca")} value={form.caMode} onChange={(caMode) => set({ caMode })} options={[{ value: "paste", label: t("app.db.ca.paste") }, { value: "file", label: t("app.db.ca.file") }]} />
+          </div>
+          {form.caMode === "paste"
+            ? <TextArea label={t("app.db.ca.pem")} labelHidden value={form.caPem} onChange={(e) => set({ caPem: e.target.value })} rows={4} placeholder="-----BEGIN CERTIFICATE-----" error={err("ca")} spellCheck={false} data-testid="add-database-ca-pem" />
+            : <div className="so-db-ca-file"><Button variant="secondary" icon={FolderOpen} onClick={() => { void chooseCa(); }} data-testid="add-database-ca-choose">{t("app.db.ca.choose")}</Button><span className="so-mono so-truncate" title={form.caGrant?.path}>{form.caGrant?.path ?? (touched && bad.has("ca") ? required : t("app.db.ca.none"))}</span></div>}
+          <p className="so-weak">{t(kind?.tls === "loopback" ? "app.db.ca.loopback" : "app.db.ca.help")}</p>
         </div>
-        {form.caMode === "paste"
-          ? <TextArea label={t("app.db.ca.pem")} labelHidden value={form.caPem} onChange={(e) => set({ caPem: e.target.value })} rows={4} placeholder="-----BEGIN CERTIFICATE-----" error={err("ca")} spellCheck={false} data-testid="add-database-ca-pem" />
-          : <div className="so-db-ca-file"><Button variant="secondary" icon={FolderOpen} onClick={() => { void chooseCa(); }} data-testid="add-database-ca-choose">{t("app.db.ca.choose")}</Button><span className="so-mono so-truncate" title={form.caGrant?.path}>{form.caGrant?.path ?? (touched && bad.has("ca") ? required : t("app.db.ca.none"))}</span></div>}
-        <p className="so-weak">{t("app.db.ca.help")}</p>
-      </div>
-      <TextArea label={t("app.db.include")} value={form.include} onChange={(e) => set({ include: e.target.value })} rows={3} placeholder={"public.customers\npublic.orders"} error={err("include", t("app.db.include.bad"))} helper={t("app.db.include.help")} spellCheck={false} data-testid="add-database-include" />
-      <TextArea label={t("app.db.exclude")} optionalLabel={t("app.db.optional")} value={form.exclude} onChange={(e) => set({ exclude: e.target.value })} rows={2} placeholder="public.audit_log" spellCheck={false} data-testid="add-database-exclude" />
+      ) : <p className="so-weak" data-testid="add-database-ca-driver">{t("app.db.ca.driver")}</p>}
+      <TextArea label={t(`app.db.scope.${unit}.label`)} value={form.include} onChange={(e) => set({ include: e.target.value })} rows={3} placeholder={unit === "collection" ? "shop.customers\nshop.orders" : unit === "index" ? "default.customers\ndefault.orders" : "public.customers\npublic.orders"} error={err("include", t(`app.db.scope.${unit}.bad`))} helper={t(`app.db.scope.${unit}.help`)} spellCheck={false} data-testid="add-database-include" />
+      <TextArea label={t(`app.db.scope.${unit}.exclude`)} optionalLabel={t("app.db.optional")} value={form.exclude} onChange={(e) => set({ exclude: e.target.value })} rows={2} placeholder="public.audit_log" spellCheck={false} data-testid="add-database-exclude" />
       {checks.length > 0 && (
         <ul className="so-db-checks" data-testid="add-database-checks" aria-label={t("app.db.check.title")}>
           {checks.map((check) => (

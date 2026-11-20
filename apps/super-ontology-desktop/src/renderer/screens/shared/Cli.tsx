@@ -33,11 +33,11 @@ export function CliErrorNotice({ error, cli, title, testId = "cli-error" }: { er
   const next = hasNextStep(error);
   const bridgeText = useErrorText();
   // A failure of the bridge itself (no command ran) has no CLI message: use the app's own sentence for its code.
-  const detail = error.message || (error.code.startsWith("SO_") ? bridgeText({ code: error.code, retryable: false, details: {} }) : t("app.cli.error.noMessage"));
+  const detail = error.message || (error.code.startsWith("SO_") ? bridgeText({ code: error.code, retryable: false, details: {} }) : next ? "" : t("app.cli.error.noMessage"));
   return (
     <Notice tone="danger" title={title} testId={testId}>
       <span className="so-cli-error-code so-mono">{error.code}</span>
-      <p className="so-cli-error-text">{detail}</p>
+      {detail && <p className="so-cli-error-text">{detail}</p>}
       {next && <p className="so-cli-error-next" data-testid={`${testId}-next`}>{t(`app.cli.next.${error.code}`)}</p>}
       {!next && error.hint && <p className="so-cli-error-next">{error.hint}</p>}
       {cli && <CliCommand command={cli} testId={`${testId}-cli`} />}

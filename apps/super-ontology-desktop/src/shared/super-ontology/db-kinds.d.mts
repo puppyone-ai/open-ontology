@@ -1,8 +1,11 @@
-export type DbKind = { readonly id: string; readonly label: string; readonly port: number; readonly nameField: "database" | "service"; readonly tls: "required" | "optional"; readonly wired: boolean; readonly preflight: boolean; readonly family?: string };
+export type DbKind = { readonly id: string; readonly label: string; readonly engine: string; readonly port: number; readonly nameField: "database" | "service"; readonly tls: "required" | "loopback" | "driver" | "optional"; readonly unit: "table" | "collection" | "index"; readonly wired: boolean; readonly preflight: boolean };
 export const DB_KINDS: readonly DbKind[];
 export const DB_WIRED_KIND_IDS: readonly string[];
 export const DB_KIND_IDS: readonly string[];
 export function dbKind(id: string): DbKind | null;
+export function isLoopbackHost(host: string): boolean;
+export function caRequired(kind: DbKind | null, host: string): boolean;
+export function caAccepted(kind: DbKind | null): boolean;
 export const TABLE_ENTRY: RegExp;
 export const SOURCE_NAME: RegExp;
 export const HOST_NAME: RegExp;
