@@ -284,6 +284,13 @@
 | SO-F-S20-08 | D46 | merged | feat/super-ontology (App 车道 W 并入) | ba971a62e → ba971a62e | — | apps/super-ontology-desktop/ | Make P07 repeatable and exact about renames, deletes and the atlas |
 | SO-F-S20-09 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 7b9e1da77 → 7b9e1da77 | — | apps/super-ontology-desktop/ | Judge P07 evidence per file, retry lost clicks and report steps that were not run |
 | SO-F-S20-20 | D85 | merged | feat/super-ontology (App 车道 Z 并入) | 381f83fe5 → 381f83fe5 | — | apps/super-ontology-desktop/ | List agent tokens with state=all so a revoked token shows as revoked |
+| SO-F-S20-10 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | ddfb582a3 → ddfb582a3 | — | apps/super-ontology-desktop/ | Move native strings to JSON catalogs and fill their gaps |
+| SO-F-S20-11 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | b4233cf6a → b4233cf6a | — | apps/super-ontology-desktop/ | Strengthen check:i18n and close the gaps it finds |
+| SO-F-S20-12 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 32dc280d0 → 32dc280d0 | — | apps/super-ontology-desktop/ | Record the vocabulary shared with the sibling desktop app and test it |
+| SO-F-S20-13 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 8eb7c6757 → 8eb7c6757 | — | apps/super-ontology-desktop/ | Show engine and CLI errors in the language of the app, with the code on a details line |
+| SO-F-S20-14 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 743d5a885 → 743d5a885 | — | apps/super-ontology-desktop/ | Bring the language setting up to the sibling app's behaviour |
+| SO-F-S20-15 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 073bdba54 → 073bdba54 | — | apps/super-ontology-desktop/ | Keep the CLI cause first and settle terms after the visual review |
+| SO-F-S20-16 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 912375045 → 912375045 | — | apps/super-ontology-desktop/ | Add a locale screenshot tool and a language switch for the T1 runs |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
