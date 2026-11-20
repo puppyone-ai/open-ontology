@@ -36,8 +36,23 @@ def flat_text(d):
     return "\n".join(W.flat(b) for b in d["blocks"])
 
 
+def narrow_latin(pdf):
+    """The golden writer's CID font has one width for every glyph (full width), which is right for Chinese but spreads Latin text far past
+    the page edge. Adobe-GB1 CIDs 1..95 are the proportional ASCII glyphs; give them half width and rebuild the cross-reference table."""
+    import re
+    body = pdf[:pdf.index(b"xref\n0 ")].replace(b"/DW 1000 >>", b"/DW 1000 /W [ 1 95 500 ] >>")
+    offs = {int(m.group(1)): m.start() + 1 for m in re.finditer(rb"\n(\d+) 0 obj\n", body)}
+    out = bytearray(body)
+    x = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(offs) + 1) + b"".join(b"%010d 00000 n \n" % offs[n] for n in sorted(offs))
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(offs) + 1, x)
+    return bytes(out)
+
+
 def put_doc(path, d, kind):
     data, _ = W.WRITERS[kind](d)
+    if kind == "pdf":
+        data = narrow_latin(data)
     put(path, data, flat_text(d))
 
 
