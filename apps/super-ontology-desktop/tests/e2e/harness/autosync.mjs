@@ -21,7 +21,7 @@ const UI_SCRIPT = `(() => {
     count: document.querySelectorAll('[data-testid="file-row"]').length };
 })()`;
 
-export function createAutosync({ engineApi, cdp, directory, locale, variables, state, osa, peekaboo, pid: pidOf }) {
+export function createAutosync({ engineApi, cdp, directory, locale, variables, state }) {
   const timings = { locale, steps: {}, problems: [] };
   const write = () => fs.writeFile(path.join(directory, "timings.json"), JSON.stringify(timings, null, 2));
   const root = () => variables.watchedDir;
@@ -88,6 +88,12 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
 
   const entitiesFor = async (query) => ((await engineApi(`/v1/docs/entities?limit=50&q=${encodeURIComponent(query)}`)).body?.items ?? []);
   const factsOf = async (key) => JSON.stringify((await engineApi(`/v1/docs/entities/${key}`)).body ?? {});
+  // Evidence versions behind an entity that come from one file (the entity may be backed by others too).
+  const versionsOfPath = (body, file) => {
+    let parsed = null;
+    try { parsed = JSON.parse(body); } catch { return new Set(); }
+    return new Set((parsed.facts ?? []).flatMap((fact) => fact.evidence ?? []).filter((item) => item.path === file).map((item) => item.version_id));
+  };
   const finish = async () => { await write(); if (timings.problems.length > 0) throw new Error(`auto-sync budgets missed:\n  ${timings.problems.join("\n  ")}`); };
   const fileText = (name, role) => `---\ntype: person\nname: ${name}\nrole: ${role}\n---\n# ${name}\n\nRole: ${role}\n`;
 
@@ -131,8 +137,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       const before = await entitiesFor("Zed Quill");
       state.zedPersonKey = before.find((entity) => entity.type === "Person")?.key;
       if (!state.zedPersonKey) timings.problems.push("create: the person Zed Quill did not become an entity");
-      const versionsOf = (body) => new Set([...body.matchAll(/"version_id":"([^"]+)"/gu)].map((match) => match[1]));
-      state.zedVersions = versionsOf(await factsOf(state.zedPersonKey));
+      state.zedVersions = versionsOfPath(await factsOf(state.zedPersonKey), "zed-quill.md");
 
       await fs.writeFile(a, fileText("Zed Quill", "Lead tester"), "utf8");
       await measure("edit", { ...base, expect: [{ path: "zed-quill.md", want: "published", changedFrom: created.b3 }], judge: { expectTransition: true } });
@@ -140,7 +145,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       // The rule extractor keeps no role text as a fact (it links the person to the file), so the edit shows as the entity's evidence
       // pointing at the file's new version and no longer at the old one.
       const carried = nowKey ? await factsOf(nowKey) : "";
-      const after = versionsOf(carried);
+      const after = versionsOfPath(carried, "zed-quill.md");
       timings.editEntity = { keyBefore: state.zedPersonKey, keyAfter: nowKey, versionsBefore: [...state.zedVersions], versionsAfter: [...after] };
       if (after.size === 0 || [...after].some((version) => state.zedVersions.has(version))) timings.problems.push("edit: the entity's evidence still points at the old version of the file");
 
@@ -201,8 +206,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       const people = (await entitiesFor("Mira Okafor")).filter((entity) => entity.type === "Person");
       if (people.length === 0) throw new Error("Mira Okafor is not an entity yet");
       const key = people[0].key;
-      const versionsOf = (body) => new Set([...body.matchAll(/"version_id":"([^"]+)"/gu)].map((match) => match[1]));
-      const versionsBefore = versionsOf(await factsOf(key));
+      const versionsBefore = versionsOfPath(await factsOf(key), "mira-okafor.md");
       const before = (await listFiles(driveId)).get("mira-okafor.md");
       const page = await cdp().evaluate(UI_SCRIPT);
       const driveBefore = (await engineApi(`/v1/docs/drives/${driveId}`)).body;
@@ -217,7 +221,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
         if (sample.rings !== null && page.rings !== null && sample.rings > page.rings && marks.ringMs === null) marks.ringMs = t;
         if (marks.evidenceMs === null && Date.now() - checked > 300) {
           checked = Date.now();
-          const now = versionsOf(await factsOf(key));
+          const now = versionsOfPath(await factsOf(key), "mira-okafor.md");
           if (now.size > 0 && ![...now].some((version) => versionsBefore.has(version))) marks.evidenceMs = t;
         }
         return sample;

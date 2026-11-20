@@ -31,7 +31,7 @@ export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
 const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "chooseFiles", "wait", "assert", "screenshot", "provision", "autosync"]);
-const ATTEMPT_MS = 5 * 60_000;
+const DEFAULT_LIMIT_MINUTES = 5;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
 
@@ -233,7 +233,8 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "quit": await quit(); break;
         // `until`: a test id the click must bring up (a screen); a click that the app swallowed while it was still booting is repeated.
         case "click": {
-          await peekaboo.click(nameOf());
+          // Peekaboo sometimes loses the element while the page re-renders: look again before failing the step.
+          for (let tries = 1; ; tries += 1) { try { await peekaboo.click(nameOf()); break; } catch (error) { if (tries >= 3) throw error; await sleep(2000); } }
           // The accessibility press of a control is sometimes acknowledged and not acted on; the next tries use a real mouse click.
           for (let again = 0; step.until && again < 3; again += 1) {
             const arrived = await assertions.dom({ cdp, args: { testid: step.until, withinMs: 5000 } });
@@ -254,7 +255,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
         case "autosync": {
-          autosync ??= createAutosync({ engineApi, cdp: () => cdp, directory, locale, variables, state: autosyncState, osa, peekaboo, pid: () => child?.pid });
+          autosync ??= createAutosync({ engineApi, cdp: () => cdp, directory, locale, variables, state: autosyncState });
           await autosync.cases[step.case]();
           break;
         }
@@ -332,7 +333,7 @@ async function main() {
     for (const locale of scenario.locales.filter((entry) => locales.includes(entry))) {
       let run = null;
       for (let attempt = 1; attempt <= 2 && !run?.ok; attempt += 1) {
-        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), (scenario.limitMinutes ?? 5) * 60_000, stopAllRecordings);
+        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), (scenario.limitMinutes ?? DEFAULT_LIMIT_MINUTES) * 60_000, stopAllRecordings);
         run.attempts = attempt;
         console.log(`${run.ok ? "PASS" : "FAIL"} ${scenario.id} ${locale} attempt ${attempt}${run.error ? ` - ${String(run.error).split("\n")[0]}` : ""}`);
       }

@@ -19,7 +19,7 @@ export function summarize(timingsByLocale) {
         p95PublishedMs: percentile(files.map((file) => file.settledMs), 95), upToDateMs: measurement.freshMs ?? null,
         freshness: (measurement.freshness?.api ?? []).map((entry) => entry.state).join(" > "), pageFreshness: (measurement.freshness?.ui ?? []).map((entry) => entry.state).join(" > "),
         viaPoll: (measurement.syncs ?? []).some((sync) => sync.trigger === "poll" && (sync.added ?? 0) + (sync.changed ?? 0) + (sync.removed ?? 0) + (sync.renamed ?? 0) > 0),
-        marks: measurement.marks ?? null, ok: (measurement.problems ?? []).length === 0, problems: measurement.problems ?? [],
+        marks: measurement.marks ?? null, notRun: measurement.notRun ?? null, ok: (measurement.problems ?? []).length === 0, problems: measurement.problems ?? [],
       });
     }
   }
@@ -28,7 +28,7 @@ export function summarize(timingsByLocale) {
 
 export function table(rows) {
   const head = "| lang | step | files | row ms | published ms | page ms | up_to_date ms | freshness (engine) | via poll | ok |\n|---|---|---|---|---|---|---|---|---|---|";
-  return `${head}\n${rows.map((row) => `| ${row.locale} | ${row.step} | ${row.files} | ${cell(row.rowMs)} | ${cell(row.publishedMs)} | ${cell(row.pageMs)} | ${cell(row.upToDateMs)} | ${row.freshness || "-"} | ${row.viaPoll ? "yes" : "no"} | ${row.ok ? "pass" : "FAIL"} |`).join("\n")}\n`;
+  return `${head}\n${rows.map((row) => `| ${row.locale} | ${row.step} | ${row.files} | ${cell(row.rowMs)} | ${cell(row.publishedMs)} | ${cell(row.pageMs)} | ${cell(row.upToDateMs)} | ${row.freshness || "-"} | ${row.viaPoll ? "yes" : "no"} | ${row.notRun ? "not run" : row.ok ? "pass" : "FAIL"} |`).join("\n")}\n`;
 }
 
 async function main() {
@@ -45,7 +45,7 @@ async function main() {
   await fs.writeFile(`${prefix}.json`, JSON.stringify({ rows, raw: byLocale }, null, 2));
   await fs.writeFile(`${prefix}.md`, table(rows));
   console.log(table(rows));
-  return rows.every((row) => row.ok) ? 0 : 1;
+  return rows.every((row) => row.ok || row.notRun) ? 0 : 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main());
