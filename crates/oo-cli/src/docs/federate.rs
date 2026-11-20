@@ -435,10 +435,14 @@ async fn gateway(
     let p = load_profile(profile)?;
     let http = lifecycle::Http::new(&p, false).map_err(gateway_err)?;
     let token = lifecycle::read_token(&p).map_err(gateway_err)?;
-    let (s, v, meta) = http
-        .call_meta(path, body, Some(&token), false)
-        .await
-        .map_err(gateway_err)?;
+    // The Gateway admits one query per role at a time (the role's data session is not shared), so concurrent
+    // agents on one role are refused with OVERLOADED, which says "retry". Retry here, with backoff, instead of
+    // letting every agent see an empty side.
+    let (s, v, meta) = retry_overloaded(OVERLOAD_RETRIES, OVERLOAD_BASE, || {
+        http.call_meta(path, body.clone(), Some(&token), false)
+    })
+    .await
+    .map_err(gateway_err)?;
     if (200..300).contains(&s) && v.get("error").is_none() {
         Ok((v, meta))
     } else {
@@ -447,6 +451,40 @@ async fn gateway(
             "ONTOLOGY_GATEWAY_REFUSED",
             refusal_text(&v),
         ))
+    }
+}
+
+/// Retries of a query the Gateway refused as OVERLOADED, and the first wait (doubled each time, 12 s in all).
+const OVERLOAD_RETRIES: u32 = 6;
+const OVERLOAD_BASE: Duration = Duration::from_millis(200);
+
+fn is_overloaded(v: &Value) -> bool {
+    v["error"]["code"].as_str() == Some("OVERLOADED")
+}
+
+/// Run `call`; while the answer is an OVERLOADED refusal, wait `base * 2^n` (plus a little jitter) and run it
+/// again, at most `retries` more times. Any other answer, and a transport error, returns at once.
+async fn retry_overloaded<T, E, F, Fut>(
+    retries: u32,
+    base: Duration,
+    mut call: F,
+) -> Result<(u16, Value, T), E>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<(u16, Value, T), E>>,
+{
+    let mut attempt = 0;
+    loop {
+        let out = call().await?;
+        if attempt >= retries || !is_overloaded(&out.1) {
+            return Ok(out);
+        }
+        let jitter = u64::from(std::process::id())
+            .wrapping_mul(31)
+            .wrapping_add(u64::from(attempt) * 17)
+            % 50;
+        tokio::time::sleep(base * 2u32.pow(attempt) + Duration::from_millis(jitter)).await;
+        attempt += 1;
     }
 }
 
@@ -728,6 +766,9 @@ impl Ctx<'_> {
                 .then_with(|| a["urn"].as_str().cmp(&b["urn"].as_str()))
         });
         items.truncate(limit);
+        if items.is_empty() {
+            warnings.push(no_hits_hint(q));
+        }
         if self.docs() {
             for it in items.iter_mut().take(5) {
                 let l = match parse_urn(it["urn"].as_str().unwrap_or("")) {
@@ -974,7 +1015,7 @@ impl Ctx<'_> {
                             .is_some_and(|t| page.iter().any(|p| p == t))
                     }));
                 }
-                relationships.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+                relationships = dedupe_relationships(relationships);
             }
             Err(f) => {
                 rel_status = "unavailable";
@@ -1121,6 +1162,39 @@ fn relationship_items(source: &str, graph: &Value) -> Vec<Value> {
                    "confidence": r["confidence"]})
         })
         .collect()
+}
+
+/// Said when a search finds nothing: an empty answer is not proof the data lacks it, because the match is
+/// literal and the corpus may be in another language.
+fn no_hits_hint(q: &str) -> String {
+    format!(
+        "no hits for \"{q}\": this is not proof the data has nothing. Search matches names, aliases and passages as written, \
+         with no translation, and the data may be in another language (try the term in Chinese, Japanese or English as the data \
+         writes it, a name or alias instead of a description, one distinctive word or a shorter form). For counts, dates and \
+         rankings read the tables with oo ontology schema and oo ontology query"
+    )
+}
+
+/// One edge per (from table and columns, to table and columns), ordered by id. The published graph holds the
+/// declared foreign keys and, again, the relationships inferred from the same columns (`r_...` ids); the agent
+/// reads one edge, so a declared id wins over an inferred one and equal ids collapse.
+fn dedupe_relationships(mut items: Vec<Value>) -> Vec<Value> {
+    let inferred = |r: &Value| r["id"].as_str().is_some_and(|i| i.starts_with("r_"));
+    items.sort_by(|a, b| {
+        inferred(a)
+            .cmp(&inferred(b))
+            .then_with(|| a["id"].as_str().cmp(&b["id"].as_str()))
+    });
+    let mut seen = std::collections::BTreeSet::new();
+    items.retain(|r| {
+        let key = format!(
+            "{}|{}|{}|{}",
+            r["from"]["table"], r["from"]["columns"], r["to"]["table"], r["to"]["columns"]
+        );
+        seen.insert(key)
+    });
+    items.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    items
 }
 
 /// The `[start, start+limit)` window of `total` tables named by an opaque cursor.
@@ -1346,6 +1420,73 @@ fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_empty_search_says_how_to_try_other_forms() {
+        let t = no_hits_hint("Ada");
+        assert!(t.contains("\"Ada\"") && t.contains("not proof") && t.contains("another language"));
+    }
+
+    #[tokio::test]
+    async fn an_overloaded_gateway_is_retried_and_other_answers_are_not() {
+        let over = || json!({"error": {"code": "OVERLOADED", "message": "role query is busy"}});
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let n = || calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let out = retry_overloaded(5, Duration::from_millis(1), || {
+            let k = n();
+            async move {
+                Ok::<_, ()>(if k < 3 {
+                    (503, over(), ())
+                } else {
+                    (200, json!({"rows": []}), ())
+                })
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            (out.0, calls.load(std::sync::atomic::Ordering::SeqCst)),
+            (200, 4)
+        );
+        // Persistent overload gives up after `retries` more tries and returns the refusal.
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let out = retry_overloaded(2, Duration::from_millis(1), || {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async { Ok::<_, ()>((503, over(), ())) }
+        })
+        .await
+        .unwrap();
+        assert!(is_overloaded(&out.1));
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
+        // A refusal that is not OVERLOADED comes back at once.
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let out = retry_overloaded(5, Duration::from_millis(1), || {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async { Ok::<_, ()>((422, json!({"error": {"code": "FUNCTION_NOT_ALLOWED"}}), ())) }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            (out.0, calls.load(std::sync::atomic::Ordering::SeqCst)),
+            (422, 1)
+        );
+    }
+
+    #[test]
+    fn schema_relationships_are_one_edge_per_column_pair() {
+        let edge = |id: &str, from: &str, to: &str| {
+            json!({"id": id, "from": {"table": "public.orders", "columns": [from]},
+                   "to": {"table": "public.customers", "columns": [to]}})
+        };
+        let out = dedupe_relationships(vec![
+            edge("r_9f3a", "customer_id", "id"),
+            edge("fk_orders_customer", "customer_id", "id"),
+            edge("fk_orders_customer", "customer_id", "id"),
+            edge("r_77", "region_id", "id"),
+        ]);
+        let ids: Vec<&str> = out.iter().filter_map(|r| r["id"].as_str()).collect();
+        assert_eq!(ids, ["fk_orders_customer", "r_77"]);
+    }
+
     use super::*;
 
     #[test]
