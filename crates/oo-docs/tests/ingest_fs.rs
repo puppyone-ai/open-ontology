@@ -618,17 +618,15 @@ async fn mass_delete_is_held_until_confirmed() {
     assert_eq!(e.generation().await, 1);
     assert_eq!(e.events("drive.sync_held").await, 1);
 
-    // Enqueueing another sync is refused while held, naming the generation.
-    match enqueue_sync(&e.pool, &e.drive, SyncFlavor::POLL)
-        .await
-        .unwrap()
-    {
-        EnqueuedSync::Held {
-            generation,
-            would_delete,
-        } => assert_eq!((generation, would_delete), (2, 120)),
-        other => panic!("{other:?}"),
-    }
+    // Another sync lists again under the held generation (see `hold_clears_when_the_files_come_back`); while the listing is
+    // still a mass delete it is held again, nothing swept.
+    let again = e.sync().await;
+    assert_eq!(
+        (again.status, again.would_delete),
+        (SyncStatus::Held, Some(120)),
+        "{again:?}"
+    );
+    assert_eq!(e.live().await, 150, "still nothing is deleted");
     // A confirmation for another generation is refused.
     let wrong = SyncFlavor {
         trigger: Trigger::Manual,
@@ -653,6 +651,50 @@ async fn mass_delete_is_held_until_confirmed() {
     assert_eq!((r.status, r.removed), (SyncStatus::Complete, 120), "{r:?}");
     assert_eq!(e.live().await, 30);
     assert_eq!(e.generation().await, 2);
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn hold_clears_when_the_files_come_back() {
+    let e = env("ingest_hold_clears", 1000).await;
+    for i in 0..150 {
+        e.write(&format!("bulk/f{i:03}.md"), &format!("content {i}\n"));
+    }
+    e.sync().await;
+    e.hash_all().await;
+    for i in 0..120 {
+        e.rm(&format!("bulk/f{i:03}.md"));
+    }
+    assert_eq!(e.sync().await.status, SyncStatus::Held);
+    // The files return (a remounted folder, an undo): the next ordinary sync is accepted and completes, without a confirmation.
+    for i in 0..120 {
+        e.write(&format!("bulk/f{i:03}.md"), &format!("content {i}\n"));
+    }
+    assert!(matches!(
+        enqueue_sync(&e.pool, &e.drive, SyncFlavor::POLL)
+            .await
+            .unwrap(),
+        EnqueuedSync::Enqueued { generation: 2, .. }
+    ));
+    let r = e.sync().await;
+    assert_eq!((r.status, r.removed), (SyncStatus::Complete, 0), "{r:?}");
+    assert_eq!(e.live().await, 150);
+    assert_eq!(e.generation().await, 2);
+    e.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn deleting_the_only_file_is_not_a_mass_delete() {
+    let e = env("ingest_single_delete", 100).await;
+    e.write("only.md", "only\n");
+    e.sync().await;
+    e.hash_all().await;
+    e.rm("only.md");
+    let r = e.sync().await;
+    assert_eq!((r.status, r.removed), (SyncStatus::Complete, 1), "{r:?}");
+    assert_eq!(e.live().await, 0);
     e.finish().await;
 }
 

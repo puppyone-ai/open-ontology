@@ -58,7 +58,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const onDrop = (event: React.DragEvent) => {
     event.preventDefault(); setDragging(false);
     if (readOnly) return;
-    void getUploadQueue().enqueueFiles(drive.id, path, event.dataTransfer.files);
+    void getUploadQueue().enqueueFiles(drive.id, path, Array.from(event.dataTransfer.files));
   };
   const pickFiles = useRef<HTMLInputElement>(null);
 
@@ -70,9 +70,10 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
       </div>
       <PageHeader title={drive.name} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
         actions={<>
-          {fresh && <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} />}
+          {fresh && <span style={{ display: "contents" }} data-testid="source-freshness" data-freshness={fresh}><StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} /></span>}
           <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }} data-testid="source-sync">{t("app.sources.sync")}</Button>
-          {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { if (e.target.files) void getUploadQueue().enqueueFiles(drive.id, path, e.target.files); e.target.value = ""; }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
+          {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { // A copy of the File objects: the live FileList does not cross the preload bridge (the paths came back empty) and is emptied by the reset below.
+            const picked = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; if (picked.length > 0) void getUploadQueue().enqueueFiles(drive.id, path, picked); }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
           <IconButton ref={menuAnchor} icon={MoreHorizontal} label={t("app.sources.more")} variant="secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} />
           <Menu anchor={menuAnchor} open={menu} onClose={() => setMenu(false)} ariaLabel={t("app.sources.more")} placement="bottom-end">
             <MenuItem icon={Trash2} tone="danger" label={t("app.sources.remove")} closeMenu={() => setMenu(false)} onSelect={() => setRemoving(true)} />

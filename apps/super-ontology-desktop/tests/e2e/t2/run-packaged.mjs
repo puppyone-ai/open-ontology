@@ -19,8 +19,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectToPage, readDevToolsPort } from "../harness/cdp.mjs";
-import { createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
+import { createAutosync } from "../harness/autosync.mjs";
+import { createAutosyncFixtures, createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
 import { createPeekaboo } from "../harness/peekaboo.mjs";
+import { startRecording, stopAllRecordings } from "../harness/recorder.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, "..", "..", "..");
@@ -28,8 +30,8 @@ export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
 export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
-const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
-const ATTEMPT_MS = 5 * 60_000;
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "chooseFiles", "wait", "assert", "screenshot", "provision", "autosync"]);
+const DEFAULT_LIMIT_MINUTES = 5;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
 
@@ -98,7 +100,8 @@ async function loadAssertions() {
 
 const sha256 = async (file) => crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex");
 
-async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures, options }) {
+async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures: sharedFixtures, options }) {
+  let fixtures = sharedFixtures;
   const run = { id: scenario.id, locale, ok: false, steps: [], error: null };
   const directory = path.join(evidence, `${scenario.id}-${locale}`);
   await fs.mkdir(directory, { recursive: true });
@@ -108,7 +111,11 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   let child = null;
   let cdp = null;
   let recording = null;
-  const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose };
+  // Folders a scenario changes are made fresh for every attempt: a retry must not start from what the failed attempt left behind.
+  if (scenario.id === "P07") fixtures = { ...fixtures, autosync: await createAutosyncFixtures(path.join(profile, "fixtures")) };
+  const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose, ...(fixtures.autosync ? { watchedDir: fixtures.autosync.watched, dropThree: fixtures.autosync.drop, staging: fixtures.autosync.staging, bulk50: fixtures.autosync.bulk } : {}) };
+  const autosyncState = {};
+  let autosync = null;
   const text = (value) => String(value).replaceAll(/\$\{(\w+)\}/gu, (_whole, name) => variables[name] ?? "");
 
   const launch = async () => {
@@ -157,6 +164,30 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await sleep(1500);
     if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
   }
+  // The open panel of the upload button: go to the folder, select everything in it, Open. Timed from the moment the panel is gone.
+  async function chooseFiles(folder) {
+    for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
+    await peekaboo.press("cmd+shift+g", { native: true });
+    await sleep(800);
+    await peekaboo.press("cmd+v", { native: true });
+    await sleep(800);
+    await peekaboo.nativeReturn(36);
+    await sleep(1500);
+    // The panel is in column view with the folder selected: Right moves into its files, then everything there is selected.
+    await peekaboo.nativeReturn(124);
+    await sleep(600);
+    await peekaboo.press("cmd+a", { native: true });
+    await sleep(500);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await peekaboo.nativeReturn(36);
+      await sleep(1000);
+      if ((await sheetCount(child.pid)) === 0) break;
+    }
+    autosyncState.pickedAt = Date.now();
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
   async function engineApi(route, { method = "GET", body, headers = {} } = {}) {
     const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8"));
     const token = (await fs.readFile(info.token_file ?? path.join(stateDirectory, "serve.token"), "utf8")).trim();
@@ -181,11 +212,17 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         }
         throw new Error("the seeded source did not settle");
       }
+      // The app's own "My files" source, made the way the first run makes it.
+      case "ensureMyFiles": {
+        const made = await cdp.evaluate(`window.superOntology.invoke('my-files-ensure', { operationId: ${JSON.stringify(`t2-my-files-${Date.now()}-0000`)} })`);
+        if (!made?.ok) throw new Error(`my-files-ensure failed: ${JSON.stringify(made)}`);
+        return;
+      }
       default: throw new Error(`unknown provision action ${step.action}`);
     }
   }
   try {
-    if (options.record) recording = spawn("screencapture", ["-v", path.join(directory, "run.mov")], { stdio: "ignore" });
+    if (options.record) recording = startRecording(path.join(directory, "run.mov"));
     for (const [index, step] of scenario.steps.entries()) {
       const label = `${String(index + 1).padStart(2, "0")}-${step.do}`;
       const started = Date.now();
@@ -196,7 +233,8 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "quit": await quit(); break;
         // `until`: a test id the click must bring up (a screen); a click that the app swallowed while it was still booting is repeated.
         case "click": {
-          await peekaboo.click(nameOf());
+          // Peekaboo sometimes loses the element while the page re-renders: look again before failing the step.
+          for (let tries = 1; ; tries += 1) { try { await peekaboo.click(nameOf()); break; } catch (error) { if (tries >= 3) throw error; await sleep(2000); } }
           // The accessibility press of a control is sometimes acknowledged and not acted on; the next tries use a real mouse click.
           for (let again = 0; step.until && again < 3; again += 1) {
             const arrived = await assertions.dom({ cdp, args: { testid: step.until, withinMs: 5000 } });
@@ -211,10 +249,16 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
         // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
         case "chooseFolder": await chooseFolder(text(step.path)); break;
+        case "chooseFiles": await chooseFiles(text(step.path)); break;
         // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
         case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
+        case "autosync": {
+          autosync ??= createAutosync({ engineApi, cdp: () => cdp, directory, locale, variables, state: autosyncState });
+          await autosync.cases[step.case]();
+          break;
+        }
         case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); if (step.elements) await fs.writeFile(path.join(directory, `${label}-${step.label}.elements.json`), JSON.stringify((await peekaboo.elements()).map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1)); break;
         case "assert": {
           const result = await assertions[step.assertion]({ cdp, args: step.args ?? {}, locale, directory, variables, profile });
@@ -233,7 +277,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await peekaboo.elements().then((list) => fs.writeFile(path.join(directory, "failure.elements.json"), JSON.stringify(list.map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1))).catch(() => undefined);
     await fs.writeFile(path.join(directory, "renderer-console.json"), JSON.stringify(cdp?.console() ?? [], null, 2)).catch(() => undefined);
   } finally {
-    recording?.kill("SIGINT");
+    await recording?.stop();
     await quit();
     // The engine the app started is stopped with the app; make sure none is left behind.
     try { const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8")); process.kill(info.pid, "SIGTERM"); } catch { /* none */ }
@@ -241,9 +285,9 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   return run;
 }
 
-async function withLimit(work, limitMs) {
+export async function withLimit(work, limitMs, onTimeout = () => undefined) {
   let timer;
-  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve({ ok: false, steps: [], error: `exceeded ${limitMs / 60_000} minutes` }), limitMs); });
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => { onTimeout(); resolve({ ok: false, steps: [], error: `exceeded ${limitMs / 60_000} minutes` }); }, limitMs); });
   try { return await Promise.race([work, timeout]); } finally { clearTimeout(timer); }
 }
 
@@ -289,7 +333,7 @@ async function main() {
     for (const locale of scenario.locales.filter((entry) => locales.includes(entry))) {
       let run = null;
       for (let attempt = 1; attempt <= 2 && !run?.ok; attempt += 1) {
-        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), ATTEMPT_MS);
+        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), (scenario.limitMinutes ?? DEFAULT_LIMIT_MINUTES) * 60_000, stopAllRecordings);
         run.attempts = attempt;
         console.log(`${run.ok ? "PASS" : "FAIL"} ${scenario.id} ${locale} attempt ${attempt}${run.error ? ` - ${String(run.error).split("\n")[0]}` : ""}`);
       }

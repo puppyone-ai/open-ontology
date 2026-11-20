@@ -46,6 +46,8 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const app = useApp();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const reduced = useReducedMotion();
+  /** How many change rings the picture has played: lets a test (and a screen reader) tell a change reached the picture. */
+  const [rings, setRings] = useState(0);
   const [mode, setMode] = useState<AtlasMode>(() => (window.localStorage.getItem(MODE_KEY) === "source" ? "source" : "type"));
   const [view, setView] = useState<View>("graph");
   const [canvasData, setCanvasData] = useState<AtlasData | null>(null);
@@ -106,6 +108,8 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
       const ops = opsForEvents(push.payload.events, { mode, hasMember: (id) => handle.current?.has(id) ?? false, hasGroup: (id) => handle.current?.hasGroup(id) ?? false });
       const rest = ops.filter((op) => op.type !== "refresh");
       if (rest.length > 0) handle.current?.apply(rest);
+      const rings = rest.filter((op) => op.type === "pulse").length;
+      if (rings > 0) setRings((count) => count + rings);
       if (rest.length !== ops.length) refresh();
     });
     return () => { stop(); signal.aborted = true; if (timer) clearTimeout(timer); };
@@ -143,7 +147,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const partial = live.partial;
 
   return (
-    <div className="so-stack so-atlas" data-testid="atlas">
+    <div className="so-stack so-atlas" data-testid="atlas" data-rings={rings}>
       <div className="so-toolbar">
         <form className="so-search" role="search" onSubmit={(event) => { event.preventDefault(); jump(1); }}>
           <Search size={16} strokeWidth={1.5} className="so-search-icon so-icon" aria-hidden="true" />
