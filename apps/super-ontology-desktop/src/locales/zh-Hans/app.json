@@ -599,6 +599,7 @@
   "atlas.list": "以列表显示的本体",
   "atlas.linked": "与 {count} 个相连",
   "atlas.more": "再显示 {count} 个",
+  "atlas.relations": "关系",
   "atlas.search": "在图谱中查找",
   "atlas.matches": "{count, plural, =0 {无匹配} other {# 个匹配}}",
   "atlas.group": "细胞分组方式",

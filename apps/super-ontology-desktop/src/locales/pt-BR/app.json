@@ -599,6 +599,7 @@
   "atlas.list": "Ontologia em lista",
   "atlas.linked": "{count, plural, one {Ligada a # outra} other {Ligada a # outras}}",
   "atlas.more": "Mostrar mais {count}",
+  "atlas.relations": "Relações",
   "atlas.search": "Buscar no atlas",
   "atlas.matches": "{count, plural, =0 {Nenhum resultado} one {# resultado} other {# resultados}}",
   "atlas.group": "Agrupar células por",

@@ -599,6 +599,7 @@
   "atlas.list": "목록으로 보는 온톨로지",
   "atlas.linked": "다른 {count}개와 연결됨",
   "atlas.more": "{count}개 더 보기",
+  "atlas.relations": "관계",
   "atlas.search": "아틀라스에서 찾기",
   "atlas.matches": "{count, plural, =0 {일치 없음} other {#개 일치}}",
   "atlas.group": "셀 그룹 기준",

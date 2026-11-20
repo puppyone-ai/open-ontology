@@ -24,6 +24,18 @@ const REFRESH_DELAY_MS = 1200;
 
 type View = "graph" | "list";
 
+/** The ontology version in the corner of the picture; when a new one is published its digits roll in (still, when motion is reduced). */
+function VersionTick({ n, reduced }: { n: number; reduced: boolean }) {
+  const previous = useRef(n);
+  const ticking = previous.current !== n && !reduced;
+  useEffect(() => { previous.current = n; }, [n]);
+  return (
+    <span className="so-atlas-version" data-testid="atlas-version" data-ticking={ticking ? "true" : undefined}>
+      <span key={n} className="so-atlas-version-n">v{n}</span>
+    </span>
+  );
+}
+
 export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDriveApi.subscribePushes }: {
   onOpenEntity: (key: string) => void;
   /** Injectable for tests and the measuring page. */
@@ -164,6 +176,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
           <div className="so-atlas-overlay so-atlas-overlay-start">
             <Button size="compact" icon={Play} onClick={() => handle.current?.playGrowth()} disabled={reduced} data-testid="atlas-play">{t("app.atlas.play")}</Button>
             <span className="so-weak so-atlas-tally" data-testid="atlas-tally">{t("app.atlas.tally", { items: live.members.length, links: live.links.length })}</span>
+            {live.versions.length > 0 && <VersionTick n={live.versions[live.versions.length - 1]!.n} reduced={reduced} />}
           </div>
           <div className="so-atlas-overlay so-atlas-overlay-end">
             <IconButton icon={ZoomIn} label={t("app.atlas.zoomIn")} shortcut="+" variant="secondary" size="compact" onClick={() => handle.current?.zoomIn()} />
