@@ -76,6 +76,21 @@ pub fn model_secret_files(body: &[u8]) -> Vec<String> {
         .collect()
 }
 
+/// The `file:` reference of a `PUT /v1/docs/agent-db-binding` body (`secret_ref`): the engine reads the Agent DB
+/// connection URL itself, so under the compose runtime the file must be visible there (D83).
+pub fn agent_db_secret_files(body: &[u8]) -> Vec<String> {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    v.get("secret_ref")
+        .and_then(|r| r.as_str())
+        .and_then(|r| r.strip_prefix("file:"))
+        .filter(|p| p.starts_with('/') && !p.split('/').any(|s| s == ".."))
+        .map(str::to_owned)
+        .into_iter()
+        .collect()
+}
+
 /// What the proxy needs to serve.
 pub struct ProxyConfig {
     /// Port the daemon listens on (the `Host` value must carry it).
@@ -510,9 +525,16 @@ async fn serve_one(
     if control
         && let Some(drives) = cfg.drives.clone()
         && head.method == "PUT"
-        && head.path() == "/v1/docs/config/model"
+        && matches!(
+            head.path(),
+            "/v1/docs/config/model" | "/v1/docs/agent-db-binding"
+        )
     {
-        let files = model_secret_files(&body);
+        let files = if head.path() == "/v1/docs/agent-db-binding" {
+            agent_db_secret_files(&body)
+        } else {
+            model_secret_files(&body)
+        };
         if !files.is_empty() {
             let mounted = tokio::task::spawn_blocking(move || drives.mount_secret_files(&files))
                 .await
@@ -639,6 +661,21 @@ mod tests {
         assert!(drive_secret_files(br#"{"config":{"secret_ref":"name"}}"#).is_empty());
         assert!(drive_secret_files(br#"{"config":{"root":"/x"}}"#).is_empty());
         assert!(drive_secret_files(b"nope").is_empty());
+    }
+
+    #[test]
+    fn the_agent_db_binding_file_is_mounted_but_env_and_name_are_not() {
+        assert_eq!(
+            agent_db_secret_files(
+                br#"{"secret_ref":"file:/h/.config/open-ontology/secrets/agentdb"}"#
+            ),
+            ["/h/.config/open-ontology/secrets/agentdb"]
+        );
+        assert!(agent_db_secret_files(br#"{"secret_ref":"env:AGENT_DB"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"agentdb"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"file:/h/../etc/x"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"file:rel"}"#).is_empty());
+        assert!(agent_db_secret_files(b"nope").is_empty());
     }
 
     #[test]
@@ -780,10 +817,12 @@ mod tests {
         };
         let drive = r#"{"name":"d","backend":"fs","config":{"root":"/host/dir"}}"#;
         let model = r#"{"provider":"p","base_url":"file:/h/e","model":"m","key_ref":"file:/h/k"}"#;
+        let bind = r#"{"secret_ref":"file:/h/agentdb"}"#;
         let agent = "ooa_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
         for (m, p, b) in [
             ("POST", "/v1/docs/drives", drive),
             ("PUT", "/v1/docs/config/model", model),
+            ("PUT", "/v1/docs/agent-db-binding", bind),
         ] {
             raw(addr, &send(m, p, agent, b)).await;
         }
@@ -795,10 +834,11 @@ mod tests {
         for (m, p, b) in [
             ("POST", "/v1/docs/drives", drive),
             ("PUT", "/v1/docs/config/model", model),
+            ("PUT", "/v1/docs/agent-db-binding", bind),
         ] {
             raw(addr, &send(m, p, "oodt_secret", b)).await;
         }
-        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
         let _ = tx.send(true);
         let _ = h.await;
     }
