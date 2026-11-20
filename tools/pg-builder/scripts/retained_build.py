@@ -240,12 +240,18 @@ def restore_receipts(output):
         raise ValueError('retained_cache_symlink')
     if not source.exists():
         return
+    if restored_without_progress(previous, source):
+        # The last attempt started from these very receipts and added or changed none: they
+        # do not help, and replaying them can make every later resume fail within seconds
+        # while a fresh build passes. Start clean; the failed attempt stays as evidence.
+        return
     files = sorted(source.iterdir())
     if len(files) > 4096:
         raise ValueError('retained_cache_budget')
     target = output / 'community' / 'receipts'
     target.mkdir(parents=True, mode=0o700)
     total = 0
+    restored = {}
     for path in files:
         if not re.fullmatch(r'[0-9a-f]{64}\.json', path.name):
             raise ValueError('retained_cache_name')
@@ -259,6 +265,25 @@ def restore_receipts(output):
             raise ValueError('retained_cache_budget')
         with os.fdopen(os.open(target / path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
             stream.write(raw)
+        restored[path.name] = hashlib.sha256(raw).hexdigest()
+    with os.fdopen(os.open(output / RESTORED, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as stream:
+        stream.write(lib.canonical(restored))
+
+
+RESTORED = 'restored-receipts.json'
+
+
+def restored_without_progress(previous, source):
+    """True when `previous` began from restored receipts and still holds exactly those."""
+    marker = previous / RESTORED
+    if marker.is_symlink() or not marker.is_file():
+        return False
+    try:
+        began = json.loads(marker.read_text())
+        now = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in source.iterdir()}
+    except (OSError, ValueError):
+        return False
+    return bool(began) and began == now
 
 
 def run(config_path, output):

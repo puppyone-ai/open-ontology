@@ -175,6 +175,39 @@ class RetainedBuild(unittest.TestCase):
             self.assertFalse((output / 'facts.json').exists())
             self.assertEqual((output / 'community/receipts' / name).stat().st_mode & 0o777, 0o600)
 
+    def test_a_resume_that_made_no_progress_does_not_replay_the_same_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / 'builder-failed-1/community/receipts'
+            first.mkdir(parents=True)
+            name = 'b' * 64 + '.json'
+            (first / name).write_bytes(b'{"k":1}')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertTrue((output / 'community/receipts' / name).exists())
+            # The attempt fails again within seconds, holding exactly what it was given.
+            output.rename(root / 'builder-failed-2')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertFalse((output / 'community').exists())
+            self.assertFalse((output / build.RESTORED).exists())
+            # An attempt that added or changed a receipt keeps its progress for the next one.
+            output.rename(root / 'builder-failed-3')
+            (root / 'builder-failed-3/community/receipts').mkdir(parents=True)
+            (root / 'builder-failed-3/community/receipts' / ('c' * 64 + '.json')).write_bytes(b'{}')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertEqual(len(list((output / 'community/receipts').iterdir())), 1)
+            output.rename(root / 'builder-failed-4')
+            (root / 'builder-failed-4/community/receipts' / ('d' * 64 + '.json')).write_bytes(b'{}')
+            output = root / 'builder'
+            output.mkdir()
+            build.restore_receipts(output)
+            self.assertEqual(len(list((output / 'community/receipts').iterdir())), 2)
+
     def test_resume_refuses_symlinks_and_unexpected_names(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
