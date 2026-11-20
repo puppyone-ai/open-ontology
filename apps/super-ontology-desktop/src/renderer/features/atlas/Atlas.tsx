@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, EmptyState, IconButton, Notice, Segmented, Skeleton } from "@open-ontology/design-system";
-import { Maximize2, Network, Play, Search, ZoomIn, ZoomOut } from "lucide-react";
+import { Maximize2, Network, Play, Search, Unlink, ZoomIn, ZoomOut } from "lucide-react";
 import { useApp } from "../../hooks/useApp";
 import { superDriveApi } from "../../model/superDriveApi";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { isEngineReady } from "../../model/superDriveStateModel";
+import { selectDrives, selectOntologyVersion } from "../../model/superDriveSelectors";
+import { useUnlinked } from "../../model/unlinked";
+import { applyUnlinked, UNLINKED_GROUP_ID, unlinkedCount } from "./unlinked";
 import { atlasSource } from "./atlasApi";
 import { diffAtlas, loadAtlas, type AtlasSource } from "./adapter";
 import { AtlasCanvas, type AtlasCanvasHandle } from "./AtlasCanvas";
@@ -49,8 +52,9 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   /** How many change rings the picture has played: lets a test (and a screen reader) tell a change reached the picture. */
   const [rings, setRings] = useState(0);
   const [mode, setMode] = useState<AtlasMode>(() => (window.localStorage.getItem(MODE_KEY) === "source" ? "source" : "type"));
-  const [view, setView] = useState<View>("graph");
-  const [canvasData, setCanvasData] = useState<AtlasData | null>(null);
+  const [view, setView] = useState<View>(app.atlasFilter === "unlinked" ? "list" : "graph");
+  const [canvasBase, setCanvasBase] = useState<AtlasData | null>(null);
+  const [onlyUnlinked, setOnlyUnlinked] = useState(app.atlasFilter === "unlinked");
   const [live, setLive] = useState<AtlasData>(emptyAtlas);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [truncated, setTruncated] = useState(false);
@@ -59,9 +63,19 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const [selected, setSelected] = useState<Inspected | null>(null);
   const [tick, setTick] = useState(0);
   /** Built-in entity types are named in the person's language; sources keep their own names. */
-  const named = useCallback((data: AtlasData): AtlasData => ({ ...data, groups: data.groups.map((g) => (g.kind === "type" ? { ...g, label: t(`super-drive.entity.type.${g.label}`) } : g)) }), [t]);
-  const shownLive = useMemo(() => named(live), [named, live]);
+  const named = useCallback((data: AtlasData): AtlasData => ({ ...data, groups: data.groups.map((g) => (g.kind === "type" ? { ...g, label: t(`super-drive.entity.type.${g.label}`) } : g.kind === "unlinked" ? { ...g, label: t("app.atlas.unlinked") } : g)) }), [t]);
+  // What is not connected is read once per version of the ontology and count of files, then set aside in one side group.
+  const version = useSuperDriveSelector(selectOntologyVersion);
+  const files = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i])).reduce((sum, d) => sum + (d.files_total ?? 0), 0);
+  const unlinked = useUnlinked(`${version}|${files}`, { enabled: ready });
+  const report = unlinked.report;
+  const reportRef = useRef(report);
+  reportRef.current = report;
+  const arranged = useMemo(() => applyUnlinked(live, report), [live, report]);
+  const canvasData = useMemo(() => (canvasBase ? applyUnlinked(canvasBase, report) : null), [canvasBase, report]);
+  const shownLive = useMemo(() => named(arranged), [named, arranged]);
   const shownCanvas = useMemo(() => (canvasData ? named(canvasData) : null), [named, canvasData]);
+  const unlinkedTotal = unlinkedCount(arranged);
   const handle = useRef<AtlasCanvasHandle>(null);
   const liveRef = useRef<AtlasData>(live);
   const matchAt = useRef(0);
@@ -75,7 +89,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
       if (signal.aborted) return;
       liveRef.current = data;
       setLive(data);
-      setCanvasData(data);
+      setCanvasBase(data);
       setTruncated(cut);
       setSelected(null);
       setMatches([]);
@@ -97,7 +111,8 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
         const mine = signal;
         void loadAtlas(source, { mode, signal: mine }).then(({ data }) => {
           if (mine.aborted) return;
-          handle.current?.apply(diffAtlas(liveRef.current, data).map((op) => (op.type === "bud" && op.group?.kind === "type" ? { ...op, group: { ...op.group, label: t(`super-drive.entity.type.${op.group.label}`) } } : op)));
+          const arrangedNext = applyUnlinked(data, reportRef.current);
+          handle.current?.apply(diffAtlas(applyUnlinked(liveRef.current, reportRef.current), arrangedNext).map((op) => (op.type === "bud" && op.group?.kind === "type" ? { ...op, group: { ...op.group, label: t(`super-drive.entity.type.${op.group.label}`) } } : op)));
           liveRef.current = data;
           setLive(data);
         }).catch(() => undefined);
@@ -143,7 +158,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
     handle.current?.reveal(matches[matchAt.current]!.id);
   };
 
-  const hasData = live.groups.length > 0;
+  const hasData = arranged.groups.length > 0;
   const partial = live.partial;
 
   return (
@@ -153,21 +168,32 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
           <Search size={16} strokeWidth={1.5} className="so-search-icon so-icon" aria-hidden="true" />
           <input className="so-input" type="search" data-testid="atlas-search" value={query} onChange={(event) => search(event.target.value)} placeholder={t("app.atlas.search")} aria-label={t("app.atlas.search")} />
         </form>
+        {(unlinkedTotal > 0 || onlyUnlinked) && (
+          <Button size="compact" variant={onlyUnlinked ? "secondary" : "ghost"} icon={Unlink} aria-pressed={onlyUnlinked} data-testid="atlas-unlinked-filter" data-count={unlinkedTotal}
+            onClick={() => { setOnlyUnlinked(!onlyUnlinked); if (!onlyUnlinked) { setView("list"); setMatches([]); } }}>{t("app.atlas.unlinked.filter", { count: unlinkedTotal })}</Button>
+        )}
         {view === "graph" && query.trim() !== "" && <span className="so-weak so-atlas-matches" role="status" data-testid="atlas-matches">{t("app.atlas.matches", { count: matches.length })}</span>}
         <span className="so-atlas-spacer" />
         <Segmented<AtlasMode> label={t("app.atlas.group")} value={mode} onChange={changeMode} options={[{ value: "type", label: t("app.atlas.group.type"), testId: "atlas-mode-type" }, { value: "source", label: t("app.atlas.group.source"), testId: "atlas-mode-source" }]} />
-        <Segmented<View> label={t("app.atlas.view")} value={view} onChange={(next) => { setView(next); setMatches([]); }} options={[{ value: "graph", label: t("app.atlas.view.graph"), testId: "atlas-view-graph" }, { value: "list", label: t("app.atlas.view.list"), testId: "atlas-view-list" }]} />
+        <Segmented<View> label={t("app.atlas.view")} value={view} onChange={(next) => { setView(next); setMatches([]); if (next === "graph") setOnlyUnlinked(false); }} options={[{ value: "graph", label: t("app.atlas.view.graph"), testId: "atlas-view-graph" }, { value: "list", label: t("app.atlas.view.list"), testId: "atlas-view-list" }]} />
       </div>
 
       {partial.length > 0 && status === "ready" && (
         <Notice tone="warning" title={t("app.atlas.partial.title")} testId="atlas-partial">{partial.map((part) => t(`app.atlas.partial.${part}`)).join(" ")}</Notice>
       )}
+      {report?.limited && status === "ready" && <Notice tone="accent" testId="atlas-unlinked-limited">{t("app.atlas.unlinked.limited", { count: report.checkedFiles })}</Notice>}
       {truncated && status === "ready" && <Notice tone="accent" testId="atlas-truncated">{t("app.atlas.truncated")}</Notice>}
 
       {status === "error" ? (
         <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => setTick((n) => n + 1)}>{t("app.common.retry")}</Button>}>{t("app.atlas.error")}</Notice>
-      ) : status === "loading" && !canvasData ? (
+      ) : status === "loading" && !canvasBase ? (
         <div className="so-atlas-stage" aria-busy="true"><Skeleton height="100%" radius={8} /></div>
+      ) : onlyUnlinked && view === "list" ? (
+        <div className="so-atlas-stage so-atlas-stage-list" data-testid="atlas-unlinked-view">
+          {unlinked.status === "loading" && !report ? <Skeleton height="100%" radius={8} />
+            : unlinkedTotal === 0 ? <EmptyState icon={Network} title={t("app.atlas.unlinked.empty.title")} description={t("app.atlas.unlinked.empty.body")} />
+              : <AtlasList data={shownLive} query={query} only={UNLINKED_GROUP_ID} onOpen={(member: AtlasMember) => open(member.ref)} />}
+        </div>
       ) : !hasData ? (
         <div className="so-atlas-stage"><EmptyState icon={Network} title={t("app.atlas.empty.title")} description={t("app.atlas.empty.body")} /></div>
       ) : view === "list" ? (

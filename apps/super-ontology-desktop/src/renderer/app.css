@@ -306,4 +306,9 @@
   .so-ask-details summary { cursor: pointer; color: var(--so-text-muted); font-size: var(--so-text-sm); }
   .so-ask-details[open] summary { margin-bottom: var(--so-space-2); }
   .so-ask-actions { display: grid; gap: var(--so-space-1); justify-items: start; }
+
+  /* Not connected: the plain reason under a file name. */
+  .so-file-reason { display: flex; align-items: center; gap: 4px; margin: 2px 0 0 24px; font-size: var(--so-text-xs); line-height: 16px; }
+  .so-file-reason svg { flex: none; }
+  .so-home-unlinked { display: flex; align-items: center; gap: var(--so-space-2); margin: var(--so-space-3) 0 0; font-size: var(--so-text-sm); }
 }

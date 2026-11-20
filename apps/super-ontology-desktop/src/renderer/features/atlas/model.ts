@@ -3,8 +3,13 @@
 /** One cool low-saturation family around the ink-blue accent plus warm neutrals; never the status colours. */
 export type AtlasTone = "ink" | "steel" | "dusk" | "mist" | "sand" | "stone";
 
-/** `type`: an entity type (members are entities). `drive`: a document source (members are files). `db`: a database (members are tables). */
-export type AtlasGroupKind = "type" | "drive" | "db";
+import type { UnlinkedReason } from "../../model/unlinked";
+
+/**
+ * `type`: an entity type (members are entities). `drive`: a document source (members are files). `db`: a database (members are tables).
+ * `unlinked`: the quiet side area of what is not connected to anything (files and entities, each with its reason).
+ */
+export type AtlasGroupKind = "type" | "drive" | "db" | "unlinked";
 
 export type AtlasRef =
   | { kind: "entity"; key: string }
@@ -31,6 +36,8 @@ export type AtlasMember = {
   born: number | null;
   /** When the engine says it; otherwise the scene derives it from the reference (tables are database, the rest documents). */
   origin?: AtlasOrigin;
+  /** Why the member is in the not-connected group; absent for every other member. */
+  reason?: UnlinkedReason;
 };
 
 /** `fact`: a fact whose object is another entity. `link`: a document entity linked to a table row. `foreign_key`: table to table. */

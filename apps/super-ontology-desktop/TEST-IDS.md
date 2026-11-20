@@ -120,6 +120,12 @@ Rules:
 | `ontology-tab-atlas` **(T1)** | the atlas view | `data-active` |
 | `atlas` `atlas-search` `atlas-matches` `atlas-tally` `atlas-partial` `atlas-truncated` `atlas-inspector` `atlas-open` `atlas-play` `atlas-fit` `atlas-mode-type` `atlas-mode-source` `atlas-view-graph` | the atlas screen: search, matches, counts, notices, inspector, controls | |
 | `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` |
+| `ontology-tab-ask` | the Ask tab | `data-active` |
+| `ontology-ask` `ask-input` `ask-send` `ask-stop` `ask-clear` `ask-turns` `ask-turn` `ask-question` | Ask: the composer and the session's turns | turn: `data-state` = `running` `done`, `data-status` |
+| `ask-progress` `ask-step` `ask-answer` `ask-answer-text` `ask-sources` `ask-source` `ask-uncited` `ask-copy` `ask-cli` `ask-cli-toggle` `ask-cli-value` `ask-cli-copy` | Ask: steps, the cited answer, its source chips and the equivalent command | step: `data-tool`, `data-state`; source: `data-kind`, `data-id` |
+| `ask-unanswerable` `ask-reason` `ask-searched` `ask-cancelled` `ask-error` | Ask: the plain "not in your data" answer and the calm error states | |
+| `atlas-unlinked-filter` `atlas-unlinked-view` `atlas-unlinked-caption` `atlas-unlinked-limited` `atlas-reason` | the Not connected filter of the atlas and the reason of each member | filter: `data-count`; reason: `data-reason` |
+| `file-unlinked-reason` `home-unlinked` | the reason under a file row in Sources, and the Home line for files with nothing connected | reason: `data-reason` |
 | `atlas-view-list` `atlas-list` `atlas-list-group` `atlas-list-member` **(T1)** | the keyboard list that lists the same cells | group: `data-group`; member: `data-name` |
 | `entity-search` **(T1)** | search field | |
 | `entity-type-filter` | type filter | |
