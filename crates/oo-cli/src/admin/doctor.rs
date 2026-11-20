@@ -268,7 +268,10 @@ pub(super) fn oracle(
                     "--platform",
                     "linux/amd64",
                     "--label",
-                    "oo.lane=a",
+                    &format!(
+                        "oo.lane={}",
+                        super::lite::lane(std::path::Path::new("/nonexistent"))
+                    ),
                     "--cap-drop",
                     "ALL",
                     "--security-opt",

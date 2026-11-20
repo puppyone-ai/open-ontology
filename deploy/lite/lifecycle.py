@@ -696,8 +696,8 @@ def main(request):
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
     saved=json.loads(read_private(owner)) if owner.exists() else {}
-    lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
-    if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
+    lane=saved.get('lane',os.environ.get('OO_LITE_LANE') or os.environ.get('OO_TEST_LANE') or 'a')
+    if not re.fullmatch('[a-z][a-z0-9-]{0,47}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
     if os.environ.get('OO_LITE_POSTGRES_IMAGE'):
