@@ -29,6 +29,12 @@ function readCitations(text, registry) {
   return { text: cleaned.replace(/[ \t]+\n/gu, "\n").replace(/ {2,}/gu, " ").replace(/ ([.,;:!?。，；：！？])/gu, "$1").trim(), ids, invalid };
 }
 
+/** The tags a tool printed number every source it returned; the answer shows only the cited ones, as 1, 2, 3 in the order they are first cited. */
+function renumber(text, ids) {
+  const order = new Map(ids.map((id, i) => [id, `S${i + 1}`]));
+  return { text: text.replace(CITE, (_whole, inner) => `[${inner.split(/[,;]/u).map((id) => order.get(id.trim()) ?? id.trim()).join(", ")}]`), order };
+}
+
 /** The `oo` commands that do what the steps did, for "equivalent command". */
 export function equivalentCommands(steps) {
   const q = (s) => `"${String(s).replace(/(["\\$`])/gu, "\\$1")}"`;
@@ -105,6 +111,7 @@ export async function runAskLoop({ question, history = [], model, tools, registr
   if (!text) return { ...out, status: "unanswerable", answer: "", reason: "", budget: exhausted };
   const declined = /^\s*NOT_IN_DATA\b[\s:.\-–—]*/iu.exec(text);
   if (declined) return { ...out, status: "unanswerable", answer: "", reason: text.slice(declined[0].length).trim(), budget: false };
-  const { text: answer, ids, invalid } = readCitations(text, registry);
-  return { ...out, status: "answered", answer, sources: ids.map((id) => registry.get(id)), uncited: ids.length === 0, invalidCitations: invalid, budget: exhausted };
+  const { text: cited, ids, invalid } = readCitations(text, registry);
+  const { text: answer, order } = renumber(cited, ids);
+  return { ...out, status: "answered", answer, sources: ids.map((id) => ({ ...registry.get(id), id: order.get(id) })), uncited: ids.length === 0, invalidCitations: invalid, budget: exhausted };
 }

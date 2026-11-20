@@ -69,6 +69,13 @@ describe("reading the files", () => {
     expect(reasonForRow({ ...f("c") } as never, report)).toEqual({ kind: "no_entities" });
   });
 
+  it("the Document entity the engine names after every file does not count as an entity found", async () => {
+    const doc = (name: string) => ({ key: name, name, type: "Document" });
+    const report = await analyzeUnlinked(source([f("a"), f("b", { state: "unsupported", format: "unknown", path: "x/plan.dwg" })], { a: { entities: [doc("docs/a.md")], facts: [] } }));
+    expect(report.files.map((x) => [x.fileId, x.reason])).toEqual([["a", { kind: "no_entities" }], ["b", { kind: "unsupported", format: "dwg" }]]);
+    expect(report.entities).toEqual([]);
+  });
+
   it("an entity another file's fact points to is connected; a file that links to a table row is connected", async () => {
     const report = await analyzeUnlinked(source([f("a"), f("b"), f("c")], {
       a: { entities: [ent("x")], facts: [{ subject: ent("x"), object: ent("y"), status: "published" }] },

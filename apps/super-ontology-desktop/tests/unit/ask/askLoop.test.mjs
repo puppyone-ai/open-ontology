@@ -30,6 +30,18 @@ describe("the Ask loop", () => {
     expect(out.cli).toBe('oo ontology search "Acme"');
   });
 
+  it("numbers the cited sources 1, 2, 3 in the order the answer first cites them, however many the tools returned", async () => {
+    const registry = createSourceRegistry();
+    const model = scripted([
+      { text: "", toolCalls: [call("search", { query: "x" })] },
+      { text: "First [S5], then [S2][S5] and [S9].", toolCalls: [] },
+    ]);
+    const tools = fakeTools({ search: (_a, r) => { for (let i = 1; i <= 9; i += 1) r.add({ kind: "file", fileId: `f${i}`, driveId: "d", path: `p${i}.md`, anchor: "" }); return "ok"; } }, registry);
+    const out = await runAskLoop({ question: "q", model, tools, registry });
+    expect(out.answer).toBe("First [S1], then [S2][S1] and [S3].");
+    expect(out.sources.map((s) => [s.id, s.path])).toEqual([["S1", "p5.md"], ["S2", "p2.md"], ["S3", "p9.md"]]);
+  });
+
   it("an invented citation is dropped and an answer with none is flagged uncited", async () => {
     const registry = createSourceRegistry();
     const model = scripted([{ text: "", toolCalls: [call("search", { query: "x" })] }, { text: "It is 42 [S7].", toolCalls: [] }]);

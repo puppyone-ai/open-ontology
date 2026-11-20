@@ -93,6 +93,12 @@ describe("ask-run", () => {
     expect(seen).toEqual(["https://model.invalid/v1"]);
   });
 
+  it("keeps line breaks in a question and in the history (answers are paragraphs), and refuses other control characters", () => {
+    expect(parseSuperOntologyRequest("ask-run", { askId: "ask-00001", question: "line one\nline two", history: [{ question: "q\tx", answer: "para one\n\npara two [S1]" }] }).history[0].answer).toBe("para one\n\npara two [S1]");
+    expect(() => parseSuperOntologyRequest("ask-run", { askId: "ask-00001", question: "bad\u0000text" })).toThrow();
+    expect(() => parseSuperOntologyRequest("ask-run", { askId: "ask-00001", question: "q", history: [{ question: "q", answer: "x\u001b[0m" }] })).toThrow();
+  });
+
   it("validates the request", () => {
     expect(parseSuperOntologyRequest("ask-run", { askId: "ask-00001", question: "hi", history: [{ question: "a", answer: "b" }] })).toMatchObject({ question: "hi" });
     expect(() => parseSuperOntologyRequest("ask-run", { askId: "x", question: "hi" })).toThrow();

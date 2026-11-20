@@ -34,7 +34,7 @@ const IGNORED = new Set(["deleted", "superseded", "duplicate", "outdated"]);
 
 /** The extension of a path in lower case, without the dot: the name of the format when the engine gives none. */
 export const formatOf = (file: Pick<FileLike, "path" | "format">): string => {
-  if (typeof file.format === "string" && file.format) return file.format;
+  if (typeof file.format === "string" && file.format && file.format !== "unknown") return file.format;
   const name = file.path.slice(file.path.lastIndexOf("/") + 1);
   const dot = name.lastIndexOf(".");
   return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toLowerCase() : "?";
@@ -115,14 +115,20 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
   limited = ready.length > toRead.length;
   const entitiesOf = new Map<string, EntityRefLike[]>();
   const facts: FactLike[] = [];
+  /** Per file: its entities other than the file's own Document entity (the engine names one after every file), and whether it states a relation. */
   const fileEntities = new Map<string, Set<string>>();
+  const fileRelates = new Set<string>();
   await pool(toRead, options.concurrency ?? 6, async (file) => {
     const detail = await source.detail(file.id);
     if (!detail.ok) { complete = false; return; }
     const parts = detailParts(detail.value);
     const keys = new Set<string>();
-    for (const entity of parts.entities ?? []) if (entity.key) { keys.add(entity.key); entitiesOf.set(entity.key, [...(entitiesOf.get(entity.key) ?? []), entity]); }
-    for (const fact of parts.facts ?? []) { facts.push(fact); if (fact.subject?.key) keys.add(fact.subject.key); }
+    for (const entity of parts.entities ?? []) if (entity.key && entity.type !== "Document") { keys.add(entity.key); entitiesOf.set(entity.key, [...(entitiesOf.get(entity.key) ?? []), entity]); }
+    for (const fact of parts.facts ?? []) {
+      facts.push(fact);
+      if (fact.subject?.key && fact.subject.type !== "Document") keys.add(fact.subject.key);
+      if (fact.subject?.key && fact.object?.key && fact.status !== "retracted" && fact.status !== "rejected") fileRelates.add(file.id);
+    }
     fileEntities.set(file.id, keys);
   }, options.signal);
 
@@ -143,7 +149,7 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
   const files: UnlinkedFile[] = [];
   for (const file of all) {
     const keys = fileEntities.get(file.id);
-    const reason = fileReason(file, keys ? { entities: keys.size, connected: [...keys].some((key) => connected.has(key)) || linkedPaths.has(`${file.drive_id}|${file.path}`) } : null);
+    const reason = fileReason(file, keys ? { entities: keys.size > 0 || fileRelates.has(file.id) ? Math.max(1, keys.size) : 0, connected: fileRelates.has(file.id) || [...keys].some((key) => connected.has(key)) || linkedPaths.has(`${file.drive_id}|${file.path}`) } : null);
     if (reason) files.push({ fileId: file.id, driveId: file.drive_id, path: file.path, name: file.path.slice(file.path.lastIndexOf("/") + 1), reason });
   }
   const entities: UnlinkedEntity[] = [];

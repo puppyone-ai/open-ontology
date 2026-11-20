@@ -155,17 +155,22 @@ export const field = Object.freeze({
  * fields and unknown fields are rejected.
  */
 const ASK_ID = /^[A-Za-z0-9_-]{8,64}$/u;
+/** Question and answer text keep their line breaks and tabs; any other control character is refused. */
+const askText = (max, { minLength = 1 } = {}) => (value) => {
+  if (typeof value !== "string" || value.length < minLength || value.length > max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) throw invalidRequest();
+  return value;
+};
 const askHistory = (value) => {
   if (!Array.isArray(value) || value.length > 4) throw invalidRequest();
   return value.map((turn) => {
     if (!turn || typeof turn !== "object" || Array.isArray(turn) || Object.keys(turn).some((name) => !["question", "answer"].includes(name))) throw invalidRequest();
-    return { question: field.string(2000)(turn.question), answer: field.string(4000, { minLength: 0 })(turn.answer) };
+    return { question: askText(2000)(turn.question), answer: askText(4000, { minLength: 0 })(turn.answer) };
   });
 };
 
 const REQUEST_FIELDS = Object.freeze({
   ...createOntologyRequestFields(field),
-  "ask-run": Object.freeze({ askId: field.pattern(ASK_ID), question: field.string(2000), history: field.optional(askHistory) }),
+  "ask-run": Object.freeze({ askId: field.pattern(ASK_ID), question: askText(2000), history: field.optional(askHistory) }),
   "ask-cancel": Object.freeze({ askId: field.pattern(ASK_ID) }),
   ...createCliRequestFields(field),
   "engine-read": Object.freeze({}),

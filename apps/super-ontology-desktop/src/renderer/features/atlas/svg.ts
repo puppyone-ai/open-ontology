@@ -33,7 +33,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
     let d: string;
     if (arcs.length === 1) d = `M${n(pts[0]!.x + radius)} ${n(pts[0]!.y)} a${n(radius)} ${n(radius)} 0 1 1 ${n(-2 * radius)} 0 a${n(radius)} ${n(radius)} 0 1 1 ${n(2 * radius)} 0Z`;
     else d = `${arcs.map((a, i) => `${i === 0 ? "M" : "L"}${at(a, a.a0)} A${n(radius)} ${n(radius)} 0 ${a.a1 - a.a0 > Math.PI ? 1 : 0} 1 ${at(a, a.a1)}`).join(" ")}Z`;
-    out.push(`<path d="${d}" fill="${rgba(TONE_INK[group.tone], group.expanded ? 0.03 : 0.06)}" stroke="${rgba(TONE_INK[group.tone], 0.4)}" stroke-width="1"/>`);
+    out.push(`<path d="${d}" fill="${rgba(TONE_INK[group.tone], group.expanded ? 0.03 : 0.06)}" stroke="${rgba(TONE_INK[group.tone], 0.4)}" stroke-width="1"${group.groupKind === "unlinked" ? ' stroke-dasharray="4 4"' : ""}/>`);
   }
 
   // Links: straight, one pixel, from the edge of one mark to the edge of the other.
