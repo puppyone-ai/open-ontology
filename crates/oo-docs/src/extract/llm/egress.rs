@@ -139,6 +139,11 @@ impl LlmPort for EgressClient {
     }
 }
 
+/// Idle read timeout of the egress towards the model. A reasoning model (`grok-4.7`) thinks for
+/// two to three minutes before the first byte of a small extraction, so the old 45 s turned every
+/// call into `UPSTREAM_TIMEOUT` and no model fact was ever produced.
+pub const UPSTREAM_TIMEOUT_SECS: u64 = 420;
+
 /// The command line of the egress process for a stack config: the key stays
 /// a `secret_ref` inside `config`, nothing secret is on the command line.
 pub fn egress_args(config_path: &str, meter_path: &str, port: u16, rpm: u32) -> Vec<String> {
@@ -153,6 +158,8 @@ pub fn egress_args(config_path: &str, meter_path: &str, port: u16, rpm: u32) -> 
         port.to_string(),
         "--rpm".into(),
         rpm.to_string(),
+        "--timeout".into(),
+        UPSTREAM_TIMEOUT_SECS.to_string(),
     ]
 }
 

@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-use super::egress::{EgressClient, LlmPort, egress_args};
+use super::egress::{EgressClient, LlmPort, UPSTREAM_TIMEOUT_SECS, egress_args};
 
 /// Providers the egress speaks.
 pub const PROVIDERS: [&str; 2] = ["openai-compatible", "anthropic"];
@@ -469,7 +469,7 @@ impl ModelRuntime {
         }
         child.stdout.take();
         let mut client = EgressClient::new(addr, cfg.model.clone());
-        client.timeout = Duration::from_secs(120);
+        client.timeout = Duration::from_secs(UPSTREAM_TIMEOUT_SECS + 60);
         g.port = Some(Arc::new(client));
         g.child = Some(child);
     }
