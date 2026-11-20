@@ -293,6 +293,8 @@
   .so-ask-answer, .so-ask-unanswerable { display: grid; gap: var(--so-space-3); }
   .so-ask-answer-text { display: grid; gap: var(--so-space-2); color: var(--so-text); font-size: var(--so-text-md); line-height: 1.55; overflow-wrap: anywhere; }
   .so-ask-answer-text p { margin: 0; }
+  .so-ask-answer-text ul { margin: 0; padding-inline-start: var(--so-space-5); display: grid; gap: var(--so-space-1); list-style: disc; }
+  .so-ask-answer-text li { margin: 0; padding-inline-start: var(--so-space-1); }
   .so-ask-cite { display: inline-block; margin-inline: 2px; padding: 0 4px; border-radius: 4px; background: var(--so-accent-soft); color: var(--so-accent); font-size: 11px; line-height: 16px; vertical-align: 1px; }
   .so-ask-cites { white-space: nowrap; }
   .so-ask-sources { display: flex; flex-wrap: wrap; gap: var(--so-space-2); }

@@ -107,6 +107,18 @@ describe("Ask: citations", () => {
     expect(chip.getAttribute("title")).toContain("blk_91638b96e95d4ee2bd04");
   });
 
+  it("renders a run of dash lines as one real list, with the citations of each item as chips", () => {
+    const text = "Three things:\n- Launch moved to 2027-03-18 [S1].\n- Budget stays at 6,850,000 [S2][S3]\n* Embargo on 2027-03-16\nDone.";
+    render(<TestLocalizationProvider messages={messages}><AnswerText text={text} /></TestLocalizationProvider>);
+    const lists = document.querySelectorAll(".so-ask-answer-text ul");
+    expect(lists).toHaveLength(1);
+    const items = lists[0]!.querySelectorAll("li");
+    expect([...items].map((li) => li.textContent)).toEqual(["Launch moved to 2027-03-18 1.", "Budget stays at 6,850,000 23", "Embargo on 2027-03-16"]);
+    expect(items[0]!.querySelector(".so-ask-cites")).not.toBeNull();
+    expect(document.body.textContent).not.toContain("- Launch");
+    expect(document.querySelectorAll(".so-ask-answer-text p")).toHaveLength(2);
+  });
+
   it("splits answer text into paragraphs and keeps text without tags as is", () => {
     render(<TestLocalizationProvider messages={messages}><AnswerText text={"one\ntwo [S9]"} /></TestLocalizationProvider>);
     expect(screen.getAllByText(/one|two/u)).toHaveLength(2);
