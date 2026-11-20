@@ -766,6 +766,9 @@ impl Ctx<'_> {
                 .then_with(|| a["urn"].as_str().cmp(&b["urn"].as_str()))
         });
         items.truncate(limit);
+        if items.is_empty() {
+            warnings.push(no_hits_hint(q));
+        }
         if self.docs() {
             for it in items.iter_mut().take(5) {
                 let l = match parse_urn(it["urn"].as_str().unwrap_or("")) {
@@ -1161,6 +1164,17 @@ fn relationship_items(source: &str, graph: &Value) -> Vec<Value> {
         .collect()
 }
 
+/// Said when a search finds nothing: an empty answer is not proof the data lacks it, because the match is
+/// literal and the corpus may be in another language.
+fn no_hits_hint(q: &str) -> String {
+    format!(
+        "no hits for \"{q}\": this is not proof the data has nothing. Search matches names, aliases and passages as written, \
+         with no translation, and the data may be in another language (try the term in Chinese, Japanese or English as the data \
+         writes it, a name or alias instead of a description, one distinctive word or a shorter form). For counts, dates and \
+         rankings read the tables with oo ontology schema and oo ontology query"
+    )
+}
+
 /// One edge per (from table and columns, to table and columns), ordered by id. The published graph holds the
 /// declared foreign keys and, again, the relationships inferred from the same columns (`r_...` ids); the agent
 /// reads one edge, so a declared id wins over an inferred one and equal ids collapse.
@@ -1406,6 +1420,12 @@ fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_empty_search_says_how_to_try_other_forms() {
+        let t = no_hits_hint("Ada");
+        assert!(t.contains("\"Ada\"") && t.contains("not proof") && t.contains("another language"));
+    }
+
     #[tokio::test]
     async fn an_overloaded_gateway_is_retried_and_other_answers_are_not() {
         let over = || json!({"error": {"code": "OVERLOADED", "message": "role query is busy"}});
