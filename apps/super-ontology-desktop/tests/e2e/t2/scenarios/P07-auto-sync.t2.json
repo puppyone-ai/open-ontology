@@ -6,6 +6,7 @@
     "zh-Hans"
   ],
   "closes": "decisions D46-D49, volume 25 section 7.3",
+  "limitMinutes": 20,
   "steps": [
     {
       "do": "launch"

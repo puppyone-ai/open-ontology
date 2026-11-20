@@ -87,7 +87,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
   }
 
   const entitiesFor = async (query) => ((await engineApi(`/v1/docs/entities?limit=50&q=${encodeURIComponent(query)}`)).body?.items ?? []);
-  const factsOf = async (key) => JSON.stringify((await engineApi(`/v1/docs/entities/${encodeURIComponent(key)}`)).body ?? {});
+  const factsOf = async (key) => JSON.stringify((await engineApi(`/v1/docs/entities/${key}`)).body ?? {});
   const finish = async () => { await write(); if (timings.problems.length > 0) throw new Error(`auto-sync budgets missed:\n  ${timings.problems.join("\n  ")}`); };
   const fileText = (name, role) => `---\ntype: person\nname: ${name}\nrole: ${role}\n---\n# ${name}\n\nRole: ${role}\n`;
 
@@ -131,17 +131,23 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       const before = await entitiesFor("Zed Quill");
       state.zedPersonKey = before.find((entity) => entity.type === "Person")?.key;
       if (!state.zedPersonKey) timings.problems.push("create: the person Zed Quill did not become an entity");
+      const versionsOf = (body) => new Set([...body.matchAll(/"version_id":"([^"]+)"/gu)].map((match) => match[1]));
+      state.zedVersions = versionsOf(await factsOf(state.zedPersonKey));
 
       await fs.writeFile(a, fileText("Zed Quill", "Lead tester"), "utf8");
       await measure("edit", { ...base, expect: [{ path: "zed-quill.md", want: "published", changedFrom: created.b3 }], judge: { expectTransition: true } });
       const nowKey = (await entitiesFor("Zed Quill")).find((entity) => entity.type === "Person")?.key;
+      // The rule extractor keeps no role text as a fact (it links the person to the file), so the edit shows as the entity's evidence
+      // pointing at the file's new version and no longer at the old one.
       const carried = nowKey ? await factsOf(nowKey) : "";
-      timings.editEntity = { keyBefore: state.zedPersonKey, keyAfter: nowKey, body: carried.slice(0, 700) };
-      if (!carried.includes("Lead tester")) timings.problems.push("edit: the entity does not carry the edited fact (Lead tester)");
+      const after = versionsOf(carried);
+      timings.editEntity = { keyBefore: state.zedPersonKey, keyAfter: nowKey, versionsBefore: [...state.zedVersions], versionsAfter: [...after] };
+      if (after.size === 0 || [...after].some((version) => state.zedVersions.has(version))) timings.problems.push("edit: the entity's evidence still points at the old version of the file");
 
       const b = path.join(root(), "zed-quill-renamed.md");
       await fs.rename(a, b);
-      await measure("rename", { ...base, uiRequired: true, expect: [{ path: "zed-quill-renamed.md", want: "published" }, { path: "zed-quill.md", want: "gone" }] });
+      await measure("rename", { ...base, uiRequired: true, // A renamed file ends as `duplicate`: the engine gives the new path a version that points at the old finished one, so the evidence moves across.
+        expect: [{ path: "zed-quill-renamed.md", want: "duplicate" }, { path: "zed-quill.md", want: "gone" }] });
       const people = (await entitiesFor("Zed Quill")).filter((entity) => entity.type === "Person" && (entity.counts?.facts ?? 0) > 0);
       if (people.length !== 1) timings.problems.push(`rename: ${people.length} Zed Quill entities carry facts after a rename (want exactly 1)`);
 
@@ -162,14 +168,14 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       timings.bulkCopyMs = Date.now() - started;
       const expect = Array.from({ length: 50 }, (_, index) => ({ path: `bulk-${String(index + 1).padStart(2, "0")}.md`, want: "published" }));
       const measurement = await measure("bulk-50", { driveId, sourceName: path.basename(root()), expect, uiRequired: false, measure: { timeoutMs: 120_000 }, judge: { rowMs: BUDGET.bulkRowMs, settleMs: BUDGET.bulkPublishMs } });
+      state.beforeQuit = await listFiles(driveId); // the app is quit next: nothing can be asked of the engine then
       timings.steps["bulk-50"].summary = { lastRowMs: Math.max(...measurement.files.map((item) => item.rowMs ?? Infinity)), lastPublishedMs: Math.max(...measurement.files.map((item) => item.settledMs ?? Infinity)) };
       await finish();
     },
 
     // While the app is quit: one note edited, one created, one deleted.
     async offlineChange() {
-      const files = await listFiles(state.watched);
-      state.offline = { edited: "base-03.md", editedFrom: files.get("base-03.md")?.b3, created: "offline-new.md", deleted: "base-04.md" };
+      state.offline = { edited: "base-03.md", editedFrom: state.beforeQuit.get("base-03.md")?.b3, created: "offline-new.md", deleted: "base-04.md" };
       await fs.appendFile(path.join(root(), state.offline.edited), "\nEdited while the app was closed.\n");
       await fs.writeFile(path.join(root(), state.offline.created), fileText("Ola Brandt", "Archivist"), "utf8");
       await fs.rm(path.join(root(), state.offline.deleted));
@@ -188,25 +194,32 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
       await finish();
     },
 
-    // The Atlas is open in its by-source view; edit a file that holds an entity the Atlas shows.
+    // The Atlas is open in its by-source view; edit a file that holds an entity the Atlas shows. Seen: the change ring on the page, the
+    // entity's evidence moving to the file's new version, and the page's version tick agreeing with the engine's ontology version.
     async ring() {
       const driveId = state.watched;
       const people = (await entitiesFor("Mira Okafor")).filter((entity) => entity.type === "Person");
       if (people.length === 0) throw new Error("Mira Okafor is not an entity yet");
       const key = people[0].key;
+      const versionsOf = (body) => new Set([...body.matchAll(/"version_id":"([^"]+)"/gu)].map((match) => match[1]));
+      const versionsBefore = versionsOf(await factsOf(key));
       const before = (await listFiles(driveId)).get("mira-okafor.md");
       const page = await cdp().evaluate(UI_SCRIPT);
+      const driveBefore = (await engineApi(`/v1/docs/drives/${driveId}`)).body;
       const text = (await fs.readFile(path.join(root(), "mira-okafor.md"), "utf8")).replace("Platform lead", "Staff engineer");
-      const marks = { ringMs: null, versionMs: null, factMs: null };
+      const marks = { ringMs: null, evidenceMs: null };
       const probe = probeFor(driveId, null);
       let t0 = 0;
-      let factChecked = 0;
+      let checked = 0;
       const watching = async () => {
         const sample = await probe();
         const t = Date.now() - t0;
         if (sample.rings !== null && page.rings !== null && sample.rings > page.rings && marks.ringMs === null) marks.ringMs = t;
-        if (sample.version !== null && sample.version !== page.version && marks.versionMs === null) marks.versionMs = t;
-        if (marks.factMs === null && Date.now() - factChecked > 300) { factChecked = Date.now(); if ((await factsOf(key)).includes("Staff engineer")) marks.factMs = t; }
+        if (marks.evidenceMs === null && Date.now() - checked > 300) {
+          checked = Date.now();
+          const now = versionsOf(await factsOf(key));
+          if (now.size > 0 && ![...now].some((version) => versionsBefore.has(version))) marks.evidenceMs = t;
+        }
         return sample;
       };
       await fs.writeFile(path.join(root(), "mira-okafor.md"), text, "utf8");
@@ -218,7 +231,11 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
         else if (ms > BUDGET.publishMs + BUDGET.ringLagMs) problems.push(`${what}: ${ms} ms > ${BUDGET.publishMs + BUDGET.ringLagMs} ms`);
       }
       if (page.rings === null) problems.push("the Atlas was not open (no data-rings on the page)");
-      timings.steps.ring = { ...measurement, problems, marks, ringsBefore: page.rings, versionBefore: page.version };
+      const driveAfter = (await engineApi(`/v1/docs/drives/${driveId}`)).body;
+      const pageAfter = await cdp().evaluate(UI_SCRIPT);
+      const versionOf = (drive) => drive?.freshness?.ontology_version;
+      if (pageAfter.version !== `v${versionOf(driveAfter)}`) problems.push(`the Atlas shows ${pageAfter.version} but the engine's ontology version is ${versionOf(driveAfter)}`);
+      timings.steps.ring = { ...measurement, problems, marks, ringsBefore: page.rings, ringsAfter: pageAfter.rings, ontologyVersion: { before: versionOf(driveBefore), after: versionOf(driveAfter) }, atlasVersion: { before: page.version, after: pageAfter.version } };
       for (const problem of problems) timings.problems.push(`ring: ${problem}`);
       await finish();
     },

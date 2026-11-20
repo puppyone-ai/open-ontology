@@ -15,7 +15,8 @@ export const BUDGET = Object.freeze({
   pollIntervalMs: 30_000,
 });
 
-const GONE_STATES = new Set(["deleted", "superseded", "duplicate"]);
+// `duplicate` is not gone: a renamed file ends as one (its version points at the old finished one).
+const GONE_STATES = new Set(["deleted", "superseded"]);
 
 /** The freshness states a trace has gone through, consecutive duplicates dropped. */
 export class Trace {
@@ -37,7 +38,7 @@ export class Trace {
  */
 export async function measureChange({ expect, probe, now = Date.now, sleep, intervalMs = 100, timeoutMs = 90_000, uiRequired = false, quietSamples = 2, offsetMs = 0 }) {
   const t0 = now();
-  const per = new Map(expect.map((entry) => [entry.path, { path: entry.path, want: entry.want, changedFrom: entry.changedFrom, rowMs: null, settledMs: null, uiRowMs: null, uiSettledMs: null, finalState: null }]));
+  const per = new Map(expect.map((entry) => [entry.path, { path: entry.path, want: entry.want, changedFrom: entry.changedFrom, rowMs: null, settledMs: null, uiRowMs: null, uiSettledMs: null, finalState: null, uiFinalState: null }]));
   const api = new Trace();
   const ui = new Trace();
   let quiet = 0;
@@ -65,7 +66,8 @@ export async function measureChange({ expect, probe, now = Date.now, sleep, inte
       if (sample.uiRows) {
         const name = item.path.split("/").at(-1);
         const shown = sample.uiRows.get(name);
-        if (item.want === "gone") { if (shown === undefined && item.uiSettledMs === null) item.uiSettledMs = t; }
+        item.uiFinalState = shown ?? null;
+        if (item.want === "gone") { if ((shown === undefined || GONE_STATES.has(shown)) && item.uiSettledMs === null) item.uiSettledMs = t; }
         else {
           if (shown !== undefined && item.uiRowMs === null) item.uiRowMs = t;
           if (shown === item.want && item.uiSettledMs === null) item.uiSettledMs = t;
@@ -90,7 +92,7 @@ export function judge(measurement, { rowMs = BUDGET.rowMs, settleMs = BUDGET.pub
     if (item.want !== "gone" && (item.rowMs === null || item.rowMs > rowMs)) problems.push(`${item.path}: row ${item.rowMs === null ? "never appeared" : `${item.rowMs} ms`} > ${rowMs} ms`);
     if (item.settledMs === null || item.settledMs > budget) problems.push(`${item.path}: ${item.want} ${item.settledMs === null ? `never (last state ${item.finalState})` : `${item.settledMs} ms`} > ${budget} ms`);
     if (uiRequired) {
-      if (item.uiSettledMs === null) problems.push(`${item.path}: the page never showed it ${item.want}`);
+      if (item.uiSettledMs === null) problems.push(`${item.path}: the page never showed it ${item.want} (it shows ${item.uiFinalState})`);
       else if (item.settledMs !== null && item.uiSettledMs - item.settledMs > uiLagMs) problems.push(`${item.path}: the page lagged the engine by ${item.uiSettledMs - item.settledMs} ms > ${uiLagMs} ms`);
     }
   }

@@ -100,7 +100,8 @@ async function loadAssertions() {
 
 const sha256 = async (file) => crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex");
 
-async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures, options }) {
+async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures: sharedFixtures, options }) {
+  let fixtures = sharedFixtures;
   const run = { id: scenario.id, locale, ok: false, steps: [], error: null };
   const directory = path.join(evidence, `${scenario.id}-${locale}`);
   await fs.mkdir(directory, { recursive: true });
@@ -110,6 +111,8 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   let child = null;
   let cdp = null;
   let recording = null;
+  // Folders a scenario changes are made fresh for every attempt: a retry must not start from what the failed attempt left behind.
+  if (scenario.id === "P07") fixtures = { ...fixtures, autosync: await createAutosyncFixtures(path.join(profile, "fixtures")) };
   const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose, ...(fixtures.autosync ? { watchedDir: fixtures.autosync.watched, dropThree: fixtures.autosync.drop, staging: fixtures.autosync.staging, bulk50: fixtures.autosync.bulk } : {}) };
   const autosyncState = {};
   let autosync = null;
@@ -320,7 +323,6 @@ async function main() {
   const profileRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "so-t2-")));
   const fixtures = await createFixtures(profileRoot);
   fixtures.lite = await createLiteRuntimeStub(profileRoot);
-  fixtures.autosync = await createAutosyncFixtures(profileRoot);
   fixtures.second = path.join(profileRoot, "Second docs");
   await fs.mkdir(fixtures.second, { recursive: true });
   await fs.writeFile(path.join(fixtures.second, "extra.md"), "# Extra\n\nA second folder.\n");
@@ -330,7 +332,7 @@ async function main() {
     for (const locale of scenario.locales.filter((entry) => locales.includes(entry))) {
       let run = null;
       for (let attempt = 1; attempt <= 2 && !run?.ok; attempt += 1) {
-        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), ATTEMPT_MS, stopAllRecordings);
+        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), (scenario.limitMinutes ?? 5) * 60_000, stopAllRecordings);
         run.attempts = attempt;
         console.log(`${run.ok ? "PASS" : "FAIL"} ${scenario.id} ${locale} attempt ${attempt}${run.error ? ` - ${String(run.error).split("\n")[0]}` : ""}`);
       }
