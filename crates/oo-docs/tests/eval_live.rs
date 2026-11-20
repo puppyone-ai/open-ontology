@@ -271,6 +271,19 @@ async fn export(s: &Stack, dir: &std::path::Path, published_only: bool) -> (usiz
     (n_ent, n_fact)
 }
 
+/// predicate, origin, status, score, subject type and name, object type and name, review reason.
+type FactState = (
+    String,
+    String,
+    String,
+    i32,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+);
+
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT, OO_EVAL_OUT and docker (oo-docs-parser:dev)"]
 async fn the_whole_golden_set_through_the_real_pipeline() {
@@ -423,7 +436,7 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     .unwrap();
     eprintln!("{summary}");
     // Diagnostics for the person reading the run: what became of every fact (status, score, review reason).
-    let rows: Vec<(String, String, String, i32, String, String, String, String, Option<String>)> = sqlx::query_as(
+    let rows: Vec<FactState> = sqlx::query_as(
         "SELECT f.predicate, f.origin, f.status, f.confidence_bp, s.type, s.canonical_name, COALESCE(o.type, ''), COALESCE(o.canonical_name, ''), \
                 (SELECT r.reason_code FROM _oo_docs.review_item r WHERE r.subject->>'fact_id' = f.id::text LIMIT 1) \
            FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
