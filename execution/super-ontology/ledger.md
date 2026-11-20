@@ -260,6 +260,14 @@
 | SO-B-S20-23 | D83 | merged | feat/super-ontology (车道 X 并入) | 99702df70 → 99702df70 | — | — | Ask extraction for a cross-language alias of each entity |
 | SO-B-S20-24 | D83 | merged | feat/super-ontology (车道 X 并入) | bcae702c9 → bcae702c9 | — | — | Say how to try other forms when an ontology search is empty |
 | SO-B-S20-29 | D83 | merged | feat/super-ontology (车道 X 并入，协调者合并与台账) | 890700b90 → c6fd4d9e4 | — | — | Merge lane X and add its ledger rows |
+| SO-B-S20-30 | D83 | merged | feat/super-ontology (车道 AB 并入) | 0198b3229 → 0198b3229 | — | — | Add the acceptance folder generator |
+| SO-B-S20-31 | D83 | merged | feat/super-ontology (车道 AB 并入) | bd8ebcc74 → bd8ebcc74 | — | — | Add the acceptance corpus and its frozen gold |
+| SO-B-S20-32 | D83 | merged | feat/super-ontology (车道 AB 并入) | 05b280420 → 05b280420 | — | — | Start the OCR and media sidecars when their locked images are here |
+| SO-B-S20-33 | D83 | merged | feat/super-ontology (车道 AB 并入) | 85242d089 → 85242d089 | — | — | Give the Latin text of the corpus PDFs a real glyph width |
+| SO-B-S20-34 | D83 | merged | feat/super-ontology (车道 AB 并入) | 51a8c4717 → 51a8c4717 | — | — | Decode AAC and H.264 media on the Mac without a button |
+| SO-B-S20-36 | D83 | merged | feat/super-ontology (车道 AB 并入) | 736afb840 → 736afb840 | — | — | Render dash lines of an Ask answer as a real list |
+| SO-B-S20-38 | D83 | merged | feat/super-ontology (车道 AB 并入) | 38e6871fe → 38e6871fe | — | — | Wait 180 seconds for the model's answer, not 45 |
+| SO-B-S20-39 | D83 | merged | feat/super-ontology (车道 AB 并入) | dacc89fa6 → 4a9ad4251 | — | — | Record the packaged acceptance runs |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
