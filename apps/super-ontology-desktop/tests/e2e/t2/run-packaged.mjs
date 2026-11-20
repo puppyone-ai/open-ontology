@@ -21,6 +21,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectToPage, readDevToolsPort } from "../harness/cdp.mjs";
 import { createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
 import { createPeekaboo } from "../harness/peekaboo.mjs";
+import { startRecording, stopAllRecordings } from "../harness/recorder.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, "..", "..", "..");
@@ -185,7 +186,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     }
   }
   try {
-    if (options.record) recording = spawn("screencapture", ["-v", path.join(directory, "run.mov")], { stdio: "ignore" });
+    if (options.record) recording = startRecording(path.join(directory, "run.mov"));
     for (const [index, step] of scenario.steps.entries()) {
       const label = `${String(index + 1).padStart(2, "0")}-${step.do}`;
       const started = Date.now();
@@ -233,7 +234,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await peekaboo.elements().then((list) => fs.writeFile(path.join(directory, "failure.elements.json"), JSON.stringify(list.map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1))).catch(() => undefined);
     await fs.writeFile(path.join(directory, "renderer-console.json"), JSON.stringify(cdp?.console() ?? [], null, 2)).catch(() => undefined);
   } finally {
-    recording?.kill("SIGINT");
+    await recording?.stop();
     await quit();
     // The engine the app started is stopped with the app; make sure none is left behind.
     try { const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8")); process.kill(info.pid, "SIGTERM"); } catch { /* none */ }
@@ -241,9 +242,9 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   return run;
 }
 
-async function withLimit(work, limitMs) {
+export async function withLimit(work, limitMs, onTimeout = () => undefined) {
   let timer;
-  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve({ ok: false, steps: [], error: `exceeded ${limitMs / 60_000} minutes` }), limitMs); });
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => { onTimeout(); resolve({ ok: false, steps: [], error: `exceeded ${limitMs / 60_000} minutes` }); }, limitMs); });
   try { return await Promise.race([work, timeout]); } finally { clearTimeout(timer); }
 }
 
@@ -289,7 +290,7 @@ async function main() {
     for (const locale of scenario.locales.filter((entry) => locales.includes(entry))) {
       let run = null;
       for (let attempt = 1; attempt <= 2 && !run?.ok; attempt += 1) {
-        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), ATTEMPT_MS);
+        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), ATTEMPT_MS, stopAllRecordings);
         run.attempts = attempt;
         console.log(`${run.ok ? "PASS" : "FAIL"} ${scenario.id} ${locale} attempt ${attempt}${run.error ? ` - ${String(run.error).split("\n")[0]}` : ""}`);
       }
