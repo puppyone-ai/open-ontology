@@ -167,13 +167,13 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
             .all(|f| f.rule_id == "llm" && !f.evidence.is_empty())
     );
     let llm = x.llm.clone().unwrap();
-    assert_eq!(llm.prompt_version, "extract/2");
+    assert_eq!(llm.prompt_version, "extract/4");
     assert_eq!(llm.extraction_key.len(), 64);
     r.store(&x).await;
     // Drafts with origin llm, confidence by word, provenance columns set.
     assert_eq!(
         r.fx.text("SELECT predicate || '/' || confidence_bp || '/' || prompt_version FROM _oo_docs.fact WHERE origin = 'llm' ORDER BY predicate, confidence_bp").await,
-        ["owns/7000/extract/2", "owns/8500/extract/2", "supersedes/8500/extract/2"]
+        ["owns/7000/extract/4", "owns/8500/extract/4", "supersedes/8500/extract/4"]
     );
     assert!(
         r.fx.scalar("SELECT count(*) FROM _oo_docs.evidence WHERE origin = 'llm'")
