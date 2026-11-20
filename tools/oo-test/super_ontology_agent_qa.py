@@ -53,6 +53,16 @@ SOURCES: <the source references you used, as printed by the tool, such as a file
 
 If the data does not contain the answer, or the question assumes something the data contradicts, write `ANSWER: NOT_IN_DATA` and one sentence why."""
 
+MCP_SYSTEM = """You answer questions about a user's documents and database with the tools of an MCP server (read-only access is already configured). You can make at most {max_calls} tool calls per question.
+
+Answer only from what the tools return. Cite where the answer came from.
+
+Finish with exactly these lines:
+ANSWER: <the short answer, with the key names and numbers>
+SOURCES: <the source references you used, as printed by the tools, such as a file path or a table name>
+
+If the data does not contain the answer, or the question assumes something the data contradicts, write `ANSWER: NOT_IN_DATA` and one sentence why."""
+
 EN_NAMES = {"evan lin": "林远舟", "ruby zhou": "周若溪", "ethan chen": "陈子墨", "tina sun": "孙晓棠", "kevin wu": "吴启明",
             "yutong zheng": "郑雨桐", "leo han": "韩立", "jiayi xu": "许嘉怡", "ben he": "贺文博"}
 DECLINE_RE = re.compile(r"NOT_IN_DATA|not in the data|no (such )?(data|information|record)|does not contain|"
@@ -146,13 +156,65 @@ TOOL = [{"type": "function", "function": {
                    "required": ["args"]}}}]
 
 
-def ask(model, oo, env, question, max_calls, system):
+class McpSession:
+    """`oo mcp --stdio` spoken over JSON-RPC lines; its tools are offered to the model as they are."""
+
+    def __init__(self, oo, env, endpoint, token_file):
+        self.p = subprocess.Popen([oo, "mcp", "--stdio", "--endpoint", endpoint, "--token-file", token_file], env=env,
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        self.n = 0
+        self.instructions = self.rpc("initialize", {"protocolVersion": "2025-11-25", "capabilities": {},
+                                                    "clientInfo": {"name": "agent-qa", "version": "0"}})["result"].get("instructions", "")
+        self.p.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
+        self.p.stdin.flush()
+        self.tools = self.rpc("tools/list", {})["result"]["tools"]
+
+    def rpc(self, method, params):
+        self.n += 1
+        self.p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": self.n, "method": method, "params": params}) + "\n")
+        self.p.stdin.flush()
+        while True:
+            line = self.p.stdout.readline()
+            if not line:
+                raise RuntimeError("mcp server closed")
+            try:
+                m = json.loads(line)
+            except ValueError:
+                continue
+            if m.get("id") == self.n:
+                return m
+
+    def openai_tools(self):
+        return [{"type": "function", "function": {"name": t["name"], "description": t.get("description", "")[:1000],
+                                                  "parameters": t.get("inputSchema") or {"type": "object", "properties": {}}}}
+                for t in self.tools]
+
+    def call(self, name, args):
+        r = self.rpc("tools/call", {"name": name, "arguments": args or {}})
+        if "error" in r:
+            return 1, json.dumps(r["error"])[:OUT_LIMIT]
+        res = r["result"]
+        text = "\n".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
+        if not text and "structuredContent" in res:
+            text = json.dumps(res["structuredContent"], ensure_ascii=False)
+        return (1 if res.get("isError") else 0), text[:OUT_LIMIT]
+
+    def close(self):
+        try:
+            self.p.stdin.close()
+            self.p.wait(timeout=5)
+        except Exception:
+            self.p.kill()
+
+
+def ask(model, oo, env, question, max_calls, system, mcp=None):
+    tools = mcp.openai_tools() if mcp else TOOL
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": question}]
     calls, usage, t0, final = [], 0, time.time(), ""
     llm_calls = 0
     while True:
         forced = len(calls) >= max_calls
-        r = model.chat(msgs, TOOL, "none" if forced else None)
+        r = model.chat(msgs, tools, "none" if forced else None)
         llm_calls += 1
         usage += (r.get("usage") or {}).get("total_tokens", 0)
         m = r["choices"][0]["message"]
@@ -172,18 +234,29 @@ def ask(model, oo, env, question, max_calls, system):
             if len(calls) >= max_calls:
                 msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": "call limit reached"})
                 continue
-            try:
-                args = json.loads(tc["function"]["arguments"] or "{}").get("args")
-            except ValueError:
-                args = None
             ts = time.time()
-            if args is None:
-                rc, out = 126, "refused: arguments must be JSON {\"args\": [...]}"
+            if mcp:
+                try:
+                    args = json.loads(tc["function"]["arguments"] or "{}")
+                except ValueError:
+                    args = None
+                try:
+                    rc, out = mcp.call(tc["function"]["name"], args) if args is not None else (126, "refused: arguments must be JSON")
+                except Exception as e:
+                    rc, out = 124, f"mcp error: {e}"
+                args = [tc["function"]["name"], json.dumps(args, ensure_ascii=False)]
             else:
                 try:
-                    rc, out = run_oo(oo, args, env)
-                except subprocess.TimeoutExpired:
-                    rc, out = 124, "timed out"
+                    args = json.loads(tc["function"]["arguments"] or "{}").get("args")
+                except ValueError:
+                    args = None
+                if args is None:
+                    rc, out = 126, "refused: arguments must be JSON {\"args\": [...]}"
+                else:
+                    try:
+                        rc, out = run_oo(oo, args, env)
+                    except subprocess.TimeoutExpired:
+                        rc, out = 124, "timed out"
             calls.append({"args": args, "rc": rc, "seconds": round(time.time() - ts, 2), "output": out})
             msgs.append({"role": "tool", "tool_call_id": tc["id"], "content": f"exit {rc}\n{out}"})
     return {"calls": calls, "final": final, "seconds": round(time.time() - t0, 2), "llm_calls": llm_calls,
@@ -303,11 +376,15 @@ def cmd_run(args):
     paths = corpus_paths()
 
     def one(q):
+        mcp = None
         try:
-            rec = ask(model, args.oo, env, q["question"], args.max_calls, system)
+            mcp = McpSession(args.oo, env, args.endpoint, args.token_file) if args.mode == "mcp" else None
+            rec = ask(model, args.oo, env, q["question"], args.max_calls, MCP_SYSTEM.replace("{max_calls}", str(args.max_calls)) if mcp else system, mcp)
         except Exception as e:  # a model outage is a logged failure, never a silent skip
             rec = {"calls": [], "final": "", "seconds": 0, "llm_calls": 0, "tokens": 0, "hit_call_limit": False,
                    "error": str(e)}
+        if mcp:
+            mcp.close()
         rec.update(id=q["id"], split=q["split"], category=q["category"], question=q["question"])
         rec["score"] = score(q, rec, paths)
         (out / f"{q['id']}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1))
@@ -455,6 +532,7 @@ def main():
     r.add_argument("--model-key-file", default=str(SECRETS / "model-key-9r-sol"))
     r.add_argument("--max-calls", type=int, default=12)
     r.add_argument("--workers", type=int, default=3)
+    r.add_argument("--mode", default="cli", choices=["cli", "mcp"])
     r.add_argument("--agent-home", default="/private/tmp/soV/agent-home")
     r.add_argument("--system-prompt-file", default="")
     s = sp.add_parser("score")
