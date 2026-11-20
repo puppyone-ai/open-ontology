@@ -73,7 +73,8 @@
     },
     {
       "do": "chooseFiles",
-      "path": "${dropThree}"
+      "path": "${dropThree}",
+      "reopen": "app.sources.upload"
     },
     {
       "do": "autosync",

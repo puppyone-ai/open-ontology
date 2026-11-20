@@ -21,6 +21,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectToPage, readDevToolsPort } from "../harness/cdp.mjs";
 import { createAutosync } from "../harness/autosync.mjs";
 import { createAutosyncFixtures, createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
+import { chooseThroughPanel } from "../harness/open-panel.mjs";
 import { createPeekaboo } from "../harness/peekaboo.mjs";
 import { startRecording, stopAllRecordings } from "../harness/recorder.mjs";
 
@@ -152,6 +153,8 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
     const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
     await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
+    await osa(`tell application "System Events" to set frontmost of (first process whose unix id is ${child.pid}) to true`);
+    await sleep(800);
     await peekaboo.press("cmd+shift+g", { native: true });
     await sleep(800);
     await peekaboo.press("cmd+v", { native: true });
@@ -164,29 +167,24 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await sleep(1500);
     if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
   }
-  // The open panel of the upload button: go to the folder, select everything in it, Open. Timed from the moment the panel is gone.
-  async function chooseFiles(folder) {
-    for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
+  // The open panel of the upload button (see harness/open-panel.mjs). Timed from the moment the panel is gone; the attempts it took are kept.
+  async function chooseFiles(folder, reopenName) {
     const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
-    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
-    await peekaboo.press("cmd+shift+g", { native: true });
-    await sleep(800);
-    await peekaboo.press("cmd+v", { native: true });
-    await sleep(800);
-    await peekaboo.nativeReturn(36);
-    await sleep(1500);
-    // The panel is in column view with the folder selected: Right moves into its files, then everything there is selected.
-    await peekaboo.nativeReturn(124);
-    await sleep(600);
-    await peekaboo.press("cmd+a", { native: true });
-    await sleep(500);
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      await peekaboo.nativeReturn(36);
-      await sleep(1000);
-      if ((await sheetCount(child.pid)) === 0) break;
+    try {
+      const result = await chooseThroughPanel(folder, {
+        sheetCount: () => sheetCount(child.pid),
+        press: (chord) => peekaboo.press(chord, { native: true }),
+        key: (code) => peekaboo.nativeReturn(code),
+        setClipboard: (value) => new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(value); }),
+        front: () => osa(`tell application "System Events" to set frontmost of (first process whose unix id is ${child.pid}) to true`),
+        reopen: () => (reopenName ? peekaboo.click(reopenName) : Promise.resolve()),
+        sleep, now: Date.now,
+      });
+      autosyncState.pickedAt = result.closedAt;
+      autosyncState.panelAttempts = result.attempts;
+    } finally {
+      if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
     }
-    autosyncState.pickedAt = Date.now();
-    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
   }
   async function engineApi(route, { method = "GET", body, headers = {} } = {}) {
     const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8"));
@@ -249,7 +247,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
         // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
         case "chooseFolder": await chooseFolder(text(step.path)); break;
-        case "chooseFiles": await chooseFiles(text(step.path)); break;
+        case "chooseFiles": await chooseFiles(text(step.path), step.reopen ? nameFor(catalog, step.reopen) : null); break;
         // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
         case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;
