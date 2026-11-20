@@ -292,6 +292,15 @@
 | SO-F-S20-15 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 073bdba54 → 073bdba54 | — | apps/super-ontology-desktop/ | Keep the CLI cause first and settle terms after the visual review |
 | SO-F-S20-16 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 912375045 → 912375045 | — | apps/super-ontology-desktop/ | Add a locale screenshot tool and a language switch for the T1 runs |
 | SO-F-S20-30 | D46 | merged | feat/super-ontology (App 车道 W 并入) | f09ea9546 → f09ea9546 | — | apps/super-ontology-desktop/ | Drive the P07 open panel with checks and report the attempts it took |
+| SO-F-S20-40 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 0207c9384 → 0207c9384 | — | apps/super-ontology-desktop/ | Add the Ask loop in the main process over a read-only agent token |
+| SO-F-S20-41 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 6d800c276 → 6d800c276 | — | apps/super-ontology-desktop/ | Add the Ask tab under Ontology |
+| SO-F-S20-42 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 9fadc6e2d → 9fadc6e2d | — | apps/super-ontology-desktop/ | Make what is not connected clear in the atlas, Sources and Home |
+| SO-F-S20-43 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 269355e6e → 269355e6e | — | apps/super-ontology-desktop/ | Read a model address kept in a file reference |
+| SO-F-S20-44 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 34f1cdfdb → 34f1cdfdb | — | apps/super-ontology-desktop/ | Let a T1 run use the compose engine and a 2x window |
+| SO-F-S20-45 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | abe43ebb8 → abe43ebb8 | — | apps/super-ontology-desktop/ | Fix the Ask request check, number cited sources, and read files honestly |
+| SO-F-S20-46 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 4e47ec6fd → 4e47ec6fd | — | apps/super-ontology-desktop/ | Lock the Ask and Not connected screens with visual baselines |
+| SO-F-S20-47 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 15474193a → 15474193a | — | apps/super-ontology-desktop/ | Check for disagreements before the Ask answer states an owner, date, number or status |
+| SO-F-S20-48 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | afcdd5822 → afcdd5822 | — | apps/super-ontology-desktop/ | Refresh the Ask baselines for human anchors, the clear icon and kept-together markers |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
