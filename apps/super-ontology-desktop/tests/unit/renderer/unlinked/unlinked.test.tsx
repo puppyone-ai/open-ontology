@@ -21,6 +21,9 @@ describe("why a file is not connected", () => {
     expect(fileReason(file({ state: "too_large" }), null)).toEqual({ kind: "too_large" });
     expect(fileReason(file({ state: "encrypted" }), null)).toEqual({ kind: "encrypted" });
     for (const state of ["stored", "queued", "parsing", "parsed", "extracting", "indexed"]) expect(fileReason(file({ state }), null)).toEqual({ kind: "processing" });
+    // Indexed with facts waiting for a person is a review, not work in progress.
+    expect(fileReason(file({ state: "indexed", pending_review: 3 }), null)).toEqual({ kind: "review" });
+    expect(fileReason(file({ state: "extracting", pending_review: 3 }), null)).toEqual({ kind: "processing" });
     for (const state of ["deleted", "superseded", "duplicate", "outdated"]) expect(fileReason(file({ state }), null)).toBeNull();
   });
   it("a ready file needs to have been read: no entities, waiting for review, or entities with no relations", () => {

@@ -56,24 +56,40 @@ export function SourceChip({ source, onOpenFile, onOpenQuery }: { source: AskSou
 const CITE_RUN = /((?:\[S\d+(?:, S\d+)*\])+)([.,;:!?。，；：！？）)」』]*)/gu;
 const CITE_ONE = /\[(S\d+(?:, S\d+)*)\]/gu;
 
-/** The answer as paragraphs; a run of citation tags becomes the small numbers of its chips, kept on one line with the punctuation that follows. */
+const BULLET = /^\s*[-*•]\s+(.*)$/u;
+
+/** One line of an answer: a run of citation tags becomes the small numbers of its chips, kept on one line with the punctuation that follows. */
+function lineParts(line: string, index: number): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const match of line.matchAll(CITE_RUN)) {
+    parts.push(line.slice(last, match.index));
+    const ids = [...match[1]!.matchAll(CITE_ONE)].flatMap((m) => m[1]!.split(", ").map((id) => id.slice(1)));
+    parts.push(<span key={`${index}-${match.index}`} className="so-ask-cites">{ids.map((id, i) => <span key={i} className="so-ask-cite so-mono">{id}</span>)}{match[2]}</span>);
+    last = match.index + match[0].length;
+  }
+  parts.push(line.slice(last));
+  return parts;
+}
+
+/** The answer as paragraphs and bullet lists (a run of "- " lines is one list, not plain text with dashes), with its citations as chips. */
 export function AnswerText({ text }: { text: string }) {
-  return (
-    <div className="so-ask-answer-text" data-testid="ask-answer-text">
-      {text.split(/\n{1,}/u).filter((line) => line.trim() !== "").map((line, index) => {
-        const parts: ReactNode[] = [];
-        let last = 0;
-        for (const match of line.matchAll(CITE_RUN)) {
-          parts.push(line.slice(last, match.index));
-          const ids = [...match[1]!.matchAll(CITE_ONE)].flatMap((m) => m[1]!.split(", ").map((id) => id.slice(1)));
-          parts.push(<span key={`${index}-${match.index}`} className="so-ask-cites">{ids.map((id, i) => <span key={i} className="so-ask-cite so-mono">{id}</span>)}{match[2]}</span>);
-          last = match.index + match[0].length;
-        }
-        parts.push(line.slice(last));
-        return <p key={index}>{parts}</p>;
-      })}
-    </div>
-  );
+  const blocks: ReactNode[] = [];
+  let items: string[] = [];
+  const flush = () => {
+    if (items.length === 0) return;
+    const at = blocks.length;
+    blocks.push(<ul key={`ul-${at}`}>{items.map((item, i) => <li key={i}>{lineParts(item, at * 1000 + i)}</li>)}</ul>);
+    items = [];
+  };
+  text.split(/\n+/u).filter((line) => line.trim() !== "").forEach((line, index) => {
+    const bullet = BULLET.exec(line);
+    if (bullet) { items.push(bullet[1]!); return; }
+    flush();
+    blocks.push(<p key={index}>{lineParts(line, index)}</p>);
+  });
+  flush();
+  return <div className="so-ask-answer-text" data-testid="ask-answer-text">{blocks}</div>;
 }
 
 function Failure({ turn }: { turn: AskTurn }) {

@@ -50,6 +50,8 @@ export function fileReason(file: FileLike, facts: FileFacts | null): UnlinkedRea
   if (file.state === "parse_failed") return { kind: "parse_failed", code: typeof file.state_code === "string" && file.state_code ? file.state_code : "PARSE_FAILED" };
   if (file.state === "too_large") return { kind: "too_large" };
   if (file.state === "encrypted") return { kind: "encrypted" };
+  // An indexed file whose facts wait for a person is not still being processed: the engine finished and asks to be reviewed.
+  if (file.state === "indexed" && pending(file)) return { kind: "review" };
   if (PROCESSING.has(file.state)) return { kind: "processing" };
   if (!READY.has(file.state)) return null;
   if (facts === null) return pending(file) ? { kind: "review" } : null;

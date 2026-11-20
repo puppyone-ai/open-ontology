@@ -1,0 +1,1116 @@
+{
+ "uploadMs": 203559,
+ "settled": true,
+ "files": [
+  {
+   "file": "contracts/hengding-lens-supply-contract.pdf",
+   "format": "pdf",
+   "state": "published",
+   "code": null,
+   "published_s": 8.1,
+   "parse_ms": 4046,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "parsing",
+     4.0
+    ],
+    [
+     "published",
+     8.1
+    ]
+   ]
+  },
+  {
+   "file": "contracts/meridian-packaging-quote.pdf",
+   "format": "pdf",
+   "state": "published",
+   "code": null,
+   "published_s": 38.3,
+   "parse_ms": 2505,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     34.2
+    ],
+    [
+     "indexed",
+     36.3
+    ],
+    [
+     "published",
+     38.3
+    ]
+   ]
+  },
+  {
+   "file": "decks/aurora-launch-plan.pptx",
+   "format": "pptx",
+   "state": "published",
+   "code": null,
+   "published_s": 36.3,
+   "parse_ms": 152,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "indexed",
+     34.2
+    ],
+    [
+     "published",
+     36.3
+    ]
+   ]
+  },
+  {
+   "file": "decks/vendor-review.pptx",
+   "format": "pptx",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 1530,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "parsing",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "finance/actuals-2027-q1.csv",
+   "format": "csv",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "finance/launch-budget-2027.xlsx",
+   "format": "xlsx",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "finance/po-log.csv",
+   "format": "csv",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 4,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "finance/vendor-list.xlsx",
+   "format": "xlsx",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 4,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "images/screenshot-task-tracker.png",
+   "format": "image",
+   "state": "published",
+   "code": null,
+   "published_s": 20.1,
+   "parse_ms": 14097,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "parsing",
+     4.0
+    ],
+    [
+     "indexed",
+     18.1
+    ],
+    [
+     "published",
+     20.1
+    ]
+   ]
+  },
+  {
+   "file": "images/whiteboard-launch-timeline.png",
+   "format": "image",
+   "state": "published",
+   "code": null,
+   "published_s": 50.3,
+   "parse_ms": 14964,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     34.2
+    ],
+    [
+     "parsed",
+     48.3
+    ],
+    [
+     "published",
+     50.3
+    ]
+   ]
+  },
+  {
+   "file": "meetings/audio/budget-call-2027-01-26.m4a",
+   "format": "audio",
+   "state": "published",
+   "code": null,
+   "published_s": 14.1,
+   "parse_ms": 6020,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "parsing",
+     4.0
+    ],
+    [
+     "outdated",
+     6.0
+    ],
+    [
+     "parsing",
+     8.1
+    ],
+    [
+     "indexed",
+     12.1
+    ],
+    [
+     "published",
+     14.1
+    ]
+   ]
+  },
+  {
+   "file": "meetings/audio/launch-sync-2027-01-12.wav",
+   "format": "audio",
+   "state": "published",
+   "code": null,
+   "published_s": 22.1,
+   "parse_ms": 4037,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     16.1
+    ],
+    [
+     "indexed",
+     20.1
+    ],
+    [
+     "published",
+     22.1
+    ]
+   ]
+  },
+  {
+   "file": "meetings/audio/readiness-call-2027-02-02.m4a",
+   "format": "audio",
+   "state": "published",
+   "code": null,
+   "published_s": 18.1,
+   "parse_ms": 6017,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     6.0
+    ],
+    [
+     "unsupported",
+     8.1
+    ],
+    [
+     "outdated",
+     10.1
+    ],
+    [
+     "parsing",
+     12.1
+    ],
+    [
+     "indexed",
+     16.1
+    ],
+    [
+     "published",
+     18.1
+    ]
+   ]
+  },
+  {
+   "file": "meetings/audio/supplier-call-2027-01-16.wav",
+   "format": "audio",
+   "state": "published",
+   "code": null,
+   "published_s": 26.2,
+   "parse_ms": 4029,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     20.1
+    ],
+    [
+     "indexed",
+     24.2
+    ],
+    [
+     "published",
+     26.2
+    ]
+   ]
+  },
+  {
+   "file": "meetings/minutes-2027-01-12-launch-sync.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 66.5,
+   "parse_ms": 161,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "indexed",
+     64.4
+    ],
+    [
+     "published",
+     66.5
+    ]
+   ]
+  },
+  {
+   "file": "meetings/minutes-2027-01-26-budget-review.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 66.5,
+   "parse_ms": 149,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "indexed",
+     64.4
+    ],
+    [
+     "published",
+     66.5
+    ]
+   ]
+  },
+  {
+   "file": "meetings/minutes-2027-02-02-readiness.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 159.3,
+   "parse_ms": 173,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "indexed",
+     155.2
+    ],
+    [
+     "published",
+     159.3
+    ]
+   ]
+  },
+  {
+   "file": "memos/launch-delay-memo-signed.pdf",
+   "format": "pdf",
+   "state": "published",
+   "code": null,
+   "published_s": 203.6,
+   "parse_ms": 16242,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     185.5
+    ],
+    [
+     "parsed",
+     201.5
+    ],
+    [
+     "published",
+     203.6
+    ]
+   ]
+  },
+  {
+   "file": "misc/brand-mockup.key",
+   "format": "zip",
+   "state": "unsupported",
+   "code": "DOCS_PARSE_UNSUPPORTED_FORMAT",
+   "published_s": null,
+   "parse_ms": null,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "unsupported",
+     4.0
+    ]
+   ]
+  },
+  {
+   "file": "misc/broken-report.pdf",
+   "format": "pdf",
+   "state": "parse_failed",
+   "code": "DOCS_PARSE_CORRUPT",
+   "published_s": null,
+   "parse_ms": 45,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parse_failed",
+     125.0
+    ]
+   ]
+  },
+  {
+   "file": "misc/empty-notes.txt",
+   "format": "txt",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "misc/icon-set.sketch",
+   "format": "zip",
+   "state": "unsupported",
+   "code": "DOCS_PARSE_UNSUPPORTED_FORMAT",
+   "published_s": null,
+   "parse_ms": null,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "unsupported",
+     4.0
+    ]
+   ]
+  },
+  {
+   "file": "misc/lemon-tart-recipe.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 96.7,
+   "parse_ms": 157,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsed",
+     94.7
+    ],
+    [
+     "published",
+     96.7
+    ]
+   ]
+  },
+  {
+   "file": "misc/lisbon-itinerary.pdf",
+   "format": "pdf",
+   "state": "published",
+   "code": null,
+   "published_s": 98.7,
+   "parse_ms": 2425,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     94.7
+    ],
+    [
+     "parsed",
+     96.7
+    ],
+    [
+     "published",
+     98.7
+    ]
+   ]
+  },
+  {
+   "file": "misc/random-readings.csv",
+   "format": "csv",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/customer-feedback.txt",
+   "format": "txt",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/design-notes.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/glossary.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/launch-checklist-zh.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/meeting-cadence.txt",
+   "format": "txt",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/naming-guidelines.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/okr-2027-q1-zh.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/okr-2027-q1.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/onboarding-launch-team.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/press-faq-en.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/press-faq-zh.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/retro-prep.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/risk-register.md",
+   "format": "md",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/shipping-schedule.txt",
+   "format": "txt",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "notes/slack-export-launch.txt",
+   "format": "txt",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "people/contact-directory.csv",
+   "format": "csv",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 2,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "people/team-roster.xlsx",
+   "format": "xlsx",
+   "state": "published",
+   "code": null,
+   "published_s": 6.0,
+   "parse_ms": 3,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "indexed",
+     4.0
+    ],
+    [
+     "published",
+     6.0
+    ]
+   ]
+  },
+  {
+   "file": "reports/launch-readiness-report-2027-02-20.pdf",
+   "format": "pdf",
+   "state": "published",
+   "code": null,
+   "published_s": 161.3,
+   "parse_ms": 2608,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsing",
+     155.2
+    ],
+    [
+     "indexed",
+     159.3
+    ],
+    [
+     "published",
+     161.3
+    ]
+   ]
+  },
+  {
+   "file": "specs/np7-product-spec.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 129.0,
+   "parse_ms": 159,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsed",
+     125.0
+    ],
+    [
+     "indexed",
+     127.0
+    ],
+    [
+     "published",
+     129.0
+    ]
+   ]
+  },
+  {
+   "file": "specs/np7-test-plan.docx",
+   "format": "docx",
+   "state": "published",
+   "code": null,
+   "published_s": 129.0,
+   "parse_ms": 140,
+   "timeline": [
+    [
+     "stored",
+     2.0
+    ],
+    [
+     "queued",
+     4.0
+    ],
+    [
+     "parsed",
+     125.0
+    ],
+    [
+     "indexed",
+     127.0
+    ],
+    [
+     "published",
+     129.0
+    ]
+   ]
+  }
+ ]
+}

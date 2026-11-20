@@ -1,0 +1,894 @@
+[
+ {
+  "id": "q01",
+  "ms": 18311,
+  "ok": true,
+  "status": "answered",
+  "answer": "**2027-03-18.**\n\nThat is the current planned launch date for Aurora NP-7 (极光 NP-7). It was moved from 2027-03-04 after the 2027-01-12 launch sync [S1][S2][S3]. The product spec lists planned launch as 2027-03-18 [S4], and the 2027-02-02 readiness notes and the 2027-02-20 readiness report still hold that date [S5][S6].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf",
+    "anchor": "p.1"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 2"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q02",
+  "ms": 9752,
+  "ok": true,
+  "status": "answered",
+  "answer": "Lens yield reported at the 2027-01-12 launch sync was 71%, below an 85% threshold [S1][S2].\n\nThe minutes state the yield was only 71%, below the 85% threshold, so Mingyuan Gu moved the launch from 2027-03-04 to 2027-03-18 [S1]. The meeting audio says the same: lens yield from the current supplier was 71 percent, threshold 85 percent [S2]. No conflicting current values were found for lens yield.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+    "anchor": "决定 Decisions"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/audio/launch-sync-2027-01-12.wav",
+    "anchor": ""
+   }
+  ],
+  "steps": 10,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q03",
+  "ms": 4899,
+  "ok": true,
+  "status": "answered",
+  "answer": "The Hardware Lead is Daniel Ortiz (丹尼尔·奥尔蒂斯), Engineering team [S1][S2]. He is also listed as the owner of the NP7 product spec [S3][S4].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A4:F4"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A4:F4"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   }
+  ],
+  "steps": 4,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q04",
+  "ms": 8362,
+  "ok": true,
+  "status": "answered",
+  "answer": "The total value of the Hengding lens supply contract is CNY 2,480,000 (人民币二百四十八万元) [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 6,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q05",
+  "ms": 9966,
+  "ok": true,
+  "status": "answered",
+  "answer": "The retail price of the Aurora NP-7 is CNY 3,999 [S1][S2][S3]. The Chinese product spec calls the same figure a suggested retail price of 3,999 yuan [S4], and the Chinese press FAQ lists 价格 3,999 元 [S5].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md",
+    "anchor": "L9"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": "Key figures"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": "概述"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-zh.md",
+    "anchor": "L4"
+   }
+  ],
+  "steps": 11,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q06",
+  "ms": 4454,
+  "ok": true,
+  "status": "answered",
+  "answer": "The product spec states a battery life of **9 hours** [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   }
+  ],
+  "steps": 4,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q07",
+  "ms": 14792,
+  "ok": true,
+  "status": "answered",
+  "answer": "The Aurora NP-7 weighs **38 g**.\n\nThat figure is in the product spec [S1], the English press FAQ [S2], the Chinese press FAQ (38 克) [S3], and beta feedback notes [S4]. The sources do not disagree.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md",
+    "anchor": "L9"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-zh.md",
+    "anchor": "L4"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/customer-feedback.txt",
+    "anchor": "L1-L3"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q08",
+  "ms": 8337,
+  "ok": true,
+  "status": "answered",
+  "answer": "Ziqian Ke is on the Quality team [S1]. The roster lists the role as QA Engineer (质量工程师) [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A9:F9"
+   }
+  ],
+  "steps": 3,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q09",
+  "ms": 17998,
+  "ok": true,
+  "status": "answered",
+  "answer": "顾明远 (Mingyuan Gu), VP Product, decided to delay the Aurora NP-7 launch from 2027-03-04 to 2027-03-18 at the 2027-01-12 project sync meeting (项目同步会), because lens yield was 71%, below the 85% threshold [S1][S2].\n\nIt was formalised in the signed memo he issued the next day, 2027-01-13 (launch-delay-memo-signed.pdf), which records that the decision was made at that meeting [S3][S4].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+    "anchor": "决定 Decisions"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+    "anchor": "项目同步会纪要 Launch sync minutes"
+   },
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf",
+    "anchor": "p.1"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/launch-checklist-zh.md",
+    "anchor": "L3"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q10",
+  "ms": 17779,
+  "ok": true,
+  "status": "answered",
+  "answer": "**Hengding Optoelectronics (恒鼎光电) supplies the lenses. Tianyou Jiang owns that relationship inside the company.**\n\nThe vendor list names Hengding Optoelectronics as the Lens vendor and Tianyou Jiang as the internal owner, with a contract of CNY 2,480,000 signed on 2027-01-20 [S1] [S2]. The product spec lists the same company as the lens supplier [S3], and it was selected as the primary lens supplier on 2027-01-16 [S4]. Contract NPO-2027-014 covers optical lenses for the Aurora NP-7 smart glasses [S5].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx",
+    "anchor": "Vendors!A2:F2"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx",
+    "anchor": "Vendors!A2:F2"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/vendor-review.pptx",
+    "anchor": "slide 2"
+   },
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q11",
+  "ms": 13022,
+  "ok": true,
+  "status": "answered",
+  "answer": "Yes. Both show a total budget of CNY 6,850,000.\n\nThe launch readiness report lists TOTAL 6,850,000 and cites launch-budget-2027.xlsx as its source [S1]. The budget workbook’s Summary sheet lists TOTAL Budget CNY 6,850,000 [S2][S3]. No conflicting current values were found for the total budget.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf",
+    "anchor": "p.1"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A8:C8"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A1:C8"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q12",
+  "ms": 6254,
+  "ok": true,
+  "status": "answered",
+  "answer": "Priya Raman owns marketing. The marketing budget is 1,420,000 CNY.\n\nShe is Head of Marketing and the Marketing team lead [S1][S2][S3][S4], and she is the owner of the Marketing line in the 2027 launch budget [S5][S6]. The sources do not disagree on the owner or the amount.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Teams!A1:B10"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A6:F6"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Teams!A6:B6"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md",
+    "anchor": "L10"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A3:C3"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A1:C8"
+   }
+  ],
+  "steps": 4,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q13",
+  "ms": 7918,
+  "ok": true,
+  "status": "answered",
+  "answer": "The only meeting that discussed it is the **Budget review on 2027-01-26**.\n\nMingyuan Gu approved moving CNY 80,000 from print to video production, contracted to Yunfan Media [S1]. The same move is recorded in the launch budget change log and the Aurora launch plan deck, both dated 2027-01-26, but those are not meeting minutes [S2] [S3].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Changes!A2:E2"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 3"
+   }
+  ],
+  "steps": 6,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q14",
+  "ms": 9635,
+  "ok": true,
+  "status": "answered",
+  "answer": "Slide 3 covers budget. It shows a total of CNY 6,850,000 [S1].\n\nMarketing is CNY 1,420,000, and CNY 80,000 was moved from print to video on 2027-01-26 [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 3"
+   }
+  ],
+  "steps": 8,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q15",
+  "ms": 21422,
+  "ok": true,
+  "status": "answered",
+  "answer": "The press embargo date is 2027-03-16 [S1][S2]. No source names an owner of a “press plan.” The Aurora NP-7 launch plan is owned by Mingyuan Gu (顾明远) [S3], and Priya Raman leads press and video [S4] and owns the Press FAQ [S5].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 2"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md",
+    "anchor": "L8"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 1"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 5"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md",
+    "anchor": "L1-L4"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q16",
+  "ms": 15663,
+  "ok": true,
+  "status": "answered",
+  "answer": "The QA go/no-go review is on **2027-03-05**, and **Ziqian Ke (柯子骞)** owns it [S1][S2][S3][S4].\n\nThe test plan says the same date and that Ziqian Ke chairs it with Daniel Ortiz [S5]. Ziqian Ke is the QA Engineer [S6].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 2"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/images/whiteboard-launch-timeline.png",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-test-plan.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A9:F9"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q17",
+  "ms": 6211,
+  "ok": true,
+  "status": "answered",
+  "answer": "Yunfan Media (云帆传播) was hired for video and ads. Its contract value is CNY 880,000, status Signed on 2027-01-27 [S1][S2].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx",
+    "anchor": "Vendors!A5:F5"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx",
+    "anchor": "Vendors!A5:F5"
+   }
+  ],
+  "steps": 6,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q18",
+  "ms": 29279,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "The Hengding contract does not say which legal counsel prepared it; it only names P Cole as Legal Counsel for Northport Optics in the parties section [S2].",
+  "sources": [],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q19",
+  "ms": 4928,
+  "ok": true,
+  "status": "answered",
+  "answer": "The Logistics budget in the budget workbook is **980,000 CNY**, owned by 蒋天佑 [S1][S2].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A4:C4"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A1:C8"
+   }
+  ],
+  "steps": 3,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q20",
+  "ms": 29190,
+  "ok": true,
+  "status": "answered",
+  "answer": "**CNY 60,000.**\n\nThe marketing sheet still lists print at CNY 140,000 [S1][S2]. On 2027-01-26, Mingyuan Gu approved moving CNY 80,000 from print to video production [S3][S4][S5]. That leaves CNY 60,000 in print. The workbook has not been revised to that figure: updating it is an open action for Wanqing Shao, due 2027-02-02 [S6].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Marketing!A3:B3"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Marketing!A1:B6"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 3"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Changes!A2:E2"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx",
+    "anchor": "Actions"
+   }
+  ],
+  "steps": 10,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q21",
+  "ms": 5832,
+  "ok": true,
+  "status": "answered",
+  "answer": "The contingency reserve is CNY 450,000 [S1][S2][S3]. It is owned by 邵婉清 [S2][S3].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A7:C7"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A1:C8"
+   }
+  ],
+  "steps": 5,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q22",
+  "ms": 5934,
+  "ok": true,
+  "status": "answered",
+  "answer": "Hardware is about 45.3% of the total budget: 3,100,000 CNY out of 6,850,000 CNY [S1][S2][S3].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A2:C2"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A1:C8"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Summary!A8:C8"
+   }
+  ],
+  "steps": 7,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q23",
+  "ms": 7121,
+  "ok": true,
+  "status": "answered",
+  "answer": "Marketing actuals for January and February 2027 total **540,000 CNY**.\n\n- January 2027: 210,000 CNY (Yunfan Media) [S1]\n- February 2027: 330,000 CNY (Yunfan Media) [S2]",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/actuals-2027-q1.csv",
+    "anchor": "A3:D3"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/actuals-2027-q1.csv",
+    "anchor": "A5:D5"
+   }
+  ],
+  "steps": 7,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q24",
+  "ms": 7731,
+  "ok": true,
+  "status": "answered",
+  "answer": "Video production and digital ads together cost **CNY 880,000** in the marketing budget (580,000 + 300,000) [S1].\n\n- Video production: CNY 580,000 [S2] [S1]\n- Digital ads: CNY 300,000 [S3] [S1]\n\nThose two lines sit inside the marketing subtotal of CNY 1,420,000 [S1]. Sources do not disagree on either amount.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Marketing!A1:B6"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Marketing!A2:B2"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx",
+    "anchor": "Marketing!A5:B5"
+   }
+  ],
+  "steps": 9,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q25",
+  "ms": 10894,
+  "ok": true,
+  "status": "answered",
+  "answer": "Yunfan Media shoots the launch video on **2027-02-10** [S1][S2].\n\nThe launch plan states “Yunfan Media shoots on 2027-02-10” [S1], and the launch timeline whiteboard lists “Video shoot 02-10 — Yunfan Media” [S2]. The sources do not disagree on that date.",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx",
+    "anchor": "slide 5"
+   },
+   {
+    "kind": "file",
+    "path": "project/images/whiteboard-launch-timeline.png",
+    "anchor": ""
+   }
+  ],
+  "steps": 11,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q26",
+  "ms": 30481,
+  "ok": true,
+  "status": "answered",
+  "answer": "Before 2 February 2027. In the Chinese budget call, Shao Wanqing says the budget sheet will be updated before that date (二月二日前) [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/audio/budget-call-2027-01-26.m4a",
+    "anchor": ""
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q27",
+  "ms": 7827,
+  "ok": true,
+  "status": "answered",
+  "answer": "Hengding promised a delivery lead time of 21 days after each purchase order [S1]. The signed lens supply contract states the same figure: 21 days after purchase order [S2].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/audio/supplier-call-2027-01-16.wav",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 10,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q28",
+  "ms": 6206,
+  "ok": true,
+  "status": "answered",
+  "answer": "中文材料里他叫**顾明远**，职位是**产品副总裁**（英文 VP Product），所属团队为 Product [S1][S2][S3]。",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A2:F2"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx",
+    "anchor": "Roster!A1:F10"
+   },
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 5,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q29",
+  "ms": 7060,
+  "ok": true,
+  "status": "answered",
+  "answer": "恒鼎光电的英文名是 **Hengding Optoelectronics** [S1][S2][S3]。\n\n会议纪要写为「恒鼎光电（Hengding Optoelectronics）」[S1]，供应商清单与镜片供货合同也使用同一英文名 [S2][S3]。部分材料会简写为 Hengding [S4]。",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+    "anchor": ""
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx",
+    "anchor": "Vendors!A1:F5"
+   },
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf",
+    "anchor": "p.1"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/vendor-review.pptx",
+    "anchor": "slide 2"
+   }
+  ],
+  "steps": 5,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q30",
+  "ms": 12038,
+  "ok": true,
+  "status": "answered",
+  "answer": "The scanned Chinese memo gives a lens-yield threshold of 85%. It states that the 71% yield was below that threshold [S1].",
+  "reason": "",
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf",
+    "anchor": "p.1"
+   }
+  ],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q31",
+  "ms": 16630,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "I looked for a manufacturing cost per unit of the Aurora NP-7 and did not find that figure in the project documents.",
+  "sources": [],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q32",
+  "ms": 15372,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "No document names a CEO of Northport Optics; the roster and contract only list roles such as VP Product.",
+  "sources": [],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q33",
+  "ms": 8241,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "The files cover the Aurora NP-7 launch date and readiness, but none record how many units were sold in the first week after launch.",
+  "sources": [],
+  "steps": 12,
+  "uncited": false,
+  "budget": false
+ },
+ {
+  "id": "q34",
+  "ms": 7304,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "I looked through the contact directory, team roster, and onboarding notes for Hannah Cole and found no phone number. The records list her email as hannah.cole@northport-optics.example and her office as Austin [S9].",
+  "sources": [],
+  "steps": 9,
+  "uncited": false,
+  "budget": false
+ }
+]
