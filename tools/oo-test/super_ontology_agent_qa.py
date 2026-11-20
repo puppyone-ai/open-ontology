@@ -448,6 +448,8 @@ def cmd_safety(args):
         f = Path(args.work) / f"{name}.tok"
         if f.exists():
             f.unlink()
+        subprocess.run([args.oo, "agent", "token", "revoke", name, "--state-dir", args.state_dir], env=dict(base),
+                       capture_output=True, text=True, timeout=60)  # a run before this one may have left a live token
         cmd = [args.oo, "agent", "token", "create", "--name", name, "--ttl", ttl, "--output-file", str(f), "--state-dir", args.state_dir,
                "--drive", args.drive, "--json"]
         for s in scopes:
