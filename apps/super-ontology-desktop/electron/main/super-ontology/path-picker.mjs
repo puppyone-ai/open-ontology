@@ -3,12 +3,12 @@ import { constants as fsConstants } from "node:fs";
 
 /** Per purpose: native dialog title key (locales/native) and dialog properties. */
 const PICKER_OPTIONS = Object.freeze({
-  "drive-root": { titleKey: "pick.driveRoot", properties: ["openDirectory"] },
-  "mount-target": { titleKey: "pick.mountTarget", properties: ["openDirectory", "createDirectory"] },
-  "oo-executable": { titleKey: "pick.ooExecutable", properties: ["openFile"] },
-  "token-file": { titleKey: "pick.tokenFile", properties: ["openFile"] },
-  "ca-file": { titleKey: "pick.caFile", properties: ["openFile"] },
-  "export-dir": { titleKey: "pick.exportDir", properties: ["openDirectory", "createDirectory"] },
+  "drive-root": { titleKey: "native.pick.driveRoot", properties: ["openDirectory"] },
+  "mount-target": { titleKey: "native.pick.mountTarget", properties: ["openDirectory", "createDirectory"] },
+  "oo-executable": { titleKey: "native.pick.ooExecutable", properties: ["openFile"] },
+  "token-file": { titleKey: "native.pick.tokenFile", properties: ["openFile"] },
+  "ca-file": { titleKey: "native.pick.caFile", properties: ["openFile"] },
+  "export-dir": { titleKey: "native.pick.exportDir", properties: ["openDirectory", "createDirectory"] },
 });
 
 /**
@@ -20,7 +20,9 @@ export function createNativePathPicker({ dialog, translate, getOwnerWindow = () 
   return async function pickPath({ sender, purpose }) {
     const config = PICKER_OPTIONS[purpose];
     if (!config) return null;
-    const options = { title: translate(config.titleKey), properties: [...config.properties] };
+    // macOS shows `message` above the file list and ignores `title`; the other systems use `title`.
+    const heading = translate(config.titleKey);
+    const options = { title: heading, message: heading, properties: [...config.properties] };
     const owner = getOwnerWindow(sender);
     const result = owner && !owner.isDestroyed?.()
       ? await dialog.showOpenDialog(owner, options)
