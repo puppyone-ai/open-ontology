@@ -111,6 +111,7 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
         extra: { measuredFromPanelCloseMs: sinceMs, rowsBefore: before.size, docx: "recorded, not asserted: the Docker-free runtime ships no parser sidecar (known item)" },
       });
       timings.steps["drop-3-files"].docxState = (await listFiles(mine.id)).get("note-three.docx")?.state ?? null;
+      timings.steps["drop-3-files"].diagnostics = { managedRoot: mine.config?.root, managedFiles: await fs.readdir(mine.config?.root ?? "/nonexistent").catch((error) => String(error.code)), where: (await run("/usr/bin/find", [path.dirname(mine.config?.root ?? "/tmp"), "-name", "note-*", "-not", "-path", "*/Drop three/*"]).catch(() => ({ stdout: "" }))).stdout.trim().split("\n").slice(0, 10), page: String(await cdp().evaluate("document.body.innerText").catch(() => "")).slice(0, 600) };
       await finish();
     },
 

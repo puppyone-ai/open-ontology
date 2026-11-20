@@ -20,3 +20,12 @@ describe("the page exposes what P07 measures", () => {
     for (const hook of ["source-freshness", "data-freshness", "data-rings", "atlas-version"]) expect(harness).toContain(hook);
   });
 });
+
+describe("uploads on the source page hand the bridge real File objects", () => {
+  it("the picker and the drop pass an Array copy, never the live FileList", () => {
+    const detail = read("src/renderer/screens/sources/SourceDetail.tsx");
+    expect(detail).toMatch(/enqueueFiles\(drive\.id, path, Array\.from\(event\.dataTransfer\.files\)\)/u);
+    expect(detail).toMatch(/const picked = e\.target\.files \? Array\.from\(e\.target\.files\) : \[\]/u);
+    expect(detail).not.toMatch(/enqueueFiles\(drive\.id, path, e\.target\.files\)/u);
+  });
+});

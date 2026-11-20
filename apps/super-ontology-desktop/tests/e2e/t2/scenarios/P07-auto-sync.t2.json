@@ -99,7 +99,7 @@
       "do": "assert",
       "assertion": "dom",
       "args": {
-        "testid": "source-row",
+        "testid": "screen-source-detail",
         "attributes": {
           "data-name": "Watched docs"
         },
@@ -109,22 +109,6 @@
     {
       "do": "autosync",
       "case": "baseline"
-    },
-    {
-      "do": "click",
-      "name": "Watched docs",
-      "literal": true
-    },
-    {
-      "do": "assert",
-      "assertion": "dom",
-      "args": {
-        "testid": "screen-source-detail",
-        "attributes": {
-          "data-name": "Watched docs"
-        },
-        "withinMs": 30000
-      }
     },
     {
       "do": "assert",

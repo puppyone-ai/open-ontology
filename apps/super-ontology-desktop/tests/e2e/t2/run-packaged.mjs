@@ -172,6 +172,9 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await sleep(800);
     await peekaboo.nativeReturn(36);
     await sleep(1500);
+    // The panel is in column view with the folder selected: Right moves into its files, then everything there is selected.
+    await peekaboo.nativeReturn(124);
+    await sleep(600);
     await peekaboo.press("cmd+a", { native: true });
     await sleep(500);
     for (let attempt = 0; attempt < 5; attempt += 1) {
