@@ -21,6 +21,9 @@ extraResources:
     filter: ["oo", "oo-docs-engine", "oo-mysql-doctor", "oo-load", "oo-gateway", "mcp-gateway", "oo-bundle.json", "HELPERS.json"]
   - from: build/generated/legal
     to: legal
+  - from: build/native/super-drive-media-decoder
+    to: super-drive-media-decoder
+    filter: [super-drive-media-decoder]
 electronLanguages: [en, zh_CN, es, pt_BR, fr, de, ja, ko]
 mac:
   category: public.app-category.developer-tools

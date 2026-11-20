@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { createHostMount } from "./host-mount.mjs";
 import { createMediaDecoder, resolveMediaDecoderPath } from "./media-decoder.mjs";
 import { createOntologyHandlers } from "./ontology-handlers.mjs";
+import { createAutoHostDecode } from "./auto-host-decode.mjs";
 import { createDriveWatcher } from "./drive-watcher.mjs";
 import { createSecretFiles } from "./secret-files.mjs";
 import { createSuggestHandlers } from "./suggest-handlers.mjs";
@@ -56,6 +57,7 @@ import { createUploadService } from "./upload-service.mjs";
  *   lifecycleTuning?: Record<string, number>,
  *   bridgeTuning?: Record<string, number>,
  *   driveWatcherOptions?: object,
+ *   autoHostDecode?: false | object,
  *   onFileWritten?: (written: { driveId: string, root: string, relativePath: string, suggestionId: string }) => Promise<void>,
  *   cloud?: { apiBase?: () => (string | null | undefined), requestSessionApi?: (apiBase: string, apiPath: string, init: object) => Promise<unknown> },
  * }} [options] `broadcast` pushes to every window; `pickPath` is the native picker; `revealPath` shows a file in the OS file manager.
@@ -81,6 +83,7 @@ export function createSuperOntologyService({
   bridgeTuning,
   mediaDecoderPath = null,
   driveWatcherOptions,
+  autoHostDecode,
   onFileWritten,
 } = {}) {
   const stateDir = paths.stateDir;
@@ -162,12 +165,14 @@ export function createSuperOntologyService({
   // D46: change hints for fs Drives come from here, not from the container. Off in tests that bring no real engine.
   const driveWatcher = createDriveWatcher({ client, logger, ...(driveWatcherOptions ?? {}) });
   let engineUsable = false;
+  /** Set once the handlers exist (it decodes through the `media-decode` handler); null in tests that turn it off. */
+  let hostDecode = null;
   snapshots.subscribe((snapshot) => {
     const usable = snapshot.status === "healthy" || snapshot.status === "degraded";
     if (usable === engineUsable) return;
     engineUsable = usable;
-    if (usable) void driveWatcher.refresh();
-    else driveWatcher.stopAll();
+    if (usable) { void driveWatcher.refresh(); hostDecode?.start(); }
+    else { driveWatcher.stopAll(); hostDecode?.stop(); }
   });
   const driveFileTokens = createDriveFileTokens();
   const driveFileHandler = createDriveFileHandler({ tokens: driveFileTokens });
@@ -184,6 +189,12 @@ export function createSuperOntologyService({
     journalFile: stateDir ? path.join(path.dirname(stateDir), "writeback", "journal.jsonl") : null,
   });
   const suggestHandlers = createSuggestHandlers({ client, writeback });
+
+  // A recording or video the engine cannot decode itself is decoded here (macOS system codecs) and sent back for parsing; no button.
+  if (autoHostDecode !== false) {
+    hostDecode = createAutoHostDecode({ client, decode: (fileId) => handlers["media-decode"]({ fileId }), logger, ...(timers ? { timers } : {}), ...(autoHostDecode ?? {}) });
+    if (engineUsable) hostDecode.start();
+  }
 
   const cloudState = () => ({ mode: cloudMode, configured: cloudProxy.configured(), host: cloudProxy.host(), remoteUrl: cloudProxy.configured() ? cloudProxy.remoteUrl() : null });
 
@@ -305,6 +316,7 @@ export function createSuperOntologyService({
       driveFileTokens.revokeAll();
       uploads.dispose();
       driveWatcher.dispose();
+      hostDecode?.stop();
       eventBridge.dispose();
       await mediaDecoder.shutdown();
       await lifecycle.shutdown();
