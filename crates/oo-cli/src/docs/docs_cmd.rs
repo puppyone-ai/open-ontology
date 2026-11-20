@@ -152,6 +152,21 @@ pub(super) fn state_of(p: &Parsed) -> Result<PathBuf, CliError> {
         .ok_or_else(|| bad("no state directory: set --state-dir or HOME"))
 }
 
+/// The value and switch flags of one group. `--model` is a value in the model group and the enable
+/// switch of `drive add` elsewhere.
+fn flag_kinds<'a>(
+    group: &str,
+    valued: &[&'a str],
+    switches: &[&'a str],
+) -> (Vec<&'a str>, Vec<&'a str>) {
+    let (mut v, mut s) = (valued.to_vec(), switches.to_vec());
+    if group == "model" {
+        s.retain(|f| *f != "--model");
+        v.push("--model");
+    }
+    (v, s)
+}
+
 /// Entry for `oo docs <rest...>`; returns the exit code.
 pub fn run(rest: &[String]) -> u8 {
     if rest.first().map(String::as_str) == Some("runtime") {
@@ -229,6 +244,9 @@ pub fn run(rest: &[String]) -> u8 {
         "--enable-model",
         "--disable-model",
     ];
+    // `--model` is a value (`oo docs model set --model <id>`) in the model group and the
+    // enable switch of `oo docs drive add --model` everywhere else.
+    let (valued, switches) = flag_kinds(group, &valued, &switches);
     let p = match parse(args, &valued, &switches) {
         Ok(p) => p,
         Err(e) => {
@@ -1319,6 +1337,18 @@ mod tests {
         .unwrap();
         assert_eq!(p.opt("--winner"), Some("f1"));
         assert_eq!(p.pos, ["accept", "id1"]);
+    }
+
+    #[test]
+    fn model_is_a_value_in_the_model_group_and_a_switch_elsewhere() {
+        let (valued, switches) = (["--name"], ["--model", "--deep"]);
+        let (v, s) = flag_kinds("model", &valued, &switches);
+        let p = parse(&a(&["--model", "gcli/grok-4.7"]), &v, &s).unwrap();
+        assert_eq!(p.opt("--model"), Some("gcli/grok-4.7"));
+        assert!(!p.has("--model"));
+        let (v, s) = flag_kinds("drive", &valued, &switches);
+        let p = parse(&a(&["--model", "--name", "x"]), &v, &s).unwrap();
+        assert!(p.has("--model") && p.opt("--name") == Some("x"));
     }
 
     #[test]

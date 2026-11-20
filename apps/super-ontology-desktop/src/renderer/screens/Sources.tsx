@@ -74,7 +74,7 @@ export function Sources() {
             const fresh = drive.freshness?.state;
             const Glyph = drive.backend !== "fs" ? Cloud : drive.name === "My files" ? HardDrive : FolderOpen;
             return (
-              <button key={drive.id} type="button" className="so-list-row" onClick={() => open(drive.id)} data-testid="source-row" data-name={drive.name} data-kind={drive.backend !== "fs" ? "cloud" : drive.name === "My files" ? "managed" : "folder"} data-state={fresh === "syncing" || fresh === "processing" ? "syncing" : fresh === "degraded" || fresh === "held" ? "error" : "idle"}>
+              <button key={drive.id} type="button" className="so-list-row" onClick={() => open(drive.id)} data-testid="source-row" data-name={drive.name} data-freshness={fresh} data-kind={drive.backend !== "fs" ? "cloud" : drive.name === "My files" ? "managed" : "folder"} data-state={fresh === "syncing" || fresh === "processing" ? "syncing" : fresh === "degraded" || fresh === "held" ? "error" : "idle"}>
                 <span className="so-list-lead"><Glyph size={16} strokeWidth={1.5} aria-hidden="true" /></span>
                 <span className="so-list-text">
                   <span className="so-list-title so-truncate">{drive.name}</span>

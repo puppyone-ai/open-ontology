@@ -214,16 +214,60 @@ fn tail(out: &Output) -> String {
     lines.into_iter().rev().collect::<Vec<_>>().join(" | ")
 }
 
-/// Optional sidecar profiles, `OO_DOCS_PROFILES=ocr,media` (10 17.1). Unknown names are ignored.
-/// Each profile adds its service to `up` and tells the engine where it is; both sit on the internal network only.
-fn optional_profiles() -> Vec<&'static str> {
-    let text = std::env::var("OO_DOCS_PROFILES").unwrap_or_default();
-    let mut out = Vec::new();
+/// One optional sidecar (10 17.1): its compose profile and, when the lock names it and the local image is
+/// that build, the image id the compose file must use instead of the floating dev tag.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Sidecar {
+    pub profile: &'static str,
+    pub image: Option<String>,
+}
+
+/// Which optional sidecars to start. `OO_DOCS_PROFILES` (`ocr`, `media`, `ocr,media`, or `none`) is the explicit choice and
+/// wins when it is set. When it is not set the sidecars whose locked image is present on this machine start by themselves:
+/// a person who dropped a scanned PDF, a picture or a recording expects it to be read, and a compose runtime that silently
+/// leaves them `unsupported` looks like a broken product. Unknown names are ignored.
+pub fn choose_sidecars(explicit: Option<&str>, present: &[Sidecar]) -> Vec<Sidecar> {
+    let found = |profile: &str| {
+        present
+            .iter()
+            .find(|s| s.profile == profile)
+            .and_then(|s| s.image.clone())
+    };
+    let Some(text) = explicit else {
+        return present.to_vec();
+    };
+    let mut out: Vec<Sidecar> = Vec::new();
     for name in text.split(',') {
-        match name.trim() {
-            "ocr" if !out.contains(&"ocr") => out.push("ocr"),
-            "media" if !out.contains(&"media") => out.push("media"),
-            _ => {}
+        let profile = match name.trim() {
+            "ocr" => "ocr",
+            "media" => "media",
+            _ => continue,
+        };
+        if !out.iter().any(|s| s.profile == profile) {
+            out.push(Sidecar {
+                profile,
+                image: found(profile),
+            });
+        }
+    }
+    out
+}
+
+/// The sidecars the lock describes whose image is really here (`image_id` answers for a reference).
+pub fn present_sidecars(lock: &Value, image_id: impl Fn(&str) -> Option<String>) -> Vec<Sidecar> {
+    let mut out = Vec::new();
+    for (profile, key) in [("ocr", "ocr_parser"), ("media", "media_parser")] {
+        let Some(id) = lock[key]["image"]
+            .as_str()
+            .filter(|s| s.starts_with("sha256:") && s.len() == 71)
+        else {
+            continue;
+        };
+        if image_id(id).as_deref() == Some(id) {
+            out.push(Sidecar {
+                profile,
+                image: Some(id.to_owned()),
+            });
         }
     }
     out
@@ -236,6 +280,7 @@ pub struct Runtime {
     project: String,
     lane: String,
     images: Images,
+    sidecars: Vec<Sidecar>,
     uid: u32,
     gid: u32,
     pub engine_port: u16,
@@ -416,12 +461,25 @@ impl Runtime {
         .env("OO_DOCS_ENGINE_IMAGE", &self.images.engine)
         .env("OO_DOCS_PARSER_IMAGE", &self.images.parser)
         .env("OO_DOCS_DB_IMAGE", &self.images.db);
-        for profile in optional_profiles() {
-            c.args(["--profile", profile]);
-            match profile {
-                "ocr" => c.env("OO_DOCS_OCR_URL", "http://ocr-parser:7482"),
-                _ => c.env("OO_DOCS_MEDIA_URL", "http://media-parser:7483"),
+        for sidecar in &self.sidecars {
+            c.args(["--profile", sidecar.profile]);
+            let (url, url_value, image_var) = if sidecar.profile == "ocr" {
+                (
+                    "OO_DOCS_OCR_URL",
+                    "http://ocr-parser:7482",
+                    "OO_DOCS_OCR_IMAGE",
+                )
+            } else {
+                (
+                    "OO_DOCS_MEDIA_URL",
+                    "http://media-parser:7483",
+                    "OO_DOCS_MEDIA_IMAGE",
+                )
             };
+            c.env(url, url_value);
+            if let Some(image) = &sidecar.image {
+                c.env(image_var, image);
+            }
         }
         c
     }
@@ -502,8 +560,8 @@ impl Runtime {
             "docs-engine",
             "doc-parser",
         ];
-        for profile in optional_profiles() {
-            up.push(if profile == "ocr" {
+        for sidecar in &self.sidecars {
+            up.push(if sidecar.profile == "ocr" {
                 "ocr-parser"
             } else {
                 "media-parser"
@@ -952,6 +1010,10 @@ pub fn prepare(
     let pki = canonical.join("pki");
     let (admin_pw, runtime_pw) = ensure_pki(&pki, &images.db, uid, gid)?;
 
+    let sidecars = choose_sidecars(
+        std::env::var("OO_DOCS_PROFILES").ok().as_deref(),
+        &present_sidecars(&lock, image_id),
+    );
     let mounts = read_mounts(&canonical);
     let subnets = read_subnets(&canonical);
     let Some(engine_port) = free_loopback_port() else {
@@ -963,6 +1025,7 @@ pub fn prepare(
         state: canonical,
         lane,
         images,
+        sidecars,
         uid,
         gid,
         engine_port,
@@ -1116,6 +1179,66 @@ mod tests {
         let _ = fs::remove_dir_all(&state);
     }
 
+    fn sidecar_lock() -> Value {
+        let id = |c: char| format!("sha256:{}", c.to_string().repeat(64));
+        serde_json::json!({
+            "ocr_parser": {"image": id('a')},
+            "media_parser": {"image": id('b')},
+        })
+    }
+
+    #[test]
+    fn sidecars_whose_locked_image_is_here_start_by_themselves() {
+        let lock = sidecar_lock();
+        let have = |id: &str| Some(id.to_owned());
+        let both = present_sidecars(&lock, have);
+        assert_eq!(
+            both.iter().map(|s| s.profile).collect::<Vec<_>>(),
+            ["ocr", "media"]
+        );
+        assert_eq!(choose_sidecars(None, &both), both);
+        // Only the media image is here, or one is a different build: that sidecar stays off.
+        let only_media = present_sidecars(&lock, |id| id.contains("bbbb").then(|| id.to_owned()));
+        assert_eq!(
+            only_media.iter().map(|s| s.profile).collect::<Vec<_>>(),
+            ["media"]
+        );
+        let other_build = present_sidecars(&lock, |_| Some(format!("sha256:{}", "c".repeat(64))));
+        assert!(other_build.is_empty());
+        // A lock without the entries, or with a malformed id, has none.
+        assert!(present_sidecars(&serde_json::json!({}), have).is_empty());
+        assert!(
+            present_sidecars(
+                &serde_json::json!({"ocr_parser": {"image": "sha256:ab"}}),
+                have
+            )
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn an_explicit_profiles_choice_wins_over_what_is_present() {
+        let both = present_sidecars(&sidecar_lock(), |id| Some(id.to_owned()));
+        assert!(choose_sidecars(Some("none"), &both).is_empty());
+        assert!(choose_sidecars(Some(""), &both).is_empty());
+        let ocr = choose_sidecars(Some(" ocr , ocr, nonsense"), &both);
+        assert_eq!(ocr.len(), 1);
+        assert_eq!(ocr[0].profile, "ocr");
+        assert!(
+            ocr[0].image.is_some(),
+            "the locked id is used, not the floating tag"
+        );
+        // Asked for explicitly but absent: the profile still starts, on the compose file's default tag.
+        let asked = choose_sidecars(Some("media"), &[]);
+        assert_eq!(
+            asked,
+            [Sidecar {
+                profile: "media",
+                image: None
+            }]
+        );
+    }
+
     fn lock() -> Value {
         let id = |c: char| format!("sha256:{}", c.to_string().repeat(64));
         json!({
@@ -1224,6 +1347,7 @@ mod tests {
             project: "oo-docs-x".into(),
             lane: "docs".into(),
             images: wanted_images(&lock(), "linux/arm64").unwrap(),
+            sidecars: Vec::new(),
             uid: 501,
             gid: 20,
             engine_port: 18480,

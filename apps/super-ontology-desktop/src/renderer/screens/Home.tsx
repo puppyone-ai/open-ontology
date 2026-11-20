@@ -1,14 +1,16 @@
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, EmptyState, Icon, LinkButton, Notice, PageHeader, Section, Skeleton, StatusDot } from "@open-ontology/design-system";
-import { Bot, ChevronRight, Compass, FileText, FolderOpen, FolderPlus, ListChecks, Network, Quote, Shapes, Sparkles, type LucideIcon } from "lucide-react";
+import { Bot, ChevronRight, Compass, FileText, FolderOpen, FolderPlus, ListChecks, Network, Quote, Shapes, Sparkles, Unlink, type LucideIcon } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useLoad } from "../hooks/useLoad";
-import { useErrorText, useRelativeTime } from "../hooks/useText";
+import { useRelativeTime } from "../hooks/useText";
+import { ErrorText } from "./shared/ErrorText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
 import { selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
+import { useUnlinked } from "../model/unlinked";
 
 function Metric({ label, value, count, icon, onClick, loading, testId }: { label: string; value: string; count: number | null; icon: LucideIcon; onClick: () => void; loading?: boolean; testId: string }) {
   return (
@@ -23,7 +25,6 @@ export function Home() {
   const { t, formatNumber } = useLocalization();
   const relative = useRelativeTime();
   const app = useApp();
-  const errorText = useErrorText();
   const actions = useSuperDriveActions();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const engine = useSuperDriveSelector((s) => s.engine);
@@ -35,6 +36,8 @@ export function Home() {
   const entities = useLoad(() => ontologyApi.searchEntities({ q: "", limit: 200 }), [ready, version], { enabled: ready });
   const versions = useLoad(() => ontologyApi.ontologyVersions({ limit: 6 }), [ready, version], { enabled: ready });
   const tokens = useLoad(() => agentApi.list(), [ready], { enabled: ready });
+  const unlinked = useUnlinked(`${version}|${files}`, { enabled: ready && files > 0 });
+  const unlinkedFiles = unlinked.report?.files.length ?? 0;
   const facts = versions.value?.items.reduce((sum, v) => sum + (v.facts_added ?? 0) - (v.facts_retracted ?? 0), 0) ?? 0;
   const entityCount = entities.value ? `${formatNumber(entities.value.items.length)}${entities.value.next_cursor ? "+" : ""}` : "–";
   const presented = presentEngine(engine);
@@ -42,6 +45,7 @@ export function Home() {
   const suggestions: Array<{ id: string; icon: typeof FolderPlus; title: string; body: string; action: string; run: () => void }> = [];
   if (loadedDrives && drives.length === 0) suggestions.push({ id: "source", icon: FolderPlus, title: t("app.home.next.source.title"), body: t("app.home.next.source.body"), action: t("app.home.next.source.action"), run: () => app.go("sources") });
   if (pending > 0) suggestions.push({ id: "review", icon: ListChecks, title: t("app.home.next.review.title", { count: pending }), body: t("app.home.next.review.body"), action: t("app.home.next.review.action"), run: () => app.go("ontology", { ontology: "review" }) });
+  if (unlinkedFiles > 0) suggestions.push({ id: "unlinked", icon: Unlink, title: t("app.home.next.unlinked.title", { count: unlinkedFiles }), body: t("app.home.next.unlinked.body"), action: t("app.home.next.unlinked.action"), run: () => app.go("ontology", { ontology: "atlas", atlasFilter: "unlinked" }) });
   if (drives.length > 0 && tokens.status === "ready" && tokens.value.items.length === 0) suggestions.push({ id: "agent", icon: Bot, title: t("app.home.next.agent.title"), body: t("app.home.next.agent.body"), action: t("app.home.next.agent.action"), run: () => app.go("agents", { agents: "connect" }) });
 
   if (suggestions.length === 0 && loadedDrives) suggestions.push({ id: "explore", icon: Compass, title: t("app.home.next.explore.title"), body: t("app.home.next.explore.body"), action: t("app.home.next.explore.action"), run: () => app.go("ontology", { ontology: "entities" }) });
@@ -73,6 +77,13 @@ export function Home() {
             <span className="so-list-text"><span className="so-list-title">{next.title}</span><span className="so-muted">{next.body}</span></span>
             <Button variant={next.id === "source" ? "primary" : "secondary"} onClick={next.run}>{next.action}</Button>
           </Card>
+          {unlinkedFiles > 0 && next.id !== "unlinked" && (
+            <p className="so-home-unlinked so-muted" data-testid="home-unlinked">
+              <Icon icon={Unlink} size={16} />
+              <span>{t("app.home.next.unlinked.title", { count: unlinkedFiles })}</span>
+              <LinkButton icon={ChevronRight} onClick={() => app.go("ontology", { ontology: "atlas", atlasFilter: "unlinked" })}>{t("app.home.next.unlinked.action")}</LinkButton>
+            </p>
+          )}
         </Section>
       )}
 
@@ -95,7 +106,7 @@ export function Home() {
 
       <Section title={t("app.home.recent.title")}>
         {versions.status === "error" && !versions.value ? (
-          <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={versions.reload}>{t("app.common.retry")}</Button>}>{errorText(versions.error)}</Notice>
+          <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={versions.reload}>{t("app.common.retry")}</Button>}><ErrorText error={versions.error} /></Notice>
         ) : versions.value && versions.value.items.length === 0 ? (
           <Card><EmptyState icon={Sparkles} title={t("app.home.recent.empty.title")} description={t("app.home.recent.empty.body")} compact /></Card>
         ) : (

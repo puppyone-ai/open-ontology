@@ -1,0 +1,189 @@
+{
+  "id": "P07",
+  "title": "Auto-sync: files dropped into My files and changes made outside the app reach the ontology without the 30 s poll, with timings",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "decisions D46-D49, volume 25 section 7.3",
+  "limitMinutes": 20,
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "provision",
+      "action": "ensureMyFiles"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "source-row",
+        "attributes": {
+          "data-name": "My files"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "My files",
+      "literal": true
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-source-detail",
+        "attributes": {
+          "data-name": "My files"
+        },
+        "withinMs": 30000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.sources.upload"
+    },
+    {
+      "do": "chooseFiles",
+      "path": "${dropThree}",
+      "reopen": "app.sources.upload"
+    },
+    {
+      "do": "autosync",
+      "case": "drop"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
+    },
+    {
+      "do": "click",
+      "name": "app.sources.add"
+    },
+    {
+      "do": "click",
+      "name": "app.sources.add.folder"
+    },
+    {
+      "do": "chooseFolder",
+      "path": "${watchedDir}"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-source-detail",
+        "attributes": {
+          "data-name": "Watched docs"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "autosync",
+      "case": "baseline"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "file-row",
+        "min": 3,
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "autosync",
+      "case": "externalOps"
+    },
+    {
+      "do": "autosync",
+      "case": "bulk"
+    },
+    {
+      "do": "quit"
+    },
+    {
+      "do": "autosync",
+      "case": "offlineChange"
+    },
+    {
+      "do": "launch"
+    },
+    {
+      "do": "autosync",
+      "case": "offlineCheck"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.nav.ontology",
+      "until": "screen-ontology"
+    },
+    {
+      "do": "click",
+      "name": "app.ontology.tab.atlas",
+      "until": "atlas"
+    },
+    {
+      "do": "click",
+      "name": "app.atlas.group.source",
+      "until": "atlas"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "atlas-version",
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "autosync",
+      "case": "ring"
+    },
+    {
+      "do": "screenshot",
+      "label": "atlas-after-edit"
+    }
+  ]
+}

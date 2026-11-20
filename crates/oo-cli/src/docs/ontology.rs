@@ -14,7 +14,7 @@ use super::docs_cmd::{Parsed, parse};
 use super::federate::pct_encode;
 use super::secrets;
 
-pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  oo ontology schema [--limit <n>] [--cursor <c>] [--json]   (tables, columns, relationships, document links; read-only)\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n";
+pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  oo ontology schema [--limit <n>] [--cursor <c>] [--json]   (tables, columns, relationships, document links; read-only)\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n  Examples:\n    oo ontology schema                                  tables, columns and foreign keys (--limit is 1..100)\n    oo ontology query \"select count(*) from public.orders\"   one read-only SELECT over the published tables\n    oo ontology search 澄海物流                            people, projects, documents and rows; each hit prints a [source] line\n  search matches the text literally (a substring of a name, an alias or a passage), not by meaning. Entity names also carry an alias in the other language when extraction could give one, but passages are not translated: an empty answer is not proof the data lacks it, so retry with the term as the data writes it (Chinese for a Chinese corpus), one distinctive word at a time. The plain output is much shorter than --json.\n  Gateway commands such as oo tables and oo query need a saved login, not an Agent token; use the commands above.\n";
 
 pub fn is_subcommand(rest: &[String]) -> bool {
     matches!(
@@ -124,6 +124,9 @@ fn human(v: &Value) -> String {
                         }
                     ));
                 }
+            }
+            for w in v["warnings"].as_array().into_iter().flatten() {
+                out.push_str(&format!("note: {}\n", w.as_str().unwrap_or("")));
             }
         }
         "oo.ontology.entity/v1" => {
@@ -342,6 +345,13 @@ pub fn mcp(rest: &[String]) -> Result<crate::args::Invocation, crate::outcome::F
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_empty_search_prints_the_note_so_no_hits_is_not_read_as_absent() {
+        let v = json!({"protocol": "oo.ontology.search/v1", "items": [], "sides": {},
+            "warnings": ["no hits for \"x\": this is not proof the data has nothing"]});
+        assert!(human(&v).starts_with("note: no hits for"));
+    }
 
     #[test]
     fn citations_name_the_file_or_the_row() {

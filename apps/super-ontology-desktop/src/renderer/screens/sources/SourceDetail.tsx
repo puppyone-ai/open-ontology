@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, Notice, PageHeader, ProgressBar, Segmented, Skeleton, StatusDot, Tooltip } from "@open-ontology/design-system";
-import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2 } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2, Unlink } from "lucide-react";
+import { ErrorText } from "../shared/ErrorText";
 import { useDriveFolderPages } from "../../model/browser/useDriveFolderPages";
 import type { Drive } from "../../../shared/super-ontology/docs-api.generated";
 import { formatBytes } from "../../model/format";
@@ -12,6 +12,8 @@ import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isUploadActive } from "../../model/queue/uploadQueue";
 import { statesOfGroups, type FileFilterGroup } from "../../model/superDriveStateModel";
 import { driveKindLabelId } from "../Sources";
+import { reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
+import { selectOntologyVersion } from "../../model/superDriveSelectors";
 import { FilePanel } from "./FilePanel";
 import { fileView, TONE, useFileStateText } from "./fileView";
 
@@ -22,7 +24,6 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const t$ = useLocalization();
   const { t, formatNumber, formatDate } = t$;
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const stateText = useFileStateText();
   const [path, setPath] = useState(() => (initial ? initial.path.split("/").slice(0, -1).join("/") : ""));
   const [filter, setFilter] = useState<Filter>("all");
@@ -40,6 +41,10 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
 
   const folderFilter = useMemo(() => ({ ...(filter === "all" ? {} : { states: statesOfGroups(GROUPS[filter]) }), ...(query.trim() ? { q: query.trim(), recursive: true } : {}) }), [filter, query]);
   const { page, files, initialLoading, loadMore, reload } = useDriveFolderPages(drive.id, path, folderFilter);
+  const unlinkedText = useUnlinkedText();
+  const version = useSuperDriveSelector(selectOntologyVersion);
+  const allFiles = useSuperDriveSelector((s) => Object.values(s.drives.byId).reduce((sum, d) => sum + (d?.files_total ?? 0), 0));
+  const unlinked = useUnlinked(`${version}|${allFiles}`);
   const failed = useSuperDriveSelector((s) => s.drives.byId[drive.id]?.counts?.parse_failed ?? 0) as number;
   const segments = path ? path.split("/") : [];
   const fresh = drive.freshness?.state;
@@ -58,7 +63,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const onDrop = (event: React.DragEvent) => {
     event.preventDefault(); setDragging(false);
     if (readOnly) return;
-    void getUploadQueue().enqueueFiles(drive.id, path, event.dataTransfer.files);
+    void getUploadQueue().enqueueFiles(drive.id, path, Array.from(event.dataTransfer.files));
   };
   const pickFiles = useRef<HTMLInputElement>(null);
 
@@ -70,16 +75,17 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
       </div>
       <PageHeader title={drive.name} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
         actions={<>
-          {fresh && <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} />}
+          {fresh && <span style={{ display: "contents" }} data-testid="source-freshness" data-freshness={fresh}><StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} /></span>}
           <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }} data-testid="source-sync">{t("app.sources.sync")}</Button>
-          {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { if (e.target.files) void getUploadQueue().enqueueFiles(drive.id, path, e.target.files); e.target.value = ""; }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
+          {!readOnly && <><input ref={pickFiles} type="file" multiple hidden onChange={(e) => { // A copy of the File objects: the live FileList does not cross the preload bridge (the paths came back empty) and is emptied by the reset below.
+            const picked = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; if (picked.length > 0) void getUploadQueue().enqueueFiles(drive.id, path, picked); }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
           <IconButton ref={menuAnchor} icon={MoreHorizontal} label={t("app.sources.more")} variant="secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} />
           <Menu anchor={menuAnchor} open={menu} onClose={() => setMenu(false)} ariaLabel={t("app.sources.more")} placement="bottom-end">
             <MenuItem icon={Trash2} tone="danger" label={t("app.sources.remove")} closeMenu={() => setMenu(false)} onSelect={() => setRemoving(true)} />
           </Menu>
         </>} />
 
-      {error && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="danger" title={t("app.sources.actionFailed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}>{errorText(error)}</Notice></div>}
+      {error && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="danger" title={t("app.sources.actionFailed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}><ErrorText error={error} /></Notice></div>}
       {Number(failed) > 0 && filter !== "attention" && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="warning" title={t("app.sources.failed", { count: Number(failed) })} action={<Button size="compact" onClick={() => setFilter("attention")}>{t("app.sources.failed.show")}</Button>}>{t("app.sources.failed.body")}</Notice></div>}
       {active.length > 0 && (
         <Card className="so-metric" role="status" aria-live="polite" style={{ marginBottom: "var(--so-space-4)" }}>
@@ -110,7 +116,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
           {initialLoading ? (
             <div className="so-list" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width={16} height={16} /><Skeleton width={`${40 + (i % 3) * 15}%`} height={13} /></div>)}</div>
           ) : page.error && files.length === 0 ? (
-            <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={reload}>{t("app.common.retry")}</Button>}>{errorText(page.error)}</Notice>
+            <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={reload}>{t("app.common.retry")}</Button>}><ErrorText error={page.error} /></Notice>
           ) : files.length === 0 && page.dirs.length === 0 ? (
             <EmptyState icon={filter === "all" && !query ? FileUp : Search} title={filter === "all" && !query ? t("app.sources.files.empty.title") : t("app.sources.files.none.title")} description={filter === "all" && !query ? (readOnly ? t("app.sources.files.empty.readonly") : t("app.sources.files.empty.body")) : t("app.sources.files.none.body")}
               action={filter === "all" && !query && !readOnly ? <Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button> : undefined} />
@@ -127,9 +133,10 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
                 {files.map((file) => {
                   const view = fileView(file);
                   const label = stateText(view);
+                  const reason = reasonForRow({ ...file, id: file.id }, unlinked.report);
                   return (
                     <tr key={file.id} data-selectable aria-selected={selected === file.id} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(file.id); } }} onClick={() => setSelected(file.id)} data-testid="file-row" data-name={file.name ?? file.path} data-state={file.state}>
-                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip></span></td>
+                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}><Unlink size={12} strokeWidth={1.5} aria-hidden="true" />{unlinkedText(reason)}</span>}</td>
                       <td><span className="so-row"><StatusDot tone={TONE[view.tone]} label={label} pulse={view.busy} />{view.reviewCount > 0 && <Badge tone="warning">{formatNumber(view.reviewCount)}</Badge>}</span></td>
                       <td data-numeric className="so-muted">{formatBytes(file.size, t$)}</td>
                       <td className="so-muted so-truncate">{file.modified_at ? formatDate(new Date(file.modified_at), { dateStyle: "medium" }) : ""}</td>

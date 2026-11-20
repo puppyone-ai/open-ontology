@@ -139,14 +139,15 @@ impl LlmPort for EgressClient {
     }
 }
 
-/// Idle read timeout of the egress towards the model. A reasoning model (`grok-4.7`) thinks for
-/// two to three minutes before the first byte of a small extraction, so the old 45 s turned every
-/// call into `UPSTREAM_TIMEOUT` and no model fact was ever produced.
-pub const UPSTREAM_TIMEOUT_SECS: u64 = 420;
-
 /// The command line of the egress process for a stack config: the key stays
 /// a `secret_ref` inside `config`, nothing secret is on the command line.
-pub fn egress_args(config_path: &str, meter_path: &str, port: u16, rpm: u32) -> Vec<String> {
+pub fn egress_args(
+    config_path: &str,
+    meter_path: &str,
+    port: u16,
+    rpm: u32,
+    upstream_timeout_secs: u64,
+) -> Vec<String> {
     vec![
         "--config".into(),
         config_path.into(),
@@ -159,8 +160,21 @@ pub fn egress_args(config_path: &str, meter_path: &str, port: u16, rpm: u32) -> 
         "--rpm".into(),
         rpm.to_string(),
         "--timeout".into(),
-        UPSTREAM_TIMEOUT_SECS.to_string(),
+        upstream_timeout_secs.to_string(),
     ]
+}
+
+/// How long the egress waits for the model's answer, in seconds. The egress script's own default (45 s) is shorter than a
+/// reasoning model needs for an extraction prompt: the first packaged run against grok-4.7 logged only UPSTREAM_TIMEOUT and read
+/// no file. `OO_DOCS_MODEL_TIMEOUT_SECS` changes it (10 to 900); anything else means the default.
+pub const MODEL_TIMEOUT_SECS: u64 = 180;
+/// The engine waits this much longer than the egress, so the egress's own timeout answer arrives first.
+pub const CLIENT_GRACE_SECS: u64 = 30;
+
+pub fn model_timeout_secs(env: Option<&str>) -> u64 {
+    env.and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|n| (10..=900).contains(n))
+        .unwrap_or(MODEL_TIMEOUT_SECS)
 }
 
 /// Serves recorded replies keyed by the cache key of the batch, and counts
@@ -223,13 +237,23 @@ mod tests {
 
     #[test]
     fn the_command_line_holds_no_secret() {
-        let a = egress_args("/state/model.json", "/state/meter.jsonl", 8317, 30);
+        let a = egress_args("/state/model.json", "/state/meter.jsonl", 8317, 30, 180);
+        assert!(a.windows(2).any(|w| w == ["--timeout", "180"]));
         assert_eq!(a[0], "--config");
         assert!(
             a.iter()
                 .all(|x| !x.to_lowercase().contains("key") && !x.contains("secret"))
         );
         assert!(a.contains(&"127.0.0.1".to_owned()));
+    }
+
+    #[test]
+    fn the_model_timeout_is_longer_than_the_egress_default_and_can_be_set() {
+        assert_eq!(model_timeout_secs(None), 180);
+        assert_eq!(model_timeout_secs(Some(" 300 ")), 300);
+        for bad in ["", "abc", "5", "901", "-1"] {
+            assert_eq!(model_timeout_secs(Some(bad)), MODEL_TIMEOUT_SECS, "{bad}");
+        }
     }
 
     #[test]

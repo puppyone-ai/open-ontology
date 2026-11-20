@@ -76,6 +76,21 @@ pub fn model_secret_files(body: &[u8]) -> Vec<String> {
         .collect()
 }
 
+/// The `file:` reference of a `PUT /v1/docs/agent-db-binding` body (`secret_ref`): the engine reads the Agent DB
+/// connection URL itself, so under the compose runtime the file must be visible there (D83).
+pub fn agent_db_secret_files(body: &[u8]) -> Vec<String> {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    v.get("secret_ref")
+        .and_then(|r| r.as_str())
+        .and_then(|r| r.strip_prefix("file:"))
+        .filter(|p| p.starts_with('/') && !p.split('/').any(|s| s == ".."))
+        .map(str::to_owned)
+        .into_iter()
+        .collect()
+}
+
 /// What the proxy needs to serve.
 pub struct ProxyConfig {
     /// Port the daemon listens on (the `Host` value must carry it).
@@ -465,7 +480,11 @@ async fn serve_one(
         return Err(super::federate::serve(&head, &body, cfg).await);
     }
     let mut head = head;
-    if let Some(drives) = cfg.drives.clone()
+    // Mounting a host directory or a secret file into the engine is the owner's act: only the control
+    // token may cause it. An Agent token's request is forwarded as is and refused by the engine.
+    let control = token_ok(head.header("authorization"), &cfg.token_sha256);
+    if control
+        && let Some(drives) = cfg.drives.clone()
         && head.method == "POST"
         && head.path() == "/v1/docs/drives"
     {
@@ -503,11 +522,19 @@ async fn serve_one(
 
     // The engine's egress process lives in the engine container: the files the
     // model configuration names must be mounted there before it starts.
-    if let Some(drives) = cfg.drives.clone()
+    if control
+        && let Some(drives) = cfg.drives.clone()
         && head.method == "PUT"
-        && head.path() == "/v1/docs/config/model"
+        && matches!(
+            head.path(),
+            "/v1/docs/config/model" | "/v1/docs/agent-db-binding"
+        )
     {
-        let files = model_secret_files(&body);
+        let files = if head.path() == "/v1/docs/agent-db-binding" {
+            agent_db_secret_files(&body)
+        } else {
+            model_secret_files(&body)
+        };
         if !files.is_empty() {
             let mounted = tokio::task::spawn_blocking(move || drives.mount_secret_files(&files))
                 .await
@@ -637,6 +664,21 @@ mod tests {
     }
 
     #[test]
+    fn the_agent_db_binding_file_is_mounted_but_env_and_name_are_not() {
+        assert_eq!(
+            agent_db_secret_files(
+                br#"{"secret_ref":"file:/h/.config/open-ontology/secrets/agentdb"}"#
+            ),
+            ["/h/.config/open-ontology/secrets/agentdb"]
+        );
+        assert!(agent_db_secret_files(br#"{"secret_ref":"env:AGENT_DB"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"agentdb"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"file:/h/../etc/x"}"#).is_empty());
+        assert!(agent_db_secret_files(br#"{"secret_ref":"file:rel"}"#).is_empty());
+        assert!(agent_db_secret_files(b"nope").is_empty());
+    }
+
+    #[test]
     fn model_secret_files_come_from_file_references_only() {
         let body = br#"{"provider":"openai-compatible","base_url":"file:/home/o/.config/e","model":"m","key_ref":"file:/home/o/.config/k"}"#;
         assert_eq!(
@@ -739,6 +781,64 @@ mod tests {
             r.starts_with("HTTP/1.1 422") && r.contains("DOCS_SOURCE_ROOT_MISSING"),
             "{r}"
         );
+        let _ = tx.send(true);
+        let _ = h.await;
+    }
+
+    #[tokio::test]
+    async fn an_agent_token_cannot_make_the_daemon_mount_a_directory() {
+        struct Counting(Arc<std::sync::atomic::AtomicUsize>);
+        impl DriveMounts for Counting {
+            fn mount(&self, _host_root: &str) -> Result<String, String> {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok("/drives/abc".into())
+            }
+            fn mount_secret_files(&self, _files: &[String]) -> Result<(), String> {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+        }
+        let (engine, seen) = fake_engine().await;
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        drop(l);
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut c = Arc::try_unwrap(cfg(port, Some(engine))).ok().unwrap();
+        c.drives = Some(Arc::new(Counting(calls.clone())));
+        let l = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+        let addr = l.local_addr().unwrap();
+        let (tx, rx) = watch::channel(false);
+        let h = tokio::spawn(serve(l, Arc::new(c), rx, Duration::from_secs(2)));
+        let send = |method: &str, path: &str, token: &str, body: &str| {
+            format!(
+                "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {token}\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let drive = r#"{"name":"d","backend":"fs","config":{"root":"/host/dir"}}"#;
+        let model = r#"{"provider":"p","base_url":"file:/h/e","model":"m","key_ref":"file:/h/k"}"#;
+        let bind = r#"{"secret_ref":"file:/h/agentdb"}"#;
+        let agent = "ooa_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+        for (m, p, b) in [
+            ("POST", "/v1/docs/drives", drive),
+            ("PUT", "/v1/docs/config/model", model),
+            ("PUT", "/v1/docs/agent-db-binding", bind),
+        ] {
+            raw(addr, &send(m, p, agent, b)).await;
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(
+            !seen.lock().unwrap().is_empty(),
+            "the request still reaches the engine to be refused there"
+        );
+        for (m, p, b) in [
+            ("POST", "/v1/docs/drives", drive),
+            ("PUT", "/v1/docs/config/model", model),
+            ("PUT", "/v1/docs/agent-db-binding", bind),
+        ] {
+            raw(addr, &send(m, p, "oodt_secret", b)).await;
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
         let _ = tx.send(true);
         let _ = h.await;
     }

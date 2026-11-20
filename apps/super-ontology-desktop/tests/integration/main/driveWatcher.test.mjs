@@ -44,7 +44,7 @@ describe("the watcher with a fake file system and clock", () => {
     timers = { setTimeout, clearTimeout, now: () => Date.now() };
     client = { request: vi.fn(async () => ({ value: { status: "running" }, replayed: false })) };
     fake = fakeWatch();
-    watcher = createDriveWatcher({ client, logger: { debug: vi.fn() }, watch: fake.watch, readDrives: async () => [drive(DRIVE, "/Users/example/Docs")], timers });
+    watcher = createDriveWatcher({ client, logger: { debug: vi.fn() }, watch: fake.watch, exists: () => true, readDrives: async () => [drive(DRIVE, "/Users/example/Docs")], timers });
   });
   afterEach(() => { watcher.dispose(); vi.useRealTimers(); });
   const start = async () => { await watcher.refresh(); return fake.handles[0]; };
@@ -52,7 +52,7 @@ describe("the watcher with a fake file system and clock", () => {
 
   it("watches each active folder Drive recursively and ignores other backends, paused Drives and relative roots", async () => {
     watcher = createDriveWatcher({
-      client, watch: fake.watch, timers, logger: { debug: vi.fn() },
+      client, watch: fake.watch, exists: () => true, timers, logger: { debug: vi.fn() },
       readDrives: async () => [drive(DRIVE, "/a"), drive(OTHER, "/b", { status: "paused" }), drive("3", "/c", { backend: "s3" }), drive("4", "relative/root")],
     });
     await watcher.refresh();
@@ -72,6 +72,21 @@ describe("the watcher with a fake file system and clock", () => {
     await vi.advanceTimersByTimeAsync(60);
     expect(syncs()).toEqual([{ name: "driveSync", id: DRIVE, body: { paths: ["a.md", "sub/b.md"] }, operationId: expect.stringMatching(/^watch-[A-Za-z0-9_-]{8,}-1$/u) }]);
     expect(syncs()[0].operationId.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it("a batch with a path that is gone from disk (delete, rename) is one full sync, not a targeted one", async () => {
+    const present = new Set(["/Users/example/Docs/new-name.md"]);
+    watcher.dispose();
+    watcher = createDriveWatcher({ client, logger: { debug: vi.fn() }, watch: fake.watch, exists: (target) => present.has(target), readDrives: async () => [drive(DRIVE, "/Users/example/Docs")], timers });
+    const handle = await start();
+    handle.listener("rename", "old-name.md");
+    handle.listener("rename", "new-name.md");
+    await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+    expect(syncs().map((entry) => entry.body)).toEqual([{}]);
+    // Only paths that exist stay targeted.
+    handle.listener("change", "new-name.md");
+    await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+    expect(syncs().map((entry) => entry.body)).toEqual([{}, { paths: ["new-name.md"] }]);
   });
 
   it("sends nothing for hidden or junk files", async () => {
@@ -218,6 +233,22 @@ describe("the watcher on the real file system", () => {
     expect(sent.some((body) => body.paths?.includes("notes/plan.md"))).toBe(true);
     expect(Date.now() - started).toBeLessThan(1_500);
     expect(sent.flatMap((body) => body.paths ?? []).some((entry) => entry.includes(".hidden"))).toBe(false);
+  });
+
+  it("deleting and renaming a file on disk each send a full sync within a second", async () => {
+    fs.writeFileSync(path.join(root, "a.md"), "a\n");
+    fs.writeFileSync(path.join(root, "b.md"), "b\n");
+    const sent = [];
+    const client = { request: vi.fn(async (_name, options) => { sent.push(options.body); return { value: {}, replayed: false }; }) };
+    watcher = createDriveWatcher({ client, logger: { debug() {} }, readDrives: async () => [drive(DRIVE, root)] });
+    await watcher.refresh();
+    const waitFor = async (count) => { for (let waited = 0; waited < 1500 && sent.length < count; waited += 25) await new Promise((resolve) => { setTimeout(resolve, 25); }); };
+    fs.rmSync(path.join(root, "a.md"));
+    await waitFor(1);
+    expect(sent[0]).toEqual({});
+    fs.renameSync(path.join(root, "b.md"), path.join(root, "c.md"));
+    await waitFor(2);
+    expect(sent[1]).toEqual({});
   });
 
   it("a Drive of 10,000 files costs the main process under 5% CPU while nothing changes", async () => {

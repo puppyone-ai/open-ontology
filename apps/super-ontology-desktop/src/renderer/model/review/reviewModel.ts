@@ -72,8 +72,6 @@ export function bulkScope(group: SourceGroup, decision: "accept" | "reject"): { 
   return { kinds, count: kinds.reduce((sum, kind) => sum + group.kinds[kind], 0) };
 }
 
-export const confidencePercent = (bp: number | null | undefined): string | null => (typeof bp === "number" ? (bp / 10_000).toFixed(2) : null);
-
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 

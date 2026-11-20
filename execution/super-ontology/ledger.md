@@ -244,6 +244,30 @@
 | SO-B-S19-70 | D88 | merged | feat/super-ontology (车道 K 并入) | 0347499de → 0347499de | — | — | Give the helper container the file secrets a source names |
 | SO-B-S19-71 | D88 | merged | feat/super-ontology (车道 K 并入) | 527f6f39c → 527f6f39c | — | — | Keep multi-line secrets exact when stripping the newline |
 | SO-B-S19-72 | D88 | merged | feat/super-ontology (车道 K 并入) | 839822527 → 839822527 | — | — | Pin the arm64 lite runtime with the secret and error fixes |
+| SO-B-S20-10 | D83 | merged | feat/super-ontology (车道 V 并入) | 2a9aeb407 → 2a9aeb407 | — | — | Fix a 45-question agent QA set with gold answers before any agent run |
+| SO-B-S20-11 | D83 | merged | feat/super-ontology (车道 V 并入) | af6206937 → af6206937 | — | — | Read --model as a value in oo docs model set |
+| SO-B-S20-12 | D83 | merged | feat/super-ontology (车道 V 并入) | 6afa1aae9 → 6afa1aae9 | — | — | Show the Agent commands in oo ontology --help and the top-level help |
+| SO-B-S20-13 | D83 | merged | feat/super-ontology (车道 V 并入) | ac44a2f2a → ac44a2f2a | — | — | Add a tool-calling agent harness that scores answers over the oo CLI |
+| SO-B-S20-14 | D83 | merged | feat/super-ontology (车道 V 并入) | 9298fd5b5 → 9298fd5b5 | — | — | Mount host paths into the engine only for the control token |
+| SO-B-S20-15 | D83 | merged | feat/super-ontology (车道 V 并入) | 6c258b580 → 6c258b580 | — | — | Say in the ontology help that search matches text literally |
+| SO-B-S20-16 | D83 | merged | feat/super-ontology (车道 V 并入) | 98496e49f → 98496e49f | — | — | Tune the QA harness on the dev split and accept Gateway query ids as citations |
+| SO-B-S20-17 | D83 | merged | feat/super-ontology (车道 V 并入) | 913b9bcfa → 913b9bcfa | — | — | Run the same agent over oo mcp --stdio in the QA harness |
+| SO-B-S20-18 | D83 | merged | feat/super-ontology (车道 V 并入) | 5c41e35fc → 5c41e35fc | — | — | Pass the Gateway's message and hint through oo ontology query |
+| SO-B-S20-19 | D83 | merged | feat/super-ontology (车道 V 并入) | 7ddf70700 → 7ddf70700 | — | — | Record the agent QA runs and the token safety checks |
+| SO-B-S20-20 | D83 | merged | feat/super-ontology (车道 X 并入) | 94b7fc5f8 → 94b7fc5f8 | — | — | Mount the Agent DB secret file into the compose engine on bind |
+| SO-B-S20-21 | D83 | merged | feat/super-ontology (车道 X 并入) | f80d3c34d → f80d3c34d | — | — | Deduplicate the relationships in oo ontology schema |
+| SO-B-S20-22 | D83 | merged | feat/super-ontology (车道 X 并入) | d1119b459 → d1119b459 | — | — | Retry an OVERLOADED Gateway answer with backoff in oo serve |
+| SO-B-S20-23 | D83 | merged | feat/super-ontology (车道 X 并入) | 99702df70 → 99702df70 | — | — | Ask extraction for a cross-language alias of each entity |
+| SO-B-S20-24 | D83 | merged | feat/super-ontology (车道 X 并入) | bcae702c9 → bcae702c9 | — | — | Say how to try other forms when an ontology search is empty |
+| SO-B-S20-29 | D83 | merged | feat/super-ontology (车道 X 并入，协调者合并与台账) | 890700b90 → c6fd4d9e4 | — | — | Merge lane X and add its ledger rows |
+| SO-B-S20-30 | D83 | merged | feat/super-ontology (车道 AB 并入) | 0198b3229 → 0198b3229 | — | — | Add the acceptance folder generator |
+| SO-B-S20-31 | D83 | merged | feat/super-ontology (车道 AB 并入) | bd8ebcc74 → bd8ebcc74 | — | — | Add the acceptance corpus and its frozen gold |
+| SO-B-S20-32 | D83 | merged | feat/super-ontology (车道 AB 并入) | 05b280420 → 05b280420 | — | — | Start the OCR and media sidecars when their locked images are here |
+| SO-B-S20-33 | D83 | merged | feat/super-ontology (车道 AB 并入) | 85242d089 → 85242d089 | — | — | Give the Latin text of the corpus PDFs a real glyph width |
+| SO-B-S20-34 | D83 | merged | feat/super-ontology (车道 AB 并入) | 51a8c4717 → 51a8c4717 | — | — | Decode AAC and H.264 media on the Mac without a button |
+| SO-B-S20-36 | D83 | merged | feat/super-ontology (车道 AB 并入) | 736afb840 → 736afb840 | — | — | Render dash lines of an Ask answer as a real list |
+| SO-B-S20-38 | D83 | merged | feat/super-ontology (车道 AB 并入) | 38e6871fe → 38e6871fe | — | — | Wait 180 seconds for the model's answer, not 45 |
+| SO-B-S20-39 | D83 | merged | feat/super-ontology (车道 AB 并入) | dacc89fa6 → 4a9ad4251 | — | — | Record the packaged acceptance runs |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
@@ -258,6 +282,33 @@
 | SO-F-S19-97 | D88 | merged | feat/super-ontology (App 车道 T 并入) | afbea4338 → afbea4338 | — | apps/super-ontology-desktop/ | Draw the atlas as precise growth: dots, squares, hull outlines, straight links |
 | SO-F-S19-98 | D88 | merged | feat/super-ontology (App 车道 T 并入) | db9167a3e → db9167a3e | — | apps/super-ontology-desktop/ | Show the database tables and relationships in the atlas list and a version tick |
 | SO-F-S19-99 | D88 | merged | feat/super-ontology (App 车道 T 并入) | ce2578c7e → 08ac1c00f | — | apps/super-ontology-desktop/ | Summarise cross-group links, cap mark size, pixel-grid canvas; single-database column layout |
+| SO-F-S20-01 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 855ba596a → 855ba596a | — | apps/super-ontology-desktop/ | Stop T2 screen recordings when a scenario ends and cap them |
+| SO-F-S20-02 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 3ba6e0d28 → 3ba6e0d28 | — | apps/super-ontology-desktop/ | Expose the freshness state and the change-ring count on the page |
+| SO-F-S20-03 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 8501c8570 → 8501c8570 | — | apps/super-ontology-desktop/ | Add the P07 auto-sync scenario and its measuring harness |
+| SO-F-S20-04 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 8afcde782 → 8afcde782 | — | apps/super-ontology-desktop/ | Re-check a held mass delete on the engine's own syncs and keep a lone file from tripping it |
+| SO-F-S20-05 | D46 | merged | feat/super-ontology (App 车道 W 并入) | be83b9fbe → be83b9fbe | — | apps/super-ontology-desktop/ | Do the P07 drop through the upload panel and summarise its timings |
+| SO-F-S20-06 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 5e23677a2 → 5e23677a2 | — | apps/super-ontology-desktop/ | Fix uploads from the source page: pass the bridge real File objects |
+| SO-F-S20-07 | D46 | merged | feat/super-ontology (App 车道 W 并入) | a0bfd16e6 → a0bfd16e6 | — | apps/super-ontology-desktop/ | Send a full sync when a changed path has vanished from disk |
+| SO-F-S20-08 | D46 | merged | feat/super-ontology (App 车道 W 并入) | ba971a62e → ba971a62e | — | apps/super-ontology-desktop/ | Make P07 repeatable and exact about renames, deletes and the atlas |
+| SO-F-S20-09 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 7b9e1da77 → 7b9e1da77 | — | apps/super-ontology-desktop/ | Judge P07 evidence per file, retry lost clicks and report steps that were not run |
+| SO-F-S20-20 | D85 | merged | feat/super-ontology (App 车道 Z 并入) | 381f83fe5 → 381f83fe5 | — | apps/super-ontology-desktop/ | List agent tokens with state=all so a revoked token shows as revoked |
+| SO-F-S20-10 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | ddfb582a3 → ddfb582a3 | — | apps/super-ontology-desktop/ | Move native strings to JSON catalogs and fill their gaps |
+| SO-F-S20-11 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | b4233cf6a → b4233cf6a | — | apps/super-ontology-desktop/ | Strengthen check:i18n and close the gaps it finds |
+| SO-F-S20-12 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 32dc280d0 → 32dc280d0 | — | apps/super-ontology-desktop/ | Record the vocabulary shared with the sibling desktop app and test it |
+| SO-F-S20-13 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 8eb7c6757 → 8eb7c6757 | — | apps/super-ontology-desktop/ | Show engine and CLI errors in the language of the app, with the code on a details line |
+| SO-F-S20-14 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 743d5a885 → 743d5a885 | — | apps/super-ontology-desktop/ | Bring the language setting up to the sibling app's behaviour |
+| SO-F-S20-15 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 073bdba54 → 073bdba54 | — | apps/super-ontology-desktop/ | Keep the CLI cause first and settle terms after the visual review |
+| SO-F-S20-16 | D86 | merged | feat/super-ontology (App 车道 Y 并入) | 912375045 → 912375045 | — | apps/super-ontology-desktop/ | Add a locale screenshot tool and a language switch for the T1 runs |
+| SO-F-S20-30 | D46 | merged | feat/super-ontology (App 车道 W 并入) | f09ea9546 → f09ea9546 | — | apps/super-ontology-desktop/ | Drive the P07 open panel with checks and report the attempts it took |
+| SO-F-S20-40 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 0207c9384 → 0207c9384 | — | apps/super-ontology-desktop/ | Add the Ask loop in the main process over a read-only agent token |
+| SO-F-S20-41 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 6d800c276 → 6d800c276 | — | apps/super-ontology-desktop/ | Add the Ask tab under Ontology |
+| SO-F-S20-42 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 9fadc6e2d → 9fadc6e2d | — | apps/super-ontology-desktop/ | Make what is not connected clear in the atlas, Sources and Home |
+| SO-F-S20-43 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 269355e6e → 269355e6e | — | apps/super-ontology-desktop/ | Read a model address kept in a file reference |
+| SO-F-S20-44 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 34f1cdfdb → 34f1cdfdb | — | apps/super-ontology-desktop/ | Let a T1 run use the compose engine and a 2x window |
+| SO-F-S20-45 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | abe43ebb8 → abe43ebb8 | — | apps/super-ontology-desktop/ | Fix the Ask request check, number cited sources, and read files honestly |
+| SO-F-S20-46 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 4e47ec6fd → 4e47ec6fd | — | apps/super-ontology-desktop/ | Lock the Ask and Not connected screens with visual baselines |
+| SO-F-S20-47 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 15474193a → 15474193a | — | apps/super-ontology-desktop/ | Check for disagreements before the Ask answer states an owner, date, number or status |
+| SO-F-S20-48 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | afcdd5822 → afcdd5822 | — | apps/super-ontology-desktop/ | Refresh the Ask baselines for human anchors, the clear icon and kept-together markers |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

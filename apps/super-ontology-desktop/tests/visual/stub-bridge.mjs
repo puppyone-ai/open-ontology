@@ -55,22 +55,51 @@ export function stubBridgeSource(scenario) {
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
         case "drives-list": return drives;
+        case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request?.driveId), next_cursor: null } : empty;
+        case "file-detail": return scenario.unlinked ? detail(request?.fileId) : empty;
+        case "ask-run": return askAnswers[scenario.ask] ?? askAnswers.answered;
         case "entities-search": return { items: entities, next_cursor: null };
         case "agent-token-list": return empty;
-        case "model-config-read": return { configured: false };
+        case "model-config-read": return scenario.ask ? { configured: scenario.ask !== "no_model", provider: "openai-compatible", base_url: "https://model.example.test/v1", model: "example-model", key_ref: "file:/k" } : { configured: false };
         case "events-subscribe": return { instanceId: "stub", seq: 0 };
         default: return empty;
       }
     };
+    // Not connected (scenario.unlinked): files in every state a reason can come from, and what each one produced.
+    const D1 = "00000000-0000-4000-8000-000000000001"; const D2 = "00000000-0000-4000-8000-000000000002";
+    const fid = (n) => "00000000-0000-4000-8000-0000000002" + String(n).padStart(2, "0");
+    const file = (n, drive, name, state, extra = {}) => ({ id: fid(n), drive_id: drive, path: name, name, size: 20480 + n * 1000, state, state_since: now, retryable: false, pending_review: 0, modified_at: now, ...extra });
+    const files = [
+      file(1, D1, "projects/alpha.md", "published"), file(2, D1, "notes/ideas.md", "published"), file(3, D1, "design/floorplan.dwg", "unsupported", { format: "dwg" }),
+      file(4, D2, "meetings/kickoff.docx", "published"), file(5, D2, "reports/q3.pdf", "parsing"), file(6, D2, "finance/budget.xlsx", "parse_failed", { state_code: "PARSE_XLSX_CORRUPT", retryable: true }),
+      file(7, D2, "decks/review.pptx", "published", { pending_review: 2 }), file(8, D2, "people/dana.md", "published"),
+    ];
+    const ref = (key, name, type) => ({ id: "00000000-0000-4000-8000-0000000003" + String(key.length).padStart(2, "0"), key, name, type });
+    const dana = ref("dana-lee", "Dana Lee", "Person"); const alpha = ref("project-alpha", "Project Alpha", "Project"); const idea = ref("harbor-idea", "Harbor idea", "Topic");
+    const detail = (id) => {
+      const f = files.find((x) => x.id === id);
+      if (!f) return null;
+      if (f.path === "projects/alpha.md" || f.path === "people/dana.md") return { ...f, entities: [dana, alpha], facts: [{ id: fid(90), status: "published", subject: dana, object: alpha }] };
+      if (f.path === "notes/ideas.md") return { ...f, entities: [idea], facts: [] };
+      return { ...f, entities: [], facts: [] };
+    };
+    const askAnswers = {
+      answered: { status: "answered", answer: "Dana Lee owns Project Alpha [S1]. The 2026 budget for it is 60 (10,000 CNY) [S2, S3].", uncited: false, cli: 'oo ontology search "Project Alpha"', steps: [{ n: 1, tool: "search", arg: "Project Alpha", ok: true }, { n: 2, tool: "find_text", arg: "budget", ok: true }, { n: 3, tool: "read_file", arg: "finance/budget.xlsx", ok: true }],
+        sources: [{ id: "S1", kind: "file", fileId: fid(1), driveId: D1, path: "projects/alpha.md", anchor: "L4-L6", blockId: "b1" }, { id: "S2", kind: "file", fileId: fid(6), driveId: D2, path: "finance/budget.xlsx", anchor: "Q1!B2", blockId: "b2" }, { id: "S3", kind: "query", sql: "SELECT budget FROM projects", queryId: "q1", source: "shop" }] },
+      unanswerable: { status: "unanswerable", answer: "", reason: "I looked for Dana Lee's email address and no document or table states one.", searched: [{ tool: "search", arg: "Dana Lee email" }, { tool: "find_text", arg: "email" }, { tool: "find_text", arg: "邮箱" }], cli: 'oo ontology search "Dana Lee email"' },
+      no_model: { status: "no_model" },
+    };
     const frozen = Date.parse("2026-11-12T10:00:00Z");
     window.localStorage.setItem("so.firstRun.done", scenario.firstRun ? "0" : "1");
     if (scenario.firstRun) window.localStorage.removeItem("so.firstRun.done");
+    const listeners = new Set();
+    window.__push = (push) => listeners.forEach((listener) => listener(push));
     window.superOntology = {
-      invoke: async (channel, request) => ({ ok: true, value: answer(channel, request) }),
-      subscribe: () => () => undefined,
+      invoke: async (channel, request) => (channel === "ask-run" && (window.__askId = request.askId, scenario.ask === "pending") ? new Promise(() => undefined) : { ok: true, value: answer(channel, request) }),
+      subscribe: (callback) => { listeners.add(callback); return () => listeners.delete(callback); },
       pathsForFiles: () => ({ paths: [], unreadable: 0 }),
       openExternal: async () => undefined,
-      shell: { info: async () => ({ name: "Super Ontology", version: "0.1.0", platform: "darwin", arch: "arm64", locale: "en-US", packaged: true, license: "Apache-2.0", releaseUrl: "" }), readSettings: async () => ({ language: "en", ooExecutable: null, runtime: "auto", keepEngineOnQuit: false, remote: null }), writeSettings: async (patch) => patch, onSettingsChanged: () => () => undefined, onMenuCommand: () => () => undefined, readNotice: async () => "", copyToClipboard: async () => true, openReleasePage: async () => true },
+      shell: { info: async () => ({ name: "Super Ontology", version: "0.1.0", platform: "darwin", arch: "arm64", locale: "en-US", packaged: true, license: "Apache-2.0", releaseUrl: "" }), readSettings: async () => ({ language: scenario.language ?? "en", ooExecutable: null, runtime: "auto", keepEngineOnQuit: false, remote: null }), writeSettings: async (patch) => patch, onSettingsChanged: () => () => undefined, onMenuCommand: () => () => undefined, readNotice: async () => "", copyToClipboard: async () => true, openReleasePage: async () => true },
     };
     void frozen;
   }})(${JSON.stringify(scenario)})`;

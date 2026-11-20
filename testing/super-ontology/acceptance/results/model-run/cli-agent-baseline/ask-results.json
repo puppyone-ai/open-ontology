@@ -1,0 +1,672 @@
+[
+ {
+  "id": "q01",
+  "ms": 14035,
+  "ok": true,
+  "status": "answered",
+  "answer": "2027-03-18 (moved from 2027-03-04; still the planned date as of the 2027-02-20 readiness report)",
+  "reason": "",
+  "steps": 9,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q02",
+  "ms": 22180,
+  "ok": true,
+  "status": "answered",
+  "answer": "71 percent lens yield, against an 85 percent threshold",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/notes/risk-register.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/slack-export-launch.txt"
+   },
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-test-plan.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q03",
+  "ms": 8096,
+  "ok": true,
+  "status": "answered",
+  "answer": "Daniel Ortiz (丹尼尔·奥尔蒂斯), Hardware Lead, Engineering, daniel.ortiz@northport-optics.example",
+  "reason": "",
+  "steps": 3,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q04",
+  "ms": 13087,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 2,480,000 (contract NPO-2027-014, signed 2027-01-20)",
+  "reason": "",
+  "steps": 7,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q05",
+  "ms": 9848,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 3,999",
+  "reason": "",
+  "steps": 6,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q06",
+  "ms": 7532,
+  "ok": true,
+  "status": "answered",
+  "answer": "9 hours",
+  "reason": "",
+  "steps": 4,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q07",
+  "ms": 9179,
+  "ok": true,
+  "status": "answered",
+  "answer": "38 g",
+  "reason": "",
+  "steps": 5,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q08",
+  "ms": 5798,
+  "ok": true,
+  "status": "answered",
+  "answer": "Quality (QA Engineer; 柯子骞)",
+  "reason": "",
+  "steps": 2,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q09",
+  "ms": 18873,
+  "ok": true,
+  "status": "answered",
+  "answer": "顾明远 (Mingyuan Gu, VP Product) decided to delay the Aurora NP-7 launch (from 2027-03-04 to 2027-03-18) on 2027-01-12 because lens yield was 71%; it was formalised in the signed memo project/memos/launch-delay-memo-signed.pdf (issued/signed by him on 2027-01-13).",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/launch-checklist-zh.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/slack-export-launch.txt"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q10",
+  "ms": 23381,
+  "ok": true,
+  "status": "answered",
+  "answer": "Hengding Optoelectronics (恒鼎光电) supplies the lenses; the internal owner is Tianyou Jiang (蒋天佑), Supply Chain Manager, Operations.",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-product-spec.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q11",
+  "ms": 34389,
+  "ok": true,
+  "status": "answered",
+  "answer": "Yes — both totals are CNY 6,850,000",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/reports/launch-readiness-report-2027-02-20.pdf"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q12",
+  "ms": 19416,
+  "ok": true,
+  "status": "answered",
+  "answer": "Priya Raman (普丽娅·拉曼), Head of Marketing / Marketing lead; budget CNY 1,420,000",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q13",
+  "ms": 18480,
+  "ok": true,
+  "status": "answered",
+  "answer": "budget-call-2027-01-26 (Mingyuan Gu: move 万八万元 / CNY 80,000 from print to video production)",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/audio/budget-call-2027-01-26.m4a"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q14",
+  "ms": 23800,
+  "ok": true,
+  "status": "answered",
+  "answer": "Slide 3 of aurora-launch-plan.pptx covers the budget and shows a total of CNY 6,850,000 (marketing CNY 1,420,000).",
+  "reason": "",
+  "steps": 7,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q15",
+  "ms": 41052,
+  "ok": true,
+  "status": "answered",
+  "answer": "The press embargo date is 2027-03-16. Priya Raman (普丽娅·拉曼) owns the press work: she leads press and video, owns the press FAQ, and is the named owner of the 新闻解禁.",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/images/whiteboard-launch-timeline.png"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/launch-checklist-zh.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-en.md"
+   },
+   {
+    "kind": "file",
+    "path": "project/notes/press-faq-zh.md"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q16",
+  "ms": 14256,
+  "ok": true,
+  "status": "answered",
+  "answer": "2027-03-05, owned by Ziqian Ke (柯子骞, QA Engineer); the test plan also says he chairs it with Daniel Ortiz.",
+  "reason": "",
+  "steps": 7,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/images/whiteboard-launch-timeline.png"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-02-02-readiness.docx"
+   },
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/specs/np7-test-plan.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q17",
+  "ms": 8751,
+  "ok": true,
+  "status": "answered",
+  "answer": "Yunfan Media (云帆传播), contract CNY 880000",
+  "reason": "",
+  "steps": 4,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q18",
+  "ms": 32270,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA — the Hengding lens contract names Mingyuan Gu, P Cole, and Tianyou Jiang, but no passage says who prepared it; Hannah Cole is Legal Counsel on the roster only.",
+  "steps": 12,
+  "sources": [],
+  "error": null
+ },
+ {
+  "id": "q19",
+  "ms": 6228,
+  "ok": true,
+  "status": "answered",
+  "answer": "980000 CNY (owner 蒋天佑)",
+  "reason": "",
+  "steps": 3,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q20",
+  "ms": 25519,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 140,000",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/po-log.csv"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q21",
+  "ms": 9430,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 450,000",
+  "reason": "",
+  "steps": 3,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-26-budget-review.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q22",
+  "ms": 15499,
+  "ok": true,
+  "status": "answered",
+  "answer": "45.26% (Hardware 3,100,000 of total 6,850,000 CNY)",
+  "reason": "",
+  "steps": 7,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q23",
+  "ms": 18594,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 540,000 (January 210,000 + February 330,000, both Yunfan Media)",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/actuals-2027-q1.csv"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q24",
+  "ms": 7574,
+  "ok": true,
+  "status": "answered",
+  "answer": "CNY 880,000 (video production 580,000 + digital ads 300,000)",
+  "reason": "",
+  "steps": 4,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/finance/launch-budget-2027.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q25",
+  "ms": 13829,
+  "ok": true,
+  "status": "answered",
+  "answer": "2027-02-10",
+  "reason": "",
+  "steps": 5,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/images/whiteboard-launch-timeline.png"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q26",
+  "ms": 25759,
+  "ok": true,
+  "status": "answered",
+  "answer": "2027-02-02 (二月二日前 / before 2 February 2027)",
+  "reason": "",
+  "steps": 12,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/meetings/audio/budget-call-2027-01-26.m4a"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q27",
+  "ms": 21691,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA\nThe supplier-call transcript (project/meetings/audio/supplier-call-2027-01-16.wav) is truncated before any lead-time figure, and the only stated lead time (21 days) is in the contract and vendor deck, not the call.",
+  "steps": 12,
+  "sources": [],
+  "error": null
+ },
+ {
+  "id": "q28",
+  "ms": 12837,
+  "ok": true,
+  "status": "answered",
+  "answer": "顾明远，职位是产品副总裁（VP Product，Product 团队）",
+  "reason": "",
+  "steps": 2,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/people/team-roster.xlsx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q29",
+  "ms": 7446,
+  "ok": true,
+  "status": "answered",
+  "answer": "Hengding Optoelectronics",
+  "reason": "",
+  "steps": 2,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/contracts/hengding-lens-supply-contract.pdf"
+   },
+   {
+    "kind": "file",
+    "path": "project/decks/aurora-launch-plan.pptx"
+   },
+   {
+    "kind": "file",
+    "path": "project/finance/vendor-list.xlsx"
+   },
+   {
+    "kind": "file",
+    "path": "project/meetings/minutes-2027-01-12-launch-sync.docx"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q30",
+  "ms": 17401,
+  "ok": true,
+  "status": "answered",
+  "answer": "85% (镜片良率门槛; current yield cited as 71%)",
+  "reason": "",
+  "steps": 11,
+  "sources": [
+   {
+    "kind": "file",
+    "path": "project/memos/launch-delay-memo-signed.pdf"
+   }
+  ],
+  "error": null
+ },
+ {
+  "id": "q31",
+  "ms": 26326,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA\nThe indexed documents name Aurora NP-7 and a launch budget workbook, but none of the retrieved passages state a manufacturing cost per unit.",
+  "steps": 12,
+  "sources": [],
+  "error": null
+ },
+ {
+  "id": "q32",
+  "ms": 24154,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA\nThe roster and related documents list roles such as VP Product (Mingyuan Gu) but never name a CEO of Northport Optics.",
+  "steps": 12,
+  "sources": [],
+  "error": null
+ },
+ {
+  "id": "q33",
+  "ms": 21707,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA — searches for sold, units, sales, 销量, and 首周 returned no hits, and the only source is a file drive (database schema access was denied), so no first-week unit sales figure is present.",
+  "steps": 12,
+  "sources": [],
+  "error": null
+ },
+ {
+  "id": "q34",
+  "ms": 10991,
+  "ok": true,
+  "status": "unanswerable",
+  "answer": "",
+  "reason": "NOT_IN_DATA\nThe roster and contact directory list Hannah Cole’s email and Austin office, but no phone number.",
+  "steps": 7,
+  "sources": [],
+  "error": null
+ }
+]

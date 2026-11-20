@@ -33,7 +33,9 @@ export type DataFlow = {
 const BUCKET_BACKENDS = new Set(["s3", "oss", "cos", "r2"]);
 const CONFIGURED_MODEL_STATUSES = new Set(["ok", "degraded", "unavailable", "limited", "blocked"]);
 
-export const joinList = (items: readonly string[]): string => items.join(", ");
+/** Joins names the way the language does ("a, b and c"); `describeDataFlow` takes the active language's list formatter. */
+export type ListFormatter = (items: readonly string[]) => string;
+export const joinList: ListFormatter = (items) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(items); // i18n-ok: English default for tests; the app passes its own
 
 function modelLabel(model: NonNullable<DataFlowInput["model"]>): string | null {
   const provider = model.provider?.trim();
@@ -42,7 +44,7 @@ function modelLabel(model: NonNullable<DataFlowInput["model"]>): string | null {
   return region ? `${provider} · ${region}` : provider;
 }
 
-export function describeDataFlow(input: DataFlowInput): DataFlow {
+export function describeDataFlow(input: DataFlowInput, formatList: ListFormatter = joinList): DataFlow {
   const buckets = [...new Set(input.drives.filter((drive) => BUCKET_BACKENDS.has(drive.backend)).map((drive) => (drive.bucket ?? "").trim() || "?"))];
   const localFolders = input.drives.filter((drive) => !BUCKET_BACKENDS.has(drive.backend)).length;
   // A configured model only sees data when at least one Drive lets it (per-Drive switch).
@@ -53,9 +55,9 @@ export function describeDataFlow(input: DataFlowInput): DataFlow {
   if (buckets.length === 0) {
     summary.push({ messageId: "super-drive.common.dataLocal", values: {} });
   } else if (localFolders === 0) {
-    summary.push({ messageId: "super-drive.dataFlow.summary.bucket", values: { buckets: joinList(buckets) } });
+    summary.push({ messageId: "super-drive.dataFlow.summary.bucket", values: { buckets: formatList(buckets) } });
   } else {
-    summary.push({ messageId: "super-drive.dataFlow.summary.mixed", values: { buckets: joinList(buckets) } });
+    summary.push({ messageId: "super-drive.dataFlow.summary.mixed", values: { buckets: formatList(buckets) } });
   }
   if (modelReceivesExcerpts) {
     summary.push(providerLabel

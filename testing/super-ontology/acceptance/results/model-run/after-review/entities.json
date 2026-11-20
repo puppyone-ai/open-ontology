@@ -1,0 +1,2658 @@
+[
+ {
+  "key": "decision:17171d035d771a326b90bc83",
+  "type": "Decision",
+  "name": "向恒鼎光电（Hengding Optoelectronics）询价",
+  "names": [
+   "向恒鼎光电（hengding optoelectronics）询价"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "向恒鼎光电（hengding optoelectronics）询价",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:56c18ea258e793b12f7fd002",
+  "type": "Decision",
+  "name": "Embargo moves to 03-16.",
+  "names": [
+   "embargo moves to 03-16."
+  ],
+  "files": [
+   "notes/slack-export-launch.txt"
+  ],
+  "blob": "embargo moves to 03-16. decides embargo moves to 03-16.",
+  "blob_by_file": {
+   "notes/slack-export-launch.txt": "decides embargo moves to 03-16."
+  }
+ },
+ {
+  "key": "decision:7a806551fcad5db0b70762dc",
+  "type": "Decision",
+  "name": "approved handding as our primary length supplier",
+  "names": [
+   "approved handding as our primary length supplier"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "approved handding as our primary length supplier decides approved handding as our primary length supplier",
+  "blob_by_file": {
+   "meetings/audio/supplier-call-2027-01-16.wav": "decides approved handding as our primary length supplier"
+  }
+ },
+ {
+  "key": "decision:82c91ad8ab214350b250062e",
+  "type": "Decision",
+  "name": "Selected as primary lens supplier",
+  "names": [
+   "selected as primary lens supplier",
+   "选定为主要镜片供应商"
+  ],
+  "files": [
+   "decks/vendor-review.pptx"
+  ],
+  "blob": "selected as primary lens supplier 选定为主要镜片供应商",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:83400b06c3fa2b341aee7e97",
+  "type": "Decision",
+  "name": "发布日期由2027-03-04调整为2027-03-18",
+  "names": [
+   "launch date changed from 2027-03-04 to 2027-03-18",
+   "发布日期由2027-03-04调整为2027-03-18"
+  ],
+  "files": [
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "发布日期由2027-03-04调整为2027-03-18 launch date changed from 2027-03-04 to 2027-03-18",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:8ee348fa4be0b2c518283513",
+  "type": "Decision",
+  "name": "fast decision on the delay",
+  "names": [
+   "fast decision on the delay",
+   "关于延期的快速决定"
+  ],
+  "files": [
+   "notes/retro-prep.md"
+  ],
+  "blob": "fast decision on the delay 关于延期的快速决定",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:a63c2f612ae7039909d325bd",
+  "type": "Decision",
+  "name": "The launch date is 2027-03-18, moved from 2027-03-04",
+  "names": [
+   "the launch date is 2027-03-18, moved from 2027-03-04"
+  ],
+  "files": [
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "the launch date is 2027-03-18, moved from 2027-03-04",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:aeaa65723dde8686c5566994",
+  "type": "Decision",
+  "name": "发布日期保持三月十八日",
+  "names": [
+   "发布日期保持三月十八日"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a"
+  ],
+  "blob": "发布日期保持三月十八日",
+  "blob_by_file": {}
+ },
+ {
+  "key": "decision:f445fea1d84bc57da30b523f",
+  "type": "Decision",
+  "name": "We move launch to 2027-03-18.",
+  "names": [
+   "we move launch to 2027-03-18."
+  ],
+  "files": [
+   "notes/slack-export-launch.txt"
+  ],
+  "blob": "we move launch to 2027-03-18. decides we move launch to 2027-03-18.",
+  "blob_by_file": {
+   "notes/slack-export-launch.txt": "decides we move launch to 2027-03-18."
+  }
+ },
+ {
+  "key": "decision:f623cabbfda90bf6655649ef",
+  "type": "Decision",
+  "name": "将发布日期由 2027-03-04 推迟到 2027-03-18",
+  "names": [
+   "将发布日期由 2027-03-04 推迟到 2027-03-18"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "将发布日期由 2027-03-04 推迟到 2027-03-18 decides 将发布日期由 2027-03-04 推迟到 2027-03-18",
+  "blob_by_file": {
+   "meetings/minutes-2027-01-12-launch-sync.docx": "decides 将发布日期由 2027-03-04 推迟到 2027-03-18"
+  }
+ },
+ {
+  "key": "decision:f972d5080add51b93be633de",
+  "type": "Decision",
+  "name": "新闻解禁日期改为 2027-03-16",
+  "names": [
+   "新闻解禁日期改为 2027-03-16"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "新闻解禁日期改为 2027-03-16",
+  "blob_by_file": {}
+ },
+ {
+  "key": "event:9de362cec01abca8f795dce4",
+  "type": "Event",
+  "name": "Go/no-go review",
+  "names": [
+   "go/no-go review"
+  ],
+  "files": [
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "go/no-go review",
+  "blob_by_file": {}
+ },
+ {
+  "key": "event:a64075d78ae2ef46ecbe2076",
+  "type": "Event",
+  "name": "项目同步会",
+  "names": [
+   "launch sync",
+   "项目同步会"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "项目同步会 launch sync",
+  "blob_by_file": {}
+ },
+ {
+  "key": "event:c0a93fc0f6971444faee711c",
+  "type": "Event",
+  "name": "就性检查",
+  "names": [
+   "就性检查"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a"
+  ],
+  "blob": "就性检查",
+  "blob_by_file": {}
+ },
+ {
+  "key": "event:c749048b4a6ebb0779c1ff7e",
+  "type": "Event",
+  "name": "Aurora NP-7 LAUNCH",
+  "names": [
+   "aurora np-7 launch"
+  ],
+  "files": [
+   "images/whiteboard-launch-timeline.png"
+  ],
+  "blob": "aurora np-7 launch",
+  "blob_by_file": {}
+ },
+ {
+  "key": "event:f8ca7d0b797e57611e412738",
+  "type": "Event",
+  "name": "2027-01-12项目同步会",
+  "names": [
+   "2027-01-12项目同步会",
+   "project sync meeting"
+  ],
+  "files": [
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "2027-01-12项目同步会 project sync meeting",
+  "blob_by_file": {}
+ },
+ {
+  "key": "organization:1d9486343931476f630aa8da",
+  "type": "Organization",
+  "name": "Northport QA lab",
+  "names": [
+   "northport qa lab"
+  ],
+  "files": [
+   "finance/actuals-2027-q1.csv"
+  ],
+  "blob": "northport qa lab mentions northport qa lab about northport qa lab",
+  "blob_by_file": {
+   "finance/actuals-2027-q1.csv": "mentions northport qa lab mentions northport qa lab about northport qa lab"
+  }
+ },
+ {
+  "key": "organization:209fd18e70118c94c63edcc0",
+  "type": "Organization",
+  "name": "handing auto electronics",
+  "names": [
+   "handding",
+   "handing",
+   "handing auto electronics"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "handing auto electronics handding handing about handing auto electronics mentions handing auto electronics",
+  "blob_by_file": {
+   "meetings/audio/supplier-call-2027-01-16.wav": "about handing auto electronics mentions handing auto electronics"
+  }
+ },
+ {
+  "key": "organization:4935320e3130c5f5c7b62a62",
+  "type": "Organization",
+  "name": "Hengding",
+  "names": [
+   "hengding",
+   "恒鼎光电"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "decks/vendor-review.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/launch-budget-2027.xlsx",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/press-faq-en.md",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "hengding 恒鼎光电 about hengding mentions hengding mentions hengding about hengding mentions hengding mentions hengding about hengding about hengding mentions hengding mentions hengding mentions hengding mentions hengding mentions hengding mentions hengding mentions hengding mentions hengding",
+  "blob_by_file": {
+   "finance/actuals-2027-q1.csv": "about hengding mentions hengding",
+   "decks/aurora-launch-plan.pptx": "mentions hengding",
+   "notes/press-faq-en.md": "mentions hengding",
+   "finance/vendor-list.xlsx": "about hengding mentions hengding",
+   "finance/launch-budget-2027.xlsx": "mentions hengding",
+   "decks/vendor-review.pptx": "about hengding mentions hengding",
+   "contracts/hengding-lens-supply-contract.pdf": "about hengding mentions hengding",
+   "finance/po-log.csv": "mentions hengding",
+   "specs/np7-product-spec.docx": "mentions hengding",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions hengding",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions hengding",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions hengding"
+  }
+ },
+ {
+  "key": "organization:8247141632428e741d6b9f20",
+  "type": "Organization",
+  "name": "Yunfan Media",
+  "names": [
+   "yunfan media",
+   "云帆传播"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/slack-export-launch.txt"
+  ],
+  "blob": "yunfan media 云帆传播 mentions yunfan media mentions yunfan media mentions yunfan media about yunfan media mentions yunfan media about yunfan media mentions yunfan media about yunfan media mentions yunfan media mentions yunfan media",
+  "blob_by_file": {
+   "finance/actuals-2027-q1.csv": "mentions yunfan media mentions yunfan media about yunfan media about yunfan media about yunfan media",
+   "finance/po-log.csv": "mentions yunfan media mentions yunfan media about yunfan media",
+   "images/whiteboard-launch-timeline.png": "mentions yunfan media",
+   "decks/aurora-launch-plan.pptx": "mentions yunfan media",
+   "finance/vendor-list.xlsx": "mentions yunfan media mentions yunfan media about yunfan media about yunfan media about yunfan media",
+   "notes/slack-export-launch.txt": "mentions yunfan media",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions yunfan media"
+  }
+ },
+ {
+  "key": "organization:a71f5635cd9615907b6db5ec",
+  "type": "Organization",
+  "name": "Suda Express",
+  "names": [
+   "suda express",
+   "速达快运"
+  ],
+  "files": [
+   "decks/vendor-review.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "notes/shipping-schedule.txt"
+  ],
+  "blob": "suda express 速达快运 about suda express about suda express mentions suda express mentions suda express mentions suda express about suda express about suda express about suda express mentions suda express mentions suda express",
+  "blob_by_file": {
+   "finance/po-log.csv": "about suda express mentions suda express mentions suda express",
+   "finance/actuals-2027-q1.csv": "about suda express mentions suda express mentions suda express",
+   "notes/shipping-schedule.txt": "mentions suda express about suda express",
+   "decks/vendor-review.pptx": "mentions suda express about suda express",
+   "finance/vendor-list.xlsx": "about suda express about suda express about suda express mentions suda express mentions suda express"
+  }
+ },
+ {
+  "key": "organization:b3f237a345e46e479d905682",
+  "type": "Organization",
+  "name": "Meridian Packaging",
+  "names": [
+   "meridian packaging",
+   "子午线包装"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "notes/design-notes.md"
+  ],
+  "blob": "meridian packaging 子午线包装 about meridian packaging mentions meridian packaging about meridian packaging mentions meridian packaging about meridian packaging about meridian packaging mentions meridian packaging mentions meridian packaging",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "about meridian packaging about meridian packaging about meridian packaging mentions meridian packaging mentions meridian packaging",
+   "notes/design-notes.md": "mentions meridian packaging about meridian packaging",
+   "finance/po-log.csv": "mentions meridian packaging mentions meridian packaging about meridian packaging",
+   "contracts/meridian-packaging-quote.pdf": "about meridian packaging mentions meridian packaging"
+  }
+ },
+ {
+  "key": "organization:ce816bf346c1b247892fc15f",
+  "type": "Organization",
+  "name": "子午线包装",
+  "names": [
+   "子午线包装"
+  ],
+  "files": [
+   "decks/vendor-review.pptx",
+   "finance/vendor-list.xlsx"
+  ],
+  "blob": "子午线包装 about 子午线包装 about 子午线包装 mentions 子午线包装 mentions 子午线包装",
+  "blob_by_file": {
+   "decks/vendor-review.pptx": "about 子午线包装 mentions 子午线包装",
+   "finance/vendor-list.xlsx": "about 子午线包装 mentions 子午线包装 mentions 子午线包装"
+  }
+ },
+ {
+  "key": "organization:e12874251275cf4510d4aa1e",
+  "type": "Organization",
+  "name": "Northport Optics",
+  "names": [
+   "northport optics",
+   "北港光学"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "notes/naming-guidelines.md"
+  ],
+  "blob": "northport optics 北港光学 about northport optics about northport optics mentions northport optics member_of northport optics mentions northport optics member_of northport optics",
+  "blob_by_file": {
+   "contracts/hengding-lens-supply-contract.pdf": "about northport optics member_of northport optics mentions northport optics member_of northport optics",
+   "notes/naming-guidelines.md": "about northport optics mentions northport optics"
+  }
+ },
+ {
+  "key": "organization:e4eb1e596a4c003bd4ae86dc",
+  "type": "Organization",
+  "name": "Meridian",
+  "names": [
+   "meridian",
+   "子午线包装"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf",
+   "decks/vendor-review.pptx",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "notes/design-notes.md"
+  ],
+  "blob": "meridian 子午线包装 about meridian mentions meridian mentions meridian about meridian about meridian mentions meridian mentions meridian mentions meridian",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "about meridian mentions meridian",
+   "contracts/meridian-packaging-quote.pdf": "mentions meridian about meridian",
+   "decks/vendor-review.pptx": "about meridian mentions meridian",
+   "finance/po-log.csv": "mentions meridian",
+   "notes/design-notes.md": "mentions meridian"
+  }
+ },
+ {
+  "key": "organization:e79d9bd6b1709be7b03b5f8f",
+  "type": "Organization",
+  "name": "速达快运",
+  "names": [
+   "suda kuaiyun",
+   "速达快运"
+  ],
+  "files": [
+   "decks/vendor-review.pptx",
+   "finance/vendor-list.xlsx",
+   "meetings/audio/readiness-call-2027-02-02.m4a",
+   "meetings/minutes-2027-02-02-readiness.docx"
+  ],
+  "blob": "速达快运 suda kuaiyun about 速达快运 mentions 速达快运 about 速达快运 about 速达快运 mentions 速达快运 mentions 速达快运 mentions 速达快运",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "about 速达快运 mentions 速达快运 mentions 速达快运",
+   "decks/vendor-review.pptx": "about 速达快运 mentions 速达快运",
+   "meetings/audio/readiness-call-2027-02-02.m4a": "about 速达快运 mentions 速达快运",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 速达快运"
+  }
+ },
+ {
+  "key": "organization:ee8053f45659300a0cb51d3d",
+  "type": "Organization",
+  "name": "恒鼎光电",
+  "names": [
+   "hengding guangdian",
+   "hengding optoelectronics",
+   "恒鼎光电"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "decks/vendor-review.pptx",
+   "finance/vendor-list.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "notes/launch-checklist-zh.md",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "恒鼎光电 hengding guangdian hengding optoelectronics mentions 恒鼎光电 about 恒鼎光电 mentions 恒鼎光电 mentions 恒鼎光电 about 恒鼎光电 mentions 恒鼎光电 mentions 恒鼎光电 about 恒鼎光电 mentions 恒鼎光电 mentions 恒鼎光电 mentions 恒鼎光电",
+  "blob_by_file": {
+   "decks/aurora-launch-plan.pptx": "mentions 恒鼎光电",
+   "decks/vendor-review.pptx": "about 恒鼎光电 mentions 恒鼎光电",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions 恒鼎光电",
+   "specs/np7-product-spec.docx": "mentions 恒鼎光电",
+   "finance/vendor-list.xlsx": "about 恒鼎光电 mentions 恒鼎光电 mentions 恒鼎光电",
+   "notes/launch-checklist-zh.md": "about 恒鼎光电 mentions 恒鼎光电",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions 恒鼎光电",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions 恒鼎光电"
+  }
+ },
+ {
+  "key": "organization:f2596efcdabd9d6be8160f0b",
+  "type": "Organization",
+  "name": "Hengding Optoelectronics",
+  "names": [
+   "hengding optoelectronics",
+   "恒鼎光电"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "notes/press-faq-en.md",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "hengding optoelectronics 恒鼎光电 mentions hengding optoelectronics mentions hengding optoelectronics mentions hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics about hengding optoelectronics mentions hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics about hengding optoelectronics mentions hengding optoelectronics mentions hengding optoelectronics",
+  "blob_by_file": {
+   "finance/po-log.csv": "mentions hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics",
+   "decks/aurora-launch-plan.pptx": "mentions hengding optoelectronics",
+   "finance/vendor-list.xlsx": "mentions hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics about hengding optoelectronics about hengding optoelectronics",
+   "finance/actuals-2027-q1.csv": "mentions hengding optoelectronics mentions hengding optoelectronics about hengding optoelectronics about hengding optoelectronics about hengding optoelectronics",
+   "reports/launch-readiness-report-2027-02-20.pdf": "about hengding optoelectronics mentions hengding optoelectronics",
+   "specs/np7-product-spec.docx": "mentions hengding optoelectronics",
+   "notes/press-faq-en.md": "mentions hengding optoelectronics",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions hengding optoelectronics about hengding optoelectronics",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions hengding optoelectronics"
+  }
+ },
+ {
+  "key": "organization:f4cb459651fb99cf3c8fe0b5",
+  "type": "Organization",
+  "name": "云帆传播",
+  "names": [
+   "yunfan chuanbo",
+   "云帆传播"
+  ],
+  "files": [
+   "finance/vendor-list.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "云帆传播 yunfan chuanbo mentions 云帆传播 about 云帆传播 about 云帆传播 about 云帆传播 mentions 云帆传播",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions 云帆传播 mentions 云帆传播 about 云帆传播",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "about 云帆传播 about 云帆传播 about 云帆传播 mentions 云帆传播"
+  }
+ },
+ {
+  "key": "person:0b70cce57ff799f83e0d8eb7",
+  "type": "Person",
+  "name": "Ms. Bao Yi",
+  "names": [
+   "ms. bao yi"
+  ],
+  "files": [
+   "finance/vendor-list.xlsx"
+  ],
+  "blob": "ms. bao yi mentions ms. bao yi",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions ms. bao yi mentions ms. bao yi"
+  }
+ },
+ {
+  "key": "person:12246b4ada0e845eaae8c785",
+  "type": "Person",
+  "name": "柯子骞",
+  "names": [
+   "ke ziqian",
+   "柯子骞"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/launch-checklist-zh.md",
+   "notes/okr-2027-q1-zh.md",
+   "people/team-roster.xlsx",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "柯子骞 ke ziqian mentions 柯子骞 mentions 柯子骞 mentions 柯子骞 mentions 柯子骞 mentions 柯子骞 mentions 柯子骞 mentions 柯子骞",
+  "blob_by_file": {
+   "finance/launch-budget-2027.xlsx": "mentions 柯子骞 mentions 柯子骞",
+   "notes/okr-2027-q1-zh.md": "mentions 柯子骞",
+   "people/team-roster.xlsx": "mentions 柯子骞",
+   "notes/launch-checklist-zh.md": "mentions 柯子骞",
+   "specs/np7-test-plan.docx": "mentions 柯子骞",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions 柯子骞",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 柯子骞"
+  }
+ },
+ {
+  "key": "person:18c6ad44431bbf759662fe35",
+  "type": "Person",
+  "name": "Ruobing Bai",
+  "names": [
+   "ruobing bai",
+   "白若冰"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "notes/customer-feedback.txt",
+   "notes/onboarding-launch-team.md",
+   "notes/slack-export-launch.txt",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "ruobing bai 白若冰 mentions ruobing bai mentions ruobing bai mentions ruobing bai mentions ruobing bai mentions ruobing bai mentions ruobing bai mentions ruobing bai mentions ruobing bai",
+  "blob_by_file": {
+   "notes/customer-feedback.txt": "mentions ruobing bai",
+   "notes/slack-export-launch.txt": "mentions ruobing bai",
+   "people/contact-directory.csv": "mentions ruobing bai mentions ruobing bai",
+   "decks/aurora-launch-plan.pptx": "mentions ruobing bai",
+   "people/team-roster.xlsx": "mentions ruobing bai",
+   "specs/np7-test-plan.docx": "mentions ruobing bai",
+   "notes/onboarding-launch-team.md": "mentions ruobing bai",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions ruobing bai"
+  }
+ },
+ {
+  "key": "person:192bcc6397b93c544a83810d",
+  "type": "Person",
+  "name": "柯嘴仙",
+  "names": [
+   "ke zuixian",
+   "柯嘴仙"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a"
+  ],
+  "blob": "柯嘴仙 ke zuixian",
+  "blob_by_file": {}
+ },
+ {
+  "key": "person:1cdc31d0d9225f49c6a07018",
+  "type": "Person",
+  "name": "Ziqian Ke",
+  "names": [
+   "ziqian ke",
+   "柯子骞"
+  ],
+  "files": [
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/okr-2027-q1.md",
+   "notes/risk-register.md",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "ziqian ke 柯子骞 owns project/specs/np7-test-plan.docx mentions ziqian ke mentions ziqian ke mentions ziqian ke mentions ziqian ke mentions ziqian ke mentions ziqian ke mentions ziqian ke mentions ziqian ke",
+  "blob_by_file": {
+   "specs/np7-test-plan.docx": "owns project/specs/np7-test-plan.docx mentions ziqian ke",
+   "notes/okr-2027-q1.md": "mentions ziqian ke",
+   "images/whiteboard-launch-timeline.png": "mentions ziqian ke",
+   "people/team-roster.xlsx": "mentions ziqian ke",
+   "notes/risk-register.md": "mentions ziqian ke",
+   "people/contact-directory.csv": "mentions ziqian ke mentions ziqian ke",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions ziqian ke",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions ziqian ke"
+  }
+ },
+ {
+  "key": "person:22acc9c7eb0e69091b253cb5",
+  "type": "Person",
+  "name": "haniccole",
+  "names": [
+   "haniccole"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "haniccole",
+  "blob_by_file": {}
+ },
+ {
+  "key": "person:306d5be92f4447dffa29dfc0",
+  "type": "Person",
+  "name": "Mingyuan Gu",
+  "names": [
+   "mingyuan gu",
+   "mingyuangu",
+   "顾明远"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "finance/launch-budget-2027.xlsx",
+   "finance/po-log.csv",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/press-faq-en.md",
+   "notes/press-faq-zh.md",
+   "notes/slack-export-launch.txt",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "mingyuan gu mingyuangu 顾明远 mentions mingyuan gu mentions mingyuan gu mentions mingyuan gu mentions mingyuan gu mentions mingyuan gu owns project/decks/aurora-launch-plan.pptx mentions mingyuan gu decides 将发布日期由 2027-03-04 推迟到 2027-03-18 member_of northport optics mentions mingyuan gu decides we move launch to 2027-03-18. mentions mingyuan gu mentions mingyuan gu mentions mingyuan gu",
+  "blob_by_file": {
+   "notes/slack-export-launch.txt": "mentions mingyuan gu decides we move launch to 2027-03-18.",
+   "images/whiteboard-launch-timeline.png": "mentions mingyuan gu",
+   "people/contact-directory.csv": "mentions mingyuan gu mentions mingyuan gu",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions mingyuan gu member_of northport optics",
+   "decks/aurora-launch-plan.pptx": "mentions mingyuan gu owns project/decks/aurora-launch-plan.pptx",
+   "notes/press-faq-en.md": "mentions mingyuan gu",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "decides 将发布日期由 2027-03-04 推迟到 2027-03-18",
+   "finance/po-log.csv": "mentions mingyuan gu",
+   "finance/launch-budget-2027.xlsx": "mentions mingyuan gu",
+   "people/team-roster.xlsx": "mentions mingyuan gu",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions mingyuan gu"
+  }
+ },
+ {
+  "key": "person:34117aad76a8313e78773cb1",
+  "type": "Person",
+  "name": "顾明远",
+  "names": [
+   "gu mingyuan",
+   "顾明远"
+  ],
+  "files": [
+   "notes/launch-checklist-zh.md"
+  ],
+  "blob": "顾明远 gu mingyuan",
+  "blob_by_file": {}
+ },
+ {
+  "key": "person:41bf5bd1052ce5e750775926",
+  "type": "Person",
+  "name": "邵婉清",
+  "names": [
+   "shao wanqing",
+   "wanqing shao",
+   "邵婉清"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/okr-2027-q1-zh.md",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "邵婉清 shao wanqing wanqing shao mentions 邵婉清 mentions 邵婉清 mentions 邵婉清 mentions 邵婉清",
+  "blob_by_file": {
+   "finance/launch-budget-2027.xlsx": "mentions 邵婉清 mentions 邵婉清",
+   "memos/launch-delay-memo-signed.pdf": "mentions 邵婉清",
+   "people/team-roster.xlsx": "mentions 邵婉清",
+   "notes/okr-2027-q1-zh.md": "mentions 邵婉清"
+  }
+ },
+ {
+  "key": "person:5b6320d2464e61a9ca7a3647",
+  "type": "Person",
+  "name": "Ms. Ines Duarte",
+  "names": [
+   "ms. ines duarte"
+  ],
+  "files": [
+   "finance/vendor-list.xlsx"
+  ],
+  "blob": "ms. ines duarte mentions ms. ines duarte",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions ms. ines duarte mentions ms. ines duarte"
+  }
+ },
+ {
+  "key": "person:7135f72031d2542c4e55f5de",
+  "type": "Person",
+  "name": "Xiaolan Mao",
+  "names": [
+   "xiaolan mao",
+   "毛晓岚"
+  ],
+  "files": [
+   "notes/design-notes.md",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "xiaolan mao 毛晓岚 mentions xiaolan mao mentions xiaolan mao mentions xiaolan mao mentions xiaolan mao",
+  "blob_by_file": {
+   "people/contact-directory.csv": "mentions xiaolan mao mentions xiaolan mao",
+   "notes/design-notes.md": "mentions xiaolan mao",
+   "specs/np7-product-spec.docx": "mentions xiaolan mao",
+   "people/team-roster.xlsx": "mentions xiaolan mao"
+  }
+ },
+ {
+  "key": "person:84776113ad36d7d0311dbab7",
+  "type": "Person",
+  "name": "Wanqing Shao",
+  "names": [
+   "wanqing shao"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/okr-2027-q1.md",
+   "notes/onboarding-launch-team.md",
+   "notes/risk-register.md",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "wanqing shao mentions wanqing shao mentions wanqing shao mentions wanqing shao mentions wanqing shao mentions wanqing shao mentions wanqing shao",
+  "blob_by_file": {
+   "people/contact-directory.csv": "mentions wanqing shao mentions wanqing shao",
+   "notes/onboarding-launch-team.md": "mentions wanqing shao",
+   "people/team-roster.xlsx": "mentions wanqing shao",
+   "notes/okr-2027-q1.md": "mentions wanqing shao",
+   "notes/risk-register.md": "mentions wanqing shao",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions wanqing shao"
+  }
+ },
+ {
+  "key": "person:8cbe8bc1f1354f9c04a8f980",
+  "type": "Person",
+  "name": "蒋天佑",
+  "names": [
+   "jiang tianyou",
+   "蒋天佑"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "蒋天佑 jiang tianyou mentions 蒋天佑 mentions 蒋天佑 mentions 蒋天佑 mentions 蒋天佑",
+  "blob_by_file": {
+   "finance/launch-budget-2027.xlsx": "mentions 蒋天佑 mentions 蒋天佑",
+   "people/team-roster.xlsx": "mentions 蒋天佑",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions 蒋天佑",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 蒋天佑"
+  }
+ },
+ {
+  "key": "person:914b14b916fb581b5587dab8",
+  "type": "Person",
+  "name": "QA Engineer",
+  "names": [
+   "qa engineer"
+  ],
+  "files": [
+   "people/team-roster.xlsx",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "qa engineer mentions qa engineer mentions qa engineer owns project/specs/np7-test-plan.docx",
+  "blob_by_file": {
+   "specs/np7-test-plan.docx": "mentions qa engineer owns project/specs/np7-test-plan.docx",
+   "people/team-roster.xlsx": "mentions qa engineer"
+  }
+ },
+ {
+  "key": "person:92401e98192dcfc29217ab66",
+  "type": "Person",
+  "name": "Tianyou Jiang",
+  "names": [
+   "tianyou jiang"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "contracts/meridian-packaging-quote.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "decks/vendor-review.pptx",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/risk-register.md",
+   "notes/shipping-schedule.txt",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang mentions tianyou jiang",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions tianyou jiang",
+   "notes/shipping-schedule.txt": "mentions tianyou jiang",
+   "people/contact-directory.csv": "mentions tianyou jiang mentions tianyou jiang",
+   "people/team-roster.xlsx": "mentions tianyou jiang",
+   "decks/vendor-review.pptx": "mentions tianyou jiang",
+   "finance/po-log.csv": "mentions tianyou jiang",
+   "notes/risk-register.md": "mentions tianyou jiang",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions tianyou jiang",
+   "contracts/meridian-packaging-quote.pdf": "mentions tianyou jiang",
+   "decks/aurora-launch-plan.pptx": "mentions tianyou jiang",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions tianyou jiang"
+  }
+ },
+ {
+  "key": "person:a0d3c0ee8a9f05fff016cbdc",
+  "type": "Person",
+  "name": "Priya Raman",
+  "names": [
+   "priya raman",
+   "普丽娅·拉曼",
+   "普里亚·拉曼"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "finance/launch-budget-2027.xlsx",
+   "finance/po-log.csv",
+   "finance/vendor-list.xlsx",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/launch-checklist-zh.md",
+   "notes/okr-2027-q1.md",
+   "notes/press-faq-en.md",
+   "notes/press-faq-zh.md",
+   "notes/risk-register.md",
+   "notes/slack-export-launch.txt",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "priya raman 普丽娅·拉曼 普里亚·拉曼 mentions priya raman mentions priya raman mentions priya raman decides embargo moves to 03-16. mentions priya raman mentions priya raman owns project/notes/press-faq-en.md mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman mentions priya raman",
+  "blob_by_file": {
+   "notes/risk-register.md": "mentions priya raman",
+   "notes/okr-2027-q1.md": "mentions priya raman",
+   "decks/aurora-launch-plan.pptx": "mentions priya raman",
+   "notes/slack-export-launch.txt": "decides embargo moves to 03-16. mentions priya raman",
+   "images/whiteboard-launch-timeline.png": "mentions priya raman",
+   "contracts/meridian-packaging-quote.pdf": "mentions priya raman",
+   "notes/press-faq-en.md": "owns project/notes/press-faq-en.md mentions priya raman",
+   "people/team-roster.xlsx": "mentions priya raman",
+   "finance/po-log.csv": "mentions priya raman",
+   "finance/vendor-list.xlsx": "mentions priya raman",
+   "finance/launch-budget-2027.xlsx": "mentions priya raman mentions priya raman",
+   "people/contact-directory.csv": "mentions priya raman mentions priya raman",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions priya raman",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions priya raman",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions priya raman"
+  }
+ },
+ {
+  "key": "person:a6a1a58abc557bd1375e7d60",
+  "type": "Person",
+  "name": "Daniel Ortiz",
+  "names": [
+   "daniel ortiz",
+   "丹尼尔·奥尔蒂斯"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/design-notes.md",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx",
+   "specs/np7-product-spec.docx",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "daniel ortiz 丹尼尔·奥尔蒂斯 mentions daniel ortiz mentions daniel ortiz mentions daniel ortiz owns project/specs/np7-product-spec.docx mentions daniel ortiz mentions daniel ortiz mentions daniel ortiz mentions daniel ortiz",
+  "blob_by_file": {
+   "finance/launch-budget-2027.xlsx": "mentions daniel ortiz mentions daniel ortiz",
+   "notes/design-notes.md": "mentions daniel ortiz",
+   "specs/np7-product-spec.docx": "mentions daniel ortiz owns project/specs/np7-product-spec.docx",
+   "people/team-roster.xlsx": "mentions daniel ortiz",
+   "people/contact-directory.csv": "mentions daniel ortiz mentions daniel ortiz",
+   "specs/np7-test-plan.docx": "mentions daniel ortiz",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions daniel ortiz"
+  }
+ },
+ {
+  "key": "person:c13d46822f20f9222e8d7e7a",
+  "type": "Person",
+  "name": "P Cole",
+  "names": [
+   "p cole"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf"
+  ],
+  "blob": "p cole mentions p cole member_of northport optics",
+  "blob_by_file": {
+   "contracts/hengding-lens-supply-contract.pdf": "mentions p cole member_of northport optics"
+  }
+ },
+ {
+  "key": "person:c3939124c22ee6f84166f7cd",
+  "type": "Person",
+  "name": "shanania jane",
+  "names": [
+   "shanania jane"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "shanania jane",
+  "blob_by_file": {}
+ },
+ {
+  "key": "person:e06a537712003a879552a29e",
+  "type": "Person",
+  "name": "白若冰",
+  "names": [
+   "bai ruobing",
+   "ruobing bai",
+   "白若冰"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "白若冰 bai ruobing ruobing bai",
+  "blob_by_file": {}
+ },
+ {
+  "key": "person:eeb69d9d60ab94115f5e5e79",
+  "type": "Person",
+  "name": "miiwan",
+  "names": [
+   "miiwan"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "miiwan decides approved handding as our primary length supplier mentions miiwan",
+  "blob_by_file": {
+   "meetings/audio/supplier-call-2027-01-16.wav": "decides approved handding as our primary length supplier mentions miiwan"
+  }
+ },
+ {
+  "key": "person:f05b5c7933875bef1246dfbb",
+  "type": "Person",
+  "name": "Mr. Kai Wen",
+  "names": [
+   "mr. kai wen"
+  ],
+  "files": [
+   "finance/vendor-list.xlsx"
+  ],
+  "blob": "mr. kai wen mentions mr. kai wen",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions mr. kai wen mentions mr. kai wen"
+  }
+ },
+ {
+  "key": "person:f2c8a25dafe7238998c9b749",
+  "type": "Person",
+  "name": "Hannah Cole",
+  "names": [
+   "hannah cole",
+   "汉娜·科尔"
+  ],
+  "files": [
+   "notes/onboarding-launch-team.md",
+   "people/contact-directory.csv",
+   "people/team-roster.xlsx"
+  ],
+  "blob": "hannah cole 汉娜·科尔 mentions hannah cole mentions hannah cole mentions hannah cole",
+  "blob_by_file": {
+   "people/team-roster.xlsx": "mentions hannah cole",
+   "notes/onboarding-launch-team.md": "mentions hannah cole",
+   "people/contact-directory.csv": "mentions hannah cole mentions hannah cole"
+  }
+ },
+ {
+  "key": "person:fdd30c102b863ca5f894ae0d",
+  "type": "Person",
+  "name": "Mr. Lu Fan",
+  "names": [
+   "mr. lu fan"
+  ],
+  "files": [
+   "finance/vendor-list.xlsx"
+  ],
+  "blob": "mr. lu fan mentions mr. lu fan",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions mr. lu fan mentions mr. lu fan"
+  }
+ },
+ {
+  "key": "project:0094b16dbd69d911cf6d3099",
+  "type": "Project",
+  "name": "Aurora NP-7 launch",
+  "names": [
+   "aurora np-7 launch",
+   "极光 np-7 发布"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "images/screenshot-task-tracker.png"
+  ],
+  "blob": "aurora np-7 launch 极光 np-7 发布 about aurora np-7 launch mentions aurora np-7 launch mentions aurora np-7 launch about aurora np-7 launch",
+  "blob_by_file": {
+   "decks/aurora-launch-plan.pptx": "about aurora np-7 launch mentions aurora np-7 launch",
+   "images/screenshot-task-tracker.png": "mentions aurora np-7 launch about aurora np-7 launch"
+  }
+ },
+ {
+  "key": "project:1a403545b43f9e46ad525712",
+  "type": "Project",
+  "name": "极光 NP-7",
+  "names": [
+   "aurora np-7",
+   "极光 np-7"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/glossary.md",
+   "notes/naming-guidelines.md",
+   "notes/okr-2027-q1-zh.md",
+   "notes/press-faq-zh.md",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "极光 np-7 aurora np-7 about 极光 np-7 about 极光 np-7 mentions 极光 np-7 about 极光 np-7 mentions 极光 np-7 mentions 极光 np-7 about 极光 np-7 about 极光 np-7 mentions 极光 np-7 mentions 极光 np-7 about 极光 np-7 mentions 极光 np-7 mentions 极光 np-7 mentions 极光 np-7",
+  "blob_by_file": {
+   "contracts/hengding-lens-supply-contract.pdf": "about 极光 np-7 mentions 极光 np-7",
+   "notes/press-faq-zh.md": "about 极光 np-7 mentions 极光 np-7",
+   "notes/okr-2027-q1-zh.md": "mentions 极光 np-7 about 极光 np-7",
+   "meetings/minutes-2027-02-02-readiness.docx": "about 极光 np-7 mentions 极光 np-7",
+   "notes/glossary.md": "mentions 极光 np-7",
+   "specs/np7-product-spec.docx": "about 极光 np-7 about 极光 np-7 mentions 极光 np-7",
+   "notes/naming-guidelines.md": "mentions 极光 np-7",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "about 极光 np-7 mentions 极光 np-7"
+  }
+ },
+ {
+  "key": "project:a556c1e31918ef14620b06e1",
+  "type": "Project",
+  "name": "Aurora NP-7",
+  "names": [
+   "aurora np-7",
+   "np-7",
+   "极光 np-7"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "images/screenshot-task-tracker.png",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/glossary.md",
+   "notes/naming-guidelines.md",
+   "notes/okr-2027-q1.md",
+   "notes/press-faq-en.md",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "aurora np-7 np-7 极光 np-7 about aurora np-7 mentions aurora np-7 mentions aurora np-7 mentions aurora np-7 mentions aurora np-7 about aurora np-7 about aurora np-7 about aurora np-7 about aurora np-7 about aurora np-7 mentions aurora np-7 about aurora np-7 about aurora np-7 about aurora np-7 mentions aurora np-7 mentions aurora np-7 mentions aurora np-7 mentions aurora np-7 mentions aurora np-7",
+  "blob_by_file": {
+   "meetings/minutes-2027-01-26-budget-review.docx": "about aurora np-7 mentions aurora np-7",
+   "contracts/meridian-packaging-quote.pdf": "mentions aurora np-7 about aurora np-7",
+   "specs/np7-product-spec.docx": "mentions aurora np-7 about aurora np-7",
+   "notes/okr-2027-q1.md": "mentions aurora np-7 about aurora np-7",
+   "notes/press-faq-en.md": "mentions aurora np-7 about aurora np-7",
+   "decks/aurora-launch-plan.pptx": "about aurora np-7 mentions aurora np-7",
+   "images/whiteboard-launch-timeline.png": "mentions aurora np-7 about aurora np-7",
+   "notes/naming-guidelines.md": "about aurora np-7 mentions aurora np-7",
+   "notes/glossary.md": "about aurora np-7 mentions aurora np-7",
+   "images/screenshot-task-tracker.png": "mentions aurora np-7"
+  }
+ },
+ {
+  "key": "project:c467ab017fff383a92ef18f3",
+  "type": "Project",
+  "name": "极光NP-7",
+  "names": [
+   "aurora np-7",
+   "极光 np-7",
+   "极光np-7"
+  ],
+  "files": [
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "极光np-7 aurora np-7 极光 np-7 about 极光np-7 mentions 极光np-7",
+  "blob_by_file": {
+   "memos/launch-delay-memo-signed.pdf": "about 极光np-7 mentions 极光np-7"
+  }
+ },
+ {
+  "key": "project:fff4be979f4c61e04b93d92e",
+  "type": "Project",
+  "name": "NP-7",
+  "names": [
+   "np-7"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "contracts/meridian-packaging-quote.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "images/screenshot-task-tracker.png",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/glossary.md",
+   "notes/naming-guidelines.md",
+   "notes/okr-2027-q1-zh.md",
+   "notes/okr-2027-q1.md",
+   "notes/press-faq-en.md",
+   "notes/press-faq-zh.md",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-product-spec.docx",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "np-7 mentions np-7 mentions np-7 mentions np-7 about np-7 about np-7 mentions np-7 about np-7 mentions np-7 mentions np-7 about np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7 about np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7 mentions np-7",
+  "blob_by_file": {
+   "contracts/meridian-packaging-quote.pdf": "mentions np-7",
+   "notes/glossary.md": "mentions np-7",
+   "memos/launch-delay-memo-signed.pdf": "mentions np-7",
+   "notes/press-faq-en.md": "about np-7 mentions np-7",
+   "notes/press-faq-zh.md": "about np-7 mentions np-7",
+   "images/screenshot-task-tracker.png": "mentions np-7",
+   "specs/np7-test-plan.docx": "about np-7 mentions np-7",
+   "notes/naming-guidelines.md": "mentions np-7",
+   "decks/aurora-launch-plan.pptx": "about np-7 mentions np-7",
+   "specs/np7-product-spec.docx": "mentions np-7 about np-7",
+   "images/whiteboard-launch-timeline.png": "mentions np-7",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions np-7",
+   "notes/okr-2027-q1.md": "mentions np-7",
+   "notes/okr-2027-q1-zh.md": "mentions np-7",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions np-7",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions np-7",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions np-7",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions np-7"
+  }
+ },
+ {
+  "key": "term:0e7afe457bfb15ae6d3603b0",
+  "type": "Term",
+  "name": "lens yield",
+  "names": [
+   "lens yield",
+   "镜头良率",
+   "镜片良率"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "images/whiteboard-launch-timeline.png",
+   "notes/okr-2027-q1.md",
+   "notes/risk-register.md",
+   "notes/slack-export-launch.txt",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "lens yield 镜头良率 镜片良率 about lens yield mentions lens yield about lens yield about lens yield mentions lens yield mentions lens yield about lens yield mentions lens yield mentions lens yield mentions lens yield mentions lens yield",
+  "blob_by_file": {
+   "notes/risk-register.md": "about lens yield mentions lens yield",
+   "notes/okr-2027-q1.md": "mentions lens yield",
+   "specs/np7-test-plan.docx": "about lens yield mentions lens yield",
+   "reports/launch-readiness-report-2027-02-20.pdf": "about lens yield mentions lens yield",
+   "notes/slack-export-launch.txt": "about lens yield mentions lens yield",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions lens yield",
+   "images/whiteboard-launch-timeline.png": "mentions lens yield"
+  }
+ },
+ {
+  "key": "term:14609638371767eb94846773",
+  "type": "Term",
+  "name": "Air freight",
+  "names": [
+   "air freight",
+   "空运"
+  ],
+  "files": [
+   "decks/vendor-review.pptx",
+   "finance/launch-budget-2027.xlsx",
+   "finance/po-log.csv",
+   "notes/risk-register.md",
+   "notes/shipping-schedule.txt"
+  ],
+  "blob": "air freight 空运 mentions air freight about air freight mentions air freight mentions air freight mentions air freight mentions air freight",
+  "blob_by_file": {
+   "decks/vendor-review.pptx": "mentions air freight",
+   "notes/shipping-schedule.txt": "about air freight mentions air freight",
+   "finance/po-log.csv": "mentions air freight",
+   "finance/launch-budget-2027.xlsx": "mentions air freight",
+   "notes/risk-register.md": "mentions air freight"
+  }
+ },
+ {
+  "key": "term:1db053270e4fcab8a3184bdd",
+  "type": "Term",
+  "name": "Delivery lead time",
+  "names": [
+   "delivery lead time",
+   "交货提前期"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "delivery lead time 交货提前期 mentions delivery lead time about delivery lead time mentions delivery lead time",
+  "blob_by_file": {
+   "contracts/hengding-lens-supply-contract.pdf": "mentions delivery lead time",
+   "meetings/audio/supplier-call-2027-01-16.wav": "about delivery lead time mentions delivery lead time"
+  }
+ },
+ {
+  "key": "term:216966a7d60c1911054f8989",
+  "type": "Term",
+  "name": "release threshold",
+  "names": [
+   "release threshold"
+  ],
+  "files": [
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "release threshold",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:2c93bc26fe15c0255478d31b",
+  "type": "Term",
+  "name": "Print",
+  "names": [
+   "print"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "print",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:3016617872c66221a0c63761",
+  "type": "Term",
+  "name": "sample",
+  "names": [
+   "sample",
+   "样本"
+  ],
+  "files": [
+   "misc/random-readings.csv"
+  ],
+  "blob": "sample 样本 about sample mentions sample",
+  "blob_by_file": {
+   "misc/random-readings.csv": "about sample mentions sample"
+  }
+ },
+ {
+  "key": "term:353bd34588f0ea16e058952f",
+  "type": "Term",
+  "name": "yield sampling",
+  "names": [
+   "yield sampling"
+  ],
+  "files": [
+   "notes/retro-prep.md"
+  ],
+  "blob": "yield sampling about yield sampling mentions yield sampling",
+  "blob_by_file": {
+   "notes/retro-prep.md": "about yield sampling mentions yield sampling"
+  }
+ },
+ {
+  "key": "term:3f59771497ff6ca56b106ce7",
+  "type": "Term",
+  "name": "matte graphite",
+  "names": [
+   "matte graphite",
+   "哑光石墨"
+  ],
+  "files": [
+   "notes/design-notes.md"
+  ],
+  "blob": "matte graphite 哑光石墨 mentions matte graphite about matte graphite",
+  "blob_by_file": {
+   "notes/design-notes.md": "mentions matte graphite about matte graphite"
+  }
+ },
+ {
+  "key": "term:5515294c9a91c7b4b13fd7ec",
+  "type": "Term",
+  "name": "Last-mile",
+  "names": [
+   "last-mile",
+   "最后一公里"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "last-mile 最后一公里",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:55b19c2adcd6de0b74ec456c",
+  "type": "Term",
+  "name": "Packaging",
+  "names": [
+   "packaging",
+   "包装"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "packaging 包装",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:64641bdaa02769f10c8019a9",
+  "type": "Term",
+  "name": "Marketing",
+  "names": [
+   "marketing",
+   "市场营销"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/launch-budget-2027.xlsx",
+   "meetings/audio/launch-sync-2027-01-12.wav",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/press-faq-en.md",
+   "people/team-roster.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "marketing 市场营销 mentions marketing mentions marketing mentions marketing mentions marketing about marketing mentions marketing about marketing about marketing about marketing mentions marketing mentions marketing mentions marketing",
+  "blob_by_file": {
+   "decks/aurora-launch-plan.pptx": "mentions marketing about marketing",
+   "finance/launch-budget-2027.xlsx": "mentions marketing about marketing",
+   "notes/press-faq-en.md": "mentions marketing",
+   "finance/actuals-2027-q1.csv": "mentions marketing about marketing",
+   "people/team-roster.xlsx": "mentions marketing about marketing",
+   "meetings/audio/launch-sync-2027-01-12.wav": "mentions marketing",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions marketing",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions marketing"
+  }
+ },
+ {
+  "key": "term:649ddd1ad709dee4aad0a792",
+  "type": "Term",
+  "name": "Contingency",
+  "names": [
+   "contingency",
+   "预备费"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "contingency 预备费",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:6f8063c6f350312095422027",
+  "type": "Term",
+  "name": "Embargo",
+  "names": [
+   "embargo",
+   "禁发期",
+   "解禁"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/audio/launch-sync-2027-01-12.wav",
+   "notes/glossary.md",
+   "notes/press-faq-en.md",
+   "notes/risk-register.md",
+   "notes/slack-export-launch.txt",
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "embargo 禁发期 解禁 about embargo mentions embargo mentions embargo mentions embargo mentions embargo mentions embargo mentions embargo mentions embargo mentions embargo",
+  "blob_by_file": {
+   "notes/slack-export-launch.txt": "about embargo mentions embargo",
+   "decks/aurora-launch-plan.pptx": "mentions embargo",
+   "notes/press-faq-en.md": "mentions embargo",
+   "notes/risk-register.md": "mentions embargo",
+   "notes/glossary.md": "mentions embargo",
+   "images/whiteboard-launch-timeline.png": "mentions embargo",
+   "meetings/audio/launch-sync-2027-01-12.wav": "mentions embargo",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions embargo"
+  }
+ },
+ {
+  "key": "term:752c3299ffaedbe575070ced",
+  "type": "Term",
+  "name": "Logistics",
+  "names": [
+   "logistics",
+   "物流"
+  ],
+  "files": [
+   "decks/vendor-review.pptx",
+   "finance/actuals-2027-q1.csv",
+   "finance/launch-budget-2027.xlsx",
+   "finance/vendor-list.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "logistics 物流 mentions logistics mentions logistics mentions logistics about logistics about logistics mentions logistics mentions logistics",
+  "blob_by_file": {
+   "finance/vendor-list.xlsx": "mentions logistics",
+   "decks/vendor-review.pptx": "mentions logistics about logistics",
+   "finance/actuals-2027-q1.csv": "mentions logistics",
+   "finance/launch-budget-2027.xlsx": "about logistics mentions logistics",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions logistics"
+  }
+ },
+ {
+  "key": "term:91f1a3d705ab97bc7bdd280d",
+  "type": "Term",
+  "name": "镜片良率",
+  "names": [
+   "lens yield",
+   "lens yield rate",
+   "镜片良率"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/okr-2027-q1-zh.md"
+  ],
+  "blob": "镜片良率 lens yield lens yield rate about 镜片良率 about 镜片良率 mentions 镜片良率 about 镜片良率 mentions 镜片良率 mentions 镜片良率 mentions 镜片良率 mentions 镜片良率",
+  "blob_by_file": {
+   "memos/launch-delay-memo-signed.pdf": "about 镜片良率 mentions 镜片良率",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "about 镜片良率 mentions 镜片良率",
+   "notes/okr-2027-q1-zh.md": "mentions 镜片良率 about 镜片良率",
+   "meetings/audio/readiness-call-2027-02-02.m4a": "mentions 镜片良率",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 镜片良率"
+  }
+ },
+ {
+  "key": "term:9567dd1b1e51fe537468e486",
+  "type": "Term",
+  "name": "Yield",
+  "names": [
+   "yield",
+   "良率"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf",
+   "decks/aurora-launch-plan.pptx",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/audio/supplier-call-2027-01-16.wav",
+   "notes/glossary.md",
+   "notes/okr-2027-q1.md",
+   "notes/retro-prep.md",
+   "notes/risk-register.md",
+   "notes/slack-export-launch.txt",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "yield 良率 mentions yield about yield mentions yield mentions yield about yield mentions yield mentions yield mentions yield mentions yield mentions yield mentions yield mentions yield mentions yield",
+  "blob_by_file": {
+   "notes/slack-export-launch.txt": "mentions yield",
+   "notes/glossary.md": "about yield mentions yield",
+   "specs/np7-test-plan.docx": "mentions yield",
+   "notes/okr-2027-q1.md": "mentions yield",
+   "meetings/audio/supplier-call-2027-01-16.wav": "about yield mentions yield",
+   "notes/retro-prep.md": "mentions yield",
+   "images/whiteboard-launch-timeline.png": "mentions yield",
+   "contracts/hengding-lens-supply-contract.pdf": "mentions yield",
+   "decks/aurora-launch-plan.pptx": "mentions yield",
+   "notes/risk-register.md": "mentions yield",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions yield"
+  }
+ },
+ {
+  "key": "term:9e70ad8e8cd40c5f9b4eebea",
+  "type": "Term",
+  "name": "发布日期",
+  "names": [
+   "release date",
+   "发布日期"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/press-faq-zh.md"
+  ],
+  "blob": "发布日期 release date about 发布日期 mentions 发布日期 mentions 发布日期 mentions 发布日期 mentions 发布日期 mentions 发布日期",
+  "blob_by_file": {
+   "meetings/audio/readiness-call-2027-02-02.m4a": "about 发布日期 mentions 发布日期",
+   "memos/launch-delay-memo-signed.pdf": "mentions 发布日期",
+   "notes/press-faq-zh.md": "mentions 发布日期",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions 发布日期",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 发布日期"
+  }
+ },
+ {
+  "key": "term:a51a537d4b9d86807f05a587",
+  "type": "Term",
+  "name": "Video production",
+  "names": [
+   "video production",
+   "视频制作"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "video production 视频制作",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:a74d4f965b1a37521612173c",
+  "type": "Term",
+  "name": "Hardware",
+  "names": [
+   "hardware",
+   "硬件"
+  ],
+  "files": [
+   "finance/actuals-2027-q1.csv",
+   "finance/launch-budget-2027.xlsx",
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "people/team-roster.xlsx",
+   "reports/launch-readiness-report-2027-02-20.pdf",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "hardware 硬件 mentions hardware about hardware mentions hardware mentions hardware about hardware mentions hardware mentions hardware mentions hardware",
+  "blob_by_file": {
+   "finance/actuals-2027-q1.csv": "mentions hardware about hardware",
+   "finance/launch-budget-2027.xlsx": "about hardware mentions hardware",
+   "people/team-roster.xlsx": "mentions hardware",
+   "specs/np7-product-spec.docx": "mentions hardware",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions hardware",
+   "reports/launch-readiness-report-2027-02-20.pdf": "mentions hardware"
+  }
+ },
+ {
+  "key": "term:beacf4b431363842260dc915",
+  "type": "Term",
+  "name": "Go/no-go",
+  "names": [
+   "go/no-go",
+   "放行评审"
+  ],
+  "files": [
+   "decks/aurora-launch-plan.pptx",
+   "images/whiteboard-launch-timeline.png",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/glossary.md",
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "go/no-go 放行评审 mentions go/no-go about go/no-go mentions go/no-go mentions go/no-go mentions go/no-go mentions go/no-go",
+  "blob_by_file": {
+   "notes/glossary.md": "mentions go/no-go about go/no-go",
+   "images/whiteboard-launch-timeline.png": "mentions go/no-go",
+   "decks/aurora-launch-plan.pptx": "mentions go/no-go",
+   "specs/np7-test-plan.docx": "mentions go/no-go",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions go/no-go"
+  }
+ },
+ {
+  "key": "term:c8eebb1df0eeb33533e9b960",
+  "type": "Term",
+  "name": "Warehousing",
+  "names": [
+   "warehousing",
+   "仓储"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "warehousing 仓储",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:c9710ed54b3236cd192d82d6",
+  "type": "Term",
+  "name": "Field test",
+  "names": [
+   "field test",
+   "现场测试"
+  ],
+  "files": [
+   "specs/np7-test-plan.docx"
+  ],
+  "blob": "field test 现场测试 mentions field test about field test",
+  "blob_by_file": {
+   "specs/np7-test-plan.docx": "mentions field test about field test"
+  }
+ },
+ {
+  "key": "term:d0f9000cccd7463e48b8058c",
+  "type": "Term",
+  "name": "百分之八十五的门槛",
+  "names": [
+   "85% threshold",
+   "百分之八十五的门槛"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a"
+  ],
+  "blob": "百分之八十五的门槛 85% threshold",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:f3e7fa1f8aec1c0ed76cac87",
+  "type": "Term",
+  "name": "Budget CNY",
+  "names": [
+   "budget cny",
+   "人民币预算",
+   "预算（人民币）"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "budget cny 人民币预算 预算（人民币）",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:f8d364a25f8ba8ed73a9cf1c",
+  "type": "Term",
+  "name": "Certification and QA",
+  "names": [
+   "certification and qa",
+   "认证与质量保证"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "certification and qa 认证与质量保证",
+  "blob_by_file": {}
+ },
+ {
+  "key": "term:fa5009d90f7be878fa4937a6",
+  "type": "Term",
+  "name": "新闻解禁日",
+  "names": [
+   "news embargo date",
+   "新闻解禁日"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "新闻解禁日 news embargo date",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:00ab7f488864e29bdaa90b37",
+  "type": "Thing",
+  "name": "Belem",
+  "names": [
+   "belem",
+   "贝伦"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "belem 贝伦",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:0390771bffd8a4c3d759c162",
+  "type": "Thing",
+  "name": "video production PO",
+  "names": [
+   "video production po"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-26-budget-review.docx"
+  ],
+  "blob": "video production po",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:08a868c6d42b04eee992df41",
+  "type": "Thing",
+  "name": "空运",
+  "names": [
+   "air freight",
+   "空运"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a"
+  ],
+  "blob": "空运 air freight",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:0909f4d5bb9a1304af6c3e5b",
+  "type": "Thing",
+  "name": "CNY 3,999",
+  "names": [
+   "cny 3,999",
+   "价格"
+  ],
+  "files": [
+   "notes/press-faq-en.md"
+  ],
+  "blob": "cny 3,999 价格",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:09f20af2f0d7cac5bd6ab7e7",
+  "type": "Thing",
+  "name": "Hotel near Rossio",
+  "names": [
+   "hotel near rossio",
+   "罗西乌附近酒店"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "hotel near rossio 罗西乌附近酒店",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:0db572dcdacaed57b14fafab",
+  "type": "Thing",
+  "name": "Subtotal",
+  "names": [
+   "subtotal",
+   "小计"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "subtotal 小计",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:1bdd2f153caae7677af7e17b",
+  "type": "Thing",
+  "name": "Subtotal",
+  "names": [
+   "subtotal",
+   "小计"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "subtotal 小计",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:40e6d7fd878242ecf6aae048",
+  "type": "Thing",
+  "name": "9 hours",
+  "names": [
+   "9 hours",
+   "电池续航"
+  ],
+  "files": [
+   "notes/press-faq-en.md"
+  ],
+  "blob": "9 hours 电池续航",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:4c9f763354df849f835ac7d1",
+  "type": "Thing",
+  "name": "Retail box",
+  "names": [
+   "retail box",
+   "零售盒"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf"
+  ],
+  "blob": "retail box 零售盒",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:4f4b51c7883722e9615d35b3",
+  "type": "Thing",
+  "name": "Print",
+  "names": [
+   "print",
+   "印刷"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "print 印刷",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:51cac24bdf2910b8702a2ee2",
+  "type": "Thing",
+  "name": "frame",
+  "names": [
+   "frame"
+  ],
+  "files": [
+   "notes/design-notes.md"
+  ],
+  "blob": "frame",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:5a1590f36ef520907f3df830",
+  "type": "Thing",
+  "name": "Video production",
+  "names": [
+   "video production",
+   "视频制作"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "video production 视频制作",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:5c3323f64972a8dbe16a56af",
+  "type": "Thing",
+  "name": "Lenses",
+  "names": [
+   "lenses",
+   "镜片"
+  ],
+  "files": [
+   "notes/press-faq-en.md"
+  ],
+  "blob": "lenses 镜片",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:5d106e3919e58b0bf12bb892",
+  "type": "Thing",
+  "name": "QA go/no-go",
+  "names": [
+   "qa go/no-go"
+  ],
+  "files": [
+   "images/whiteboard-launch-timeline.png"
+  ],
+  "blob": "qa go/no-go",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:60d7d25b5cbee7f2f71c2fa7",
+  "type": "Thing",
+  "name": "2027-03-18",
+  "names": [
+   "2027-03-18",
+   "发布日期"
+  ],
+  "files": [
+   "notes/press-faq-en.md"
+  ],
+  "blob": "2027-03-18 发布日期",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:6941cdc5dcc0c5465d0fbcd1",
+  "type": "Thing",
+  "name": "Air freight block",
+  "names": [
+   "air freight block"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "air freight block",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:6eeec30f2e1c3420325a8eae",
+  "type": "Thing",
+  "name": "Lens deposit 30 percent",
+  "names": [
+   "lens deposit 30 percent"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "lens deposit 30 percent",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:72ecd0428319e4fd87b3de1b",
+  "type": "Thing",
+  "name": "PO-1002",
+  "names": [
+   "po-1002"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "po-1002",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:7a66cc944f8d927b9d6cae9a",
+  "type": "Thing",
+  "name": "CNY 240,000",
+  "names": [
+   "cny 240,000",
+   "人民币240,000"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf"
+  ],
+  "blob": "cny 240,000 人民币240,000",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:83ca09fee63544f5a8c95d76",
+  "type": "Thing",
+  "name": "Q-2027-0215",
+  "names": [
+   "q-2027-0215"
+  ],
+  "files": [
+   "decks/vendor-review.pptx"
+  ],
+  "blob": "q-2027-0215",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:87999c4262585f774bf15d3a",
+  "type": "Thing",
+  "name": "Press embargo leak",
+  "names": [
+   "press embargo leak"
+  ],
+  "files": [
+   "notes/risk-register.md"
+  ],
+  "blob": "press embargo leak",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:8cf8b710a7ebfe56b74e85a6",
+  "type": "Thing",
+  "name": "budget workbook",
+  "names": [
+   "budget workbook",
+   "预算工作簿"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-26-budget-review.docx"
+  ],
+  "blob": "budget workbook 预算工作簿",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:8d2011c047e2f19312558341",
+  "type": "Thing",
+  "name": "Flight home",
+  "names": [
+   "flight home",
+   "返程航班"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "flight home 返程航班",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:a3e4ab4b9350abd3db3bc163",
+  "type": "Thing",
+  "name": "press embargo",
+  "names": [
+   "press embargo",
+   "新闻禁运"
+  ],
+  "files": [
+   "images/whiteboard-launch-timeline.png",
+   "notes/press-faq-en.md",
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "press embargo 新闻禁运",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:a4c5fc6da66ed48708f090fc",
+  "type": "Thing",
+  "name": "old town",
+  "names": [
+   "old town",
+   "老城区"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "old town 老城区",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:a957912c2ba2ca40b25d714b",
+  "type": "Thing",
+  "name": "Frames",
+  "names": [
+   "frames"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "frames",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:a9918eaba5b9cd9dc2b8bbc7",
+  "type": "Thing",
+  "name": "Sintra day trip",
+  "names": [
+   "sintra day trip",
+   "辛特拉一日游"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "sintra day trip 辛特拉一日游",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:ac9cc8f9386e14e4a62911d4",
+  "type": "Thing",
+  "name": "发布延期备忘录",
+  "names": [
+   "launch delay memo",
+   "发布延期备忘录"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-12-launch-sync.docx"
+  ],
+  "blob": "发布延期备忘录 launch delay memo",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:add1cc2a73bdc0b460430603",
+  "type": "Thing",
+  "name": "Video shoot",
+  "names": [
+   "video shoot",
+   "视频拍摄"
+  ],
+  "files": [
+   "images/whiteboard-launch-timeline.png"
+  ],
+  "blob": "video shoot 视频拍摄",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:aff7b63ee2b11e637da3db9f",
+  "type": "Thing",
+  "name": "PO-1003",
+  "names": [
+   "po-1003"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "po-1003",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:b21c515e619224c3d3c6058a",
+  "type": "Thing",
+  "name": "two million four hundred eighty thousand u n",
+  "names": [
+   "two million four hundred eighty thousand u n"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "two million four hundred eighty thousand u n",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:b5bc8f457bb78fe7a718ed45",
+  "type": "Thing",
+  "name": "Rossio",
+  "names": [
+   "rossio",
+   "罗西乌"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "rossio 罗西乌",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:b60249e4e1269f3b195e88ea",
+  "type": "Thing",
+  "name": "PO-1004",
+  "names": [
+   "po-1004"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "po-1004",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:bb96c7cd8850588067c76490",
+  "type": "Thing",
+  "name": "Signed memo",
+  "names": [
+   "signed memo",
+   "已签署备忘录"
+  ],
+  "files": [
+   "notes/slack-export-launch.txt"
+  ],
+  "blob": "signed memo 已签署备忘录",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:be20582344a7e7bfd072316b",
+  "type": "Thing",
+  "name": "tram 28",
+  "names": [
+   "28路电车",
+   "tram 28"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "tram 28 28路电车",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:c166500917c032242bb881e9",
+  "type": "Thing",
+  "name": "PO-1001",
+  "names": [
+   "po-1001"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "po-1001",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:c1c0fa317f8a1e95a09ce914",
+  "type": "Thing",
+  "name": "landsets",
+  "names": [
+   "landsets"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "landsets",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:c51f4b871bdbd9e32d48fae5",
+  "type": "Thing",
+  "name": "CNY 2,480,000",
+  "names": [
+   "cny 2,480,000",
+   "人民币二百四十八万元"
+  ],
+  "files": [
+   "contracts/hengding-lens-supply-contract.pdf"
+  ],
+  "blob": "cny 2,480,000 人民币二百四十八万元",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:cd065b6e839a8ec1407988f8",
+  "type": "Thing",
+  "name": "Lens (Hengding)",
+  "names": [
+   "lens (hengding)",
+   "镜头（hengding）"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "lens (hengding) 镜头（hengding）",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:ce280d4c55104cfffce23a7e",
+  "type": "Thing",
+  "name": "Retail box first run",
+  "names": [
+   "retail box first run"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "retail box first run",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:dac555c8e1b66959d40526f6",
+  "type": "Thing",
+  "name": "contract",
+  "names": [
+   "contract"
+  ],
+  "files": [
+   "meetings/audio/supplier-call-2027-01-16.wav"
+  ],
+  "blob": "contract",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:dc17c02b43d3a9f7f96e75ca",
+  "type": "Thing",
+  "name": "Northp",
+  "names": [
+   "northp"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf"
+  ],
+  "blob": "northp",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:dc2e44ade053cc9fe68e89e4",
+  "type": "Thing",
+  "name": "Budget overrun beyond CNY 450,000 reserve",
+  "names": [
+   "budget overrun beyond cny 450,000 reserve"
+  ],
+  "files": [
+   "notes/risk-register.md"
+  ],
+  "blob": "budget overrun beyond cny 450,000 reserve",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:e40c34403d51ab4176a8dedb",
+  "type": "Thing",
+  "name": "Air freight delay",
+  "names": [
+   "air freight delay"
+  ],
+  "files": [
+   "notes/risk-register.md"
+  ],
+  "blob": "air freight delay",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:e6a49fff00e4af43a6f80347",
+  "type": "Thing",
+  "name": "总预算",
+  "names": [
+   "total budget",
+   "总预算"
+  ],
+  "files": [
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "总预算 total budget",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:e890a8238304b06b51253552",
+  "type": "Thing",
+  "name": "2027-03-01",
+  "names": [
+   "2027-03-01"
+  ],
+  "files": [
+   "contracts/meridian-packaging-quote.pdf"
+  ],
+  "blob": "2027-03-01",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:eb5bb779413009662e779120",
+  "type": "Thing",
+  "name": "TOTAL",
+  "names": [
+   "total",
+   "合计"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "total 合计",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:ef142dfd0eabd00504d4ae9a",
+  "type": "Thing",
+  "name": "Launch video production",
+  "names": [
+   "launch video production"
+  ],
+  "files": [
+   "finance/po-log.csv"
+  ],
+  "blob": "launch video production",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:f176ebeb8c9b90d4326184ec",
+  "type": "Thing",
+  "name": "Digital ads",
+  "names": [
+   "digital ads",
+   "数字广告"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "digital ads 数字广告",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:f81e5edcb25a8958938f1072",
+  "type": "Thing",
+  "name": "38 g",
+  "names": [
+   "38 g",
+   "重量"
+  ],
+  "files": [
+   "notes/press-faq-en.md"
+  ],
+  "blob": "38 g 重量",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:f83b00a454baad45a2240888",
+  "type": "Thing",
+  "name": "Events",
+  "names": [
+   "events",
+   "活动"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "events 活动",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:fbd38d19fdaeb76bf6b48c9c",
+  "type": "Thing",
+  "name": "Lens yield below 85 percent",
+  "names": [
+   "lens yield below 85 percent"
+  ],
+  "files": [
+   "notes/risk-register.md"
+  ],
+  "blob": "lens yield below 85 percent",
+  "blob_by_file": {}
+ },
+ {
+  "key": "thing:fcbd960fc8f4a043be416338",
+  "type": "Thing",
+  "name": "Hengding",
+  "names": [
+   "hengding"
+  ],
+  "files": [
+   "finance/launch-budget-2027.xlsx"
+  ],
+  "blob": "hengding",
+  "blob_by_file": {}
+ },
+ {
+  "key": "topic:00e3be513a42da18ff13b969",
+  "type": "Topic",
+  "name": "Launch Readiness",
+  "names": [
+   "launch readiness",
+   "发布就绪"
+  ],
+  "files": [
+   "reports/launch-readiness-report-2027-02-20.pdf"
+  ],
+  "blob": "launch readiness 发布就绪 about launch readiness mentions launch readiness about launch readiness",
+  "blob_by_file": {
+   "reports/launch-readiness-report-2027-02-20.pdf": "about launch readiness mentions launch readiness about launch readiness"
+  }
+ },
+ {
+  "key": "topic:4127ca634cb365cc58a10a27",
+  "type": "Topic",
+  "name": "Battery",
+  "names": [
+   "battery",
+   "电池"
+  ],
+  "files": [
+   "notes/customer-feedback.txt",
+   "notes/press-faq-en.md",
+   "specs/np7-product-spec.docx"
+  ],
+  "blob": "battery 电池 about battery mentions battery mentions battery mentions battery",
+  "blob_by_file": {
+   "notes/customer-feedback.txt": "about battery mentions battery",
+   "notes/press-faq-en.md": "mentions battery",
+   "specs/np7-product-spec.docx": "mentions battery"
+  }
+ },
+ {
+  "key": "topic:42f8cd0a0c2fff095bfdb957",
+  "type": "Topic",
+  "name": "Naming",
+  "names": [
+   "naming",
+   "命名"
+  ],
+  "files": [
+   "notes/naming-guidelines.md"
+  ],
+  "blob": "naming 命名 about naming mentions naming",
+  "blob_by_file": {
+   "notes/naming-guidelines.md": "about naming mentions naming"
+  }
+ },
+ {
+  "key": "topic:5f97ef0d8bcdcc628b1fa962",
+  "type": "Topic",
+  "name": "Launch team onboarding",
+  "names": [
+   "launch team onboarding"
+  ],
+  "files": [
+   "notes/onboarding-launch-team.md"
+  ],
+  "blob": "launch team onboarding about launch team onboarding mentions launch team onboarding",
+  "blob_by_file": {
+   "notes/onboarding-launch-team.md": "about launch team onboarding mentions launch team onboarding"
+  }
+ },
+ {
+  "key": "topic:7cf6bde8e959851e069408f9",
+  "type": "Topic",
+  "name": "green frame colour",
+  "names": [
+   "green frame colour"
+  ],
+  "files": [
+   "notes/customer-feedback.txt"
+  ],
+  "blob": "green frame colour mentions green frame colour about green frame colour",
+  "blob_by_file": {
+   "notes/customer-feedback.txt": "mentions green frame colour about green frame colour"
+  }
+ },
+ {
+  "key": "topic:8f9512c50966163eec44fdb1",
+  "type": "Topic",
+  "name": "Grandma's lemon tart",
+  "names": [
+   "grandma's lemon tart"
+  ],
+  "files": [
+   "misc/lemon-tart-recipe.docx"
+  ],
+  "blob": "grandma's lemon tart about grandma's lemon tart mentions grandma's lemon tart",
+  "blob_by_file": {
+   "misc/lemon-tart-recipe.docx": "about grandma's lemon tart mentions grandma's lemon tart"
+  }
+ },
+ {
+  "key": "topic:c3b8d0394c9e982f43054b3c",
+  "type": "Topic",
+  "name": "Budget review",
+  "names": [
+   "budget review",
+   "预算评审"
+  ],
+  "files": [
+   "meetings/minutes-2027-01-26-budget-review.docx",
+   "notes/meeting-cadence.txt"
+  ],
+  "blob": "budget review 预算评审 mentions budget review about budget review mentions budget review about budget review",
+  "blob_by_file": {
+   "notes/meeting-cadence.txt": "mentions budget review about budget review",
+   "meetings/minutes-2027-01-26-budget-review.docx": "mentions budget review about budget review"
+  }
+ },
+ {
+  "key": "topic:c40409652255cf0aa7911c95",
+  "type": "Topic",
+  "name": "极光NP-7发布日期调整",
+  "names": [
+   "aurora np-7 launch date adjustment",
+   "极光np-7发布日期调整"
+  ],
+  "files": [
+   "memos/launch-delay-memo-signed.pdf"
+  ],
+  "blob": "极光np-7发布日期调整 aurora np-7 launch date adjustment about 极光np-7发布日期调整 mentions 极光np-7发布日期调整",
+  "blob_by_file": {
+   "memos/launch-delay-memo-signed.pdf": "about 极光np-7发布日期调整 mentions 极光np-7发布日期调整"
+  }
+ },
+ {
+  "key": "topic:cc94bf34cb26933d40a2fff2",
+  "type": "Topic",
+  "name": "镜片良率",
+  "names": [
+   "lens yield rate",
+   "镜片良率"
+  ],
+  "files": [
+   "meetings/audio/readiness-call-2027-02-02.m4a",
+   "meetings/minutes-2027-01-12-launch-sync.docx",
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "memos/launch-delay-memo-signed.pdf",
+   "notes/okr-2027-q1-zh.md"
+  ],
+  "blob": "镜片良率 lens yield rate mentions 镜片良率 mentions 镜片良率 about 镜片良率 mentions 镜片良率 mentions 镜片良率 mentions 镜片良率",
+  "blob_by_file": {
+   "memos/launch-delay-memo-signed.pdf": "mentions 镜片良率",
+   "notes/okr-2027-q1-zh.md": "mentions 镜片良率",
+   "meetings/audio/readiness-call-2027-02-02.m4a": "about 镜片良率 mentions 镜片良率",
+   "meetings/minutes-2027-01-12-launch-sync.docx": "mentions 镜片良率",
+   "meetings/minutes-2027-02-02-readiness.docx": "mentions 镜片良率"
+  }
+ },
+ {
+  "key": "topic:dacdd4bae76f8876f2c7c0ed",
+  "type": "Topic",
+  "name": "frame",
+  "names": [
+   "frame"
+  ],
+  "files": [
+   "notes/customer-feedback.txt",
+   "notes/design-notes.md"
+  ],
+  "blob": "frame mentions frame about frame mentions frame",
+  "blob_by_file": {
+   "notes/customer-feedback.txt": "mentions frame about frame",
+   "notes/design-notes.md": "mentions frame"
+  }
+ },
+ {
+  "key": "topic:dace4b7508615dadb766d9b3",
+  "type": "Topic",
+  "name": "Readiness check",
+  "names": [
+   "readiness check",
+   "就绪检查"
+  ],
+  "files": [
+   "meetings/minutes-2027-02-02-readiness.docx",
+   "notes/meeting-cadence.txt"
+  ],
+  "blob": "readiness check 就绪检查 mentions readiness check about readiness check about readiness check mentions readiness check",
+  "blob_by_file": {
+   "notes/meeting-cadence.txt": "mentions readiness check about readiness check",
+   "meetings/minutes-2027-02-02-readiness.docx": "about readiness check mentions readiness check"
+  }
+ },
+ {
+  "key": "topic:eabb55085f36eb9d70dabd7a",
+  "type": "Topic",
+  "name": "Lisbon weekend itinerary",
+  "names": [
+   "lisbon weekend itinerary",
+   "里斯本周末行程"
+  ],
+  "files": [
+   "misc/lisbon-itinerary.pdf"
+  ],
+  "blob": "lisbon weekend itinerary 里斯本周末行程 about lisbon weekend itinerary mentions lisbon weekend itinerary",
+  "blob_by_file": {
+   "misc/lisbon-itinerary.pdf": "about lisbon weekend itinerary mentions lisbon weekend itinerary"
+  }
+ },
+ {
+  "key": "topic:f067a1de934606ab89c68b9e",
+  "type": "Topic",
+  "name": "Weekly launch sync",
+  "names": [
+   "weekly launch sync",
+   "每周发布同步会"
+  ],
+  "files": [
+   "notes/meeting-cadence.txt"
+  ],
+  "blob": "weekly launch sync 每周发布同步会 mentions weekly launch sync about weekly launch sync",
+  "blob_by_file": {
+   "notes/meeting-cadence.txt": "mentions weekly launch sync about weekly launch sync"
+  }
+ }
+]

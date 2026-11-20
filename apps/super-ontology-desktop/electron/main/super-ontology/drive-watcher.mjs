@@ -40,7 +40,7 @@ export function toDrivePath(filename) {
  * as the safety net, so nothing here has to be perfect, only cheap: idle Drives cost no wake-ups.
  */
 export function createDriveWatcher({
-  client, logger = console, watch = fs.watch, readDrives, createId = () => `w${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`.padEnd(16, "0"),
+  client, logger = console, watch = fs.watch, exists = (target) => fs.existsSync(target), readDrives, createId = () => `w${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`.padEnd(16, "0"),
   timers = { setTimeout, clearTimeout, now: () => Date.now() }, debounceMs = WATCH_DEBOUNCE_MS, maxWaitMs = WATCH_MAX_WAIT_MS,
 } = {}) {
   /** driveId -> { root, handle, pending: Set, overflow, timer, firstAt, retries, restartTimer } */
@@ -74,8 +74,12 @@ export function createDriveWatcher({
     if (!entry || disposed) return;
     clearTimer(entry);
     entry.firstAt = null;
-    const full = entry.overflow || entry.pending.size > MAX_SYNC_PATHS;
     const paths = [...entry.pending];
+    // A targeted sync never sweeps: a path that is gone from disk would only be reported as "maybe deleted" and wait for the engine's
+    // 30 s poll, and a rename (old path gone, new path present) would meanwhile be ingested as a second copy of the same content. So a
+    // batch that holds a vanished path is one full sync, which sweeps the delete and recognises the rename in a single pass.
+    const vanished = !entry.overflow && paths.length <= MAX_SYNC_PATHS && paths.some((relative) => !exists(path.join(entry.root, relative)));
+    const full = entry.overflow || entry.pending.size > MAX_SYNC_PATHS || vanished;
     entry.pending.clear();
     entry.overflow = false;
     if (!full && paths.length === 0) return;

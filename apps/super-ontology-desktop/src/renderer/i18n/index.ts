@@ -34,7 +34,12 @@ export async function loadCatalogBundle(locale: AppLocale): Promise<LocaleCatalo
 
 const systemLanguages = (): readonly string[] => (navigator.languages?.length ? navigator.languages : [navigator.language || "en"]);
 /** Inside the Electron shell the language is the shell's setting (it also drives the native menu); a plain browser keeps it in localStorage. */
-type ShellLanguage = { readSettings(): Promise<{ language: string }>; writeSettings(patch: { language: string }): Promise<unknown> };
+type ShellLanguage = {
+  readSettings(): Promise<{ language: string }>;
+  writeSettings(patch: { language: string }): Promise<unknown>;
+  /** Another window (or the native menu) changed the setting. */
+  onSettingsChanged?(callback: (settings: { language?: string }) => void): () => void;
+};
 const shellOf = (): ShellLanguage | null => (window as unknown as { superOntology?: { shell?: ShellLanguage } }).superOntology?.shell ?? null;
 let hostedPreference: AppLanguagePreference | null = null;
 export async function adoptShellLanguage(): Promise<void> {
@@ -48,10 +53,22 @@ const readPreference = (): AppLanguagePreference => {
   return isSelectableAppLanguagePreference(value) ? value : "system";
 };
 
-/** Language is a renderer preference: it lives in localStorage and applies at once; the main process never needs it. */
+/**
+ * The language applies at once, without a restart: the preference is kept in the shell's settings (which also drive the native menu and
+ * dialogs; localStorage in a plain browser), and the state follows the system's language while the preference is "system" and another
+ * window's change of the setting.
+ */
 export function createLocaleClient(): LocaleClient & { getState: () => LocaleState } {
   const listeners = new Set<(state: LocaleState) => void>();
   const getState = () => resolveLocaleState(readPreference(), systemLanguages());
+  const refresh = () => { const state = getState(); for (const listener of listeners) listener(state); };
+  window.addEventListener("languagechange", () => { if (readPreference() === "system") refresh(); });
+  shellOf()?.onSettingsChanged?.((settings) => {
+    if (!isSelectableAppLanguagePreference(settings.language) || settings.language === readPreference()) return;
+    hostedPreference = settings.language;
+    window.localStorage.setItem(STORAGE_KEY, settings.language);
+    refresh();
+  });
   return Object.freeze({
     getState,
     async setLanguagePreference(preference: AppLanguagePreference) {

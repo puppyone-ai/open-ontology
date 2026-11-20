@@ -3,6 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Icon } from "@open-ontology/design-system";
 import { ChevronRight, Database, File, Folder, Package } from "lucide-react";
 import type { AtlasData, AtlasMember } from "./model";
+import { useUnlinkedText } from "../../model/unlinked";
 
 /**
  * The keyboard and screen reader equivalent of the graph (D88): every group and member the picture shows, as a plain tree of buttons,
@@ -10,12 +11,13 @@ import type { AtlasData, AtlasMember } from "./model";
  */
 const PAGE = 100;
 const SOURCE_ICON = { files: File, folder: Folder, bucket: Package, database: Database } as const;
-export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.count.files", db: "app.atlas.count.tables" } as const;
+export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.count.files", db: "app.atlas.count.tables", unlinked: "app.atlas.count.unlinked" } as const;
 
-export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void }) {
-  const { t } = useLocalization();
+export function AtlasList({ data, query, onOpen, only = null }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void; /** Shows this group alone (the not-connected filter). */ only?: string | null }) {
+  const { t, formatNumber } = useLocalization();
+  const reasonText = useUnlinkedText();
   // A picture of a few groups (a database alone, say) shows its members at once: there is nothing else to look at.
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(data.groups.length <= 3 ? data.groups.map((group) => group.id) : []));
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(data.groups.length <= 3 || only ? data.groups.map((group) => group.id) : []));
   const [relationLimit, setRelationLimit] = useState(PAGE);
   const [limits, setLimits] = useState<Readonly<Record<string, number>>>({});
   const needle = query.trim().toLocaleLowerCase();
@@ -34,14 +36,14 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
 
   const labels = useMemo(() => new Map(data.members.map((member) => [member.id, member.label])), [data.members]);
   const relations = useMemo(() => data.links.filter((link) => !needle || [link.a, link.b].some((id) => (labels.get(id) ?? "").toLocaleLowerCase().includes(needle))), [data.links, labels, needle]);
-  const groups = data.groups.filter((group) => !needle || tree.byGroup.has(group.id) || group.label.toLocaleLowerCase().includes(needle));
+  const groups = data.groups.filter((group) => (only === null || group.id === only)).filter((group) => !needle || tree.byGroup.has(group.id) || group.label.toLocaleLowerCase().includes(needle));
   const toggle = (id: string) => setOpen((current) => { const next = new Set(current); if (!next.delete(id)) next.add(id); return next; });
 
   return (
     <ul className="so-atlas-list" data-testid="atlas-list" aria-label={t("app.atlas.list")}>
       {groups.map((group) => {
         const members = tree.byGroup.get(group.id) ?? [];
-        const expanded = open.has(group.id) || (needle.length > 0 && members.length > 0);
+        const expanded = open.has(group.id) || only === group.id || (needle.length > 0 && members.length > 0);
         const limit = limits[group.id] ?? PAGE;
         return (
           <li key={group.id} className="so-atlas-list-group" data-tone={group.tone}>
@@ -51,12 +53,14 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
               <span className="so-atlas-list-name so-truncate">{group.label}</span>
               <span className="so-weak so-atlas-count">{t(COUNT_KEY[group.kind], { count: members.length })}</span>
             </button>
+            {expanded && group.kind === "unlinked" && <p className="so-weak so-atlas-caption" data-testid="atlas-unlinked-caption">{t("app.atlas.unlinked.caption")}</p>}
             {expanded && (
               <ul className="so-atlas-list-members">
                 {members.slice(0, limit).map((member) => (
                   <li key={member.id}>
                     <button type="button" className="so-atlas-list-row" onClick={() => onOpen(member)} data-testid="atlas-list-member" data-name={member.label}>
                       <span className="so-atlas-list-name so-truncate">{member.label}</span>
+                      {member.reason && <span className="so-weak so-atlas-reason so-truncate" data-testid="atlas-reason" data-reason={member.reason.kind}>{reasonText(member.reason)}</span>}
                       {(tree.links.get(member.id) ?? 0) > 0 && <span className="so-weak so-atlas-count">{t("app.atlas.linked", { count: tree.links.get(member.id) ?? 0 })}</span>}
                     </button>
                   </li>
@@ -69,9 +73,9 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
           </li>
         );
       })}
-      {relations.length > 0 && (
+      {only === null && relations.length > 0 && (
         <li className="so-atlas-list-group" data-testid="atlas-relations">
-          <p className="so-atlas-relations-head"><span>{t("app.atlas.relations")}</span><span className="so-weak so-atlas-count">{relations.length}</span></p>
+          <p className="so-atlas-relations-head"><span>{t("app.atlas.relations")}</span><span className="so-weak so-atlas-count">{formatNumber(relations.length)}</span></p>
           <ul className="so-atlas-list-members so-atlas-relations">
             {relations.slice(0, relationLimit).map((link) => {
               const [from, to] = link.from === link.b ? [link.b, link.a] : [link.a, link.b];

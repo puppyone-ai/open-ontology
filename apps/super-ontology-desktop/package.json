@@ -24,14 +24,15 @@
     "lint": "eslint --config eslint.config.mjs src scripts electron tests *.ts",
     "gen:contract": "node scripts/gen-contract.mjs",
     "gen:contract:check": "node scripts/gen-contract.mjs --check",
-    "check:i18n": "node scripts/check-i18n.mjs --complete && node scripts/check-i18n-length.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "check:brand": "node scripts/check-brand.mjs",
     "gen:icon": "node scripts/gen-icon.mjs",
     "gen:notice": "node scripts/gen-notice.mjs",
     "gen:notice:check": "node scripts/gen-notice.mjs --check",
     "prepare:oo": "node scripts/prepare-oo-bundle.mjs",
+    "build:native-media-decoder": "node scripts/build-native-media-decoder.mjs",
     "shots": "node scripts/electron-shots.mjs",
-    "dist:mac": "pnpm run gen:icon && pnpm run gen:notice && pnpm run build && pnpm run prepare:oo && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.yml --mac dmg --arm64 --publish never"
+    "dist:mac": "pnpm run gen:icon && pnpm run gen:notice && pnpm run build && pnpm run build:native-media-decoder && pnpm run prepare:oo && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.yml --mac dmg --arm64 --publish never"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

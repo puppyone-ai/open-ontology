@@ -20,9 +20,9 @@ describe("native path picker", () => {
     const dialog = { showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: [link] })) };
     const pick = createNativePathPicker({ dialog, translate });
     expect(await pick({ sender: {}, purpose: "drive-root" })).toBe(await (await import("node:fs/promises")).realpath(folder));
-    expect(dialog.showOpenDialog).toHaveBeenCalledWith({ title: "t:pick.driveRoot", properties: ["openDirectory"] });
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith({ title: "t:native.pick.driveRoot", message: "t:native.pick.driveRoot", properties: ["openDirectory"] });
     await pick({ sender: {}, purpose: "mount-target" });
-    expect(dialog.showOpenDialog.mock.calls[1][0].title).toBe("t:pick.mountTarget");
+    expect(dialog.showOpenDialog.mock.calls[1][0].title).toBe("t:native.pick.mountTarget");
   });
 
   it("parents the dialog to the owner window when there is one", async () => {

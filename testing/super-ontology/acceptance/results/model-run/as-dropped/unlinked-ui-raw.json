@@ -1,0 +1,937 @@
+[
+ {
+  "name": "project/contracts/hengding-lens-supply-contract.pdf",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/shipping-schedule.txt",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/people/team-roster.xlsx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/decks/vendor-review.pptx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/risk-register.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/audio/readiness-call-2027-02-02.m4a",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/images/screenshot-task-tracker.png",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/misc/random-readings.csv",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/meeting-cadence.txt",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/finance/po-log.csv",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/onboarding-launch-team.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/naming-guidelines.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/decks/aurora-launch-plan.pptx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/finance/actuals-2027-q1.csv",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/design-notes.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/okr-2027-q1-zh.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/finance/vendor-list.xlsx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/audio/supplier-call-2027-01-16.wav",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/okr-2027-q1.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/specs/np7-product-spec.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/press-faq-zh.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/images/whiteboard-launch-timeline.png",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/launch-checklist-zh.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/memos/launch-delay-memo-signed.pdf",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/slack-export-launch.txt",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/audio/launch-sync-2027-01-12.wav",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/misc/lisbon-itinerary.pdf",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/audio/budget-call-2027-01-26.m4a",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/specs/np7-test-plan.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/minutes-2027-01-26-budget-review.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/minutes-2027-01-12-launch-sync.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/reports/launch-readiness-report-2027-02-20.pdf",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/finance/launch-budget-2027.xlsx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/meetings/minutes-2027-02-02-readiness.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/contracts/meridian-packaging-quote.pdf",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/press-faq-en.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/customer-feedback.txt",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/glossary.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/people/contact-directory.csv",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/misc/lemon-tart-recipe.docx",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "project/notes/retro-prep.md",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Northport QA lab",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "handing auto electronics",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Hengding",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Yunfan Media",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Suda Express",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Meridian Packaging",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "子午线包装",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Northport Optics",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Meridian",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "速达快运",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "恒鼎光电",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Hengding Optoelectronics",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "云帆传播",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Ms. Bao Yi",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "柯子骞",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Ruobing Bai",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Ziqian Ke",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "haniccole",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Mingyuan Gu",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "邵婉清",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Ms. Ines Duarte",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Xiaolan Mao",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Wanqing Shao",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "蒋天佑",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "QA Engineer",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Tianyou Jiang",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Priya Raman",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Daniel Ortiz",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "P Cole",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "shanania jane",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "miiwan",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Mr. Kai Wen",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Hannah Cole",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Mr. Lu Fan",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Aurora NP-7 launch",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "极光 NP-7",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Aurora NP-7",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "极光NP-7",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "NP-7",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "lens yield",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Air freight",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "sample",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "yield sampling",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "matte graphite",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Marketing",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Embargo",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Logistics",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "镜片良率",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Yield",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "发布日期",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Hardware",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Go/no-go",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Field test",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Launch Readiness",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Battery",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Naming",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Launch team onboarding",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "green frame colour",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Grandma's lemon tart",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Budget review",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "极光NP-7发布日期调整",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "镜片良率",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "frame",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Readiness check",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Lisbon weekend itinerary",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "Weekly launch sync",
+  "kind": null,
+  "text": ""
+ },
+ {
+  "name": "2027-01-12项目同步会",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "2027-03-01",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "2027-03-18",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "38 g",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "9 hours",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "白若冰",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "百分之八十五的门槛",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "发布日期保持三月十八日",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "发布日期由2027-03-04调整为2027-03-18",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "发布延期备忘录",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "顾明远",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "就性检查",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "柯嘴仙",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "空运",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "向恒鼎光电（Hengding Optoelectronics）询价",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "项目同步会",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "新闻解禁日",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "新闻解禁日期改为 2027-03-16",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "总预算",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Air freight block",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Air freight delay",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Aurora NP-7 LAUNCH",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Budget CNY",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Budget overrun beyond CNY 450,000 reserve",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "budget workbook",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Certification and QA",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "CNY 2,480,000",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "CNY 240,000",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "CNY 3,999",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Contingency",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Delivery lead time",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Digital ads",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Events",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "frame",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Frames",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Go/no-go review",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Hengding",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Last-mile",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Launch video production",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Lens (Hengding)",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Lens deposit 30 percent",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Lens yield below 85 percent",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Lenses",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Northp",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Packaging",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "PO-1001",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "PO-1002",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "PO-1003",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "PO-1004",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "press embargo",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Press embargo leak",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Print",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Print",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Q-2027-0215",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "QA go/no-go",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "release threshold",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Retail box",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Retail box first run",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Selected as primary lens supplier",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Signed memo",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Subtotal",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Subtotal",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "The launch date is 2027-03-18, moved from 2027-03-04",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "TOTAL",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Video production",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Video production",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "video production PO",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Video shoot",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "Warehousing",
+  "kind": "entity",
+  "text": "No relation to anything else"
+ },
+ {
+  "name": "budget-call-2027-01-26.m4a",
+  "kind": "review",
+  "text": "Waiting for your review"
+ },
+ {
+  "name": "launch-sync-2027-01-12.wav",
+  "kind": "review",
+  "text": "Waiting for your review"
+ },
+ {
+  "name": "supplier-call-2027-01-16.wav",
+  "kind": "processing",
+  "text": "Still processing"
+ },
+ {
+  "name": "brand-mockup.key",
+  "kind": "unsupported",
+  "text": "Format not supported: zip"
+ },
+ {
+  "name": "broken-report.pdf",
+  "kind": "parse_failed",
+  "text": "Could not be read (DOCS_PARSE_CORRUPT)"
+ },
+ {
+  "name": "empty-notes.txt",
+  "kind": "no_entities",
+  "text": "No entities found in this file"
+ },
+ {
+  "name": "icon-set.sketch",
+  "kind": "unsupported",
+  "text": "Format not supported: zip"
+ },
+ {
+  "name": "lisbon-itinerary.pdf",
+  "kind": "processing",
+  "text": "Still processing"
+ },
+ {
+  "name": "random-readings.csv",
+  "kind": "processing",
+  "text": "Still processing"
+ },
+ {
+  "name": "meeting-cadence.txt",
+  "kind": "processing",
+  "text": "Still processing"
+ },
+ {
+  "name": "retro-prep.md",
+  "kind": "processing",
+  "text": "Still processing"
+ }
+]

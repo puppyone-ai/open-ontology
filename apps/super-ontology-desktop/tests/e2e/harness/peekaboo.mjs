@@ -56,6 +56,8 @@ export function createPeekaboo({ app, binary = "peekaboo", flags = DEFAULT_FLAGS
     /** Return through System Events (the open panel needs Return, keypad Enter, Return: complete the path, go there, choose). */
     nativeReturn: (code = 36) => run("osascript", ["-e", `tell application "System Events" to key code ${code}`], {}),
     press: (chord, { native = false } = {}) => call(["press", chord, ...(native ? [] : target), "--foreground"]),
+    /** Drags from one global point to another (a file from a Finder window onto the app): across apps, so no target and the real pointer. */
+    drag: (from, to, { duration = "1500ms" } = {}) => call(["drag", "--from", `${from[0]},${from[1]}`, "--to", `${to[0]},${to[1]}`, "--duration", duration, "--foreground"]),
     /** Scrolls the page under the pointer: what is below the fold is not in the accessibility tree until it is scrolled to. */
     scroll: (direction = "down", amount = 10) => call(["scroll", "--direction", direction, "--amount", String(amount), ...target, "--foreground"]),
     /** The accessibility elements of the app's window as Peekaboo reports them (name, role, whether they can be acted on): for the evidence of a failed run. */

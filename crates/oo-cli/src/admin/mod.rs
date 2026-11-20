@@ -10,6 +10,9 @@ mod doctor_docs;
 mod lite;
 mod lite_bundle;
 mod ontology;
+/// The owner's offline `oo ontology export|open|graph` help, for `oo ontology --help`.
+#[cfg(feature = "docs")]
+pub(crate) const ONTOLOGY_ADMIN_HELP: &str = ontology::HELP;
 mod ontology_graph;
 mod progress;
 mod remote;
@@ -100,6 +103,14 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
         return Some(build_retained::export_catalog(&rest[1..]));
     }
     if command == "help" && rest.first().is_some_and(|c| c == "ontology") {
+        #[cfg(feature = "docs")]
+        if rest.len() == 1 {
+            return Some(Ok(Invocation::Help(format!(
+                "{}\n{}",
+                crate::docs::ontology::HELP.trim_end(),
+                ontology::HELP
+            ))));
+        }
         return Some(Ok(Invocation::Help(ontology::HELP.into())));
     }
     if command == "help" && rest.first().is_some_and(|c| c == "review") {

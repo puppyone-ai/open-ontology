@@ -16,12 +16,13 @@ const CHANNELS = new Set([
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
   "engine-connect-remote", "engine-disconnect-remote",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
+  "ask-run", "ask-cancel",
   "cli-db-kinds", "cli-db-list", "cli-db-check", "cli-db-add", "cli-db-remove", "cli-db-test",
   "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read", "cli-review-read", "cli-review-submit",
   "cli-gateway-read", "cli-gateway-set", "cli-gateway-clear", "cli-query",
   "cli-diagnostics", "cli-ontology-export",
 ]);
-const PUSH_CHANNELS = ["engine-changed", "events", "connection-changed", "resync-required", "upload-progress"];
+const PUSH_CHANNELS = ["engine-changed", "events", "connection-changed", "resync-required", "upload-progress", "ask-progress"];
 const NOTICE_KINDS = new Set(["notice", "third-party", "license"]);
 const failure = (code) => ({ ok: false, error: { code, retryable: false, details: {} } });
 

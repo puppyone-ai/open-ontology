@@ -1,0 +1,7 @@
+{"expected_reason": "parsed but shares no entity with the project", "file": "misc/lemon-tart-recipe.docx", "kind": "unrelated_content"}
+{"expected_reason": "parsed but shares no entity with the project", "file": "misc/lisbon-itinerary.pdf", "kind": "unrelated_content"}
+{"expected_reason": "numeric table with no names, dates or entities shared with the project", "file": "misc/random-readings.csv", "kind": "unrelated_content"}
+{"expected_reason": "file has no content", "file": "misc/empty-notes.txt", "kind": "empty_file"}
+{"expected_reason": "PDF structure is damaged and cannot be read", "file": "misc/broken-report.pdf", "kind": "corrupt_file"}
+{"expected_reason": "Keynote package is not a supported format", "file": "misc/brand-mockup.key", "kind": "unsupported_format"}
+{"expected_reason": "Sketch file is not a supported format", "file": "misc/icon-set.sketch", "kind": "unsupported_format"}
