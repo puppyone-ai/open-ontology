@@ -102,8 +102,9 @@ export async function createAutosyncFixtures(root) {
     const id = String(index).padStart(2, "0");
     await fs.writeFile(path.join(watched, `base-${id}.md`), `# Base note ${id}\n\nA steady note number ${id} that stays as it is.\n`, "utf8");
   }
-  await fs.writeFile(path.join(watched, "dana-lee.md"), FIXTURE_FILES["People/dana-lee.md"], "utf8");
-  await fs.writeFile(path.join(watched, "alpha.md"), FIXTURE_FILES["Projects/alpha.md"], "utf8");
+  // Not the sample folder's files: the engine marks identical content in another source a duplicate.
+  await fs.writeFile(path.join(watched, "mira-okafor.md"), "---\ntype: person\nname: Mira Okafor\nrole: Platform lead\n---\n# Mira Okafor\n\nRole: Platform lead\n", "utf8");
+  await fs.writeFile(path.join(watched, "beacon.md"), "---\ntype: project\nname: Project Beacon\nowner: Mira Okafor\n---\n# Project Beacon\n\nOwner: Mira Okafor\n\nStatus: planning\n", "utf8");
   const drop = await make("Drop three");
   await fs.writeFile(path.join(drop, "note-one.md"), "# Note one\n\nA markdown note dropped into My files.\n", "utf8");
   await fs.writeFile(path.join(drop, "note-two.txt"), "A plain text note dropped into My files.\n", "utf8");

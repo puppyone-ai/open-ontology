@@ -62,14 +62,18 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
   }
 
   async function settleAll(driveId, minFiles) {
+    let last = "";
     for (let attempt = 0; attempt < 240; attempt += 1) {
       const files = await listFiles(driveId);
       const drive = (await engineApi(`/v1/docs/drives/${driveId}`)).body;
       const settled = new Set(["parsed", "published", "failed", "skipped", "unsupported"]);
       if (files.size >= minFiles && [...files.values()].every((file) => settled.has(file.state)) && drive?.freshness?.state === "up_to_date") return files;
+      const counts = {};
+      for (const file of files.values()) counts[file.state] = (counts[file.state] ?? 0) + 1;
+      last = `${files.size} files ${JSON.stringify(counts)}, freshness ${drive?.freshness?.state} ${drive?.freshness?.reason_code ?? ""}`;
       await sleep(500);
     }
-    throw new Error("the source did not settle");
+    throw new Error(`the source did not settle: ${last}`);
   }
 
   async function measure(label, { driveId, sourceName, expect, uiRequired = false, ...options }) {
@@ -130,7 +134,10 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
 
       await fs.writeFile(a, fileText("Zed Quill", "Lead tester"), "utf8");
       await measure("edit", { ...base, expect: [{ path: "zed-quill.md", want: "published", changedFrom: created.b3 }], judge: { expectTransition: true } });
-      if (state.zedPersonKey && !(await factsOf(state.zedPersonKey)).includes("Lead tester")) timings.problems.push("edit: the entity does not carry the edited fact (Lead tester)");
+      const nowKey = (await entitiesFor("Zed Quill")).find((entity) => entity.type === "Person")?.key;
+      const carried = nowKey ? await factsOf(nowKey) : "";
+      timings.editEntity = { keyBefore: state.zedPersonKey, keyAfter: nowKey, body: carried.slice(0, 700) };
+      if (!carried.includes("Lead tester")) timings.problems.push("edit: the entity does not carry the edited fact (Lead tester)");
 
       const b = path.join(root(), "zed-quill-renamed.md");
       await fs.rename(a, b);
@@ -184,12 +191,12 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
     // The Atlas is open in its by-source view; edit a file that holds an entity the Atlas shows.
     async ring() {
       const driveId = state.watched;
-      const people = (await entitiesFor("Dana Lee")).filter((entity) => entity.type === "Person");
-      if (people.length === 0) throw new Error("Dana Lee is not an entity yet");
+      const people = (await entitiesFor("Mira Okafor")).filter((entity) => entity.type === "Person");
+      if (people.length === 0) throw new Error("Mira Okafor is not an entity yet");
       const key = people[0].key;
-      const before = (await listFiles(driveId)).get("dana-lee.md");
+      const before = (await listFiles(driveId)).get("mira-okafor.md");
       const page = await cdp().evaluate(UI_SCRIPT);
-      const text = (await fs.readFile(path.join(root(), "dana-lee.md"), "utf8")).replace("Engineering lead", "Staff engineer");
+      const text = (await fs.readFile(path.join(root(), "mira-okafor.md"), "utf8")).replace("Platform lead", "Staff engineer");
       const marks = { ringMs: null, versionMs: null, factMs: null };
       const probe = probeFor(driveId, null);
       let t0 = 0;
@@ -202,9 +209,9 @@ export function createAutosync({ engineApi, cdp, directory, locale, variables, s
         if (marks.factMs === null && Date.now() - factChecked > 300) { factChecked = Date.now(); if ((await factsOf(key)).includes("Staff engineer")) marks.factMs = t; }
         return sample;
       };
-      await fs.writeFile(path.join(root(), "dana-lee.md"), text, "utf8");
+      await fs.writeFile(path.join(root(), "mira-okafor.md"), text, "utf8");
       t0 = Date.now();
-      const measurement = await measureChange({ expect: [{ path: "dana-lee.md", want: "published", changedFrom: before.b3 }], probe: watching, sleep, intervalMs: 100, timeoutMs: 90_000 });
+      const measurement = await measureChange({ expect: [{ path: "mira-okafor.md", want: "published", changedFrom: before.b3 }], probe: watching, sleep, intervalMs: 100, timeoutMs: 90_000 });
       const problems = judge(measurement, {});
       for (const [what, ms] of Object.entries(marks)) {
         if (ms === null) problems.push(`${what}: never happened (the Atlas / entity did not show the change)`);
