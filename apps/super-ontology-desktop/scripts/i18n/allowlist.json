@@ -168,17 +168,22 @@
     "ja": {
       "super-drive:browser.driveSwitcher": "Drive",
       "super-drive:audit.filter.drive": "Drive",
-      "super-drive:audit.column.drive": "Drive"
+      "super-drive:audit.column.drive": "Drive",
+      "app:connect.agent": "Agent"
     },
     "ko": {
       "super-drive:browser.driveSwitcher": "Drive",
       "super-drive:audit.filter.drive": "Drive",
-      "super-drive:audit.column.drive": "Drive"
+      "super-drive:audit.column.drive": "Drive",
+      "app:connect.agent": "Agent"
     },
     "zh-Hans": {
       "super-drive:browser.driveSwitcher": "Drive",
       "super-drive:audit.filter.drive": "Drive",
-      "super-drive:audit.column.drive": "Drive"
+      "super-drive:audit.column.drive": "Drive",
+      "app:connect.agent": "Agent",
+      "super-drive:audit.filter.agent": "Agent",
+      "super-drive:audit.column.agent": "Agent"
     }
   }
 }

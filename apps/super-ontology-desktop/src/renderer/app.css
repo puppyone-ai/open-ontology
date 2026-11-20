@@ -160,7 +160,6 @@
   .so-cli-error-code { display: inline-block; margin-bottom: 2px; color: var(--so-text-2); }
   .so-cli-error-text, .so-cli-error-next { margin: 2px 0 0; overflow-wrap: anywhere; }
   .so-cli-error-next { color: var(--so-text); font-weight: var(--so-weight-medium); }
-  .so-cli-error-text.so-mono { color: var(--so-text-2); }
   .so-language-error { color: var(--so-danger); }
   .so-error-code { display: block; margin-top: 2px; color: var(--so-text-2); }
 

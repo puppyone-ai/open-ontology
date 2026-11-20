@@ -28,7 +28,7 @@ export function CliCommand({ command, testId = "cli-command" }: { command: strin
   );
 }
 
-/** What a failed command says, in the language of the app: a written-out sentence for the code, then what `oo` itself printed. */
+/** What a failed command says: the code, what `oo` itself printed (its own text, the cause), then a sentence for the code in the language of the app. */
 export function CliErrorText({ error, testId = "cli-error" }: { error: CliError; testId?: string }) {
   const { t } = useLocalization();
   const bridgeText = useErrorText();
@@ -39,8 +39,8 @@ export function CliErrorText({ error, testId = "cli-error" }: { error: CliError;
   return (
     <>
       <span className="so-cli-error-code so-mono">{error.code}</span>
+      {view.raw && <p className="so-cli-error-text" data-testid={`${testId}-raw`}>{view.raw}</p>}
       <p className="so-cli-error-next" data-testid={view.sentence === "next" ? `${testId}-next` : undefined}>{sentence}</p>
-      {view.raw && <p className="so-cli-error-text so-mono" data-testid={`${testId}-raw`}>{t("app.cli.error.raw", { text: view.raw })}</p>}
     </>
   );
 }

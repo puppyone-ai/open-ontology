@@ -177,10 +177,7 @@
       "es": "Agente",
       "pt-BR": "Agente",
       "fr": "Agent",
-      "de": "Agent",
-      "ja": "エージェント",
-      "ko": "에이전트",
-      "zh-Hans": "智能体"
+      "de": "Agent"
     },
     "app.connect.agent.claude": {
       "en": "Claude",
@@ -911,8 +908,7 @@
       "fr": "Agent",
       "de": "Agent",
       "ja": "エージェント",
-      "ko": "에이전트",
-      "zh-Hans": "智能体"
+      "ko": "에이전트"
     },
     "super-drive.audit.filter.agent": {
       "en": "Agent",
@@ -921,8 +917,7 @@
       "fr": "Agent",
       "de": "Agent",
       "ja": "エージェント",
-      "ko": "에이전트",
-      "zh-Hans": "智能体"
+      "ko": "에이전트"
     },
     "super-drive.banner.action.resumeDrive": {
       "en": "Resume",

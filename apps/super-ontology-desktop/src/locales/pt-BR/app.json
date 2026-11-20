@@ -729,7 +729,6 @@
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "Este tipo não usa autoridade certificadora. Remova-a e adicione o banco de novo.",
   "import.stage.failed": "Parou aqui",
   "cli.error.generic": "O comando oo falhou.",
-  "cli.error.raw": "Mensagem do oo: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "O comando gerou mais saída do que o app consegue exibir. Execute-o em um terminal ou restrinja a solicitação.",
   "cli.next.SO_CHECK_AFTER_ADD": "Este tipo de banco de dados é verificado depois de adicionado.",
   "cli.next.SO_CLI_FAILED": "O comando oo não terminou. A causa aparece abaixo.",

@@ -729,7 +729,6 @@
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "Este tipo no usa autoridad certificadora. Quítala y añade la base de datos otra vez.",
   "import.stage.failed": "Se detuvo aquí",
   "cli.error.generic": "El comando oo falló.",
-  "cli.error.raw": "Mensaje de oo: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "El comando devolvió más de lo que la aplicación puede mostrar. Ejecútalo en un terminal o acota la solicitud.",
   "cli.next.SO_CHECK_AFTER_ADD": "Este tipo de base de datos se comprueba después de añadirla.",
   "cli.next.SO_CLI_FAILED": "El comando oo no terminó. La causa se muestra a continuación.",
