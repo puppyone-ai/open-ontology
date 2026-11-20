@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-use super::egress::{EgressClient, LlmPort, egress_args};
+use super::egress::{CLIENT_GRACE_SECS, EgressClient, LlmPort, egress_args, model_timeout_secs};
 
 /// Providers the egress speaks.
 pub const PROVIDERS: [&str; 2] = ["openai-compatible", "anthropic"];
@@ -416,6 +416,8 @@ impl ModelRuntime {
             g.last_error = Some("NO_PORT".into());
             return;
         };
+        let upstream =
+            model_timeout_secs(std::env::var("OO_DOCS_MODEL_TIMEOUT_SECS").ok().as_deref());
         let mut cmd = Command::new(&self.python);
         cmd.arg(script)
             .args(egress_args(
@@ -423,6 +425,7 @@ impl ModelRuntime {
                 &meter.to_string_lossy(),
                 port,
                 EGRESS_RPM,
+                upstream,
             ))
             .arg("--exit-with-parent")
             .arg(std::process::id().to_string())
@@ -469,7 +472,7 @@ impl ModelRuntime {
         }
         child.stdout.take();
         let mut client = EgressClient::new(addr, cfg.model.clone());
-        client.timeout = Duration::from_secs(120);
+        client.timeout = Duration::from_secs(upstream + CLIENT_GRACE_SECS);
         g.port = Some(Arc::new(client));
         g.child = Some(child);
     }
