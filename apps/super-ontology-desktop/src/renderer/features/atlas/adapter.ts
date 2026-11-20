@@ -148,7 +148,7 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
         tableIds.set(`${table.schema}.${table.table}`, id);
         members.push({ id, group: dbGroupId(table.schema), label: table.table, ref: { kind: "table", table: `${table.schema}.${table.table}` }, weight: table.columns ?? 0, born: null });
       }
-      for (const fk of catalog.value.foreignKeys) if (tableIds.has(`${fk.from.schema}.${fk.from.table}`) && tableIds.has(`${fk.to.schema}.${fk.to.table}`)) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key");
+      for (const fk of catalog.value.foreignKeys) if (tableIds.has(`${fk.from.schema}.${fk.from.table}`) && tableIds.has(`${fk.to.schema}.${fk.to.table}`)) addLink(links, tableId(fk.from), tableId(fk.to), "foreign_key", tableId(fk.from));
     } else if (catalog.error.code !== "ONTOLOGY_NOT_CONFIGURED") partial.add("tables");
     emit();
 
@@ -185,7 +185,7 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
         if (!subject || !object) continue;
         const a = entityId(subject);
         const b = entityId(object);
-        if (known.has(a) && known.has(b)) addLink(links, a, b, "fact");
+        if (known.has(a) && known.has(b)) addLink(links, a, b, "fact", a);
       }
     }, signal);
     if (failed > 0) partial.add("relations");
@@ -194,12 +194,12 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
   return { data: { groups: [...groups.values()], members, links: [...links.values()], versions, partial: [...partial] }, truncated };
 }
 
-function addLink(links: Map<string, AtlasLink>, a: string, b: string, kind: AtlasLink["kind"]): void {
+function addLink(links: Map<string, AtlasLink>, a: string, b: string, kind: AtlasLink["kind"], from?: string): void {
   if (a === b) return;
   const [lo, hi] = a < b ? [a, b] : [b, a];
   const key = `${kind}|${lo}|${hi}`;
   const existing = links.get(key);
-  if (existing) existing.weight += 1; else links.set(key, { a: lo, b: hi, kind, weight: 1 });
+  if (existing) existing.weight += 1; else links.set(key, { a: lo, b: hi, kind, weight: 1, ...(from ? { from } : {}) });
 }
 
 /** What changed between two loads, as scene operations: new cells bud, vanished ones retract, a changed weight pulses. */

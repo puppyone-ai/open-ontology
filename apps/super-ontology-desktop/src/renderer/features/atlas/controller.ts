@@ -23,7 +23,6 @@ export type ControllerOptions = {
 
 export type FrameStats = { fps: number; frameMs: number; p95Ms: number; draw: DrawStats };
 
-const DRIFT_LIMIT = 3000;
 const CAMERA_TWEEN_MS = 260;
 
 export class AtlasController {
@@ -226,7 +225,7 @@ export class AtlasController {
   playGrowth(): number {
     if (this.reduced) { this.scene.finishGrowth(); this.dirty = true; this.kick(); return 0; }
     const steps = this.scene.playGrowth();
-    this.pushNodes("bud", 0.5);
+    this.pushNodes("target", 0.5);
     this.fit(false);
     this.kick();
     return steps;
@@ -306,8 +305,6 @@ export class AtlasController {
 
   start(): void { this.disposed = false; this.kick(); }
 
-  private get ambient(): boolean { return !this.reduced && this.scene.memberCount <= DRIFT_LIMIT; }
-
   /** Schedules a frame if none is pending. The loop keeps itself going while anything moves and goes quiet otherwise. */
   private kick(): void {
     if (this.raf !== null || this.disposed) return;
@@ -329,21 +326,21 @@ export class AtlasController {
       this.camera = mixCamera(this.tween.from, this.tween.to, t);
       if (t >= 1) this.tween = null; else moving = true;
     }
-    if (this.host && this.scene.structure !== this.pushedStructure) this.pushNodes("bud", 0.5);
+    if (this.host && this.scene.structure !== this.pushedStructure) this.pushNodes("target", 0.5);
     if (this.host) for (const group of this.scene.groups) if (Math.abs(group.r - group.rBase) > 0.02 || group.r !== group.rBase) this.host.setRadius(group.idx, group.r);
-    if (moving || this.simRunning || this.ambient || this.dirty) {
+    if (moving || this.simRunning || this.dirty) {
       const started = this.now();
-      this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits, time: this.scene.clock, animate: this.ambient });
+      this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits });
       this.frames.push(this.now() - started);
       if (this.frames.length > 240) this.frames.shift();
       this.dirty = false;
     }
-    if (moving || this.simRunning || this.ambient || this.scene.growing) this.kick();
+    if (moving || this.simRunning || this.scene.growing) this.kick();
   }
 
   /** Draws one frame now, bypassing the loop (snapshots and measurements). */
   drawNow(): DrawStats {
-    this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits, time: this.scene.clock, animate: false });
+    this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits });
     return this.lastDraw;
   }
 

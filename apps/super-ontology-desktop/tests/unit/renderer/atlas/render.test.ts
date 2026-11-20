@@ -6,23 +6,30 @@ import { SimCore } from "../../../../src/renderer/features/atlas/simulation";
 import { sceneToSvg } from "../../../../src/renderer/features/atlas/svg";
 import { syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 
-/** A context that records what was drawn: enough to check the picture without a browser. */
+/** A context that records what was drawn and every style it was given: enough to check the picture without a browser. */
 function recorder() {
   const calls: Record<string, number> = {};
+  const sets: Record<string, unknown[]> = {};
+  const texts: { text: string; x: number; y: number; font: string }[] = [];
+  const rects: number[][] = [];
   const target: Record<string, unknown> = {};
   const ctx = new Proxy(target, {
     get: (t, name: string) => {
       if (name in t) return t[name];
-      if (name === "createRadialGradient") return () => ({ addColorStop: () => undefined });
-      if (name === "measureText") return () => ({ width: 10 });
-      return (..._args: unknown[]) => { calls[name] = (calls[name] ?? 0) + 1; };
+      if (name === "measureText") return (text: string) => ({ width: text.length * 6 });
+      if (name === "createPattern") return () => { calls.createPattern = (calls.createPattern ?? 0) + 1; return {}; };
+      return (...args: unknown[]) => {
+        calls[name] = (calls[name] ?? 0) + 1;
+        if (name === "fillText") texts.push({ text: String(args[0]), x: Number(args[1]), y: Number(args[2]), font: String(target.font) });
+        if (name === "fillRect") rects.push(args as number[]);
+      };
     },
-    set: (t, name: string, value) => { t[name] = value; return true; },
+    set: (t, name: string, value) => { (sets[name] ??= []).push(value); t[name] = value; return true; },
   }) as unknown as CanvasRenderingContext2D;
-  return { ctx, calls };
+  return { ctx, calls, sets, texts, rects };
 }
 
-const state = (scene: AtlasScene, over: Partial<DrawState> = {}): DrawState => ({ camera: fitCamera(scene.bounds(), 1000, 700), width: 1000, height: 700, dpr: 2, focus: -1, selected: -1, lit: null, hits: new Set(), time: 0, animate: false, ...over });
+const state = (scene: AtlasScene, over: Partial<DrawState> = {}): DrawState => ({ camera: fitCamera(scene.bounds(), 1000, 700), width: 1000, height: 700, dpr: 2, focus: -1, selected: -1, lit: null, hits: new Set(), ...over });
 const settle = (scene: AtlasScene) => {
   const core = new SimCore();
   core.setNodes(scene.simSpecs(), "target");
@@ -31,6 +38,7 @@ const settle = (scene: AtlasScene) => {
   core.copyPositions(out);
   scene.setPositions(out);
 };
+const mixed = (members = 120) => new AtlasScene(syntheticAtlas({ groups: 5, members, linkRatio: 1.2, seed: 4, dbShare: 0.4 }));
 
 beforeEach(() => {
   clearSpriteCache();
@@ -39,33 +47,82 @@ beforeEach(() => {
 afterEach(() => { delete (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas; });
 
 describe("atlas drawing", () => {
-  it("draws every group, member and the labels that fit, and reports what it drew", () => {
-    const scene = new AtlasScene(syntheticAtlas({ groups: 5, members: 120, seed: 4 }));
+  it("draws the marks in batches, the outlines of the groups and the names, and reports what it drew", () => {
+    const scene = mixed();
     settle(scene);
     const { ctx, calls } = recorder();
     const stats = drawAtlas(ctx, scene, state(scene));
     expect(stats.members).toBe(scene.memberCount);
-    expect(stats.labels).toBeGreaterThanOrEqual(5);
-    expect(calls.arc).toBeGreaterThanOrEqual(5);
-    expect(calls.drawImage).toBeGreaterThan(0);
+    expect(stats.labels).toBeGreaterThanOrEqual(4);
+    expect(calls.arc).toBeGreaterThan(scene.memberCount / 2);
+    expect(calls.roundRect).toBeGreaterThan(0);
+    // One path per tone and kind of mark, never one fill per member.
+    expect(calls.fill).toBeLessThan(scene.memberCount / 3);
+  });
+
+  it("has no gradient, no shadow, no blur and no glow anywhere", () => {
+    const scene = mixed();
+    settle(scene);
+    const { ctx, calls, sets } = recorder();
+    drawAtlas(ctx, scene, state(scene, { selected: scene.nodes.findIndex((n) => n.kind === "member"), focus: scene.nodes.findIndex((n) => n.kind === "member") }));
+    for (const name of ["createRadialGradient", "createLinearGradient", "createConicGradient", "drawImage"]) expect(calls[name] ?? 0).toBe(0);
+    for (const name of ["shadowBlur", "shadowColor", "filter"]) expect(sets[name]).toBeUndefined();
+  });
+
+  it("lays a dot grid of 8 pixels under everything and reuses it", () => {
+    const scene = mixed();
+    settle(scene);
+    const { ctx, calls } = recorder();
+    drawAtlas(ctx, scene, state(scene));
+    drawAtlas(ctx, scene, state(scene, { camera: { x: 31, y: 17, k: 1 } }));
+    expect(calls.createPattern).toBeLessThanOrEqual(1);
+  });
+
+  it("draws every line at a whole number of device pixels, at 1x and at 2x", () => {
+    for (const dpr of [1, 2, 3]) {
+      const scene = mixed();
+      settle(scene);
+      const { ctx, sets } = recorder();
+      drawAtlas(ctx, scene, state(scene, { dpr, camera: { ...fitCamera(scene.bounds(), 1000, 700), k: 1.4 } }));
+      const widths = (sets.lineWidth ?? []) as number[];
+      // The 4 pixel halo of labels and the 1.2 pixel glyph outlines are text; every other line is a multiple of one CSS pixel.
+      for (const width of widths.filter((w) => w !== 4 && w !== 1.2)) expect(Number.isInteger(width), `${width} at ${dpr}x`).toBe(true);
+      expect(widths.some((w) => w === dpr)).toBe(true);
+    }
   });
 
   it("culls what is outside the view", () => {
-    const scene = new AtlasScene(syntheticAtlas({ groups: 5, members: 400, seed: 4 }));
+    const scene = mixed(400);
     settle(scene);
     const everything = drawAtlas(recorder().ctx, scene, state(scene));
     const zoomed = drawAtlas(recorder().ctx, scene, state(scene, { camera: { x: 0, y: 0, k: 6 } }));
     expect(zoomed.members).toBeLessThan(everything.members);
   });
 
-  it("draws far cells as dots, not sprites, and no member labels when zoomed out", () => {
-    const scene = new AtlasScene(syntheticAtlas({ groups: 5, members: 400, seed: 4 }));
+  it("draws far cells as small squares of colour and no member names when zoomed out", () => {
+    const scene = mixed(400);
     settle(scene);
     const { ctx, calls } = recorder();
     const stats = drawAtlas(ctx, scene, state(scene, { camera: { x: 500, y: 350, k: 0.1 } }));
-    expect(calls.drawImage ?? 0).toBe(0);
     expect(calls.fillRect).toBeGreaterThan(100);
     expect(stats.labels).toBeLessThan(10);
+  });
+
+  it("names members only when zoomed in enough, with a canvas coloured halo", () => {
+    const scene = mixed(60);
+    settle(scene);
+    const far = recorder();
+    drawAtlas(far.ctx, scene, state(scene));
+    const near = recorder();
+    const camera = { ...fitCamera(scene.bounds(), 1000, 700), k: 3 };
+    camera.x = 500 - scene.groups[0]!.x * 3; camera.y = 350 - scene.groups[0]!.y * 3;
+    drawAtlas(near.ctx, scene, state(scene, { camera }));
+    const names = (texts: { text: string }[]) => texts.filter((t) => scene.nodes.some((n) => n.kind === "member" && n.label === t.text)).length;
+    expect(names(far.texts)).toBe(0);
+    expect(names(near.texts)).toBeGreaterThan(3);
+    expect(near.calls.strokeText).toBeGreaterThan(3);
+    expect(near.sets.strokeStyle).toContain("#fafaf9");
+    expect(near.texts.some((t) => t.font.startsWith("500 12px"))).toBe(true);
   });
 
   it("dims what is not near the focused cell and draws only that cell's links bright", () => {
@@ -73,44 +130,92 @@ describe("atlas drawing", () => {
     settle(scene);
     const focus = scene.nodes.find((n) => n.kind === "member" && scene.neighbors(n.idx).size > 0)!;
     const lit = new Set<number>([focus.idx, ...scene.neighbors(focus.idx), focus.group]);
-    const alphas = new Set<number>();
-    const target: Record<string, unknown> = {};
-    const ctx = new Proxy(target, {
-      get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : name === "measureText" ? () => ({ width: 40 }) : () => undefined),
-      set: (t, name: string, value) => { if (name === "globalAlpha") alphas.add(value as number); t[name] = value; return true; },
-    }) as unknown as CanvasRenderingContext2D;
+    const { ctx, sets } = recorder();
     const stats = drawAtlas(ctx, scene, state(scene, { focus: focus.idx, selected: focus.idx, lit }));
-    expect([...alphas].some((a) => a > 0 && a < 0.4)).toBe(true);
+    expect((sets.globalAlpha as number[]).some((a) => a > 0 && a < 0.4)).toBe(true);
+    expect((sets.strokeStyle as string[]).some((c) => c.startsWith("rgba(47, 74, 208, 0.6"))).toBe(true);
     expect(stats.labels).toBeGreaterThan(0);
+  });
+
+  it("uses the accent only for selection and focus", () => {
+    const scene = mixed();
+    settle(scene);
+    const plain = recorder();
+    drawAtlas(plain.ctx, scene, state(scene));
+    const used = (sets: Record<string, unknown[]>) => [...(sets.strokeStyle ?? []), ...(sets.fillStyle ?? [])].filter((c) => typeof c === "string" && c.startsWith("rgba(47, 74, 208"));
+    expect(used(plain.sets)).toHaveLength(0);
+    const member = scene.nodes.find((n) => n.kind === "member")!;
+    const picked = recorder();
+    drawAtlas(picked.ctx, scene, state(scene, { selected: member.idx }));
+    expect(used(picked.sets).length).toBeGreaterThan(0);
+  });
+
+  it("rings a changed cell once, growing from 1x to 1.6x and fading", () => {
+    const scene = mixed();
+    settle(scene);
+    const node = scene.nodes.find((n) => n.kind === "member")!;
+    scene.apply([{ type: "pulse", id: node.id }]);
+    const radii: number[] = [];
+    const alphas: number[] = [];
+    for (const dt of [0.02, 0.15, 0.3]) {
+      scene.step(dt);
+      const arcs: number[] = [];
+      const camera = state(scene, { dpr: 1 }).camera;
+      const cx = Math.round(node.x * camera.k + camera.x), cy = Math.round(node.y * camera.k + camera.y);
+      const target: Record<string, unknown> = {};
+      const ctx = new Proxy(target, { get: (t, name: string) => (name in t ? t[name] : name === "measureText" ? () => ({ width: 10 }) : name === "arc" ? (...a: number[]) => { if (a[0] === cx && a[1] === cy) arcs.push(a[2]!); } : () => ({})), set: (t, name: string, v) => { if (name === "globalAlpha" && v < 1) alphas.push(v as number); t[name] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+      drawAtlas(ctx, scene, state(scene, { dpr: 1 }));
+      radii.push(Math.max(...arcs));
+    }
+    expect(radii[1]!).toBeGreaterThan(radii[0]!);
+    expect(alphas.length).toBeGreaterThan(0);
+    scene.step(1);
+    expect(node.pulse).toBe(0);
   });
 
   it("scales with the device pixel ratio: the canvas is cleared in device pixels", () => {
     const scene = new AtlasScene(syntheticAtlas({ groups: 2, members: 10, seed: 1 }));
-    const rects: number[][] = [];
-    const target: Record<string, unknown> = { fillRect: (...a: number[]) => rects.push(a) };
-    const ctx = new Proxy(target, { get: (t, name: string) => (name in t ? t[name] : name === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : name === "measureText" ? () => ({ width: 40 }) : () => undefined), set: (t, n: string, v) => { t[n] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+    const { ctx, rects } = recorder();
     drawAtlas(ctx, scene, state(scene, { dpr: 3 }));
     expect(rects[0]).toEqual([0, 0, 3000, 2100]);
   });
 });
 
 describe("group labels", () => {
-  it("sit below their cell at every zoom, so no glyph lands on a member", () => {
-    for (const zoom of [0.4, 1, 2.5]) {
+  it("sit above the top left of their outline at every zoom, never on a member", () => {
+    for (const zoom of [0.6, 1, 2.5]) {
       const scene = new AtlasScene(syntheticAtlas({ groups: 4, members: 160, seed: 6, dbShare: 0 }));
       settle(scene);
-      const camera = { ...fitCamera(scene.bounds(), 1000, 700), k: zoom, x: 500 - 0 * zoom, y: 350 };
-      const texts: { text: string; y: number }[] = [];
-      const target: Record<string, unknown> = { fillText: (text: string, _x: number, y: number) => texts.push({ text, y }), measureText: () => ({ width: 40 }) };
-      const ctx = new Proxy(target, { get: (t, n: string) => (n in t ? t[n] : n === "createRadialGradient" ? () => ({ addColorStop: () => undefined }) : () => undefined), set: (t, n: string, v) => { t[n] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+      const camera = { k: zoom, x: 500, y: 350 };
+      const { ctx, texts } = recorder();
       drawAtlas(ctx, scene, state(scene, { camera, dpr: 1 }));
+      let seen = 0;
       for (const group of scene.groups) {
-        const label = texts.find((t) => t.text === group.label);
+        const label = texts.find((t) => t.text === group.label && t.font.startsWith("500 13px"));
         if (!label) continue;
-        const centre = group.y * zoom + camera.y;
-        expect(label.y, `${group.label} at zoom ${zoom}`).toBeGreaterThan(centre + group.r * zoom - 1);
+        seen += 1;
+        const hull = scene.hullOf(group);
+        const top = (group.y + Math.min(...hull.map((p) => p.y)) - 14) * zoom + camera.y;
+        const leftEdge = (group.x + Math.min(...hull.map((p) => p.x)) - 14) * zoom + camera.x;
+        expect(label.y, `${group.label} at zoom ${zoom}`).toBeLessThan(top);
+        expect(Math.abs(label.x - leftEdge)).toBeLessThanOrEqual(22);
       }
+      expect(seen).toBeGreaterThan(0);
     }
+  });
+
+  it("show the count after the name in digits of one width", () => {
+    const scene = new AtlasScene(syntheticAtlas({ groups: 3, members: 40, seed: 2, dbShare: 0 }));
+    settle(scene);
+    const { ctx, texts } = recorder();
+    drawAtlas(ctx, scene, state(scene, { dpr: 1 }));
+    const group = scene.groups[0]!;
+    const digits = texts.filter((t) => /^\d$/.test(t.text));
+    expect(digits.length).toBeGreaterThan(0);
+    const label = texts.find((t) => t.text === group.label)!;
+    const own = digits.filter((t) => Math.abs(t.y - label.y) < 0.5 && t.x > label.x);
+    expect(own.map((t) => t.text).join("")).toBe(String(group.count));
+    for (let i = 1; i < own.length; i += 1) expect(own[i]!.x - own[i - 1]!.x).toBeCloseTo(6, 5);
   });
 });
 

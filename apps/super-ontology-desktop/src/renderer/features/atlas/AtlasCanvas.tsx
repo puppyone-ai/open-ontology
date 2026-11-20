@@ -67,11 +67,21 @@ export function AtlasCanvas({ data, reducedMotion, onOpen, onSelect, handle }: P
     const wheel = (event: WheelEvent) => instance.wheel(event);
     element.addEventListener("wheel", wheel, { passive: false });
     window.addEventListener("resize", measure);
+    // A change of pixel ratio (the window moves to another screen, or the page is zoomed) does not resize the box: listen for it, so the canvas is never drawn blurry.
+    let ratio: MediaQueryList | null = null;
+    const watchRatio = () => {
+      ratio?.removeEventListener("change", onRatio);
+      ratio = window.matchMedia?.(`(resolution: ${window.devicePixelRatio || 1}dppx)`) ?? null;
+      ratio?.addEventListener("change", onRatio);
+    };
+    function onRatio() { measure(); watchRatio(); }
+    watchRatio();
     instance.start();
     return () => {
       observer.disconnect();
       element.removeEventListener("wheel", wheel);
       window.removeEventListener("resize", measure);
+      ratio?.removeEventListener("change", onRatio);
       instance.dispose();
       controller.current = null;
     };

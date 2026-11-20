@@ -82,7 +82,7 @@ export function syntheticAtlas(options: SyntheticOptions): AtlasData {
     const key = `${kind}|${lo.id}|${hi.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    links.push({ a: lo.id, b: hi.id, kind, weight: 1 });
+    links.push({ a: lo.id, b: hi.id, kind, weight: 1, ...(kind === "link" ? {} : { from: a.id }) });
   }
   // An entity that has relations has facts: weights never fall below the number of fact links, as in a real ontology.
   const degree = new Map<string, number>();
@@ -130,8 +130,8 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
       const row = byKey.get(key);
       if (!row) return { ok: false, error: { code: "DOCS_NOT_FOUND", retryable: false, details: {} } };
       const facts = factLinks.filter((l) => l.a === entityId(key) || l.b === entityId(key)).map((l, i) => {
-        const subjectKey = l.a.slice(2);
-        const objectKey = l.b.slice(2);
+        const subjectKey = (l.from ?? l.a).slice(2);
+        const objectKey = (l.from === l.b ? l.a : l.b).slice(2);
         return { id: uuid(100000 + i), fact_key: "0".repeat(64), subject: byKey.get(subjectKey)!, predicate: "related_to", object: byKey.get(objectKey) ?? null, confidence_bp: 9000, origin: "rule", status: "published" };
       });
       return ok({ ...row, facts } as unknown as EntityDetail);
@@ -152,7 +152,7 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
       count("catalog");
       if (extra.failCatalog) return { ok: false, error: { code: "ONTOLOGY_SCOPE_DENIED", retryable: false, details: {} } };
       const tables: DbTable[] = data.members.filter((m) => m.ref.kind === "table").map((m) => { const name = (m.ref as { table: string }).table; const dot = name.indexOf("."); return { schema: name.slice(0, dot), table: name.slice(dot + 1) }; });
-      const fk = data.links.filter((l) => l.kind === "foreign_key").map((l) => { const a = l.a.slice(2), b = l.b.slice(2); const split = (n: string) => ({ schema: n.slice(0, n.indexOf(".")), table: n.slice(n.indexOf(".") + 1) }); return { from: split(a), to: split(b) }; });
+      const fk = data.links.filter((l) => l.kind === "foreign_key").map((l) => { const a = (l.from ?? l.a).slice(2), b = (l.from === l.b ? l.a : l.b).slice(2); const split = (n: string) => ({ schema: n.slice(0, n.indexOf(".")), table: n.slice(n.indexOf(".") + 1) }); return { from: split(a), to: split(b) }; });
       return ok({ tables, foreignKeys: fk });
     },
   };

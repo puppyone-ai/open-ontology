@@ -1,6 +1,7 @@
 import { collapsedRadius, discBounds, expandedRadius, GOLDEN_ANGLE, memberRadius, phyllotaxisAnchors, spiralPoint } from "./layout";
 import type { SimNodeSpec } from "./simulation";
-import type { AtlasData, AtlasGroup, AtlasGroupKind, AtlasSourceKind, AtlasLink, AtlasLinkKind, AtlasMember, AtlasOp, AtlasRef, AtlasTone } from "./model";
+import { convexHull, foldedCorners, type Pt } from "./hull";
+import type { AtlasData, AtlasGroup, AtlasGroupKind, AtlasSourceKind, AtlasLink, AtlasLinkKind, AtlasMember, AtlasOp, AtlasOrigin, AtlasRef, AtlasTone } from "./model";
 
 /**
  * The state of the atlas: cells, their sizes, how far each has grown, pulsed or faded, and the links between them. A pure
@@ -16,6 +17,8 @@ export type SceneNode = {
   /** Groups only: the kind of source, for the glyph next to the label. */
   source: AtlasSourceKind | null;
   tone: AtlasTone;
+  /** Document, database, or both (a document entity tied to a table row). Drawn as a dot, a square, a dot in a ring. */
+  origin: AtlasOrigin;
   label: string;
   ref: AtlasRef | null;
   weight: number;
@@ -51,20 +54,34 @@ export type SceneNode = {
   count: number;
 };
 
-export type SceneLink = { a: number; b: number; kind: AtlasLinkKind; weight: number };
+/** `from` is the `idx` of the source end of a directed link, -1 for an undirected one; `t` is how much of it is drawn (0 to 1, source to target). */
+export type SceneLink = { a: number; b: number; kind: AtlasLinkKind; weight: number; from: number; t: number };
 export type GroupLink = { a: number; b: number; weight: number; count: number };
 export type SceneOptions = {
   /** Open every group at once. Default: open them all when there are at most this many members. */
   expandAllUpTo?: number;
 };
 
-const APPEAR_SECONDS = 0.55;
-const RETRACT_SECONDS = 0.8;
-const PULSE_SECONDS = 0.9;
-const BREATHE_SECONDS = 1.8;
+/** The motion of 25 section 7.3: a node scales in over 200 ms, a link is drawn over 200 ms, a change rings for 400 ms, new ones stagger by 16 ms. */
+export const APPEAR_SECONDS = 0.2;
+export const LINK_SECONDS = 0.2;
+export const RETRACT_SECONDS = 0.2;
+export const PULSE_SECONDS = 0.4;
+export const STAGGER_SECONDS = 0.016;
+const BREATHE_SECONDS = 0.4;
 const RADIUS_RATE = 6;
+const MAX_STAGGER = 0.9;
 export const DEFAULT_EXPAND_ALL_UP_TO = 400;
-const ease = (t: number) => 1 - (1 - t) ** 3;
+/** cubic-bezier(0.2, 0, 0, 1), the one curve of the app, sampled once. */
+const EASE_TABLE = (() => {
+  const x = (t: number) => 3 * (1 - t) ** 2 * t * 0.2 + t ** 3;
+  const y = (t: number) => 3 * (1 - t) * t * t * 1 + t ** 3;
+  const table = new Float32Array(129);
+  let t = 0;
+  for (let i = 0; i <= 128; i += 1) { const target = i / 128; while (t < 1 && x(t) < target) t += 1 / 4096; table[i] = y(Math.min(1, t)); }
+  return table;
+})();
+export const ease = (value: number): number => { if (value <= 0) return 0; if (value >= 1) return 1; const at = value * 128; const i = Math.floor(at); return EASE_TABLE[i]! + (EASE_TABLE[i + 1]! - EASE_TABLE[i]!) * (at - i); };
 const hash = (text: string): number => { let h = 2166136261; for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
 
 export class AtlasScene {
@@ -82,6 +99,9 @@ export class AtlasScene {
   clock = 0;
   breathe = 0;
   private growth: { steps: (() => void)[]; at: number; gap: number } | null = null;
+  private linksDrawing = 0;
+  private bornInBatch = 0;
+  private hulls = new Map<number, { key: string; points: Pt[] }>();
   private grid: { cell: number; cells: Map<number, number[]>; version: number } | null = null;
   private anchorScale = 60;
 
@@ -112,7 +132,7 @@ export class AtlasScene {
 
   private makeGroup(group: AtlasGroup, x: number, y: number, r: number): SceneNode {
     const node: SceneNode = {
-      idx: this.nodes.length, id: group.id, kind: "group", group: this.nodes.length, groupKind: group.kind, source: group.source ?? null, tone: group.tone, label: group.label, ref: null,
+      idx: this.nodes.length, id: group.id, kind: "group", group: this.nodes.length, groupKind: group.kind, source: group.source ?? null, tone: group.tone, origin: group.kind === "db" ? "db" : "doc", label: group.label, ref: null,
       weight: 0, born: null, x, y, rBase: r, r, appear: 1, delay: 0, shown: true, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(group.id),
       ox: 0, oy: 0, ax: x, ay: y, expanded: false, spiralNext: 0, members: [], count: 0,
     };
@@ -130,7 +150,7 @@ export class AtlasScene {
     const spot = spiralPoint(parent.spiralNext);
     parent.spiralNext += 1;
     const node: SceneNode = {
-      idx: this.nodes.length, id: member.id, kind: "member", group: owner, groupKind: parent.groupKind, source: null, tone: parent.tone, label: member.label, ref: member.ref,
+      idx: this.nodes.length, id: member.id, kind: "member", group: owner, groupKind: parent.groupKind, source: null, tone: parent.tone, origin: member.origin ?? (member.ref.kind === "table" ? "db" : "doc"), label: member.label, ref: member.ref,
       weight: member.weight, born: member.born, x: parent.x, y: parent.y, rBase: memberRadius(member.weight), r: memberRadius(member.weight),
       appear: grow ? 0 : parent.expanded ? 1 : 0, delay: 0, shown: parent.expanded, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(member.id),
       ox: spot.x, oy: spot.y, ax: 0, ay: 0, expanded: false, spiralNext: 0, members: [], count: 0,
@@ -143,11 +163,15 @@ export class AtlasScene {
     return node;
   }
 
-  private addLink(link: AtlasLink): boolean {
+  private addLink(link: AtlasLink, animate = false): boolean {
     const a = this.byId.get(link.a);
     const b = this.byId.get(link.b);
     if (a === undefined || b === undefined || a === b) return false;
-    this.links.push({ a, b, kind: link.kind, weight: link.weight });
+    const from = link.from === undefined ? -1 : this.byId.get(link.from) ?? -1;
+    this.links.push({ a, b, kind: link.kind, weight: link.weight, from: from === a || from === b ? from : -1, t: animate ? 0 : 1 });
+    if (animate) this.linksDrawing += 1;
+    // A document tied to a table row is one thing seen from both sides.
+    if (link.kind === "link") for (const idx of [a, b]) this.nodes[idx]!.origin = "both";
     this.adjacent(a).add(b);
     this.adjacent(b).add(a);
     const ga = this.nodes[a]!.group;
@@ -208,8 +232,8 @@ export class AtlasScene {
       const member = this.nodes[memberIdx]!;
       if (!member.alive) return;
       member.shown = expanded;
-      member.delay = expanded ? Math.min(0.9, order * 0.006) : 0;
-      if (expanded && member.appear === 0) { member.x = group.x; member.y = group.y; }
+      member.delay = expanded ? Math.min(MAX_STAGGER, order * STAGGER_SECONDS) : 0;
+      if (expanded && member.appear === 0) { member.x = group.x + member.ox; member.y = group.y + member.oy; }
     });
     this.structure += 1;
     this.refreshRadii(false);
@@ -233,12 +257,13 @@ export class AtlasScene {
   // ---- events and data ------------------------------------------------------------------------------------------
 
   apply(ops: readonly AtlasOp[]): void {
+    this.bornInBatch = 0;
     for (const op of ops) {
       if (op.type === "bud") this.bud(op.member, op.group);
       else if (op.type === "pulse") this.pulseNode(op.id);
       else if (op.type === "retract") this.retractNode(op.id);
       else if (op.type === "breathe") this.breathe = 1;
-      else if (op.type === "link") this.addLink(op.link);
+      else if (op.type === "link") this.addLink(op.link, true);
     }
   }
 
@@ -266,7 +291,9 @@ export class AtlasScene {
     const added = this.addMember(member, true);
     if (!added) return;
     const owner = this.nodes[added.group]!;
-    added.x = owner.x; added.y = owner.y;
+    added.x = owner.x + added.ox; added.y = owner.y + added.oy;
+    added.delay = Math.min(MAX_STAGGER, this.bornInBatch * STAGGER_SECONDS);
+    this.bornInBatch += 1;
     this.refreshRadii(false);
     owner.pulse = Math.max(owner.pulse, 0.6);
     if (!owner.expanded) added.shown = false;
@@ -304,12 +331,15 @@ export class AtlasScene {
       node.shown = false; node.appear = 0; node.delay = 0; node.pulse = 0;
       if (node.kind === "group") node.expanded = false;
     }
+    // Links are drawn again as their two ends arrive.
+    for (const link of this.links) link.t = 0;
+    this.linksDrawing = this.links.length;
     /** Brings `fresh` members of `group` into view; the group appears with its first member and stays open. */
     const reveal = (group: SceneNode, fresh: SceneNode[], stagger: number) => {
       if (fresh.length === 0) return;
       group.shown = true;
       group.expanded = true;
-      fresh.forEach((member, order) => { member.shown = true; member.delay = Math.min(0.9, order * stagger); member.x = group.x; member.y = group.y; });
+      fresh.forEach((member, order) => { member.shown = true; member.delay = Math.min(MAX_STAGGER, order * stagger); member.x = group.x + member.ox; member.y = group.y + member.oy; });
       group.pulse = Math.max(group.pulse, 0.7);
       this.structure += 1;
       this.refreshRadii(false);
@@ -317,9 +347,9 @@ export class AtlasScene {
     const members = (group: SceneNode) => group.members.map((i) => this.nodes[i]!).filter((m) => m.alive);
     const steps: (() => void)[] = [];
     if (versions.length > 0) {
-      for (const version of versions) steps.push(() => { for (const group of this.groupList) reveal(group, members(group).filter((m) => bornOf(m) === version), 0.012); });
+      for (const version of versions) steps.push(() => { for (const group of this.groupList) reveal(group, members(group).filter((m) => bornOf(m) === version), STAGGER_SECONDS); });
     } else {
-      for (const group of this.groupList) steps.push(() => { group.shown = true; group.expanded = true; reveal(group, members(group), 0.006); });
+      for (const group of this.groupList) steps.push(() => { group.shown = true; group.expanded = true; reveal(group, members(group), STAGGER_SECONDS); });
     }
     this.structure += 1;
     this.growth = { steps, at: 0, gap: stepSeconds };
@@ -340,6 +370,8 @@ export class AtlasScene {
   finishGrowth(): void {
     if (this.growth) { while (this.growth.at < this.growth.steps.length) this.growth.steps[this.growth.at++]!(); this.endGrowth(); }
     for (const node of this.nodes) { if (node.alive && node.shown) { node.appear = 1; node.delay = 0; } }
+    for (const link of this.links) link.t = 1;
+    this.linksDrawing = 0;
     this.refreshRadii(true);
   }
 
@@ -377,12 +409,39 @@ export class AtlasScene {
         busy = true;
       }
     }
+    if (this.linksDrawing > 0) {
+      for (const link of this.links) {
+        if (link.t >= 1) continue;
+        const a = this.nodes[link.a]!, b = this.nodes[link.b]!;
+        // A link is drawn once both ends are mostly there.
+        if (!a.alive || !b.alive || a.appear < 0.6 || b.appear < 0.6) { busy = true; continue; }
+        link.t = Math.min(1, link.t + dt / LINK_SECONDS);
+        if (link.t >= 1) this.linksDrawing -= 1;
+        busy = true;
+      }
+    }
     if (this.breathe > 0) { this.breathe = Math.max(0, this.breathe - dt / BREATHE_SECONDS); busy = true; }
     return busy;
   }
 
   /** Eased 0..1 growth of a node, for drawing. */
   grown(node: SceneNode): number { return ease(node.appear) * (1 - ease(node.retract)); }
+
+  /**
+   * The outline of a group, in the group's own coordinates: the convex hull of its members' resting places (those that have arrived), or the
+   * corners of a square for a folded group. Cached until the set of arrived members changes.
+   */
+  hullOf(group: SceneNode): Pt[] {
+    if (!group.expanded) return foldedCorners(group.r);
+    let arrived = 0;
+    for (const idx of group.members) { const m = this.nodes[idx]!; if (m.alive && m.appear > 0.001) arrived += 1; }
+    const key = `${group.members.length}:${arrived}`;
+    const cached = this.hulls.get(group.idx);
+    if (cached && cached.key === key) return cached.points;
+    const points = convexHull(group.members.map((idx) => this.nodes[idx]!).filter((m) => m.alive && m.appear > 0.001).map((m) => ({ x: m.ox, y: m.oy })));
+    this.hulls.set(group.idx, { key, points });
+    return points;
+  }
 
   // ---- simulation wiring ----------------------------------------------------------------------------------------
 

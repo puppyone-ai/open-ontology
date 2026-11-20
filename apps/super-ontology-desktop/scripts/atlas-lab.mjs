@@ -75,17 +75,18 @@ try {
       };
 
       await open();
-      await shot("01-atlas");
+      await shot("01-overview-type");
 
       // zoom in on a big group: labels appear when there is room
       const person = await where("Person");
       await page.mouse.move(person.x, person.y);
-      await page.mouse.wheel(0, -700);
-      await page.waitForTimeout(450);
+      await page.mouse.wheel(0, -2400);
+      await page.waitForTimeout(500);
+      await page.mouse.move(40, 40);
       await shot("02-zoomed-labels");
       const focus = await page.evaluate(() => { const c = window.__atlas; const g = c.scene.nodes.find((x) => x.label === "Person" && x.kind === "group"); const m = c.scene.nodes.find((x) => x.kind === "member" && x.group === g.idx && c.scene.neighbors(x.idx).size > 1); const b = document.querySelector("[data-testid=atlas-canvas]").getBoundingClientRect(); return { x: b.x + m.x * c.camera.k + c.camera.x, y: b.y + m.y * c.camera.k + c.camera.y }; });
       await page.mouse.move(focus.x, focus.y);
-      await shot("03-hover-focus");
+      await shot("03-focus");
       await page.locator("[data-testid=atlas-fit]").click();
       await page.waitForTimeout(500);
 
@@ -113,6 +114,7 @@ try {
 
       // growth: replay the versions
       await page.locator("[data-testid=atlas-play]").click();
+      for (const [name, ms] of [["a", 120], ["b", 240], ["c", 400], ["d", 700], ["e", 1500]]) await shot(`growth-mid-${name}`, ms);
       await frames("growth", 9000, 100);
       await shot("09-growth-done", 800);
 
@@ -133,11 +135,13 @@ try {
         lab.replace(next);
         lab.push([{ type: "ontology.version_published", at: new Date().toISOString(), data: { n: 99 } }]);
       });
+      await shot("live-change-a", 90);
+      await shot("live-change-b", 120);
       await frames("live-update", 5000, 100);
       await shot("10-live-updated", 400);
       await page.locator("[data-testid=atlas-mode-source]").click();
       await page.waitForTimeout(4000);
-      await shot("12-source-mode");
+      await shot("02-overview-source");
       await page.locator("[data-testid=atlas-view-list]").click();
       await page.locator("[data-testid=atlas-list-group]").first().click();
       await shot("13-source-list");

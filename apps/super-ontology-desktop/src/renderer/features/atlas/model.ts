@@ -17,6 +17,9 @@ export type AtlasGroup = { id: string; kind: AtlasGroupKind; label: string; tone
 
 export const SOURCE_TONE: Record<AtlasSourceKind, AtlasTone> = { files: "ink", folder: "dusk", bucket: "sand", database: "mist" };
 
+/** Where an entity comes from: a document, a database, or both (the same thing seen on both sides). Drawn as a dot, a square, a dot in a ring. */
+export type AtlasOrigin = "doc" | "db" | "both";
+
 export type AtlasMember = {
   id: string;
   group: string;
@@ -26,11 +29,14 @@ export type AtlasMember = {
   weight: number;
   /** The ontology version in which it first appeared, when the engine says; `null` otherwise. */
   born: number | null;
+  /** When the engine says it; otherwise the scene derives it from the reference (tables are database, the rest documents). */
+  origin?: AtlasOrigin;
 };
 
 /** `fact`: a fact whose object is another entity. `link`: a document entity linked to a table row. `foreign_key`: table to table. */
 export type AtlasLinkKind = "fact" | "link" | "foreign_key";
-export type AtlasLink = { a: string; b: string; kind: AtlasLinkKind; weight: number };
+/** `from` is the id of the source end of a directed link (a fact points from its subject, a foreign key from the referencing table). */
+export type AtlasLink = { a: string; b: string; kind: AtlasLinkKind; weight: number; from?: string };
 
 export type AtlasVersion = { n: number; asOf: string };
 

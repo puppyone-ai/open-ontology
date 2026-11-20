@@ -15,11 +15,11 @@ export function zoomAt(camera: Camera, sx: number, sy: number, factor: number): 
   return { k, x: sx - world.x * k, y: sy - world.y * k };
 }
 
-export function fitCamera(bounds: { minX: number; minY: number; maxX: number; maxY: number } | null, width: number, height: number, padding = 48): Camera {
+export function fitCamera(bounds: { minX: number; minY: number; maxX: number; maxY: number } | null, width: number, height: number, padding = 56): Camera {
   if (!bounds || width <= 0 || height <= 0) return { x: width / 2, y: height / 2, k: 1 };
   const w = Math.max(1, bounds.maxX - bounds.minX);
   const h = Math.max(1, bounds.maxY - bounds.minY);
-  const k = clampZoom(Math.min((width - padding * 2) / w, (height - padding * 2) / h, 1.6));
+  const k = clampZoom(Math.min((width - padding * 2) / w, (height - padding * 2) / h, 4));
   return { k, x: width / 2 - ((bounds.minX + bounds.maxX) / 2) * k, y: height / 2 - ((bounds.minY + bounds.maxY) / 2) * k };
 }
 
