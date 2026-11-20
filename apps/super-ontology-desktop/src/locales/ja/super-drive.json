@@ -1163,5 +1163,12 @@
   "engine.manual.hide": "非表示",
   "share.field.copyLabel": "{label}をコピー",
   "share.field.copy": "コピー",
-  "share.field.copied": "コピー済み"
+  "share.field.copied": "コピー済み",
+  "errors.SO_RESPONSE_INVALID": "エンジンの応答を解釈できませんでした",
+  "errors.SO_EVENTS_GAP": "一部のリアルタイム更新を受け取れませんでした。一覧を更新します。",
+  "errors.SO_PREVIEW_UNAVAILABLE": "このファイルのプレビューはありません",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "このアプリではクラウドが設定されていません",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "先にクラウドにサインインしてください",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "クラウドではこの操作をまだ利用できません",
+  "errors.SO_INTERNAL": "予期しない問題が発生しました"
 }

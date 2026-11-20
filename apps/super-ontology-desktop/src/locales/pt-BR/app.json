@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "Diagnóstico",
   "cli.equivalent": "Comando equivalente",
   "cli.command": "Comando",
-  "cli.error.noMessage": "O comando falhou sem mensagem.",
   "cli.next.SECRET_PATH": "Não foi possível ler um arquivo de credencial ou certificado. Verifique se ele existe, se pertence a você com modo 0600 e se nenhuma pasta do caminho é um link.",
   "cli.next.SECRET_OPEN": "Não foi possível abrir um arquivo de credencial. Remova a fonte e adicione-a novamente.",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "Este banco de dados precisa de uma autoridade certificadora (PEM) para confiar no servidor.",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "Não foi possível gravar a decisão. Abra a revisão de novo.",
   "cli.next.REVIEW_FILE_IO": "Não foi possível gravar o arquivo de revisão. Tente de novo.",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "Este tipo não usa autoridade certificadora. Remova-a e adicione o banco de novo.",
-  "import.stage.failed": "Parou aqui"
+  "import.stage.failed": "Parou aqui",
+  "cli.error.generic": "O comando oo falhou.",
+  "cli.error.raw": "Mensagem do oo: {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "O comando gerou mais saída do que o app consegue exibir. Execute-o em um terminal ou restrinja a solicitação.",
+  "cli.next.SO_CHECK_AFTER_ADD": "Este tipo de banco de dados é verificado depois de adicionado.",
+  "cli.next.SO_CLI_FAILED": "O comando oo não terminou. A causa aparece abaixo."
 }

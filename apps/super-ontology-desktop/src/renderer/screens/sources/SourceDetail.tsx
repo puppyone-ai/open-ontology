@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, Notice, PageHeader, ProgressBar, Segmented, Skeleton, StatusDot, Tooltip } from "@open-ontology/design-system";
 import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2 } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { useDriveFolderPages } from "../../model/browser/useDriveFolderPages";
 import type { Drive } from "../../../shared/super-ontology/docs-api.generated";
 import { formatBytes } from "../../model/format";
@@ -22,7 +22,6 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const t$ = useLocalization();
   const { t, formatNumber, formatDate } = t$;
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const stateText = useFileStateText();
   const [path, setPath] = useState(() => (initial ? initial.path.split("/").slice(0, -1).join("/") : ""));
   const [filter, setFilter] = useState<Filter>("all");
@@ -80,7 +79,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
           </Menu>
         </>} />
 
-      {error && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="danger" title={t("app.sources.actionFailed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}>{errorText(error)}</Notice></div>}
+      {error && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="danger" title={t("app.sources.actionFailed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}><ErrorText error={error} /></Notice></div>}
       {Number(failed) > 0 && filter !== "attention" && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="warning" title={t("app.sources.failed", { count: Number(failed) })} action={<Button size="compact" onClick={() => setFilter("attention")}>{t("app.sources.failed.show")}</Button>}>{t("app.sources.failed.body")}</Notice></div>}
       {active.length > 0 && (
         <Card className="so-metric" role="status" aria-live="polite" style={{ marginBottom: "var(--so-space-4)" }}>
@@ -111,7 +110,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
           {initialLoading ? (
             <div className="so-list" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width={16} height={16} /><Skeleton width={`${40 + (i % 3) * 15}%`} height={13} /></div>)}</div>
           ) : page.error && files.length === 0 ? (
-            <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={reload}>{t("app.common.retry")}</Button>}>{errorText(page.error)}</Notice>
+            <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={reload}>{t("app.common.retry")}</Button>}><ErrorText error={page.error} /></Notice>
           ) : files.length === 0 && page.dirs.length === 0 ? (
             <EmptyState icon={filter === "all" && !query ? FileUp : Search} title={filter === "all" && !query ? t("app.sources.files.empty.title") : t("app.sources.files.none.title")} description={filter === "all" && !query ? (readOnly ? t("app.sources.files.empty.readonly") : t("app.sources.files.empty.body")) : t("app.sources.files.none.body")}
               action={filter === "all" && !query && !readOnly ? <Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button> : undefined} />

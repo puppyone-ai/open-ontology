@@ -1163,5 +1163,12 @@
   "engine.manual.hide": "Ocultar",
   "share.field.copyLabel": "Copiar {label}",
   "share.field.copy": "Copiar",
-  "share.field.copied": "Copiado"
+  "share.field.copied": "Copiado",
+  "errors.SO_RESPONSE_INVALID": "No se entendió la respuesta del motor",
+  "errors.SO_EVENTS_GAP": "Se perdieron algunas actualizaciones en vivo. La lista se actualizará.",
+  "errors.SO_PREVIEW_UNAVAILABLE": "No hay vista previa disponible para este archivo",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "La nube no está configurada en esta aplicación",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "Inicia sesión en la nube primero",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "La nube todavía no ofrece esta acción",
+  "errors.SO_INTERNAL": "Ocurrió un problema inesperado"
 }

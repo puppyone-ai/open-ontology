@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, EmptyState, Notice, Skeleton } from "@open-ontology/design-system";
 import { Check, ListChecks, X } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { presentReviewKind, subjectView } from "../../model/review/reviewModel";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { selectDrives } from "../../model/superDriveSelectors";
@@ -21,7 +21,6 @@ function describe(item: ReviewItem, t: ReturnType<typeof useLocalization>["t"]):
 export function ReviewQueue() {
   const { t, formatNumber } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const lists = useSuperDriveSelector((s) => s.review.lists);
   const withReview = drives.filter((d) => (d.pending_review ?? 0) > 0);
@@ -41,7 +40,7 @@ export function ReviewQueue() {
   if (withReview.length === 0) return <Card><EmptyState icon={ListChecks} title={t("app.review.empty.title")} description={t("app.review.empty.body")} /></Card>;
   return (
     <div className="so-stack">
-      {error && <Notice tone="danger" title={t("app.review.failed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}>{errorText(error)}</Notice>}
+      {error && <Notice tone="danger" title={t("app.review.failed")} action={<Button size="compact" onClick={() => setError(null)}>{t("app.common.close")}</Button>}><ErrorText error={error} /></Notice>}
       <p className="so-muted">{t("app.review.intro")}</p>
       {loading && rows.length === 0 ? <Card className="so-list" aria-busy="true">{Array.from({ length: 3 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="60%" height={13} /></div>)}</Card> : (
         <Card className="so-list" data-testid="review-list">

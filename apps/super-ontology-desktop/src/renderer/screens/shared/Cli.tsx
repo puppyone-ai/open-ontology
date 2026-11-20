@@ -3,8 +3,9 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { CopyBlock, Notice } from "@open-ontology/design-system";
 import { ChevronRight, Terminal } from "lucide-react";
 import type { CliError } from "../../../shared/super-ontology/bridge";
-import { hasNextStep } from "../../model/cliApi";
 import { useErrorText } from "../../hooks/useText";
+import { describeCliError } from "../../model/cliApi";
+import { hasSuperDriveMessage } from "../../model/superDriveMessageKeys";
 
 /** Test ids derived from a `testId` prop (`<id>-toggle`, `<id>-value`, `<id>-copy`); spelled out here so TEST-IDS.md and its conformance test can find them. */
 export const DERIVED_TEST_IDS = ["database-import-cli-toggle", "database-import-cli-value", "query-cli-toggle", "query-cli-value", "query-describe-cli-toggle"] as const;
@@ -27,19 +28,28 @@ export function CliCommand({ command, testId = "cli-command" }: { command: strin
   );
 }
 
-/** A failed command: what the CLI said, what to do next (when we know), and the command to run by hand. */
-export function CliErrorNotice({ error, cli, title, testId = "cli-error" }: { error: CliError; cli?: string; title: string; testId?: string }) {
+/** What a failed command says, in the language of the app: a written-out sentence for the code, then what `oo` itself printed. */
+export function CliErrorText({ error, testId = "cli-error" }: { error: CliError; testId?: string }) {
   const { t } = useLocalization();
-  const next = hasNextStep(error);
   const bridgeText = useErrorText();
-  // A failure of the bridge itself (no command ran) has no CLI message: use the app's own sentence for its code.
-  const detail = error.message || (error.code.startsWith("SO_") ? bridgeText({ code: error.code, retryable: false, details: {} }) : next ? "" : t("app.cli.error.noMessage"));
+  const view = describeCliError(error, (code) => hasSuperDriveMessage(`super-drive.errors.${code}`));
+  const sentence = view.sentence === "next" ? t(`app.cli.next.${error.code}`)
+    : view.sentence === "bridge" ? bridgeText({ code: error.code, retryable: false, details: {} })
+      : t("app.cli.error.generic");
+  return (
+    <>
+      <span className="so-cli-error-code so-mono">{error.code}</span>
+      <p className="so-cli-error-next" data-testid={view.sentence === "next" ? `${testId}-next` : undefined}>{sentence}</p>
+      {view.raw && <p className="so-cli-error-text so-mono" data-testid={`${testId}-raw`}>{t("app.cli.error.raw", { text: view.raw })}</p>}
+    </>
+  );
+}
+
+/** A failed command: the sentence for its code, what the CLI said, and the command to run by hand. */
+export function CliErrorNotice({ error, cli, title, testId = "cli-error" }: { error: CliError; cli?: string; title: string; testId?: string }) {
   return (
     <Notice tone="danger" title={title} testId={testId}>
-      <span className="so-cli-error-code so-mono">{error.code}</span>
-      {detail && <p className="so-cli-error-text">{detail}</p>}
-      {next && <p className="so-cli-error-next" data-testid={`${testId}-next`}>{t(`app.cli.next.${error.code}`)}</p>}
-      {!next && error.hint && <p className="so-cli-error-next">{error.hint}</p>}
+      <CliErrorText error={error} testId={testId} />
       {cli && <CliCommand command={cli} testId={`${testId}-cli`} />}
     </Notice>
   );

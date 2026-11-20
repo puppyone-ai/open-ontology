@@ -1163,5 +1163,12 @@
   "engine.manual.hide": "Hide",
   "share.field.copyLabel": "Copy {label}",
   "share.field.copy": "Copy",
-  "share.field.copied": "Copied"
+  "share.field.copied": "Copied",
+  "errors.SO_RESPONSE_INVALID": "The engine's answer wasn't understood",
+  "errors.SO_EVENTS_GAP": "Some live updates were missed. The list will refresh.",
+  "errors.SO_PREVIEW_UNAVAILABLE": "No preview is available for this file",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "Cloud isn't set up in this app",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "Sign in to the cloud first",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "The cloud doesn't offer this action yet",
+  "errors.SO_INTERNAL": "Something unexpected went wrong"
 }

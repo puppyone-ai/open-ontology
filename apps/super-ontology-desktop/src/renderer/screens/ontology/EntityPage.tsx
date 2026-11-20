@@ -3,7 +3,8 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, EmptyState, Icon, Notice, PageHeader, Skeleton } from "@open-ontology/design-system";
 import { ArrowLeft, FileText, ListTree } from "lucide-react";
 import { useApp } from "../../hooks/useApp";
-import { useErrorText, useRelativeTime } from "../../hooks/useText";
+import { useRelativeTime } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import type { Fact } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
@@ -40,7 +41,6 @@ function EntityLink({ entity, onOpen }: { entity: { key: string; name: string };
 export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; onBack: () => void; onOpen: (key: string) => void }) {
   const { t, formatDate } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const relative = useRelativeTime();
   const [entity, setEntity] = useState<EntityDetail | null>(null);
   const [error, setError] = useState<SuperDriveError | null>(null);
@@ -65,7 +65,7 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
     <div className="so-page" data-testid="screen-entity" data-name={entity?.name}>
       <div style={{ margin: "calc(-1 * var(--so-space-2)) 0 var(--so-space-2)" }}><Button variant="ghost" size="compact" icon={ArrowLeft} onClick={onBack}>{t("app.ontology.title")}</Button></div>
       {error ? (
-        <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => setTick((n) => n + 1)}>{t("app.common.retry")}</Button>}>{errorText(error)}</Notice>
+        <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => setTick((n) => n + 1)}>{t("app.common.retry")}</Button>}><ErrorText error={error} /></Notice>
       ) : !entity ? (
         <div className="so-stack" aria-busy="true"><Skeleton width={220} height={28} /><Skeleton width={320} height={14} /><Skeleton height={96} radius={8} /></div>
       ) : (

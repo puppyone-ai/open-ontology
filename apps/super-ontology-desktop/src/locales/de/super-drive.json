@@ -1163,5 +1163,12 @@
   "engine.manual.hide": "Ausblenden",
   "share.field.copyLabel": "{label} kopieren",
   "share.field.copy": "Kopieren",
-  "share.field.copied": "Kopiert"
+  "share.field.copied": "Kopiert",
+  "errors.SO_RESPONSE_INVALID": "Die Antwort der Engine wurde nicht verstanden",
+  "errors.SO_EVENTS_GAP": "Einige Live-Aktualisierungen wurden verpasst. Die Liste wird neu geladen.",
+  "errors.SO_PREVIEW_UNAVAILABLE": "Für diese Datei ist keine Vorschau verfügbar",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "Die Cloud ist in dieser App nicht eingerichtet",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "Melden Sie sich zuerst bei der Cloud an",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Die Cloud bietet diese Aktion noch nicht an",
+  "errors.SO_INTERNAL": "Etwas Unerwartetes ist schiefgelaufen"
 }

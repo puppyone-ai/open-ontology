@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "診断",
   "cli.equivalent": "同等のコマンド",
   "cli.command": "コマンド",
-  "cli.error.noMessage": "コマンドはメッセージなしで失敗しました。",
   "cli.next.SECRET_PATH": "認証情報または証明書のファイルを読み取れませんでした。ファイルが存在し、所有者があなたで、権限が 0600 であること、パス上のフォルダがリンクでないことを確認してください。",
   "cli.next.SECRET_OPEN": "認証情報ファイルを開けませんでした。ソースを削除して、もう一度追加してください。",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "このデータベースは、サーバーを信頼するための認証局 (PEM) が必要です。",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "判断を書き出せませんでした。確認画面を開き直してください。",
   "cli.next.REVIEW_FILE_IO": "レビューファイルを書き出せませんでした。再試行してください。",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "この種類では認証局を指定できません。外してからデータベースを追加し直してください。",
-  "import.stage.failed": "ここで停止"
+  "import.stage.failed": "ここで停止",
+  "cli.error.generic": "oo コマンドが失敗しました。",
+  "cli.error.raw": "oo からのメッセージ: {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "コマンドの出力がアプリで表示できる量を超えました。ターミナルで実行するか、リクエストを絞り込んでください。",
+  "cli.next.SO_CHECK_AFTER_ADD": "この種類のデータベースは、追加したあとで確認されます。",
+  "cli.next.SO_CLI_FAILED": "oo コマンドが完了しませんでした。原因は下に表示されています。"
 }

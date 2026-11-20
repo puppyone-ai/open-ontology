@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "Diagnostics",
   "cli.equivalent": "Commande équivalente",
   "cli.command": "Commande",
-  "cli.error.noMessage": "La commande a échoué sans message.",
   "cli.next.SECRET_PATH": "Un fichier d'identifiants ou de certificat n'a pas pu être lu. Vérifiez qu'il existe, qu'il vous appartient avec le mode 0600 et qu'aucun dossier de son chemin n'est un lien.",
   "cli.next.SECRET_OPEN": "Un fichier d'identifiants n'a pas pu être ouvert. Supprimez la source et ajoutez-la de nouveau.",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "Cette base de données exige une autorité de certification (PEM) pour faire confiance à son serveur.",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "La décision n'a pas pu être écrite. Rouvrez la revue.",
   "cli.next.REVIEW_FILE_IO": "Le fichier de revue n'a pas pu être écrit. Réessayez.",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "Ce type n'utilise pas d'autorité de certification. Retirez-la et ajoutez de nouveau la base.",
-  "import.stage.failed": "Arrêté ici"
+  "import.stage.failed": "Arrêté ici",
+  "cli.error.generic": "La commande oo a échoué.",
+  "cli.error.raw": "Message de oo : {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "La commande a produit plus de sortie que l’app ne peut en afficher. Exécutez-la dans un terminal ou restreignez la requête.",
+  "cli.next.SO_CHECK_AFTER_ADD": "Ce type de base de données est vérifié après son ajout.",
+  "cli.next.SO_CLI_FAILED": "La commande oo ne s’est pas terminée. La cause est indiquée ci-dessous."
 }

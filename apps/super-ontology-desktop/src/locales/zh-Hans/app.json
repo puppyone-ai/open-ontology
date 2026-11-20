@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "诊断信息",
   "cli.equivalent": "等价命令",
   "cli.command": "命令",
-  "cli.error.noMessage": "命令失败，没有给出说明。",
   "cli.next.SECRET_PATH": "无法读取凭证或证书文件。请确认文件存在、属于你且权限为 0600，并且路径上没有符号链接。",
   "cli.next.SECRET_OPEN": "无法打开凭证文件。请移除该来源后重新添加。",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "该数据库需要证书颁发机构（PEM）来信任服务器。",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "无法写入该决定。请重新打开审核。",
   "cli.next.REVIEW_FILE_IO": "无法写入审核文件。请重试。",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "此类型不使用证书颁发机构。请移除后重新添加数据库。",
-  "import.stage.failed": "在此停止"
+  "import.stage.failed": "在此停止",
+  "cli.error.generic": "oo 命令执行失败。",
+  "cli.error.raw": "oo 的原始输出：{text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "命令输出的内容超出了应用能显示的范围。请在终端中运行，或缩小请求范围。",
+  "cli.next.SO_CHECK_AFTER_ADD": "这类数据库在添加之后才会检查。",
+  "cli.next.SO_CLI_FAILED": "oo 命令没有执行完成。原因见下方。"
 }

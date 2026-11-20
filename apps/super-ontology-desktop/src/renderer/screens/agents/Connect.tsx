@@ -3,7 +3,8 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, CopyBlock, EmptyState, Icon, Notice, Section, Segmented, Select, Skeleton, TextField, Badge, Dialog } from "@open-ontology/design-system";
 import { KeyRound, Lock, Trash2 } from "lucide-react";
 import { useLoad } from "../../hooks/useLoad";
-import { useErrorText, useRelativeTime } from "../../hooks/useText";
+import { useRelativeTime } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { agentApi } from "../../model/agentApi";
 import { AGENT_KINDS, loadSnippet, type AgentKind } from "../../model/agentConfigs";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
@@ -18,7 +19,6 @@ const TTL_DAYS = [1, 7, 30, 90] as const;
 /** Step by step: name an Agent, issue a read-only token, copy the connection text of the Agent it will run in. */
 export function Connect({ compact = false }: { compact?: boolean } = {}) {
   const { t } = useLocalization();
-  const errorText = useErrorText();
   const relative = useRelativeTime();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
@@ -65,7 +65,7 @@ export function Connect({ compact = false }: { compact?: boolean } = {}) {
     <div className="so-stack" data-testid="connect">
       <Section title={t("app.connect.step1.title")} description={t("app.connect.step1.body")}>
         <Card className="so-form" data-testid={compact ? "firstrun-token-create" : "agent-token-create"}>
-          {error && !(error.code === "DOCS_ENGINE_BAD_REQUEST" && error.details.pointer === "/name") && <Notice tone="danger" title={t("app.connect.failed")}>{errorText(error)}</Notice>}
+          {error && !(error.code === "DOCS_ENGINE_BAD_REQUEST" && error.details.pointer === "/name") && <Notice tone="danger" title={t("app.connect.failed")}><ErrorText error={error} /></Notice>}
           <div className="so-grid" data-cols="2">
             <TextField data-testid="agent-token-name" label={t("app.connect.name")} value={name} onChange={(e) => setName(e.target.value)} error={nameError} helper={t("app.connect.name.help")} maxLength={64} spellCheck={false} />
             <Select label={t("app.connect.drives")} value={driveId} onChange={(e) => setDriveId(e.target.value)} helper={t("app.connect.drives.help")}>
@@ -105,7 +105,7 @@ export function Connect({ compact = false }: { compact?: boolean } = {}) {
 
       {!compact && <Section title={t("app.connect.tokens.title")}>
         {tokens.status === "loading" && !tokens.value ? <Card className="so-list" aria-busy="true">{Array.from({ length: 2 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="40%" height={13} /></div>)}</Card>
-          : tokens.status === "error" && !tokens.value ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={tokens.reload}>{t("app.common.retry")}</Button>}>{errorText(tokens.error)}</Notice>
+          : tokens.status === "error" && !tokens.value ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={tokens.reload}>{t("app.common.retry")}</Button>}><ErrorText error={tokens.error} /></Notice>
           : (tokens.value?.items ?? []).length === 0 ? <Card><EmptyState icon={KeyRound} title={t("app.connect.tokens.empty.title")} description={t("app.connect.tokens.empty.body")} compact /></Card>
           : (
             <Card className="so-list" data-testid="agent-token-list">

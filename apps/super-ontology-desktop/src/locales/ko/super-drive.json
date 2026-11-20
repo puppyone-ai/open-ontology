@@ -1163,5 +1163,12 @@
   "engine.manual.hide": "숨기기",
   "share.field.copyLabel": "{label} 복사",
   "share.field.copy": "복사",
-  "share.field.copied": "복사됨"
+  "share.field.copied": "복사됨",
+  "errors.SO_RESPONSE_INVALID": "엔진의 응답을 이해하지 못했습니다",
+  "errors.SO_EVENTS_GAP": "일부 실시간 업데이트를 놓쳤습니다. 목록을 새로 고칩니다.",
+  "errors.SO_PREVIEW_UNAVAILABLE": "이 파일은 미리 볼 수 없습니다",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "이 앱에는 클라우드가 설정되어 있지 않습니다",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "먼저 클라우드에 로그인하세요",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "클라우드에서 아직 이 작업을 지원하지 않습니다",
+  "errors.SO_INTERNAL": "예기치 않은 문제가 발생했습니다"
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, DefinitionList, Dialog, Notice, Section, Select, Skeleton, TextField } from "@open-ontology/design-system";
 import { Pencil } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import type { ModelConfig } from "../../../shared/super-ontology/docs-api.generated";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
@@ -14,7 +14,6 @@ const URL_PATTERN = /^https?:\/\/\S+$/u;
 function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose: () => void }) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const [provider, setProvider] = useState<Provider>(config?.provider ?? "openai-compatible");
   const [baseUrl, setBaseUrl] = useState(config?.base_url ?? "");
   const [model, setModel] = useState(config?.model ?? "");
@@ -36,7 +35,7 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
   return (
     <Dialog title={t("app.model.dialog.title")} description={t("app.model.dialog.description")} onClose={busy ? undefined : onClose} closeLabel={t("app.common.close")}
       footer={<><Button variant="ghost" onClick={onClose} disabled={busy}>{t("app.common.cancel")}</Button><Button variant="primary" loading={busy} onClick={() => { void save(); }}>{t("app.model.save")}</Button></>}>
-      {error && <Notice tone="danger" title={t("app.model.failed")}>{error.code === "DOCS_ENGINE_PRECONDITION_FAILED" ? t("app.model.stale") : errorText(error)}</Notice>}
+      {error && <Notice tone="danger" title={t("app.model.failed")}>{error.code === "DOCS_ENGINE_PRECONDITION_FAILED" ? t("app.model.stale") : <ErrorText error={error} />}</Notice>}
       <Select label={t("app.model.provider")} value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
         <option value="openai-compatible">{t("app.model.provider.openai")}</option>
         <option value="anthropic">Anthropic</option>
@@ -54,7 +53,6 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
 export function ModelSettings() {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const state = useSuperDriveSelector((s) => s.modelConfig);
   const [editing, setEditing] = useState(false);
@@ -65,7 +63,7 @@ export function ModelSettings() {
       <Notice tone="accent" title={t("app.model.optional.title")}>{t("app.model.optional.body")}</Notice>
       <Section title={t("app.model.title")} actions={ready ? <Button icon={Pencil} onClick={() => setEditing(true)}>{config?.configured ? t("app.model.edit") : t("app.model.setup")}</Button> : undefined}>
         {!ready ? <Notice tone="warning" title={t("app.connect.engine.title")}>{t("app.model.engine")}</Notice>
-          : state.error && !config ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => { void actions.loadModelConfig({ force: true }); }}>{t("app.common.retry")}</Button>}>{errorText(state.error)}</Notice>
+          : state.error && !config ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => { void actions.loadModelConfig({ force: true }); }}>{t("app.common.retry")}</Button>}><ErrorText error={state.error} /></Notice>
           : !state.loaded ? <Card className="so-form"><Skeleton height={14} /><Skeleton height={14} width="70%" /></Card>
           : (
             <Card className="so-form">

@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "진단",
   "cli.equivalent": "동일한 명령",
   "cli.command": "명령",
-  "cli.error.noMessage": "명령이 메시지 없이 실패했습니다.",
   "cli.next.SECRET_PATH": "자격 증명 또는 인증서 파일을 읽을 수 없습니다. 파일이 있는지, 소유자가 본인이고 권한이 0600인지, 경로의 어떤 폴더도 링크가 아닌지 확인하세요.",
   "cli.next.SECRET_OPEN": "자격 증명 파일을 열 수 없습니다. 소스를 제거한 뒤 다시 추가하세요.",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "이 데이터베이스는 서버를 신뢰하기 위해 인증 기관(PEM)이 필요합니다.",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "결정을 기록하지 못했습니다. 검토 화면을 다시 여세요.",
   "cli.next.REVIEW_FILE_IO": "검토 파일을 기록하지 못했습니다. 다시 시도하세요.",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "이 종류는 인증 기관을 받지 않습니다. 제거하고 데이터베이스를 다시 추가하세요.",
-  "import.stage.failed": "여기서 멈춤"
+  "import.stage.failed": "여기서 멈춤",
+  "cli.error.generic": "oo 명령이 실패했습니다.",
+  "cli.error.raw": "oo의 메시지: {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "명령의 출력이 앱에서 표시할 수 있는 양을 넘었습니다. 터미널에서 실행하거나 요청 범위를 좁혀 보세요.",
+  "cli.next.SO_CHECK_AFTER_ADD": "이 유형의 데이터베이스는 추가한 뒤에 확인됩니다.",
+  "cli.next.SO_CLI_FAILED": "oo 명령이 끝나지 않았습니다. 원인은 아래에 표시됩니다."
 }

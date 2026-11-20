@@ -3,7 +3,8 @@ import { Button, Card, EmptyState, Icon, LinkButton, Notice, PageHeader, Section
 import { Bot, ChevronRight, Compass, FileText, FolderOpen, FolderPlus, ListChecks, Network, Quote, Shapes, Sparkles, type LucideIcon } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { useLoad } from "../hooks/useLoad";
-import { useErrorText, useRelativeTime } from "../hooks/useText";
+import { useRelativeTime } from "../hooks/useText";
+import { ErrorText } from "./shared/ErrorText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
 import { selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
@@ -23,7 +24,6 @@ export function Home() {
   const { t, formatNumber } = useLocalization();
   const relative = useRelativeTime();
   const app = useApp();
-  const errorText = useErrorText();
   const actions = useSuperDriveActions();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const engine = useSuperDriveSelector((s) => s.engine);
@@ -95,7 +95,7 @@ export function Home() {
 
       <Section title={t("app.home.recent.title")}>
         {versions.status === "error" && !versions.value ? (
-          <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={versions.reload}>{t("app.common.retry")}</Button>}>{errorText(versions.error)}</Notice>
+          <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={versions.reload}>{t("app.common.retry")}</Button>}><ErrorText error={versions.error} /></Notice>
         ) : versions.value && versions.value.items.length === 0 ? (
           <Card><EmptyState icon={Sparkles} title={t("app.home.recent.empty.title")} description={t("app.home.recent.empty.body")} compact /></Card>
         ) : (

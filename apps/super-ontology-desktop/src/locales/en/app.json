@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "Diagnostics",
   "cli.equivalent": "Equivalent command",
   "cli.command": "Command",
-  "cli.error.noMessage": "The command failed without a message.",
   "cli.next.SECRET_PATH": "A credential or certificate file could not be read. Check that it exists, is owned by you with mode 0600, and that no folder on its path is a link.",
   "cli.next.SECRET_OPEN": "A credential file could not be opened. Remove the source and add it again.",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "This database needs a certificate authority (PEM) to trust its server.",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "The decision could not be written. Open the review again.",
   "cli.next.REVIEW_FILE_IO": "The review file could not be written. Try again.",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "This kind takes no certificate authority. Remove it and add the database again.",
-  "import.stage.failed": "Stopped here"
+  "import.stage.failed": "Stopped here",
+  "cli.error.generic": "The oo command failed.",
+  "cli.error.raw": "oo said: {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "The command printed more than the app can show. Run it in a terminal, or narrow the request.",
+  "cli.next.SO_CHECK_AFTER_ADD": "This kind of database is checked after it is added.",
+  "cli.next.SO_CLI_FAILED": "The oo command did not finish. The cause is shown below."
 }

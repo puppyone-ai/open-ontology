@@ -382,7 +382,6 @@
   "settings.tab.diagnostics": "Diagnose",
   "cli.equivalent": "Entsprechender Befehl",
   "cli.command": "Befehl",
-  "cli.error.noMessage": "Der Befehl ist ohne Meldung fehlgeschlagen.",
   "cli.next.SECRET_PATH": "Eine Zugangsdaten- oder Zertifikatsdatei konnte nicht gelesen werden. Prüfen Sie, ob sie existiert, Ihnen mit Modus 0600 gehört und kein Ordner im Pfad ein Link ist.",
   "cli.next.SECRET_OPEN": "Eine Zugangsdatendatei konnte nicht geöffnet werden. Entfernen Sie die Quelle und fügen Sie sie erneut hinzu.",
   "cli.next.SOURCE_TLS_CA_REQUIRED": "Diese Datenbank benötigt eine Zertifizierungsstelle (PEM), um ihrem Server zu vertrauen.",
@@ -728,5 +727,10 @@
   "cli.next.REVIEW_DECISION_INVALID": "Die Entscheidung konnte nicht geschrieben werden. Öffnen Sie die Prüfung erneut.",
   "cli.next.REVIEW_FILE_IO": "Die Prüfdatei konnte nicht geschrieben werden. Versuchen Sie es erneut.",
   "cli.next.SO_TLS_CA_NOT_ACCEPTED": "Diese Art nimmt keine Zertifizierungsstelle. Entfernen Sie sie und fügen Sie die Datenbank erneut hinzu.",
-  "import.stage.failed": "Hier gestoppt"
+  "import.stage.failed": "Hier gestoppt",
+  "cli.error.generic": "Der Befehl oo ist fehlgeschlagen.",
+  "cli.error.raw": "Meldung von oo: {text}",
+  "cli.next.SO_OUTPUT_TOO_LARGE": "Der Befehl hat mehr ausgegeben, als die App anzeigen kann. Führen Sie ihn in einem Terminal aus oder schränken Sie die Anfrage ein.",
+  "cli.next.SO_CHECK_AFTER_ADD": "Dieser Datenbanktyp wird erst nach dem Hinzufügen geprüft.",
+  "cli.next.SO_CLI_FAILED": "Der Befehl oo wurde nicht abgeschlossen. Die Ursache steht unten."
 }

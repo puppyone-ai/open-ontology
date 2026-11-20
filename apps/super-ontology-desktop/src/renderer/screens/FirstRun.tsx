@@ -3,7 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, Notice, ProgressBar, Spinner, StatusDot } from "@open-ontology/design-system";
 import { ArrowRight, Check, Cloud, FileUp, Folder } from "lucide-react";
 import { useApp } from "../hooks/useApp";
-import { useErrorText } from "../hooks/useText";
+import { ErrorText } from "./shared/ErrorText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
 import { selectDrives, selectOntologyVersion } from "../model/superDriveSelectors";
@@ -36,7 +36,6 @@ export function FirstRun() {
   const { t } = useLocalization();
   const app = useApp();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const [step, setStep] = useState<Step>(1);
   const engine = useSuperDriveSelector((s) => s.engine);
   const ready = isEngineReady(engine);
@@ -121,9 +120,9 @@ export function FirstRun() {
                 <input ref={input} type="file" multiple hidden onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
                 <Button variant="primary" icon={FileUp} disabled={!ready} onClick={() => input.current?.click()} data-testid="firstrun-pick-files">{t("app.first.add.choose")}</Button>
               </div>
-              {error && <Notice tone="danger" title={t("app.sources.actionFailed")}>{errorText(error)}</Notice>}
+              {error && <Notice tone="danger" title={t("app.sources.actionFailed")}><ErrorText error={error} /></Notice>}
               {!ready && <p className="so-weak" role="status">{t("app.first.add.waiting")}</p>}
-              {folderError && <Notice tone="danger" title={t("app.sources.actionFailed")}>{errorText(folderError)}</Notice>}
+              {folderError && <Notice tone="danger" title={t("app.sources.actionFailed")}><ErrorText error={folderError} /></Notice>}
               <div className="so-row" data-wrap>
                 <span className="so-muted">{t("app.first.add.other")}</span>
                 <Button icon={Folder} disabled={!ready} onClick={() => { void addFolder(); }} data-testid="firstrun-pick-folder">{t("app.first.add.folder")}</Button>

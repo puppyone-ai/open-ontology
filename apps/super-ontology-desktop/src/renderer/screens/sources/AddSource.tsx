@@ -3,6 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Dialog, Menu, MenuItem, MenuSeparator, Notice, Select, TextField } from "@open-ontology/design-system";
 import { Cloud, Database, FileUp, Folder, Plus } from "lucide-react";
 import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { useSuperDriveActions } from "../../model/SuperDriveProvider";
 import { getUploadQueue } from "../../model/uploadStore";
 import { EMPTY_S3_FORM, isAllowedEndpoint, missingS3Fields, objectStoreFields, toS3CreateInput, type S3FieldName } from "../../model/settings/s3Form";
@@ -77,7 +78,6 @@ const PROVIDERS: ReadonlyArray<{ value: ObjectStoreBackend; label: string }> = [
 export function CloudStorageDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (driveId: string) => void }) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const [backend, setBackend] = useState<ObjectStoreBackend>("s3");
   const [name, setName] = useState("");
   const [values, setValues] = useState(EMPTY_S3_FORM);
@@ -105,7 +105,7 @@ export function CloudStorageDialog({ onClose, onCreated }: { onClose: () => void
   return (
     <Dialog title={t("app.sources.cloud.title")} description={t("app.sources.cloud.description")} onClose={busy ? undefined : onClose} closeLabel={t("app.common.close")}
       footer={<><Button variant="ghost" onClick={onClose} disabled={busy} data-testid="add-source-cancel">{t("app.common.cancel")}</Button><Button variant="primary" loading={busy} onClick={() => { void submit(); }} data-testid="add-source-confirm">{t("app.sources.cloud.connect")}</Button></>}>
-      {error && <Notice tone="danger" title={t("app.sources.cloud.failed")} testId="add-source-error">{errorText(error)}</Notice>}
+      {error && <Notice tone="danger" title={t("app.sources.cloud.failed")} testId="add-source-error"><ErrorText error={error} /></Notice>}
       <Select label={t("app.sources.cloud.provider")} value={backend} onChange={(event) => setBackend(event.target.value as ObjectStoreBackend)}>
         {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
       </Select>
