@@ -974,7 +974,7 @@ impl Ctx<'_> {
                             .is_some_and(|t| page.iter().any(|p| p == t))
                     }));
                 }
-                relationships.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+                relationships = dedupe_relationships(relationships);
             }
             Err(f) => {
                 rel_status = "unavailable";
@@ -1121,6 +1121,28 @@ fn relationship_items(source: &str, graph: &Value) -> Vec<Value> {
                    "confidence": r["confidence"]})
         })
         .collect()
+}
+
+/// One edge per (from table and columns, to table and columns), ordered by id. The published graph holds the
+/// declared foreign keys and, again, the relationships inferred from the same columns (`r_...` ids); the agent
+/// reads one edge, so a declared id wins over an inferred one and equal ids collapse.
+fn dedupe_relationships(mut items: Vec<Value>) -> Vec<Value> {
+    let inferred = |r: &Value| r["id"].as_str().is_some_and(|i| i.starts_with("r_"));
+    items.sort_by(|a, b| {
+        inferred(a)
+            .cmp(&inferred(b))
+            .then_with(|| a["id"].as_str().cmp(&b["id"].as_str()))
+    });
+    let mut seen = std::collections::BTreeSet::new();
+    items.retain(|r| {
+        let key = format!(
+            "{}|{}|{}|{}",
+            r["from"]["table"], r["from"]["columns"], r["to"]["table"], r["to"]["columns"]
+        );
+        seen.insert(key)
+    });
+    items.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    items
 }
 
 /// The `[start, start+limit)` window of `total` tables named by an opaque cursor.
@@ -1346,6 +1368,22 @@ fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn schema_relationships_are_one_edge_per_column_pair() {
+        let edge = |id: &str, from: &str, to: &str| {
+            json!({"id": id, "from": {"table": "public.orders", "columns": [from]},
+                   "to": {"table": "public.customers", "columns": [to]}})
+        };
+        let out = dedupe_relationships(vec![
+            edge("r_9f3a", "customer_id", "id"),
+            edge("fk_orders_customer", "customer_id", "id"),
+            edge("fk_orders_customer", "customer_id", "id"),
+            edge("r_77", "region_id", "id"),
+        ]);
+        let ids: Vec<&str> = out.iter().filter_map(|r| r["id"].as_str()).collect();
+        assert_eq!(ids, ["fk_orders_customer", "r_77"]);
+    }
+
     use super::*;
 
     #[test]
