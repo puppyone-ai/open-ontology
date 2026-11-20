@@ -11,6 +11,7 @@ import { createCloudProxy } from "./cloud-proxy.mjs";
 import { createControlClient } from "./control-client.mjs";
 import { createControlHandlers } from "./control-handlers.mjs";
 import { createAgentHandlers } from "./agent-handlers.mjs";
+import { createAskHandlers } from "./ask/ask-handlers.mjs";
 import { createCliHandlers } from "./cli-handlers.mjs";
 import { createEnterpriseHandlers } from "./enterprise-handlers.mjs";
 import { createEventBridge } from "./event-bridge.mjs";
@@ -195,12 +196,22 @@ export function createSuperOntologyService({
   };
 
   /** Request handlers keyed by channel name; the IPC layer validates the request first. */
+  const cliHandlers = createCliHandlers({ locator, getUserExecutable: () => userExecutable, client, grants, stateDir, fsPromises, platform: nodePlatform });
+  const askHandlers = createAskHandlers({
+    client, credentials: () => lifecycle.credentials(), secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, broadcast,
+    ...(fetchImpl ? { fetchImpl } : {}),
+    listDatabases: async () => {
+      const listed = await cliHandlers["cli-db-list"]({});
+      return listed?.ok ? (listed.data?.sources ?? []).map((source) => source.name) : [];
+    },
+  });
   const handlers = {
     ...controlHandlers,
+    ...askHandlers,
     ...suggestHandlers,
     ...createEnterpriseHandlers({ client }),
     ...createAgentHandlers({ client }),
-    ...createCliHandlers({ locator, getUserExecutable: () => userExecutable, client, grants, stateDir, fsPromises, platform: nodePlatform }),
+    ...cliHandlers,
     ...createFileHandlers({ client, tokens: driveFileTokens }),
     ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, mediaDecoder, hostMount }),
     ...Object.fromEntries(["drive-create", "drive-update", "drive-delete"].map((name) => [name, watchesDrives(name, controlHandlers[name])])),

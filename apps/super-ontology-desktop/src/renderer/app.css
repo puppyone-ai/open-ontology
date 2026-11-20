@@ -275,4 +275,41 @@
 
   @media (max-width: 880px) { .so-files-split, .so-query .so-split { grid-template-columns: minmax(0, 1fr); } }
   @media (prefers-reduced-motion: reduce) { .so-cli-chevron { transition: none; } }
+
+  /* ---------- Ask ---------- */
+  .so-ask { display: grid; gap: var(--so-space-5); max-width: 760px; }
+  .so-ask-composer { display: grid; gap: var(--so-space-3); }
+  .so-ask-composer-actions { display: flex; align-items: center; gap: var(--so-space-2); }
+  .so-ask-turns { display: grid; gap: var(--so-space-4); margin: 0; padding: 0; list-style: none; }
+  .so-ask-card { display: grid; gap: var(--so-space-3); padding: var(--so-space-4) var(--so-space-5); }
+  .so-ask-question { margin: 0; color: var(--so-text); font-size: var(--so-text-md); font-weight: var(--so-weight-medium); line-height: 1.45; overflow-wrap: anywhere; }
+  .so-ask-working { display: flex; align-items: center; gap: var(--so-space-2); margin: 0; color: var(--so-text-2); font-size: var(--so-text-sm); }
+  .so-ask-progress { display: grid; gap: var(--so-space-2); }
+  .so-ask-steps { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+  .so-ask-step { display: flex; align-items: center; gap: var(--so-space-2); min-height: 20px; color: var(--so-text-muted); font-size: var(--so-text-sm); }
+  .so-ask-step-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 12px; height: 12px; }
+  .so-ask-step-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--so-text-weak); }
+  .so-ask-step[data-state="failed"] .so-ask-step-dot { background: var(--so-warning); }
+  .so-ask-answer, .so-ask-unanswerable { display: grid; gap: var(--so-space-3); }
+  .so-ask-answer-text { display: grid; gap: var(--so-space-2); color: var(--so-text); font-size: var(--so-text-md); line-height: 1.55; overflow-wrap: anywhere; }
+  .so-ask-answer-text p { margin: 0; }
+  .so-ask-cite { display: inline-block; margin-inline: 2px; padding: 0 4px; border-radius: 4px; background: var(--so-accent-soft); color: var(--so-accent); font-size: 11px; line-height: 16px; vertical-align: 1px; }
+  .so-ask-cites { white-space: nowrap; }
+  .so-ask-sources { display: flex; flex-wrap: wrap; gap: var(--so-space-2); }
+  .so-ask-chip { cursor: pointer; }
+  span.so-ask-chip { cursor: default; }
+  .so-ask-cite-number { color: var(--so-accent); font-size: 11px; }
+  .so-ask-uncited { margin: 0; }
+  .so-ask-unanswerable-title { display: flex; align-items: center; gap: var(--so-space-2); margin: 0; color: var(--so-text); font-weight: var(--so-weight-semibold); }
+  .so-ask-unanswerable-mark { color: var(--so-text-weak); }
+  .so-ask-reason { margin: 0; color: var(--so-text-2); overflow-wrap: anywhere; }
+  .so-ask-searched-head { margin: var(--so-space-1) 0 0; color: var(--so-text-2); font-size: var(--so-text-sm); font-weight: var(--so-weight-medium); }
+  .so-ask-details summary { cursor: pointer; color: var(--so-text-muted); font-size: var(--so-text-sm); }
+  .so-ask-details[open] summary { margin-bottom: var(--so-space-2); }
+  .so-ask-actions { display: grid; gap: var(--so-space-1); justify-items: start; }
+
+  /* Not connected: the plain reason under a file name. */
+  .so-file-reason { display: flex; align-items: center; gap: 4px; margin: 2px 0 0 24px; font-size: var(--so-text-xs); line-height: 16px; }
+  .so-file-reason svg { flex: none; }
+  .so-home-unlinked { display: flex; align-items: center; gap: var(--so-space-2); margin: var(--so-space-3) 0 0; font-size: var(--so-text-sm); }
 }

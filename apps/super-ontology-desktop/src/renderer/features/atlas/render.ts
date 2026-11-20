@@ -252,7 +252,9 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
       ctx.fill();
       ctx.lineWidth = hair;
       ctx.strokeStyle = activeOwn ? rgba(ACCENT, 0.9) : rgba(TONE_INK[group.tone], 0.4);
+      if (group.groupKind === "unlinked") ctx.setLineDash([Math.round(4 * dpr), Math.round(4 * dpr)]);
       ctx.stroke();
+      ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       const bounds = hullBounds(own, edge);
       labelsToDraw.push({ node: group, x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: bounds.maxX - bounds.minX, strong: activeOwn || hits.has(group.idx) });
@@ -280,7 +282,9 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     ctx.fill();
     ctx.lineWidth = hair;
     ctx.strokeStyle = active ? rgba(ACCENT, 0.9) : rgba(TONE_INK[group.tone], 0.4);
+    if (group.groupKind === "unlinked") ctx.setLineDash([Math.round(4 * dpr), Math.round(4 * dpr)]);
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     const sx = Math.round(toX(box.minX) / dpr), sy = Math.round(toY(box.minY) / dpr);
     const wpx = (box.maxX - box.minX) * k;

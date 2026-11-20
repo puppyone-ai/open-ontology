@@ -295,6 +295,16 @@ describe("static layout snapshot", () => {
     await expect(sceneToSvg(scene, 960, 600)).toMatchFileSnapshot("./__snapshots__/static-layout.svg");
   });
 
+  it("draws the not-connected group beside the picture with a dashed outline", async () => {
+    const data = syntheticAtlas({ groups: 5, members: 60, linkRatio: 0.9, versions: 3, seed: 21 });
+    const lone = Array.from({ length: 7 }, (_, i) => ({ id: `e:lone${i}`, group: "g:unlinked", label: `lone${i}`, ref: { kind: "entity" as const, key: `lone${i}` }, weight: 0, born: null }));
+    const scene = new AtlasScene({ ...data, groups: [...data.groups, { id: "g:unlinked", kind: "unlinked", label: "Not connected", tone: "stone" }], members: [...data.members, ...lone] });
+    settle(scene);
+    const svg = sceneToSvg(scene, 960, 600);
+    expect(svg).toContain('stroke-dasharray="4 4"');
+    await expect(svg).toMatchFileSnapshot("./__snapshots__/static-layout-unlinked.svg");
+  });
+
   it("is the same picture on a second run", () => {
     const make = () => { const s = new AtlasScene(syntheticAtlas({ groups: 6, members: 90, seed: 21 })); settle(s); return sceneToSvg(s, 960, 600); };
     expect(make()).toBe(make());

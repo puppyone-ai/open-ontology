@@ -13,6 +13,9 @@ export const ENTERPRISE_CHANNELS = Object.freeze([
 /** Agent › Connect: Agent tokens (docs-api 1.6) and the connection text for an Agent. Nothing here writes into another app's files. */
 export const AGENT_CHANNELS = Object.freeze(["agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet"]);
 
+/** Ontology › Ask: one question answered by a bounded tool loop in the main process; progress comes back on the `ask-progress` push. */
+export const ASK_CHANNELS = Object.freeze(["ask-run", "ask-cancel"]);
+
 /** Request/response channels implemented so far. `electron/preload.cjs` repeats this list (a sandboxed preload cannot import it); a test keeps both equal. */
 export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
@@ -24,12 +27,13 @@ export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   ...ONTOLOGY_CHANNELS,
   ...ENTERPRISE_CHANNELS,
   ...AGENT_CHANNELS,
+  ...ASK_CHANNELS,
   ...CLI_CHANNELS,
 ]);
 
 /** Push channels main -> renderer. Same duplication rule as above. */
 export const SUPER_ONTOLOGY_PUSH_CHANNELS = Object.freeze([
-  "engine-changed", "events", "connection-changed", "resync-required", "upload-progress",
+  "engine-changed", "events", "connection-changed", "resync-required", "upload-progress", "ask-progress",
 ]);
 
 const OPERATION_ID = /^[A-Za-z0-9_-]{16,128}$/u;
@@ -150,8 +154,24 @@ export const field = Object.freeze({
  * A field is a validator, or `field.optional(validator)`; absent required
  * fields and unknown fields are rejected.
  */
+const ASK_ID = /^[A-Za-z0-9_-]{8,64}$/u;
+/** Question and answer text keep their line breaks and tabs; any other control character is refused. */
+const askText = (max, { minLength = 1 } = {}) => (value) => {
+  if (typeof value !== "string" || value.length < minLength || value.length > max || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) throw invalidRequest();
+  return value;
+};
+const askHistory = (value) => {
+  if (!Array.isArray(value) || value.length > 4) throw invalidRequest();
+  return value.map((turn) => {
+    if (!turn || typeof turn !== "object" || Array.isArray(turn) || Object.keys(turn).some((name) => !["question", "answer"].includes(name))) throw invalidRequest();
+    return { question: askText(2000)(turn.question), answer: askText(4000, { minLength: 0 })(turn.answer) };
+  });
+};
+
 const REQUEST_FIELDS = Object.freeze({
   ...createOntologyRequestFields(field),
+  "ask-run": Object.freeze({ askId: field.pattern(ASK_ID), question: askText(2000), history: field.optional(askHistory) }),
+  "ask-cancel": Object.freeze({ askId: field.pattern(ASK_ID) }),
   ...createCliRequestFields(field),
   "engine-read": Object.freeze({}),
   "engine-preflight": Object.freeze({}),

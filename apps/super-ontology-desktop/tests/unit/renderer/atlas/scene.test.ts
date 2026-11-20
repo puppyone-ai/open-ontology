@@ -14,6 +14,19 @@ describe("atlas scene", () => {
     expect(big.nodes.filter((n) => n.kind === "member").every((n) => !n.shown && n.appear === 0)).toBe(true);
   });
 
+  it("sets the not-connected group beside the picture, to the right of every other group, never inside it", () => {
+    const data = small();
+    const members: AtlasMember[] = Array.from({ length: 9 }, (_, i) => ({ id: `e:lone${i}`, group: "g:unlinked", label: `lone${i}`, ref: { kind: "entity", key: `lone${i}` }, weight: 0, born: null, reason: { kind: "entity" } }));
+    const withSide: AtlasData = { ...data, groups: [...data.groups, { id: "g:unlinked", kind: "unlinked", label: "Not connected", tone: "stone" }], members: [...data.members, ...members] };
+    const scene = new AtlasScene(withSide);
+    const side = scene.nodes.find((n) => n.id === "g:unlinked")!;
+    const others = scene.groups.filter((g) => g.id !== "g:unlinked");
+    expect(side.ax).toBeGreaterThan(Math.max(...others.map((g) => g.ax + g.r)));
+    expect(side.ay).toBe(0);
+    // The same data always gives the same picture.
+    expect(new AtlasScene(withSide).nodes.find((n) => n.id === "g:unlinked")!.ax).toBe(side.ax);
+  });
+
   it("counts members and aggregates links between folded groups", () => {
     const data = small();
     const scene = new AtlasScene(data, { expandAllUpTo: 0 });
