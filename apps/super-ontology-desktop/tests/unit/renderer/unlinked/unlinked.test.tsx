@@ -26,12 +26,12 @@ describe("why a file is not connected", () => {
     expect(fileReason(file({ state: "extracting", pending_review: 3 }), null)).toEqual({ kind: "processing" });
     for (const state of ["deleted", "superseded", "duplicate", "outdated"]) expect(fileReason(file({ state }), null)).toBeNull();
   });
-  it("a ready file needs to have been read: no entities, waiting for review, or entities with no relations", () => {
+  it("a ready file needs to have been read: no entities, waiting for review, or entities none of which appear in another file", () => {
     expect(fileReason(file({}), null)).toBeNull();
     expect(fileReason(file({ pending_review: 2 }), null)).toEqual({ kind: "review" });
     expect(fileReason(file({}), { entities: 0, connected: false })).toEqual({ kind: "no_entities" });
     expect(fileReason(file({ pending_review: 1 }), { entities: 0, connected: false })).toEqual({ kind: "review" });
-    expect(fileReason(file({}), { entities: 3, connected: false })).toEqual({ kind: "no_relations" });
+    expect(fileReason(file({}), { entities: 3, connected: false })).toEqual({ kind: "no_shared", count: 3 });
     expect(fileReason(file({}), { entities: 3, connected: true })).toBeNull();
   });
   it("reads the format from the extension, lower case", () => {
@@ -52,24 +52,42 @@ function source(files: Record<string, unknown>[], details: Record<string, { enti
 const f = (id: string, over: Record<string, unknown> = {}) => ({ id, drive_id: "d1", path: `docs/${id}.md`, state: "published", pending_review: 0, ...over });
 
 describe("reading the files", () => {
-  it("finds files with nothing, files whose entities relate to nothing, isolated entities, and leaves connected ones out", async () => {
+  it("judges connectivity across files: a file whose own entities relate only to each other is not connected", async () => {
     const report = await analyzeUnlinked(source(
-      [f("a"), f("b"), f("c"), f("d", { state: "unsupported", format: "psd" }), f("e", { state: "parsing" }), f("g")],
+      [f("a"), f("b"), f("c"), f("d", { state: "unsupported", format: "psd" }), f("e", { state: "parsing" }), f("g"), f("h")],
       {
         a: { entities: [ent("ann"), ent("proj", "Project")], facts: [{ subject: ent("ann"), object: ent("proj", "Project"), status: "published" }] },
-        b: { entities: [ent("solo")], facts: [{ subject: ent("solo"), object: null, status: "published" }] },
+        b: { entities: [ent("ann")], facts: [] },
         c: { entities: [], facts: [] },
         g: { entities: [ent("lonely")], facts: [] },
+        h: { entities: [ent("flour"), ent("tart")], facts: [{ subject: ent("tart"), object: ent("flour"), status: "published" }] },
       },
     ));
-    const byId = Object.fromEntries(report.files.map((x) => [x.fileId, x.reason.kind]));
-    expect(byId).toEqual({ b: "no_relations", c: "no_entities", d: "unsupported", e: "processing", g: "no_relations" });
-    expect(report.entities.map((x) => x.key)).toEqual(["lonely", "solo"].sort((x, y) => x.toUpperCase().localeCompare(y.toUpperCase())));
-    expect(report.entities.find((x) => x.key === "solo")?.fileIds).toEqual(["b"]);
+    const byId = Object.fromEntries(report.files.map((x) => [x.fileId, x.reason]));
+    expect(byId).toEqual({ c: { kind: "no_entities" }, d: { kind: "unsupported", format: "psd" }, e: { kind: "processing" }, g: { kind: "no_shared", count: 1 }, h: { kind: "no_shared", count: 2 } });
+    // Islands that touch one file only: the lone entity and the recipe pair (with the file named); ann and proj reach two files.
+    expect(report.entities.map((x) => x.key).sort()).toEqual(["FLOUR", "LONELY", "TART"].map((k) => k.toLowerCase()));
+    expect(report.entities.find((x) => x.key === "lonely")).toMatchObject({ fileIds: ["g"], fileNames: ["g.md"] });
     expect(report.complete).toBe(true);
     expect(report.read).toContain("a");
     expect(reasonForRow({ ...f("a") } as never, report)).toBeNull();
-    expect(reasonForRow({ ...f("c") } as never, report)).toEqual({ kind: "no_entities" });
+    expect(reasonForRow({ ...f("h") } as never, report)).toEqual({ kind: "no_shared", count: 2 });
+  });
+
+  it("a thing in two files connects both; a relation reaching a thing another file holds connects too", async () => {
+    const report = await analyzeUnlinked(source([f("a"), f("b"), f("c")], {
+      a: { entities: [ent("x")], facts: [{ subject: ent("x"), object: ent("y"), status: "published" }] },
+      b: { entities: [ent("y")], facts: [] },
+      c: { entities: [ent("z")], facts: [] },
+    }));
+    expect(report.files.map((x) => x.fileId)).toEqual(["c"]);
+    expect(report.entities.map((x) => x.key)).toEqual(["z"]);
+  });
+
+  it("with a single file there is nothing to compare, so nothing is called unconnected", async () => {
+    const report = await analyzeUnlinked(source([f("a")], { a: { entities: [ent("x")], facts: [] } }));
+    expect(report.files).toEqual([]);
+    expect(report.entities).toEqual([]);
   });
 
   it("the Document entity the engine names after every file does not count as an entity found", async () => {
@@ -79,7 +97,7 @@ describe("reading the files", () => {
     expect(report.entities).toEqual([]);
   });
 
-  it("an entity another file's fact points to is connected; a file that links to a table row is connected", async () => {
+  it("a file that links to a table row is connected", async () => {
     const report = await analyzeUnlinked(source([f("a"), f("b"), f("c")], {
       a: { entities: [ent("x")], facts: [{ subject: ent("x"), object: ent("y"), status: "published" }] },
       b: { entities: [ent("y")], facts: [] },
@@ -90,8 +108,11 @@ describe("reading the files", () => {
   });
 
   it("a retracted fact does not connect, and a file that failed to read is never called unconnected", async () => {
-    const report = await analyzeUnlinked(source([f("a"), f("b")], { a: { entities: [ent("x")], facts: [{ subject: ent("x"), object: ent("y"), status: "retracted" }] } }));
-    expect(report.files.map((x) => x.fileId)).toEqual(["a"]);
+    const report = await analyzeUnlinked(source([f("a"), f("b"), f("c")], {
+      a: { entities: [ent("x")], facts: [{ subject: ent("x"), object: ent("y"), status: "retracted" }] },
+      c: { entities: [ent("y")], facts: [] },
+    }));
+    expect(report.files.map((x) => x.fileId)).toEqual(["a", "c"]);
     expect(report.complete).toBe(false);
     expect(report.files.find((x) => x.fileId === "b")).toBeUndefined();
   });
@@ -148,14 +169,14 @@ afterEach(cleanup);
 describe("the not-connected list", () => {
   const data = (): AtlasData => ({
     ...applyUnlinked(base(), report({
-      entities: [{ key: "solo", name: "Solo", type: "Topic", fileIds: [] }],
+      entities: [{ key: "solo", name: "Solo", type: "Topic", fileIds: ["f1"], fileNames: ["notes.md"] }],
       files: [
         { fileId: "f1", driveId: "d", path: "a/none.md", name: "none.md", reason: { kind: "no_entities" } },
         { fileId: "f2", driveId: "d", path: "a/x.psd", name: "x.psd", reason: { kind: "unsupported", format: "psd" } },
         { fileId: "f3", driveId: "d", path: "a/p.pdf", name: "p.pdf", reason: { kind: "processing" } },
         { fileId: "f4", driveId: "d", path: "a/r.docx", name: "r.docx", reason: { kind: "review" } },
         { fileId: "f5", driveId: "d", path: "a/bad.xlsx", name: "bad.xlsx", reason: { kind: "parse_failed", code: "PARSE_XLSX_CORRUPT" } },
-        { fileId: "f6", driveId: "d", path: "a/lone.md", name: "lone.md", reason: { kind: "no_relations" } },
+        { fileId: "f6", driveId: "d", path: "a/lone.md", name: "lone.md", reason: { kind: "no_shared", count: 6 } },
       ],
     })),
   });
@@ -166,13 +187,13 @@ describe("the not-connected list", () => {
     const rows = screen.getAllByTestId("atlas-list-member");
     const reasons = Object.fromEntries(rows.map((row) => [row.getAttribute("data-name"), within(row).getByTestId("atlas-reason").textContent]));
     expect(reasons).toEqual({
-      "Solo": "No relation to anything else",
+      "Solo": "Only appears in notes.md",
       "none.md": "No entities found in this file",
       "x.psd": "Format not supported: psd",
       "p.pdf": "Still processing",
       "r.docx": "Waiting for your review",
       "bad.xlsx": "Could not be read (PARSE_XLSX_CORRUPT)",
-      "lone.md": "Entities found, but none relates to anything else",
+      "lone.md": "Found 6 things, none appear elsewhere",
     });
   });
   it("is a group of the full list otherwise, named in the language of the app by the screen", () => {
