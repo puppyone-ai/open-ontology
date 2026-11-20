@@ -268,7 +268,10 @@ pub(super) fn oracle(
                     "--platform",
                     "linux/amd64",
                     "--label",
-                    "oo.lane=a",
+                    &format!(
+                        "oo.lane={}",
+                        super::lite::lane(std::path::Path::new("/nonexistent"))
+                    ),
                     "--cap-drop",
                     "ALL",
                     "--security-opt",
@@ -593,6 +596,59 @@ fn model(stack: &Stack) -> Value {
     result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
 }
 
+/// What a DBA must grant before any build, from the probe each source report already
+/// carries. Only the capabilities the source's sync mode needs count (the snapshot
+/// path always; log CDC for C1, range digests for C5); the rest stays advice in
+/// `dba_requirements`. Builds that skip this fail later, at load.
+fn required_grants(stack: &Stack, sources: &[Value]) -> Vec<Value> {
+    let mut out = Vec::new();
+    for (source, report) in stack.sources.iter().zip(sources) {
+        let mut needed = vec!["catalog", "chunked_snapshot"];
+        match source.sync.mode.as_str() {
+            "C1" => needed.push("log_cdc"),
+            "C5" => needed.push("digest_diff"),
+            _ => (),
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for capability in needed {
+            let state = &report["probe"]["capabilities"][capability];
+            if state["state"] != "needs_setup" {
+                continue;
+            }
+            for need in state["requirements"].as_array().into_iter().flatten() {
+                let name = need["name"].as_str().unwrap_or_default();
+                if seen.insert(name.to_owned()) {
+                    out.push(json!({"source_id":source.id,"capability":capability,
+                        "requirement":name,"observed":need["observed"],"required":need["required"],
+                        "dba_statement":need["dba_statement"]}));
+                }
+            }
+        }
+    }
+    out
+}
+
+fn grants_text(grants: &[Value]) -> String {
+    let mut text = String::from(
+        "A DBA must grant this before oo build (run as an administrator, then re-run oo doctor):\n",
+    );
+    for grant in grants {
+        let line = match grant["dba_statement"].as_str() {
+            Some(statement) => statement.to_owned(),
+            None => format!(
+                "-- no automatic statement: {} ({})",
+                grant["requirement"].as_str().unwrap_or(""),
+                grant["required"].as_str().unwrap_or("")
+            ),
+        };
+        text.push_str(&format!(
+            "  {line}   -- source {}\n",
+            grant["source_id"].as_str().unwrap_or("")
+        ));
+    }
+    text
+}
+
 pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failure> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -601,11 +657,17 @@ pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failur
         .map_err(|_| Failure::local("DOCTOR_RUNTIME"))?;
     let sources = runtime.block_on(sources(stack));
     let model = model(stack);
+    let grants = required_grants(stack, &sources);
     #[allow(unused_mut)]
-    let mut blocked = sources.iter().any(|s| s["status"] != "ok") || model["status"] != "ok";
+    let mut blocked = sources.iter().any(|s| s["status"] != "ok")
+        || model["status"] != "ok"
+        || !grants.is_empty();
     #[allow(unused_mut)]
     let mut report = json!({"protocol":"oo.doctor/v1", "read_only":true,
         "status": if blocked {"blocked"} else {"ok"}, "sources":sources, "model":model});
+    if !grants.is_empty() {
+        report["required_grants"] = json!(grants);
+    }
     // Super Drive: an added field, only in builds with the docs feature.
     #[cfg(feature = "docs")]
     {
@@ -620,7 +682,12 @@ pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failur
         report.to_string()
     } else {
         format!(
-            "Read-only preflight (DBA statements are advice, never executed).\n{}",
+            "Read-only preflight (DBA statements are advice, never executed).\n{}{}",
+            if grants.is_empty() {
+                String::new()
+            } else {
+                grants_text(&grants)
+            },
             serde_json::to_string_pretty(&report).map_err(|_| Failure::local("DOCTOR_REPORT"))?
         )
     };
@@ -717,5 +784,43 @@ mod tests {
             s.scope.exclude = vec![unsupported.into()];
             assert!(tables(&s).is_err());
         }
+    }
+
+    #[test]
+    fn grants_the_sync_mode_needs_are_reported_before_any_build() {
+        let mut stack =
+            oo_stack::parse(include_str!("../../../oo-stack/example.stack.json")).unwrap();
+        stack.sources[0].sync.mode = "C5".into();
+        let need = |name: &str, statement: Value| {
+            json!({"name":name,"observed":"missing",
+            "required":"visibility of all active sessions","dba_statement":statement})
+        };
+        let stats = need(
+            "pg_read_all_stats",
+            json!("GRANT pg_read_all_stats TO oo_reader;"),
+        );
+        let report = json!({"status":"blocked","probe":{"capabilities":{
+            "catalog":{"state":"needs_setup","requirements":[stats.clone()]},
+            "chunked_snapshot":{"state":"needs_setup","requirements":[stats.clone()]},
+            "digest_diff":{"state":"needs_setup","requirements":[stats]},
+            "log_cdc":{"state":"needs_setup","requirements":[
+                need("REPLICATION", json!("ALTER ROLE oo_reader REPLICATION;"))]}}}});
+        let grants = required_grants(&stack, std::slice::from_ref(&report));
+        // One statement, named once, for the capabilities this mode needs; C1's is not asked.
+        assert_eq!(grants.len(), 1);
+        assert_eq!(
+            grants[0]["dba_statement"],
+            "GRANT pg_read_all_stats TO oo_reader;"
+        );
+        assert_eq!(grants[0]["source_id"], json!(stack.sources[0].id));
+        assert!(grants_text(&grants).contains("GRANT pg_read_all_stats TO oo_reader;"));
+        stack.sources[0].sync.mode = "C1".into();
+        let names: Vec<_> = required_grants(&stack, &[report])
+            .iter()
+            .map(|g| g["requirement"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, ["pg_read_all_stats", "REPLICATION"]);
+        let ready = json!({"probe":{"capabilities":{"catalog":{"state":"available"}}}});
+        assert!(required_grants(&stack, &[ready]).is_empty());
     }
 }

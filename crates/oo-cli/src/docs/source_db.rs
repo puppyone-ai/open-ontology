@@ -140,7 +140,7 @@ pub fn load(path: &Path) -> Result<Option<Stack>, CliError> {
     }
     let text = std::fs::read_to_string(path)
         .map_err(|e| err("SO_SOURCE_BAD_STACK", format!("{}: {e}", path.display())))?;
-    stack::parse(&text).map(Some).map_err(|c| {
+    stack::parse_draft(&text).map(Some).map_err(|c| {
         err(
             "SO_SOURCE_BAD_STACK",
             format!("{} is not a valid stack file ({c})", path.display()),
@@ -150,7 +150,7 @@ pub fn load(path: &Path) -> Result<Option<Stack>, CliError> {
 
 /// Write the stack file as JSON, atomically, mode 0600 (the pipeline's own `init --config` normal form).
 fn save(path: &Path, s: &Stack) -> Result<(), CliError> {
-    stack::validate(s).map_err(|c| {
+    stack::validate_draft(s).map_err(|c| {
         err(
             "SO_SOURCE_BAD_STACK",
             format!("the result is not a valid stack ({c})"),
@@ -525,6 +525,31 @@ mod tests {
             super::super::source::SWITCHES,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn a_stack_without_sources_loads_so_the_first_source_can_be_added() {
+        let dir = std::env::temp_dir().join(format!("oo-nosrc-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("stack.yaml");
+        std::fs::write(
+            &file,
+            "version: oo.stack/v1\nmodel: {provider: openai-compatible, base_url: \"https://api.example.com/v1\", model: m, key: {secret_ref: model-key}}\n",
+        )
+        .unwrap();
+        let loaded = load(&file).unwrap().unwrap();
+        assert!(loaded.sources.is_empty());
+        // Saving the draft back keeps it loadable; the strict readers still say what to run.
+        save(&file, &loaded).unwrap();
+        assert!(load(&file).unwrap().unwrap().sources.is_empty());
+        let strict = stack::parse(&std::fs::read_to_string(&file).unwrap())
+            .err()
+            .unwrap();
+        assert!(strict.starts_with("STACK_NO_SOURCES") && strict.contains("oo source add"));
+        std::fs::write(&file, "").unwrap();
+        let empty = load(&file).err().unwrap();
+        assert!(empty.message.contains("STACK_EMPTY") && empty.message.contains("oo init"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

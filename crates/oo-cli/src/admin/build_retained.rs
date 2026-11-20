@@ -362,19 +362,40 @@ pub(super) fn builder(
     command.args(["-c", "import importlib.util,json,os,sys\np,c,o,r=sys.argv[1:]\nsys.path.insert(0,os.path.dirname(p))\ns=importlib.util.spec_from_file_location('retained_build',p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)\nos.umask(0o077)\nv=m.run(c,o)\nm.save(r,v)\nprint(json.dumps(v))"])
         .arg(text(runtime, "builder_script")?).arg(config_path).arg(&output).arg(&receipt)
         .env("OO_SELFBUILD_BUDGET_BIN", binary("selfbuild-budget")?);
+    let started = std::time::Instant::now();
     let (code, _, err) = invoke(command, vec![], 1800)?;
     if code != 0 {
         // The Builder process finished with an error (e.g. one transient
         // model reply): its output can no longer change, so keep it aside as
         // evidence and let `--resume` start a fresh attempt. A Builder that
         // was interrupted mid-run still refuses above, never restarted.
-        keep_failed_output(root, &output)?;
+        let kept = keep_failed_output(root, &output)?;
         return Err(Failure::local(format!(
-            "BUILD_BUILDER_FAILED: the draft step failed ({}); run oo build --resume to try again",
-            cause(&err)
+            "BUILD_BUILDER_FAILED: the draft step failed ({}); run oo build --resume to try again{}",
+            cause(&err),
+            repeat_hint(started.elapsed(), kept.as_deref())
         )));
     }
     review::read(&receipt)
+}
+
+/// A draft that fails within seconds again, after earlier failed attempts, is not a slow
+/// model: it replays state the failed attempts left behind. Say how to recover.
+fn repeat_hint(elapsed: std::time::Duration, kept: Option<&Path>) -> String {
+    let Some(kept) = kept.filter(|k| {
+        elapsed < std::time::Duration::from_secs(5)
+            && k.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n != "builder-failed-1")
+    }) else {
+        return String::new();
+    };
+    let root = kept.parent().unwrap_or(Path::new("."));
+    format!(
+        "; this attempt failed within {} s like the one before it, so the cause is the provider's answer or state kept from earlier attempts: if a fresh deployment passes, remove {}/builder-failed-* (evidence only) and run oo build --resume",
+        elapsed.as_secs().max(1),
+        root.display()
+    )
 }
 
 /// Move a finished-but-failed Builder output aside (`builder-failed-<n>`),
@@ -539,6 +560,20 @@ fn pin_source_catalog(
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
+
+    #[test]
+    fn a_repeated_fast_failure_says_how_to_recover() {
+        let second = Path::new("/state/builder-failed-2");
+        let quick = std::time::Duration::from_secs(2);
+        let hint = repeat_hint(quick, Some(second));
+        assert!(
+            hint.contains("remove /state/builder-failed-*") && hint.contains("oo build --resume")
+        );
+        // The first failure, a slow one, or no kept output say nothing extra.
+        assert!(repeat_hint(quick, Some(Path::new("/state/builder-failed-1"))).is_empty());
+        assert!(repeat_hint(std::time::Duration::from_secs(60), Some(second)).is_empty());
+        assert!(repeat_hint(quick, None).is_empty());
+    }
 
     #[test]
     fn failed_builder_output_is_kept_aside_for_a_fresh_resume() {

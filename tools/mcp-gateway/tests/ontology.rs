@@ -91,7 +91,8 @@ async fn unified_tools_map_onto_the_ontology_surface() {
             "ontology_search",
             "ontology_entity",
             "ontology_sources",
-            "ontology_query"
+            "ontology_query",
+            "ontology_schema"
         ]
     );
     let r = running

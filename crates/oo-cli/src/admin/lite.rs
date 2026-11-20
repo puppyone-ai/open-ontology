@@ -188,21 +188,28 @@ fn saved_image(root: &Path) -> Option<String> {
     owner["image"].as_str().map(str::to_owned)
 }
 
-/// The deployment's lane label; `OO_LITE_LANE` only applies before first up.
+/// The deployment's lane label: the saved owner lane, else `OO_LITE_LANE`, else
+/// `OO_TEST_LANE`, else `a`. Up to 48 characters of `[a-z][a-z0-9-]`, so a
+/// board lane such as `super-ontology-q1` labels its containers unchanged.
 pub(super) fn lane(root: &Path) -> String {
-    fs::read(root.join("owner.json"))
+    let saved = fs::read(root.join("owner.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-        .and_then(|owner| owner["lane"].as_str().map(str::to_owned))
-        .or_else(|| std::env::var("OO_LITE_LANE").ok())
-        .filter(|l| {
-            !l.is_empty()
-                && l.len() <= 8
-                && l.as_bytes()[0].is_ascii_lowercase()
-                && l.bytes()
-                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
-        })
+        .and_then(|owner| owner["lane"].as_str().map(str::to_owned));
+    let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    saved
+        .or_else(|| env("OO_LITE_LANE"))
+        .or_else(|| env("OO_TEST_LANE"))
+        .filter(|l| valid_lane(l))
         .unwrap_or_else(|| "a".into())
+}
+
+fn valid_lane(l: &str) -> bool {
+    !l.is_empty()
+        && l.len() <= 48
+        && l.as_bytes()[0].is_ascii_lowercase()
+        && l.bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
 /// The runtime user: the owner of the private deployment directory, so
@@ -459,5 +466,22 @@ mod tests {
         assert!(!image_help(&id).contains("docker pull"));
         let reference = format!("registry.example/runtime@{id}");
         assert_eq!(image_help(&reference), format!("docker pull {reference}"));
+    }
+
+    #[test]
+    fn lane_label_keeps_a_board_lane_whole() {
+        assert!(valid_lane("super-ontology-q1"));
+        assert!(valid_lane(&format!("a{}", "b".repeat(47))));
+        for bad in ["", "1a", "A", "a_b", "a b", &"a".repeat(49)] {
+            assert!(!valid_lane(bad), "{bad}");
+        }
+        let root = std::env::temp_dir().join(format!("oo-lane-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("owner.json"), br#"{"lane":"super-ontology-q1"}"#).unwrap();
+        assert_eq!(lane(&root), "super-ontology-q1");
+        // A saved lane that no longer passes validation never reaches a label.
+        fs::write(root.join("owner.json"), br#"{"lane":"Bad Lane"}"#).unwrap();
+        assert_eq!(lane(&root), "a");
+        let _ = fs::remove_dir_all(&root);
     }
 }

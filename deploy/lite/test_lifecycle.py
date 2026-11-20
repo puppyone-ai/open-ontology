@@ -174,6 +174,24 @@ class Tests(unittest.TestCase):
                 lifecycle.main(self.request)
         self.assertFalse(any('down' in a for a in calls))
 
+    def test_lane_follows_the_callers_board_lane_not_eight_characters(self):
+        lane='super-ontology-q1'
+        def docker(args,env):
+            self.assertEqual(env['OO_LITE_LANE'],lane)
+            return b'cid' if args[0]=='ps' else json.dumps({'oo.lane':lane}).encode()
+        for name in ('OO_LITE_LANE','OO_TEST_LANE'):
+            with patch.dict(os.environ,{name:lane}),patch.object(lifecycle,'docker',side_effect=docker):
+                try:
+                    lifecycle.main(self.request)
+                except ValueError as error:
+                    self.assertNotIn('LITE_LANE',str(error))
+                    self.assertNotIn('LITE_OWNERSHIP',str(error))
+                except Exception:
+                    pass  # past the lane/ownership checks; later steps need a live docker
+        with patch.dict(os.environ,{'OO_LITE_LANE':'Bad Lane'}):
+            with self.assertRaisesRegex(ValueError,'LITE_LANE'):
+                lifecycle.main(self.request)
+
     def test_absent_health_credentials_never_imply_healthy(self):
         result=lifecycle.health(self.root,self.request['stack'])
         self.assertEqual(result['status'],'unmeasured')

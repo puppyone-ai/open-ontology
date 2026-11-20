@@ -12,6 +12,7 @@ pub struct SecretRef {
 #[serde(deny_unknown_fields)]
 pub struct Stack {
     pub version: String,
+    #[serde(default)]
     pub sources: Vec<Source>,
     pub model: Model,
     #[serde(default)]
@@ -197,9 +198,21 @@ fn all() -> Vec<String> {
     vec!["*".into()]
 }
 
+/// A stack with at least one source: what `up`, `build` and `doctor` need.
 pub fn parse(text: &str) -> Result<Stack> {
+    let stack = parse_draft(text)?;
+    validate(&stack)?;
+    Ok(stack)
+}
+
+/// A stack that may still have no sources: `oo init --config` and `oo source add|ls|rm`
+/// start from `version` and `model` only and add the sources one by one.
+pub fn parse_draft(text: &str) -> Result<Stack> {
     if text.len() > 1_048_576 {
         return Err("STACK_BUDGET");
+    }
+    if text.trim().is_empty() {
+        return Err(EMPTY);
     }
     // Deserialize directly: duplicate and unknown fields fail, including secret objects.
     let stack: Stack = if let Ok(stack) = serde_json::from_str(text) {
@@ -221,9 +234,12 @@ pub fn parse(text: &str) -> Result<Stack> {
     };
     let mut stack = stack;
     resolve_file_refs(&mut stack);
-    validate(&stack)?;
+    validate_draft(&stack)?;
     Ok(stack)
 }
+
+const EMPTY: &str = "STACK_EMPTY: the stack file is empty; run `oo init` to write one, or start it with `version: oo.stack/v1` and a `model:` block, then run `oo source add <kind> --name <name>`";
+const NO_SOURCES: &str = "STACK_NO_SOURCES: the stack has no database source yet; run `oo source add <kind> --name <name> --host <host> --database <db> --user <user>` (see `oo source add --help`)";
 
 /// `file:` references name their file by an absolute path. A directory on that path may
 /// be a symbolic link (macOS `/tmp`, `/var`), which the secret reader refuses by design, so
@@ -409,7 +425,17 @@ fn looks_secret(value: &str) -> bool {
         || lower.starts_with("oost_")
 }
 
+/// Strict validation: the stack names at least one source.
 pub fn validate(stack: &Stack) -> Result<()> {
+    validate_draft(stack)?;
+    if stack.sources.is_empty() {
+        return Err(NO_SOURCES);
+    }
+    Ok(())
+}
+
+/// Validation that accepts a stack with no sources yet.
+pub fn validate_draft(stack: &Stack) -> Result<()> {
     let value = serde_json::to_value(stack).map_err(|_| "STACK_SCHEMA")?;
     fn scan(value: &serde_json::Value) -> bool {
         match value {
@@ -423,7 +449,7 @@ pub fn validate(stack: &Stack) -> Result<()> {
     if !scan(&value) {
         return Err("STACK_INLINE_SECRET");
     }
-    if stack.version != "oo.stack/v1" || stack.sources.is_empty() || stack.sources.len() > 1024 {
+    if stack.version != "oo.stack/v1" || stack.sources.len() > 1024 {
         return Err("STACK_SCHEMA");
     }
     let mut ids = std::collections::HashSet::new();
