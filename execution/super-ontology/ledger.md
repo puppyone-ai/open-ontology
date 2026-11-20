@@ -273,6 +273,15 @@
 | SO-F-S19-97 | D88 | merged | feat/super-ontology (App 车道 T 并入) | afbea4338 → afbea4338 | — | apps/super-ontology-desktop/ | Draw the atlas as precise growth: dots, squares, hull outlines, straight links |
 | SO-F-S19-98 | D88 | merged | feat/super-ontology (App 车道 T 并入) | db9167a3e → db9167a3e | — | apps/super-ontology-desktop/ | Show the database tables and relationships in the atlas list and a version tick |
 | SO-F-S19-99 | D88 | merged | feat/super-ontology (App 车道 T 并入) | ce2578c7e → 08ac1c00f | — | apps/super-ontology-desktop/ | Summarise cross-group links, cap mark size, pixel-grid canvas; single-database column layout |
+| SO-F-S20-01 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 855ba596a → 855ba596a | — | apps/super-ontology-desktop/ | Stop T2 screen recordings when a scenario ends and cap them |
+| SO-F-S20-02 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 3ba6e0d28 → 3ba6e0d28 | — | apps/super-ontology-desktop/ | Expose the freshness state and the change-ring count on the page |
+| SO-F-S20-03 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 8501c8570 → 8501c8570 | — | apps/super-ontology-desktop/ | Add the P07 auto-sync scenario and its measuring harness |
+| SO-F-S20-04 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 8afcde782 → 8afcde782 | — | apps/super-ontology-desktop/ | Re-check a held mass delete on the engine's own syncs and keep a lone file from tripping it |
+| SO-F-S20-05 | D46 | merged | feat/super-ontology (App 车道 W 并入) | be83b9fbe → be83b9fbe | — | apps/super-ontology-desktop/ | Do the P07 drop through the upload panel and summarise its timings |
+| SO-F-S20-06 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 5e23677a2 → 5e23677a2 | — | apps/super-ontology-desktop/ | Fix uploads from the source page: pass the bridge real File objects |
+| SO-F-S20-07 | D46 | merged | feat/super-ontology (App 车道 W 并入) | a0bfd16e6 → a0bfd16e6 | — | apps/super-ontology-desktop/ | Send a full sync when a changed path has vanished from disk |
+| SO-F-S20-08 | D46 | merged | feat/super-ontology (App 车道 W 并入) | ba971a62e → ba971a62e | — | apps/super-ontology-desktop/ | Make P07 repeatable and exact about renames, deletes and the atlas |
+| SO-F-S20-09 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 7b9e1da77 → 7b9e1da77 | — | apps/super-ontology-desktop/ | Judge P07 evidence per file, retry lost clicks and report steps that were not run |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
