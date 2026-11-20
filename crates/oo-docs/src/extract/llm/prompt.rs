@@ -1,14 +1,14 @@
-//! The `extract/2` prompt and the block level cache key (10 §5.2.2, §5.2.4).
+//! The `extract/3` prompt and the block level cache key (10 §5.2.2, §5.2.4).
 
 use serde_json::{Value, json};
 
 use super::batch::Batch;
 use super::{ConstrainedType, MAX_TOKENS, prompt_version};
 
-/// System text of `extract/2`. Changing a word changes the cache keys of
+/// System text of `extract/3`. Changing a word changes the cache keys of
 /// everything, which is why the prompt version is part of the key.
 ///
-/// `extract/2` over `extract/1` (10 5.2.2, D15, D16): each core type says what
+/// `extract/3` over `extract/1` (10 5.2.2, D15, D16): each core type says what
 /// counts as one, so the model stops inventing Organization, Event and Topic
 /// entities for generic words and tasks; the document itself is the entity
 /// `doc` and only a subject of `about`; known entities are reused verbatim;
@@ -37,6 +37,7 @@ pub const SYSTEM: &str = "你是信息抽取器。只抽取文本中明确陈述
 owns 和 member_of 只在原文明确写出“谁负责/拥有什么”“谁属于哪里”时使用；只是列出某组织的项目、成员清单，不算。\n\
 必须为 e0 输出 about 关系：宾语是文档最核心的 1 到 3 个 Project、Topic、Term 或 Organization，quote 取该对象出现的原文（只需包含宾语）；mentions 不必输出。\n\
 不属于以上任何核心类型的重要对象，用 type=\"Thing\" 并给出简短 label（≤20 字，名词）。\n\
+aliases 里除简称、昵称外，还要写出该实体名称的另一种语言的通用写法（中文名写英文译名或拼音，英文名写中文译名），使不同语言的提问都能找到它；没有把握的译名不要写。\n\
 已知实体中的对象（含简称、别名）必须逐字使用已知实体的写法作为 name，不得另起新名。\n\
 每一项都必须给出 block_id 和 quote：quote 是该块中逐字出现的原文片段（≤120 字）；关系的 quote 必须同时包含主语和宾语的写法（主语是 e0 时除外）。\n\
 日期写成 YYYY-MM-DD；不确定的日期留空。\n\
@@ -234,9 +235,9 @@ mod tests {
             label: "合同".into(),
             type_name: "Contract".into(),
         }];
-        assert_eq!(prompt_version(&[]), "extract/2");
+        assert_eq!(prompt_version(&[]), "extract/3");
         let v = prompt_version(&t);
-        assert!(v.starts_with("extract/2+t") && v.len() == "extract/2+t".len() + 8);
+        assert!(v.starts_with("extract/3+t") && v.len() == "extract/3+t".len() + 8);
         assert_ne!(v, prompt_version(&[]));
         assert_eq!(system_text(&[]), SYSTEM);
         assert!(system_text(&t).contains("合同（Contract）"));
