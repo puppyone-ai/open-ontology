@@ -17,11 +17,13 @@ const optional = ["databases-live"];
 const selected = (only ? [...order, ...optional] : order).filter((name) => !only || only.includes(name));
 const env = { ...process.env, ...(option("--engine") ? { SO_T1_ENGINE: option("--engine") } : {}) };
 const ATTEMPT_MS = 5 * 60_000;
+// The live database path starts containers, runs the real build and calls a real model.
+const attemptMs = (name) => (name === "databases-live" ? 30 * 60_000 : ATTEMPT_MS);
 
 function attempt(name) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [path.join(here, "t1", `${name}.t1.mjs`)], { env, stdio: "inherit" });
-    const timer = setTimeout(() => { console.error(`[t1] ${name} exceeded 5 minutes`); child.kill("SIGKILL"); }, ATTEMPT_MS);
+    const timer = setTimeout(() => { console.error(`[t1] ${name} exceeded ${attemptMs(name) / 60_000} minutes`); child.kill("SIGKILL"); }, attemptMs(name));
     child.on("exit", (code) => { clearTimeout(timer); resolve(code ?? 1); });
   });
 }

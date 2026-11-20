@@ -79,8 +79,14 @@ Rules:
 | `add-database-checks` `add-database-error` | connection check steps, success notice, failure notice | check: `data-state` = `ok` `blocked` |
 | `screen-database-detail` **(T1)** | one database's page | `data-name` |
 | `database-test` `database-doctor` `database-doctor-result` `database-test-result` **(T1)** | reachability test and the read-only doctor | result: `data-status` |
-| `database-import` `database-import-progress` `database-import-done` `database-pipeline` **(T1)** | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `unknown` |
-| `database-import-log` | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `unknown` |
+| `database-import` `database-import-progress` `database-import-done` `database-pipeline` **(T1)** | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `waiting_review` `unknown`; `data-phase` = `idle` `up` `build` `review` `done` `failed` |
+| `database-import-log` | import (`oo up`, `oo build`) and freshness | pipeline: `data-state` = `up_to_date` `degraded` `processing` `waiting_review` `unknown`; `data-phase` = `idle` `up` `build` `review` `done` `failed` |
+| `build-review` `review-summary` `review-entity` `review-group` `review-relation` `review-evidence` `review-accept` `review-reject` `review-reason` `review-changes` `review-confirm` **(T1)** | the build review: what the Builder proposed, one row per relationship, the decision and its reason | review: `data-state` = `ready` `submitting` `error`; relation: `data-key` `data-origin` = `declared` `named` `discovered`, `data-decision` = `adopted` `rejected`, `data-changed`; changes: `data-count` |
+| `review-back` `review-later` `review-stat-tables` `review-stat-columns` `review-stat-entities` `review-stat-relations` `review-entities` `review-fanout` `review-no-relations` `review-partial` `review-error` `review-error-next` `review-cli` | the review's other parts | |
+| `build-stages` `build-stage` **(T1)** | one row per build stage on the database page | stage: `data-stage` = `services` `load` `candidate` `builder` `self_review` `publish` `gateway` `first_token` `share_prompt`; `data-state` = `complete` `pending` `running` `blocked` `review` |
+| `database-review-waiting` `database-review-open` `database-review-notice-open` `database-import-hint` `database-import-error` | a build that waits for the owner, a failure with its cause and next step | |
+| `database-open-atlas` `database-open-files` `database-open-query` **(T1)** | after the import: Atlas source view, the YAML files, the Query tab | |
+| `add-database-ca` `add-database-ca-driver` | the certificate authority block (`data-need` = `required` `optional`) or the note that a kind takes none | |
 | `database-remove` `database-remove-confirm` **(T1)** | remove the source | |
 | `database-import-cli-toggle` `database-import-cli-value` **(T1)** | the equivalent commands | |
 | `database-import-cli` | the equivalent commands | |
