@@ -6,7 +6,7 @@
 //!                   changed or new -> hash job
 //! complete listing only:
 //!     missing = live files with last_seen_generation < g
-//!     mass delete (> 100 and > 50% of live, or empty root) -> held
+//!     mass delete (> 100 and > 50% of live, or an emptied root that held more than one file) -> held
 //!     rename (same b3 appeared this generation) | deleted (evidence withdrawn)
 //! ```
 //!
@@ -198,11 +198,18 @@ pub async fn enqueue_sync(
     .fetch_optional(pool)
     .await?;
     let is_held = held.as_deref() == Some("held");
-    if let Some(c) = flavor.confirm {
-        if !is_held || c != g {
-            return Err(IngestError::ConfirmMismatch { generation: g });
-        }
-    } else if is_held {
+    if let Some(c) = flavor.confirm
+        && (!is_held || c != g)
+    {
+        return Err(IngestError::ConfirmMismatch { generation: g });
+    }
+    // A hold is a verdict about the listing it was made on, not about the Drive for good: the files may be back, or the folder may
+    // have been remounted. Refusing every later sync until a confirmation left a Drive held for good even after the files returned.
+    // So the engine's own syncs (poll, hints) list again under the held generation: still a mass delete -> held again and nothing
+    // is swept; otherwise it completes. A person's sync keeps the documented refusal that names the generation to confirm, and a
+    // confirmation is still the only way to sweep a mass delete.
+    let recheck = is_held && flavor.confirm.is_none() && flavor.trigger != Trigger::Manual;
+    if is_held && flavor.confirm.is_none() && !recheck {
         return Ok(EnqueuedSync::Held {
             generation: g,
             would_delete: would_delete(pool, drive_id, g).await?,
@@ -218,7 +225,14 @@ pub async fn enqueue_sync(
     if live.is_some() {
         return Ok(EnqueuedSync::Running { generation: g });
     }
-    let base = flavor.dedupe_key(drive_id, g);
+    let mut base = flavor.dedupe_key(drive_id, g);
+    if recheck {
+        // The held attempt's job is finished under the generation's usual key: a new key lets the recheck run.
+        let at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        base = format!("{base}#recheck{at}");
+    }
     let mut conn = pool.acquire().await?;
     for n in 0..=6 {
         let key = if n == 0 {
@@ -1114,7 +1128,7 @@ async fn sync_core<S: HashableSource>(
         let mut missing = load_missing(pool, &drive.id, g).await?;
         missing.retain(|m| swept(&m.raw_key));
         let mass = (missing.len() > limits.mass_delete_min && missing.len() * 2 > live_swept)
-            || (entries.is_empty() && live_swept > 0 && !missing.is_empty());
+            || (entries.is_empty() && live_swept > 1 && !missing.is_empty());
         if mass && flavor.confirm != Some(g) {
             report.status = SyncStatus::Held;
             report.would_delete = Some(missing.len() as i64);
