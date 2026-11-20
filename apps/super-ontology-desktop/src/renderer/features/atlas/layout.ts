@@ -44,6 +44,33 @@ export function spiralPoint(index: number): { x: number; y: number } {
   return lattice[index]!;
 }
 
+/**
+ * A short group (two to eight members) joined by directed links is laid out in columns by link direction, so most arrows point the same way:
+ * a member nothing points to sits in the first column, one pointed to by it in the next, and so on. Members of a column are stacked and centred.
+ * Returns where each member rests relative to the group and the radius the group needs, or null when there is nothing directed to follow.
+ */
+export const COLUMN_PITCH = 66;
+export const ROW_PITCH = 36;
+export function planColumns(ids: readonly string[], edges: readonly (readonly [string, string])[]): { offsets: Map<string, { x: number; y: number }>; radius: number } | null {
+  if (ids.length < 2 || ids.length > 8) return null;
+  const inside = new Set(ids);
+  const own = edges.filter(([from, to]) => inside.has(from) && inside.has(to) && from !== to);
+  if (own.length === 0) return null;
+  const rank = new Map(ids.map((id) => [id, 0]));
+  for (let pass = 0; pass < ids.length; pass += 1) {
+    let changed = false;
+    for (const [from, to] of own) if (rank.get(to)! < rank.get(from)! + 1 && rank.get(from)! + 1 < ids.length) { rank.set(to, rank.get(from)! + 1); changed = true; }
+    if (!changed) break;
+  }
+  const columns = new Map<number, string[]>();
+  for (const id of [...ids].sort()) { const r = rank.get(id)!; const list = columns.get(r); if (list) list.push(id); else columns.set(r, [id]); }
+  const last = Math.max(...columns.keys());
+  const offsets = new Map<string, { x: number; y: number }>();
+  for (const [r, list] of columns) list.forEach((id, i) => offsets.set(id, { x: (r - last / 2) * COLUMN_PITCH, y: (i - (list.length - 1) / 2) * ROW_PITCH }));
+  const reach = Math.max(...[...offsets.values()].map((p) => Math.hypot(p.x, p.y)));
+  return { offsets, radius: reach + MEMBER_MAX_RADIUS + GROUP_PAD };
+}
+
 /** Radius of a group that shows `members` cells. */
 export const expandedRadius = (members: number): number => {
   if (members <= 0) return collapsedRadius(0);

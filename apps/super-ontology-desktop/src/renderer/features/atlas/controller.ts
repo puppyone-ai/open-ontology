@@ -145,8 +145,24 @@ export class AtlasController {
     this.kick();
   }
 
+  /**
+   * A picture of one group (a database alone): it is brought up to fill about 60 percent of the stage, measured on its members and with room
+   * for their names beside them, instead of the generic fit around the discs the layout reserved.
+   */
+  private single(): Camera | null {
+    const full = this.scene.groups.filter((group) => group.alive && group.count > 0);
+    if (full.length !== 1 || !full[0]!.expanded || this.width <= 0) return null;
+    const members = full[0]!.members.map((i) => this.scene.nodes[i]!).filter((m) => m.alive && m.shown);
+    if (members.length === 0) return null;
+    const xs = members.map((m) => m.x), ys = members.map((m) => m.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    // Names sit beside the marks: allow about 90 pixels of them on the right and 30 above and below, in world units at the zoom being chosen.
+    const k = Math.min(8, Math.max(0.8, Math.min((0.6 * this.width - 120) / Math.max(1, maxX - minX), (0.6 * this.height - 60) / Math.max(1, maxY - minY || 1))));
+    return { k, x: this.width / 2 - ((minX + maxX) / 2) * k + 20, y: this.height / 2 - ((minY + maxY) / 2) * k };
+  }
+
   fit(animated = true): void {
-    const target = fitCamera(this.scene.bounds(), this.width, this.height);
+    const target = this.single() ?? fitCamera(this.scene.bounds(), this.width, this.height);
     this.fitted = this.width > 0;
     this.moveCamera(target, animated);
     this.touched = false;

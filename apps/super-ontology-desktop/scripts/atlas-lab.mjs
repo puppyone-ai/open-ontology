@@ -68,7 +68,8 @@ try {
       await grab(app, name);
       if (name === "native-db-atlas") {
         const box = await page.locator("[data-testid=atlas-canvas]").boundingBox();
-        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        const at = await page.evaluate(() => { const c = window.__atlas; const n = c.scene.nodes.find((x) => x.label === "orders"); return { x: n.x * c.camera.k + c.camera.x, y: n.y * c.camera.k + c.camera.y }; });
+        await page.mouse.click(box.x + at.x, box.y + at.y);
         await page.waitForTimeout(700);
         await grab(app, "native-db-atlas-selected");
       }

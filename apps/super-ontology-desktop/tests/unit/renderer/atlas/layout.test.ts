@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collapsedRadius, expandedRadius, GOLDEN_ANGLE, LATTICE_PITCH, MEMBER_MAX_RADIUS, memberRadius, phyllotaxisAnchors, spiralPoint } from "../../../../src/renderer/features/atlas/layout";
+import { planColumns, collapsedRadius, expandedRadius, GOLDEN_ANGLE, LATTICE_PITCH, MEMBER_MAX_RADIUS, memberRadius, phyllotaxisAnchors, spiralPoint } from "../../../../src/renderer/features/atlas/layout";
 
 describe("atlas layout", () => {
   it("uses the golden angle", () => {
@@ -48,5 +48,21 @@ describe("atlas layout", () => {
     expect(phyllotaxisAnchors([])).toEqual([]);
     // Ties keep their input order, so the picture never depends on sort stability.
     expect(Math.hypot(a[3]!.x, a[3]!.y)).toBeLessThan(Math.hypot(a[4]!.x, a[4]!.y));
+  });
+
+  it("lays a short group out in columns by link direction, so the arrows point the same way", () => {
+    const ids = ["customers", "products", "orders", "order_items"];
+    const plan = planColumns(ids, [["orders", "customers"], ["order_items", "orders"], ["order_items", "products"]])!;
+    const x = (id: string) => plan.offsets.get(id)!.x;
+    expect(x("order_items")).toBeLessThan(x("orders"));
+    expect(x("orders")).toBeLessThan(x("customers"));
+    expect(x("order_items")).toBeLessThan(x("products"));
+    expect(x("orders")).toBe(x("products"));
+    expect(plan.offsets.get("orders")!.y).not.toBe(plan.offsets.get("products")!.y);
+    expect(plan.radius).toBeGreaterThan(Math.max(...[...plan.offsets.values()].map((p) => Math.hypot(p.x, p.y))));
+    expect(planColumns(ids, [])).toBeNull();
+    expect(planColumns(Array.from({ length: 12 }, (_, i) => `t${i}`), [["t0", "t1"]])).toBeNull();
+    // A loop of links does not hang or push a member out of range.
+    expect(planColumns(["a", "b"], [["a", "b"], ["b", "a"]])).not.toBeNull();
   });
 });

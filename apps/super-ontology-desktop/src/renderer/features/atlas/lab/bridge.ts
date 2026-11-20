@@ -40,6 +40,7 @@ export function createLabBridge(initial: AtlasData): LabBridge {
         case "engine-read": case "engine-preflight": case "engine-start": return ok(snapshot);
         case "drives-list": return source.drives();
         case "files-list": return source.files({ driveId: String(request.driveId), limit: Number(request.limit ?? 200), cursor: request.cursor as string | undefined });
+        case "cli-db-list": return ok({ ok: true, data: { sources: initial.groups.length === 1 && initial.groups[0]!.kind === "db" ? [{ name: "shop" }] : [] } });
         case "events-subscribe": return ok({ instanceId: "lab", lastSeq: 0, connection: snapshot.connection });
         case "entities-search": return source.entities({ limit: Number(request.limit ?? 100), cursor: request.cursor as string | undefined });
         case "entity-detail": return source.entity(String(request.entityIdOrKey));

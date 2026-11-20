@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AtlasController } from "../../../../src/renderer/features/atlas/controller";
 import { spiralPoint } from "../../../../src/renderer/features/atlas/layout";
-import { syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
+import { shopAtlas, syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 
 const fakeCanvas = () => {
   const noop = new Proxy({}, { get: (_t, name) => (name === "measureText" ? () => ({ width: 10 }) : () => undefined), set: () => true });
@@ -59,5 +59,20 @@ describe("atlas controller", () => {
     const data = syntheticAtlas({ groups: 6, members: 120, seed: 3 });
     const spread = (canvas: HTMLCanvasElement) => { const controller = new AtlasController(canvas, data, { reducedMotion: true }); const xs = controller.scene.groups.map((g) => g.x); return Math.max(...xs) - Math.min(...xs); };
     expect(spread(wide)).toBeGreaterThan(spread(square));
+  });
+
+  it("fits a single group so that it fills about 60 percent of the stage, with its marks in order of link direction", () => {
+    const canvas = fakeCanvas();
+    (canvas as unknown as { getBoundingClientRect: () => object }).getBoundingClientRect = () => ({ width: 990, height: 466, left: 0, top: 0 });
+    const controller = new AtlasController(canvas, shopAtlas(), { reducedMotion: true, requestFrame: () => 0, cancelFrame: () => undefined });
+    controller.resize(990, 466, 2);
+    const members = controller.scene.nodes.filter((n) => n.kind === "member");
+    const xs = members.map((m) => m.x * controller.camera.k + controller.camera.x);
+    const spread = Math.max(...xs) - Math.min(...xs);
+    expect(spread).toBeGreaterThan(990 * 0.3);
+    expect(spread).toBeLessThan(990 * 0.62);
+    const x = (label: string) => members.find((m) => m.label === label)!.x;
+    expect(x("order_items")).toBeLessThan(x("orders"));
+    expect(x("orders")).toBeLessThan(x("customers"));
   });
 });

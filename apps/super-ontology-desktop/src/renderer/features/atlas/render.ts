@@ -1,5 +1,5 @@
 import type { Camera } from "./camera";
-import { hullArcs, hullBounds, hullPadPx } from "./hull";
+import { convexHull, hullArcs, hullBounds, hullPadPx, type Pt } from "./hull";
 import { ACCENT, CANVAS, TEXT, TEXT_SECOND, TEXT_WEAK, TONE_FILL, TONE_INK, rgba } from "./palette";
 import type { AtlasOrigin, AtlasTone } from "./model";
 import { ease, type AtlasScene, type SceneNode } from "./scene";
@@ -169,14 +169,95 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   const nodes = scene.nodes;
   const shown = (node: SceneNode) => scene.isVisible(node);
 
+  // 0. A small picture (a database of a few tables, say) is laid out on the screen first: where each name goes, clear of the marks, of the links and of
+  //    the other names, and the outline of each group around its marks and its names with 16 pixels to spare.
+  const small = k >= 0.8 && scene.memberCount <= 24;
+  type Spot = { x: number; y: number; align: CanvasTextAlign; box: [number, number, number, number] };
+  const spots = new Map<number, Spot>();
+  const smallHulls = new Map<number, Pt[]>();
+  if (small) {
+    ctx.font = `500 12px ${FONT}`;
+    const shownMembers = nodes.filter((n) => n.kind === "member" && shown(n) && n.appear >= 0.6);
+    const at = (n: SceneNode) => ({ x: n.x * k + camera.x, y: n.y * k + camera.y, h: markHalf(n, k, 1) });
+    const markBoxes = shownMembers.map((n) => { const c = at(n); return [c.x - c.h - 1, c.y - c.h - 1, c.x + c.h + 1, c.y + c.h + 1] as [number, number, number, number]; });
+    const segments: [number, number, number, number][] = [];
+    const live2 = new Set(shownMembers.map((n) => n.idx));
+    for (const link of scene.links) {
+      if (!live2.has(link.a) || !live2.has(link.b)) continue;
+      const a = at(nodes[link.a]!), b = at(nodes[link.b]!);
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len <= a.h + b.h + 5) continue;
+      const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+      segments.push([a.x + ux * (a.h + 2), a.y + uy * (a.h + 2), b.x - ux * (b.h + 2), b.y - uy * (b.h + 2)]);
+    }
+    const crosses = (box: [number, number, number, number]) => segments.some(([x0, y0, x1, y1]) => {
+      const steps = Math.max(2, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 3));
+      for (let i = 0; i <= steps; i += 1) { const x = x0 + ((x1 - x0) * i) / steps, y = y0 + ((y1 - y0) * i) / steps; if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) return true; }
+      return false;
+    });
+    const placed: [number, number, number, number][] = [];
+    const clash = (box: [number, number, number, number], list: [number, number, number, number][]) => list.some((m) => box[0] < m[2] && box[2] > m[0] && box[1] < m[3] && box[3] > m[1]);
+    shownMembers.forEach((node, index) => {
+      const c = at(node);
+      const w = ctx.measureText(node.label).width;
+      const options: [number, number, CanvasTextAlign][] = [[c.x + c.h + 7, c.y, "left"], [c.x, c.y + c.h + 13, "center"], [c.x, c.y - c.h - 13, "center"], [c.x - c.h - 7, c.y, "right"]];
+      let chosen: Spot | null = null;
+      for (const [x, y, align] of options) {
+        const x0 = align === "left" ? x : align === "right" ? x - w : x - w / 2;
+        const box: [number, number, number, number] = [x0 - 3, y - 9, x0 + w + 3, y + 9];
+        if (clash(box, placed) || clash(box, markBoxes.filter((_, i) => i !== index)) || crosses(box)) continue;
+        chosen = { x, y, align, box };
+        break;
+      }
+      // Nothing is free: beside the mark, where the name is easiest to attach to its mark.
+      if (!chosen) { const [x, y, align] = options[0]!; chosen = { x, y, align, box: [x - 3, y - 9, x + w + 3, y + 9] }; }
+      placed.push(chosen.box);
+      spots.set(node.idx, chosen);
+    });
+    for (const group of scene.groups) {
+      const own = shownMembers.filter((n) => n.group === group.idx);
+      if (own.length === 0) continue;
+      const points: Pt[] = [];
+      for (const node of own) {
+        const m = markBoxes[shownMembers.indexOf(node)]!;
+        const b = spots.get(node.idx)!.box;
+        for (const [x, y] of [[m[0], m[1]], [m[2], m[1]], [m[0], m[3]], [m[2], m[3]], [b[0], b[1]], [b[2], b[1]], [b[0], b[3]], [b[2], b[3]]] as const) points.push({ x, y });
+      }
+      smallHulls.set(group.idx, convexHull(points));
+    }
+  }
+
   // 1. Group outlines: the hull of the members grown by a padding, one pixel line, a two to four percent tint inside.
   const labelsToDraw: { node: SceneNode; x: number; y: number; w: number; strong: boolean }[] = [];
   for (const group of scene.groups) {
     if (!shown(group) || (group.count === 0 && group.expanded)) continue;
-    const local = scene.hullOf(group);
-    if (local.length === 0) continue;
+    const own = smallHulls.get(group.idx);
+    const local = own ? [] : scene.hullOf(group);
+    if (local.length === 0 && !own) continue;
     const pad = group.expanded ? hullPadPx(k) / k : 0;
     const folded = !group.expanded;
+    if (own) {
+      const edge = 16;
+      const arcsOwn = hullArcs(own);
+      ctx.beginPath();
+      arcsOwn.forEach((arc, i) => {
+        const cx = snap(arc.x * dpr), cy = snap(arc.y * dpr), r = Math.round(edge * dpr);
+        if (arcsOwn.length === 1) { ctx.moveTo(cx + r, cy); ctx.arc(cx, cy, r, 0, TAU); return; }
+        ctx.arc(cx, cy, r, arc.a0, arc.a1);
+        if (i === arcsOwn.length - 1) ctx.closePath();
+      });
+      const activeOwn = state.selected === group.idx || state.focus === group.idx;
+      ctx.globalAlpha = (1 - group.retract) * (dimmed(group) ? 0.35 : 1);
+      ctx.fillStyle = rgba(TONE_INK[group.tone], 0.02);
+      ctx.fill();
+      ctx.lineWidth = hair;
+      ctx.strokeStyle = activeOwn ? rgba(ACCENT, 0.9) : rgba(TONE_INK[group.tone], 0.4);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      const bounds = hullBounds(own, edge);
+      labelsToDraw.push({ node: group, x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: bounds.maxX - bounds.minX, strong: activeOwn || hits.has(group.idx) });
+      continue;
+    }
     const radius = folded ? Math.max(4, group.r * 0.28) : pad;
     const world = local.map((p) => ({ x: group.x + p.x, y: group.y + p.y }));
     const box = hullBounds(world, radius);
@@ -440,6 +521,25 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
       const strong = wanted(node);
       if (strong || labelAll) candidates.push({ node, strong });
     }
+  }
+  if (small) {
+    // The names were placed in step 0.
+    for (const [idx, spot] of spots) {
+      const node = nodes[idx]!;
+      const strong = wanted(node);
+      ctx.globalAlpha = dimmed(node) && !strong ? 0.35 : 1;
+      ctx.textAlign = spot.align;
+      ctx.textBaseline = "middle";
+      const tx = Math.round(spot.x * dpr) / dpr, ty = Math.round(spot.y * dpr) / dpr;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = CANVAS;
+      ctx.strokeText(node.label, tx, ty);
+      ctx.fillStyle = strong ? TEXT : TEXT_SECOND;
+      ctx.fillText(node.label, tx, ty);
+      stats.labels += 1;
+    }
+    ctx.globalAlpha = 1;
+    candidates.length = 0;
   }
   candidates.sort((a, b) => Number(b.strong) - Number(a.strong) || b.node.r - a.node.r);
   for (const { node, strong } of candidates) {

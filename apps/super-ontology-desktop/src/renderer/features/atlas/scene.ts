@@ -1,4 +1,4 @@
-import { collapsedRadius, discBounds, expandedRadius, GOLDEN_ANGLE, memberRadius, phyllotaxisAnchors, spiralPoint } from "./layout";
+import { collapsedRadius, discBounds, expandedRadius, GOLDEN_ANGLE, memberRadius, phyllotaxisAnchors, planColumns, spiralPoint } from "./layout";
 import type { SimNodeSpec } from "./simulation";
 import { convexHull, foldedCorners, type Pt } from "./hull";
 import type { AtlasData, AtlasGroup, AtlasGroupKind, AtlasSourceKind, AtlasLink, AtlasLinkKind, AtlasMember, AtlasOp, AtlasOrigin, AtlasRef, AtlasTone } from "./model";
@@ -49,6 +49,8 @@ export type SceneNode = {
   /** Groups only. */
   expanded: boolean;
   spiralNext: number;
+  /** A short group laid out in columns by link direction: the radius it needs (otherwise null, and the lattice sets it). */
+  fixedR: number | null;
   members: number[];
   /** Members that are alive (not retracted). */
   count: number;
@@ -102,6 +104,7 @@ export class AtlasScene {
   breathe = 0;
   private growth: { steps: (() => void)[]; at: number; gap: number } | null = null;
   private stretch = 1;
+  private plans = new Map<string, NonNullable<ReturnType<typeof planColumns>>>();
   private linksDrawing = 0;
   private bornInBatch = 0;
   private hulls = new Map<number, { key: string; points: Pt[] }>();
@@ -113,7 +116,15 @@ export class AtlasScene {
     const open = data.members.length <= limit;
     const sizes = new Map<string, number>();
     for (const member of data.members) sizes.set(member.group, (sizes.get(member.group) ?? 0) + 1);
-    const radii = data.groups.map((group) => (open ? expandedRadius(sizes.get(group.id) ?? 0) : collapsedRadius(sizes.get(group.id) ?? 0)));
+    // Short groups joined by directed links are laid out in columns by link direction (layout.ts), the rest on the lattice.
+    const edges = data.links.filter((l) => l.from !== undefined).map((l) => [l.from!, l.from === l.a ? l.b : l.a] as const);
+    const plans = new Map<string, NonNullable<ReturnType<typeof planColumns>>>();
+    for (const group of data.groups) {
+      const plan = planColumns(data.members.filter((m) => m.group === group.id).map((m) => m.id), edges);
+      if (plan) plans.set(group.id, plan);
+    }
+    this.plans = plans;
+    const radii = data.groups.map((group) => (open ? plans.get(group.id)?.radius ?? expandedRadius(sizes.get(group.id) ?? 0) : collapsedRadius(sizes.get(group.id) ?? 0)));
     const anchors = phyllotaxisAnchors(radii);
     this.stretch = Math.min(2, Math.max(1, options.aspect ?? 1));
     for (const anchor of anchors) anchor.x *= this.stretch;
@@ -121,6 +132,7 @@ export class AtlasScene {
     data.groups.forEach((group, index) => {
       const node = this.makeGroup(group, anchors[index]!.x, anchors[index]!.y, radii[index]!);
       node.expanded = open;
+      node.fixedR = open ? plans.get(group.id)?.radius ?? null : null;
     });
     for (const member of data.members) this.addMember(member, false);
     for (const link of data.links) this.addLink(link);
@@ -139,7 +151,7 @@ export class AtlasScene {
     const node: SceneNode = {
       idx: this.nodes.length, id: group.id, kind: "group", group: this.nodes.length, groupKind: group.kind, source: group.source ?? null, tone: group.tone, origin: group.kind === "db" ? "db" : "doc", label: group.label, ref: null,
       weight: 0, born: null, x, y, rBase: r, r, appear: 1, delay: 0, shown: true, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(group.id),
-      ox: 0, oy: 0, ax: x, ay: y, expanded: false, spiralNext: 0, members: [], count: 0,
+      ox: 0, oy: 0, ax: x, ay: y, expanded: false, spiralNext: 0, fixedR: null, members: [], count: 0,
     };
     this.nodes.push(node);
     this.groupList.push(node);
@@ -152,13 +164,16 @@ export class AtlasScene {
     const owner = this.groupIdx.get(member.group);
     if (owner === undefined || this.byId.has(member.id)) return null;
     const parent = this.nodes[owner]!;
-    const spot = spiralPoint(parent.spiralNext);
-    parent.spiralNext += 1;
+    const planned = this.plans.get(parent.id)?.offsets.get(member.id);
+    const spot = planned ?? spiralPoint(parent.spiralNext);
+    if (!planned) parent.spiralNext += 1;
+    // A member that arrives later in a group laid out in columns finds the lattice, so the group goes back to it.
+    if (!planned && parent.fixedR !== null) parent.fixedR = null;
     const node: SceneNode = {
       idx: this.nodes.length, id: member.id, kind: "member", group: owner, groupKind: parent.groupKind, source: null, tone: parent.tone, origin: member.origin ?? (member.ref.kind === "table" ? "db" : "doc"), label: member.label, ref: member.ref,
       weight: member.weight, born: member.born, x: parent.x, y: parent.y, rBase: memberRadius(member.weight), r: memberRadius(member.weight),
       appear: grow ? 0 : parent.expanded ? 1 : 0, delay: 0, shown: parent.expanded, pulse: 0, retract: 0, retracting: false, alive: true, phase: hash(member.id),
-      ox: spot.x, oy: spot.y, ax: 0, ay: 0, expanded: false, spiralNext: 0, members: [], count: 0,
+      ox: spot.x, oy: spot.y, ax: 0, ay: 0, expanded: false, spiralNext: 0, fixedR: null, members: [], count: 0,
     };
     this.nodes.push(node);
     this.byId.set(member.id, node.idx);
@@ -255,7 +270,7 @@ export class AtlasScene {
   /** Where a node must be drawn: the cell itself, or its group while it is folded into it. */
   private refreshRadii(snap: boolean): void {
     for (const group of this.groups) {
-      group.rBase = group.expanded ? expandedRadius(group.count) : collapsedRadius(group.count);
+      group.rBase = group.expanded ? group.fixedR ?? expandedRadius(group.count) : collapsedRadius(group.count);
       if (snap) group.r = group.rBase;
     }
   }

@@ -5,13 +5,13 @@ import { clearSpriteCache, drawAtlas, markPx, type DrawState } from "../../../..
 import { AtlasScene } from "../../../../src/renderer/features/atlas/scene";
 import { SimCore } from "../../../../src/renderer/features/atlas/simulation";
 import { sceneToSvg } from "../../../../src/renderer/features/atlas/svg";
-import { syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
+import { shopAtlas, syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 
 /** A context that records what was drawn and every style it was given: enough to check the picture without a browser. */
 function recorder() {
   const calls: Record<string, number> = {};
   const sets: Record<string, unknown[]> = {};
-  const texts: { text: string; x: number; y: number; font: string }[] = [];
+  const texts: { text: string; x: number; y: number; font: string; align: string }[] = [];
   const rects: number[][] = [];
   const target: Record<string, unknown> = {};
   const ctx = new Proxy(target, {
@@ -21,7 +21,7 @@ function recorder() {
       if (name === "createPattern") return () => { calls.createPattern = (calls.createPattern ?? 0) + 1; return {}; };
       return (...args: unknown[]) => {
         calls[name] = (calls[name] ?? 0) + 1;
-        if (name === "fillText") texts.push({ text: String(args[0]), x: Number(args[1]), y: Number(args[2]), font: String(target.font) });
+        if (name === "fillText") texts.push({ text: String(args[0]), x: Number(args[1]), y: Number(args[2]), font: String(target.font), align: String(target.textAlign) });
         if (name === "fillRect") rects.push(args as number[]);
       };
     },
@@ -217,6 +217,35 @@ describe("links, marks and zoom", () => {
     expect(tips.length).toBeGreaterThan(0);
     const back = lines[1]!, tip = lines[0]!;
     expect(Math.hypot(back[0]! - tip[0]!, back[1]! - tip[1]!)).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("a small database picture", () => {
+  it("names every table, the group above all of them, and keeps each name off the links", () => {
+    const scene = new AtlasScene(shopAtlas());
+    settle(scene);
+    const camera = { k: 3.6, x: 500, y: 250 };
+    const { ctx, texts } = recorder();
+    drawAtlas(ctx, scene, state(scene, { camera, dpr: 2, width: 990, height: 466 }));
+    for (const name of ["customers", "products", "orders", "order_items"]) expect(texts.some((t) => t.text === name), name).toBe(true);
+    const group = texts.find((t) => t.text === scene.groups[0]!.label)!;
+    for (const name of ["customers", "products", "orders", "order_items"]) expect(group.y).toBeLessThan(texts.find((t) => t.text === name)!.y);
+    // A name's box (12px text, about 6px a letter) does not meet any link between the tables.
+    const at = (label: string) => { const n = scene.nodes.find((x) => x.label === label)!; return { x: n.x * camera.k + camera.x, y: n.y * camera.k + camera.y }; };
+    const links: [string, string][] = [["orders", "customers"], ["order_items", "orders"], ["order_items", "products"]];
+    for (const text of texts.filter((t) => ["customers", "products", "orders", "order_items"].includes(t.text))) {
+      const width = text.text.length * 6;
+      for (const [from, to] of links) {
+        const a = at(from), b = at(to);
+        for (let i = 0; i <= 40; i += 1) {
+          const x = a.x + ((b.x - a.x) * i) / 40, y = a.y + ((b.y - a.y) * i) / 40;
+          const left = text.align === "right" ? text.x - width : text.align === "center" ? text.x - width / 2 : text.x;
+          const inside = x > left - 1 && x < left + width + 1 && Math.abs(y - text.y) < 6;
+          const own = Math.hypot(x - at(text.text).x, y - at(text.text).y) < 12;
+          if (inside && !own) expect.fail(`${text.text} meets the link ${from} to ${to}`);
+        }
+      }
+    }
   });
 });
 
