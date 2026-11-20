@@ -261,7 +261,7 @@
   "settings.language.title": "语言",
   "settings.language.body": "立即生效。Super Ontology 对你的文件生成的文字保持文件本身的语言。",
   "settings.language": "界面语言",
-  "settings.language.system": "跟随系统",
+  "settings.language.system": "跟随系统（{language}）",
   "settings.welcome.title": "欢迎引导",
   "settings.welcome.body": "重新走一遍首次使用的步骤。",
   "settings.welcome.action": "显示欢迎引导",
@@ -732,5 +732,7 @@
   "cli.error.raw": "oo 的原始输出：{text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "命令输出的内容超出了应用能显示的范围。请在终端中运行，或缩小请求范围。",
   "cli.next.SO_CHECK_AFTER_ADD": "这类数据库在添加之后才会检查。",
-  "cli.next.SO_CLI_FAILED": "oo 命令没有执行完成。原因见下方。"
+  "cli.next.SO_CLI_FAILED": "oo 命令没有执行完成。原因见下方。",
+  "settings.language.changing": "正在切换语言…",
+  "settings.language.changeFailed": "无法切换语言。请重试。"
 }

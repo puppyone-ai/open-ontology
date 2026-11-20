@@ -261,7 +261,7 @@
   "settings.language.title": "Idioma",
   "settings.language.body": "Vale na hora. Os textos que o Super Ontology escreve sobre seus arquivos ficam no idioma dos arquivos.",
   "settings.language": "Idioma da interface",
-  "settings.language.system": "Igual ao sistema",
+  "settings.language.system": "Igual ao sistema ({language})",
   "settings.welcome.title": "Tour de boas-vindas",
   "settings.welcome.body": "Refaça os passos da primeira execução.",
   "settings.welcome.action": "Mostrar o tour de boas-vindas",
@@ -732,5 +732,7 @@
   "cli.error.raw": "Mensagem do oo: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "O comando gerou mais saída do que o app consegue exibir. Execute-o em um terminal ou restrinja a solicitação.",
   "cli.next.SO_CHECK_AFTER_ADD": "Este tipo de banco de dados é verificado depois de adicionado.",
-  "cli.next.SO_CLI_FAILED": "O comando oo não terminou. A causa aparece abaixo."
+  "cli.next.SO_CLI_FAILED": "O comando oo não terminou. A causa aparece abaixo.",
+  "settings.language.changing": "Alterando o idioma…",
+  "settings.language.changeFailed": "Não foi possível alterar o idioma. Tente novamente."
 }

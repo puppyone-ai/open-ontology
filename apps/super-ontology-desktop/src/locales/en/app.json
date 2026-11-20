@@ -261,7 +261,7 @@
   "settings.language.title": "Language",
   "settings.language.body": "Applies at once. Texts written by Super Ontology about your files stay in the language of the files.",
   "settings.language": "Interface language",
-  "settings.language.system": "Same as the system",
+  "settings.language.system": "Same as the system ({language})",
   "settings.welcome.title": "Welcome tour",
   "settings.welcome.body": "Go through the first-run steps again.",
   "settings.welcome.action": "Show the welcome tour",
@@ -732,5 +732,7 @@
   "cli.error.raw": "oo said: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "The command printed more than the app can show. Run it in a terminal, or narrow the request.",
   "cli.next.SO_CHECK_AFTER_ADD": "This kind of database is checked after it is added.",
-  "cli.next.SO_CLI_FAILED": "The oo command did not finish. The cause is shown below."
+  "cli.next.SO_CLI_FAILED": "The oo command did not finish. The cause is shown below.",
+  "settings.language.changing": "Changing the language…",
+  "settings.language.changeFailed": "The language could not be changed. Try again."
 }

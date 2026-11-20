@@ -261,7 +261,7 @@
   "settings.language.title": "Sprache",
   "settings.language.body": "Gilt sofort. Texte, die Super Ontology über Ihre Dateien schreibt, bleiben in der Sprache der Dateien.",
   "settings.language": "Oberflächensprache",
-  "settings.language.system": "Wie das System",
+  "settings.language.system": "Wie das System ({language})",
   "settings.welcome.title": "Willkommenstour",
   "settings.welcome.body": "Die Schritte des ersten Starts noch einmal durchgehen.",
   "settings.welcome.action": "Willkommenstour anzeigen",
@@ -732,5 +732,7 @@
   "cli.error.raw": "Meldung von oo: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "Der Befehl hat mehr ausgegeben, als die App anzeigen kann. Führen Sie ihn in einem Terminal aus oder schränken Sie die Anfrage ein.",
   "cli.next.SO_CHECK_AFTER_ADD": "Dieser Datenbanktyp wird erst nach dem Hinzufügen geprüft.",
-  "cli.next.SO_CLI_FAILED": "Der Befehl oo wurde nicht abgeschlossen. Die Ursache steht unten."
+  "cli.next.SO_CLI_FAILED": "Der Befehl oo wurde nicht abgeschlossen. Die Ursache steht unten.",
+  "settings.language.changing": "Sprache wird geändert …",
+  "settings.language.changeFailed": "Die Sprache konnte nicht geändert werden. Versuchen Sie es erneut."
 }

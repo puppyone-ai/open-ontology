@@ -261,7 +261,7 @@
   "settings.language.title": "언어",
   "settings.language.body": "즉시 적용됩니다. Super Ontology가 파일에 대해 작성하는 텍스트는 파일의 언어를 유지합니다.",
   "settings.language": "인터페이스 언어",
-  "settings.language.system": "시스템과 동일",
+  "settings.language.system": "시스템과 동일 ({language})",
   "settings.welcome.title": "시작 가이드",
   "settings.welcome.body": "첫 실행 단계를 다시 진행합니다.",
   "settings.welcome.action": "시작 가이드 보기",
@@ -732,5 +732,7 @@
   "cli.error.raw": "oo의 메시지: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "명령의 출력이 앱에서 표시할 수 있는 양을 넘었습니다. 터미널에서 실행하거나 요청 범위를 좁혀 보세요.",
   "cli.next.SO_CHECK_AFTER_ADD": "이 유형의 데이터베이스는 추가한 뒤에 확인됩니다.",
-  "cli.next.SO_CLI_FAILED": "oo 명령이 끝나지 않았습니다. 원인은 아래에 표시됩니다."
+  "cli.next.SO_CLI_FAILED": "oo 명령이 끝나지 않았습니다. 원인은 아래에 표시됩니다.",
+  "settings.language.changing": "언어를 바꾸는 중…",
+  "settings.language.changeFailed": "언어를 바꾸지 못했습니다. 다시 시도해 주세요."
 }

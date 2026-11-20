@@ -261,7 +261,7 @@
   "settings.language.title": "言語",
   "settings.language.body": "すぐに反映されます。Super Ontology がファイルについて書く文章は、ファイルの言語のままです。",
   "settings.language": "表示言語",
-  "settings.language.system": "システムに合わせる",
+  "settings.language.system": "システムに合わせる ({language})",
   "settings.welcome.title": "ウェルカムツアー",
   "settings.welcome.body": "初回起動時の手順をもう一度たどります。",
   "settings.welcome.action": "ウェルカムツアーを表示",
@@ -732,5 +732,7 @@
   "cli.error.raw": "oo からのメッセージ: {text}",
   "cli.next.SO_OUTPUT_TOO_LARGE": "コマンドの出力がアプリで表示できる量を超えました。ターミナルで実行するか、リクエストを絞り込んでください。",
   "cli.next.SO_CHECK_AFTER_ADD": "この種類のデータベースは、追加したあとで確認されます。",
-  "cli.next.SO_CLI_FAILED": "oo コマンドが完了しませんでした。原因は下に表示されています。"
+  "cli.next.SO_CLI_FAILED": "oo コマンドが完了しませんでした。原因は下に表示されています。",
+  "settings.language.changing": "言語を切り替えています…",
+  "settings.language.changeFailed": "言語を変更できませんでした。もう一度お試しください。"
 }
