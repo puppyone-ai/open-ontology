@@ -62,9 +62,9 @@ alone it advertises only these (the historical interface above is unchanged when
 ## Unified ontology tools (D83)
 
 `oo mcp --stdio --endpoint <url> --token-file <file>` starts the server with `OO_MCP_ONTOLOGY_URL` and `OO_MCP_ONTOLOGY_TOKEN_FILE`
-(a loopback `oo serve` and an `ooa_` Agent token file). Four read-only tools, the same verbs as `oo ontology`, each a call of
+(a loopback `oo serve` and an `ooa_` Agent token file). Five read-only tools, the same verbs as `oo ontology`, each a call of
 `/v1/ontology/*` (docs-api 1.7) with the Agent token as the only bearer: `ontology_search {q, type?, limit?}`,
-`ontology_entity {urn}`, `ontology_sources {}`, `ontology_query {sql, max_rows?}`. Every answer carries `provenance` (file anchor or
+`ontology_entity {urn}`, `ontology_sources {}`, `ontology_query {sql, max_rows?}`, `ontology_schema {limit?, cursor?}` (`/v1/ontology/schema`, the same answer as `oo ontology schema`: tables, columns, relationships, document links; no `db:read` is the same 403 `ONTOLOGY_SCOPE_DENIED`). Every answer carries `provenance` (file anchor or
 table row); scope, drive and revocation are decided by `oo serve` (revoked: 401 `ONTOLOGY_TOKEN_INVALID`; a write: 403
 `ONTOLOGY_READ_ONLY`; no `db:read`: 403 `ONTOLOGY_SCOPE_DENIED`), returned as an error result, never as an empty one. The twelve
 Gateway tools and the `--profile` mode are unchanged and are not advertised in this mode.

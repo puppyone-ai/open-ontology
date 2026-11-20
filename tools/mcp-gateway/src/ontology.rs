@@ -1,5 +1,5 @@
 //! The unified ontology tools over MCP (D83, WP4): `ontology_search`, `ontology_entity`,
-//! `ontology_sources`, `ontology_query`. They are the CLI's `oo ontology` verbs and call the same
+//! `ontology_sources`, `ontology_query`, `ontology_schema`. They are the CLI's `oo ontology` verbs and call the same
 //! `/v1/ontology/*` surface of `oo serve` with the Agent's own `ooa_` token; scope, drive and
 //! revocation are decided there, and every answer carries its provenance.
 //!
@@ -15,7 +15,7 @@ use serde_json::{Map as JsonMap, Value, json};
 
 use crate::http::{GatewayClient, parse_loopback_port};
 
-pub(crate) const INSTRUCTIONS: &str = "One ontology over documents and databases. ontology_search finds entities, facts, text blocks and rows (each item has a urn and a provenance); ontology_entity opens a urn with its facts and links to the other side; ontology_query runs one read-only SELECT; ontology_sources lists what you can reach. Cite the provenance of every answer (file anchor or table row). A refusal is not an empty result.";
+pub(crate) const INSTRUCTIONS: &str = "One ontology over documents and databases. ontology_search finds entities, facts, text blocks and rows (each item has a urn and a provenance); ontology_entity opens a urn with its facts and links to the other side; ontology_query runs one read-only SELECT; ontology_sources lists what you can reach; ontology_schema lists the published tables, columns, relationships and document links (page it with the returned next_cursor). Cite the provenance of every answer (file anchor or table row). A refusal is not an empty result.";
 
 pub(crate) struct Ontology {
     pub(crate) client: Arc<GatewayClient>,
@@ -59,12 +59,13 @@ fn schema(properties: Value, required: &[&str]) -> Arc<JsonMap<String, Value>> {
     Arc::new(m)
 }
 
-pub(crate) fn names() -> [&'static str; 4] {
+pub(crate) fn names() -> [&'static str; 5] {
     [
         "ontology_search",
         "ontology_entity",
         "ontology_sources",
         "ontology_query",
+        "ontology_schema",
     ]
 }
 
@@ -107,6 +108,16 @@ pub(crate) fn tools() -> Vec<Tool> {
                 json!({"sql":{"type":"string","minLength":1,"maxLength":16384},
                        "max_rows":{"type":"integer","minimum":1,"maximum":2000}}),
                 &["sql"],
+            ),
+        )
+        .with_annotations(ro()),
+        Tool::new(
+            "ontology_schema",
+            "List the database schema this token reaches (needs db:read): published tables with their columns and types, relationships between tables and the links from table rows to document entities, each with a urn and the published pack as provenance. Page with the next_cursor of the previous answer.",
+            schema(
+                json!({"limit":{"type":"integer","minimum":1,"maximum":500},
+                       "cursor":{"type":"string","minLength":1,"maxLength":256}}),
+                &[],
             ),
         )
         .with_annotations(ro()),
@@ -167,6 +178,22 @@ pub(crate) fn request(
             }
             Ok(("/v1/ontology/query".into(), Some(body)))
         }
+        "ontology_schema" => {
+            allowed(&["limit", "cursor"])?;
+            let mut p = String::from("/v1/ontology/schema");
+            let mut sep = '?';
+            if let Some(l) = a.get("limit") {
+                p.push_str(&format!("{sep}limit={}", l.as_u64().ok_or_else(bad)?));
+                sep = '&';
+            }
+            if a.contains_key("cursor") {
+                p.push_str(&format!(
+                    "{sep}cursor={}",
+                    pct(text("cursor").ok_or_else(bad)?)
+                ));
+            }
+            Ok((p, None))
+        }
         _ => Err(bad()),
     }
 }
@@ -176,9 +203,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn four_read_only_tools() {
+    fn five_read_only_tools() {
         let t = tools();
-        assert_eq!(t.len(), 4);
+        assert_eq!(t.len(), 5);
+        assert_eq!(
+            t.iter().map(|t| t.name.as_ref()).collect::<Vec<_>>(),
+            names()
+        );
         assert!(
             t.iter()
                 .all(|t| t.annotations.as_ref().unwrap().read_only_hint == Some(true))
@@ -204,6 +235,25 @@ mod tests {
                 .1
                 .is_some()
         );
+        assert_eq!(
+            request("ontology_schema", None).unwrap().0,
+            "/v1/ontology/schema"
+        );
+        let page = json!({"limit": 2, "cursor": "t 1"});
+        assert_eq!(
+            request("ontology_schema", page.as_object()).unwrap().0,
+            "/v1/ontology/schema?limit=2&cursor=t%201"
+        );
+        for bad in [
+            json!({"limit": "2"}),
+            json!({"cursor": ""}),
+            json!({"offset": 1}),
+        ] {
+            assert!(
+                request("ontology_schema", bad.as_object()).is_err(),
+                "{bad}"
+            );
+        }
         assert!(request("ontology_search", json!({"q":"a","x":1}).as_object()).is_err());
         assert!(request("ontology_search", None).is_err());
     }

@@ -385,7 +385,7 @@ def main():
         # MCP, the same tools, the same token
         mcp = Mcp(bindir / "oo", {"PATH": base["PATH"], "HOME": str(work / "agent-home")}, endpoint, bot)
         r = mcp.rpc("tools/list", {})
-        check("mcp lists the unified tools", [t["name"] for t in r["result"]["tools"]] == ["ontology_search", "ontology_entity", "ontology_sources", "ontology_query"])
+        check("mcp lists the unified tools", [t["name"] for t in r["result"]["tools"]] == ["ontology_search", "ontology_entity", "ontology_sources", "ontology_query", "ontology_schema"])
         err_flag, res = mcp.tool("ontology_search", {"q": "Acme"})
         check("mcp search answers from both sources", not err_flag and {i["side"] for i in res["items"]} == {"doc", "db"}, res)
         err_flag, res = mcp.tool("ontology_search", {"q": "三月续约"})
@@ -393,6 +393,24 @@ def main():
             i.get("kind") == "block" and i["provenance"]["path"].endswith("澄海物流.md") for i in res["items"]), res)
         err_flag, res = mcp.tool("ontology_query", {"sql": "SELECT credit_limit FROM sales.customers WHERE name='Acme Ltd'"})
         check("mcp query cites its source", not err_flag and res["provenance"]["publication_id"] == pub_id, res)
+
+        # the schema over MCP: the same answer as the CLI, paged the same way, scoped by the same token
+        err_flag, ms = mcp.tool("ontology_schema", {})
+        check("mcp schema equals the CLI's answer", not err_flag and ms == sc, (ms, sc))
+        err_flag, m1 = mcp.tool("ontology_schema", {"limit": 1})
+        err_flag2, m2 = mcp.tool("ontology_schema", {"limit": 1, "cursor": (m1 or {}).get("next_cursor") or "t1"})
+        check("mcp schema pages the sorted table list", not err_flag and not err_flag2
+              and [t["qualified_name"] for t in m1["tables"] + m2["tables"]] == ["sales.customers", "sales.orders"] and m2["next_cursor"] is None, (m1, m2))
+        err_flag, res = mcp.tool("ontology_schema", {"cursor": "garbage"})
+        check("mcp schema refuses a bad cursor", err_flag and "ONTOLOGY_BAD_REQUEST" in json.dumps(res), res)
+        err_flag, res = mcp.tool("ontology_schema", {"offset": 1})
+        check("mcp schema takes only its two arguments", err_flag, res)
+        mcp_docs = Mcp(bindir / "oo", {"PATH": base["PATH"], "HOME": str(work / "agent-home")}, endpoint, ro)
+        try:
+            err_flag, res = mcp_docs.tool("ontology_schema", {})
+            check("mcp: a docs-only token cannot read the database schema", err_flag and "ONTOLOGY_SCOPE_DENIED" in json.dumps(res), res)
+        finally:
+            mcp_docs.close()
 
         cli.json("agent", "token", "revoke", "badprofile")
 
