@@ -14,7 +14,7 @@ use super::docs_cmd::{Parsed, parse};
 use super::federate::pct_encode;
 use super::secrets;
 
-pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  oo ontology schema [--limit <n>] [--cursor <c>] [--json]   (tables, columns, relationships, document links; read-only)\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n";
+pub const HELP: &str = "Usage:\n  oo ontology search <text> [--type <T>] [--limit <n>] [--json]\n  oo ontology entity <urn> [--json]\n  oo ontology query \"<select ...>\" [--max-rows <n>] [--json]\n  oo ontology sources [--json]\n  oo ontology schema [--limit <n>] [--cursor <c>] [--json]   (tables, columns, relationships, document links; read-only)\n  Agent access: --endpoint <url> --token-file <file> (or OO_ENDPOINT and OO_AGENT_TOKEN_FILE); otherwise the local oo serve (--state-dir <dir>).\n  Examples:\n    oo ontology schema                                  tables, columns and foreign keys (--limit is 1..100)\n    oo ontology query \"select count(*) from public.orders\"   one read-only SELECT over the published tables\n    oo ontology search 澄海物流                            people, projects, documents and rows; each hit prints a [source] line\n  Gateway commands such as oo tables and oo query need a saved login, not an Agent token; use the commands above.\n";
 
 pub fn is_subcommand(rest: &[String]) -> bool {
     matches!(
