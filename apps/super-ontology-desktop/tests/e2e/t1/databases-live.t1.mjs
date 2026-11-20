@@ -55,7 +55,10 @@ const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "so-live-"
 await fs.chmod(dir, 0o700);
 const database = await startLiveDatabase({ kind, dir });
 const { live } = database;
-process.on("exit", () => { try { execFileSync("docker", ["rm", "-f", "-v", live.container], { stdio: "ignore" }); } catch { /* gone */ } });
+process.on("exit", () => {
+  try { execFileSync("docker", ["rm", "-f", "-v", live.container], { stdio: "ignore" }); } catch { /* gone */ }
+  try { execFileSync("rm", ["-rf", dir], { stdio: "ignore" }); } catch { /* gone */ } // certificates and the password file
+});
 
 runScenario({ name: "databases-live", title: `A real ${live.kind} database, from Add to Query`, timeoutMs: 25 * 60_000, cliHome: "home" }, async (s) => {
   await s.waitFor("app-root", {}, { timeoutMs: 60_000 });
