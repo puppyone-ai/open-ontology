@@ -92,3 +92,13 @@ describe("P07 fixtures", () => {
     fs.rmSync(root, { recursive: true });
   });
 });
+
+describe("P07 summary", () => {
+  it("turns timings into rows and a table", async () => {
+    const { summarize, table } = await import("../e2e/t2/summarize-p07.mjs");
+    const rows = summarize({ en: { steps: { create: { files: [{ rowMs: 400, settledMs: 2100, uiSettledMs: 2300 }], freshMs: 2600, freshness: { api: [{ state: "up_to_date" }, { state: "processing" }, { state: "up_to_date" }], ui: [] }, syncs: [], problems: [] }, bad: { files: [{ rowMs: null, settledMs: null }], freshness: { api: [], ui: [] }, syncs: [{ trigger: "poll", added: 1 }], problems: ["x"] } } } });
+    expect(rows[0]).toMatchObject({ step: "create", rowMs: 400, publishedMs: 2100, pageMs: 2300, upToDateMs: 2600, freshness: "up_to_date > processing > up_to_date", viaPoll: false, ok: true });
+    expect(rows[1]).toMatchObject({ rowMs: null, viaPoll: true, ok: false });
+    expect(table(rows)).toMatch(/\| en \| create \| 1 \| 400 \| 2100 \| 2300 \| 2600 \|/u);
+  });
+});

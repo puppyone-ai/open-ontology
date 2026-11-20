@@ -30,7 +30,7 @@ export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
 export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
-const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision", "autosync"]);
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "chooseFiles", "wait", "assert", "screenshot", "provision", "autosync"]);
 const ATTEMPT_MS = 5 * 60_000;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
@@ -161,6 +161,27 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await sleep(1500);
     if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
   }
+  // The open panel of the upload button: go to the folder, select everything in it, Open. Timed from the moment the panel is gone.
+  async function chooseFiles(folder) {
+    for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
+    await peekaboo.press("cmd+shift+g", { native: true });
+    await sleep(800);
+    await peekaboo.press("cmd+v", { native: true });
+    await sleep(800);
+    await peekaboo.nativeReturn(36);
+    await sleep(1500);
+    await peekaboo.press("cmd+a", { native: true });
+    await sleep(500);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await peekaboo.nativeReturn(36);
+      await sleep(1000);
+      if ((await sheetCount(child.pid)) === 0) break;
+    }
+    autosyncState.pickedAt = Date.now();
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
   async function engineApi(route, { method = "GET", body, headers = {} } = {}) {
     const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8"));
     const token = (await fs.readFile(info.token_file ?? path.join(stateDirectory, "serve.token"), "utf8")).trim();
@@ -221,6 +242,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
         // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
         case "chooseFolder": await chooseFolder(text(step.path)); break;
+        case "chooseFiles": await chooseFiles(text(step.path)); break;
         // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
         case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;

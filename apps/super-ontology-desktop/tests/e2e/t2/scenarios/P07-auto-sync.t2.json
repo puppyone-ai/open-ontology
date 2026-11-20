@@ -67,6 +67,14 @@
       }
     },
     {
+      "do": "click",
+      "name": "app.sources.upload"
+    },
+    {
+      "do": "chooseFiles",
+      "path": "${dropThree}"
+    },
+    {
       "do": "autosync",
       "case": "drop"
     },

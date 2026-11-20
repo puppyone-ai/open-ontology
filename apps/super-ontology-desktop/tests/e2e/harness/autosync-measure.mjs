@@ -35,7 +35,7 @@ export class Trace {
  * { files: Map<path,{ state, b3 }>, freshness: string|null, uiFreshness: string|null, uiRows: Map<name,state>|null, lastSync: object|null }.
  * Polls until every expectation holds and the freshness (engine and page) is up_to_date again, or `timeoutMs` passes.
  */
-export async function measureChange({ expect, probe, now = Date.now, sleep, intervalMs = 100, timeoutMs = 90_000, uiRequired = false, quietSamples = 2 }) {
+export async function measureChange({ expect, probe, now = Date.now, sleep, intervalMs = 100, timeoutMs = 90_000, uiRequired = false, quietSamples = 2, offsetMs = 0 }) {
   const t0 = now();
   const per = new Map(expect.map((entry) => [entry.path, { path: entry.path, want: entry.want, changedFrom: entry.changedFrom, rowMs: null, settledMs: null, uiRowMs: null, uiSettledMs: null, finalState: null }]));
   const api = new Trace();
@@ -46,7 +46,7 @@ export async function measureChange({ expect, probe, now = Date.now, sleep, inte
   let timedOut = false;
   for (;;) {
     const sample = await probe();
-    const t = now() - t0;
+    const t = now() - t0 + offsetMs;
     api.add(t, sample.freshness);
     ui.add(t, sample.uiFreshness);
     if (sample.lastSync) syncs.set(`${sample.lastSync.generation}|${sample.lastSync.finished_at}`, sample.lastSync);
