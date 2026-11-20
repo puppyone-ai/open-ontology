@@ -7,7 +7,7 @@
 //! * [`config`]: the model configuration (`GET/PUT /v1/docs/config/model`) and the
 //!   egress process behind it;
 //! * [`batch`]: sections of the IR become batches of at most 3,000 tokens;
-//! * [`prompt`]: `extract/2` prompt and the block level cache key;
+//! * [`prompt`]: `extract/3` prompt and the block level cache key;
 //! * [`schema`]: `oo.docs.llm-extract/v1` validation;
 //! * [`post`]: quote check, domain and range, `Thing` labels, mapping to an
 //!   [`Extraction`](crate::extract::model::Extraction) (confidence 8500, 7000,
@@ -35,7 +35,7 @@ pub mod schema;
 pub mod usage;
 
 /// Base `prompt_version` (no promoted types).
-pub const PROMPT_VERSION: &str = "extract/2";
+pub const PROMPT_VERSION: &str = "extract/3";
 
 /// An open type a person promoted (`type_promote` overlay, B-S9-02): `Thing` instances with this `label` are
 /// extracted under the confirmed `type_name`, and the label is constrained in the prompt.
@@ -46,7 +46,7 @@ pub struct ConstrainedType {
 }
 
 /// `prompt_version` for a set of promoted types: the base version while there are none, else
-/// `extract/2+t<8 hex>` of the sorted set, so promoting (or withdrawing) a type changes the version, the cache
+/// `extract/3+t<8 hex>` of the sorted set, so promoting (or withdrawing) a type changes the version, the cache
 /// keys and which files are `outdated`.
 pub fn prompt_version(types: &[ConstrainedType]) -> String {
     if types.is_empty() {

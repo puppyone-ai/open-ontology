@@ -422,6 +422,21 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     )
     .unwrap();
     eprintln!("{summary}");
+    // Diagnostics for the person reading the run: what became of every fact (status, score, review reason).
+    let rows: Vec<(String, String, String, i32, String, String, String, String, Option<String>)> = sqlx::query_as(
+        "SELECT f.predicate, f.origin, f.status, f.confidence_bp, s.type, s.canonical_name, COALESCE(o.type, ''), COALESCE(o.canonical_name, ''), \
+                (SELECT r.reason_code FROM _oo_docs.review_item r WHERE r.subject->>'fact_id' = f.id::text LIMIT 1) \
+           FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+          WHERE f.origin = 'llm' ORDER BY f.predicate, s.canonical_name",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = rows
+        .iter()
+        .map(|r| json!({"predicate": r.0, "origin": r.1, "status": r.2, "bp": r.3, "subject_type": r.4, "subject": r.5, "object_type": r.6, "object": r.7, "review": r.8}).to_string())
+        .collect();
+    std::fs::write(out.join("llm-facts-state.jsonl"), lines.join("\n")).unwrap();
     if std::env::var("OO_EVAL_KEEP").is_ok() {
         eprintln!("kept: db {} state {}", s.db, s.state.display());
         std::mem::forget(s);
