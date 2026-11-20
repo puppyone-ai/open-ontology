@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, DefinitionList, Notice, Section, Segmented, StatusDot, Switch } from "@open-ontology/design-system";
 import { FolderOpen, Play, RefreshCw, RotateCw, ScrollText, Square } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { COMPONENT_NAMES, COMPONENT_TONES, isEngineReady, presentEngine, type Tone as ModelTone } from "../../model/superDriveStateModel";
 import { formatBytes } from "../../model/format";
@@ -15,7 +15,6 @@ export function EngineSettings() {
   const t$ = useLocalization();
   const { t } = t$;
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const engine = useSuperDriveSelector((s) => s.engine);
   const action = useSuperDriveSelector((s) => s.engineAction);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -38,10 +37,10 @@ export function EngineSettings() {
           {ready && <><Button icon={RotateCw} loading={busyId === "restart"} onClick={() => { void run("restart", () => actions.restartEngine()); }} data-testid="engine-restart">{t("app.engine.restart")}</Button><Button icon={Square} loading={busyId === "stop"} onClick={() => { void run("stop", () => actions.stopEngine()); }} data-testid="engine-stop">{t("app.engine.stop")}</Button></>}
           {!ready && presented.primary && !["start", "checkEnvironment"].includes(presented.primary) && <Button icon={RefreshCw} loading={running} onClick={() => { void run("retry", () => actions.runPreflight()); }}>{t("app.engine.retry")}</Button>}
         </div>
-        {action.error && <Notice tone="danger" title={t("app.engine.failed")}>{errorText(action.error)}</Notice>}
+        {action.error && <Notice tone="danger" title={t("app.engine.failed")}><ErrorText error={action.error} /></Notice>}
         {engine?.status === "oo_missing" && <Notice tone="warning" title={t("app.engine.oo.title")} action={<Button size="compact" icon={FolderOpen} onClick={() => { void actions.chooseOoExecutable(); }}>{t("app.engine.oo.choose")}</Button>}>{t("app.engine.oo.body")}</Notice>}
         {(engine?.status === "docker_missing" || engine?.status === "docker_stopped") && <Notice tone="warning" title={t(engine.status === "docker_missing" ? "app.engine.docker.missing" : "app.engine.docker.stopped")}>{t("app.engine.docker.body")}</Notice>}
-        {engine?.status === "crashed" && engine.code && <Notice tone="danger" title={t("app.engine.crashed")}>{errorText({ code: engine.code, retryable: false, details: {} })}</Notice>}
+        {engine?.status === "crashed" && engine.code && <Notice tone="danger" title={t("app.engine.crashed")}><ErrorText error={{ code: engine.code, retryable: false, details: {} }} /></Notice>}
       </Card>
 
       {ready && Object.keys(components).length > 0 && (

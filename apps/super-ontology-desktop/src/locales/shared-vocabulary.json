@@ -1,0 +1,1926 @@
+{
+  "comment": "Terms identical in both desktop apps, recorded from the sibling app's catalogs. Only exact English matches with a single translation are listed.",
+  "entries": {
+    "app.access.revoked": {
+      "en": "Revoked",
+      "es": "Revocado",
+      "pt-BR": "Revogado",
+      "fr": "Révoqué",
+      "de": "Widerrufen"
+    },
+    "app.agents.tab.connect": {
+      "en": "Connect",
+      "es": "Conectar",
+      "pt-BR": "Conectar",
+      "de": "Verbinden",
+      "ja": "接続",
+      "ko": "연결",
+      "zh-Hans": "连接"
+    },
+    "app.agents.title": {
+      "en": "Agents",
+      "es": "Agentes",
+      "pt-BR": "Agentes",
+      "fr": "Agents",
+      "ja": "Agent",
+      "ko": "Agent",
+      "zh-Hans": "Agent"
+    },
+    "app.atlas.count.files": {
+      "en": "{count, plural, one {# file} other {# files}}",
+      "es": "{count, plural, one {# archivo} other {# archivos}}",
+      "pt-BR": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "fr": "{count, plural, one {# fichier} other {# fichiers}}",
+      "de": "{count, plural, one {# Datei} other {# Dateien}}"
+    },
+    "app.atlas.group.source": {
+      "en": "Source",
+      "fr": "Source",
+      "de": "Quelle",
+      "ja": "ソース",
+      "ko": "소스",
+      "zh-Hans": "来源"
+    },
+    "app.atlas.group.type": {
+      "en": "Type",
+      "es": "Tipo",
+      "pt-BR": "Tipo",
+      "fr": "Type",
+      "de": "Typ",
+      "zh-Hans": "类型"
+    },
+    "app.atlas.tally": {
+      "en": "{items, plural, one {# item} other {# items}} · {links, plural, one {# link} other {# links}}",
+      "es": "{items, plural, one {# elemento} other {# elementos}} · {links, plural, one {# enlace} other {# enlaces}}",
+      "fr": "{items, plural, one {# élément} other {# éléments}} · {links, plural, one {# lien} other {# liens}}",
+      "ko": "항목 {items}개 · 링크 {links}개"
+    },
+    "app.atlas.view": {
+      "en": "View",
+      "ja": "表示",
+      "ko": "보기"
+    },
+    "app.atlas.view.list": {
+      "en": "List",
+      "ko": "목록"
+    },
+    "app.atlas.zoomIn": {
+      "en": "Zoom in",
+      "es": "Acercar",
+      "fr": "Zoom avant",
+      "de": "Vergrößern",
+      "ja": "拡大",
+      "ko": "확대",
+      "zh-Hans": "放大"
+    },
+    "app.atlas.zoomOut": {
+      "en": "Zoom out",
+      "es": "Alejar",
+      "fr": "Zoom arrière",
+      "de": "Verkleinern",
+      "ja": "縮小",
+      "ko": "축소",
+      "zh-Hans": "缩小"
+    },
+    "app.buildReview.confirm": {
+      "en": "Confirm",
+      "es": "Confirmar",
+      "pt-BR": "Confirmar",
+      "fr": "Confirmer",
+      "de": "Bestätigen",
+      "ja": "確認",
+      "ko": "확인",
+      "zh-Hans": "确认"
+    },
+    "app.buildReview.stat.columns": {
+      "en": "Columns",
+      "es": "Columnas",
+      "pt-BR": "Colunas",
+      "fr": "Colonnes",
+      "de": "Spalten",
+      "ja": "列",
+      "ko": "열",
+      "zh-Hans": "列"
+    },
+    "app.buildReview.state.accepted": {
+      "en": "Accepted",
+      "de": "Akzeptiert",
+      "ja": "承認済み",
+      "ko": "수락됨",
+      "zh-Hans": "已接受"
+    },
+    "app.cli.command": {
+      "en": "Command",
+      "es": "Comando",
+      "pt-BR": "Comando",
+      "fr": "Commande",
+      "de": "Befehl",
+      "ja": "コマンド",
+      "ko": "명령",
+      "zh-Hans": "命令"
+    },
+    "app.common.cancel": {
+      "en": "Cancel",
+      "es": "Cancelar",
+      "pt-BR": "Cancelar",
+      "fr": "Annuler",
+      "de": "Abbrechen",
+      "ja": "キャンセル",
+      "ko": "취소",
+      "zh-Hans": "取消"
+    },
+    "app.common.close": {
+      "en": "Close",
+      "es": "Cerrar",
+      "pt-BR": "Fechar",
+      "fr": "Fermer",
+      "de": "Schließen",
+      "ja": "閉じる",
+      "ko": "닫기",
+      "zh-Hans": "关闭"
+    },
+    "app.common.copied": {
+      "en": "Copied",
+      "es": "Copiado",
+      "pt-BR": "Copiado",
+      "fr": "Copié",
+      "de": "Kopiert",
+      "ko": "복사됨",
+      "zh-Hans": "已复制"
+    },
+    "app.common.copy": {
+      "en": "Copy",
+      "es": "Copiar",
+      "pt-BR": "Copiar",
+      "fr": "Copier",
+      "de": "Kopieren",
+      "ja": "コピー",
+      "ko": "복사",
+      "zh-Hans": "复制"
+    },
+    "app.common.retry": {
+      "en": "Try again",
+      "pt-BR": "Tentar novamente",
+      "de": "Erneut versuchen",
+      "ko": "다시 시도",
+      "zh-Hans": "重试"
+    },
+    "app.connect.access": {
+      "en": "Access",
+      "es": "Acceso",
+      "pt-BR": "Acesso",
+      "fr": "Accès",
+      "de": "Zugriff"
+    },
+    "app.connect.agent": {
+      "en": "Agent",
+      "es": "Agente",
+      "pt-BR": "Agente",
+      "fr": "Agent",
+      "de": "Agent"
+    },
+    "app.connect.agent.claude": {
+      "en": "Claude",
+      "es": "Claude",
+      "pt-BR": "Claude",
+      "fr": "Claude",
+      "de": "Claude",
+      "ja": "Claude",
+      "ko": "Claude",
+      "zh-Hans": "Claude"
+    },
+    "app.connect.agent.codex": {
+      "en": "Codex",
+      "es": "Codex",
+      "pt-BR": "Codex",
+      "fr": "Codex",
+      "de": "Codex",
+      "ja": "Codex",
+      "ko": "Codex",
+      "zh-Hans": "Codex"
+    },
+    "app.connect.readonly": {
+      "en": "Read-only",
+      "es": "Solo lectura",
+      "pt-BR": "Somente leitura",
+      "fr": "Lecture seule",
+      "de": "Schreibgeschützt",
+      "ja": "読み取り専用",
+      "ko": "읽기 전용",
+      "zh-Hans": "只读"
+    },
+    "app.connect.tokens.revoke": {
+      "en": "Revoke",
+      "es": "Revocar",
+      "pt-BR": "Revogar",
+      "fr": "Révoquer",
+      "de": "Widerrufen"
+    },
+    "app.connect.tokens.revoked": {
+      "en": "Revoked",
+      "es": "Revocado",
+      "pt-BR": "Revogado",
+      "fr": "Révoqué",
+      "de": "Widerrufen"
+    },
+    "app.db.ca.paste": {
+      "en": "Paste",
+      "es": "Pegar",
+      "pt-BR": "Colar",
+      "fr": "Coller",
+      "de": "Einfügen",
+      "ko": "붙여넣기",
+      "zh-Hans": "粘贴"
+    },
+    "app.db.configured": {
+      "en": "Configured",
+      "es": "Configurada",
+      "pt-BR": "Configurada",
+      "fr": "Configurée",
+      "ja": "設定済み"
+    },
+    "app.db.host": {
+      "en": "Host",
+      "es": "Host",
+      "pt-BR": "Host",
+      "fr": "Hôte",
+      "de": "Host",
+      "ja": "ホスト",
+      "ko": "호스트",
+      "zh-Hans": "主机"
+    },
+    "app.db.import.working": {
+      "en": "Working",
+      "fr": "En cours",
+      "de": "In Arbeit",
+      "ko": "작업 중"
+    },
+    "app.db.refresh": {
+      "en": "Refresh",
+      "zh-Hans": "刷新"
+    },
+    "app.db.remove": {
+      "en": "Remove",
+      "es": "Eliminar",
+      "pt-BR": "Remover",
+      "de": "Entfernen",
+      "ja": "削除",
+      "zh-Hans": "移除"
+    },
+    "app.db.required": {
+      "en": "Required",
+      "es": "Obligatorio",
+      "pt-BR": "Obrigatório",
+      "fr": "Obligatoire",
+      "de": "Erforderlich",
+      "ja": "必須",
+      "ko": "필수"
+    },
+    "app.db.section.connection": {
+      "en": "Connection",
+      "es": "Conexión",
+      "pt-BR": "Conexão",
+      "fr": "Connexion",
+      "de": "Verbindung",
+      "ja": "接続",
+      "ko": "연결"
+    },
+    "app.diag.attention": {
+      "en": "Needs attention",
+      "es": "Requiere atención"
+    },
+    "app.diag.doctor.model": {
+      "en": "Model",
+      "es": "Modelo",
+      "pt-BR": "Modelo",
+      "fr": "Modèle",
+      "de": "Modell",
+      "ja": "モデル",
+      "ko": "모델",
+      "zh-Hans": "模型"
+    },
+    "app.diag.missing": {
+      "en": "Missing",
+      "es": "Falta",
+      "pt-BR": "Ausente",
+      "de": "Fehlt",
+      "zh-Hans": "缺失"
+    },
+    "app.diag.os": {
+      "en": "System",
+      "es": "Sistema",
+      "pt-BR": "Sistema",
+      "fr": "Système",
+      "de": "System",
+      "ja": "システム",
+      "ko": "시스템"
+    },
+    "app.diag.running": {
+      "en": "Running",
+      "fr": "En cours",
+      "ja": "実行中",
+      "ko": "실행 중"
+    },
+    "app.diag.stopped": {
+      "en": "Stopped",
+      "pt-BR": "Parado",
+      "de": "Gestoppt",
+      "ko": "중지됨"
+    },
+    "app.diag.title": {
+      "en": "Diagnostics",
+      "es": "Diagnóstico",
+      "pt-BR": "Diagnóstico",
+      "fr": "Diagnostics",
+      "de": "Diagnose",
+      "ja": "診断",
+      "ko": "진단",
+      "zh-Hans": "诊断信息"
+    },
+    "app.diag.unknown": {
+      "en": "Unknown",
+      "de": "Unbekannt",
+      "ja": "不明",
+      "ko": "알 수 없음"
+    },
+    "app.engine.runtime.lite": {
+      "en": "Built-in",
+      "de": "Integriert",
+      "zh-Hans": "内置"
+    },
+    "app.engine.setup.docker.none": {
+      "en": "Not installed",
+      "es": "No instalado",
+      "pt-BR": "Não instalado",
+      "fr": "Non installé",
+      "de": "Nicht installiert",
+      "ja": "未インストール",
+      "ko": "설치되지 않음",
+      "zh-Hans": "未安装"
+    },
+    "app.engine.stop": {
+      "en": "Stop",
+      "es": "Detener",
+      "pt-BR": "Parar",
+      "fr": "Arrêter",
+      "de": "Stoppen",
+      "ja": "停止",
+      "ko": "중지"
+    },
+    "app.first.add.folder": {
+      "en": "Choose a folder",
+      "es": "Elegir una carpeta",
+      "pt-BR": "Escolher uma pasta",
+      "fr": "Choisir un dossier",
+      "ja": "フォルダを選択",
+      "ko": "폴더 선택",
+      "zh-Hans": "选择文件夹"
+    },
+    "app.first.back": {
+      "en": "Back",
+      "pt-BR": "Voltar",
+      "de": "Zurück",
+      "ja": "戻る",
+      "ko": "뒤로"
+    },
+    "app.first.continue": {
+      "en": "Continue",
+      "es": "Continuar",
+      "pt-BR": "Continuar",
+      "fr": "Continuer",
+      "ko": "계속",
+      "zh-Hans": "继续"
+    },
+    "app.first.done": {
+      "en": "Finish",
+      "es": "Finalizar",
+      "pt-BR": "Concluir",
+      "fr": "Terminer",
+      "de": "Fertig",
+      "ja": "完了",
+      "ko": "완료",
+      "zh-Hans": "完成"
+    },
+    "app.first.engine.ready": {
+      "en": "Ready",
+      "de": "Bereit"
+    },
+    "app.first.engine.settings": {
+      "en": "Open settings",
+      "es": "Abrir ajustes",
+      "pt-BR": "Abrir configurações",
+      "fr": "Ouvrir les paramètres",
+      "de": "Einstellungen öffnen",
+      "ja": "設定を開く",
+      "ko": "설정 열기",
+      "zh-Hans": "打开设置"
+    },
+    "app.first.start": {
+      "en": "Get started",
+      "ko": "시작하기"
+    },
+    "app.freshness.held": {
+      "en": "Paused",
+      "fr": "En pause",
+      "de": "Pausiert",
+      "ja": "一時停止",
+      "ko": "일시 중지됨",
+      "zh-Hans": "已暂停"
+    },
+    "app.freshness.processing": {
+      "en": "Processing",
+      "es": "Procesando",
+      "pt-BR": "Processando",
+      "fr": "Traitement",
+      "de": "Wird verarbeitet",
+      "ja": "処理中",
+      "ko": "처리 중",
+      "zh-Hans": "处理中"
+    },
+    "app.home.metric.files": {
+      "en": "Files",
+      "es": "Archivos",
+      "pt-BR": "Arquivos",
+      "fr": "Fichiers",
+      "de": "Dateien",
+      "ja": "ファイル",
+      "ko": "파일",
+      "zh-Hans": "文件"
+    },
+    "app.home.sources.files": {
+      "en": "{count, plural, one {# file} other {# files}}",
+      "es": "{count, plural, one {# archivo} other {# archivos}}",
+      "pt-BR": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "de": "{count, plural, one {# Datei} other {# Dateien}}"
+    },
+    "app.home.title": {
+      "en": "Home",
+      "es": "Inicio",
+      "pt-BR": "Início",
+      "fr": "Accueil",
+      "de": "Startseite",
+      "ja": "ホーム",
+      "ko": "홈",
+      "zh-Hans": "首页"
+    },
+    "app.import.retry": {
+      "en": "Try again",
+      "pt-BR": "Tentar novamente",
+      "de": "Erneut versuchen",
+      "ko": "다시 시도",
+      "zh-Hans": "重试"
+    },
+    "app.model.baseUrl": {
+      "en": "Address",
+      "es": "Dirección",
+      "pt-BR": "Endereço",
+      "fr": "Adresse",
+      "de": "Adresse",
+      "ja": "アドレス",
+      "ko": "주소",
+      "zh-Hans": "地址"
+    },
+    "app.model.edit": {
+      "en": "Change",
+      "es": "Cambiar",
+      "pt-BR": "Alterar",
+      "fr": "Modifier",
+      "de": "Ändern",
+      "ja": "変更",
+      "ko": "변경",
+      "zh-Hans": "更改"
+    },
+    "app.model.key": {
+      "en": "API key",
+      "pt-BR": "Chave de API",
+      "fr": "Clé API",
+      "de": "API-Schlüssel",
+      "ja": "API キー",
+      "ko": "API 키"
+    },
+    "app.model.key.saved": {
+      "en": "Saved",
+      "de": "Gespeichert",
+      "ja": "保存済み",
+      "ko": "저장됨",
+      "zh-Hans": "已保存"
+    },
+    "app.model.model": {
+      "en": "Model",
+      "es": "Modelo",
+      "pt-BR": "Modelo",
+      "fr": "Modèle",
+      "de": "Modell",
+      "ja": "モデル",
+      "ko": "모델",
+      "zh-Hans": "模型"
+    },
+    "app.model.provider": {
+      "en": "Provider",
+      "es": "Proveedor",
+      "pt-BR": "Provedor",
+      "fr": "Fournisseur",
+      "de": "Anbieter",
+      "ja": "プロバイダー"
+    },
+    "app.model.save": {
+      "en": "Save",
+      "es": "Guardar",
+      "pt-BR": "Salvar",
+      "fr": "Enregistrer",
+      "de": "Speichern",
+      "ja": "保存",
+      "ko": "저장",
+      "zh-Hans": "保存"
+    },
+    "app.nav.agents": {
+      "en": "Agents",
+      "es": "Agentes",
+      "pt-BR": "Agentes",
+      "fr": "Agents",
+      "ja": "Agent",
+      "ko": "Agent",
+      "zh-Hans": "Agent"
+    },
+    "app.nav.expand": {
+      "en": "Expand sidebar",
+      "es": "Mostrar barra lateral",
+      "pt-BR": "Expandir barra lateral",
+      "fr": "Afficher la barre latérale",
+      "de": "Seitenleiste einblenden",
+      "ja": "サイドバーを展開",
+      "ko": "사이드바 펼치기",
+      "zh-Hans": "展开侧边栏"
+    },
+    "app.nav.home": {
+      "en": "Home",
+      "es": "Inicio",
+      "pt-BR": "Início",
+      "fr": "Accueil",
+      "de": "Startseite",
+      "ja": "ホーム",
+      "ko": "홈",
+      "zh-Hans": "首页"
+    },
+    "app.nav.settings": {
+      "en": "Settings",
+      "pt-BR": "Configurações",
+      "fr": "Paramètres",
+      "de": "Einstellungen",
+      "ja": "設定",
+      "ko": "설정",
+      "zh-Hans": "设置"
+    },
+    "app.ontology.tab.conflicts": {
+      "en": "Conflicts",
+      "es": "Conflictos",
+      "pt-BR": "Conflitos",
+      "fr": "Conflits",
+      "de": "Konflikte",
+      "ja": "競合",
+      "ko": "충돌",
+      "zh-Hans": "冲突"
+    },
+    "app.ontology.tab.files": {
+      "en": "Files",
+      "es": "Archivos",
+      "pt-BR": "Arquivos",
+      "fr": "Fichiers",
+      "de": "Dateien",
+      "ja": "ファイル",
+      "ko": "파일",
+      "zh-Hans": "文件"
+    },
+    "app.ontology.type": {
+      "en": "Type",
+      "es": "Tipo",
+      "pt-BR": "Tipo",
+      "fr": "Type",
+      "de": "Typ",
+      "zh-Hans": "类型"
+    },
+    "app.packs.create.folder": {
+      "en": "Folder",
+      "es": "Carpeta",
+      "pt-BR": "Pasta",
+      "fr": "Dossier",
+      "de": "Ordner",
+      "ja": "フォルダー",
+      "ko": "폴더",
+      "zh-Hans": "文件夹"
+    },
+    "app.packs.create.source": {
+      "en": "Source",
+      "es": "Fuente",
+      "pt-BR": "Fonte",
+      "fr": "Source",
+      "de": "Quelle",
+      "ja": "ソース",
+      "ko": "소스",
+      "zh-Hans": "来源"
+    },
+    "app.packs.refresh": {
+      "en": "Refresh",
+      "zh-Hans": "刷新"
+    },
+    "app.packs.revoke": {
+      "en": "Revoke",
+      "es": "Revocar",
+      "pt-BR": "Revogar",
+      "fr": "Révoquer",
+      "de": "Widerrufen"
+    },
+    "app.packs.state.active": {
+      "en": "Current",
+      "pt-BR": "Atual",
+      "fr": "Actuel",
+      "de": "Aktuell"
+    },
+    "app.packs.state.revoked": {
+      "en": "Revoked",
+      "es": "Revocado",
+      "pt-BR": "Revogado",
+      "fr": "Révoqué",
+      "de": "Widerrufen"
+    },
+    "app.query.describe.type": {
+      "en": "Type",
+      "es": "Tipo",
+      "pt-BR": "Tipo",
+      "fr": "Type",
+      "de": "Typ",
+      "zh-Hans": "类型"
+    },
+    "app.query.gateway.change": {
+      "en": "Change",
+      "es": "Cambiar",
+      "pt-BR": "Alterar",
+      "fr": "Modifier",
+      "de": "Ändern",
+      "ja": "変更",
+      "ko": "변경",
+      "zh-Hans": "更改"
+    },
+    "app.query.gateway.connect": {
+      "en": "Connect",
+      "es": "Conectar",
+      "pt-BR": "Conectar",
+      "fr": "Connecter",
+      "de": "Verbinden",
+      "ja": "接続",
+      "ko": "연결",
+      "zh-Hans": "连接"
+    },
+    "app.query.knowledge.run": {
+      "en": "Search",
+      "es": "Buscar",
+      "pt-BR": "Pesquisar",
+      "fr": "Rechercher",
+      "de": "Suchen",
+      "ja": "検索",
+      "ko": "검색",
+      "zh-Hans": "搜索"
+    },
+    "app.query.mode.knowledge": {
+      "en": "Knowledge",
+      "es": "Conocimiento",
+      "pt-BR": "Conhecimento",
+      "de": "Wissen",
+      "ja": "ナレッジ",
+      "ko": "지식",
+      "zh-Hans": "知识"
+    },
+    "app.query.run": {
+      "en": "Run",
+      "es": "Ejecutar",
+      "pt-BR": "Executar",
+      "fr": "Exécuter",
+      "de": "Ausführen",
+      "ja": "実行",
+      "ko": "실행",
+      "zh-Hans": "运行"
+    },
+    "app.settings.language.title": {
+      "en": "Language",
+      "de": "Sprache",
+      "ja": "言語",
+      "ko": "언어",
+      "zh-Hans": "语言"
+    },
+    "app.settings.tab.diagnostics": {
+      "en": "Diagnostics",
+      "es": "Diagnóstico",
+      "pt-BR": "Diagnóstico",
+      "fr": "Diagnostics",
+      "de": "Diagnose",
+      "ja": "診断",
+      "ko": "진단",
+      "zh-Hans": "诊断信息"
+    },
+    "app.settings.tab.general": {
+      "en": "General",
+      "es": "General",
+      "pt-BR": "Geral",
+      "fr": "Général",
+      "de": "Allgemein",
+      "ja": "一般",
+      "ko": "일반",
+      "zh-Hans": "通用"
+    },
+    "app.settings.tab.model": {
+      "en": "Model",
+      "es": "Modelo",
+      "pt-BR": "Modelo",
+      "fr": "Modèle",
+      "de": "Modell",
+      "ja": "モデル",
+      "ko": "모델",
+      "zh-Hans": "模型"
+    },
+    "app.settings.tab.privacy": {
+      "en": "Privacy",
+      "es": "Privacidad",
+      "pt-BR": "Privacidade",
+      "fr": "Confidentialité",
+      "de": "Datenschutz",
+      "ja": "プライバシー",
+      "ko": "개인정보 보호",
+      "zh-Hans": "隐私"
+    },
+    "app.settings.title": {
+      "en": "Settings",
+      "pt-BR": "Configurações",
+      "fr": "Paramètres",
+      "de": "Einstellungen",
+      "ja": "設定",
+      "ko": "설정",
+      "zh-Hans": "设置"
+    },
+    "app.sources.cloud.connect": {
+      "en": "Connect",
+      "es": "Conectar",
+      "pt-BR": "Conectar",
+      "fr": "Connecter",
+      "de": "Verbinden",
+      "ja": "接続",
+      "ko": "연결",
+      "zh-Hans": "连接"
+    },
+    "app.sources.cloud.name": {
+      "en": "Name",
+      "es": "Nombre",
+      "pt-BR": "Nome",
+      "fr": "Nom",
+      "de": "Name",
+      "ja": "名前",
+      "ko": "이름",
+      "zh-Hans": "名称"
+    },
+    "app.sources.cloud.provider": {
+      "en": "Provider",
+      "es": "Proveedor",
+      "pt-BR": "Provedor",
+      "fr": "Fournisseur",
+      "de": "Anbieter",
+      "ja": "プロバイダー"
+    },
+    "app.sources.col.modified": {
+      "en": "Modified",
+      "es": "Modificado",
+      "pt-BR": "Modificado",
+      "fr": "Modifié"
+    },
+    "app.sources.col.name": {
+      "en": "Name",
+      "es": "Nombre",
+      "pt-BR": "Nome",
+      "fr": "Nom",
+      "de": "Name",
+      "ja": "名前",
+      "ko": "이름",
+      "zh-Hans": "名称"
+    },
+    "app.sources.col.status": {
+      "en": "Status",
+      "es": "Estado",
+      "pt-BR": "Status",
+      "fr": "Statut",
+      "de": "Status",
+      "ko": "상태",
+      "zh-Hans": "状态"
+    },
+    "app.sources.files": {
+      "en": "{count, plural, one {# file} other {# files}}",
+      "es": "{count, plural, one {# archivo} other {# archivos}}",
+      "pt-BR": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "de": "{count, plural, one {# Datei} other {# Dateien}}"
+    },
+    "app.sources.filter.all": {
+      "en": "All",
+      "de": "Alle",
+      "ja": "すべて",
+      "zh-Hans": "全部"
+    },
+    "app.sources.filter.processing": {
+      "en": "Processing",
+      "es": "Procesando",
+      "pt-BR": "Processando",
+      "de": "Wird verarbeitet",
+      "ja": "処理中",
+      "ko": "처리 중",
+      "zh-Hans": "处理中"
+    },
+    "app.sources.filter.ready": {
+      "en": "Ready",
+      "de": "Bereit"
+    },
+    "app.sources.folder.defaultName": {
+      "en": "Folder",
+      "es": "Carpeta",
+      "pt-BR": "Pasta",
+      "fr": "Dossier",
+      "de": "Ordner",
+      "ja": "フォルダー",
+      "ko": "폴더",
+      "zh-Hans": "文件夹"
+    },
+    "app.sources.more": {
+      "en": "More actions",
+      "es": "Más acciones",
+      "pt-BR": "Mais ações",
+      "fr": "Plus d’actions",
+      "de": "Weitere Aktionen",
+      "ja": "その他の操作",
+      "ko": "추가 작업",
+      "zh-Hans": "更多操作"
+    },
+    "app.sources.more.load": {
+      "en": "Load more",
+      "es": "Cargar más",
+      "pt-BR": "Carregar mais",
+      "fr": "Charger plus",
+      "de": "Mehr laden",
+      "zh-Hans": "加载更多"
+    },
+    "app.sources.panel.path": {
+      "en": "Path",
+      "es": "Ruta",
+      "pt-BR": "Caminho",
+      "fr": "Chemin",
+      "de": "Pfad",
+      "ja": "パス",
+      "ko": "경로",
+      "zh-Hans": "路径"
+    },
+    "app.sources.panel.retry": {
+      "en": "Try again",
+      "pt-BR": "Tentar novamente",
+      "de": "Erneut versuchen",
+      "ko": "다시 시도",
+      "zh-Hans": "重试"
+    },
+    "app.sources.paused": {
+      "en": "Paused",
+      "fr": "En pause",
+      "de": "Pausiert",
+      "ja": "一時停止",
+      "ko": "일시 중지됨",
+      "zh-Hans": "已暂停"
+    },
+    "app.sources.remove.confirm": {
+      "en": "Remove",
+      "pt-BR": "Remover",
+      "fr": "Supprimer",
+      "de": "Entfernen",
+      "ja": "削除",
+      "zh-Hans": "移除"
+    },
+    "super-drive.audit.active": {
+      "en": "Active",
+      "fr": "Actif",
+      "de": "Aktiv",
+      "ko": "활성"
+    },
+    "super-drive.audit.column.agent": {
+      "en": "Agent",
+      "es": "Agente",
+      "pt-BR": "Agente",
+      "fr": "Agent",
+      "de": "Agent",
+      "ja": "エージェント",
+      "ko": "에이전트"
+    },
+    "super-drive.audit.filter.agent": {
+      "en": "Agent",
+      "es": "Agente",
+      "pt-BR": "Agente",
+      "fr": "Agent",
+      "de": "Agent",
+      "ja": "エージェント",
+      "ko": "에이전트"
+    },
+    "super-drive.banner.action.resumeDrive": {
+      "en": "Resume",
+      "es": "Reanudar",
+      "pt-BR": "Retomar",
+      "fr": "Reprendre",
+      "de": "Fortsetzen",
+      "ja": "再開"
+    },
+    "super-drive.banner.dismiss": {
+      "en": "Dismiss",
+      "pt-BR": "Dispensar",
+      "fr": "Ignorer",
+      "ja": "閉じる",
+      "ko": "닫기",
+      "zh-Hans": "关闭"
+    },
+    "super-drive.banner.showMore": {
+      "en": "+{count} more",
+      "es": "+{count} más",
+      "de": "+{count} weitere"
+    },
+    "super-drive.browser.breadcrumb": {
+      "en": "Location",
+      "es": "Ubicación",
+      "pt-BR": "Local",
+      "fr": "Emplacement",
+      "ja": "場所",
+      "ko": "위치",
+      "zh-Hans": "位置"
+    },
+    "super-drive.browser.column.name": {
+      "en": "Name",
+      "es": "Nombre",
+      "pt-BR": "Nome",
+      "fr": "Nom",
+      "de": "Name",
+      "ja": "名前",
+      "ko": "이름",
+      "zh-Hans": "名称"
+    },
+    "super-drive.browser.column.state": {
+      "en": "Status",
+      "es": "Estado",
+      "pt-BR": "Status",
+      "de": "Status"
+    },
+    "super-drive.browser.dirSummary": {
+      "en": "{count, plural, one {# file} other {# files}}",
+      "es": "{count, plural, one {# archivo} other {# archivos}}",
+      "pt-BR": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "fr": "{count, plural, one {# fichier} other {# fichiers}}",
+      "de": "{count, plural, one {# Datei} other {# Dateien}}"
+    },
+    "super-drive.browser.empty.folder": {
+      "en": "This folder is empty",
+      "es": "Esta carpeta está vacía",
+      "pt-BR": "Esta pasta está vazia",
+      "fr": "Ce dossier est vide",
+      "de": "Dieser Ordner ist leer",
+      "ko": "이 폴더는 비어 있습니다",
+      "zh-Hans": "这个文件夹是空的"
+    },
+    "super-drive.browser.files": {
+      "en": "Files",
+      "es": "Archivos",
+      "pt-BR": "Arquivos",
+      "fr": "Fichiers",
+      "de": "Dateien",
+      "ja": "ファイル",
+      "ko": "파일",
+      "zh-Hans": "文件"
+    },
+    "super-drive.browser.folders": {
+      "en": "Folders",
+      "es": "Carpetas",
+      "pt-BR": "Pastas",
+      "fr": "Dossiers",
+      "de": "Ordner",
+      "ko": "폴더",
+      "zh-Hans": "文件夹"
+    },
+    "super-drive.browser.loadMore": {
+      "en": "Load more",
+      "es": "Cargar más",
+      "pt-BR": "Carregar mais",
+      "fr": "Charger plus",
+      "de": "Mehr laden",
+      "ja": "さらに読み込む",
+      "zh-Hans": "加载更多"
+    },
+    "super-drive.browser.refreshing": {
+      "en": "Refreshing…",
+      "es": "Actualizando…",
+      "pt-BR": "Atualizando…",
+      "fr": "Actualisation…",
+      "de": "Wird aktualisiert…",
+      "ja": "更新中…",
+      "zh-Hans": "正在刷新…"
+    },
+    "super-drive.browser.view.label": {
+      "en": "View",
+      "ja": "表示",
+      "ko": "보기"
+    },
+    "super-drive.browser.view.list": {
+      "en": "List",
+      "ko": "목록"
+    },
+    "super-drive.common.action.cancel": {
+      "en": "Cancel",
+      "es": "Cancelar",
+      "pt-BR": "Cancelar",
+      "fr": "Annuler",
+      "de": "Abbrechen",
+      "ja": "キャンセル",
+      "ko": "취소",
+      "zh-Hans": "取消"
+    },
+    "super-drive.common.action.close": {
+      "en": "Close",
+      "es": "Cerrar",
+      "pt-BR": "Fechar",
+      "fr": "Fermer",
+      "de": "Schließen",
+      "ja": "閉じる",
+      "ko": "닫기",
+      "zh-Hans": "关闭"
+    },
+    "super-drive.common.action.retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "super-drive.common.action.viewLogs": {
+      "en": "View logs",
+      "es": "Ver registros",
+      "pt-BR": "Ver logs",
+      "fr": "Afficher les journaux",
+      "de": "Protokolle anzeigen",
+      "ja": "ログを表示",
+      "ko": "로그 보기",
+      "zh-Hans": "查看日志"
+    },
+    "super-drive.details.action.retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "super-drive.details.blocks.loadMore": {
+      "en": "Load more",
+      "es": "Cargar más",
+      "pt-BR": "Carregar mais",
+      "fr": "Charger plus",
+      "de": "Mehr laden",
+      "ja": "さらに読み込む",
+      "zh-Hans": "加载更多"
+    },
+    "super-drive.details.copyHash": {
+      "en": "Copy",
+      "es": "Copiar",
+      "pt-BR": "Copiar",
+      "fr": "Copier",
+      "de": "Kopieren",
+      "ja": "コピー",
+      "ko": "복사",
+      "zh-Hans": "复制"
+    },
+    "super-drive.details.failure.more": {
+      "en": "Details",
+      "es": "Detalles",
+      "pt-BR": "Detalhes",
+      "fr": "Détails",
+      "de": "Details",
+      "ko": "자세히"
+    },
+    "super-drive.details.kind.heading": {
+      "en": "Heading",
+      "pt-BR": "Título",
+      "fr": "Titre",
+      "de": "Überschrift",
+      "ja": "見出し",
+      "ko": "제목",
+      "zh-Hans": "标题"
+    },
+    "super-drive.details.kind.list_item": {
+      "en": "List item",
+      "es": "Elemento de lista",
+      "pt-BR": "Item de lista",
+      "fr": "Élément de liste",
+      "ja": "リスト項目",
+      "ko": "목록 항목",
+      "zh-Hans": "列表项"
+    },
+    "super-drive.details.kind.paragraph": {
+      "en": "Paragraph",
+      "es": "Párrafo",
+      "pt-BR": "Parágrafo",
+      "fr": "Paragraphe",
+      "de": "Absatz",
+      "ja": "段落",
+      "ko": "문단",
+      "zh-Hans": "段落"
+    },
+    "super-drive.details.overview.history": {
+      "en": "History",
+      "es": "Historial",
+      "pt-BR": "Histórico",
+      "fr": "Historique",
+      "de": "Verlauf",
+      "ja": "履歴",
+      "ko": "기록"
+    },
+    "super-drive.details.overview.path": {
+      "en": "Path",
+      "es": "Ruta",
+      "pt-BR": "Caminho",
+      "fr": "Chemin",
+      "de": "Pfad",
+      "ja": "パス",
+      "ko": "경로",
+      "zh-Hans": "路径"
+    },
+    "super-drive.engine.action.retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "super-drive.engine.action.stop": {
+      "en": "Stop",
+      "es": "Detener",
+      "pt-BR": "Parar",
+      "fr": "Arrêter",
+      "de": "Stoppen",
+      "ja": "停止",
+      "ko": "중지"
+    },
+    "super-drive.engine.action.viewLogs": {
+      "en": "View logs",
+      "es": "Ver registros",
+      "pt-BR": "Ver logs",
+      "de": "Protokolle anzeigen",
+      "ja": "ログを表示",
+      "ko": "로그 보기",
+      "zh-Hans": "查看日志"
+    },
+    "super-drive.engine.component.model.label": {
+      "en": "Model",
+      "es": "Modelo",
+      "pt-BR": "Modelo",
+      "fr": "Modèle",
+      "de": "Modell",
+      "ja": "モデル",
+      "ko": "모델",
+      "zh-Hans": "模型"
+    },
+    "super-drive.engine.component.status.blocked": {
+      "en": "Paused",
+      "fr": "En pause",
+      "de": "Pausiert",
+      "ja": "一時停止"
+    },
+    "super-drive.engine.component.status.not_configured": {
+      "en": "Not configured",
+      "es": "Sin configurar",
+      "pt-BR": "Não configurado",
+      "fr": "Non configuré",
+      "de": "Nicht konfiguriert",
+      "ja": "未設定",
+      "ko": "구성되지 않음",
+      "zh-Hans": "未配置"
+    },
+    "super-drive.engine.component.status.starting": {
+      "en": "Starting",
+      "es": "Iniciando",
+      "pt-BR": "Iniciando",
+      "fr": "Démarrage",
+      "ja": "起動中",
+      "ko": "시작 중"
+    },
+    "super-drive.engine.component.status.unavailable": {
+      "en": "Unavailable",
+      "es": "No disponible",
+      "pt-BR": "Indisponível",
+      "fr": "Indisponible",
+      "de": "Nicht verfügbar",
+      "ja": "利用不可",
+      "zh-Hans": "不可用"
+    },
+    "super-drive.engine.component.unknown": {
+      "en": "Unknown",
+      "de": "Unbekannt",
+      "ja": "不明",
+      "ko": "알 수 없음"
+    },
+    "super-drive.engine.manual.hide": {
+      "en": "Hide",
+      "es": "Ocultar",
+      "pt-BR": "Ocultar",
+      "fr": "Masquer",
+      "de": "Ausblenden",
+      "ko": "숨기기",
+      "zh-Hans": "隐藏"
+    },
+    "super-drive.engine.pill.probing": {
+      "en": "Checking",
+      "es": "Comprobando",
+      "pt-BR": "Verificando",
+      "fr": "Vérification",
+      "de": "Wird geprüft",
+      "ko": "확인 중"
+    },
+    "super-drive.engine.pill.restarting": {
+      "en": "Restarting",
+      "es": "Reiniciando",
+      "pt-BR": "Reiniciando",
+      "fr": "Redémarrage"
+    },
+    "super-drive.engine.pill.starting": {
+      "en": "Starting",
+      "es": "Iniciando",
+      "pt-BR": "Iniciando",
+      "fr": "Démarrage",
+      "ja": "起動中",
+      "ko": "시작 중"
+    },
+    "super-drive.engine.pill.stopped": {
+      "en": "Stopped",
+      "pt-BR": "Parado",
+      "de": "Gestoppt",
+      "ko": "중지됨"
+    },
+    "super-drive.engine.runtime.lite.short": {
+      "en": "Built-in",
+      "de": "Integriert",
+      "zh-Hans": "内置"
+    },
+    "super-drive.engine.status.stopping": {
+      "en": "Stopping…",
+      "es": "Deteniendo…",
+      "pt-BR": "Parando…",
+      "fr": "Arrêt en cours…",
+      "de": "Wird gestoppt…",
+      "ja": "停止中…",
+      "ko": "중지 중…"
+    },
+    "super-drive.engine.statusLabel": {
+      "en": "Status",
+      "es": "Estado",
+      "de": "Status",
+      "ko": "상태",
+      "zh-Hans": "状态"
+    },
+    "super-drive.entity.back": {
+      "en": "Back",
+      "pt-BR": "Voltar",
+      "de": "Zurück",
+      "ja": "戻る",
+      "ko": "뒤로"
+    },
+    "super-drive.entity.factDetails": {
+      "en": "Details",
+      "es": "Detalles",
+      "pt-BR": "Detalhes",
+      "fr": "Détails",
+      "de": "Details",
+      "ja": "詳細",
+      "ko": "자세히"
+    },
+    "super-drive.entity.group.Document": {
+      "en": "Documents",
+      "es": "Documentos",
+      "pt-BR": "Documentos",
+      "fr": "Documents",
+      "de": "Dokumente",
+      "ko": "문서",
+      "zh-Hans": "文档"
+    },
+    "super-drive.entity.group.Project": {
+      "en": "Projects",
+      "es": "Proyectos",
+      "pt-BR": "Projetos",
+      "fr": "Projets",
+      "de": "Projekte",
+      "ja": "プロジェクト",
+      "ko": "프로젝트",
+      "zh-Hans": "项目"
+    },
+    "super-drive.entity.search.scopeFiles": {
+      "en": "Files",
+      "es": "Archivos",
+      "pt-BR": "Arquivos",
+      "fr": "Fichiers",
+      "de": "Dateien",
+      "ja": "ファイル",
+      "ko": "파일",
+      "zh-Hans": "文件"
+    },
+    "super-drive.entity.type.Document": {
+      "en": "Document",
+      "es": "Documento",
+      "pt-BR": "Documento",
+      "fr": "Document",
+      "de": "Dokument",
+      "ja": "ドキュメント",
+      "ko": "문서",
+      "zh-Hans": "文档"
+    },
+    "super-drive.entity.type.Organization": {
+      "en": "Organization",
+      "es": "Organización",
+      "pt-BR": "Organização",
+      "fr": "Organisation",
+      "de": "Organisation",
+      "ja": "組織",
+      "ko": "조직",
+      "zh-Hans": "组织"
+    },
+    "super-drive.entity.type.Project": {
+      "en": "Project",
+      "es": "Proyecto",
+      "pt-BR": "Projeto",
+      "fr": "Projet",
+      "de": "Projekt",
+      "ja": "プロジェクト",
+      "ko": "프로젝트",
+      "zh-Hans": "项目"
+    },
+    "super-drive.file.group.history": {
+      "en": "History",
+      "es": "Historial",
+      "pt-BR": "Histórico",
+      "fr": "Historique",
+      "de": "Verlauf",
+      "ja": "履歴",
+      "ko": "기록"
+    },
+    "super-drive.file.group.processing": {
+      "en": "Processing",
+      "ja": "処理中",
+      "ko": "처리 중",
+      "zh-Hans": "处理中"
+    },
+    "super-drive.file.group.published": {
+      "en": "Published",
+      "de": "Veröffentlicht",
+      "ja": "公開済み",
+      "ko": "게시됨",
+      "zh-Hans": "已发布"
+    },
+    "super-drive.file.state.published": {
+      "en": "Published",
+      "es": "Publicado",
+      "pt-BR": "Publicado",
+      "fr": "Publié",
+      "de": "Veröffentlicht",
+      "ja": "公開済み",
+      "ko": "게시됨",
+      "zh-Hans": "已发布"
+    },
+    "super-drive.file.state.queued": {
+      "en": "Queued",
+      "es": "En cola",
+      "pt-BR": "Na fila"
+    },
+    "super-drive.freshness.folder.held": {
+      "en": "Paused",
+      "fr": "En pause",
+      "ko": "일시 중지됨",
+      "zh-Hans": "已暂停"
+    },
+    "super-drive.freshness.folder.processing": {
+      "en": "Processing",
+      "es": "Procesando",
+      "pt-BR": "Processando",
+      "fr": "Traitement",
+      "de": "Wird verarbeitet",
+      "ja": "処理中",
+      "ko": "처리 중",
+      "zh-Hans": "处理中"
+    },
+    "super-drive.freshness.folder.unknown": {
+      "en": "Unknown",
+      "de": "Unbekannt",
+      "ja": "不明",
+      "ko": "알 수 없음"
+    },
+    "super-drive.media.confirmed": {
+      "en": "Confirmed",
+      "de": "Bestätigt",
+      "ko": "확인됨"
+    },
+    "super-drive.menu.more": {
+      "en": "More actions for {name}",
+      "es": "Más acciones para {name}",
+      "pt-BR": "Mais ações para {name}",
+      "de": "Weitere Aktionen für {name}",
+      "ja": "{name} のその他の操作",
+      "zh-Hans": "{name} 的更多操作"
+    },
+    "super-drive.menu.openFolder": {
+      "en": "Open",
+      "es": "Abrir",
+      "pt-BR": "Abrir",
+      "fr": "Ouvrir",
+      "de": "Öffnen",
+      "ja": "開く",
+      "ko": "열기",
+      "zh-Hans": "打开"
+    },
+    "super-drive.menu.retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "super-drive.navigation.projectFiles": {
+      "en": "Project files",
+      "es": "Archivos del proyecto",
+      "pt-BR": "Arquivos do projeto",
+      "de": "Projektdateien",
+      "ja": "プロジェクトファイル",
+      "ko": "프로젝트 파일",
+      "zh-Hans": "项目文件"
+    },
+    "super-drive.notice.info": {
+      "en": "Done",
+      "fr": "Terminé",
+      "de": "Fertig",
+      "ja": "完了",
+      "ko": "완료",
+      "zh-Hans": "完成"
+    },
+    "super-drive.queue.close": {
+      "en": "Close",
+      "es": "Cerrar",
+      "pt-BR": "Fechar",
+      "fr": "Fermer",
+      "de": "Schließen",
+      "ja": "閉じる",
+      "ko": "닫기",
+      "zh-Hans": "关闭"
+    },
+    "super-drive.queue.item.cancelled": {
+      "en": "Cancelled",
+      "fr": "Annulé",
+      "de": "Abgebrochen",
+      "ja": "キャンセル済み",
+      "ko": "취소됨",
+      "zh-Hans": "已取消"
+    },
+    "super-drive.queue.processing": {
+      "en": "Processing",
+      "fr": "Traitement"
+    },
+    "super-drive.review.action.edit": {
+      "en": "Edit",
+      "es": "Editar",
+      "pt-BR": "Editar",
+      "fr": "Modifier",
+      "de": "Bearbeiten",
+      "ja": "編集",
+      "ko": "편집",
+      "zh-Hans": "编辑"
+    },
+    "super-drive.review.edit.value": {
+      "en": "Value",
+      "es": "Valor",
+      "pt-BR": "Valor",
+      "fr": "Valeur",
+      "de": "Wert",
+      "ja": "値",
+      "ko": "값",
+      "zh-Hans": "值"
+    },
+    "super-drive.review.empty.configure": {
+      "en": "Set up",
+      "es": "Configurar",
+      "pt-BR": "Configurar",
+      "fr": "Configurer",
+      "de": "Einrichten",
+      "ko": "설정"
+    },
+    "super-drive.review.loadMore": {
+      "en": "Load more",
+      "es": "Cargar más",
+      "pt-BR": "Carregar mais",
+      "fr": "Charger plus",
+      "de": "Mehr laden",
+      "ja": "さらに読み込む",
+      "zh-Hans": "加载更多"
+    },
+    "super-drive.review.source.count": {
+      "en": "{count, plural, one {# item} other {# items}}",
+      "es": "{count, plural, one {# elemento} other {# elementos}}",
+      "pt-BR": "{count, plural, one {# item} other {# itens}}",
+      "fr": "{count, plural, one {# élément} other {# éléments}}"
+    },
+    "super-drive.review.speaker.confirm": {
+      "en": "Confirm",
+      "es": "Confirmar",
+      "pt-BR": "Confirmar",
+      "fr": "Confirmer",
+      "de": "Bestätigen",
+      "ko": "확인",
+      "zh-Hans": "确认"
+    },
+    "super-drive.revision.added": {
+      "en": "Added",
+      "es": "Añadido",
+      "pt-BR": "Adicionado",
+      "fr": "Ajouté",
+      "de": "Hinzugefügt",
+      "ko": "추가됨"
+    },
+    "super-drive.section.files": {
+      "en": "Files",
+      "es": "Archivos",
+      "pt-BR": "Arquivos",
+      "fr": "Fichiers",
+      "de": "Dateien",
+      "ja": "ファイル",
+      "ko": "파일",
+      "zh-Hans": "文件"
+    },
+    "super-drive.section.settings": {
+      "en": "Settings",
+      "pt-BR": "Configurações",
+      "fr": "Paramètres",
+      "de": "Einstellungen",
+      "ja": "設定",
+      "ko": "설정",
+      "zh-Hans": "设置"
+    },
+    "super-drive.selection.retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "super-drive.settings.backend.fs": {
+      "en": "Local folder",
+      "es": "Carpeta local",
+      "pt-BR": "Pasta local",
+      "fr": "Dossier local",
+      "de": "Lokaler Ordner",
+      "ko": "로컬 폴더",
+      "zh-Hans": "本地文件夹"
+    },
+    "super-drive.settings.drive.status.active": {
+      "en": "Active",
+      "fr": "Actif",
+      "de": "Aktiv",
+      "ko": "활성"
+    },
+    "super-drive.settings.drive.status.deleting": {
+      "en": "Removing…",
+      "es": "Eliminando…",
+      "pt-BR": "Removendo…",
+      "fr": "Suppression…",
+      "de": "Wird entfernt…",
+      "ja": "削除中…",
+      "ko": "제거 중…",
+      "zh-Hans": "正在移除…"
+    },
+    "super-drive.settings.drive.status.paused": {
+      "en": "Paused",
+      "fr": "En pause",
+      "de": "Pausiert",
+      "ko": "일시 중지됨",
+      "zh-Hans": "已暂停"
+    },
+    "super-drive.settings.drives.fileCount": {
+      "en": "{count, plural, one {# file} other {# files}}",
+      "es": "{count, plural, one {# archivo} other {# archivos}}",
+      "pt-BR": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "fr": "{count, plural, one {# fichier} other {# fichiers}}",
+      "de": "{count, plural, one {# Datei} other {# Dateien}}"
+    },
+    "super-drive.settings.model.baseUrl": {
+      "en": "Address",
+      "es": "Dirección",
+      "pt-BR": "Endereço",
+      "fr": "Adresse",
+      "de": "Adresse",
+      "ja": "アドレス",
+      "ko": "주소",
+      "zh-Hans": "地址"
+    },
+    "super-drive.settings.model.key": {
+      "en": "Access key",
+      "es": "Clave de acceso",
+      "pt-BR": "Chave de acesso",
+      "ja": "アクセスキー",
+      "ko": "액세스 키",
+      "zh-Hans": "访问密钥"
+    },
+    "super-drive.settings.model.keySaved": {
+      "en": "Saved",
+      "de": "Gespeichert",
+      "ja": "保存済み",
+      "ko": "저장됨",
+      "zh-Hans": "已保存"
+    },
+    "super-drive.settings.model.provider": {
+      "en": "Provider",
+      "es": "Proveedor",
+      "pt-BR": "Provedor",
+      "fr": "Fournisseur",
+      "de": "Anbieter",
+      "ja": "プロバイダー"
+    },
+    "super-drive.settings.model.save": {
+      "en": "Save",
+      "es": "Guardar",
+      "pt-BR": "Salvar",
+      "fr": "Enregistrer",
+      "de": "Speichern",
+      "ja": "保存",
+      "ko": "저장",
+      "zh-Hans": "保存"
+    },
+    "super-drive.settings.model.title": {
+      "en": "Model",
+      "es": "Modelo",
+      "pt-BR": "Modelo",
+      "fr": "Modèle",
+      "de": "Modell",
+      "ja": "モデル",
+      "ko": "모델",
+      "zh-Hans": "模型"
+    },
+    "super-drive.settings.register.folder": {
+      "en": "Folder",
+      "es": "Carpeta",
+      "pt-BR": "Pasta",
+      "fr": "Dossier",
+      "de": "Ordner",
+      "ko": "폴더",
+      "zh-Hans": "文件夹"
+    },
+    "super-drive.settings.register.name": {
+      "en": "Name",
+      "es": "Nombre",
+      "pt-BR": "Nome",
+      "fr": "Nom",
+      "de": "Name",
+      "ja": "名前",
+      "ko": "이름",
+      "zh-Hans": "名称"
+    },
+    "super-drive.settings.register.s3.required": {
+      "en": "Required",
+      "es": "Obligatorio",
+      "pt-BR": "Obrigatório",
+      "fr": "Obligatoire",
+      "de": "Erforderlich",
+      "ja": "必須",
+      "ko": "필수"
+    },
+    "super-drive.share.action.back": {
+      "en": "Back",
+      "pt-BR": "Voltar",
+      "de": "Zurück",
+      "ja": "戻る"
+    },
+    "super-drive.share.action.done": {
+      "en": "Done",
+      "pt-BR": "Concluir",
+      "fr": "Terminé",
+      "de": "Fertig",
+      "ja": "完了",
+      "ko": "완료",
+      "zh-Hans": "完成"
+    },
+    "super-drive.share.action.next": {
+      "en": "Next",
+      "es": "Siguiente",
+      "pt-BR": "Avançar",
+      "fr": "Suivant",
+      "de": "Weiter",
+      "ja": "次へ",
+      "ko": "다음",
+      "zh-Hans": "下一步"
+    },
+    "super-drive.share.action.refresh": {
+      "en": "Refresh",
+      "zh-Hans": "刷新"
+    },
+    "super-drive.share.action.revoke": {
+      "en": "Revoke",
+      "es": "Revocar",
+      "pt-BR": "Revogar",
+      "fr": "Révoquer",
+      "de": "Widerrufen",
+      "ja": "取り消す"
+    },
+    "super-drive.share.delivery.command": {
+      "en": "Command",
+      "es": "Comando",
+      "pt-BR": "Comando",
+      "fr": "Commande",
+      "de": "Befehl",
+      "ja": "コマンド",
+      "ko": "명령",
+      "zh-Hans": "命令"
+    },
+    "super-drive.share.delivery.run": {
+      "en": "Run now",
+      "es": "Ejecutar ahora",
+      "pt-BR": "Executar agora",
+      "fr": "Exécuter maintenant",
+      "de": "Jetzt ausführen",
+      "ja": "今すぐ実行",
+      "ko": "지금 실행"
+    },
+    "super-drive.share.field.copied": {
+      "en": "Copied",
+      "es": "Copiado",
+      "pt-BR": "Copiado",
+      "fr": "Copié",
+      "de": "Kopiert",
+      "ko": "복사됨",
+      "zh-Hans": "已复制"
+    },
+    "super-drive.share.field.copy": {
+      "en": "Copy",
+      "es": "Copiar",
+      "pt-BR": "Copiar",
+      "fr": "Copier",
+      "de": "Kopieren",
+      "ja": "コピー",
+      "ko": "복사",
+      "zh-Hans": "复制"
+    },
+    "super-drive.share.field.copyLabel": {
+      "en": "Copy {label}",
+      "es": "Copiar {label}",
+      "pt-BR": "Copiar {label}",
+      "fr": "Copier {label}",
+      "de": "{label} kopieren",
+      "ja": "{label}をコピー",
+      "ko": "{label} 복사",
+      "zh-Hans": "复制{label}"
+    },
+    "super-drive.share.list.filterAll": {
+      "en": "All",
+      "de": "Alle",
+      "ja": "すべて",
+      "zh-Hans": "全部"
+    },
+    "super-drive.share.list.history": {
+      "en": "History",
+      "es": "Historial",
+      "pt-BR": "Histórico",
+      "fr": "Historique",
+      "de": "Verlauf",
+      "ja": "履歴",
+      "ko": "기록"
+    },
+    "super-drive.share.pending.refreshing": {
+      "en": "Refreshing…",
+      "es": "Actualizando…",
+      "pt-BR": "Atualizando…",
+      "fr": "Actualisation…",
+      "ja": "更新中…",
+      "zh-Hans": "正在刷新…"
+    },
+    "super-drive.share.refreshPolicy.manual": {
+      "en": "Manual",
+      "es": "Manual",
+      "pt-BR": "Manual",
+      "zh-Hans": "手动"
+    },
+    "super-drive.share.role.editor": {
+      "en": "Editor",
+      "es": "Editor",
+      "pt-BR": "Editor",
+      "fr": "Éditeur"
+    },
+    "super-drive.share.role.viewer": {
+      "en": "Viewer",
+      "es": "Lector",
+      "ja": "閲覧者"
+    },
+    "super-drive.share.rowActions": {
+      "en": "Actions for {name}",
+      "fr": "Actions pour {name}",
+      "de": "Aktionen für {name}",
+      "ja": "{name} の操作",
+      "ko": "{name} 작업",
+      "zh-Hans": "{name} 的操作"
+    },
+    "super-drive.share.scope.addAction": {
+      "en": "Add",
+      "es": "Añadir",
+      "pt-BR": "Adicionar",
+      "fr": "Ajouter",
+      "de": "Hinzufügen",
+      "ja": "追加",
+      "ko": "추가",
+      "zh-Hans": "添加"
+    },
+    "super-drive.share.state.active": {
+      "en": "Active",
+      "fr": "Actif",
+      "de": "Aktiv",
+      "ko": "활성"
+    },
+    "super-drive.share.step.scope": {
+      "en": "Scope",
+      "pt-BR": "Escopo",
+      "ko": "범위",
+      "zh-Hans": "范围"
+    },
+    "super-drive.share.step.settings": {
+      "en": "Settings",
+      "de": "Einstellungen",
+      "ja": "設定",
+      "ko": "설정",
+      "zh-Hans": "设置"
+    },
+    "super-drive.share.steps": {
+      "en": "Share steps",
+      "es": "Pasos para compartir",
+      "pt-BR": "Etapas do compartilhamento",
+      "ja": "共有の手順",
+      "ko": "공유 단계"
+    },
+    "super-drive.share.update.level.warn": {
+      "en": "Warning",
+      "pt-BR": "Aviso",
+      "fr": "Avertissement",
+      "de": "Warnung",
+      "ja": "警告",
+      "ko": "경고",
+      "zh-Hans": "警告"
+    },
+    "super-drive.size.bytes": {
+      "en": "{value} B",
+      "es": "{value} B",
+      "pt-BR": "{value} B",
+      "de": "{value} B",
+      "ja": "{value} B",
+      "zh-Hans": "{value} B"
+    },
+    "super-drive.size.kilobytes": {
+      "en": "{value} KB",
+      "es": "{value} KB",
+      "pt-BR": "{value} KB",
+      "fr": "{value} Ko",
+      "de": "{value} KB",
+      "ja": "{value} KB",
+      "zh-Hans": "{value} KB"
+    },
+    "super-drive.size.megabytes": {
+      "en": "{value} MB",
+      "es": "{value} MB",
+      "pt-BR": "{value} MB",
+      "fr": "{value} Mo",
+      "de": "{value} MB",
+      "ja": "{value} MB",
+      "zh-Hans": "{value} MB"
+    },
+    "super-drive.suggest.action.review": {
+      "en": "Review changes",
+      "es": "Revisar cambios",
+      "pt-BR": "Revisar alterações",
+      "de": "Änderungen prüfen",
+      "ja": "変更を確認"
+    },
+    "super-drive.suggest.action.undo": {
+      "en": "Undo",
+      "es": "Deshacer",
+      "pt-BR": "Desfazer",
+      "fr": "Annuler",
+      "de": "Rückgängig",
+      "zh-Hans": "撤销"
+    },
+    "super-drive.suggest.status.accepted": {
+      "en": "Accepted",
+      "ja": "承認済み",
+      "ko": "수락됨",
+      "zh-Hans": "已接受"
+    },
+    "super-drive.vector.short.off": {
+      "en": "Off",
+      "es": "Desactivado",
+      "pt-BR": "Desativado",
+      "fr": "Désactivé",
+      "de": "Aus",
+      "ja": "オフ",
+      "ko": "꺼짐"
+    },
+    "super-drive.vector.short.on": {
+      "en": "On",
+      "es": "Activado",
+      "pt-BR": "Ativado",
+      "fr": "Activé",
+      "ja": "オン",
+      "ko": "켜짐"
+    },
+    "super-drive.vector.short.unavailable": {
+      "en": "Unavailable",
+      "es": "No disponible",
+      "pt-BR": "Indisponível",
+      "fr": "Indisponible",
+      "de": "Nicht verfügbar",
+      "ja": "利用不可",
+      "zh-Hans": "不可用"
+    }
+  }
+}

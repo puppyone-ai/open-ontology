@@ -13,7 +13,7 @@ const SOURCE_ICON = { files: File, folder: Folder, bucket: Package, database: Da
 export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.count.files", db: "app.atlas.count.tables" } as const;
 
 export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void }) {
-  const { t } = useLocalization();
+  const { t, formatNumber } = useLocalization();
   // A picture of a few groups (a database alone, say) shows its members at once: there is nothing else to look at.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(data.groups.length <= 3 ? data.groups.map((group) => group.id) : []));
   const [relationLimit, setRelationLimit] = useState(PAGE);
@@ -71,7 +71,7 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
       })}
       {relations.length > 0 && (
         <li className="so-atlas-list-group" data-testid="atlas-relations">
-          <p className="so-atlas-relations-head"><span>{t("app.atlas.relations")}</span><span className="so-weak so-atlas-count">{relations.length}</span></p>
+          <p className="so-atlas-relations-head"><span>{t("app.atlas.relations")}</span><span className="so-weak so-atlas-count">{formatNumber(relations.length)}</span></p>
           <ul className="so-atlas-list-members so-atlas-relations">
             {relations.slice(0, relationLimit).map((link) => {
               const [from, to] = link.from === link.b ? [link.b, link.a] : [link.a, link.b];

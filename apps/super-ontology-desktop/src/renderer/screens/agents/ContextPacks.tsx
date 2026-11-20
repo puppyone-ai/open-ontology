@@ -4,7 +4,8 @@ import { Button, Card, Dialog, EmptyState, Notice, Select, Skeleton, StatusDot, 
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Eye, FolderOpen, PackagePlus, RefreshCw, Trash2 } from "lucide-react";
-import { useErrorText, useRelativeTime } from "../../hooks/useText";
+import { useRelativeTime } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import type { Share } from "../../../shared/super-ontology/docs-api.generated";
 import { createOperationId } from "../../model/operationIds";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
@@ -18,7 +19,6 @@ function PackRow({ share, driveName, onOpen }: { share: Share; driveName: string
   const relative = useRelativeTime();
   const actions = useSuperDriveActions();
   const pending = useSuperDriveSelector((s) => s.shares.pending[share.id] ?? null);
-  const errorText = useErrorText();
   const [error, setError] = useState<SuperDriveError | null>(null);
   const live = share.state === "active" || share.state === "drifted";
   const run = async (op: "refresh" | "revoke") => {
@@ -31,7 +31,7 @@ function PackRow({ share, driveName, onOpen }: { share: Share; driveName: string
       <span className="so-list-text">
         <span className="so-list-title so-truncate">{share.task?.trim() || t("app.packs.untitled")}</span>
         <span className="so-list-sub so-truncate">{[driveName, t(`super-drive.share.role.${share.role}`), t("app.packs.expires", { when: relative(share.expires_at) })].join(" · ")}</span>
-        {error && <span role="alert" className="so-list-sub" style={{ color: "var(--so-danger)" }}>{errorText(error)}</span>}
+        {error && <span role="alert" className="so-list-sub" style={{ color: "var(--so-danger)" }}><ErrorText error={error} /></span>}
       </span>
       <StatusDot tone={STATE_TONE[share.state] ?? "neutral"} label={share.state === "drifted" ? t("app.packs.state.drifted") : t(`app.packs.state.${share.state}`)} />
       <span className="so-row">
@@ -64,7 +64,6 @@ function BriefDialog({ share, onClose }: { share: Share; onClose: () => void }) 
 function CreateDialog({ onClose }: { onClose: () => void }) {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const [driveId, setDriveId] = useState(drives[0]?.id ?? "");
   const [task, setTask] = useState("");
@@ -89,7 +88,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog title={t("app.packs.create.title")} description={t("app.packs.create.description")} onClose={busy ? undefined : onClose} closeLabel={t("app.common.close")}
       footer={<><Button variant="ghost" onClick={onClose} disabled={busy}>{t("app.common.cancel")}</Button><Button variant="primary" loading={busy} icon={PackagePlus} onClick={() => { void create(); }}>{t("app.packs.create.confirm")}</Button></>}>
-      {error && <Notice tone="danger" title={t("app.packs.create.failed")}>{errorText(error)}</Notice>}
+      {error && <Notice tone="danger" title={t("app.packs.create.failed")}><ErrorText error={error} /></Notice>}
       <Select label={t("app.packs.create.source")} value={driveId} onChange={(e) => setDriveId(e.target.value)}>{drives.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select>
       <TextArea label={t("app.packs.create.task")} value={task} onChange={(e) => setTask(e.target.value)} placeholder={t("app.packs.create.task.placeholder")} helper={t("app.packs.create.task.help")} optionalLabel={t("app.sources.cloud.optional")} maxLength={2000} />
       <div className="so-field" data-invalid={touched && !target ? "true" : undefined}>
@@ -105,7 +104,6 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
 export function ContextPacks() {
   const { t } = useLocalization();
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const shares = useSuperDriveSelector((s) => s.shares);
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const [brief, setBrief] = useState<Share | null>(null);
@@ -118,7 +116,7 @@ export function ContextPacks() {
   return (
     <div className="so-stack" data-testid="packs">
       <div className="so-row"><p className="so-muted so-grow">{t("app.packs.intro")}</p><Button variant="primary" icon={PackagePlus} disabled={drives.length === 0} onClick={() => setCreating(true)} data-testid="create-pack">{t("app.packs.create")}</Button></div>
-      {shares.error && !shares.loaded ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => { void actions.loadShares({ force: true }); }}>{t("app.common.retry")}</Button>}>{errorText(shares.error)}</Notice>
+      {shares.error && !shares.loaded ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => { void actions.loadShares({ force: true }); }}>{t("app.common.retry")}</Button>}><ErrorText error={shares.error} /></Notice>
         : !shares.loaded ? <Card className="so-list" aria-busy="true">{Array.from({ length: 2 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="45%" height={13} /></div>)}</Card>
         : visible.length === 0 ? <Card><EmptyState icon={PackagePlus} title={t("app.packs.empty.title")} description={t("app.packs.empty.body")} /></Card>
         : <Card className="so-list">{visible.map((share) => <PackRow key={share.id} share={share} driveName={names.get(share.drive_id) ?? ""} onOpen={setBrief} />)}</Card>}

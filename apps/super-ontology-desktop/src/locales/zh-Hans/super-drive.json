@@ -1160,5 +1160,15 @@
   "engine.folder.open": "显示",
   "engine.folder.view": "查看",
   "engine.manual.show": "显示",
-  "engine.manual.hide": "隐藏"
+  "engine.manual.hide": "隐藏",
+  "share.field.copyLabel": "复制{label}",
+  "share.field.copy": "复制",
+  "share.field.copied": "已复制",
+  "errors.SO_RESPONSE_INVALID": "无法理解引擎的响应",
+  "errors.SO_EVENTS_GAP": "漏掉了部分实时更新，列表将刷新。",
+  "errors.SO_PREVIEW_UNAVAILABLE": "此文件无法预览",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "此应用尚未配置云端",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "请先登录云端",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "云端暂不支持此操作",
+  "errors.SO_INTERNAL": "发生了意外问题"
 }

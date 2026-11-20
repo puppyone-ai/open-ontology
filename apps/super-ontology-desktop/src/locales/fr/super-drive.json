@@ -45,7 +45,7 @@
   "a11y.sidebar": "Sections de Super Drive",
   "section.files": "Fichiers",
   "section.engine": "Moteur",
-  "section.settings": "Réglages",
+  "section.settings": "Paramètres",
   "section.review": "À valider",
   "entry.bridgeUnavailable": "Super Drive n'est pas disponible dans cette version",
   "onboarding.title": "Placez vos fichiers dans un Drive et partagez-les avec des agents",
@@ -1160,5 +1160,15 @@
   "engine.folder.open": "Afficher",
   "engine.folder.view": "Voir",
   "engine.manual.show": "Afficher",
-  "engine.manual.hide": "Masquer"
+  "engine.manual.hide": "Masquer",
+  "share.field.copyLabel": "Copier {label}",
+  "share.field.copy": "Copier",
+  "share.field.copied": "Copié",
+  "errors.SO_RESPONSE_INVALID": "La réponse du moteur n’a pas été comprise",
+  "errors.SO_EVENTS_GAP": "Certaines mises à jour en direct ont été manquées. La liste va s’actualiser.",
+  "errors.SO_PREVIEW_UNAVAILABLE": "Aucun aperçu n’est disponible pour ce fichier",
+  "errors.SO_CLOUD_NOT_CONFIGURED": "Le cloud n’est pas configuré dans cette app",
+  "errors.SO_CLOUD_SESSION_REQUIRED": "Connectez-vous d’abord au cloud",
+  "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Le cloud ne propose pas encore cette action",
+  "errors.SO_INTERNAL": "Un problème inattendu s’est produit"
 }

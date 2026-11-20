@@ -102,7 +102,7 @@ function BuildStages({ build, services, phase }: { build: BuildState | null; ser
 }
 
 export function DatabaseDetail({ source, onBack, onRemoved }: { source: DbSourceInfo; onBack: () => void; onRemoved: () => void }) {
-  const { t } = useLocalization();
+  const { t, formatDate } = useLocalization();
   const app = useApp();
   const kind = dbKind(source.backend);
   const config = source.config;
@@ -253,7 +253,7 @@ export function DatabaseDetail({ source, onBack, onRemoved }: { source: DbSource
         <Card className="so-db-pipeline" data-testid="database-pipeline" data-state={freshness} data-phase={phase}>
           <div className="so-db-pipeline-row">
             <StatusDot tone={freshness === "up_to_date" ? "success" : freshness === "degraded" || freshness === "waiting_review" ? "warning" : freshness === "processing" ? "accent" : "neutral"} pulse={freshness === "processing"} label={freshness === "unknown" ? t("app.db.pipeline.never") : t(`app.freshness.${freshness}`)} />
-            {published && <span className="so-weak">{t("app.db.pipeline.published", { when: new Date(published).toLocaleString() })}</span>}
+            {published && <span className="so-weak">{t("app.db.pipeline.published", { when: formatDate(published, { dateStyle: "medium", timeStyle: "short" }) })}</span>}
           </div>
           {pipelineData && <DefinitionList items={[
             { label: t("app.db.pipeline.state"), value: pipelineData.status ?? "unknown" },

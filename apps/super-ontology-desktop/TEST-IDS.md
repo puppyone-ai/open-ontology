@@ -156,6 +156,8 @@ Rules:
 | `settings-section-general` `settings-section-model` `settings-section-privacy` | the other tabs | `data-active` |
 | `settings-section-diagnostics` `settings-diagnostics` `diag-oo` `diag-check` `diag-runtime` `diag-serve` **(T1)** | Diagnostics | |
 | `diag-refresh` `diag-copy` `diag-doctor` `diag-doctor-result` | Diagnostics | |
+| `diag-runtime-error` `diag-serve-error` | the failed runtime and serve probes (code, the CLI's cause, the sentence; derived: `-raw`, `-next`) | |
+| `error-code` | the details line with the code of an engine or bridge error, under its sentence | |
 | `engine-status` **(T1)** | engine state text | `data-state` = the engine status (`healthy` `stopped` `starting` `crashed` ...) |
 | `engine-start` `engine-stop` `engine-restart` **(T1)** | engine controls | |
 | `engine-runtime-select` | runtime choice | `data-value` = `auto` `docker` `lite` |

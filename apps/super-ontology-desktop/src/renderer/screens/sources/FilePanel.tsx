@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, DefinitionList, IconButton, Notice, Skeleton, StatusDot } from "@open-ontology/design-system";
 import { RotateCw, X } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { useFileDetail } from "../../model/details/useFileDetail";
 import { formatBytes } from "../../model/format";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
@@ -13,7 +13,6 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   const t$ = useLocalization();
   const { t, formatDate } = t$;
   const actions = useSuperDriveActions();
-  const errorText = useErrorText();
   const stateText = useFileStateText();
   const record = useSuperDriveSelector((s) => s.files[fileId] ?? null);
   const { detail, error, loading } = useFileDetail(fileId);
@@ -29,7 +28,7 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
       </div>
       {view && <StatusDot tone={TONE[view.tone]} label={stateText(view)} pulse={view.busy} />}
       {view?.canRetry && <div><Button icon={RotateCw} loading={retrying} onClick={() => { void retry(); }}>{t("app.sources.panel.retry")}</Button></div>}
-      {error && <Notice tone="danger" title={t("app.common.loadFailed")}>{errorText(error)}</Notice>}
+      {error && <Notice tone="danger" title={t("app.common.loadFailed")}><ErrorText error={error} /></Notice>}
       {record && (
         <DefinitionList items={[
           { label: t("app.sources.panel.path"), value: <span className="so-mono">{record.path}</span> },

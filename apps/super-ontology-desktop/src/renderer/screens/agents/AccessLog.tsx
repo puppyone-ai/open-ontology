@@ -3,7 +3,8 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, EmptyState, Notice, Skeleton } from "@open-ontology/design-system";
 import { ScrollText, ShieldCheck } from "lucide-react";
 import { useLoad } from "../../hooks/useLoad";
-import { useErrorText, useRelativeTime } from "../../hooks/useText";
+import { useRelativeTime } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { superDriveApi } from "../../model/superDriveApi";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { isEngineReady } from "../../model/superDriveStateModel";
@@ -13,7 +14,6 @@ import type { SuperDriveError } from "../../model/superDriveErrors";
 /** Who was given what, and when: an append-only record. It can be checked, never edited. */
 export function AccessLog() {
   const { t } = useLocalization();
-  const errorText = useErrorText();
   const relative = useRelativeTime();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const log = useLoad(() => superDriveApi.auditShares({}), [ready], { enabled: ready });
@@ -28,8 +28,8 @@ export function AccessLog() {
     <div className="so-stack" data-testid="access-log">
       <div className="so-row"><p className="so-muted so-grow">{t("app.access.intro")}</p><Button icon={ShieldCheck} loading={verify.status === "checking"} onClick={() => { void check(); }}>{t("app.access.verify")}</Button></div>
       {verify.status === "done" && <Notice tone={verify.result.intact ? "success" : "danger"} title={verify.result.intact ? t("app.access.intact") : t("app.access.broken")}>{verify.result.intact ? t("app.access.intact.body", { count: verify.result.rows ?? 0 }) : t("app.access.broken.body", { seq: verify.result.broken_at_seq ?? 0 })}</Notice>}
-      {verify.status === "error" && <Notice tone="danger" title={t("app.common.loadFailed")}>{errorText(verify.error)}</Notice>}
-      {log.status === "error" && !log.value ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={log.reload}>{t("app.common.retry")}</Button>}>{errorText(log.error)}</Notice>
+      {verify.status === "error" && <Notice tone="danger" title={t("app.common.loadFailed")}><ErrorText error={verify.error} /></Notice>}
+      {log.status === "error" && !log.value ? <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={log.reload}>{t("app.common.retry")}</Button>}><ErrorText error={log.error} /></Notice>
         : log.status === "loading" && !log.value ? <Card className="so-list" aria-busy="true">{Array.from({ length: 3 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="50%" height={13} /></div>)}</Card>
         : items.length === 0 ? <Card><EmptyState icon={ScrollText} title={t("app.access.empty.title")} description={t("app.access.empty.body")} /></Card>
         : (

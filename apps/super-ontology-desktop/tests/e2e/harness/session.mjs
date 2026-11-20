@@ -8,7 +8,7 @@
 //
 // Environment: SO_T1_PACKAGED_APP (path of a built `Super Ontology.app`: that executable is launched instead of electron + the source tree, with the oo it bundles;
 //               the native-dialog queue does not exist there, so steps that answer a dialog are skipped: `session.packaged`), SO_T1_OO_BIN (absolute path of an `oo` built with docs, with `oo-docs-engine` next to it), SO_T1_ENGINE,
-// SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder).
+// SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder), SO_T1_LANGUAGE (interface language of the run, e.g. zh-Hans).
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import fs from "node:fs/promises";
@@ -43,7 +43,7 @@ async function firstExisting(candidates) {
  * @param {(session: object) => Promise<void>} scenario
  */
 export async function runScenario(options, scenario) {
-  const { name, title = name, timeoutMs = 280_000, language = "en", settings = {}, window: size = { width: 1280, height: 820 }, firstRun = false } = options;
+  const { name, title = name, timeoutMs = 280_000, language: scenarioLanguage = "en", settings = {}, window: size = { width: 1280, height: 820 }, firstRun = false } = options;
   // A scenario that declares the fake engine (it adds a database through the canned `oo`, which a real engine knows nothing of) keeps it: the run-wide switch only moves the others.
   const engineKind = options.engine === "fake" ? "fake" : (process.env.SO_T1_ENGINE ?? options.engine ?? "real");
   const appRoot = process.env.SO_APP_ROOT ?? defaultAppRoot;
@@ -65,6 +65,8 @@ export async function runScenario(options, scenario) {
   const log = (line) => console.log(`[t1:${name}] ${line}`);
 
   // ---- engine arrangement
+  // SO_T1_LANGUAGE runs any scenario in another language (review screenshots, localization checks); a scenario that sets one itself keeps it.
+  const language = scenarioLanguage !== "en" ? scenarioLanguage : (process.env.SO_T1_LANGUAGE ?? "en");
   const appSettings = { language, ...settings };
   const environment = { ...process.env };
   delete environment.ELECTRON_RUN_AS_NODE;

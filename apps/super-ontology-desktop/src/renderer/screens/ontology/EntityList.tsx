@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, EmptyState, Notice, Select, Skeleton } from "@open-ontology/design-system";
 import { Network, Search } from "lucide-react";
-import { useErrorText } from "../../hooks/useText";
+import { ErrorText } from "../shared/ErrorText";
 import { useLoad } from "../../hooks/useLoad";
 import { ENTITY_TYPE_VALUES } from "../../../shared/super-ontology/docs-api.generated";
 import { ontologyApi } from "../../model/superDriveOntologyApi";
@@ -12,7 +12,6 @@ import { isEngineReady } from "../../model/superDriveStateModel";
 
 export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
   const { t } = useLocalization();
-  const errorText = useErrorText();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const version = useSuperDriveSelector(selectOntologyVersion);
   const [query, setQuery] = useState("");
@@ -40,7 +39,7 @@ export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
         </Select></div>
       </form>
       {result.status === "error" && !result.value ? (
-        <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={result.reload}>{t("app.common.retry")}</Button>}>{errorText(result.error)}</Notice>
+        <Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={result.reload}>{t("app.common.retry")}</Button>}><ErrorText error={result.error} /></Notice>
       ) : result.status === "loading" && !result.value ? (
         <Card className="so-list" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width={32} height={32} radius={6} /><span className="so-list-text"><Skeleton width={160} height={13} /><Skeleton width={100} height={11} /></span></div>)}</Card>
       ) : items.length === 0 ? (

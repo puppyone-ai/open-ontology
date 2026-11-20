@@ -6,7 +6,7 @@ import type { CliResult, DiagnosticsReport } from "../../../shared/super-ontolog
 import { invoke } from "../../model/bridgeInvoke";
 import { COPY_LIMIT, runCli } from "../../model/cliApi";
 import { copyText } from "../../model/format";
-import { CliCommand, CliErrorNotice } from "../shared/Cli";
+import { CliCommand, CliErrorNotice, CliErrorText } from "../shared/Cli";
 
 type Doctor = { status?: string; model?: { status?: string }; docs?: { status?: string; why?: string }; sources?: { source_id: string; status: string; error?: string }[] };
 
@@ -68,10 +68,10 @@ export function Diagnostics() {
             {report.check?.ok && <span>{t("app.diag.check.ok")}</span>}
           </Row>
           <Row testId="diag-runtime" title={t("app.diag.runtime")} tone={report.runtime?.ok ? (installed ? "success" : "neutral") : toneOf(report.runtime)} status={report.runtime ? (report.runtime.ok ? (installed ? t("app.diag.ok") : t("app.diag.missing")) : t("app.diag.attention")) : t("app.diag.unknown")} cli={report.runtime?.cli ?? "oo docs runtime status --json"}>
-            {report.runtime?.error ? report.runtime.error.message : report.runtime?.data ? (installed ? t("app.diag.found") : t("app.diag.missing")) : null}
+            {report.runtime?.error ? <CliErrorText error={report.runtime.error} testId="diag-runtime-error" /> : report.runtime?.data ? (installed ? t("app.diag.found") : t("app.diag.missing")) : null}
           </Row>
           <Row testId="diag-serve" title={t("app.diag.serve")} tone={report.serve ? (serving ? "success" : "neutral") : "neutral"} status={report.serve ? (serving ? t("app.diag.running") : t("app.diag.stopped")) : t("app.diag.unknown")} cli={report.serve?.cli ?? "oo serve --status --json"}>
-            {report.serve?.error?.message}
+            {report.serve?.error && <CliErrorText error={report.serve.error} testId="diag-serve-error" />}
           </Row>
         </Card>
       </Section>
