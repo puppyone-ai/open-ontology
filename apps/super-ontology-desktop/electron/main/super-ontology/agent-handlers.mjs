@@ -38,7 +38,8 @@ export function createAgentHandlers({ client }) {
       return value;
     },
     "agent-token-list": async () => {
-      const { value } = await call("agentTokenList", {});
+      // `state=all`: the engine lists only live tokens by default, so a revoked token's row would vanish instead of showing "revoked".
+      const { value } = await call("agentTokenList", { query: { state: "all" } });
       return ensure(value, isList);
     },
     "agent-token-revoke": async ({ tokenId }) => {

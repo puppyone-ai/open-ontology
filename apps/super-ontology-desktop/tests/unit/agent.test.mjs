@@ -31,4 +31,11 @@ describe("agent token requests", () => {
     await expect(handlers["agent-token-create"]({ name: "n", scopes: ["docs:read"] })).rejects.toMatchObject({ code: "SO_INVALID_REQUEST" });
     await expect(handlers["agent-token-create"]({ name: "n", scopes: ["docs:read"], allDrives: true, driveIds: [uuid] })).rejects.toBeDefined();
   });
+  it("lists revoked and expired tokens too, so a revoked row stays and shows its state", async () => {
+    const calls = [];
+    const client = { request: async (name, options) => { calls.push([name, options]); return { value: { items: [{ id: "x", state: "revoked" }] } }; } };
+    const handlers = createAgentHandlers({ client });
+    await expect(handlers["agent-token-list"]({})).resolves.toEqual({ items: [{ id: "x", state: "revoked" }] });
+    expect(calls[0]).toEqual(["agentTokenList", { query: { state: "all" } }]);
+  });
 });
