@@ -8,7 +8,8 @@
 //
 // Environment: SO_T1_PACKAGED_APP (path of a built `Super Ontology.app`: that executable is launched instead of electron + the source tree, with the oo it bundles;
 //               the native-dialog queue does not exist there, so steps that answer a dialog are skipped: `session.packaged`), SO_T1_OO_BIN (absolute path of an `oo` built with docs, with `oo-docs-engine` next to it), SO_T1_ENGINE,
-// SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder), SO_T1_LANGUAGE (interface language of the run, e.g. zh-Hans).
+// SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder), SO_T1_LANGUAGE (interface language of the run, e.g. zh-Hans),
+// SO_T1_SCALE (device pixel ratio of the window and its screenshots, default 1; 2 for review shots), SO_T1_RUNTIME (`docker`: the compose engine with its parsers, for Office, PDF and audio sources; default `lite`).
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import fs from "node:fs/promises";
@@ -87,10 +88,10 @@ export async function runScenario(options, scenario) {
     }
     // The embedded runtime is the engine's own (`oo serve --runtime embedded` brings its PostgreSQL); the stub folder only lets the
     // app's preflight see "an embedded runtime is present", like the folder the DMG ships.
-    const lite = await createLiteRuntimeStub(root);
-    environment.SUPER_ONTOLOGY_LITE_DIR = lite;
+    const runtime = options.runtime ?? process.env.SO_T1_RUNTIME ?? "lite";
+    if (runtime === "lite") environment.SUPER_ONTOLOGY_LITE_DIR = await createLiteRuntimeStub(root);
     // The packaged app runs its own bundled `oo` (no executable is set); a DMG built without the PostgreSQL runtime folder still gets the stub.
-    Object.assign(appSettings, packagedApp ? { runtime: "lite" } : { ooExecutable: state.ooBinary, runtime: "lite" });
+    Object.assign(appSettings, packagedApp ? { runtime } : { ooExecutable: state.ooBinary, runtime });
   } else {
     state.toolbox = await createFakeToolbox();
     Object.assign(appSettings, { ooExecutable: await state.toolbox.install("oo", "fake-oo"), runtime: "auto" });
@@ -264,7 +265,7 @@ export async function runScenario(options, scenario) {
       await state.page.send("Page.addScriptToEvaluateOnNewDocument", { source: "try { localStorage.setItem('so.firstRun.done', '1'); } catch {}" });
       await state.page.send("Page.reload");
     }
-    await state.page.send("Emulation.setDeviceMetricsOverride", { width: size.width, height: size.height, deviceScaleFactor: 1, mobile: false }).catch(() => {});
+    await state.page.send("Emulation.setDeviceMetricsOverride", { width: size.width, height: size.height, deviceScaleFactor: Number(process.env.SO_T1_SCALE ?? 1) || 1, mobile: false }).catch(() => {});
     await session.until("document.readyState === 'complete'", "page load", { timeoutMs: 30_000 });
   }
   session.launch = launch;
