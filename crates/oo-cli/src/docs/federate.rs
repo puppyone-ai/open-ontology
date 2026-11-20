@@ -435,10 +435,14 @@ async fn gateway(
     let p = load_profile(profile)?;
     let http = lifecycle::Http::new(&p, false).map_err(gateway_err)?;
     let token = lifecycle::read_token(&p).map_err(gateway_err)?;
-    let (s, v, meta) = http
-        .call_meta(path, body, Some(&token), false)
-        .await
-        .map_err(gateway_err)?;
+    // The Gateway admits one query per role at a time (the role's data session is not shared), so concurrent
+    // agents on one role are refused with OVERLOADED, which says "retry". Retry here, with backoff, instead of
+    // letting every agent see an empty side.
+    let (s, v, meta) = retry_overloaded(OVERLOAD_RETRIES, OVERLOAD_BASE, || {
+        http.call_meta(path, body.clone(), Some(&token), false)
+    })
+    .await
+    .map_err(gateway_err)?;
     if (200..300).contains(&s) && v.get("error").is_none() {
         Ok((v, meta))
     } else {
@@ -447,6 +451,40 @@ async fn gateway(
             "ONTOLOGY_GATEWAY_REFUSED",
             refusal_text(&v),
         ))
+    }
+}
+
+/// Retries of a query the Gateway refused as OVERLOADED, and the first wait (doubled each time, 12 s in all).
+const OVERLOAD_RETRIES: u32 = 6;
+const OVERLOAD_BASE: Duration = Duration::from_millis(200);
+
+fn is_overloaded(v: &Value) -> bool {
+    v["error"]["code"].as_str() == Some("OVERLOADED")
+}
+
+/// Run `call`; while the answer is an OVERLOADED refusal, wait `base * 2^n` (plus a little jitter) and run it
+/// again, at most `retries` more times. Any other answer, and a transport error, returns at once.
+async fn retry_overloaded<T, E, F, Fut>(
+    retries: u32,
+    base: Duration,
+    mut call: F,
+) -> Result<(u16, Value, T), E>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<(u16, Value, T), E>>,
+{
+    let mut attempt = 0;
+    loop {
+        let out = call().await?;
+        if attempt >= retries || !is_overloaded(&out.1) {
+            return Ok(out);
+        }
+        let jitter = u64::from(std::process::id())
+            .wrapping_mul(31)
+            .wrapping_add(u64::from(attempt) * 17)
+            % 50;
+        tokio::time::sleep(base * 2u32.pow(attempt) + Duration::from_millis(jitter)).await;
+        attempt += 1;
     }
 }
 
@@ -1368,6 +1406,51 @@ fn query_body(body: &[u8]) -> Result<(String, u32), Fail> {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn an_overloaded_gateway_is_retried_and_other_answers_are_not() {
+        let over = || json!({"error": {"code": "OVERLOADED", "message": "role query is busy"}});
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let n = || calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let out = retry_overloaded(5, Duration::from_millis(1), || {
+            let k = n();
+            async move {
+                Ok::<_, ()>(if k < 3 {
+                    (503, over(), ())
+                } else {
+                    (200, json!({"rows": []}), ())
+                })
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            (out.0, calls.load(std::sync::atomic::Ordering::SeqCst)),
+            (200, 4)
+        );
+        // Persistent overload gives up after `retries` more tries and returns the refusal.
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let out = retry_overloaded(2, Duration::from_millis(1), || {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async { Ok::<_, ()>((503, over(), ())) }
+        })
+        .await
+        .unwrap();
+        assert!(is_overloaded(&out.1));
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
+        // A refusal that is not OVERLOADED comes back at once.
+        let calls = std::sync::atomic::AtomicU32::new(0);
+        let out = retry_overloaded(5, Duration::from_millis(1), || {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async { Ok::<_, ()>((422, json!({"error": {"code": "FUNCTION_NOT_ALLOWED"}}), ())) }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            (out.0, calls.load(std::sync::atomic::Ordering::SeqCst)),
+            (422, 1)
+        );
+    }
+
     #[test]
     fn schema_relationships_are_one_edge_per_column_pair() {
         let edge = |id: &str, from: &str, to: &str| {
