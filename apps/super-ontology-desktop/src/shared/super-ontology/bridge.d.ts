@@ -285,6 +285,21 @@ export type SuperOntologyChannelMap = {
   "atlas-links": { request: { operationId?: string }; value: EngineDocument };
   "ontology-schema": { request: { limit?: number; cursor?: string; operationId?: string }; value: EngineDocument };
   "constraints-list": { request: { limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
+  /** Ontology › Ask: a question answered from the data by a bounded read-only tool loop; steps arrive on `ask-progress`. */
+  "ask-run": { request: { askId: string; question: string; history?: { question: string; answer: string }[]; operationId?: string }; value: AskOutcome };
+  "ask-cancel": { request: { askId: string; operationId?: string }; value: { cancelled: boolean } };
+};
+
+export type AskTool = "search" | "entity" | "find_text" | "read_file" | "schema" | "sql";
+export type AskStep = { n: number; tool: AskTool; arg: string; state?: "running" | "done" | "failed"; ok?: boolean };
+/** A source an answer cites: a place in a file, a table row, or a query. Only what a tool really returned. */
+export type AskSource =
+  | { id: string; kind: "file"; fileId: string | null; driveId: string | null; path: string; anchor: string; blockId: string; quote?: string }
+  | { id: string; kind: "row"; source: string; table: string; pk: string; keyColumn: string }
+  | { id: string; kind: "query"; sql: string; queryId: string | null; source: string };
+export type AskOutcome = {
+  status: "answered" | "unanswerable" | "no_model" | "key_unreadable" | "model_timeout" | "model_rejected" | "model_failed" | "engine_down" | "cancelled";
+  answer?: string; reason?: string; sources?: AskSource[]; steps?: AskStep[]; searched?: { tool: AskTool; arg: string }[]; cli?: string; uncited?: boolean; budget?: boolean; httpStatus?: number;
 };
 
 export type SuperOntologyChannel = keyof SuperOntologyChannelMap;
@@ -294,7 +309,8 @@ export type SuperOntologyPush =
   | { channel: "events"; payload: { instanceId: string | null; events: EngineEvent[]; lastSeq: number } }
   | { channel: "connection-changed"; payload: ConnectionSnapshot }
   | { channel: "resync-required"; payload: { instanceId: string | null; reason: ResyncReason; headSeq?: number } }
-  | { channel: "upload-progress"; payload: UploadProgressPush };
+  | { channel: "upload-progress"; payload: UploadProgressPush }
+  | { channel: "ask-progress"; payload: { askId: string; type: "step" } & AskStep };
 
 export type SuperOntologyBridge = {
   invoke: <C extends SuperOntologyChannel>(
