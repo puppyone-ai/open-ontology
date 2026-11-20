@@ -19,7 +19,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectToPage, readDevToolsPort } from "../harness/cdp.mjs";
-import { createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
+import { createAutosync } from "../harness/autosync.mjs";
+import { createAutosyncFixtures, createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
 import { createPeekaboo } from "../harness/peekaboo.mjs";
 import { startRecording, stopAllRecordings } from "../harness/recorder.mjs";
 
@@ -29,7 +30,7 @@ export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
 export const ASSERTION_DIRECTORY = path.join(here, "assertions");
 export const LOCALES = ["en", "zh-Hans"];
 const APP_NAME = "Super Ontology";
-const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision"]);
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "wait", "assert", "screenshot", "provision", "autosync"]);
 const ATTEMPT_MS = 5 * 60_000;
 const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
 const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
@@ -109,7 +110,9 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
   let child = null;
   let cdp = null;
   let recording = null;
-  const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose };
+  const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose, ...(fixtures.autosync ? { watchedDir: fixtures.autosync.watched, dropThree: fixtures.autosync.drop, staging: fixtures.autosync.staging, bulk50: fixtures.autosync.bulk } : {}) };
+  const autosyncState = {};
+  let autosync = null;
   const text = (value) => String(value).replaceAll(/\$\{(\w+)\}/gu, (_whole, name) => variables[name] ?? "");
 
   const launch = async () => {
@@ -182,6 +185,12 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         }
         throw new Error("the seeded source did not settle");
       }
+      // The app's own "My files" source, made the way the first run makes it.
+      case "ensureMyFiles": {
+        const made = await cdp.evaluate(`window.superOntology.invoke('my-files-ensure', { operationId: ${JSON.stringify(`t2-my-files-${Date.now()}-0000`)} })`);
+        if (!made?.ok) throw new Error(`my-files-ensure failed: ${JSON.stringify(made)}`);
+        return;
+      }
       default: throw new Error(`unknown provision action ${step.action}`);
     }
   }
@@ -216,6 +225,11 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
         case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
         case "wait": await sleep(step.ms); break;
         case "provision": await provision(step); break;
+        case "autosync": {
+          autosync ??= createAutosync({ engineApi, cdp: () => cdp, directory, locale, variables, state: autosyncState, osa, peekaboo, pid: () => child?.pid });
+          await autosync.cases[step.case]();
+          break;
+        }
         case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); if (step.elements) await fs.writeFile(path.join(directory, `${label}-${step.label}.elements.json`), JSON.stringify((await peekaboo.elements()).map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1)); break;
         case "assert": {
           const result = await assertions[step.assertion]({ cdp, args: step.args ?? {}, locale, directory, variables, profile });
@@ -281,6 +295,7 @@ async function main() {
   const profileRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "so-t2-")));
   const fixtures = await createFixtures(profileRoot);
   fixtures.lite = await createLiteRuntimeStub(profileRoot);
+  fixtures.autosync = await createAutosyncFixtures(profileRoot);
   fixtures.second = path.join(profileRoot, "Second docs");
   await fs.mkdir(fixtures.second, { recursive: true });
   await fs.writeFile(path.join(fixtures.second, "extra.md"), "# Extra\n\nA second folder.\n");

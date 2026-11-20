@@ -10,7 +10,7 @@ const haveCatalogs = fs.existsSync(path.join(localesDirectory, "en", "app.json")
 describe("T2 scenarios", () => {
   it("are well formed: ids, steps, assertions, locales", async () => {
     const scenarios = await loadScenarios();
-    expect(scenarios.map((scenario) => scenario.id)).toEqual(["P00", "P01", "P02", "P03", "P04", "P05", "P06"]);
+    expect(scenarios.map((scenario) => scenario.id)).toEqual(["P00", "P01", "P02", "P03", "P04", "P05", "P06", "P07"]);
     const catalogs = Object.fromEntries(LOCALES.map((locale) => [locale, {}]));
     for (const scenario of scenarios) expect(validateScenario(scenario, { catalogs, assertionNames, allowUnresolved: true }), scenario.id).toEqual([]);
   });

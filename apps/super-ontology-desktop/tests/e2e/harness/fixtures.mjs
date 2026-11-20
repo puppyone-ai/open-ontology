@@ -57,3 +57,63 @@ export async function createLiteRuntimeStub(root) {
   await fs.writeFile(path.join(lite, "runtime.json"), JSON.stringify({ protocol: "oo.lite-runtime/v1", postgres: "17.4" }));
   return lite;
 }
+
+/** The synthetic md, txt and docx for the auto-sync scenario (P07): all names and people are invented. */
+export function syntheticDocx(text) {
+  // A minimal Word package, stored (no compression) so it needs no library: [Content_Types].xml, _rels/.rels and word/document.xml.
+  const files = [
+    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ["word/document.xml", `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`],
+  ];
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buffer) => { let c = 0xffffffff; for (const byte of buffer) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const [name, body] of files) {
+    const nameBytes = Buffer.from(name);
+    const data = Buffer.from(body);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(crc(data), 14); local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(nameBytes.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(crc(data), 16); central.writeUInt32LE(data.length, 20); central.writeUInt32LE(data.length, 24); central.writeUInt16LE(nameBytes.length, 28); central.writeUInt32LE(offset, 42);
+    locals.push(local, nameBytes, data);
+    centrals.push(central, nameBytes);
+    offset += 30 + nameBytes.length + data.length;
+  }
+  const centralBytes = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10); end.writeUInt32LE(centralBytes.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralBytes, end]);
+}
+
+export const BASE_FILE_COUNT = 20;
+
+/**
+ * Folders for P07. `watched` holds BASE_FILE_COUNT small notes (a folder of one or two files would trip the engine's mass-delete hold when a
+ * file is deleted, which is the engine's rule and not what this scenario measures); `drop` is the three files dropped into My files; `staging`
+ * holds the file copied through Finder and the 50 that are bulk-copied; `edits` is where the outside edits are prepared.
+ */
+export async function createAutosyncFixtures(root) {
+  const make = async (name) => { const directory = path.join(root, name); await fs.mkdir(directory, { recursive: true }); return directory; };
+  const watched = await make("Watched docs");
+  for (let index = 1; index <= BASE_FILE_COUNT; index += 1) {
+    const id = String(index).padStart(2, "0");
+    await fs.writeFile(path.join(watched, `base-${id}.md`), `# Base note ${id}\n\nA steady note number ${id} that stays as it is.\n`, "utf8");
+  }
+  await fs.writeFile(path.join(watched, "dana-lee.md"), FIXTURE_FILES["People/dana-lee.md"], "utf8");
+  await fs.writeFile(path.join(watched, "alpha.md"), FIXTURE_FILES["Projects/alpha.md"], "utf8");
+  const drop = await make("Drop three");
+  await fs.writeFile(path.join(drop, "note-one.md"), "# Note one\n\nA markdown note dropped into My files.\n", "utf8");
+  await fs.writeFile(path.join(drop, "note-two.txt"), "A plain text note dropped into My files.\n", "utf8");
+  await fs.writeFile(path.join(drop, "note-three.docx"), syntheticDocx("A Word note dropped into My files."));
+  const staging = await make("Staging");
+  await fs.writeFile(path.join(staging, "finder-note.md"), "---\ntype: person\nname: Finn Hale\nrole: Courier\n---\n# Finn Hale\n\nRole: Courier\n", "utf8");
+  const bulk = await make("Bulk 50");
+  for (let index = 1; index <= 50; index += 1) {
+    const id = String(index).padStart(2, "0");
+    await fs.writeFile(path.join(bulk, `bulk-${id}.md`), `# Bulk note ${id}\n\nA copied note number ${id}.\n`, "utf8");
+  }
+  return { watched, drop, staging, bulk };
+}
