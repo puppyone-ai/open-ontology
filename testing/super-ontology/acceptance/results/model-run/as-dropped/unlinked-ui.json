@@ -1,0 +1,13 @@
+{
+ "meetings/audio/budget-call-2027-01-26.m4a": "review",
+ "meetings/audio/launch-sync-2027-01-12.wav": "review",
+ "meetings/audio/supplier-call-2027-01-16.wav": "processing",
+ "misc/brand-mockup.key": "unsupported",
+ "misc/broken-report.pdf": "parse_failed",
+ "misc/empty-notes.txt": "no_entities",
+ "misc/icon-set.sketch": "unsupported",
+ "misc/lisbon-itinerary.pdf": "processing",
+ "misc/random-readings.csv": "processing",
+ "notes/meeting-cadence.txt": "processing",
+ "notes/retro-prep.md": "processing"
+}
