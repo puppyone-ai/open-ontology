@@ -4,6 +4,9 @@
 // results next to the screenshots. Nothing here is part of a build.
 //   node scripts/atlas-lab.mjs perf <out.json> [--sizes 1000,10000]      frame cost in the real Electron runtime
 //   node scripts/atlas-lab.mjs shots <out-dir>                            screenshots (1x and 2x) and frame sequences of the lab app
+//   node scripts/atlas-lab.mjs native <out-dir>                           the lab app in a real Electron window, captured by Peekaboo at the screen's own resolution
+//                                                                        (run from a Terminal window that holds Screen Recording; no pixel ratio emulation)
+import { execFile } from "node:child_process";
 import { _electron, chromium } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
@@ -44,6 +47,34 @@ try {
     }
     fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
     fs.writeFileSync(path.resolve(out), `${JSON.stringify({ measuredAt: new Date().toISOString(), runtime: "electron", results }, null, 2)}\n`);
+  } else if (command === "native") {
+    const outDir = path.resolve(out);
+    fs.mkdirSync(outDir, { recursive: true });
+    const grab = (app, name) => new Promise((resolve) => {
+      execFile("peekaboo", ["see", "--pid", String(app.process().pid), "--mode", "window", "--no-elements", "--retina", "--no-remote", "--path", path.join(outDir, `${name}.png`)], { timeout: 60_000 }, (error, stdout, stderr) => { console.log(error ? `[peekaboo] ${String(stderr || stdout || error).slice(0, 200)}` : `native ${name}`); resolve(); });
+    });
+    for (const [name, params] of [["native-db-atlas", "shop=1&mode=source"], ["native-overview-type", ""], ["native-overview-source", "mode=source"]]) {
+      const app = await _electron.launch({ args: [path.join(root, "scripts/atlas-lab.cjs")], env: { ...process.env, ATLAS_LAB_URL: `${base}/atlas-lab.html?${params}`, ATLAS_LAB_SHOW: "1" } });
+      const page = await app.firstWindow();
+      await page.waitForSelector("[data-testid=app-root]");
+      await page.evaluate(() => document.fonts.ready);
+      await page.locator("[data-testid=nav-ontology]").click();
+      await page.locator("[data-testid=ontology-tab-atlas]").click();
+      await page.locator("[data-testid=atlas-canvas]").waitFor();
+      await page.waitForTimeout(3500);
+      await page.mouse.move(5, 5);
+      const ratio = await page.evaluate(() => window.devicePixelRatio);
+      console.log("devicePixelRatio", ratio, await page.evaluate(() => { const c = document.querySelector("[data-testid=atlas-canvas]"); const r = c.getBoundingClientRect(); return JSON.stringify({ css: [r.width, r.height], backing: [c.width, c.height], left: r.left, top: r.top }); }));
+      await grab(app, name);
+      if (name === "native-db-atlas") {
+        const box = await page.locator("[data-testid=atlas-canvas]").boundingBox();
+        const at = await page.evaluate(() => { const c = window.__atlas; const n = c.scene.nodes.find((x) => x.label === "orders"); return { x: n.x * c.camera.k + c.camera.x, y: n.y * c.camera.k + c.camera.y }; });
+        await page.mouse.click(box.x + at.x, box.y + at.y);
+        await page.waitForTimeout(700);
+        await grab(app, "native-db-atlas-selected");
+      }
+      await app.close();
+    }
   } else if (command === "shots") {
     const outDir = path.resolve(out);
     fs.mkdirSync(path.join(outDir, "frames"), { recursive: true });
@@ -75,17 +106,18 @@ try {
       };
 
       await open();
-      await shot("01-atlas");
+      await shot("01-overview-type");
 
       // zoom in on a big group: labels appear when there is room
       const person = await where("Person");
       await page.mouse.move(person.x, person.y);
-      await page.mouse.wheel(0, -700);
-      await page.waitForTimeout(450);
+      await page.mouse.wheel(0, -2400);
+      await page.waitForTimeout(500);
+      await page.mouse.move(40, 40);
       await shot("02-zoomed-labels");
       const focus = await page.evaluate(() => { const c = window.__atlas; const g = c.scene.nodes.find((x) => x.label === "Person" && x.kind === "group"); const m = c.scene.nodes.find((x) => x.kind === "member" && x.group === g.idx && c.scene.neighbors(x.idx).size > 1); const b = document.querySelector("[data-testid=atlas-canvas]").getBoundingClientRect(); return { x: b.x + m.x * c.camera.k + c.camera.x, y: b.y + m.y * c.camera.k + c.camera.y }; });
       await page.mouse.move(focus.x, focus.y);
-      await shot("03-hover-focus");
+      await shot("03-focus");
       await page.locator("[data-testid=atlas-fit]").click();
       await page.waitForTimeout(500);
 
@@ -113,6 +145,7 @@ try {
 
       // growth: replay the versions
       await page.locator("[data-testid=atlas-play]").click();
+      for (const [name, ms] of [["a", 120], ["b", 240], ["c", 400], ["d", 700], ["e", 1500]]) await shot(`growth-mid-${name}`, ms);
       await frames("growth", 9000, 100);
       await shot("09-growth-done", 800);
 
@@ -133,11 +166,13 @@ try {
         lab.replace(next);
         lab.push([{ type: "ontology.version_published", at: new Date().toISOString(), data: { n: 99 } }]);
       });
+      await shot("live-change-a", 90);
+      await shot("live-change-b", 120);
       await frames("live-update", 5000, 100);
       await shot("10-live-updated", 400);
       await page.locator("[data-testid=atlas-mode-source]").click();
       await page.waitForTimeout(4000);
-      await shot("12-source-mode");
+      await shot("02-overview-source");
       await page.locator("[data-testid=atlas-view-list]").click();
       await page.locator("[data-testid=atlas-list-group]").first().click();
       await shot("13-source-list");

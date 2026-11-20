@@ -82,7 +82,7 @@ export function syntheticAtlas(options: SyntheticOptions): AtlasData {
     const key = `${kind}|${lo.id}|${hi.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    links.push({ a: lo.id, b: hi.id, kind, weight: 1 });
+    links.push({ a: lo.id, b: hi.id, kind, weight: 1, ...(kind === "link" ? {} : { from: a.id }) });
   }
   // An entity that has relations has facts: weights never fall below the number of fact links, as in a real ontology.
   const degree = new Map<string, number>();
@@ -100,7 +100,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0
  * Serves `data` as the engine would: entity listing pages, entity pages whose facts name other entities, the document to table
  * links and the table catalog. Only for the entity types and the schemas in `data`; `files` come from `drives`.
  */
-export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; files?: FileSummary[]; failCatalog?: boolean; failLinks?: boolean } = {}): AtlasSource & { calls: Record<string, number> } {
+export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; files?: FileSummary[]; failCatalog?: boolean; failLinks?: boolean; databaseName?: string } = {}): AtlasSource & { calls: Record<string, number> } {
   const calls: Record<string, number> = {};
   const count = (name: string) => { calls[name] = (calls[name] ?? 0) + 1; };
   const entities = data.members.filter((m) => m.ref.kind === "entity");
@@ -119,6 +119,7 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
   const fileRows = extra.files ?? [...docLinks.map(([key], i) => fileOf(5000 + i, driveId, `notes/${key}.md`)), ...fillers];
   return {
     calls,
+    ...(extra.databaseName ? { databaseName: async () => extra.databaseName! } : {}),
     entities: async ({ limit, cursor }) => {
       count("entities");
       const start = cursor ? Number(cursor) : 0;
@@ -130,8 +131,8 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
       const row = byKey.get(key);
       if (!row) return { ok: false, error: { code: "DOCS_NOT_FOUND", retryable: false, details: {} } };
       const facts = factLinks.filter((l) => l.a === entityId(key) || l.b === entityId(key)).map((l, i) => {
-        const subjectKey = l.a.slice(2);
-        const objectKey = l.b.slice(2);
+        const subjectKey = (l.from ?? l.a).slice(2);
+        const objectKey = (l.from === l.b ? l.a : l.b).slice(2);
         return { id: uuid(100000 + i), fact_key: "0".repeat(64), subject: byKey.get(subjectKey)!, predicate: "related_to", object: byKey.get(objectKey) ?? null, confidence_bp: 9000, origin: "rule", status: "published" };
       });
       return ok({ ...row, facts } as unknown as EntityDetail);
@@ -152,10 +153,20 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
       count("catalog");
       if (extra.failCatalog) return { ok: false, error: { code: "ONTOLOGY_SCOPE_DENIED", retryable: false, details: {} } };
       const tables: DbTable[] = data.members.filter((m) => m.ref.kind === "table").map((m) => { const name = (m.ref as { table: string }).table; const dot = name.indexOf("."); return { schema: name.slice(0, dot), table: name.slice(dot + 1) }; });
-      const fk = data.links.filter((l) => l.kind === "foreign_key").map((l) => { const a = l.a.slice(2), b = l.b.slice(2); const split = (n: string) => ({ schema: n.slice(0, n.indexOf(".")), table: n.slice(n.indexOf(".") + 1) }); return { from: split(a), to: split(b) }; });
+      const fk = data.links.filter((l) => l.kind === "foreign_key").map((l) => { const a = (l.from ?? l.a).slice(2), b = (l.from === l.b ? l.a : l.b).slice(2); const split = (n: string) => ({ schema: n.slice(0, n.indexOf(".")), table: n.slice(n.indexOf(".") + 1) }); return { from: split(a), to: split(b) }; });
       return ok({ tables, foreignKeys: fk });
     },
   };
 }
 
 export { ENTITY_TYPE_VALUES, tableId, typeGroupId };
+
+/** The shape of the real database-only run (a local Postgres, 4 tables, 3 foreign keys), for the lab: `atlas-lab.html?shop=1`. */
+export function shopAtlas(): AtlasData {
+  const group: AtlasGroup = { id: dbGroupId("public"), kind: "db", label: "shop · public", tone: "mist", source: "database" };
+  const names = ["customers", "products", "orders", "order_items"];
+  const members: AtlasMember[] = names.map((name) => ({ id: tableId({ schema: "public", table: name }), group: group.id, label: name, ref: { kind: "table", table: `public.${name}` }, weight: 3, born: null }));
+  const id = (name: string) => tableId({ schema: "public", table: name });
+  const fk = (from: string, to: string): AtlasLink => { const [a, b] = id(from) < id(to) ? [id(from), id(to)] : [id(to), id(from)]; return { a, b, kind: "foreign_key", weight: 1, from: id(from) }; };
+  return { groups: [group], members, links: [fk("orders", "customers"), fk("order_items", "orders"), fk("order_items", "products")], versions: [], partial: [] };
+}

@@ -23,7 +23,6 @@ export type ControllerOptions = {
 
 export type FrameStats = { fps: number; frameMs: number; p95Ms: number; draw: DrawStats };
 
-const DRIFT_LIMIT = 3000;
 const CAMERA_TWEEN_MS = 260;
 
 export class AtlasController {
@@ -49,15 +48,23 @@ export class AtlasController {
   private lastDraw: DrawStats = { members: 0, labels: 0, links: 0 };
   private disposed = false;
   private fitted = false;
+  /** True once the person moved the camera: from then on a resize keeps the view; before that it keeps the picture fitted to the stage. */
+  private touched = false;
 
   constructor(private readonly canvas: HTMLCanvasElement, data: AtlasData, private readonly options: ControllerOptions) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("Canvas 2D is not available");
     this.ctx = ctx;
-    this.scene = new AtlasScene(data);
+    this.scene = new AtlasScene(data, { aspect: this.aspect() });
     this.layout(true);
     // The lab scripts (scripts/atlas-lab.mjs) drive the atlas through this; it does not exist in a production build.
     if (typeof window !== "undefined" && import.meta.env?.DEV) (window as unknown as { __atlas?: AtlasController }).__atlas = this;
+  }
+
+  /** Width over height of the canvas as it is laid out now; 1 before it has a size. */
+  private aspect(): number {
+    const box = this.canvas.getBoundingClientRect?.();
+    return box && box.width > 0 && box.height > 0 ? box.width / box.height : 1;
   }
 
   get reduced(): boolean { return this.options.reducedMotion; }
@@ -68,7 +75,7 @@ export class AtlasController {
 
   /** Replaces the picture (a new mode, or a first load). */
   setData(data: AtlasData): void {
-    this.scene = new AtlasScene(data);
+    this.scene = new AtlasScene(data, { aspect: this.aspect() });
     this.focus = -1; this.selected = -1; this.lit = null; this.hits = new Set();
     this.pushedStructure = -1;
     this.fitted = false;
@@ -125,20 +132,40 @@ export class AtlasController {
   // ---- sizing and camera ----------------------------------------------------------------------------------------
 
   resize(width: number, height: number, dpr: number): void {
-    this.width = Math.max(1, Math.floor(width));
-    this.height = Math.max(1, Math.floor(height));
-    this.dpr = dpr || 1;
-    this.canvas.width = Math.round(this.width * this.dpr);
-    this.canvas.height = Math.round(this.height * this.dpr);
-    if (!this.fitted) this.fit(false);
+    // The backing store is exactly the CSS size times the pixel ratio, in whole device pixels, and drawing maps onto it without resampling.
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
+    const ratio = dpr || 1;
+    this.canvas.width = Math.max(1, Math.round(this.width * ratio));
+    this.canvas.height = Math.max(1, Math.round(this.height * ratio));
+    this.dpr = this.canvas.width / this.width;
+    // The first measurements of a stage can be taken while the page is still laying out: fit again as long as nobody has moved the view.
+    if (!this.fitted || !this.touched) this.fit(false);
     this.dirty = true;
     this.kick();
   }
 
+  /**
+   * A picture of one group (a database alone): it is brought up to fill about 60 percent of the stage, measured on its members and with room
+   * for their names beside them, instead of the generic fit around the discs the layout reserved.
+   */
+  private single(): Camera | null {
+    const full = this.scene.groups.filter((group) => group.alive && group.count > 0);
+    if (full.length !== 1 || !full[0]!.expanded || this.width <= 0) return null;
+    const members = full[0]!.members.map((i) => this.scene.nodes[i]!).filter((m) => m.alive && m.shown);
+    if (members.length === 0) return null;
+    const xs = members.map((m) => m.x), ys = members.map((m) => m.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    // Names sit beside the marks: allow about 90 pixels of them on the right and 30 above and below, in world units at the zoom being chosen.
+    const k = Math.min(8, Math.max(0.8, Math.min((0.6 * this.width - 120) / Math.max(1, maxX - minX), (0.6 * this.height - 60) / Math.max(1, maxY - minY || 1))));
+    return { k, x: this.width / 2 - ((minX + maxX) / 2) * k + 20, y: this.height / 2 - ((minY + maxY) / 2) * k };
+  }
+
   fit(animated = true): void {
-    const target = fitCamera(this.scene.bounds(), this.width, this.height);
+    const target = this.single() ?? fitCamera(this.scene.bounds(), this.width, this.height);
     this.fitted = this.width > 0;
     this.moveCamera(target, animated);
+    this.touched = false;
   }
 
   /** Asks for a redraw after the camera was set directly (the measuring page). */
@@ -147,9 +174,11 @@ export class AtlasController {
   zoomBy(factor: number, animated = true): void {
     const target = zoomAt(this.camera, this.width / 2, this.height / 2, factor);
     this.moveCamera(target, animated);
+    this.touched = true;
   }
 
   panBy(dx: number, dy: number): void {
+    this.touched = true;
     this.camera = { ...this.camera, x: this.camera.x + dx, y: this.camera.y + dy };
     this.dirty = true;
     this.kick();
@@ -157,6 +186,7 @@ export class AtlasController {
 
   focusOn(node: SceneNode, zoom = 1.4): void {
     this.moveCamera(centerOn(node.x, node.y, Math.max(this.camera.k, zoom), this.width, this.height), true);
+    this.touched = true;
   }
 
   private moveCamera(target: Camera, animated: boolean): void {
@@ -226,7 +256,7 @@ export class AtlasController {
   playGrowth(): number {
     if (this.reduced) { this.scene.finishGrowth(); this.dirty = true; this.kick(); return 0; }
     const steps = this.scene.playGrowth();
-    this.pushNodes("bud", 0.5);
+    this.pushNodes("target", 0.5);
     this.fit(false);
     this.kick();
     return steps;
@@ -282,6 +312,7 @@ export class AtlasController {
     // A pinch arrives as a wheel with ctrlKey and small deltas; a mouse wheel as larger ones. Both feel the same this way.
     const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0016));
     this.tween = null;
+    this.touched = true;
     this.camera = zoomAt(this.camera, p.x, p.y, factor);
     this.dirty = true;
     this.kick();
@@ -306,8 +337,6 @@ export class AtlasController {
 
   start(): void { this.disposed = false; this.kick(); }
 
-  private get ambient(): boolean { return !this.reduced && this.scene.memberCount <= DRIFT_LIMIT; }
-
   /** Schedules a frame if none is pending. The loop keeps itself going while anything moves and goes quiet otherwise. */
   private kick(): void {
     if (this.raf !== null || this.disposed) return;
@@ -329,21 +358,21 @@ export class AtlasController {
       this.camera = mixCamera(this.tween.from, this.tween.to, t);
       if (t >= 1) this.tween = null; else moving = true;
     }
-    if (this.host && this.scene.structure !== this.pushedStructure) this.pushNodes("bud", 0.5);
+    if (this.host && this.scene.structure !== this.pushedStructure) this.pushNodes("target", 0.5);
     if (this.host) for (const group of this.scene.groups) if (Math.abs(group.r - group.rBase) > 0.02 || group.r !== group.rBase) this.host.setRadius(group.idx, group.r);
-    if (moving || this.simRunning || this.ambient || this.dirty) {
+    if (moving || this.simRunning || this.dirty) {
       const started = this.now();
-      this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits, time: this.scene.clock, animate: this.ambient });
+      this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits });
       this.frames.push(this.now() - started);
       if (this.frames.length > 240) this.frames.shift();
       this.dirty = false;
     }
-    if (moving || this.simRunning || this.ambient || this.scene.growing) this.kick();
+    if (moving || this.simRunning || this.scene.growing) this.kick();
   }
 
   /** Draws one frame now, bypassing the loop (snapshots and measurements). */
   drawNow(): DrawStats {
-    this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits, time: this.scene.clock, animate: false });
+    this.lastDraw = drawAtlas(this.ctx, this.scene, { camera: this.camera, width: this.width, height: this.height, dpr: this.dpr, focus: this.focus, selected: this.selected, lit: this.lit, hits: this.hits });
     return this.lastDraw;
   }
 

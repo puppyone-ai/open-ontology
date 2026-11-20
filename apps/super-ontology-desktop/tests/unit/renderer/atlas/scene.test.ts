@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AtlasScene } from "../../../../src/renderer/features/atlas/scene";
+import { AtlasScene, APPEAR_SECONDS, LINK_SECONDS, STAGGER_SECONDS, ease } from "../../../../src/renderer/features/atlas/scene";
 import { syntheticAtlas } from "../../../../src/renderer/features/atlas/lab/fixtures";
 import type { AtlasData, AtlasMember } from "../../../../src/renderer/features/atlas/model";
 
@@ -55,7 +55,7 @@ describe("atlas scene", () => {
     const node = scene.node("f:new")!;
     expect(node.appear).toBe(0);
     expect(group.pulse).toBeGreaterThan(0);
-    expect(node.x).toBe(group.x);
+    expect(node.x).toBe(group.x + node.ox);
     run(scene, 1);
     expect(node.appear).toBe(1);
     scene.apply([{ type: "bud", member }]);
@@ -89,7 +89,7 @@ describe("atlas scene", () => {
     const count = owner.count;
     scene.apply([{ type: "retract", id: node.id }]);
     expect(owner.count).toBe(count - 1);
-    scene.step(0.4);
+    scene.step(0.1);
     expect(node.retract).toBeGreaterThan(0.3);
     expect(scene.grown(node)).toBeLessThan(1);
     expect(node.alive).toBe(true);
@@ -99,11 +99,61 @@ describe("atlas scene", () => {
     expect(scene.memberCount).toBe(small().members.length - 1);
   });
 
+  it("eases with cubic-bezier(0.2, 0, 0, 1): fast first, settling slowly, exact at the ends", () => {
+    expect(ease(0)).toBe(0);
+    expect(ease(1)).toBe(1);
+    expect(ease(0.25)).toBeGreaterThan(0.6);
+    expect(ease(0.5)).toBeGreaterThan(ease(0.25));
+    expect(ease(0.9)).toBeLessThan(1);
+  });
+
+  it("scales a new cell in over 200 ms, draws its links over 200 ms and staggers a batch by 16 ms", () => {
+    expect(APPEAR_SECONDS).toBe(0.2);
+    expect(LINK_SECONDS).toBe(0.2);
+    expect(STAGGER_SECONDS).toBe(0.016);
+    const scene = new AtlasScene(small());
+    const group = scene.groups[0]!;
+    const make = (i: number): AtlasMember => ({ id: `f:n${i}`, group: group.id, label: `n${i}`, ref: { kind: "file", fileId: `n${i}`, path: `n${i}` }, weight: 0, born: null });
+    scene.apply([0, 1, 2].map((i) => ({ type: "bud" as const, member: make(i) })));
+    expect([0, 1, 2].map((i) => scene.node(`f:n${i}`)!.delay)).toEqual([0, 0.016, 0.032]);
+    scene.apply([{ type: "link", link: { a: "f:n0", b: "f:n1", kind: "fact", weight: 1, from: "f:n0" } }]);
+    const link = scene.links[scene.links.length - 1]!;
+    expect(link.t).toBe(0);
+    expect(link.from).toBe(scene.node("f:n0")!.idx);
+    run(scene, 0.1);
+    expect(scene.node("f:n0")!.appear).toBeGreaterThan(0);
+    run(scene, 0.15);
+    expect(link.t).toBeGreaterThan(0);
+    run(scene, 0.3);
+    expect(link.t).toBe(1);
+  });
+
+  it("derives the origin of a cell: documents, databases, and both when a document is tied to a table row", () => {
+    const data = syntheticAtlas({ groups: 4, members: 80, linkRatio: 1.5, seed: 8, dbShare: 0.5 });
+    const scene = new AtlasScene(data);
+    const members = scene.nodes.filter((n) => n.kind === "member");
+    expect(members.some((n) => n.origin === "doc")).toBe(true);
+    expect(members.some((n) => n.origin === "db")).toBe(true);
+    expect(members.some((n) => n.origin === "both")).toBe(true);
+    for (const link of scene.links) if (link.kind === "link") { expect(scene.nodes[link.a]!.origin).toBe("both"); expect(scene.nodes[link.b]!.origin).toBe("both"); }
+    for (const node of members) if (node.origin === "db") expect(node.ref?.kind).toBe("table");
+  });
+
+  it("outlines a group by the hull of its members and a folded one by a square", () => {
+    const scene = new AtlasScene(small());
+    const group = scene.groups[0]!;
+    const hull = scene.hullOf(group);
+    expect(hull.length).toBeGreaterThanOrEqual(3);
+    for (const idx of group.members) { const m = scene.nodes[idx]!; expect(Math.hypot(m.ox, m.oy)).toBeLessThanOrEqual(Math.max(...hull.map((p) => Math.hypot(p.x, p.y))) + 1e-6); }
+    scene.setExpanded(group.id, false);
+    expect(scene.hullOf(group)).toHaveLength(4);
+  });
+
   it("a new ontology version makes the whole picture breathe once", () => {
     const scene = new AtlasScene(small());
     scene.apply([{ type: "breathe" }]);
     expect(scene.breathe).toBe(1);
-    run(scene, 3);
+    run(scene, 1);
     expect(scene.breathe).toBe(0);
   });
 

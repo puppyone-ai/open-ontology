@@ -14,7 +14,9 @@ export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.c
 
 export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void }) {
   const { t } = useLocalization();
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  // A picture of a few groups (a database alone, say) shows its members at once: there is nothing else to look at.
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(data.groups.length <= 3 ? data.groups.map((group) => group.id) : []));
+  const [relationLimit, setRelationLimit] = useState(PAGE);
   const [limits, setLimits] = useState<Readonly<Record<string, number>>>({});
   const needle = query.trim().toLocaleLowerCase();
 
@@ -30,6 +32,8 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
     return { links, byGroup };
   }, [data, needle]);
 
+  const labels = useMemo(() => new Map(data.members.map((member) => [member.id, member.label])), [data.members]);
+  const relations = useMemo(() => data.links.filter((link) => !needle || [link.a, link.b].some((id) => (labels.get(id) ?? "").toLocaleLowerCase().includes(needle))), [data.links, labels, needle]);
   const groups = data.groups.filter((group) => !needle || tree.byGroup.has(group.id) || group.label.toLocaleLowerCase().includes(needle));
   const toggle = (id: string) => setOpen((current) => { const next = new Set(current); if (!next.delete(id)) next.add(id); return next; });
 
@@ -65,6 +69,26 @@ export function AtlasList({ data, query, onOpen }: { data: AtlasData; query: str
           </li>
         );
       })}
+      {relations.length > 0 && (
+        <li className="so-atlas-list-group" data-testid="atlas-relations">
+          <p className="so-atlas-relations-head"><span>{t("app.atlas.relations")}</span><span className="so-weak so-atlas-count">{relations.length}</span></p>
+          <ul className="so-atlas-list-members so-atlas-relations">
+            {relations.slice(0, relationLimit).map((link) => {
+              const [from, to] = link.from === link.b ? [link.b, link.a] : [link.a, link.b];
+              return (
+                <li key={`${link.kind}|${link.a}|${link.b}`} className="so-atlas-relation" data-testid="atlas-relation">
+                  <span className="so-truncate">{labels.get(from) ?? from}</span>
+                  <span className="so-atlas-arrow" aria-hidden="true">{link.kind === "link" ? "—" : "→"}</span>
+                  <span className="so-truncate">{labels.get(to) ?? to}</span>
+                </li>
+              );
+            })}
+            {relations.length > relationLimit && (
+              <li><Button size="compact" variant="ghost" onClick={() => setRelationLimit((n) => n + PAGE)}>{t("app.atlas.more", { count: relations.length - relationLimit })}</Button></li>
+            )}
+          </ul>
+        </li>
+      )}
     </ul>
   );
 }

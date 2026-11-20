@@ -16,6 +16,11 @@
   .so-atlas-overlay-start { inset-inline-start: var(--so-space-3); }
   .so-atlas-overlay-end { inset-inline-end: var(--so-space-3); flex-direction: column; align-items: stretch; }
   .so-atlas-tally { font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+  .so-atlas-version { display: inline-block; height: 16px; overflow: hidden; font-size: var(--so-text-xs); line-height: 16px; font-variant-numeric: tabular-nums; color: var(--so-text-2); }
+  .so-atlas-version-n { display: inline-block; }
+  .so-atlas-version[data-ticking="true"] .so-atlas-version-n { animation: so-atlas-roll var(--so-duration) var(--so-ease) both; }
+  @keyframes so-atlas-roll { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .so-atlas-version[data-ticking="true"] .so-atlas-version-n { animation: none; } }
 
   .so-atlas-inspector { position: absolute; top: var(--so-space-3); inset-inline-start: var(--so-space-3); display: grid; gap: var(--so-space-1); width: 240px; padding: var(--so-space-3); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); }
   .so-atlas-inspector .so-button { margin-top: var(--so-space-2); justify-self: start; }
@@ -33,6 +38,10 @@
   .so-atlas-list-head:hover, .so-atlas-list-row:hover { background: var(--so-hover); }
   .so-atlas-list-head:active, .so-atlas-list-row:active { background: var(--so-press); }
   .so-atlas-list-head:focus-visible, .so-atlas-list-row:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--so-focus-ring); }
+  .so-atlas-relations-head { display: flex; align-items: center; gap: var(--so-space-2); height: 36px; margin: 0; padding: 0 var(--so-space-2); font-weight: var(--so-weight-medium); }
+  .so-atlas-relations { padding-bottom: var(--so-space-2); }
+  .so-atlas-relation { display: flex; align-items: center; gap: var(--so-space-2); height: 32px; padding: 0 var(--so-space-2) 0 calc(var(--so-space-2) + 16px + var(--so-space-2) + 10px + var(--so-space-2)); color: var(--so-text-2); font-variant-numeric: tabular-nums; }
+  .so-atlas-arrow { flex: none; color: var(--so-text-weak); }
   .so-atlas-list-chevron { flex: none; transition: rotate var(--so-duration-fast) var(--so-ease); }
   .so-atlas-list-head[aria-expanded="true"] .so-atlas-list-chevron { rotate: 90deg; }
   .so-atlas-list-name { flex: 1 1 auto; min-width: 0; }

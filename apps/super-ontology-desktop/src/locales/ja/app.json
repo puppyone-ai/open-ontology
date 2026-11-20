@@ -599,6 +599,7 @@
   "atlas.list": "リスト表示のオントロジー",
   "atlas.linked": "他の {count} 件とつながっています",
   "atlas.more": "さらに {count} 件を表示",
+  "atlas.relations": "リレーション",
   "atlas.search": "アトラス内を検索",
   "atlas.matches": "{count, plural, =0 {一致なし} other {# 件一致}}",
   "atlas.group": "セルのグループ化",

@@ -19,7 +19,7 @@ export function fitCamera(bounds: { minX: number; minY: number; maxX: number; ma
   if (!bounds || width <= 0 || height <= 0) return { x: width / 2, y: height / 2, k: 1 };
   const w = Math.max(1, bounds.maxX - bounds.minX);
   const h = Math.max(1, bounds.maxY - bounds.minY);
-  const k = clampZoom(Math.min((width - padding * 2) / w, (height - padding * 2) / h, 1.6));
+  const k = clampZoom(Math.min((width - padding * 2) / w, (height - padding * 2) / h, 8));
   return { k, x: width / 2 - ((bounds.minX + bounds.maxX) / 2) * k, y: height / 2 - ((bounds.minY + bounds.maxY) / 2) * k };
 }
 
