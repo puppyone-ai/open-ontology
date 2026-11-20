@@ -254,6 +254,11 @@
 | SO-B-S20-17 | D83 | merged | feat/super-ontology (车道 V 并入) | 913b9bcfa → 913b9bcfa | — | — | Run the same agent over oo mcp --stdio in the QA harness |
 | SO-B-S20-18 | D83 | merged | feat/super-ontology (车道 V 并入) | 5c41e35fc → 5c41e35fc | — | — | Pass the Gateway's message and hint through oo ontology query |
 | SO-B-S20-19 | D83 | merged | feat/super-ontology (车道 V 并入) | 7ddf70700 → 7ddf70700 | — | — | Record the agent QA runs and the token safety checks |
+| SO-B-S20-20 | D83 | merged | feat/super-ontology (车道 X 并入) | 94b7fc5f8 → 94b7fc5f8 | — | — | Mount the Agent DB secret file into the compose engine on bind |
+| SO-B-S20-21 | D83 | merged | feat/super-ontology (车道 X 并入) | f80d3c34d → f80d3c34d | — | — | Deduplicate the relationships in oo ontology schema |
+| SO-B-S20-22 | D83 | merged | feat/super-ontology (车道 X 并入) | d1119b459 → d1119b459 | — | — | Retry an OVERLOADED Gateway answer with backoff in oo serve |
+| SO-B-S20-23 | D83 | merged | feat/super-ontology (车道 X 并入) | 99702df70 → 99702df70 | — | — | Ask extraction for a cross-language alias of each entity |
+| SO-B-S20-24 | D83 | merged | feat/super-ontology (车道 X 并入) | bcae702c9 → bcae702c9 | — | — | Say how to try other forms when an ontology search is empty |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
