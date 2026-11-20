@@ -141,7 +141,11 @@ export function createAskHandlers({
         }
         if (!config?.configured) return outcome("no_model");
         let key;
-        try { key = await readKey(config.key_ref); } catch (error) {
+        try {
+          key = await readKey(config.key_ref);
+          // The engine accepts the address as a `file:` reference too (the model settings of `oo docs model set --base-url file:/...`).
+          if (typeof config.base_url === "string" && config.base_url.startsWith("file:")) config = { ...config, base_url: await readKey(config.base_url) };
+        } catch (error) {
           if (error instanceof ModelError) return outcome("key_unreadable");
           throw error;
         }

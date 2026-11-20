@@ -80,6 +80,19 @@ describe("ask-run", () => {
     }
   });
 
+  it("reads a base address kept in a file: reference, without sending the reference to the model", async () => {
+    const seen = [];
+    const modelClient = { chat: async (input) => { seen.push(input.config.base_url); return { text: "NOT_IN_DATA: none.", toolCalls: [] }; } };
+    const dir = await tmp();
+    const handlers = createAskHandlers({
+      client: { request: async () => ({ value: { configured: true, provider: "openai-compatible", base_url: "file:/addr", model: "m", key_ref: "file:/key" } }) },
+      credentials: () => ({ baseUrl: "http://127.0.0.1:9" }), secretsDirectory: dir, fsPromises: fs, model: modelClient, readKey: async (ref) => (ref === "file:/addr" ? "https://model.invalid/v1" : "sk"),
+    });
+    const out = await handlers["ask-run"]({ askId: "ask-0007", question: "q" });
+    expect(out.status).toBe("unanswerable");
+    expect(seen).toEqual(["https://model.invalid/v1"]);
+  });
+
   it("validates the request", () => {
     expect(parseSuperOntologyRequest("ask-run", { askId: "ask-00001", question: "hi", history: [{ question: "a", answer: "b" }] })).toMatchObject({ question: "hi" });
     expect(() => parseSuperOntologyRequest("ask-run", { askId: "x", question: "hi" })).toThrow();

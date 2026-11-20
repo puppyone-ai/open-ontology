@@ -15,7 +15,7 @@ export class ModelError extends Error {
   }
 }
 
-/** `file:/path` is the only reference the app writes; a bare absolute path is read the same way. */
+/** `file:/path` is the reference the app and `oo docs model set` write (for the key, and for the address when it is kept in a file); a bare absolute path is read the same way. */
 export async function readKeyRef(keyRef, { read = readFile } = {}) {
   const file = typeof keyRef === "string" ? (keyRef.startsWith("file:") ? keyRef.slice(5) : keyRef) : "";
   if (!file.startsWith("/")) throw new ModelError("key_unreadable");
