@@ -13,7 +13,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const LANE = "super-ontology-appp";
+const LANE = `super-ontology-${process.env.SO_T1_LANE ?? "appp"}`;
 /** What the generated data holds; the live scenario checks the app's Query screen against these. */
 export const LIVE_COUNTS = Object.freeze({ customers: 20, products: 10, orders: 60, order_items: 150 });
 
