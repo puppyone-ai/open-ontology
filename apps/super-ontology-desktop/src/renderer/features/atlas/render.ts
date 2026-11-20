@@ -162,6 +162,22 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     ctx.stroke();
     stats.links += 1;
   }
+  // Inside an expanded group its own links are always there, as light curves (between cells of different groups they stay quiet until focus).
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1 / k;
+  ctx.strokeStyle = rgba(TONE_RGB.ink, 0.2);
+  ctx.beginPath();
+  for (const link of scene.links) {
+    const a = nodes[link.a]!, b = nodes[link.b]!;
+    if (a.group !== b.group || !nodes[a.group]!.expanded || !(a.appear > 0.5 && b.appear > 0.5 && a.alive && b.alive)) continue;
+    const pa = place(a), pb = place(b);
+    if (!inView(pa.x, pa.y, a.r) && !inView(pb.x, pb.y, b.r)) continue;
+    const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+    ctx.moveTo(pa.x, pa.y);
+    ctx.quadraticCurveTo(mx - (pb.y - pa.y) * 0.12, my + (pb.x - pa.x) * 0.12, pb.x, pb.y);
+    stats.links += 1;
+  }
+  ctx.stroke();
   if (lit !== null) {
     ctx.globalAlpha = 1;
     ctx.lineWidth = 1.2 / k;
