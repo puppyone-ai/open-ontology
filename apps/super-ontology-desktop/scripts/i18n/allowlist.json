@@ -117,7 +117,8 @@
       "super-drive:audit.column.agent": "Agent",
       "super-drive:audit.column.drive": "Drive",
       "native:native.menu.services": "Services",
-      "native:native.menu.zoom": "Zoom"
+      "native:native.menu.zoom": "Zoom",
+      "app:ask.sources": "Sources"
     },
     "de": {
       "app:status.engine": "Engine: {state}",
