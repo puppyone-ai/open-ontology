@@ -490,7 +490,7 @@ fn normalize(path: &Path) -> Result<(), Failure> {
     file.take(1_048_577)
         .read_to_string(&mut text)
         .map_err(|_| io_error())?;
-    let config = stack::parse(&text).map_err(Failure::usage)?;
+    let config = stack::parse_draft(&text).map_err(Failure::usage)?;
     let mut bytes = serde_json::to_vec_pretty(&config).map_err(|_| io_error())?;
     bytes.push(b'\n');
     let parent = path
