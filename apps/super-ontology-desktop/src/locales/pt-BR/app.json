@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "Sem relação com outra coisa",
   "home.next.unlinked.title": "{count, plural, one {# arquivo sem nenhuma conexão} other {# arquivos sem nenhuma conexão}}",
   "home.next.unlinked.body": "Veja por que cada um ficou de fora e o que fazer.",
-  "home.next.unlinked.action": "Ver não conectados"
+  "home.next.unlinked.action": "Ver não conectados",
+  "ask.step.disagreements": "Verificando se as fontes divergem sobre “{arg}”"
 }

@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, EmptyState, Icon, Notice, Spinner, TextArea } from "@open-ontology/design-system";
-import { Check, Copy, FileText, MessageSquareText, Square, Table2, Terminal } from "lucide-react";
+import { Check, Copy, Eraser, FileText, MessageSquareText, Square, Table2 } from "lucide-react";
 import type { AskSource, AskStep } from "../../../shared/super-ontology/bridge";
 import { useApp } from "../../hooks/useApp";
 import { askStore, useAskTurns, type AskTurn } from "../../model/askStore";
@@ -31,7 +31,8 @@ const sourceName = (source: AskSource) => (source.kind === "file" ? source.path.
 export function SourceChip({ source, onOpenFile, onOpenQuery }: { source: AskSource; onOpenFile: (fileId: string) => void; onOpenQuery: (sql: string) => void }) {
   const { t } = useLocalization();
   const number = source.id.slice(1);
-  const anchor = source.kind === "file" && source.anchor ? `#${source.anchor}` : source.kind === "row" ? `${source.keyColumn}=${source.pk}` : "";
+  const human = source.kind === "file" && source.anchor && !/^blk_/u.test(source.anchor) ? source.anchor : "";
+  const anchor = human ? `#${human}` : source.kind === "row" ? `${source.keyColumn}=${source.pk}` : "";
   const sql = source.kind === "query" ? source.sql : source.kind === "row" ? rowQuery(source.table, source.keyColumn, source.pk) : "";
   const fileId = source.kind === "file" ? source.fileId : null;
   const label = source.kind === "file" ? t("app.ask.source.file", { path: source.path }) : source.kind === "row" ? t("app.ask.source.row", { table: source.table }) : t("app.ask.source.query");
@@ -45,25 +46,27 @@ export function SourceChip({ source, onOpenFile, onOpenQuery }: { source: AskSou
   );
   if (source.kind === "file" && !fileId) return <span className="so-source-chip so-ask-chip" data-testid="ask-source" data-kind="file" data-id={source.id} title={source.path}>{body}</span>;
   return (
-    <button type="button" className="so-source-chip so-ask-chip" data-testid="ask-source" data-kind={source.kind} data-id={source.id} aria-label={label} title={source.kind === "file" ? source.path : sql}
+    <button type="button" className="so-source-chip so-ask-chip" data-testid="ask-source" data-kind={source.kind} data-id={source.id} aria-label={label} title={source.kind === "file" ? `${source.path}${source.anchor ? ` ${source.anchor}` : ""}${source.blockId ? ` (${source.blockId})` : ""}` : sql}
       onClick={() => { if (fileId) onOpenFile(fileId); else onOpenQuery(sql); }}>
       {body}
     </button>
   );
 }
 
-const CITE = /\[(S\d+(?:, S\d+)*)\]/gu;
+const CITE_RUN = /((?:\[S\d+(?:, S\d+)*\])+)([.,;:!?。，；：！？）)」』]*)/gu;
+const CITE_ONE = /\[(S\d+(?:, S\d+)*)\]/gu;
 
-/** The answer as paragraphs; a citation tag becomes the small number of its chip. */
+/** The answer as paragraphs; a run of citation tags becomes the small numbers of its chips, kept on one line with the punctuation that follows. */
 export function AnswerText({ text }: { text: string }) {
   return (
     <div className="so-ask-answer-text" data-testid="ask-answer-text">
       {text.split(/\n{1,}/u).filter((line) => line.trim() !== "").map((line, index) => {
         const parts: ReactNode[] = [];
         let last = 0;
-        for (const match of line.matchAll(CITE)) {
+        for (const match of line.matchAll(CITE_RUN)) {
           parts.push(line.slice(last, match.index));
-          parts.push(<span key={`${index}-${match.index}`} className="so-ask-cite so-mono">{match[1]!.split(", ").map((id) => id.slice(1)).join(", ")}</span>);
+          const ids = [...match[1]!.matchAll(CITE_ONE)].flatMap((m) => m[1]!.split(", ").map((id) => id.slice(1)));
+          parts.push(<span key={`${index}-${match.index}`} className="so-ask-cites">{ids.map((id, i) => <span key={i} className="so-ask-cite so-mono">{id}</span>)}{match[2]}</span>);
           last = match.index + match[0].length;
         }
         parts.push(line.slice(last));
@@ -174,7 +177,7 @@ export function Ask() {
           {running
             ? <Button variant="secondary" icon={Square} onClick={() => { void askStore.cancel(); }} data-testid="ask-stop">{t("app.ask.stop")}</Button>
             : <Button variant="primary" icon={MessageSquareText} type="submit" disabled={text.trim() === ""} data-testid="ask-send">{t("app.ask.send")}</Button>}
-          {turns.length > 0 && !running && <Button variant="ghost" icon={Terminal} onClick={() => askStore.clear()} data-testid="ask-clear">{t("app.ask.clear")}</Button>}
+          {turns.length > 0 && !running && <Button variant="ghost" icon={Eraser} onClick={() => askStore.clear()} data-testid="ask-clear">{t("app.ask.clear")}</Button>}
         </div>
       </form>
       {turns.length === 0

@@ -290,7 +290,7 @@ export type SuperOntologyChannelMap = {
   "ask-cancel": { request: { askId: string; operationId?: string }; value: { cancelled: boolean } };
 };
 
-export type AskTool = "search" | "entity" | "find_text" | "read_file" | "schema" | "sql";
+export type AskTool = "search" | "entity" | "find_text" | "read_file" | "disagreements" | "schema" | "sql";
 export type AskStep = { n: number; tool: AskTool; arg: string; state?: "running" | "done" | "failed"; ok?: boolean };
 /** A source an answer cites: a place in a file, a table row, or a query. Only what a tool really returned. */
 export type AskSource =

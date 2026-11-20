@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "ほかとの関連がありません",
   "home.next.unlinked.title": "{count, plural, other {# 件のファイルがどこともつながっていません}}",
   "home.next.unlinked.body": "それぞれが外れている理由と対処法を確認できます。",
-  "home.next.unlinked.action": "つながりなしを見る"
+  "home.next.unlinked.action": "つながりなしを見る",
+  "ask.step.disagreements": "「{arg}」について出典間の食い違いを確認中"
 }

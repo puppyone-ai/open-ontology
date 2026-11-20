@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "Keine Beziehung zu anderem",
   "home.next.unlinked.title": "{count, plural, one {# Datei ist mit nichts verbunden} other {# Dateien sind mit nichts verbunden}}",
   "home.next.unlinked.body": "Sehen Sie, warum jede übrig bleibt und was Sie tun können.",
-  "home.next.unlinked.action": "Nicht Verbundene ansehen"
+  "home.next.unlinked.action": "Nicht Verbundene ansehen",
+  "ask.step.disagreements": "Prüfe, ob Quellen zu „{arg}“ widersprüchlich sind"
 }

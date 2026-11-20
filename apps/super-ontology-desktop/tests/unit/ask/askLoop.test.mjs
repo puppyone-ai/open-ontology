@@ -148,3 +148,49 @@ describe("the Ask tools", () => {
     expect(anchorText(null)).toBe("");
   });
 });
+
+describe("the disagreements tool", () => {
+  const fact = (id, predicate, objectName, path, over = {}) => ({ id, predicate, status: "published", object: { key: objectName, name: objectName }, evidence: [{ file_id: `file-${id}`, drive_id: "d", path, anchor: { line_start: 10 }, src: `[src:${path}#L10]` }], ...over });
+  const engine = (facts) => async (name) => {
+    if (name === "constraintsList") return { value: { items: [{ id: "c1", description: "one owner per project", violations: 1 }, { id: "c2", description: "fine", violations: 0 }] } };
+    if (name === "entitiesList") return { value: { items: [{ key: "project:web", name: "官网改版" }] } };
+    if (name === "entityGet") return { value: { name: "官网改版", facts } };
+    return { value: {} };
+  };
+  it("lists facts with two current values and cites both files; superseded or retracted values are not conflicts", async () => {
+    const registry = createSourceRegistry();
+    const tools = createAskTools({ registry, http: async () => ({ status: 404, json: {} }), control: engine([
+      fact("a", "owner", "孙晓棠", "Projects/官网改版.md"), fact("b", "owner", "韩立", "Meetings/启动会.docx"),
+      fact("c", "owner", "旧负责人", "old.md", { superseded_by: "x" }), fact("d", "budget", "20", "a.xlsx"),
+    ]) });
+    const out = await tools.run("disagreements", { subject: "官网改版" });
+    expect(out).toContain("DISAGREEMENT about 官网改版 / owner");
+    expect(out).toContain("孙晓棠 [S1] Projects/官网改版.md");
+    expect(out).toContain("韩立 [S2] Meetings/启动会.docx");
+    expect(out).toContain("rule broken: one owner per project");
+    expect(out).not.toContain("旧负责人");
+    expect(out).not.toContain("budget");
+    expect(registry.all().map((s) => s.fileId)).toEqual(["file-a", "file-b"]);
+  });
+  it("says the values agree only when nothing conflicts, and the loop then states the disagreement with both sources cited", async () => {
+    const registry = createSourceRegistry();
+    const tools = createAskTools({ registry, http: async () => ({ status: 404, json: {} }), control: engine([fact("a", "owner", "孙晓棠", "p.md"), fact("b", "owner", "韩立", "q.docx")]) });
+    const model = scripted([
+      { text: "", toolCalls: [call("disagreements", { subject: "官网改版" })] },
+      { text: "The sources disagree: 孙晓棠 [S1] versus 韩立 [S2].", toolCalls: [] },
+    ]);
+    const out = await runAskLoop({ question: "Who owns 官网改版?", model, tools, registry });
+    expect(model.seen[0].system).toContain("call disagreements");
+    expect(out.sources.map((s) => s.path)).toEqual(["p.md", "q.docx"]);
+    expect(out.cli).toBe('oo docs entity search "官网改版"');
+    const quiet = createAskTools({ registry: createSourceRegistry(), http: async () => ({ status: 404, json: {} }), control: engine([fact("a", "owner", "孙晓棠", "p.md")]) });
+    expect(await quiet.run("disagreements", { subject: "x" })).toContain("every attribute with a current value has one value");
+  });
+  it("shows human anchors: section title, slide, sheet range, time range, never a raw block id", () => {
+    expect(anchorText({ heading_path: ["Plan", "Budget"] })).toBe("Budget");
+    expect(anchorText({ slide: 3 })).toBe("slide 3");
+    expect(anchorText({ sheet: "Q1", range: "A2:D2" })).toBe("Q1!A2:D2");
+    expect(anchorText({ start_ms: 61000, end_ms: 75000 })).toBe("1:01-1:15");
+    expect(anchorText({ kind: "block", block_id: "blk_91638b96e95d4ee2bd04" })).toBe("");
+  });
+});

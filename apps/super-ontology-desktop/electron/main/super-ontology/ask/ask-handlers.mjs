@@ -150,7 +150,7 @@ export function createAskHandlers({
           throw error;
         }
         const registry = createSourceRegistry();
-        const tools = createAskTools({ http: makeHttp(await databaseProfile()), registry });
+        const tools = createAskTools({ http: makeHttp(await databaseProfile()), registry, control: (name, options) => client.request(name, options) });
         const bound = { chat: ({ system, messages, tools: offered, signal: s }) => model.chat({ config, key, system, messages, tools: offered, signal: s }) };
         let result;
         try {

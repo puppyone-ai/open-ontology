@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "No relation to anything else",
   "home.next.unlinked.title": "{count, plural, one {# file has nothing connected} other {# files have nothing connected}}",
   "home.next.unlinked.body": "See why each one is left out, and what to do about it.",
-  "home.next.unlinked.action": "See not connected"
+  "home.next.unlinked.action": "See not connected",
+  "ask.step.disagreements": "Checking whether sources disagree about “{arg}”"
 }

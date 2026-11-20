@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "与其他内容没有任何关系",
   "home.next.unlinked.title": "{count} 个文件没有任何关联",
   "home.next.unlinked.body": "查看每个文件被排除的原因以及怎么处理。",
-  "home.next.unlinked.action": "查看未关联"
+  "home.next.unlinked.action": "查看未关联",
+  "ask.step.disagreements": "核对各来源对“{arg}”是否一致"
 }

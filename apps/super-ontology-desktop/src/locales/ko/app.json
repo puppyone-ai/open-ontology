@@ -797,5 +797,6 @@
   "unlinked.reason.entity": "다른 것과의 관계가 없습니다",
   "home.next.unlinked.title": "{count, plural, other {어디에도 연결되지 않은 파일 #개}}",
   "home.next.unlinked.body": "각각 제외된 이유와 해결 방법을 확인하세요.",
-  "home.next.unlinked.action": "연결 없음 보기"
+  "home.next.unlinked.action": "연결 없음 보기",
+  "ask.step.disagreements": "‘{arg}’에 대해 출처 간 불일치 확인 중"
 }

@@ -13,13 +13,14 @@ export const TOOL_DEFINITIONS = Object.freeze([
   { name: "entity", description: "One entity (or table row) by its URN from a search result: its facts with their sources, and its links.", parameters: { type: "object", properties: { urn: { type: "string" } }, required: ["urn"] } },
   { name: "find_text", description: "Full-text search over facts and the text of files (every word must match; words are prefixes). Returns the matching passage and the file it is in.", parameters: { type: "object", properties: { query: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 20 } }, required: ["query"] } },
   { name: "read_file", description: "The text of one file, block by block, for a file_id from find_text or a drive_id and path from a search result. Use it when a passage needs its context.", parameters: { type: "object", properties: { file_id: { type: "string" }, drive_id: { type: "string" }, path: { type: "string" } } } },
+  { name: "disagreements", description: "Check whether the data contradicts itself about a subject (a person, project, customer, product): facts with more than one current value, each with the files that state it, and the rules the ontology reports as broken. Call it before you answer any question about an owner, a date, a number or a status.", parameters: { type: "object", properties: { subject: { type: "string" } }, required: ["subject"] } },
   { name: "schema", description: "The tables, columns and relationships of the connected database.", parameters: { type: "object", properties: {} } },
   { name: "sql", description: "One read-only SELECT against the connected database (rows are capped).", parameters: { type: "object", properties: { sql: { type: "string" }, max_rows: { type: "integer", minimum: 1, maximum: 200 } }, required: ["sql"] } },
 ]);
 
 /** What the quiet progress line says: the tool and its main argument, shown by the renderer in the person's language. */
 export function describeCall(name, args) {
-  const arg = name === "search" || name === "find_text" ? args.query : name === "entity" ? args.urn : name === "sql" ? args.sql : name === "read_file" ? (args.path ?? args.file_id) : "";
+  const arg = name === "disagreements" ? args.subject : name === "search" || name === "find_text" ? args.query : name === "entity" ? args.urn : name === "sql" ? args.sql : name === "read_file" ? (args.path ?? args.file_id) : "";
   return { tool: name, arg: typeof arg === "string" ? arg.slice(0, 160) : "" };
 }
 
@@ -42,15 +43,21 @@ export function createSourceRegistry() {
 const str = (v) => (typeof v === "string" ? v : v === null || v === undefined ? "" : String(v));
 const clip = (text, n = RESULT_LIMIT) => (text.length > n ? `${text.slice(0, n)}\n[cut at ${n} characters; narrow the request]` : text);
 
+const clock = (ms) => { const total = Math.round(ms / 1000); return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`; };
+
 /** An anchor object of the engine as a short place name: a heading, lines, a page, a sheet cell. */
 export function anchorText(anchor) {
   if (typeof anchor === "string") return anchor;
   if (!anchor || typeof anchor !== "object") return "";
-  if (typeof anchor.heading === "string") return anchor.heading;
+  const title = [anchor.heading, anchor.section, anchor.title, Array.isArray(anchor.heading_path) ? anchor.heading_path.at(-1) : null, Array.isArray(anchor.headings) ? anchor.headings.at(-1) : null].find((v) => typeof v === "string" && v.trim());
+  if (title) return title.trim();
+  if (Number.isInteger(anchor.slide ?? anchor.slide_no)) return `slide ${anchor.slide ?? anchor.slide_no}`;
+  if (typeof anchor.start_ms === "number" && typeof anchor.end_ms === "number") return `${clock(anchor.start_ms)}-${clock(anchor.end_ms)}`;
+  if (typeof anchor.start === "number" && typeof anchor.end === "number" && anchor.kind === "time") return `${clock(anchor.start * 1000)}-${clock(anchor.end * 1000)}`;
   if (Number.isInteger(anchor.line_start)) return anchor.line_end && anchor.line_end !== anchor.line_start ? `L${anchor.line_start}-L${anchor.line_end}` : `L${anchor.line_start}`;
   if (Number.isInteger(anchor.page)) return `p.${anchor.page}`;
   if (typeof anchor.cell === "string") return anchor.sheet ? `${anchor.sheet}!${anchor.cell}` : anchor.cell;
-  if (typeof anchor.range === "string") return anchor.range;
+  if (typeof anchor.range === "string") return anchor.sheet ? `${anchor.sheet}!${anchor.range}` : anchor.range;
   if (typeof anchor.start_ms === "number") return `${Math.round(anchor.start_ms / 1000)}s`;
   return "";
 }
@@ -67,7 +74,7 @@ const where = (id, ref) => (ref.kind === "file" ? `${id} ${ref.path}${ref.anchor
 /**
  * @param {{ http: (method: string, path: string, body?: object, signal?: AbortSignal) => Promise<{ status: number, json: any }>, registry: ReturnType<typeof createSourceRegistry> }} deps
  */
-export function createAskTools({ http, registry }) {
+export function createAskTools({ http, registry, control = null }) {
   const failure = (res) => {
     const e = res.json?.error ?? res.json ?? {};
     return `error ${res.status}${e.code ? ` ${e.code}` : ""}${e.message ? `: ${str(e.message).slice(0, 400)}` : ""}${e.hint ? ` (${str(e.hint).slice(0, 200)})` : ""}`;
@@ -140,10 +147,12 @@ export function createAskTools({ http, registry }) {
       if (res.status !== 200) return failure(res);
       const out = [`${filePath}`];
       let size = 0;
+      let heading = "";
       for (const block of res.json.items ?? []) {
         const text = str(block.text ?? block.content ?? "").replace(/\s+/gu, " ").trim();
         if (!text) continue;
-        const anchor = anchorText(block.anchor) || str(block.block_id ?? block.id);
+        if (/heading|title/iu.test(str(block.kind ?? block.type))) heading = text.slice(0, 80);
+        const anchor = anchorText(block.anchor) || heading;
         const tag = registry.add({ kind: "file", fileId: id, driveId: str(detail.json.drive_id) || null, path: filePath, anchor, blockId: str(block.block_id ?? block.id), quote: text.slice(0, 240) });
         out.push(`[${tag}] ${anchor ? `#${anchor} ` : ""}${text.slice(0, 600)}`);
         size += text.length;
@@ -174,11 +183,49 @@ export function createAskTools({ http, registry }) {
     },
   };
 
+  /** The tools below read through the control API (rules and entity histories are not on the Agent surface); they are still read-only. */
+  impl.disagreements = async ({ subject }, signal) => {
+    if (!control) return "error: the disagreement check is not available";
+    const lines = [];
+    try {
+      const { value } = await control("constraintsList", { query: { limit: 100 } });
+      for (const c of value?.items ?? []) if ((c.violations ?? 0) > 0) lines.push(`rule broken: ${str(c.description ?? c.id).slice(0, 200)} (${c.violations} facts)`);
+    } catch { /* rules are a bonus */ }
+    let found = [];
+    try { found = ((await control("entitiesList", { query: { q: subject, limit: 5 } })).value?.items ?? []).slice(0, 3); } catch { return "error: the engine did not answer"; }
+    if (signal?.aborted) throw new Error("aborted");
+    for (const row of found) {
+      let entity;
+      try { entity = (await control("entityGet", { params: { eid: row.key }, query: { include: "history" } })).value; } catch { continue; }
+      const byPredicate = new Map();
+      for (const f of entity?.facts ?? []) {
+        if (f.status !== "published" || f.retracted_at || f.superseded_by) continue;
+        const value = f.object?.name ?? (f.value && typeof f.value === "object" ? str(Object.values(f.value).find((v) => typeof v === "string" || typeof v === "number") ?? JSON.stringify(f.value)) : "");
+        const list = byPredicate.get(f.predicate) ?? [];
+        list.push({ value, f });
+        byPredicate.set(f.predicate, list);
+      }
+      let any = false;
+      for (const [predicate, list] of byPredicate) {
+        if (new Set(list.map((x) => x.value)).size < 2) continue;
+        any = true;
+        lines.push(`DISAGREEMENT about ${str(entity.name)} / ${predicate}:`);
+        for (const { value, f } of list) {
+          const tags = (f.evidence ?? []).slice(0, 3).map((e) => { const id = registry.add({ kind: "file", fileId: str(e.file_id) || null, driveId: str(e.drive_id) || null, path: str(e.path), anchor: anchorText(e.anchor) || (str(e.src).match(/#([^\]]+)\]/u)?.[1] ?? "").replace(/^blk_.*$/u, ""), blockId: str(e.block_id), quote: str(e.quote).slice(0, 240) }); return `[${id}] ${str(e.path)}`; });
+          lines.push(`  ${value} ${tags.join(" ")}`);
+        }
+      }
+      if (!any) lines.push(`${str(entity?.name)}: every attribute with a current value has one value`);
+    }
+    if (found.length === 0) lines.push(`no entity matches "${subject}"`);
+    return clip(lines.join("\n"));
+  };
+
   return {
     definitions: TOOL_DEFINITIONS,
     async run(name, args, signal) {
       if (!Object.hasOwn(impl, name)) return `error: unknown tool ${name}`;
-      const needs = { search: ["query"], find_text: ["query"], entity: ["urn"], sql: ["sql"] }[name] ?? [];
+      const needs = { search: ["query"], find_text: ["query"], entity: ["urn"], sql: ["sql"], disagreements: ["subject"] }[name] ?? [];
       for (const k of needs) if (typeof args?.[k] !== "string" || !args[k].trim()) return `error: ${k} is required`;
       try { return await impl[name](args ?? {}, signal); } catch (error) {
         if (signal?.aborted) throw error;

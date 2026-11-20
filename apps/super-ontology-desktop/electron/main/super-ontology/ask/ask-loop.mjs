@@ -11,6 +11,7 @@ Rules:
 - Cite every claim with the tags of the sources it comes from, inline, for example "The contract ends in March [S2]". Use only tags a tool printed.
 - Reply in the language of the question. The data may be in another language: if a search is empty, search again with the other language's form of the key words (a name in Chinese characters or in pinyin, the English or Chinese term for a concept), a shorter word or a synonym, before you decide the data does not have it.
 - Start with search; use find_text for passages, read_file for context, entity for the facts of one entity. Use schema and sql only for database questions. You can make at most {max} tool calls.
+- Whenever the question is about an owner, a date, a number or a status, call disagreements for the subject before you answer. If it reports conflicting current values, say plainly that the sources disagree, give each value, and cite the source of each. Never say the sources agree unless disagreements found nothing.
 - If the data does not contain the answer, or the question assumes something the data contradicts, begin your final reply with NOT_IN_DATA: followed by one plain sentence saying what you looked for and did not find. Do not offer a guess after it.
 - Keep answers short and direct: the answer first, then the key figures or names.`;
 
@@ -43,6 +44,7 @@ export function equivalentCommands(steps) {
     const line = s.tool === "search" || s.tool === "find_text" ? `oo ontology search ${q(s.arg)}`
       : s.tool === "entity" ? `oo ontology entity ${q(s.arg)}`
         : s.tool === "sql" ? `oo ontology query ${q(s.arg)}`
+          : s.tool === "disagreements" ? `oo docs entity search ${q(s.arg)}`
           : s.tool === "schema" ? "oo ontology schema"
             : s.tool === "read_file" ? `oo knowledge cat ${q(s.arg)}` : null;
     if (line && !lines.includes(line)) lines.push(line);

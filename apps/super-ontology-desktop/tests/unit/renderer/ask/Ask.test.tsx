@@ -65,7 +65,7 @@ describe("Ask: citations", () => {
     expect(within(chips[0]!).getByText("acme.md")).toBeInTheDocument();
     expect(within(chips[0]!).getByText("#L3")).toBeInTheDocument();
     // Inline tags became the numbers of their chips.
-    expect(screen.getByTestId("ask-answer-text").textContent).toContain("Acme renews in March 1 and ordered 3 times 2, 3.");
+    expect(screen.getByTestId("ask-answer-text").textContent).toContain("Acme renews in March 1 and ordered 3 times 23.");
     fireEvent.click(chips[0]!);
     expect(screen.getByTestId("where").dataset.focus).toBe("f-1");
     fireEvent.click(chips[1]!);
@@ -92,6 +92,19 @@ describe("Ask: citations", () => {
     expect(screen.getByTestId("ask-copy")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("ask-cli-toggle"));
     expect(screen.getByTestId("ask-cli-value")).toHaveTextContent('oo ontology search "x"');
+  });
+
+  it("keeps the markers and the punctuation after them together, and never shows a raw block id", async () => {
+    render(<TestLocalizationProvider messages={messages}><AnswerText text={"没有分歧 [S1][S2, S3]。"} /></TestLocalizationProvider>);
+    const group = document.querySelector(".so-ask-cites")!;
+    expect(group.textContent).toBe("123。");
+    cleanup();
+    installBridge(() => ({ status: "answered", answer: "x [S1]", sources: [{ id: "S1", kind: "file", fileId: "f", driveId: "d", path: "a/b.docx", anchor: "blk_91638b96e95d4ee2bd04", blockId: "blk_91638b96e95d4ee2bd04" }], steps: [] }));
+    render(<Shell><Ask /></Shell>);
+    await ask("q");
+    const chip = await screen.findByTestId("ask-source");
+    expect(chip.textContent).not.toContain("blk_");
+    expect(chip.getAttribute("title")).toContain("blk_91638b96e95d4ee2bd04");
   });
 
   it("splits answer text into paragraphs and keeps text without tags as is", () => {
