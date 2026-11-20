@@ -117,7 +117,7 @@ interface ShellSettings {
 
 ## CLI parity channels (lane F, D88)
 
-Sixteen request/response channels carry the `oo` command line into the app (volume 25 section 7.1). The main process builds every argument vector itself and runs `oo` without a shell; no request carries a host path or an argument of `oo`, and no result carries a secret. Validators: `src/shared/super-ontology/cli-requests.mjs`; handlers: `electron/main/super-ontology/cli-handlers.mjs`. The preload repeats the names (a test keeps them equal).
+Eighteen request/response channels carry the `oo` command line into the app (volume 25 section 7.1). The main process builds every argument vector itself and runs `oo` without a shell; no request carries a host path or an argument of `oo`, and no result carries a secret. Validators: `src/shared/super-ontology/cli-requests.mjs`; handlers: `electron/main/super-ontology/cli-handlers.mjs`. The preload repeats the names (a test keeps them equal).
 
 Every answer except `cli-db-kinds`, `cli-job-*`, `cli-gateway-*`, `cli-diagnostics` and `cli-ontology-export` is `CliResult`: `{ ok, exit, data, error: { code, message, hint } | null, cli }`. A failing command is `ok: false` with the CLI's own code, message and hint, never a throw; only a missing `oo` (`SO_OO_MISSING`, `SO_OO_INVALID`), a bad request or a busy job throws. `cli` is the equivalent command, shown to the person and copyable (passwords are never in it: they go to `oo` on stdin or a private file).
 
@@ -130,7 +130,9 @@ Every answer except `cli-db-kinds`, `cli-job-*`, `cli-gateway-*`, `cli-diagnosti
 | `cli-db-remove` / `cli-db-test` | Remove / reachability | `oo source rm|test <name> --config <stack> --json` |
 | `cli-doctor` | Read-only probe of sources and model | `oo doctor --config <stack> --json` |
 | `cli-pipeline` | `status` (build state) or `freshness` (needs a Gateway) | `oo status --config <stack> --json` / `oo freshness --summary ...` |
-| `cli-job-start` / `cli-job-read` | Background `up`, `build`, `down` and a polled, redacted tail of its output | `oo <action> --config <stack> --yes --json` |
+| `cli-job-start` / `cli-job-read` | Background `up`, `build`, `down` and a polled, redacted tail of its output; a `build` job also answers the stage record (`build.stages`) and ends in `state: "review"` when the CLI stops for the owner (not a failure). A finished build adopts the profile the CLI saved as the Gateway of the Query tab (`gateway: true`) | `oo <action> [--resume] --config <stack> --yes --json` |
+| `cli-review-read` | What a stopped build proposes: entities, columns, relationships (declared, discovered, named) with their evidence, read from the CLI's own `adjudication.json` and `review-input.json`; `digest` is `null` unless the build waits for review | none (reads `<state>/.oo`) |
+| `cli-review-submit` | The owner's per-relationship decisions and one reason -> `oo.build-review/v1` (mode 0600, private temporary folder, removed afterwards) -> background job; refuses a fan-out relationship the CLI would refuse (`REVIEW_FANOUT`) | `oo build --resume --config <stack> --review-file <review.json> --yes --json` |
 | `cli-gateway-read` / `cli-gateway-set` / `cli-gateway-clear` | The Gateway the query tab talks to: origin, transport, token file and CA file grants; saved in `gateway.json` (0600) beside the engine state | none |
 | `cli-query` | `query`, `validate`, `tables`, `describe`, `freshness`, `knowledge-search`, `knowledge-cat` | `oo query|validate|tables|describe|freshness|knowledge ... --gateway ... --token-file ...` |
 | `cli-diagnostics` | Versions, readiness, runtime, serve status, paths | `oo --version`, `oo check`, `oo docs runtime status`, `oo serve --status` |

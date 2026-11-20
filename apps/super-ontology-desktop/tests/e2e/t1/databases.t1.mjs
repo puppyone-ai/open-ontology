@@ -5,6 +5,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { runScenario } from "../harness/session.mjs";
 
+// The canned `oo build` stops for the owner's review with a recorded real Builder draft, then continues from the review file.
+process.env.FAKE_OO_REVIEW = "1";
 const PASSWORD = "fake-pw-t1";
 const PEM = "-----BEGIN CERTIFICATE-----\nMIIBsynthetic\n-----END CERTIFICATE-----";
 
@@ -60,15 +62,44 @@ runScenario({ name: "databases", title: "Add a database, check it, import it", e
   await s.click("database-import");
   await s.waitFor("database-import-progress", {}, { timeoutMs: 15_000 });
   s.check("import progress shows while oo up and build run", true);
+  // The build stops for the owner: the review screen shows what the Builder proposed (4 tables, 3 declared foreign keys, 6 candidates).
+  await s.waitFor("build-review", {}, { timeoutMs: 60_000 });
+  s.check("the build stops at the review instead of failing", true);
+  s.check("the review opens with a summary bound to the CLI's hash", (await s.exists("review-summary")) && String(await s.attr("review-summary", "data-hash")).length === 12);
+  s.check("the review lists the tables", (await s.count("review-entity")) === 4, String(await s.count("review-entity")));
+  s.check("the review lists the relationships in groups", (await s.count("review-relation")) === 9 && (await s.count("review-group")) === 2, `${await s.count("review-relation")} in ${await s.count("review-group")}`);
+  s.check("declared foreign keys are accepted and found candidates are rejected by default", (await s.evaluate(`[...document.querySelectorAll('[data-testid="review-relation"]')].every((row) => row.getAttribute("data-decision") === (row.getAttribute("data-origin") === "declared" ? "adopted" : "rejected"))`)) === true);
+  s.check("every relationship says why", (await s.count("review-evidence")) === 9);
+  await s.shot("build-review");
+  // Flip one found candidate: accept it.
+  await s.evaluate(`document.querySelector('[data-testid="review-relation"][data-origin="discovered"] [data-testid="review-accept"]').scrollIntoView({ block: "center" })`);
+  await s.evaluate(`document.querySelector('[data-testid="review-relation"][data-origin="discovered"] [data-testid="review-accept"]').click()`);
+  await s.until(`document.querySelector('[data-testid="review-changes"]')?.getAttribute("data-count") === "1"`, "one decision differs from the proposal");
+  s.check("a changed decision is counted", true);
+  await s.type("review-reason", "Checked with the data owner in the T1 run");
+  await s.click("review-confirm");
   await s.waitFor("database-import-done", {}, { timeoutMs: 60_000 });
-  s.check("the import ends with the published freshness", (await s.attr("database-pipeline", "data-state")) === "up_to_date", String(await s.attr("database-pipeline", "data-state")));
+  const reviewCall = (await fs.readFile(path.join(s.root, "cli-calls.jsonl"), "utf8")).split("\n").filter(Boolean).map((line) => JSON.parse(line)).find((call) => call.reviewFile);
+  s.check("the decision reached oo as a private file in a private folder", reviewCall?.reviewFileMode === 0o600 && reviewCall.reviewFileFolderMode === 0o700, JSON.stringify([reviewCall?.reviewFileMode, reviewCall?.reviewFileFolderMode]));
+  s.check("the file carries the reason and the one override", reviewCall?.reviewFile?.reason?.startsWith("Checked with") && Object.keys(reviewCall.reviewFile.overrides?.items ?? {}).length >= 1);
+  s.check("the database page is in its done phase", (await s.attr("database-pipeline", "data-phase")) === "done", String(await s.attr("database-pipeline", "data-phase")));
+  s.check("the finished import offers the atlas, the YAML files and the Query tab", (await s.exists("build-stages")) && (await s.exists("database-open-files")) && (await s.exists("database-open-query")));
+  s.check("the import ends with every stage complete", (await s.attrs("build-stage", "data-state")).every((state) => state === "complete"), (await s.attrs("build-stage", "data-state")).join(","));
+  s.check("the finished build connects the Query tab to its Gateway", (await fs.readFile(path.join(s.userData, "engine", "gateway.json"), "utf8")).includes("127.0.0.1:9443"));
   await s.shot("database-detail");
   await s.click("database-import-cli-toggle");
   s.check("the equivalent commands are copyable text", (await s.text("database-import-cli-value")).includes("oo up"));
 
+  await s.click("database-open-atlas");
+  await s.waitFor("screen-ontology");
+  await s.waitFor("atlas-mode-source", { "data-selected": "true" }, { timeoutMs: 30_000 });
+  s.check("Open in Atlas lands on the source view", true);
+  await s.click("nav-sources");
+  await s.click("source-row", { "data-kind": "database" });
+  await s.waitFor("screen-database-detail", { "data-name": "shop" });
   await s.click("database-remove");
   await s.click("database-remove-confirm");
   await s.waitFor("screen-sources");
   const after = (await fs.readFile(path.join(s.root, "cli-calls.jsonl"), "utf8")).split("\n").filter(Boolean).map((line) => JSON.parse(line));
-  s.check("remove went through oo source rm", after.some((call) => call.args[0] === "source" && call.args[1] === "rm" && call.args[2] === "shop"));
+  s.check("remove went through oo source rm", after.some((call) => call.args?.[0] === "source" && call.args[1] === "rm" && call.args[2] === "shop"));
 });

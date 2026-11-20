@@ -77,3 +77,32 @@ export function failureOf(result) {
   const message = redact(coded ? (coded[2] ?? "") : typeof error?.message === "string" && error.message !== code ? error.message : plain);
   return { code, message: message.slice(0, 600), hint: typeof doc?.hint === "string" ? redact(doc.hint).slice(0, 600) : null };
 }
+
+const STAGE_NAMES = ["load", "candidate", "builder", "self_review", "publish", "gateway", "first_token", "share_prompt"];
+
+/**
+ * The CLI's `oo.build-chain/v1` document (what `oo build --json` prints and the stage record it keeps) reduced to what a screen shows:
+ * the stages in order with their counters, and whether the chain is waiting for the owner's review. Never carries a path or a secret.
+ */
+export function summarizeBuild(document) {
+  if (!document || typeof document !== "object" || !Array.isArray(document.stages)) return null;
+  const stages = document.stages.filter((stage) => stage && typeof stage.name === "string").map((stage) => ({
+    name: stage.name, status: typeof stage.status === "string" ? stage.status : "pending", completed: Number.isFinite(stage.completed) ? stage.completed : 0, total: Number.isFinite(stage.total) ? stage.total : 1,
+    attempts: Number.isFinite(stage.attempts) ? stage.attempts : 0, error: typeof stage.error === "string" && stage.error !== "" ? redact(stage.error).slice(0, 700) : null,
+  })).sort((a, b) => STAGE_NAMES.indexOf(a.name) - STAGE_NAMES.indexOf(b.name));
+  const waiting = stages.find((stage) => stage.name === "self_review");
+  const review = waiting?.status === "blocked" && /^REVIEW_FILE_REQUIRED/u.test(waiting.error ?? "");
+  return {
+    status: typeof document.status === "string" ? document.status : "unknown", publication: typeof document.publication === "string" ? document.publication : null,
+    gateway: typeof document.gateway_health === "string" ? document.gateway_health : null, profile: typeof document.profile === "string" && /^[A-Za-z0-9_-]{1,64}$/u.test(document.profile) ? document.profile : null,
+    modelCalls: Number.isFinite(document.model_calls) ? document.model_calls : null, review, stages,
+  };
+}
+
+/** A blocked stage's `CODE: cause` text (the CLI names the cause, e.g. a certificate SAN or a missing grant) as the failure of a build. */
+export function buildFailureOf(build, result) {
+  const stage = build.stages.find((entry) => entry.error && !/^REVIEW_FILE_REQUIRED/u.test(entry.error));
+  if (!stage) return failureOf(result);
+  const coded = /^([A-Z][A-Z0-9_]{2,63})(?::\s*([\s\S]*))?$/u.exec(stage.error);
+  return { code: coded ? coded[1] : "SO_CLI_FAILED", message: redact(coded ? (coded[2] ?? "") : stage.error).slice(0, 600), hint: null, stage: stage.name };
+}

@@ -141,12 +141,15 @@ export type ModelConfigSaveInput = { provider: "openai-compatible" | "anthropic"
 
 
 /** CLI parity channels (cli-requests.mjs): every answer carries the `oo` command that was run. A failing command is `ok: false` with its code, message and hint. */
-export type CliError = { code: string; message: string; hint: string | null };
+export type CliError = { code: string; message: string; hint: string | null; stage?: string };
 export type CliResult<T = unknown> = { ok: boolean; exit: number | null; data: T | null; error: CliError | null; cli: string };
-export type DbKindInfo = { id: string; label: string; port: number; nameField: "database" | "service"; tls: "required" | "optional"; wired: boolean; preflight: boolean; family?: string };
+export type DbKindInfo = { id: string; label: string; engine: string; port: number; nameField: "database" | "service"; tls: "required" | "loopback" | "driver" | "optional"; unit: "table" | "collection" | "index"; wired: boolean; preflight: boolean };
 export type DbConnectionFields = { kind: string; host: string; port?: number; database: string; user: string; password: string; tlsCaPem?: string; tlsCaGrantId?: string };
 export type DbSourceInfo = { name: string; backend: string; kind: "database"; status: string; config: { host: string; port: number; database: string; user: string; secret_ref: string; tls_ca: boolean; include: string[]; exclude: string[] } };
-export type CliJobState = { jobId: string; action: string; state: "running" | "succeeded" | "failed"; exit: number | null; error: CliError | null; cli: string; startedAt: number; offset: number; next: number; lines: string[] };
+export type BuildStage = { name: string; status: string; completed: number; total: number; attempts: number; error: string | null };
+export type BuildState = { status: string; publication: string | null; gateway: string | null; profile: string | null; modelCalls: number | null; review: boolean; stages: BuildStage[] };
+/** `review` is a build that stopped for the owner's decision (not a failure): the review screen continues it. */
+export type CliJobState = { jobId: string; action: string; state: "running" | "succeeded" | "failed" | "review"; exit: number | null; error: CliError | null; cli: string; startedAt: number; offset: number; next: number; lines: string[]; build: BuildState | null; gateway: boolean | null };
 export type GatewayState = { configured: boolean; url: string | null; transport: "production" | "local-development"; tokenFile: string | null; caFile: string | null };
 export type QueryOp = "query" | "validate" | "tables" | "describe" | "freshness" | "knowledge-search" | "knowledge-cat";
 export type QueryRequest = { op: QueryOp; sql?: string; table?: string; text?: string; path?: string; pathPrefix?: string; offset?: number; limit?: number; maxRows?: number; timeoutMs?: number };
@@ -185,6 +188,8 @@ export type SuperOntologyChannelMap = {
   "cli-pipeline": { request: { action: "status" | "freshness"; operationId?: string }; value: CliResult };
   "cli-job-start": { request: { action: "up" | "build" | "down"; operationId: string }; value: { jobId: string; cli: string } };
   "cli-job-read": { request: { jobId: string; since?: number; operationId?: string }; value: CliJobState };
+  "cli-review-read": { request: { operationId?: string }; value: { build: BuildState | null; digest: import("./review-digest.mjs").ReviewDigest | null } };
+  "cli-review-submit": { request: { reason: string; decisions: Record<string, "adopted" | "rejected">; operationId: string }; value: { ok: true; jobId: string; cli: string } | { ok: false; error: CliError; cli: string } };
   "cli-gateway-read": { request: { operationId?: string }; value: GatewayState };
   "cli-gateway-set": { request: { url: string; tokenGrantId: string; caGrantId?: string; transport?: "production" | "local-development"; operationId?: string }; value: GatewayState };
   "cli-gateway-clear": { request: { operationId?: string }; value: { configured: false } };

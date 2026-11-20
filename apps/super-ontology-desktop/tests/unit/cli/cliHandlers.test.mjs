@@ -29,13 +29,22 @@ afterEach(async () => { delete process.env.FAKE_OO_LOG; delete process.env.FAKE_
 const base = { kind: "postgres", host: "db.example.test", port: 5432, database: "shop", user: "ro", password: "fake-pw-123", tlsCaGrantId: "ca-grant" };
 
 describe("database kinds", () => {
-  it("lists every connector family once and marks what the CLI can drive", () => {
-    expect(DB_KINDS.map((k) => k.id)).toEqual(expect.arrayContaining(["postgres", "mysql", "mariadb", "oracle", "sqlserver", "db2", "dm8", "kingbase", "opengauss", "oceanbase", "tidb", "polardb", "doris", "starrocks", "clickhouse", "mongodb", "opensearch"]));
+  const CLI_TABLE = {
+    postgres: ["postgres", 5432, "required", "table"], mysql: ["mysql", 3306, "required", "table"], mariadb: ["mariadb", 3306, "required", "table"], tidb: ["tidb", 4000, "required", "table"],
+    oceanbase: ["oceanbase", 2881, "required", "table"], polardb: ["mysql-polardb", 3306, "required", "table"], opengauss: ["opengauss", 5432, "required", "table"], kingbase: ["kingbase", 54321, "required", "table"],
+    sqlserver: ["sqlserver", 1433, "required", "table"], oracle: ["oracle", 1521, "driver", "table"], db2: ["db2", 50000, "optional", "table"], dm8: ["dm8", 5236, "driver", "table"],
+    clickhouse: ["clickhouse", 9004, "loopback", "table"], doris: ["doris", 9030, "loopback", "table"], starrocks: ["starrocks", 9030, "loopback", "table"],
+    mongodb: ["mongodb", 27017, "loopback", "collection"], opensearch: ["opensearch", 9200, "loopback", "index"],
+  };
+  it("lists all seventeen kinds, each wired, with the CLI's engine, port, TLS rule and scope unit (crates/oo-cli/src/docs/source_db.rs)", () => {
+    expect(DB_KINDS.map((k) => k.id).sort()).toEqual(Object.keys(CLI_TABLE).sort());
     expect(new Set(DB_KINDS.map((k) => k.id)).size).toBe(DB_KINDS.length);
-    expect(DB_WIRED_KIND_IDS).toEqual(["postgres", "mysql", "oracle", "sqlserver", "db2", "kingbase", "dm8"]);
+    expect([...DB_WIRED_KIND_IDS].sort()).toEqual(Object.keys(CLI_TABLE).sort());
+    for (const kind of DB_KINDS) expect([kind.engine, kind.port, kind.tls, kind.unit], kind.id).toEqual(CLI_TABLE[kind.id]);
   });
-  it("refuses a kind the CLI cannot add", () => {
-    expect(() => parseSuperOntologyRequest("cli-db-add", { ...base, kind: "mariadb", name: "x", include: ["a.b"], operationId: "op_0123456789abcdef" })).toThrow();
+  it("accepts every kind in a request", () => {
+    for (const id of DB_WIRED_KIND_IDS) expect(parseSuperOntologyRequest("cli-db-add", { ...base, kind: id, name: "x", include: ["a.b"], operationId: "op_0123456789abcdef" }).kind).toBe(id);
+    expect(() => parseSuperOntologyRequest("cli-db-add", { ...base, kind: "sqlite", name: "x", include: ["a.b"], operationId: "op_0123456789abcdef" })).toThrow();
   });
 });
 
@@ -115,6 +124,26 @@ describe("database source flow through oo", () => {
     expect(result.error.code).toBe("SO_TLS_CA_REQUIRED");
   });
 
+  it("follows the CLI's trust-anchor rule per kind", async () => {
+    const { tlsCaGrantId: _drop, ...noCa } = base;
+    const add = (extra) => handlers["cli-db-add"]({ ...noCa, name: "doc", include: ["shop.items"], ...extra }, { sender });
+    expect((await add({ kind: "mongodb", host: "db.example.test" })).error.code).toBe("SO_TLS_CA_REQUIRED");
+    expect((await add({ kind: "opensearch", host: "db.example.test" })).error.code).toBe("SO_TLS_CA_REQUIRED");
+    expect((await add({ kind: "oracle", tlsCaGrantId: "ca-grant" })).error.code).toBe("SO_TLS_CA_NOT_ACCEPTED");
+    expect((await add({ kind: "dm8", tlsCaGrantId: "ca-grant" })).error.code).toBe("SO_TLS_CA_NOT_ACCEPTED");
+    expect((await add({ kind: "clickhouse", host: "127.0.0.1", port: undefined })).ok).toBe(true);
+    expect((await handlers["cli-db-add"]({ ...noCa, kind: "db2", name: "ibm", include: ["a.b"] }, { sender })).ok).toBe(true);
+    const stack = JSON.parse(await fs.readFile(path.join(root, "data", "stack.yaml"), "utf8"));
+    expect(stack.sources[0]).toMatchObject({ id: "doc", engine: "clickhouse", port: 9004 });
+  });
+
+  it("writes the stack engine the CLI uses (polardb is a MySQL variant)", async () => {
+    const result = await handlers["cli-db-add"]({ ...base, kind: "polardb", name: "polar", port: undefined, include: ["a.b"] }, { sender });
+    expect(result.ok).toBe(true);
+    const stack = JSON.parse(await fs.readFile(path.join(root, "data", "stack.yaml"), "utf8"));
+    expect(stack.sources[0]).toMatchObject({ engine: "mysql-polardb", port: 3306 });
+  });
+
   it("lists, tests and removes by name", async () => {
     await handlers["cli-db-add"]({ ...base, name: "shop", include: ["public.customers"] }, { sender });
     expect((await handlers["cli-db-list"]()).data.sources[0].name).toBe("shop");
@@ -189,5 +218,77 @@ describe("runner helpers", () => {
     expect(failureOf({ code: 1, stdout: "", stderr: '{"class":"local","message":"LITE_IMAGE_DIGEST_REQUIRED: install the image"}' })).toMatchObject({ code: "LITE_IMAGE_DIGEST_REQUIRED", message: "install the image" });
     expect(failureOf({ timedOut: true, stdout: "", stderr: "" }).code).toBe("SO_TIMEOUT");
     expect(parseJson("noise\n{\"a\":1}\n")).toEqual({ a: 1 });
+  });
+});
+
+describe("build review", () => {
+  const recorded = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../support/recorded");
+  const waitFor = async (jobId) => { let job; for (let i = 0; i < 100; i += 1) { job = await handlers["cli-job-read"]({ jobId }); if (job.state !== "running") break; await new Promise((r) => setTimeout(r, 40)); } return job; };
+  const added = async () => handlers["cli-db-add"]({ ...base, name: "shop", include: ["public.customers"] }, { sender });
+
+  it("stops at the review without calling it a failure, and shows what was proposed", async () => {
+    process.env.FAKE_OO_REVIEW = "1";
+    await added();
+    const { jobId } = await handlers["cli-job-start"]({ action: "build" });
+    const job = await waitFor(jobId);
+    expect(job.state).toBe("review");
+    expect(job.error).toBeNull();
+    expect(job.build.review).toBe(true);
+    expect(job.build.stages.map((stage) => [stage.name, stage.status])).toEqual([["load", "complete"], ["candidate", "complete"], ["builder", "complete"], ["self_review", "blocked"], ["publish", "pending"], ["gateway", "pending"], ["first_token", "pending"], ["share_prompt", "pending"]]);
+    const read = await handlers["cli-review-read"]();
+    expect(read.build.review).toBe(true);
+    expect(read.digest.counts).toMatchObject({ tables: 4, entities: 4, declared: 3, discovered: 6 });
+    delete process.env.FAKE_OO_REVIEW;
+  });
+
+  it("writes the decision file as a private file in a private folder, resumes the build and adopts the Gateway", async () => {
+    process.env.FAKE_OO_REVIEW = "1";
+    await added();
+    await waitFor((await handlers["cli-job-start"]({ action: "build" })).jobId);
+    const digest = (await handlers["cli-review-read"]()).digest;
+    const found = digest.relations.find((relation) => relation.origin === "discovered");
+    const submit = await handlers["cli-review-submit"]({ reason: "Checked with the data owner", decisions: { [found.key]: "adopted" } });
+    expect(submit.ok).toBe(true);
+    expect(submit.cli).toContain("--review-file '<review.json>'");
+    const job = await waitFor(submit.jobId);
+    expect(job.state).toBe("succeeded");
+    expect(job.gateway).toBe(true);
+    const gateway = JSON.parse(await fs.readFile(path.join(root, "data", "gateway.json"), "utf8"));
+    expect(gateway).toMatchObject({ url: "https://127.0.0.1:9443", transport: "production" });
+    expect((await fs.stat(path.join(root, "data", "gateway.json"))).mode & 0o777).toBe(0o600);
+    const call = (await calls()).find((entry) => entry.reviewFile);
+    expect(call.reviewFileMode).toBe(0o600);
+    expect(call.reviewFileFolderMode).toBe(0o700);
+    expect(call.reviewFile).toMatchObject({ protocol: "oo.build-review/v1", reason: "Checked with the data owner" });
+    expect(Object.values(call.reviewFile.overrides.items)).toEqual(found.ids.map(() => ({ decision: "adopted", reason: "Checked with the data owner" })));
+    const build = (await calls()).find((entry) => entry.args[0] === "build" && entry.args.includes("--review-file"));
+    expect(build.args).toContain("--resume");
+    delete process.env.FAKE_OO_REVIEW;
+  });
+
+  it("refuses a decision the CLI would refuse, with a code a screen can explain", async () => {
+    process.env.FAKE_OO_REVIEW = "1";
+    await added();
+    await waitFor((await handlers["cli-job-start"]({ action: "build" })).jobId);
+    const adjudication = JSON.parse(await fs.readFile(path.join(root, "data", ".oo", "adjudication.json"), "utf8"));
+    const item = adjudication.items.find((entry) => entry.class === "relation" && entry.decision === "rejected");
+    item.evidence.parent_unique = false;
+    await fs.writeFile(path.join(root, "data", ".oo", "adjudication.json"), JSON.stringify(adjudication), { mode: 0o600 });
+    const key = `${item.subject.from}->${item.subject.to}`;
+    expect(await handlers["cli-review-submit"]({ reason: "x", decisions: { [key]: "adopted" } })).toMatchObject({ ok: false, error: { code: "REVIEW_FANOUT" } });
+    expect(await handlers["cli-review-submit"]({ reason: "x", decisions: { "nope.a->nope.b": "adopted" } })).toMatchObject({ ok: false, error: { code: "REVIEW_DECISION_INVALID" } });
+    expect(await fs.readdir(os.tmpdir()).then((names) => names.filter((name) => name.startsWith("so-review-")))).toEqual([]);
+    delete process.env.FAKE_OO_REVIEW;
+    void recorded;
+  });
+
+  it("names the cause of a blocked stage as the failure of the build", async () => {
+    process.env.FAKE_OO_BUILD_FAIL = "BUILD_LOAD_FAILED: oo-load exited 1: source error: tls fact=tls_handshake (the server certificate must list host.docker.internal as a subject alternative name)";
+    await added();
+    const job = await waitFor((await handlers["cli-job-start"]({ action: "build" })).jobId);
+    expect(job.state).toBe("failed");
+    expect(job.error).toMatchObject({ code: "BUILD_LOAD_FAILED", stage: "load" });
+    expect(job.error.message).toContain("subject alternative name");
+    delete process.env.FAKE_OO_BUILD_FAIL;
   });
 });

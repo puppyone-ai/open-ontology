@@ -14,14 +14,35 @@ export function stubBridgeSource(scenario) {
     const database = { name: "shop", backend: "postgres", kind: "database", status: "configured", config: { host: "db.example.test", port: 5432, database: "shop", user: "reader", secret_ref: "(set)", tls_ca: true, include: ["public.customers", "public.orders"], exclude: ["public.audit_log"] } };
     const rows = Array.from({ length: 12 }, (_, i) => [i + 1, "Customer " + (i + 1), i % 4 === 0 ? null : "customer" + (i + 1) + "@example.test", (i * 37.5).toFixed(2)]);
 
+    // The build the page sees: stage states for the screens "stopped for review", "failed with a cause" and "done".
+    const STAGES = ["load", "candidate", "builder", "self_review", "publish", "gateway", "first_token", "share_prompt"];
+    const stages = (states) => STAGES.map((name, index) => ({ name, status: states[index]?.[0] ?? "pending", completed: states[index]?.[0] === "complete" ? 1 : 0, total: 1, attempts: states[index] ? 1 : 0, error: states[index]?.[1] ?? null }));
+    const done = ["complete", "complete", "complete", "complete", "complete", "complete", "complete", "complete"].map((x) => [x]);
+    const building = { status: "running", publication: null, gateway: null, profile: null, modelCalls: null, review: false, stages: stages([["complete"], ["complete"], ["running"]]) };
+    const reviewing = { status: "blocked", publication: "not_published", gateway: null, profile: null, modelCalls: 5, review: true, stages: stages([["complete"], ["complete"], ["complete"], ["blocked", "REVIEW_FILE_REQUIRED: non-TTY never auto-accepts"]]) };
+    const finished = { status: "complete", publication: "published", gateway: "verified", profile: "shop", modelCalls: 5, review: false, stages: stages(done) };
+    const failed = { status: "blocked", publication: "not_published", gateway: null, profile: null, modelCalls: null, review: false, stages: stages([["blocked", scenario.failure ?? "BUILD_LOAD_FAILED: oo-load exited 1: source error: tls fact=tls_handshake (a source on 127.0.0.1 or localhost is reached from the runtime as host.docker.internal; its server certificate must list host.docker.internal as a subject alternative name and carry the serverAuth usage)"]]) };
+    const job = (id, action, state, build, error = null) => ({ jobId: id, action, state, exit: state === "succeeded" ? 0 : state === "running" ? null : 1, error, cli: "oo " + action + " --config stack.yaml --yes --json", startedAt: 0, offset: 0, next: 0, lines: [], build, gateway: state === "succeeded" && action === "build" ? true : null });
+    const JOB_UP = "00000000-0000-4000-8000-0000000000a1"; const JOB_BUILD = "00000000-0000-4000-8000-0000000000a2"; const JOB_RESUME = "00000000-0000-4000-8000-0000000000a3";
+    let buildStarted = false;
     const answer = (channel, request) => {
       switch (channel) {
+        case "cli-job-start": buildStarted = buildStarted || request.action === "build"; return { jobId: request.action === "up" ? JOB_UP : JOB_BUILD, cli: "oo " + request.action + " --config stack.yaml --yes --json" };
+        case "cli-job-read": {
+          if (request.jobId === JOB_UP) return job(JOB_UP, "up", scenario.job === "up-running" ? "running" : "succeeded", null);
+          if (request.jobId === JOB_RESUME) return job(JOB_RESUME, "build", scenario.resume === "running" ? "running" : "succeeded", scenario.resume === "running" ? { ...building, stages: stages([["complete"], ["complete"], ["complete"], ["complete"], ["running"]]) } : finished);
+          if (scenario.job === "failed") return job(JOB_BUILD, "build", "failed", failed, { code: "BUILD_LOAD_FAILED", message: failed.stages[0].error.replace(/^BUILD_LOAD_FAILED: /u, ""), hint: null, stage: "load" });
+          if (scenario.job === "running") return job(JOB_BUILD, "build", "running", building);
+          return job(JOB_BUILD, "build", "review", reviewing);
+        }
+        case "cli-review-read": return scenario.review === "pending" || (buildStarted && !scenario.job?.startsWith("fail") && (scenario.job ?? "review") === "review" && scenario.review !== "done") ? { build: reviewing, digest: scenario.digest } : scenario.review === "done" ? { build: finished, digest: null } : { build: null, digest: null };
+        case "cli-review-submit": return scenario.submitFails ? { ok: false, error: { code: "REVIEW_FANOUT", message: "", hint: null }, cli: "oo build --resume --config stack.yaml --review-file '<review.json>' --yes --json" } : { ok: true, jobId: JOB_RESUME, cli: "oo build --resume --config stack.yaml --review-file '<review.json>' --yes --json" };
         case "cli-db-kinds": return { kinds: [{ id: "postgres", label: "PostgreSQL", port: 5432, nameField: "database", tls: "required", wired: true, preflight: true }, { id: "mysql", label: "MySQL", port: 3306, nameField: "database", tls: "required", wired: true, preflight: true }, { id: "oracle", label: "Oracle", port: 1521, nameField: "service", tls: "optional", wired: true, preflight: true }, { id: "mariadb", label: "MariaDB", port: 3306, nameField: "database", tls: "optional", wired: false, preflight: false }], stackFile: "/stack.yaml", stackExists: true, secretsDir: "/secrets" };
         case "cli-db-list": return cli({ stackExists: scenario.databases === true, sources: scenario.databases === true ? [database] : [] });
         case "cli-db-check": return cli({ signed_in: true, checks: [{ name: "resolve", status: "ok", detail: "127.0.0.1" }, { name: "port", status: "ok", detail: "2 ms" }, { name: "tls", status: "ok", detail: "db.example.test - issuer example-ca - until 2027-01-01" }, { name: "sign_in", status: "ok", detail: "ok" }] });
         case "cli-db-test": return cli({ reachable: true });
         case "cli-doctor": return cli({ status: "ok", model: { status: "ok" }, sources: [{ source_id: "shop", status: "ok", probe: { capabilities: { catalog: { state: "available" }, log_cdc: { state: "needs_setup" } } }, dba_requirements: [{ name: "wal_level", observed: "replica", required: "logical", dba_statement: "ALTER SYSTEM SET wal_level = 'logical';" }] }] });
-        case "cli-pipeline": return cli({ status: "complete", data_published_at: "2026-11-11T10:00:00Z", tables: { stale: [], review_pending: [] } });
+        case "cli-pipeline": return scenario.review === "none" || scenario.job ? cli({ status: "not_started", data_published_at: null, tables: { stale: [], review_pending: [] } }) : cli({ status: "complete", data_published_at: "2026-11-11T10:00:00Z", tables: { stale: [], review_pending: [] } });
         case "cli-gateway-read": return scenario.gateway === false ? { configured: false, url: null, transport: "production", tokenFile: null, caFile: null } : { configured: true, url: "https://gateway.example.test", transport: "production", tokenFile: "/t", caFile: null };
         case "cli-query": switch (request?.op) {
           case "tables": return cli({ tables: [{ name: "public.customers" }, { name: "public.orders" }, { name: "public.products" }] });

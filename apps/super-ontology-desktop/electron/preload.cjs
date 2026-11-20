@@ -17,7 +17,7 @@ const CHANNELS = new Set([
   "engine-connect-remote", "engine-disconnect-remote",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
   "cli-db-kinds", "cli-db-list", "cli-db-check", "cli-db-add", "cli-db-remove", "cli-db-test",
-  "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read",
+  "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read", "cli-review-read", "cli-review-submit",
   "cli-gateway-read", "cli-gateway-set", "cli-gateway-clear", "cli-query",
   "cli-diagnostics", "cli-ontology-export",
 ]);

@@ -8,12 +8,12 @@ import { DB_WIRED_KIND_IDS, HOST_NAME, SOURCE_NAME, TABLE_ENTRY } from "./db-kin
  */
 export const CLI_CHANNELS = Object.freeze([
   "cli-db-kinds", "cli-db-list", "cli-db-check", "cli-db-add", "cli-db-remove", "cli-db-test",
-  "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read",
+  "cli-doctor", "cli-pipeline", "cli-job-start", "cli-job-read", "cli-review-read", "cli-review-submit",
   "cli-gateway-read", "cli-gateway-set", "cli-gateway-clear", "cli-query",
   "cli-diagnostics", "cli-ontology-export",
 ]);
 
-export const CLI_OPERATION_ID_REQUIRED = Object.freeze(["cli-db-add", "cli-db-remove", "cli-job-start", "cli-ontology-export"]);
+export const CLI_OPERATION_ID_REQUIRED = Object.freeze(["cli-db-add", "cli-db-remove", "cli-job-start", "cli-review-submit", "cli-ontology-export"]);
 export const QUERY_OPS = Object.freeze(["query", "validate", "tables", "describe", "freshness", "knowledge-search", "knowledge-cat"]);
 const JOB_ACTIONS = ["up", "build", "down"];
 const REL_PATH = /^(?!\/)(?!.*(^|\/)\.\.?(\/|$))[A-Za-z0-9._@+ -]+(\/[A-Za-z0-9._@+ -]+)*$/u;
@@ -63,6 +63,14 @@ export function createCliRequestFields(field) {
       return { name: item.name, text: item.text };
     });
   };
+  /** Relation group key (`schema.table.column->schema.table.column`) -> `adopted` | `rejected`. */
+  const reviewDecisions = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidRequest();
+    const keys = Object.keys(value);
+    if (keys.length > 500) throw invalidRequest();
+    for (const key of keys) if (key.length > 600 || !["adopted", "rejected"].includes(value[key])) throw invalidRequest();
+    return Object.fromEntries(keys.map((key) => [key, value[key]]));
+  };
   return {
     "cli-db-kinds": Object.freeze({}),
     "cli-db-list": Object.freeze({}),
@@ -76,6 +84,8 @@ export function createCliRequestFields(field) {
     "cli-pipeline": Object.freeze({ action: field.enum(["status", "freshness"]) }),
     "cli-job-start": Object.freeze({ action: field.enum(JOB_ACTIONS) }),
     "cli-job-read": Object.freeze({ jobId: field.uuid, since: field.optional(field.int(0, 1_000_000)) }),
+    "cli-review-read": Object.freeze({}),
+    "cli-review-submit": Object.freeze({ reason: text(1000, 1), decisions: reviewDecisions }),
     "cli-gateway-read": Object.freeze({}),
     "cli-gateway-set": Object.freeze({
       url: field.string(2048), tokenGrantId: field.grantId, caGrantId: field.optional(field.grantId),
