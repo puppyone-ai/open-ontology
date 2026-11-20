@@ -255,6 +255,9 @@
 | SO-F-S19-93 | D85 | merged | feat/super-ontology (车道 R 并入) | 497aec1b3 → 497aec1b3 | — | — | Show a database-only atlas without a warning and draw links inside a group |
 | SO-F-S19-94 | D85 | merged | feat/super-ontology (车道 R 并入) | 17659e06f → 17659e06f | — | — | Bundle every helper oo starts into the app and refuse a mismatched set |
 | SO-F-S19-95 | D85 | merged | feat/super-ontology (车道 R 并入) | 4c7d6c951 → 3655c2490 | — | — | Let the live database scenario stop after the doctor |
+| SO-F-S19-97 | D88 | merged | feat/super-ontology (App 车道 T 并入) | afbea4338 → afbea4338 | — | apps/super-ontology-desktop/ | Draw the atlas as precise growth: dots, squares, hull outlines, straight links |
+| SO-F-S19-98 | D88 | merged | feat/super-ontology (App 车道 T 并入) | db9167a3e → db9167a3e | — | apps/super-ontology-desktop/ | Show the database tables and relationships in the atlas list and a version tick |
+| SO-F-S19-99 | D88 | merged | feat/super-ontology (App 车道 T 并入) | ce2578c7e → 08ac1c00f | — | apps/super-ontology-desktop/ | Summarise cross-group links, cap mark size, pixel-grid canvas; single-database column layout |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
