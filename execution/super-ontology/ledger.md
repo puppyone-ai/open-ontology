@@ -244,6 +244,16 @@
 | SO-B-S19-70 | D88 | merged | feat/super-ontology (车道 K 并入) | 0347499de → 0347499de | — | — | Give the helper container the file secrets a source names |
 | SO-B-S19-71 | D88 | merged | feat/super-ontology (车道 K 并入) | 527f6f39c → 527f6f39c | — | — | Keep multi-line secrets exact when stripping the newline |
 | SO-B-S19-72 | D88 | merged | feat/super-ontology (车道 K 并入) | 839822527 → 839822527 | — | — | Pin the arm64 lite runtime with the secret and error fixes |
+| SO-B-S20-10 | D83 | merged | feat/super-ontology (车道 V 并入) | 2a9aeb407 → 2a9aeb407 | — | — | Fix a 45-question agent QA set with gold answers before any agent run |
+| SO-B-S20-11 | D83 | merged | feat/super-ontology (车道 V 并入) | af6206937 → af6206937 | — | — | Read --model as a value in oo docs model set |
+| SO-B-S20-12 | D83 | merged | feat/super-ontology (车道 V 并入) | 6afa1aae9 → 6afa1aae9 | — | — | Show the Agent commands in oo ontology --help and the top-level help |
+| SO-B-S20-13 | D83 | merged | feat/super-ontology (车道 V 并入) | ac44a2f2a → ac44a2f2a | — | — | Add a tool-calling agent harness that scores answers over the oo CLI |
+| SO-B-S20-14 | D83 | merged | feat/super-ontology (车道 V 并入) | 9298fd5b5 → 9298fd5b5 | — | — | Mount host paths into the engine only for the control token |
+| SO-B-S20-15 | D83 | merged | feat/super-ontology (车道 V 并入) | 6c258b580 → 6c258b580 | — | — | Say in the ontology help that search matches text literally |
+| SO-B-S20-16 | D83 | merged | feat/super-ontology (车道 V 并入) | 98496e49f → 98496e49f | — | — | Tune the QA harness on the dev split and accept Gateway query ids as citations |
+| SO-B-S20-17 | D83 | merged | feat/super-ontology (车道 V 并入) | 913b9bcfa → 913b9bcfa | — | — | Run the same agent over oo mcp --stdio in the QA harness |
+| SO-B-S20-18 | D83 | merged | feat/super-ontology (车道 V 并入) | 5c41e35fc → 5c41e35fc | — | — | Pass the Gateway's message and hint through oo ontology query |
+| SO-B-S20-19 | D83 | merged | feat/super-ontology (车道 V 并入) | 7ddf70700 → 7ddf70700 | — | — | Record the agent QA runs and the token safety checks |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
