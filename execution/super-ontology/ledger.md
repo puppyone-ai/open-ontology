@@ -283,6 +283,7 @@
 | SO-F-S20-07 | D46 | merged | feat/super-ontology (App 车道 W 并入) | a0bfd16e6 → a0bfd16e6 | — | apps/super-ontology-desktop/ | Send a full sync when a changed path has vanished from disk |
 | SO-F-S20-08 | D46 | merged | feat/super-ontology (App 车道 W 并入) | ba971a62e → ba971a62e | — | apps/super-ontology-desktop/ | Make P07 repeatable and exact about renames, deletes and the atlas |
 | SO-F-S20-09 | D46 | merged | feat/super-ontology (App 车道 W 并入) | 7b9e1da77 → 7b9e1da77 | — | apps/super-ontology-desktop/ | Judge P07 evidence per file, retry lost clicks and report steps that were not run |
+| SO-F-S20-20 | D85 | merged | feat/super-ontology (App 车道 Z 并入) | 381f83fe5 → 381f83fe5 | — | apps/super-ontology-desktop/ | List agent tokens with state=all so a revoked token shows as revoked |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
