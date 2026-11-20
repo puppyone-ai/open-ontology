@@ -22,7 +22,7 @@
   "engine.status.applyingDriveChange": "Drive の変更を適用しています…",
   "engine.status.crashed": "エンジンを起動できません：{reason}",
   "engine.status.incompatible": "エンジンのバージョンに互換性がありません（エンジン {engine}、API 1.x が必要）",
-  "engine.status.stopping": "停止しています…",
+  "engine.status.stopping": "停止中…",
   "errors.unknown": "問題が発生しました（{code}）",
   "errors.family.SOURCE": "フォルダまたはファイルを読み取れませんでした",
   "errors.family.PARSE": "ファイルを解析できませんでした",
@@ -39,7 +39,7 @@
   "size.kilobytes": "{value} KB",
   "size.megabytes": "{value} MB",
   "size.gigabytes": "{value} GB",
-  "navigation.projectFiles": "プロジェクトのファイル",
+  "navigation.projectFiles": "プロジェクトファイル",
   "noProject.open": "Super Drive を開く",
   "noProject.back": "プロジェクトに戻る",
   "a11y.sidebar": "Super Drive のセクション",
@@ -1160,5 +1160,8 @@
   "engine.folder.open": "表示",
   "engine.folder.view": "開く",
   "engine.manual.show": "表示",
-  "engine.manual.hide": "非表示"
+  "engine.manual.hide": "非表示",
+  "share.field.copyLabel": "{label}をコピー",
+  "share.field.copy": "コピー",
+  "share.field.copied": "コピー済み"
 }

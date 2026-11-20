@@ -38,7 +38,7 @@ function EntityLink({ entity, onOpen }: { entity: { key: string; name: string };
 
 /** One entity: what is known about it as a timeline of facts, every one with the sentence it came from. */
 export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; onBack: () => void; onOpen: (key: string) => void }) {
-  const { t } = useLocalization();
+  const { t, formatDate } = useLocalization();
   const actions = useSuperDriveActions();
   const errorText = useErrorText();
   const relative = useRelativeTime();
@@ -88,7 +88,7 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
                     {fact.status === "retracted" && <Badge>{t("app.ontology.retracted")}</Badge>}
                     {fact.status === "draft" && <Badge tone="warning">{t("app.ontology.draft")}</Badge>}
                   </p>
-                  <p className="so-fact-meta">{[fact.valid_from ? t("app.ontology.validFrom", { date: fact.valid_from }) : null, fact.recorded_at ? relative(fact.recorded_at) : null, t("app.ontology.confidence", { value: Math.round(fact.confidence_bp / 100) })].filter(Boolean).join(" · ")}</p>
+                  <p className="so-fact-meta">{[fact.valid_from ? t("app.ontology.validFrom", { date: Number.isNaN(Date.parse(fact.valid_from)) ? fact.valid_from : formatDate(fact.valid_from, { dateStyle: "medium" }) }) : null, fact.recorded_at ? relative(fact.recorded_at) : null, t("app.ontology.confidence", { value: fact.confidence_bp / 10_000 })].filter(Boolean).join(" · ")}</p>
                   {(fact.evidence ?? []).slice(0, 2).map((evidence) => evidence.quote ? <blockquote key={`q-${evidence.id}`} className="so-quote">{evidence.quote}</blockquote> : null)}
                   {(fact.evidence ?? []).length > 0 && <div className="so-source-row">{groupEvidence(fact.evidence ?? []).slice(0, 3).map((group) => <SourceChip key={group.fileId || group.path} group={group} />)}</div>}
                 </article>

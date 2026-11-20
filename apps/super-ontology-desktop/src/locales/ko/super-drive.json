@@ -22,7 +22,7 @@
   "engine.status.applyingDriveChange": "Drive 변경 사항을 적용하는 중…",
   "engine.status.crashed": "엔진을 시작할 수 없습니다: {reason}",
   "engine.status.incompatible": "엔진 버전이 호환되지 않습니다(엔진 {engine}, API 1.x 필요)",
-  "engine.status.stopping": "중지하는 중…",
+  "engine.status.stopping": "중지 중…",
   "errors.unknown": "문제가 발생했습니다({code})",
   "errors.family.SOURCE": "폴더 또는 파일을 읽을 수 없습니다",
   "errors.family.PARSE": "파일을 분석할 수 없습니다",
@@ -1160,5 +1160,8 @@
   "engine.folder.open": "보기",
   "engine.folder.view": "열기",
   "engine.manual.show": "보기",
-  "engine.manual.hide": "숨기기"
+  "engine.manual.hide": "숨기기",
+  "share.field.copyLabel": "{label} 복사",
+  "share.field.copy": "복사",
+  "share.field.copied": "복사됨"
 }

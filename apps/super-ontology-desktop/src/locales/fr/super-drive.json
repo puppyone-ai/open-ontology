@@ -45,7 +45,7 @@
   "a11y.sidebar": "Sections de Super Drive",
   "section.files": "Fichiers",
   "section.engine": "Moteur",
-  "section.settings": "Réglages",
+  "section.settings": "Paramètres",
   "section.review": "À valider",
   "entry.bridgeUnavailable": "Super Drive n'est pas disponible dans cette version",
   "onboarding.title": "Placez vos fichiers dans un Drive et partagez-les avec des agents",
@@ -1160,5 +1160,8 @@
   "engine.folder.open": "Afficher",
   "engine.folder.view": "Voir",
   "engine.manual.show": "Afficher",
-  "engine.manual.hide": "Masquer"
+  "engine.manual.hide": "Masquer",
+  "share.field.copyLabel": "Copier {label}",
+  "share.field.copy": "Copier",
+  "share.field.copied": "Copié"
 }

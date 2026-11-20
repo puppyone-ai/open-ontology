@@ -1084,7 +1084,7 @@
   "audit.filters": "筛选记录",
   "audit.filter.drive": "Drive",
   "audit.filter.allDrives": "全部 Drive",
-  "audit.filter.agent": "Agent",
+  "audit.filter.agent": "智能体",
   "audit.filter.tenant": "租户",
   "audit.filter.since": "起始日期",
   "audit.filter.until": "截止日期",
@@ -1095,7 +1095,7 @@
   "audit.emptyFiltered": "没有符合这些筛选条件的条目。",
   "audit.column.when": "时间",
   "audit.column.actor": "操作方",
-  "audit.column.agent": "Agent",
+  "audit.column.agent": "智能体",
   "audit.column.drive": "Drive",
   "audit.column.role": "角色",
   "audit.column.scope": "共享范围",
@@ -1160,5 +1160,8 @@
   "engine.folder.open": "显示",
   "engine.folder.view": "查看",
   "engine.manual.show": "显示",
-  "engine.manual.hide": "隐藏"
+  "engine.manual.hide": "隐藏",
+  "share.field.copyLabel": "复制{label}",
+  "share.field.copy": "复制",
+  "share.field.copied": "已复制"
 }

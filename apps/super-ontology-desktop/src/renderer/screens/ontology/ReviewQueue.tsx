@@ -19,7 +19,7 @@ function describe(item: ReviewItem, t: ReturnType<typeof useLocalization>["t"]):
 
 /** Things Super Ontology was not sure about. Plain accept and reject are decided here; kinds that need a choice open the engine's own flow in the CLI. */
 export function ReviewQueue() {
-  const { t } = useLocalization();
+  const { t, formatNumber } = useLocalization();
   const actions = useSuperDriveActions();
   const errorText = useErrorText();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
@@ -55,7 +55,7 @@ export function ReviewQueue() {
                   <span className="so-list-sub so-truncate">{detail}{item.source?.path ? ` · ${item.source.path}` : ""} · {drive.name}</span>
                   {item.evidence?.[0]?.quote && <span className="so-quote so-truncate">{item.evidence[0].quote}</span>}
                 </span>
-                {typeof item.confidence_bp === "number" && <Badge tone="warning">{Math.round(item.confidence_bp / 100)}%</Badge>}
+                {typeof item.confidence_bp === "number" && <Badge tone="warning">{formatNumber(item.confidence_bp / 10_000, { style: "percent" })}</Badge>}
                 {simple ? (
                   <span className="so-row">
                     <Button size="compact" icon={X} loading={busy === item.id} disabled={busy !== null && busy !== item.id} onClick={() => { void decide(drive.id, item, "reject"); }}>{t("app.review.reject")}</Button>

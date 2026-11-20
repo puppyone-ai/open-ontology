@@ -1160,5 +1160,8 @@
   "engine.folder.open": "Show",
   "engine.folder.view": "View",
   "engine.manual.show": "Show",
-  "engine.manual.hide": "Hide"
+  "engine.manual.hide": "Hide",
+  "share.field.copyLabel": "Copy {label}",
+  "share.field.copy": "Copy",
+  "share.field.copied": "Copied"
 }
