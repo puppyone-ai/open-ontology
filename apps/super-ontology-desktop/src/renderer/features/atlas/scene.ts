@@ -60,6 +60,8 @@ export type GroupLink = { a: number; b: number; weight: number; count: number };
 export type SceneOptions = {
   /** Open every group at once. Default: open them all when there are at most this many members. */
   expandAllUpTo?: number;
+  /** Width over height of the stage (1 to 2): the groups are laid out wider than tall so a wide stage is filled. */
+  aspect?: number;
 };
 
 /** The motion of 25 section 7.3: a node scales in over 200 ms, a link is drawn over 200 ms, a change rings for 400 ms, new ones stagger by 16 ms. */
@@ -99,6 +101,7 @@ export class AtlasScene {
   clock = 0;
   breathe = 0;
   private growth: { steps: (() => void)[]; at: number; gap: number } | null = null;
+  private stretch = 1;
   private linksDrawing = 0;
   private bornInBatch = 0;
   private hulls = new Map<number, { key: string; points: Pt[] }>();
@@ -112,6 +115,8 @@ export class AtlasScene {
     for (const member of data.members) sizes.set(member.group, (sizes.get(member.group) ?? 0) + 1);
     const radii = data.groups.map((group) => (open ? expandedRadius(sizes.get(group.id) ?? 0) : collapsedRadius(sizes.get(group.id) ?? 0)));
     const anchors = phyllotaxisAnchors(radii);
+    this.stretch = Math.min(2, Math.max(1, options.aspect ?? 1));
+    for (const anchor of anchors) anchor.x *= this.stretch;
     this.anchorScale = radii.length ? (radii.reduce((a, b) => a + b, 0) / radii.length) * 2.3 : 60;
     data.groups.forEach((group, index) => {
       const node = this.makeGroup(group, anchors[index]!.x, anchors[index]!.y, radii[index]!);
@@ -208,7 +213,8 @@ export class AtlasScene {
   owner(node: SceneNode): SceneNode { return this.nodes[node.group]!; }
 
   bounds() {
-    const visible = this.nodes.filter((node) => (node.kind === "group" || (node.shown && node.appear > 0.5)) && node.alive);
+    // A group with nothing in it draws nothing, so it is not part of what the view is fitted to.
+    const visible = this.nodes.filter((node) => (node.kind === "group" ? node.count > 0 || !node.expanded : node.shown && node.appear > 0.5) && node.alive);
     return discBounds(visible.map((node) => ({ x: node.x, y: node.y, r: node.rBase })));
   }
 
@@ -272,7 +278,7 @@ export class AtlasScene {
       const rank = this.groupList.length;
       const radius = Math.sqrt(rank + 0.5) * this.anchorScale;
       const angle = rank * GOLDEN_ANGLE;
-      const node = this.makeGroup(group, radius * Math.cos(angle), radius * Math.sin(angle), collapsedRadius(0));
+      const node = this.makeGroup(group, radius * Math.cos(angle) * this.stretch, radius * Math.sin(angle), collapsedRadius(0));
       node.appear = 0;
       node.expanded = true;
       this.structure += 1;

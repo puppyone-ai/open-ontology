@@ -60,13 +60,30 @@ export function AtlasCanvas({ data, reducedMotion, onOpen, onSelect, handle }: P
       onSelect: (node) => callbacks.current.onSelect(node),
     });
     controller.current = instance;
-    const measure = () => { const rect = box.getBoundingClientRect(); instance.resize(rect.width, rect.height, window.devicePixelRatio || 1); };
+    // The canvas is sized and placed on the device pixel grid: whole device pixels in size, and shifted so its corner sits on a pixel edge.
+    // A canvas on a fractional offset (a line height of 18.85px above it, say) would be resampled by the compositor and look soft.
+    let last = "";
+    const measure = () => {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = box.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width * ratio)) / ratio;
+      const height = Math.max(1, Math.round(rect.height * ratio)) / ratio;
+      if (element.style.width !== `${width}px`) { element.style.width = `${width}px`; element.style.height = `${height}px`; }
+      element.style.translate = "0px 0px";
+      const placed = element.getBoundingClientRect();
+      element.style.translate = `${Math.round(placed.left * ratio) / ratio - placed.left}px ${Math.round(placed.top * ratio) / ratio - placed.top}px`;
+      const key = `${width}x${height}@${ratio}`;
+      if (key !== last) { last = key; instance.resize(width, height, ratio); }
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(box);
     const wheel = (event: WheelEvent) => instance.wheel(event);
     element.addEventListener("wheel", wheel, { passive: false });
     window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    const shell = new ResizeObserver(measure);
+    shell.observe(document.documentElement);
     // A change of pixel ratio (the window moves to another screen, or the page is zoomed) does not resize the box: listen for it, so the canvas is never drawn blurry.
     let ratio: MediaQueryList | null = null;
     const watchRatio = () => {
@@ -81,6 +98,8 @@ export function AtlasCanvas({ data, reducedMotion, onOpen, onSelect, handle }: P
       observer.disconnect();
       element.removeEventListener("wheel", wheel);
       window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      shell.disconnect();
       ratio?.removeEventListener("change", onRatio);
       instance.dispose();
       controller.current = null;

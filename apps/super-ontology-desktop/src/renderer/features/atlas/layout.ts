@@ -30,7 +30,9 @@ function growLattice(count: number): void {
         if (d <= reach) found.push({ x, y, d: Math.round(d * 1e6) / 1e6, a: Math.atan2(y, x) });
       }
     }
-    found.sort((p, q) => p.d - q.d || p.a - q.a);
+    // Ties keep opposite points together (right and left, then the next pair), so a group of three is a row and of four a tidy kite.
+    const half = (angle: number) => Math.round((((angle % Math.PI) + Math.PI) % Math.PI) * 1e6) / 1e6;
+    found.sort((p, q) => p.d - q.d || half(p.a) - half(q.a) || p.a - q.a);
     if (found.length >= count) { lattice.length = 0; for (const point of found) lattice.push({ x: point.x, y: point.y }); latticeReach = reach; return; }
     reach *= 1.6;
   }

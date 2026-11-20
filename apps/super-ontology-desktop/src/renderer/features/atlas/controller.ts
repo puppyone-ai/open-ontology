@@ -48,15 +48,23 @@ export class AtlasController {
   private lastDraw: DrawStats = { members: 0, labels: 0, links: 0 };
   private disposed = false;
   private fitted = false;
+  /** True once the person moved the camera: from then on a resize keeps the view; before that it keeps the picture fitted to the stage. */
+  private touched = false;
 
   constructor(private readonly canvas: HTMLCanvasElement, data: AtlasData, private readonly options: ControllerOptions) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("Canvas 2D is not available");
     this.ctx = ctx;
-    this.scene = new AtlasScene(data);
+    this.scene = new AtlasScene(data, { aspect: this.aspect() });
     this.layout(true);
     // The lab scripts (scripts/atlas-lab.mjs) drive the atlas through this; it does not exist in a production build.
     if (typeof window !== "undefined" && import.meta.env?.DEV) (window as unknown as { __atlas?: AtlasController }).__atlas = this;
+  }
+
+  /** Width over height of the canvas as it is laid out now; 1 before it has a size. */
+  private aspect(): number {
+    const box = this.canvas.getBoundingClientRect?.();
+    return box && box.width > 0 && box.height > 0 ? box.width / box.height : 1;
   }
 
   get reduced(): boolean { return this.options.reducedMotion; }
@@ -67,7 +75,7 @@ export class AtlasController {
 
   /** Replaces the picture (a new mode, or a first load). */
   setData(data: AtlasData): void {
-    this.scene = new AtlasScene(data);
+    this.scene = new AtlasScene(data, { aspect: this.aspect() });
     this.focus = -1; this.selected = -1; this.lit = null; this.hits = new Set();
     this.pushedStructure = -1;
     this.fitted = false;
@@ -124,12 +132,15 @@ export class AtlasController {
   // ---- sizing and camera ----------------------------------------------------------------------------------------
 
   resize(width: number, height: number, dpr: number): void {
-    this.width = Math.max(1, Math.floor(width));
-    this.height = Math.max(1, Math.floor(height));
-    this.dpr = dpr || 1;
-    this.canvas.width = Math.round(this.width * this.dpr);
-    this.canvas.height = Math.round(this.height * this.dpr);
-    if (!this.fitted) this.fit(false);
+    // The backing store is exactly the CSS size times the pixel ratio, in whole device pixels, and drawing maps onto it without resampling.
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
+    const ratio = dpr || 1;
+    this.canvas.width = Math.max(1, Math.round(this.width * ratio));
+    this.canvas.height = Math.max(1, Math.round(this.height * ratio));
+    this.dpr = this.canvas.width / this.width;
+    // The first measurements of a stage can be taken while the page is still laying out: fit again as long as nobody has moved the view.
+    if (!this.fitted || !this.touched) this.fit(false);
     this.dirty = true;
     this.kick();
   }
@@ -138,6 +149,7 @@ export class AtlasController {
     const target = fitCamera(this.scene.bounds(), this.width, this.height);
     this.fitted = this.width > 0;
     this.moveCamera(target, animated);
+    this.touched = false;
   }
 
   /** Asks for a redraw after the camera was set directly (the measuring page). */
@@ -146,9 +158,11 @@ export class AtlasController {
   zoomBy(factor: number, animated = true): void {
     const target = zoomAt(this.camera, this.width / 2, this.height / 2, factor);
     this.moveCamera(target, animated);
+    this.touched = true;
   }
 
   panBy(dx: number, dy: number): void {
+    this.touched = true;
     this.camera = { ...this.camera, x: this.camera.x + dx, y: this.camera.y + dy };
     this.dirty = true;
     this.kick();
@@ -156,6 +170,7 @@ export class AtlasController {
 
   focusOn(node: SceneNode, zoom = 1.4): void {
     this.moveCamera(centerOn(node.x, node.y, Math.max(this.camera.k, zoom), this.width, this.height), true);
+    this.touched = true;
   }
 
   private moveCamera(target: Camera, animated: boolean): void {
@@ -281,6 +296,7 @@ export class AtlasController {
     // A pinch arrives as a wheel with ctrlKey and small deltas; a mouse wheel as larger ones. Both feel the same this way.
     const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0016));
     this.tween = null;
+    this.touched = true;
     this.camera = zoomAt(this.camera, p.x, p.y, factor);
     this.dirty = true;
     this.kick();

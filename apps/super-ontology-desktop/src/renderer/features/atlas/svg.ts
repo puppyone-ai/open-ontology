@@ -1,5 +1,5 @@
 import { fitCamera } from "./camera";
-import { hullArcs, type Pt } from "./hull";
+import { hullArcs, hullPadPx, type Pt } from "./hull";
 import { CANVAS, TEXT, TEXT_WEAK, TONE_FILL, TONE_INK, rgba } from "./palette";
 import type { AtlasScene } from "./scene";
 
@@ -9,7 +9,6 @@ import type { AtlasScene } from "./scene";
  * so the output does not depend on floating point noise.
  */
 const n = (value: number): string => String(Math.round(value * 10) / 10);
-const HULL_PAD = 14;
 const MARK = 0.8;
 
 export function sceneToSvg(scene: AtlasScene, width: number, height: number): string {
@@ -27,7 +26,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
     if (!visible(group)) continue;
     const local = scene.hullOf(group);
     if (local.length === 0) continue;
-    const radius = (group.expanded ? HULL_PAD : Math.max(4, group.r * 0.28)) * k;
+    const radius = (group.expanded ? hullPadPx(k) : Math.max(4, group.r * 0.28) * k);
     const pts: Pt[] = local.map((p) => ({ x: px(group.x + p.x), y: py(group.y + p.y) }));
     const arcs = hullArcs(pts);
     const at = (a: { x: number; y: number }, angle: number) => `${n(a.x + radius * Math.cos(angle))} ${n(a.y + radius * Math.sin(angle))}`;
@@ -39,7 +38,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
 
   // Links: straight, one pixel, from the edge of one mark to the edge of the other.
   out.push(`<g fill="none" stroke="${rgba(TONE_INK.stone, 0.12)}" stroke-width="1">`);
-  const reach = (node: { r: number }) => Math.max(1, node.r * MARK * k) + 2;
+  const reach = (node: { r: number }) => Math.max(1, Math.min(node.r * MARK * k, 3 + (node.r - 3.2) * 0.625)) + 2;
   for (const link of scene.links) {
     const a = scene.nodes[link.a]!, b = scene.nodes[link.b]!;
     if (!visible(a) || !visible(b) || a.appear < 0.5 || b.appear < 0.5) continue;
@@ -55,7 +54,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
   for (const node of scene.nodes) {
     if (node.kind !== "member" || !visible(node)) continue;
     const x = px(node.x), y = py(node.y);
-    const half = Math.max(1, node.r * MARK * k * scene.grown(node));
+    const half = Math.max(1, Math.min(node.r * MARK * k, 3 + (node.r - 3.2) * 0.625) * scene.grown(node));
     const fill = TONE_FILL[node.tone];
     if (node.origin === "doc") out.push(`<circle cx="${n(x)}" cy="${n(y)}" r="${n(half)}" fill="${fill}" stroke="#ffffff" stroke-width="1"/>`);
     else if (node.origin === "db") out.push(`<rect x="${n(x - half)}" y="${n(y - half)}" width="${n(half * 2)}" height="${n(half * 2)}" rx="2" fill="${fill}" stroke="#ffffff" stroke-width="1"/>`);
@@ -67,7 +66,7 @@ export function sceneToSvg(scene: AtlasScene, width: number, height: number): st
     if (!visible(group)) continue;
     const local = scene.hullOf(group);
     if (local.length === 0) continue;
-    const pad = group.expanded ? HULL_PAD : Math.max(4, group.r * 0.28);
+    const pad = group.expanded ? hullPadPx(k) / k : Math.max(4, group.r * 0.28);
     const x = px(group.x + Math.min(...local.map((p) => p.x)) - pad), y = py(group.y + Math.min(...local.map((p) => p.y)) - pad);
     out.push(`<text x="${n(x)}" y="${n(y - 8)}" font-size="13" font-weight="500" fill="${TEXT}" style="font-variant-numeric: tabular-nums">${group.label.replace(/&/g, "&amp;").replace(/</g, "&lt;")}<tspan dx="6" fill="${TEXT_WEAK}">${group.count}</tspan></text>`);
   }

@@ -24,6 +24,6 @@ const mix = (a: Rgb, b: Rgb, t: number): Rgb => [Math.round(a[0] + (b[0] - a[0])
 const hex = ([r, g, b]: Rgb): string => `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 const GREY: Rgb = [128, 124, 120];
 /** The solid fill of a tone: its colour greyed and lightened, so a field of them stays calm. */
-export const TONE_FILL: Record<AtlasTone, string> = Object.fromEntries((Object.keys(TONE_RGB) as AtlasTone[]).map((tone) => [tone, hex(mix(mix(TONE_RGB[tone], GREY, 0.42), [250, 249, 249], 0.14))])) as Record<AtlasTone, string>;
+export const TONE_FILL: Record<AtlasTone, string> = Object.fromEntries((Object.keys(TONE_RGB) as AtlasTone[]).map((tone) => [tone, hex(mix(mix(TONE_RGB[tone], GREY, 0.26), [250, 249, 249], 0.1))])) as Record<AtlasTone, string>;
 /** Outlines and rings of a tone: a darker step of the same colour. */
 export const TONE_INK: Record<AtlasTone, Rgb> = Object.fromEntries((Object.keys(TONE_RGB) as AtlasTone[]).map((tone) => [tone, mix(TONE_RGB[tone], GREY, 0.18)])) as Record<AtlasTone, Rgb>;

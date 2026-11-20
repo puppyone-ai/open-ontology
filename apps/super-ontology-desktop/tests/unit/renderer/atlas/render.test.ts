@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fitCamera } from "../../../../src/renderer/features/atlas/camera";
-import { clearSpriteCache, drawAtlas, type DrawState } from "../../../../src/renderer/features/atlas/render";
+import { hullPadPx } from "../../../../src/renderer/features/atlas/hull";
+import { clearSpriteCache, drawAtlas, markPx, type DrawState } from "../../../../src/renderer/features/atlas/render";
 import { AtlasScene } from "../../../../src/renderer/features/atlas/scene";
 import { SimCore } from "../../../../src/renderer/features/atlas/simulation";
 import { sceneToSvg } from "../../../../src/renderer/features/atlas/svg";
@@ -181,6 +182,44 @@ describe("atlas drawing", () => {
   });
 });
 
+describe("links, marks and zoom", () => {
+  it("draws one summary line per pair of groups in the overview, and single links only inside open groups", () => {
+    const scene = new AtlasScene(syntheticAtlas({ groups: 5, members: 300, linkRatio: 1.5, seed: 4, dbShare: 0 }));
+    settle(scene);
+    const overview = drawAtlas(recorder().ctx, scene, state(scene));
+    const pairs = scene.groupLinks.length;
+    const inside = scene.links.filter((l) => scene.nodes[l.a]!.group === scene.nodes[l.b]!.group).length;
+    expect(overview.links).toBeLessThanOrEqual(pairs + inside);
+    expect(overview.links).toBeLessThan(scene.links.length);
+    const camera = { ...fitCamera(scene.bounds(), 1000, 700), k: 2.2 };
+    const zoomed = drawAtlas(recorder().ctx, scene, state(scene, { camera: { ...camera, x: 500 - scene.groups[0]!.x * 2.2, y: 350 - scene.groups[0]!.y * 2.2 } }));
+    expect(zoomed.links).toBeGreaterThan(0);
+  });
+
+  it("keeps a mark between 6 and 10 pixels across at any zoom, and lets it shrink only when far out", () => {
+    const scene = mixed(60);
+    const node = scene.nodes.find((n) => n.kind === "member")!;
+    for (const k of [1, 2, 4, 8, 12]) { const half = markPx(node, k); expect(half).toBeGreaterThanOrEqual(2.5); expect(half).toBeLessThanOrEqual(5); }
+    expect(markPx(node, 0.1)).toBeLessThan(2);
+    const big = scene.nodes.filter((n) => n.kind === "member").sort((a, b) => b.r - a.r)[0]!;
+    expect(markPx(big, 12) * 2).toBeLessThanOrEqual(10);
+  });
+
+  it("draws arrowheads of 8 pixels at 1x", () => {
+    const scene = new AtlasScene(syntheticAtlas({ groups: 1, members: 4, linkRatio: 1, seed: 2, dbShare: 1 }));
+    settle(scene);
+    const lines: number[][] = [];
+    const target: Record<string, unknown> = {};
+    const ctx = new Proxy(target, { get: (t, name: string) => (name in t ? t[name] : name === "measureText" ? () => ({ width: 10 }) : () => undefined), set: (t, name: string, v) => { t[name] = v; return true; } }) as unknown as CanvasRenderingContext2D;
+    (globalThis as { Path2D?: unknown }).Path2D = class { moveTo(...a: number[]) { lines.push(a); } lineTo(...a: number[]) { lines.push(a); } closePath() { /* none */ } };
+    try { drawAtlas(ctx, scene, state(scene, { dpr: 1, camera: { ...fitCamera(scene.bounds(), 1000, 700) } })); } finally { delete (globalThis as { Path2D?: unknown }).Path2D; }
+    const tips = lines.filter((_, i) => i % 3 === 0);
+    expect(tips.length).toBeGreaterThan(0);
+    const back = lines[1]!, tip = lines[0]!;
+    expect(Math.hypot(back[0]! - tip[0]!, back[1]! - tip[1]!)).toBeGreaterThanOrEqual(8);
+  });
+});
+
 describe("group labels", () => {
   it("sit above the top left of their outline at every zoom, never on a member", () => {
     for (const zoom of [0.6, 1, 2.5]) {
@@ -195,8 +234,9 @@ describe("group labels", () => {
         if (!label) continue;
         seen += 1;
         const hull = scene.hullOf(group);
-        const top = (group.y + Math.min(...hull.map((p) => p.y)) - 14) * zoom + camera.y;
-        const leftEdge = (group.x + Math.min(...hull.map((p) => p.x)) - 14) * zoom + camera.x;
+        const pad = hullPadPx(zoom) / zoom;
+        const top = (group.y + Math.min(...hull.map((p) => p.y)) - pad) * zoom + camera.y;
+        const leftEdge = (group.x + Math.min(...hull.map((p) => p.x)) - pad) * zoom + camera.x;
         expect(label.y, `${group.label} at zoom ${zoom}`).toBeLessThan(top);
         expect(Math.abs(label.x - leftEdge)).toBeLessThanOrEqual(22);
       }

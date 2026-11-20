@@ -1,5 +1,5 @@
 import type { Camera } from "./camera";
-import { hullArcs, hullBounds, type Pt } from "./hull";
+import { hullArcs, hullBounds, hullPadPx } from "./hull";
 import { ACCENT, CANVAS, TEXT, TEXT_SECOND, TEXT_WEAK, TONE_FILL, TONE_INK, rgba } from "./palette";
 import type { AtlasOrigin, AtlasTone } from "./model";
 import { ease, type AtlasScene, type SceneNode } from "./scene";
@@ -32,11 +32,12 @@ const MAX_LABELS = 260;
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", system-ui, sans-serif';
 /** Half size of a member's mark, in world units, as a share of its radius; and the padding the hull keeps around its members. */
 const MARK = 0.8;
-const HULL_PAD = 14;
 /** World zoom above which labels of members may appear (the lattice pitch on screen is then wide enough for a name). */
 const LABEL_ZOOM = 2.1;
 /** Below this zoom only the aggregated links between groups are drawn. */
 const DETAIL_ZOOM = 0.35;
+/** From this zoom on the links between single cells of different groups are drawn; before it, one summary line per pair of groups. */
+const CROSS_ZOOM = 1.8;
 const DIM_NODE = 0.3;
 const DIM_LINK = 0.04;
 
@@ -83,9 +84,9 @@ const glyphPath = (kind: string): Path2D | null => {
 export const GLYPH_PX = 12;
 
 /** Half size, in CSS pixels, of what is drawn for a member at zoom `k` and growth `scale` (the ring of a "both" mark included). */
-/** Marks grow with the zoom up to 1.5x and then slowly, so a zoomed in picture stays fine and does not turn into blobs. */
-export const markZoom = (k: number): number => (k <= 1.5 ? k : 1.5 + (k - 1.5) * 0.3);
-export const markHalf = (node: SceneNode, k: number, scale = 1): number => Math.max(1, node.r * MARK * markZoom(k) * scale) + (node.origin === "both" ? 3 : 0);
+/** Half size of a mark in screen pixels: it follows the zoom when far out, and stops at 3 to 5 pixels (6 to 10 across) by weight, so zooming spreads the layout and never inflates the marks. */
+export const markPx = (node: SceneNode, k: number): number => Math.max(1, Math.min(node.r * MARK * k, 3 + (node.r - 3.2) * 0.625));
+export const markHalf = (node: SceneNode, k: number, scale = 1): number => Math.max(1, markPx(node, k) * scale) + (node.origin === "both" ? 3 : 0);
 
 type Batch = { tone: AtlasTone; origin: AtlasOrigin; dim: boolean; values: number[]; alpha?: number };
 
@@ -174,7 +175,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     if (!shown(group) || (group.count === 0 && group.expanded)) continue;
     const local = scene.hullOf(group);
     if (local.length === 0) continue;
-    const pad = group.expanded ? HULL_PAD : 0;
+    const pad = group.expanded ? hullPadPx(k) / k : 0;
     const folded = !group.expanded;
     const radius = folded ? Math.max(4, group.r * 0.28) : pad;
     const world = local.map((p) => ({ x: group.x + p.x, y: group.y + p.y }));
@@ -183,17 +184,18 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     const dim = dimmed(group);
     const active = state.selected === group.idx || state.focus === group.idx;
     const fade = (1 - group.retract) * (dim ? 0.35 : 1);
-    const screen: Pt[] = world.map((p) => ({ x: snap(toX(p.x)), y: snap(toY(p.y)) }));
     const padPx = Math.round(radius * k * dpr);
     ctx.beginPath();
-    const arcs = hullArcs(screen);
+    // The turns are worked out in world space, where they are exact; only the centres are then put on the pixel grid.
+    const arcs = hullArcs(world);
     arcs.forEach((arc, i) => {
-      if (arcs.length === 1) { ctx.moveTo(arc.x + padPx, arc.y); ctx.arc(arc.x, arc.y, padPx, 0, TAU); return; }
-      ctx.arc(arc.x, arc.y, padPx, arc.a0, arc.a1);
+      const cx = snap(toX(arc.x)), cy = snap(toY(arc.y));
+      if (arcs.length === 1) { ctx.moveTo(cx + padPx, cy); ctx.arc(cx, cy, padPx, 0, TAU); return; }
+      ctx.arc(cx, cy, padPx, arc.a0, arc.a1);
       if (i === arcs.length - 1) ctx.closePath();
     });
     ctx.globalAlpha = fade;
-    ctx.fillStyle = rgba(TONE_INK[group.tone], folded ? 0.06 : 0.03);
+    ctx.fillStyle = rgba(TONE_INK[group.tone], folded ? 0.05 : 0.02);
     ctx.fill();
     ctx.lineWidth = hair;
     ctx.strokeStyle = active ? rgba(ACCENT, 0.9) : rgba(TONE_INK[group.tone], 0.4);
@@ -206,7 +208,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
 
   // 2. Links, straight one pixel lines under the marks. They stop at the edge of the mark; a directed one ends in a small arrowhead once
   //    the picture is large enough to read it. Far out only the aggregated links between groups are drawn.
-  const arrowsOn = k >= 1.2;
+  const arrowsOn = k >= 0.8;
   const density = scene.links.length <= 40 ? 0.42 : scene.links.length <= 120 ? 0.2 : 0.12;
   const tip = (node: SceneNode) => markHalf(node, k, scene.grown(node)) + 2;
   /** Appends the segment between two cells, trimmed at both marks, to the current path; true when it was long enough to draw. */
@@ -224,7 +226,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     ctx.moveTo(snap(x0 * dpr), snap(y0 * dpr));
     ctx.lineTo(snap((x0 + (x1 - x0) * reach) * dpr), snap((y0 + (y1 - y0) * reach) * dpr));
     if (arrows && from >= 0 && t >= 1) {
-      const s = 5 * dpr, w = 2.5 * dpr;
+      const s = 8 * dpr, w = 3.5 * dpr;
       const px = x1 * dpr, py = y1 * dpr;
       arrows.moveTo(px, py);
       arrows.lineTo(px - ux * s - uy * w, py - uy * s + ux * w);
@@ -244,13 +246,15 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     for (const link of scene.links) {
       const a = nodes[link.a]!, b = nodes[link.b]!;
       if (!linkVisible(a, b) || !(a.shown && b.shown)) continue;
+      // Between single cells only inside an open group, or once zoomed in far enough; otherwise the summary lines stand for them.
+      if (!(a.group === b.group && nodes[a.group]!.expanded) && k < CROSS_ZOOM) continue;
       if (!inView(a.x, a.y, 40) && !inView(b.x, b.y, 40)) continue;
       if (link.t < 1) { drawing.push([a, b, link.from, link.t]); continue; }
       if (segment(a, b, link.from, 1, arrows)) stats.links += 1;
     }
     ctx.strokeStyle = rgba(TONE_INK.stone, lit !== null ? DIM_LINK : density);
     ctx.stroke();
-    if (arrows) { ctx.fillStyle = rgba(TONE_INK.stone, lit !== null ? DIM_LINK * 2 : Math.min(0.7, density + 0.2)); ctx.fill(arrows); }
+    if (arrows) { ctx.fillStyle = rgba(TONE_INK.stone, lit !== null ? DIM_LINK * 2 : Math.min(0.75, density + 0.3)); ctx.fill(arrows); }
     if (drawing.length) {
       ctx.beginPath();
       for (const [a, b, from, t] of drawing) if (segment(a, b, from, ease(t), null)) stats.links += 1;
@@ -262,12 +266,12 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   for (const link of scene.groupLinks) {
     const a = nodes[link.a]!, b = nodes[link.b]!;
     if (!shown(a) || !shown(b)) continue;
-    if (k >= DETAIL_ZOOM && a.expanded && b.expanded) continue;
+    if (k >= CROSS_ZOOM) continue;
     if (!inView(a.x, a.y, a.r) && !inView(b.x, b.y, b.r)) continue;
     const near = lit === null || (lit.has(a.idx) && lit.has(b.idx));
     const px = Math.min(3, Math.max(1, Math.round(1 + Math.log2(link.count) / 2)));
     ctx.lineWidth = px * hair;
-    ctx.strokeStyle = rgba(TONE_INK.stone, near ? (lit !== null ? 0.5 : Math.max(density, 0.16)) : DIM_LINK);
+    ctx.strokeStyle = rgba(TONE_INK.stone, near ? (lit !== null ? 0.5 : 0.2) : DIM_LINK);
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
     const ra = (a.expanded ? a.r : a.r * 0.9) * k, rb = (b.expanded ? b.r : b.r * 0.9) * k;
     if (len * k <= ra + rb) continue;
@@ -301,7 +305,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   for (const node of nodes) {
     if (node.kind !== "member" || !shown(node)) continue;
     const scale = scene.grown(node);
-    const r = node.r * MARK * markZoom(k) * scale;
+    const r = markPx(node, k) * scale;
     if (scale <= 0 || !inView(node.x, node.y, node.r)) continue;
     stats.members += 1;
     const dim = dimmed(node);
@@ -330,7 +334,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
     for (let i = 0; i < bucket.values.length; i += 2) ctx.fillRect(bucket.values[i]! - speck / 2, bucket.values[i + 1]! - speck / 2, speck, speck);
   }
   for (const { node, scale } of single) {
-    const half = Math.max(1, Math.round(node.r * MARK * markZoom(k) * scale * dpr));
+    const half = Math.max(1, Math.round(markPx(node, k) * scale * dpr));
     const x = toX(node.x), y = toY(node.y);
     const batch: Batch = { tone: node.tone, origin: node.origin, dim: dimmed(node), values: [node.origin === "doc" ? Math.round(x) : Math.round(x - half) + half, node.origin === "doc" ? Math.round(y) : Math.round(y - half) + half, half] };
     batch.alpha = (1 - node.retract) * (batch.dim ? DIM_NODE : 1);
@@ -375,7 +379,8 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   const taken: [number, number, number, number][] = [];
   const overlaps = (b: [number, number, number, number]) => taken.some((t) => b[0] < t[2] && b[2] > t[0] && b[1] < t[3] && b[3] > t[1]);
   const marks: [number, number, number, number][] = [];
-  if (k >= LABEL_ZOOM * 0.8) for (const node of nodes) { if (node.kind === "member" && shown(node) && inView(node.x, node.y, node.r)) { const h = markHalf(node, k, 1) + 1; const x = node.x * k + camera.x, y = node.y * k + camera.y; marks.push([x - h, y - h, x + h, y + h]); } }
+  const labelAll = k >= LABEL_ZOOM || (k >= 0.8 && scene.memberCount <= 24);
+  if (labelAll) for (const node of nodes) { if (node.kind === "member" && shown(node) && inView(node.x, node.y, node.r)) { const h = markHalf(node, k, 1) + 1; const x = node.x * k + camera.x, y = node.y * k + camera.y; marks.push([x - h, y - h, x + h, y + h]); } }
   const hitsMark = (b: [number, number, number, number]) => marks.some((m) => b[0] < m[2] && b[2] > m[0] && b[1] < m[3] && b[3] > m[1]);
 
   ctx.font = `500 13px ${FONT}`;
@@ -429,11 +434,11 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
   ctx.strokeStyle = CANVAS;
   const wanted = (node: SceneNode) => node.idx === state.focus || node.idx === state.selected || hits.has(node.idx) || (lit !== null && lit.has(node.idx) && k > 1);
   const candidates: { node: SceneNode; strong: boolean }[] = [];
-  if (k >= LABEL_ZOOM || state.focus >= 0 || state.selected >= 0 || hits.size > 0 || lit !== null) {
+  if (labelAll || state.focus >= 0 || state.selected >= 0 || hits.size > 0 || lit !== null) {
     for (const node of nodes) {
       if (node.kind !== "member" || !shown(node) || node.appear < 0.6) continue;
       const strong = wanted(node);
-      if (strong || k >= LABEL_ZOOM) candidates.push({ node, strong });
+      if (strong || labelAll) candidates.push({ node, strong });
     }
   }
   candidates.sort((a, b) => Number(b.strong) - Number(a.strong) || b.node.r - a.node.r);
@@ -453,7 +458,7 @@ export function drawAtlas(ctx: CanvasRenderingContext2D, scene: AtlasScene, stat
       taken.push(box);
       ctx.textAlign = align;
       ctx.textBaseline = "middle";
-      const tx = Math.round(px), ty = Math.round(py);
+      const tx = Math.round(px * dpr) / dpr, ty = Math.round(py * dpr) / dpr;
       ctx.strokeText(node.label, tx, ty);
       ctx.fillStyle = strong ? TEXT : TEXT_SECOND;
       ctx.fillText(node.label, tx, ty);

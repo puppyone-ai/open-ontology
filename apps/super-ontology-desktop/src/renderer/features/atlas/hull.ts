@@ -45,3 +45,6 @@ export function hullBounds(hull: readonly Pt[], pad: number): { minX: number; mi
 /** The four corners of the outline of a folded group: a square, which the padding then rounds. */
 export const foldedCorners = (r: number): Pt[] => { const h = r * 0.62; return [{ x: -h, y: -h }, { x: h, y: -h }, { x: h, y: h }, { x: -h, y: h }]; };
 export const foldedPad = (r: number): number => r * 0.28;
+
+/** Padding of a group outline in screen pixels: about 16 when zoomed in, tighter when far out so small groups do not swell. */
+export const hullPadPx = (k: number): number => Math.min(16, Math.max(6, 14 * k));

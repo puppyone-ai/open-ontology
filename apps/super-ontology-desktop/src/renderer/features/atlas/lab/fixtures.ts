@@ -100,7 +100,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0
  * Serves `data` as the engine would: entity listing pages, entity pages whose facts name other entities, the document to table
  * links and the table catalog. Only for the entity types and the schemas in `data`; `files` come from `drives`.
  */
-export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; files?: FileSummary[]; failCatalog?: boolean; failLinks?: boolean } = {}): AtlasSource & { calls: Record<string, number> } {
+export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; files?: FileSummary[]; failCatalog?: boolean; failLinks?: boolean; databaseName?: string } = {}): AtlasSource & { calls: Record<string, number> } {
   const calls: Record<string, number> = {};
   const count = (name: string) => { calls[name] = (calls[name] ?? 0) + 1; };
   const entities = data.members.filter((m) => m.ref.kind === "entity");
@@ -119,6 +119,7 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
   const fileRows = extra.files ?? [...docLinks.map(([key], i) => fileOf(5000 + i, driveId, `notes/${key}.md`)), ...fillers];
   return {
     calls,
+    ...(extra.databaseName ? { databaseName: async () => extra.databaseName! } : {}),
     entities: async ({ limit, cursor }) => {
       count("entities");
       const start = cursor ? Number(cursor) : 0;
@@ -159,3 +160,13 @@ export function fakeAtlasSource(data: AtlasData, extra: { drives?: Drive[]; file
 }
 
 export { ENTITY_TYPE_VALUES, tableId, typeGroupId };
+
+/** The shape of the real database-only run (a local Postgres, 4 tables, 3 foreign keys), for the lab: `atlas-lab.html?shop=1`. */
+export function shopAtlas(): AtlasData {
+  const group: AtlasGroup = { id: dbGroupId("public"), kind: "db", label: "shop · public", tone: "mist", source: "database" };
+  const names = ["customers", "products", "orders", "order_items"];
+  const members: AtlasMember[] = names.map((name) => ({ id: tableId({ schema: "public", table: name }), group: group.id, label: name, ref: { kind: "table", table: `public.${name}` }, weight: 3, born: null }));
+  const id = (name: string) => tableId({ schema: "public", table: name });
+  const fk = (from: string, to: string): AtlasLink => { const [a, b] = id(from) < id(to) ? [id(from), id(to)] : [id(to), id(from)]; return { a, b, kind: "foreign_key", weight: 1, from: id(from) }; };
+  return { groups: [group], members, links: [fk("orders", "customers"), fk("order_items", "orders"), fk("order_items", "products")], versions: [], partial: [] };
+}

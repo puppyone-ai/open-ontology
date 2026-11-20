@@ -11,7 +11,7 @@ export type LabBridge = { bridge: SuperOntologyBridge; push(events: EngineEvent[
 const snapshot = { revision: 1, status: "healthy", reason: null, code: null, preflight: null, health: { events_head: 0 }, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: null, mode: "local", remote: null, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 } };
 
 export function createLabBridge(initial: AtlasData): LabBridge {
-  let source = fakeAtlasSource(initial);
+  let source = fakeAtlasSource(initial, initial.groups.length === 1 && initial.groups[0]!.kind === "db" ? { databaseName: "shop", drives: [] } : {});
   const listeners = new Set<(push: SuperOntologyPush) => void>();
   const calls: Record<string, number> = {};
   let seq = 0;
