@@ -5,6 +5,8 @@
 //   SO_T1_OO_BIN=<an oo built with --features docs, with oo-docs-engine next to it>
 //   SO_T1_MODEL_ENDPOINT_FILE / SO_T1_MODEL_KEY_FILE   private files holding the model endpoint and key (default: the two in ~/.config/open-ontology/secrets)
 //   SO_T1_MODEL            the model name (default ds/deepseek-chat)
+//   SO_T1_LIVE_STOP=doctor           stop after Add, test and doctor (the model is only saved as settings, never called): the check that the bundled helpers work
+//   SO_T1_LANE=<lane>                the label suffix of the containers: super-ontology-<lane> (default appp)
 //   SO_T1_LITE_IMAGE       the runtime image reference (default: the digest pinned for this machine in deploy/lite/images.lock.json)
 // Everything lives in a temporary folder that is also the home of every process; containers carry oo.lane=super-ontology-appp (the lite
 // stack, whose lane label is 8 characters at most, carries oo.lane=appp) and are removed at the end. Endpoint, key and password values
@@ -18,6 +20,8 @@ import { EXIT_SKIPPED, runScenario } from "../harness/session.mjs";
 import { startLiveDatabase } from "../harness/live-db.mjs";
 
 const kind = process.env.SO_T1_LIVE;
+const stopAtDoctor = process.env.SO_T1_LIVE_STOP === "doctor";
+const lane = process.env.SO_T1_LANE ?? "appp";
 const secretsHome = path.join(os.homedir(), ".config", "open-ontology", "secrets");
 const endpointFile = process.env.SO_T1_MODEL_ENDPOINT_FILE ?? path.join(secretsHome, "model-endpoint-9r");
 const keyFile = process.env.SO_T1_MODEL_KEY_FILE ?? path.join(secretsHome, "model-key-9r-sol");
@@ -38,13 +42,13 @@ function liteImage() {
   return listed.find((line) => digest && line.endsWith(`@${digest}`) && !line.startsWith("<none>")) ?? "";
 }
 process.env.OO_LITE_RUNTIME_IMAGE = liteImage();
-process.env.OO_LITE_LANE = "appp";
+process.env.OO_LITE_LANE = lane;
 process.env.OO_LITE_OFFLINE = "1";
-if (!process.env.OO_LITE_RUNTIME_IMAGE) { console.error("databases-live: no local runtime image matches the pinned digest (set SO_T1_LITE_IMAGE)"); process.exit(EXIT_SKIPPED); }
+if (!process.env.OO_LITE_RUNTIME_IMAGE && !stopAtDoctor) { console.error("databases-live: no local runtime image matches the pinned digest (set SO_T1_LITE_IMAGE)"); process.exit(EXIT_SKIPPED); }
 
 const removeLabelled = () => {
   for (const [list, remove] of [[["ps", "-aq"], ["rm", "-f", "-v"]], [["volume", "ls", "-q"], ["volume", "rm", "-f"]], [["network", "ls", "-q"], ["network", "rm"]]]) {
-    for (const lane of ["appp", "super-ontology-appp"]) {
+    for (const lane of [process.env.OO_LITE_LANE, `super-ontology-${process.env.OO_LITE_LANE}`]) {
       try { const ids = execFileSync("docker", [...list, "--filter", `label=oo.lane=${lane}`], { encoding: "utf8" }).split("\n").filter(Boolean); if (ids.length > 0) execFileSync("docker", [...remove, ...ids], { stdio: "ignore" }); } catch { /* nothing to remove */ }
     }
   }
@@ -70,6 +74,8 @@ runScenario({ name: "databases-live", title: `A real ${live.kind} database, from
   const endpoint = (await fs.readFile(endpointFile, "utf8")).trim();
   const apiKey = (await fs.readFile(keyFile, "utf8")).trim();
   const model = { provider: "openai-compatible", baseUrl: endpoint, model: process.env.SO_T1_MODEL ?? "ds/deepseek-chat", apiKey };
+  // The packaged app starts the engine itself: wait until the app has adopted it, not only until the engine answers.
+  await s.until(`window.superOntology.invoke("model-config-read", {}).then((r) => r.ok || r.error?.code !== "SO_ENGINE_NOT_RUNNING")`, "the app owns a running engine", { timeoutMs: 120_000 });
   const saved = await s.evaluate(`(async () => { const current = await window.superOntology.invoke("model-config-read", {}); const revision = current.ok ? (current.value.revision ?? 0) : 0; const r = await window.superOntology.invoke("model-config-save", { ...${JSON.stringify(model)}, revision }); return r.ok ? "ok" : JSON.stringify(r.error).slice(0, 300); })()`);
   s.check("the model is saved through the app's model settings", saved === "ok", String(saved));
 
@@ -99,6 +105,11 @@ runScenario({ name: "databases-live", title: `A real ${live.kind} database, from
   await s.click("database-doctor");
   await s.waitFor("database-doctor-result", {}, { timeoutMs: 180_000 });
   s.check("the read-only doctor reads the catalog", (await s.attr("database-doctor-result", "data-status")) !== "blocked", String(await s.attr("database-doctor-result", "data-status")));
+  if (stopAtDoctor) {
+    s.check("the doctor of the bundled helpers reports ok", (await s.attr("database-doctor-result", "data-status")) === "ok", String(await s.attr("database-doctor-result", "data-status")));
+    await s.shot("doctor-ok");
+    return;
+  }
   const stackText = await fs.readFile(path.join(s.userData, "engine", "stack.yaml"), "utf8");
   s.check("the stack file holds no password and no model key", !stackText.includes(password) && !stackText.includes(apiKey));
   lap("connected");

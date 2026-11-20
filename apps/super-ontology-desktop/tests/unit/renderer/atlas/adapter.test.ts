@@ -69,6 +69,20 @@ describe("atlas data adapter", () => {
     expect(noLinks.data.links.some((l) => l.kind === "foreign_key")).toBe(true);
   });
 
+  it("a database-only setup is not a partial picture, and the group is named by source and schema", async () => {
+    const base = fakeAtlasSource(corpus());
+    const source = {
+      ...base,
+      drives: async () => ({ ok: false as const, error: { code: "ONTOLOGY_NOT_CONFIGURED", retryable: false } }),
+      links: async () => ({ ok: false as const, error: { code: "NOT_FOUND", retryable: false } }),
+      databaseName: async () => "shop",
+    };
+    const { data } = await loadAtlas(source as never, { mode: "source" });
+    expect(data.partial).toEqual([]);
+    expect(data.groups.filter((g) => g.kind === "db").every((g) => g.label.startsWith("shop · "))).toBe(true);
+    expect(data.links.some((l) => l.kind === "foreign_key")).toBe(true);
+  });
+
   it("source mode groups files by Drive and skips deleted and superseded ones", async () => {
     const drive = { id: "00000000-0000-4000-8000-000000000001", name: "Docs", backend: "fs", config: {}, status: "active", revision: 1, counts: {}, created_at: "x" };
     const file = (n: number, state: string) => ({ id: `f${n}`, drive_id: drive.id, path: `a/b/doc-${n}.md`, state, state_since: "x", retryable: false, pending_review: 0 });

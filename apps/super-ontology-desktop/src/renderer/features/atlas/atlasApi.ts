@@ -68,5 +68,10 @@ export const atlasSource: AtlasSource = {
   drives: () => superDriveApi.listDrives(),
   files: ({ driveId, limit, cursor }) => superDriveApi.listFiles({ driveId, recursive: true, limit, cursor }),
   links: async () => validated(await invoke("atlas-links", {}), (value) => (isLinkList(value) ? value : null)),
+  databaseName: async () => {
+    const result = await invoke("cli-db-list", {});
+    const sources = result.ok && result.value.ok ? result.value.data?.sources ?? [] : [];
+    return sources.length === 1 ? sources[0]!.name : null;
+  },
   catalog: () => catalog().catch(() => failure("SO_ENGINE_UNREACHABLE", true)),
 };

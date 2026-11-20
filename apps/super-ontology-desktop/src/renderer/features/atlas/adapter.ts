@@ -23,6 +23,8 @@ export type AtlasSource = {
   links(): Promise<ApiResult<LinkList>>;
   /** `null` when the database side is not reachable or not configured. */
   catalog(): Promise<ApiResult<DbCatalog>>;
+  /** The name of the one database source, when there is exactly one: groups read "shop · public". Optional. */
+  databaseName?(): Promise<string | null>;
 };
 
 export type LoadOptions = {
@@ -79,6 +81,9 @@ export async function pool<T>(items: readonly T[], width: number, work: (item: T
   await Promise.all(Array.from({ length: Math.min(width, items.length) }, lane));
 }
 
+/** Errors that only mean there is no Drive or no rule yet. */
+const EMPTY_CODES = new Set(["ONTOLOGY_NOT_CONFIGURED", "DRIVE_NOT_CONFIGURED", "NO_DRIVE", "DOCS_NOT_CONFIGURED", "NOT_FOUND"]);
+
 export async function loadAtlas(source: AtlasSource, options: LoadOptions): Promise<LoadResult> {
   const { mode, signal } = options;
   const maxEntities = options.maxEntities ?? 3000;
@@ -108,7 +113,7 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
     }
   } else {
     const drives = await source.drives();
-    if (!drives.ok) partial.add("files");
+    if (!drives.ok) { if (!EMPTY_CODES.has(drives.error.code)) partial.add("files"); }
     else {
       let budget = maxFiles;
       for (const drive of drives.value) {
@@ -135,8 +140,9 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
   if (mode === "source") {
     const catalog = await source.catalog();
     if (catalog.ok) {
+      const dbName = (await source.databaseName?.().catch(() => null)) ?? null;
       const schemas = [...new Set(catalog.value.tables.map((t) => t.schema))].sort();
-      for (const schema of schemas) groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: schema, tone: SOURCE_TONE.database, source: "database" });
+      for (const schema of schemas) groups.set(dbGroupId(schema), { id: dbGroupId(schema), kind: "db", label: dbName ? `${dbName} · ${schema}` : schema, tone: SOURCE_TONE.database, source: "database" });
       for (const table of catalog.value.tables) {
         const id = tableId(table);
         tableIds.set(`${table.schema}.${table.table}`, id);
@@ -147,7 +153,8 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
     emit();
 
     // Document to table links: a file whose entity matches a row links to that table.
-    if (tableIds.size > 0) {
+    // With no documents there is nothing to link from: that is an empty result, not a failure.
+    if (tableIds.size > 0 && filesByPath.size > 0) {
       const linkList = await source.links();
       if (linkList.ok) {
         const bySuffix = new Map<string, string | null>();
@@ -158,7 +165,7 @@ export async function loadAtlas(source: AtlasSource, options: LoadOptions): Prom
           const from = item.provenance?.file?.map((f) => filesByPath.get(`${item.drive_id}|${f.path}`)).find((id) => id !== undefined);
           if (target && from) addLink(links, from, target, "link");
         }
-      } else partial.add("links");
+      } else if (!EMPTY_CODES.has(linkList.error.code)) partial.add("links");
     }
     emit();
   }

@@ -18,7 +18,7 @@ files:
 extraResources:
   - from: build/oo-bundle
     to: oo
-    filter: ["oo", "oo-docs-engine", "oo-bundle.json"]
+    filter: ["oo", "oo-docs-engine", "oo-mysql-doctor", "oo-load", "oo-gateway", "mcp-gateway", "oo-bundle.json", "HELPERS.json"]
   - from: build/generated/legal
     to: legal
 electronLanguages: [en, zh_CN, es, pt_BR, fr, de, ja, ko]
