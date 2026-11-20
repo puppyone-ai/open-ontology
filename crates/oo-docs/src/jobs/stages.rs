@@ -1655,9 +1655,8 @@ impl PublishHandler {
         // (the batches that worked stand); one from a failed rules job has no
         // drafts and stays where it is. A draft that waits for a person in the
         // review queue does not hold the file back (`pending_review` counts it, 4.2); neither does a
-        // statement of a speaker nobody confirmed yet (a `speaker_identity` item waits for a person), nor a
-        // fact of a new extraction that DOC-G10 holds (a `reprocess_diff` item waits): a recording whose
-        // statements are all held must still reach `published` (A8).
+        // fact of a new extraction that DOC-G10 holds (a `reprocess_diff` item waits). A speaker nobody has
+        // named holds nothing: its statements publish under a provisional Person (A8).
         let rows: Vec<(String, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
@@ -1670,7 +1669,7 @@ impl PublishHandler {
                                   JOIN _oo_docs.entity s ON s.id = ft.subject_id \
                                  WHERE e.target_kind = 'fact' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND ft.status = 'draft' \
-                                   AND NOT {held} AND NOT {held_reprocess} \
+                                   AND NOT {held_reprocess} \
                                    AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
                                                     WHERE r.status = 'pending' \
                                                       AND r.subject->>'fact_id' = ft.id::text)) \
@@ -1679,7 +1678,6 @@ impl PublishHandler {
                                  WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND a.status = 'draft') \
               ORDER BY 1 LIMIT 500",
-            held = crate::review::speaker::HELD_SQL,
             // A new extraction that DOC-G10 holds for a person: the old extraction stays live, so the file is
             // published (the reprocess_diff item is what waits).
             held_reprocess = crate::publish::reprocess::HELD_SQL.replace("f.fact_key", "ft.fact_key"),

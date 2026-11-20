@@ -16,7 +16,7 @@
 //! | `alias_conflict` | `edit.entity` (a key) gets the alias (overlay `alias_add`) | overlay `alias_reject` | — |
 //! | `reprocess_diff` | the new extraction replaces the old: facts only the old run had are retracted, held new facts are released (DOC-G10) | the old extraction stays, the held new facts are rejected | — |
 //! | `type_promotion` | overlay `type_promote{label, type_name}` (`edit.type_name`, default the label); the prompt version changes and the files holding the label are `outdated` | the item only, never proposed again | — |
-//! | `speaker_identity` | overlay `speaker_map`, the speaker's placeholder Person merged into the named one (`edit.name`, default the first candidate) | the item only; facts stay drafts | — |
+//! | `speaker_identity` | overlay `speaker_map`, the speaker's provisional Person merged into the named one, so its facts are re-attributed (`edit.name`, default the first candidate) | the item only; the facts keep the provisional speaker | — |
 //! | `suggestion` | the suggestion is applied (a fact with `origin = suggest`, the old one ended or retracted; Shares that used it get an update entry) | the suggestion is closed | — |
 //! | `orphaned_overlay` | keep the overlay (`active` again) | withdraw it | — |
 
@@ -423,21 +423,6 @@ async fn apply_one(
             };
             match d {
                 Decision::Accept => {
-                    // A statement of a speaker nobody confirmed does not publish (D74).
-                    let held: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-                        "SELECT EXISTS (SELECT 1 FROM _oo_docs.fact f JOIN _oo_docs.entity s \
-                           ON s.id = f.subject_id WHERE f.id = $1::uuid AND {})",
-                        speaker::HELD_SQL
-                    )))
-                    .bind(fid)
-                    .fetch_one(&mut *conn)
-                    .await?;
-                    if held {
-                        return Ok((
-                            ItemResult::fail(id, "conflict", speaker::CODE_UNCONFIRMED),
-                            None,
-                        ));
-                    }
                     let other = other.filter(|o| *o != fid);
                     accept_fact(conn, &fact, &reason, other, by, id).await?;
                     close_item(conn, id, "accepted", by, note).await?;

@@ -1,10 +1,12 @@
 //! Rules for audio and video IR (10 17.4, D74, board B-S10-08): who is speaking, and what a speaker says about
 //! what they own. Pure and deterministic.
 //!
-//! Speaker labels (`S1`, `S2`) are file-local and carry no identity. A statement such as "我负责星火计划" is
-//! recorded for a placeholder Person, `说话人 S1 · <blob prefix>`, whose facts stay drafts: the publisher holds
-//! them until a person confirms who `S1` is (`review::speaker`), when the placeholder is merged into the named
-//! Person and the facts publish like any others. No voiceprint is stored or compared.
+//! Speaker labels (`S1`, `S2`) are file-local and carry no identity, and extraction never waits for a person to
+//! name them. A statement such as "我负责星火计划" is recorded for the speaker's Person: the name the transcript
+//! or the attendee list states (`resolved`: "我是邵婉清", "I am Tianyou Jiang", or the one attendee nobody else
+//! claims), else a provisional Person, `Speaker 1 · <blob prefix>`. Both publish like any other fact; the
+//! `speaker_identity` item is a confirmation, and confirming (`review::speaker`) merges the provisional Person
+//! into the named one, so the facts are re-attributed. No voiceprint is stored or compared.
 //!
 //! Candidates for "who is S1" come in three layers, all of which end in a `speaker_identity` review item:
 //! 1. `media.attendees`: meeting metadata, the attendee names in the file name (`参会：甲、乙`) or in a minutes
@@ -13,7 +15,7 @@
 //!    supplement produces the same [`SpeakerCandidate`] values from `speaker_is(S1, 小王)` entries;
 //! 3. the person's decision in the review queue.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use oo_core::docir::{Anchor, Block, BlockKind, DocFormat, DocIr};
 
@@ -21,9 +23,11 @@ use super::kv;
 use super::{Ctx, EvidenceRef};
 use crate::extract::model::{EntityRef, EntityType, Predicate};
 
-/// Prefix of the placeholder Person name of one speaker.
-pub const PLACEHOLDER_PREFIX: &str = "说话人 ";
-/// Confidence of a statement made by a speaker whose identity is still unknown (held until the speaker is confirmed).
+/// Prefix of the provisional Person name of one speaker.
+pub const PLACEHOLDER_PREFIX: &str = "Speaker ";
+/// The prefix before 2026-11-20, still recognised so that a Person made then is not taken for a real name.
+const OLD_PLACEHOLDER_PREFIX: &str = "说话人 ";
+/// Confidence of a statement made by a speaker, whether or not the name is known yet.
 const STATEMENT_BP: u16 = 9000;
 
 /// Where a candidate name came from.
@@ -63,17 +67,22 @@ pub struct SpeakerCandidate {
     pub quote: Option<String>,
 }
 
-/// `说话人 S1 · 1a2b3c4d`: unique per file, never shown as a person's name once confirmed.
+/// `Speaker 1 · 1a2b3c4d`: unique per file, merged into the named Person once the speaker is confirmed.
 pub fn placeholder_name(blob_b3: &str, speaker: &str) -> String {
+    let label = speaker
+        .strip_prefix('S')
+        .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+        .unwrap_or(speaker);
     format!(
-        "{PLACEHOLDER_PREFIX}{speaker} · {}",
+        "{PLACEHOLDER_PREFIX}{label} · {}",
         blob_b3.get(..8).unwrap_or(blob_b3)
     )
 }
 
 /// True for a placeholder name.
 pub fn is_placeholder(name: &str) -> bool {
-    name.starts_with(PLACEHOLDER_PREFIX) && name.contains(" · ")
+    (name.starts_with(PLACEHOLDER_PREFIX) || name.starts_with(OLD_PLACEHOLDER_PREFIX))
+        && name.contains(" · ")
 }
 
 /// The speaker label of a block, if it is an utterance.
@@ -203,6 +212,43 @@ fn is_role_word(w: &str) -> bool {
     ROLES.iter().any(|r| w.starts_with(r) || r.starts_with(w))
 }
 
+/// `I am Tianyou Jiang.`, `I'm Wanqing.`: one to three capitalised words after the marker, and the sentence (or a
+/// comma, `from`, `and`) ends there, so `I am Happy to help` is not a name.
+fn english_intro(text: &str) -> Option<String> {
+    let lower = text.to_lowercase();
+    let at = ["i am ", "i'm ", "i’m "]
+        .iter()
+        .filter_map(|m| lower.find(m).map(|i| i + m.len()))
+        .min()?;
+    let rest = text.get(at..)?;
+    let mut name: Vec<&str> = Vec::new();
+    let mut stop = "";
+    for raw in rest.split_whitespace() {
+        let word = raw.trim_end_matches(['.', ',', ';', '!', '?', ':']);
+        let ends = word.len() != raw.len();
+        let cap = word.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+            && word
+                .chars()
+                .all(|c| c.is_ascii_alphabetic() || c == '-' || c == '\'');
+        if !cap || name.len() == 3 {
+            stop = word;
+            break;
+        }
+        name.push(word);
+        if ends {
+            stop = ".";
+            break;
+        }
+    }
+    let boundary = stop.is_empty()
+        || stop == "."
+        || matches!(
+            stop.to_lowercase().as_str(),
+            "from" | "and" | "the" | "here" | "on" | "in" | "speaking" | "of" | "with"
+        );
+    (!name.is_empty() && boundary).then(|| name.join(" "))
+}
+
 /// Layer 2 by pattern: `我是X`, `我叫X` (the speaker is X) and `X你说一下` / `X，你…` (the next other speaker is X).
 pub fn introductions(ir: &DocIr) -> Vec<SpeakerCandidate> {
     let mut out: BTreeSet<SpeakerCandidate> = BTreeSet::new();
@@ -216,6 +262,15 @@ pub fn introductions(ir: &DocIr) -> Vec<SpeakerCandidate> {
         if let Some(rest) = after(text, &["我是", "我叫", "我名字叫"])
             && let Some(name) = leading_name(rest)
         {
+            out.insert(SpeakerCandidate {
+                speaker: Some((*spk).to_owned()),
+                name,
+                source: CandidateSource::SelfIntro,
+                block_id: Some(b.id.clone()),
+                quote: Some(clip(text)),
+            });
+        }
+        if let Some(name) = english_intro(text) {
             out.insert(SpeakerCandidate {
                 speaker: Some((*spk).to_owned()),
                 name,
@@ -254,16 +309,66 @@ pub fn introductions(ir: &DocIr) -> Vec<SpeakerCandidate> {
     out.into_iter().collect()
 }
 
-/// `media.statement`: "我负责X" in an utterance becomes `owns(<placeholder of the speaker>, X)` with the
-/// utterance as evidence. The subject is the placeholder; the publisher holds the fact until the speaker is
-/// confirmed.
-pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
+/// Who each speaker is, as far as the transcript and the roster say. A label with exactly one self-introduced name
+/// gets it; when exactly one label is left and exactly one attendee is not claimed by another label, the two are
+/// paired. Never a guess beyond that: the rest stay provisional until a person confirms.
+pub fn resolved(
+    ir: &DocIr,
+    attendees: &[SpeakerCandidate],
+    intros: &[SpeakerCandidate],
+) -> BTreeMap<String, String> {
+    let mut by_intro: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    for c in intros
+        .iter()
+        .filter(|c| c.source == CandidateSource::SelfIntro)
+    {
+        if let Some(spk) = c.speaker.as_deref() {
+            by_intro.entry(spk.to_owned()).or_default().insert(&c.name);
+        }
+    }
+    let mut out: BTreeMap<String, String> = by_intro
+        .into_iter()
+        .filter_map(|(s, names)| match names.len() {
+            1 => names.into_iter().next().map(|n| (s, n.to_owned())),
+            _ => None,
+        })
+        .collect();
+    let left: Vec<String> = speakers(ir)
+        .into_iter()
+        .filter(|s| !out.contains_key(s))
+        .collect();
+    let free: Vec<&SpeakerCandidate> = attendees
+        .iter()
+        .filter(|a| !out.values().any(|n| *n == a.name))
+        .collect();
+    if let ([spk], [who]) = (left.as_slice(), free.as_slice()) {
+        out.insert(spk.clone(), who.name.clone());
+    }
+    out
+}
+
+/// `media.statement`: "我负责X" in an utterance becomes `owns(<the speaker>, X)` with the utterance as evidence. The
+/// subject is the resolved Person, else the provisional one; nothing waits for a confirmation. A speaker who
+/// introduced themselves is an entity of the file even when they own nothing.
+pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, path: &str) {
     if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
         return;
     }
+    let who = resolved(ir, &attendees(path, None), &introductions(ir));
+    let person = |spk: &str| {
+        EntityRef::new(
+            EntityType::Person,
+            who.get(spk)
+                .cloned()
+                .unwrap_or_else(|| placeholder_name(&ir.blob_b3, spk)),
+        )
+    };
     for b in &ir.blocks {
         let Some(spk) = speaker_of(b) else { continue };
         let ev = EvidenceRef::from_block(b);
+        if who.contains_key(spk) {
+            ctx.col.entity(&person(spk), Some(&ev));
+        }
         for sentence in b.text.split(['。', '！', '？', '.', '\n']) {
             let Some(rest) = after(sentence.trim(), &["我负责", "我来负责"]) else {
                 continue;
@@ -273,10 +378,9 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
             if thing.is_empty() || thing.chars().count() > 40 {
                 continue;
             }
-            let subject = EntityRef::new(EntityType::Person, placeholder_name(&ir.blob_b3, spk));
             let object = EntityRef::new(EntityType::Project, thing);
             ctx.fact(
-                &subject,
+                &person(spk),
                 Predicate::Owns,
                 Some(object),
                 None,
@@ -384,6 +488,69 @@ mod tests {
         let a = placeholder_name(&"a".repeat(64), "S1");
         let b = placeholder_name(&"b".repeat(64), "S1");
         assert_ne!(a, b);
+        assert!(a.starts_with("Speaker 1 · "), "{a}");
         assert!(is_placeholder(&a) && !is_placeholder("林川"));
+        assert!(
+            is_placeholder("说话人 S1 · 0123abcd"),
+            "the old form is still one"
+        );
+    }
+
+    #[test]
+    fn english_self_introductions_name_the_speaker() {
+        let doc = ir(vec![
+            utt(
+                "blk_a",
+                1,
+                "S1",
+                "This is the supplier review. I am Tianyou Jiang. Hengding quoted a total.",
+            ),
+            utt("blk_b", 2, "S2", "I'm Wanqing, from finance."),
+            utt("blk_c", 3, "S3", "I am Happy to help with that."),
+            utt("blk_d", 4, "S3", "I am sorry about the delay."),
+        ]);
+        let names: Vec<_> = introductions(&doc)
+            .iter()
+            .map(|c| (c.speaker.clone().unwrap(), c.name.clone()))
+            .collect();
+        assert!(
+            names.contains(&("S1".into(), "Tianyou Jiang".into())),
+            "{names:?}"
+        );
+        assert!(
+            names.contains(&("S2".into(), "Wanqing".into())),
+            "{names:?}"
+        );
+        assert!(!names.iter().any(|(s, _)| s == "S3"), "{names:?}");
+    }
+
+    #[test]
+    fn a_speaker_is_resolved_from_the_transcript_or_the_one_attendee_left() {
+        let doc = ir(vec![
+            utt("blk_a", 1, "S1", "大家好，我是小王。"),
+            utt("blk_b", 2, "S2", "好的。"),
+            utt("blk_c", 3, "S3", "收到。"),
+        ]);
+        let intros = introductions(&doc);
+        let att = attendees("会议/周会 参会=小王、小李.m4a", None);
+        // S2 and S3 are both unnamed and only one attendee is free: no guess.
+        let r = resolved(&doc, &att, &intros);
+        assert_eq!(r.get("S1").map(String::as_str), Some("小王"));
+        assert_eq!(r.len(), 1, "{r:?}");
+        let two = ir(vec![
+            utt("blk_a", 1, "S1", "大家好，我是小王。"),
+            utt("blk_b", 2, "S2", "好的。"),
+        ]);
+        let r = resolved(&two, &att, &introductions(&two));
+        assert_eq!(r.get("S2").map(String::as_str), Some("小李"), "{r:?}");
+    }
+
+    #[test]
+    fn two_names_for_one_speaker_resolve_to_nobody() {
+        let doc = ir(vec![
+            utt("blk_a", 1, "S1", "我是小王。"),
+            utt("blk_b", 2, "S1", "我是小李。"),
+        ]);
+        assert!(resolved(&doc, &[], &introductions(&doc)).is_empty());
     }
 }

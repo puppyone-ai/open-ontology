@@ -2,10 +2,11 @@
 //!
 //! Three layers feed the queue (`extract::rules::media`): attendee names from meeting metadata, self
 //! introductions and name calls, and the person who decides here. A label (`S1`) means nothing outside its file.
-//! Until it is confirmed, the facts a speaker's statements produced belong to a placeholder Person and stay
-//! drafts ([`HELD_SQL`] is the condition the publisher's classifier uses); confirming merges the placeholder into
-//! the named Person, so the facts get the right subject and are judged like any other draft. Nothing about a
-//! voice is stored: no voiceprint, no embedding, no comparison across recordings.
+//! Extraction never waits for them. A label the transcript or the roster names gets that Person at once; the
+//! rest belong to a provisional Person (`Speaker 1 · <blob prefix>`) and publish like any other fact. A
+//! `speaker_identity` item asks a person to confirm; confirming merges the provisional Person into the named
+//! one, so the facts are re-attributed (and a later re-extraction keeps the choice, [`apply_confirmed`]).
+//! Nothing about a voice is stored: no voiceprint, no embedding, no comparison across recordings.
 
 use oo_core::docir::DocIr;
 use serde_json::{Value, json};
@@ -22,12 +23,9 @@ use crate::store::StoreError;
 pub const KIND: &str = "speaker_identity";
 /// `review_item.reason_code` of an unconfirmed speaker.
 pub const REASON: &str = "speaker_unconfirmed";
-/// `DOCS_REVIEW_SPEAKER_UNCONFIRMED`: a person tried to accept a fact whose speaker is still unknown.
+/// `DOCS_REVIEW_SPEAKER_UNCONFIRMED`: kept in the error catalogue; accepting a provisional speaker's fact no longer
+/// fails with it.
 pub const CODE_UNCONFIRMED: &str = "DOCS_REVIEW_SPEAKER_UNCONFIRMED";
-
-/// SQL condition on the alias `s` (the fact's subject entity): the subject is a speaker placeholder.
-pub const HELD_SQL: &str =
-    "(s.canonical_name LIKE '说话人 S%' AND s.canonical_name LIKE '% · %' AND s.type = 'Person')";
 
 /// Overlay `speaker_map` binds: one speaker of one recording (by blob hash, so a renamed copy shares it).
 pub fn binds(blob_b3: &str, speaker: &str) -> String {
