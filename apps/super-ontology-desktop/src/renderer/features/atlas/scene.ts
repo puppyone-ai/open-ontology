@@ -125,9 +125,18 @@ export class AtlasScene {
     }
     this.plans = plans;
     const radii = data.groups.map((group) => (open ? plans.get(group.id)?.radius ?? expandedRadius(sizes.get(group.id) ?? 0) : collapsedRadius(sizes.get(group.id) ?? 0)));
-    const anchors = phyllotaxisAnchors(radii);
+    // The not-connected group sits beside the picture, not in it: the rest is laid out first and this one is set to its right.
+    const side = data.groups.findIndex((group) => group.kind === "unlinked");
+    const main = radii.map((radius, index) => ({ radius, index })).filter((entry) => entry.index !== side);
+    const placed = phyllotaxisAnchors(main.map((entry) => entry.radius));
+    const anchors = new Array<{ x: number; y: number }>(radii.length);
+    main.forEach((entry, i) => { anchors[entry.index] = placed[i]!; });
     this.stretch = Math.min(2, Math.max(1, options.aspect ?? 1));
-    for (const anchor of anchors) anchor.x *= this.stretch;
+    for (const anchor of anchors) if (anchor) anchor.x *= this.stretch;
+    if (side >= 0) {
+      const reach = main.reduce((far, entry) => Math.max(far, anchors[entry.index]!.x + entry.radius), 0);
+      anchors[side] = { x: reach + radii[side]! + 90, y: 0 };
+    }
     this.anchorScale = radii.length ? (radii.reduce((a, b) => a + b, 0) / radii.length) * 2.3 : 60;
     data.groups.forEach((group, index) => {
       const node = this.makeGroup(group, anchors[index]!.x, anchors[index]!.y, radii[index]!);

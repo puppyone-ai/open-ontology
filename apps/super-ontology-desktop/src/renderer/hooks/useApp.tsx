@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 export type Section = "home" | "sources" | "ontology" | "agents" | "settings";
-export type OntologyTab = "entities" | "atlas" | "query" | "files" | "review" | "conflicts";
+export type OntologyTab = "entities" | "atlas" | "ask" | "query" | "files" | "review" | "conflicts";
 export type AgentsTab = "connect" | "packs" | "access";
 export type SettingsTab = "general" | "engine" | "model" | "privacy" | "diagnostics" | "about";
 
@@ -13,10 +13,12 @@ export type Nav = {
   navCollapsed: boolean;
   /** Counts navigation clicks: choosing a section again leaves its detail page. */
   navTick: number;
+  /** Opens the atlas already filtered to what is not connected (the Home card). */
+  atlasFilter: "unlinked" | null;
 };
 
 type Api = Nav & {
-  go: (section: Section, tab?: { ontology?: OntologyTab; agents?: AgentsTab; settings?: SettingsTab }) => void;
+  go: (section: Section, tab?: { ontology?: OntologyTab; agents?: AgentsTab; settings?: SettingsTab; atlasFilter?: "unlinked" }) => void;
   setOntologyTab: (tab: OntologyTab) => void;
   setAgentsTab: (tab: AgentsTab) => void;
   setSettingsTab: (tab: SettingsTab) => void;
@@ -34,11 +36,11 @@ const Context = createContext<Api | null>(null);
 const FIRST_RUN_KEY = "so.firstRun.done";
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1", navTick: 0 });
+  const [nav, setNav] = useState<Nav>({ section: "home", ontologyTab: "entities", agentsTab: "connect", settingsTab: "general", navCollapsed: window.localStorage.getItem("so.nav.collapsed") === "1", navTick: 0, atlasFilter: null });
   const [focusFile, setFocusFile] = useState<string | null>(null);
   const [firstRunOpen, setFirstRunOpen] = useState(() => window.localStorage.getItem(FIRST_RUN_KEY) !== "1");
   const go = useCallback<Api["go"]>((section, tab) => setNav((c) => ({
-    ...c, navTick: c.navTick + 1, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab,
+    ...c, navTick: c.navTick + 1, section, ontologyTab: tab?.ontology ?? c.ontologyTab, agentsTab: tab?.agents ?? c.agentsTab, settingsTab: tab?.settings ?? c.settingsTab, atlasFilter: tab?.atlasFilter ?? null,
   })), []);
   const value = useMemo<Api>(() => ({
     ...nav,

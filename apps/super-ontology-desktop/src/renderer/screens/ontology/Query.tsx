@@ -6,6 +6,7 @@ import type { CliResult, GatewayState, QueryRequest } from "../../../shared/supe
 import { invoke } from "../../model/bridgeInvoke";
 import { COPY_LIMIT, runCli } from "../../model/cliApi";
 import { copyText } from "../../model/format";
+import { queryDraft } from "../../model/queryDraft";
 import { displayCell, namesFrom, toCsv, toJsonRows, toQueryTable, type QueryTable } from "../../model/cliFormat";
 import { CliCommand, CliErrorNotice } from "../shared/Cli";
 
@@ -99,7 +100,7 @@ function useQuery() {
 
 function SqlRunner() {
   const { t } = useLocalization();
-  const [sql, setSql] = useState("");
+  const [sql, setSql] = useState(() => queryDraft.take() ?? "");
   const [maxRows, setMaxRows] = useState("500");
   const [validated, setValidated] = useState<CliResult | null>(null);
   const [mode, setMode] = useState<"validate" | "query" | null>(null);

@@ -64,4 +64,7 @@
   .so-atlas-list-group[data-tone="stone"] .so-atlas-swatch { color: rgb(108, 104, 100); }
   .so-atlas-inspector[data-tone="ink"] { border-inline-start: 3px solid var(--so-accent); }
   .so-atlas-inspector[data-tone="stone"] { border-inline-start: 3px solid var(--so-text-weak); }
+  .so-atlas-reason { flex: 0 1 auto; max-width: 62%; font-size: var(--so-text-xs); }
+  .so-atlas-caption { margin: 0; padding: 0 var(--so-space-2) var(--so-space-2) calc(var(--so-space-2) + 16px + var(--so-space-2) + 10px + var(--so-space-2)); font-size: var(--so-text-sm); }
+  .so-atlas-list-group[data-tone="stone"] .so-atlas-list-head { color: var(--so-text-2); }
 }
