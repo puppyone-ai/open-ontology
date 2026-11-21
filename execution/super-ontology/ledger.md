@@ -360,6 +360,8 @@
 | SO-F-S21-12 | D83 | merged | feat/super-ontology (车道 AH 并入) | c2aefc6a7 → c65b164df | — | — | Keep the actor tag's test attributes on an element the design system keeps |
 | SO-F-S21-13 | D83 | merged | feat/super-ontology (车道 AH 并入) | f1fa462ea → 2f3368292 | — | — | Expose what the Atlas knows now, and finish the live CLI run |
 | SO-F-S21-19 | D83 | merged | feat/super-ontology (车道 AH 并入，协调者台账) | 753a60320 → cfd4b2070 | — | — | Ledger rows for lanes AH and AG |
+| SO-F-S21-30 | D83 | merged | feat/super-ontology (车道 AH2 并入) | b58598a09 → b58598a09 | — | — | Show one "My files" folder for the CLI and the app |
+| SO-F-S21-31 | D83 | merged | feat/super-ontology (车道 AH2 并入) | 3357ccb4d → ea8556f8c | — | — | Keep one drive refresh per engine start and update the drop toast tests |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
@@ -370,6 +372,7 @@
 | SO-B-S21-13 | D83 | merged | feat/super-ontology (车道 AH 并入) | 325bfb320 → 325bfb320 | — | — | Record docs-api 1.13 in the contract changelog |
 | SO-B-S21-14 | D83 | merged | feat/super-ontology (车道 AH 并入) | 824d77283 → 824d77283 | — | — | Let an agent name itself to the engine with OO_AGENT_NAME |
 | SO-B-S21-15 | D83 | merged | feat/super-ontology (车道 AH 并入) | 91705fc0c → 91705fc0c | — | — | Announce review items that enter or leave a queue without a decision |
+| SO-B-S21-30 | D83 | merged | feat/super-ontology (车道 AH2 并入) | 17c137116 → 17c137116 | — | — | Make the CLI's managed folder the app's "My files" |
 
 ## 签收
 
