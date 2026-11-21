@@ -91,7 +91,7 @@ async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_s
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE '说话人 S1%' AND f.status = 'draft'"
+              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker 1 · %' AND f.status = 'draft'"
         )
         .await,
         1
@@ -108,7 +108,7 @@ async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_s
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity o ON o.id = f.object_id \
-              WHERE f.predicate = 'mentions' AND o.canonical_name LIKE '说话人 %'"
+              WHERE f.predicate = 'mentions' AND o.canonical_name LIKE 'Speaker %'"
         )
         .await,
         0
@@ -132,6 +132,21 @@ async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_s
     let cands: serde_json::Value = serde_json::from_str(&cands).unwrap();
     assert_eq!(cands[0]["name"], "小王");
     assert_eq!(cands[0]["source"], "self_intro");
+    // The one attendee nobody else claims is a candidate for S2; nothing is confirmed by itself.
+    let s2: String = sqlx::query_scalar(
+        "SELECT (subject->'candidates'->0->>'name') FROM _oo_docs.review_item \
+          WHERE kind = 'speaker_identity' AND subject->>'speaker' = 'S2'",
+    )
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap();
+    assert_eq!(s2, "小李");
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.overlay WHERE kind = 'speaker_map'")
+            .await,
+        0,
+        "a candidate is never a confirmation"
+    );
 
     // Confirm S1 = 小王.
     let out = decide_items(
@@ -368,7 +383,7 @@ async fn file_state(fx: &mut Fx) -> String {
 async fn held(fx: &mut Fx) -> i64 {
     fx.scalar(
         "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-          WHERE f.predicate = 'owns' AND f.status = 'draft' AND s.canonical_name LIKE '说话人 S1%'",
+          WHERE f.predicate = 'owns' AND f.status = 'draft' AND s.canonical_name LIKE 'Speaker 1 · %'",
     )
     .await
 }

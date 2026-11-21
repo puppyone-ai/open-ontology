@@ -17,7 +17,7 @@ export function applyUnlinked(data: AtlasData, report: UnlinkedReport | null): A
   if (typeView) {
     for (const entity of report.entities) {
       const member = members.get(entityId(entity.key));
-      if (member) { members.delete(member.id); moved.push({ ...member, group: UNLINKED_GROUP_ID, reason: { kind: "entity" } }); }
+      if (member) { members.delete(member.id); moved.push({ ...member, group: UNLINKED_GROUP_ID, reason: { kind: "entity", ...(entity.fileNames?.length ? { file: entity.fileNames.slice(0, 2).join(", ") } : {}) } }); }
     }
   }
   for (const file of report.files) {

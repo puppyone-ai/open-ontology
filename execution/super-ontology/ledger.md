@@ -315,6 +315,15 @@
 | SO-F-S20-46 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 4e47ec6fd → 4e47ec6fd | — | apps/super-ontology-desktop/ | Lock the Ask and Not connected screens with visual baselines |
 | SO-F-S20-47 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | 15474193a → 15474193a | — | apps/super-ontology-desktop/ | Check for disagreements before the Ask answer states an owner, date, number or status |
 | SO-F-S20-48 | D88 | merged | feat/super-ontology (App 车道 AA 并入) | afcdd5822 → afcdd5822 | — | apps/super-ontology-desktop/ | Refresh the Ask baselines for human anchors, the clear icon and kept-together markers |
+| SO-F-S20-50 | D74 | merged | feat/super-ontology (车道 AC 并入) | 9709df077 → 9709df077 | — | — | Judge Not connected across files, not inside one |
+| SO-F-S20-51 | D74 | merged | feat/super-ontology (车道 AC 并入) | 45fdf90d6 → 45fdf90d6 | — | — | Extract recordings without waiting for speaker names |
+| SO-F-S20-52 | D74 | merged | feat/super-ontology (车道 AC 并入) | eafa99490 → eafa99490 | — | — | Ask for speaker names in Review |
+| SO-F-S20-53 | D74 | merged | feat/super-ontology (车道 AC 并入) | 70b4c6a1b → 70b4c6a1b | — | — | Lock the engine image built with provisional speakers |
+| SO-F-S20-54 | D74 | merged | feat/super-ontology (车道 AC 并入) | b0a249480 → b0a249480 | — | — | Let the acceptance driver take its Docker lane from the environment |
+| SO-F-S20-55 | D74 | merged | feat/super-ontology (车道 AC 并入) | 27ffbd927 → 27ffbd927 | — | — | Keep no_relations as the id of the cross-file reason |
+| SO-F-S20-56 | D74 | merged | feat/super-ontology (车道 AC 并入) | f7cbb45df → f7cbb45df | — | — | Hold the statements of an unconfirmed speaker again |
+| SO-F-S20-57 | D74 | merged | feat/super-ontology (车道 AC 并入) | 58a454727 → 58a454727 | — | — | Assert the speaker hold in the live and unit tests |
+| SO-F-S20-58 | D74 | merged | feat/super-ontology (车道 AC 并入) | c6fe014bd → c6fe014bd | — | — | Show a recording that waits for speaker confirmation as such |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

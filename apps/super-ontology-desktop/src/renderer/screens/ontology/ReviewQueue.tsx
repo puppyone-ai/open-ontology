@@ -3,6 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, EmptyState, Notice, Skeleton } from "@open-ontology/design-system";
 import { Check, ListChecks, X } from "lucide-react";
 import { ErrorText } from "../shared/ErrorText";
+import { SpeakerReviewRow } from "./SpeakerReviewRow";
 import { presentReviewKind, subjectView } from "../../model/review/reviewModel";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { selectDrives } from "../../model/superDriveSelectors";
@@ -30,9 +31,9 @@ export function ReviewQueue() {
 
   const rows = withReview.flatMap((drive) => (lists[reviewKey(drive.id)]?.items ?? []).filter((item) => item.status === "pending").map((item) => ({ drive, item })));
   const loading = withReview.some((d) => !lists[reviewKey(d.id)]?.loaded);
-  const decide = async (driveId: string, item: ReviewItem, decision: "accept" | "reject") => {
+  const decide = async (driveId: string, item: ReviewItem, decision: "accept" | "reject", edit?: { name: string }) => {
     setBusy(item.id); setError(null);
-    const result = await actions.decideReviewItems({ driveId, items: [{ id: item.id, revision: item.revision, decision }] });
+    const result = await actions.decideReviewItems({ driveId, items: [{ id: item.id, revision: item.revision, decision, ...(edit ? { edit } : {}) }] });
     setBusy(null);
     if (!result.ok) setError(result.error);
   };
@@ -47,6 +48,7 @@ export function ReviewQueue() {
           {rows.map(({ drive, item }) => {
             const { title, detail } = describe(item, t);
             const simple = presentReviewKind(item.kind).simpleDecisions;
+            if (item.kind === "speaker_identity") return <SpeakerReviewRow key={item.id} item={item} drive={drive.name} busy={busy} onDecide={(it, decision, edit) => decide(drive.id, it, decision, edit)} />;
             return (
               <div key={item.id} className="so-list-row" data-testid="review-row">
                 <span className="so-list-text">
