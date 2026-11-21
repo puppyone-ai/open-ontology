@@ -272,7 +272,6 @@
 | SO-B-S20-02 | D84 | merged | feat/super-ontology (车道 U 并入) | 90612ec65 → 90612ec65 | — | — | Drop the about-an-Event labels the contract cannot hold |
 | SO-B-S20-03 | D84 | merged | feat/super-ontology (车道 U 并入) | 2f158e726 → 2f158e726 | — | — | Teach extract/3 the Event, Topic, Term and tried_and_failed boundaries |
 | SO-B-S20-04 | D84 | merged | feat/super-ontology (车道 U 并入) | 603a88af9 → 603a88af9 | — | — | Name the fact state row of the eval diagnostics |
-| SO-B-S20-05 | D84 | merged | feat/super-ontology (车道 U 并入) | 2e147317c → 2e147317c | — | — | Merge feat/super-ontology into the quality lane |
 | SO-B-S20-06 | D84 | merged | feat/super-ontology (车道 U 并入) | 16d69be4d → 16d69be4d | — | — | Bump the merged prompt to extract/4 |
 | SO-B-S20-07 | D84 | merged | feat/super-ontology (车道 U 并入) | b9affae49 → b9affae49 | — | — | Record the grok-4.7 quality measurement |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
