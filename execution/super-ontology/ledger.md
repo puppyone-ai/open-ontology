@@ -359,6 +359,7 @@
 | SO-F-S21-11 | D83 | merged | feat/super-ontology (车道 AH 并入) | bb9dbe45f → bb9dbe45f | — | — | Show database and file changes made by the CLI or an agent as they happen |
 | SO-F-S21-12 | D83 | merged | feat/super-ontology (车道 AH 并入) | c2aefc6a7 → c65b164df | — | — | Keep the actor tag's test attributes on an element the design system keeps |
 | SO-F-S21-13 | D83 | merged | feat/super-ontology (车道 AH 并入) | f1fa462ea → 2f3368292 | — | — | Expose what the Atlas knows now, and finish the live CLI run |
+| SO-F-S21-19 | D83 | merged | feat/super-ontology (车道 AH 并入，协调者台账) | 753a60320 → cfd4b2070 | — | — | Ledger rows for lanes AH and AG |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
