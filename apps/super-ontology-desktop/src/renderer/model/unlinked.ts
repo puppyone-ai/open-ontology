@@ -15,6 +15,8 @@ import { pool } from "../features/atlas/adapter";
 export type UnlinkedReason =
   | { kind: "no_entities" }
   | { kind: "unsupported"; format: string }
+  /** Many unsupported files (a code folder: .ts, .py, .rs ...) shown as one entry with a count instead of one row each. `formats` names the biggest few. */
+  | { kind: "unsupported_group"; count: number; formats: string }
   | { kind: "processing" }
   | { kind: "review" }
   | { kind: "parse_failed"; code: string }
@@ -255,6 +257,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
   return (reason) => {
     switch (reason.kind) {
       case "unsupported": return t("app.unlinked.reason.unsupported", { format: reason.format });
+      case "unsupported_group": return t("app.unlinked.reason.unsupported_group", { count: reason.count, formats: reason.formats });
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
       case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
       case "speaker": return t("app.unlinked.reason.speaker", { count: reason.count });

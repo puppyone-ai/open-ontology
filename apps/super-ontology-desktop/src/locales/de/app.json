@@ -799,6 +799,8 @@
   "unlinked.reason.entity": "Kommt nur in einer Datei vor",
   "unlinked.reason.entity_in": "Kommt nur in {file} vor",
   "unlinked.reason.speaker": "Wartet auf Bestätigung der Sprecher ({count})",
+  "unlinked.reason.unsupported_group": "{count, plural, one {# Datei} other {# Dateien}} in Formaten, die die Engine nicht liest: {formats}",
+  "unlinked.group.name": "{count, plural, one {# nicht unterstützte Datei} other {# nicht unterstützte Dateien}}",
   "unlinked.speaker.action": "Sprecher bestätigen",
   "home.next.unlinked.title": "{count, plural, one {# Datei teilt nichts mit Ihren anderen Dateien} other {# Dateien teilen nichts mit Ihren anderen Dateien}}",
   "home.next.unlinked.body": "Sehen Sie, warum jede übrig bleibt und was Sie tun können.",

@@ -799,6 +799,8 @@
   "unlinked.reason.entity": "Appears in one file only",
   "unlinked.reason.entity_in": "Only appears in {file}",
   "unlinked.reason.speaker": "Waiting for speaker confirmation ({count})",
+  "unlinked.reason.unsupported_group": "{count, plural, one {# file} other {# files}} in formats the engine doesn’t read: {formats}",
+  "unlinked.group.name": "{count, plural, one {# unsupported file} other {# unsupported files}}",
   "unlinked.speaker.action": "Confirm speakers",
   "home.next.unlinked.title": "{count, plural, one {# file shares nothing with your other files} other {# files share nothing with your other files}}",
   "home.next.unlinked.body": "See why each one is left out, and what to do about it.",

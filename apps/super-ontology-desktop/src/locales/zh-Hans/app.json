@@ -799,6 +799,8 @@
   "unlinked.reason.entity": "只出现在一个文件里",
   "unlinked.reason.entity_in": "只出现在 {file}",
   "unlinked.reason.speaker": "等待确认说话人（{count}）",
+  "unlinked.reason.unsupported_group": "{count, plural, other {# 个文件}}的格式引擎无法读取：{formats}",
+  "unlinked.group.name": "{count, plural, other {# 个不支持的文件}}",
   "unlinked.speaker.action": "去确认说话人",
   "home.next.unlinked.title": "{count} 个文件与其他文件没有任何共同内容",
   "home.next.unlinked.body": "查看每个文件被排除的原因以及怎么处理。",

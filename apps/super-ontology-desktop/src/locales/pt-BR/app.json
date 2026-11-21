@@ -799,6 +799,8 @@
   "unlinked.reason.entity": "Aparece em um só arquivo",
   "unlinked.reason.entity_in": "Aparece só em {file}",
   "unlinked.reason.speaker": "Aguardando confirmação de falantes ({count})",
+  "unlinked.reason.unsupported_group": "{count, plural, one {# arquivo} other {# arquivos}} em formatos que o mecanismo não lê: {formats}",
+  "unlinked.group.name": "{count, plural, one {# arquivo não compatível} other {# arquivos não compatíveis}}",
   "unlinked.speaker.action": "Confirmar falantes",
   "home.next.unlinked.title": "{count, plural, one {# arquivo não compartilha nada com os outros} other {# arquivos não compartilham nada com os outros}}",
   "home.next.unlinked.body": "Veja por que cada um ficou de fora e o que fazer.",
