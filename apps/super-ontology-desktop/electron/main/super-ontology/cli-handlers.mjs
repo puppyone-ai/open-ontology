@@ -18,13 +18,32 @@ const FIRST_SOURCE_WITHOUT_MODEL = "SO_MODEL_REQUIRED";
  * hint, so the screen can say what to do next; only a missing executable or a bad request throws.
  */
 export function createCliHandlers({
-  locator, getUserExecutable = () => null, client = null, grants, stateDir, fsPromises = fs.promises, run = runOo,
-  environment = process.env, homedir = os.homedir, platform = process.platform, appVersion = null,
+  locator, getUserExecutable = () => null, client = null, grants, stateDir, dataDir: dataDirOption = null, stateRegistryDir = null, configDir = null, liveHooks = null,
+  fsPromises = fs.promises, run = runOo, environment = process.env, homedir = os.homedir, platform = process.platform, appVersion = null,
 }) {
-  const dataDir = stateDir ? path.dirname(stateDir) : null;
+  const dataDir = dataDirOption ?? (stateDir ? path.dirname(stateDir) : null);
   const home = () => environment.SO_CLI_HOME ?? homedir();
-  const secretsDir = () => path.join(home(), ".config", "open-ontology", "secrets");
-  const stackFile = () => (dataDir ? path.join(dataDir, "stack.yaml") : null);
+  /** The folder `oo` keeps profiles and secrets in (`OO_CONFIG_DIR`, else `$HOME/.config/open-ontology`): the app and the CLI share it. */
+  const cliConfigDir = () => configDir ?? environment.OO_CONFIG_DIR ?? path.join(home(), ".config", "open-ontology");
+  const secretsDir = () => path.join(cliConfigDir(), "secrets");
+  const ownStackFile = () => (dataDir ? path.join(dataDir, "stack.yaml") : null);
+  /**
+   * The stack file the database pipeline works on. A stack the CLI used last (listed in `<state dir>/stacks.json`, written by `oo source add`,
+   * `oo init`, `oo up`, `oo build`) wins, so a database an agent added from any folder is the one this app shows; otherwise the app's own.
+   */
+  let currentStack = null;
+  const stackFile = () => currentStack ?? ownStackFile();
+  async function resolveStack() {
+    currentStack = null;
+    if (!stateRegistryDir) return;
+    const registry = await readStateJson(path.join(stateRegistryDir, "stacks.json"), 256 * 1024);
+    if (registry?.protocol !== "oo.stacks/v1" || !Array.isArray(registry.stacks)) return;
+    for (const entry of registry.stacks) {
+      const candidate = entry?.path;
+      if (typeof candidate !== "string" || !path.isAbsolute(candidate)) continue;
+      try { if ((await fsPromises.lstat(candidate)).isFile()) { currentStack = candidate; return; } } catch { /* A removed stack: try the next. */ }
+    }
+  }
   const gatewayFile = () => (dataDir ? path.join(dataDir, "gateway.json") : null);
   let located = null;
 
@@ -109,8 +128,15 @@ export function createCliHandlers({
 
   async function gatewayConfig() {
     const file = gatewayFile();
-    if (!file) return null;
-    try { const doc = JSON.parse(await fsPromises.readFile(file, "utf8")); return typeof doc?.url === "string" && typeof doc?.tokenFile === "string" ? doc : null; } catch { return null; }
+    if (file) {
+      try { const doc = JSON.parse(await fsPromises.readFile(file, "utf8")); if (typeof doc?.url === "string" && typeof doc?.tokenFile === "string") return doc; } catch { /* None saved: follow the CLI's active profile. */ }
+    }
+    // Nothing chosen in the app: the Gateway of the profile `oo` has active (`oo use`), the same one the CLI queries.
+    const pointer = await readStateJson(path.join(cliConfigDir(), "active-profile.json"), 4096);
+    const name = typeof pointer?.profile === "string" && /^[A-Za-z0-9_-]{1,64}$/u.test(pointer.profile) ? pointer.profile : null;
+    const profile = name ? await readStateJson(path.join(cliConfigDir(), "profiles", `${name}.json`), 65536) : null;
+    if (!profile || typeof profile.gateway !== "string" || typeof profile.token_file !== "string") return null;
+    try { return { url: new URL(profile.gateway).origin, transport: "production", tokenFile: profile.token_file, ...(typeof profile.ca_file === "string" ? { caFile: profile.ca_file } : {}) }; } catch { return null; }
   }
 
   const connArgs = (gateway) => ["--json", "--gateway", gateway.url, "--transport", gateway.transport ?? "production", "--token-file", gateway.tokenFile, ...(gateway.caFile ? ["--ca-file", gateway.caFile] : [])];
@@ -119,7 +145,7 @@ export function createCliHandlers({
   const jobs = new Map();
   let activeJob = null;
 
-  const stateRoot = () => (dataDir ? path.join(dataDir, ".oo") : null);
+  const stateRoot = () => { const stack = stackFile(); return stack ? path.join(path.dirname(stack), ".oo") : null; };
   /** A private regular file the CLI wrote (not a link, not huge), parsed; null when it is not there or not usable. */
   async function readStateJson(file, limit = 16 * 1024 * 1024) {
     try {
@@ -138,12 +164,13 @@ export function createCliHandlers({
   /** The profile `oo build` saved for the finished import becomes the Gateway the Query screen uses. */
   async function adoptProfile(name) {
     if (!gatewayFile() || typeof name !== "string" || !/^[A-Za-z0-9_-]{1,64}$/u.test(name)) return false;
-    const profile = await readStateJson(path.join(home(), ".config", "open-ontology", "profiles", `${name}.json`), 65536);
+    const profile = await readStateJson(path.join(cliConfigDir(), "profiles", `${name}.json`), 65536);
     if (!profile || typeof profile.gateway !== "string" || typeof profile.token_file !== "string") return false;
     let origin;
     try { origin = new URL(profile.gateway).origin; } catch { return false; }
     const doc = { url: origin, transport: "production", tokenFile: profile.token_file, ...(typeof profile.ca_file === "string" ? { caFile: profile.ca_file } : {}) };
     const file = gatewayFile();
+    await fsPromises.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
     const temp = `${file}.${process.pid}.tmp`;
     await fsPromises.rm(temp, { force: true });
     await writePrivate(temp, `${JSON.stringify(doc)}\n`);
@@ -182,7 +209,7 @@ export function createCliHandlers({
     return { jobId: id, cli: job.cli };
   }
 
-  return {
+  const handlers = {
     "cli-db-kinds": async () => ({ kinds: DB_KINDS, stackFile: stackFile(), stackExists: await stackExists(), secretsDir: secretsDir() }),
 
     "cli-db-list": async () => {
@@ -391,4 +418,14 @@ export function createCliHandlers({
       return { directory: root, count: files.length, cli: displayCommand(["ontology", "export", "--format", "yaml", "--pack", "<pack.json>", "--out", `${root}/ontology.yaml`]) };
     },
   };
+
+  // A database the CLI published (`db.pipeline_changed` with a profile) becomes the Gateway the Query screen uses, as after an import started here.
+  if (liveHooks) {
+    liveHooks.onEvent = (event) => {
+      const data = event?.data;
+      if (event?.type === "db.pipeline_changed" && data?.published === true && typeof data.profile === "string") void adoptProfile(data.profile).catch(() => false);
+    };
+  }
+  // Every screen call sees the stack the CLI used last.
+  return Object.fromEntries(Object.entries(handlers).map(([name, handler]) => [name, async (...args) => { await resolveStack(); return handler(...args); }]));
 }

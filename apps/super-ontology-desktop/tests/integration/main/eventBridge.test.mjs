@@ -309,3 +309,40 @@ describe("event bridge", () => {
     expect(JSON.stringify(pushes)).not.toContain(stream.token);
   });
 });
+
+describe("event bridge: changes from any client (CLI, agent, app)", () => {
+  it("passes the actor through, lets the main process see each persistent event once, and backfills after a reconnect", async () => {
+    const stream = await startFakeEventStream();
+    const pushes = [];
+    const seen = [];
+    const snapshots = createSnapshotStore({ broadcast: () => {} });
+    snapshots.update({ status: "healthy", health: { events_head: 10 } });
+    const bridge = createEventBridge({
+      lifecycle: { credentials: () => ({ baseUrl: stream.baseUrl, token: stream.token }), reloadCredentials: async () => true, instanceId: () => "1:a", pokeHealth() {} },
+      snapshots, logger: { debug() {}, warn() {} }, broadcast: (channel, payload) => pushes.push({ channel, payload }), random: () => 0.5,
+      onEvent: (entry) => seen.push(entry), tuning: { coalesceMs: 10, backoffMs: [20, 40], idleDisconnectMs: 10_000 },
+    });
+    const until = async (predicate) => { const end = Date.now() + 5_000; while (!predicate()) { if (Date.now() > end) throw new Error("timeout"); await new Promise((r) => { setTimeout(r, 10); }); } };
+    const delivered = () => pushes.filter((p) => p.channel === "events").flatMap((p) => p.payload.events);
+    try {
+      bridge.subscribe({ once: vi.fn() });
+      await until(() => bridge.connection().state === "connected");
+      stream.send({ ...event(11, "db.pipeline_changed", { command: "build", ok: true, published: true }), actor: { kind: "cli" } });
+      stream.send({ ...event(12, "file.state_changed", {}), actor: { kind: "agent", name: "qa-bot" } });
+      await until(() => delivered().length === 2);
+      expect(delivered().map((e) => e.actor)).toEqual([{ kind: "cli" }, { kind: "agent", name: "qa-bot" }]);
+      expect(seen.map((e) => e.seq)).toEqual([11, 12]);
+      // The connection drops; the bridge reconnects with `since` = the last seq it saw and the missed event arrives once.
+      stream.drop();
+      await until(() => stream.connections.length >= 2 || bridge.connection().state !== "connected");
+      await until(() => bridge.connection().state === "connected" && stream.connections.length >= 2);
+      expect(stream.connections.at(-1).since).toBe("12");
+      stream.send(event(13, "db.source_changed", { action: "added" }));
+      await until(() => delivered().length === 3);
+      expect(seen.map((e) => e.seq)).toEqual([11, 12, 13]);
+    } finally {
+      bridge.dispose();
+      await stream.close();
+    }
+  });
+});

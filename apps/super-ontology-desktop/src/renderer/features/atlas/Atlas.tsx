@@ -162,7 +162,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const partial = live.partial;
 
   return (
-    <div className="so-stack so-atlas" data-testid="atlas" data-rings={rings}>
+    <div className="so-stack so-atlas" data-testid="atlas" data-rings={rings} data-live-cells={arranged.members.length} data-live-groups={arranged.groups.length} data-live-links={arranged.links.length}>
       <div className="so-toolbar">
         <form className="so-search" role="search" onSubmit={(event) => { event.preventDefault(); jump(1); }}>
           <Search size={16} strokeWidth={1.5} className="so-search-icon so-icon" aria-hidden="true" />

@@ -29,6 +29,8 @@ export function createEventBridge({
   broadcast,
   fetchImpl = globalThis.fetch,
   logger = console,
+  /** Sees every persistent event once, in the main process (never throws into the stream). */
+  onEvent = null,
   timers = { setTimeout, clearTimeout },
   random = Math.random,
   tuning = {},
@@ -89,6 +91,7 @@ export function createEventBridge({
     ring.push(event);
     if (ring.length > t.ringSize) ring = ring.slice(ring.length - t.ringSize);
     if (event.type === "engine.health_changed") lifecycle.pokeHealth?.();
+    try { onEvent?.(event); } catch { /* An observer must not break the stream. */ }
     enqueue(event);
   }
 

@@ -61,6 +61,8 @@ Rules:
 | `home-pending` | number waiting for confirmation (links to Ontology review) | `data-count` |
 | `home-next-step` | the next-step suggestion card | `data-step` |
 | `home-recent-list` `home-recent-row` | recent changes | row: `data-name` |
+| `home-activity` `activity-row` | the recent-changes feed with who made each change (CLI, agent, app) | row: `data-type` |
+| `actor-tag` | small tag "via CLI", "via agent <name>", "in app" (Home feed and file rows) | `data-actor` = `cli` `app` `mcp` `agent` `cloud`, `data-name` (agent) |
 
 ## Sources
 
@@ -119,7 +121,8 @@ Rules:
 | `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the views | `data-active` |
 | `ontology-tab-atlas` **(T1)** | the atlas view | `data-active` |
 | `atlas` `atlas-search` `atlas-matches` `atlas-tally` `atlas-partial` `atlas-truncated` `atlas-inspector` `atlas-open` `atlas-play` `atlas-fit` `atlas-mode-type` `atlas-mode-source` `atlas-view-graph` | the atlas screen: search, matches, counts, notices, inspector, controls | |
-| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` |
+| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` (what the canvas was built from; live changes are applied in place) |
+| `atlas` | the Atlas screen | `data-live-cells`, `data-live-groups`, `data-live-links`: what the app knows now, including changes since the canvas was built |
 | `ontology-tab-ask` | the Ask tab | `data-active` |
 | `ontology-ask` `ask-input` `ask-send` `ask-stop` `ask-clear` `ask-turns` `ask-turn` `ask-question` | Ask: the composer and the session's turns | turn: `data-state` = `running` `done`, `data-status` |
 | `ask-progress` `ask-step` `ask-answer` `ask-answer-text` `ask-sources` `ask-source` `ask-uncited` `ask-copy` `ask-cli` `ask-cli-toggle` `ask-cli-value` `ask-cli-copy` | Ask: steps, the cited answer, its source chips and the equivalent command | step: `data-tool`, `data-state`; source: `data-kind`, `data-id` |
@@ -168,6 +171,8 @@ Rules:
 | `engine-start` `engine-stop` `engine-restart` **(T1)** | engine controls | |
 | `engine-runtime-select` | runtime choice | `data-value` = `auto` `docker` `lite` |
 | `engine-reveal-logs` | show the logs folder | |
+| `engine-shared` `engine-profile` `engine-state-dir` | Settings > Engine: the engine shared with the CLI, the active `oo` profile, the state folder | shared: `data-mode` = `cli` `app`, `data-attached`; profile: `data-name` |
+| `engine-use-cli` `engine-use-app` | switch the engine data between the CLI's and the app's own (the app restarts) | |
 | `engine-connect-remote` `remote-url` `remote-token-pick` `remote-connect` `remote-disconnect` | remote engine | |
 | `settings-language` | language choice | `data-value` |
 | `about-version` **(T1)** | the version line | |

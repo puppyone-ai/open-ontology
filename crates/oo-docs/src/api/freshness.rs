@@ -194,17 +194,76 @@ pub fn spawn_watcher(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut last: HashMap<String, String> = HashMap::new();
+        let mut last_pending: HashMap<String, Pending> = HashMap::new();
         loop {
             if *stop.borrow() {
                 return;
             }
             let _ = tick(&pool, &mut last).await;
+            let _ = tick_review(&pool, &mut last_pending).await;
             tokio::select! {
                 _ = tokio::time::sleep(every) => {}
                 _ = stop.changed() => {}
             }
         }
     })
+}
+
+/// Pending review items of one Drive by kind.
+type Pending = std::collections::BTreeMap<String, i64>;
+
+/// The Drives whose pending counts differ from the last observation, with the new counts. The first observation
+/// of a Drive is a silent baseline (a client reads the counts with the Drive); a Drive that has no pending item
+/// any more is reported once with empty counts.
+fn pending_changes(
+    last: &mut HashMap<String, Pending>,
+    mut now: HashMap<String, Pending>,
+    ids: &[String],
+) -> Vec<(String, Pending)> {
+    let mut changed = Vec::new();
+    for id in ids {
+        let counts = now.remove(id).unwrap_or_default();
+        match last.get(id) {
+            Some(prev) if *prev == counts => {}
+            Some(_) => {
+                changed.push((id.clone(), counts.clone()));
+                last.insert(id.clone(), counts);
+            }
+            None => {
+                last.insert(id.clone(), counts);
+            }
+        }
+    }
+    changed
+}
+
+/// `review.changed` when items enter or leave a Drive's queue without a decision (the pipeline queued a low
+/// confidence fact, found two entities that may be one, retired an item): a client's pending count then moves
+/// live, as it does after a decision.
+async fn tick_review(pool: &PgPool, last: &mut HashMap<String, Pending>) -> Result<(), ApiError> {
+    let mut conn = pool.acquire().await?;
+    let ids: Vec<String> = sqlx::query_scalar(
+        "SELECT id::text FROM _oo_docs.drive WHERE status IN ('active', 'paused')",
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    let rows: Vec<(String, String, i64)> = sqlx::query_as(
+        "SELECT drive_id::text, kind, count(*)::bigint FROM _oo_docs.review_item \
+          WHERE status = 'pending' AND drive_id = ANY($1::text[]::uuid[]) GROUP BY drive_id, kind",
+    )
+    .bind(&ids)
+    .fetch_all(&mut *conn)
+    .await?;
+    let mut now: HashMap<String, Pending> = HashMap::new();
+    for (drive, kind, n) in rows {
+        now.entry(drive).or_default().insert(kind, n);
+    }
+    for (id, counts) in pending_changes(last, now, &ids) {
+        let payload =
+            json!({ "drive_id": id, "pending": counts, "by_source_changed": [] }).to_string();
+        events::append_event(&mut conn, "review.changed", Some(&id), None, &payload).await?;
+    }
+    Ok(())
 }
 
 async fn tick(pool: &PgPool, last: &mut HashMap<String, String>) -> Result<(), ApiError> {
@@ -237,6 +296,39 @@ async fn tick(pool: &PgPool, last: &mut HashMap<String, String>) -> Result<(), A
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn pending(items: &[(&str, i64)]) -> Pending {
+        items.iter().map(|(k, n)| ((*k).to_owned(), *n)).collect()
+    }
+
+    #[test]
+    fn pending_counts_report_only_a_change_after_the_silent_baseline() {
+        let ids = vec!["d1".to_owned(), "d2".to_owned()];
+        let mut last = HashMap::new();
+        let first = HashMap::from([("d1".to_owned(), pending(&[("entity_merge", 1)]))]);
+        assert!(pending_changes(&mut last, first, &ids).is_empty());
+        let same = HashMap::from([("d1".to_owned(), pending(&[("entity_merge", 1)]))]);
+        assert!(pending_changes(&mut last, same, &ids).is_empty());
+        let grown = HashMap::from([
+            (
+                "d1".to_owned(),
+                pending(&[("entity_merge", 1), ("low_confidence_fact", 2)]),
+            ),
+            ("d2".to_owned(), pending(&[("conflict", 1)])),
+        ]);
+        let changed = pending_changes(&mut last, grown, &ids);
+        assert_eq!(changed.len(), 2);
+        assert!(
+            changed
+                .iter()
+                .any(|(id, c)| id == "d2" && c["conflict"] == 1)
+        );
+        // Everything decided: reported once with empty counts, then quiet.
+        let none = pending_changes(&mut last, HashMap::new(), &ids);
+        assert_eq!(none.len(), 2);
+        assert!(none.iter().all(|(_, c)| c.is_empty()));
+        assert!(pending_changes(&mut last, HashMap::new(), &ids).is_empty());
+    }
 
     #[test]
     fn priority_order_decides() {

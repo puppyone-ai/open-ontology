@@ -183,6 +183,7 @@ export function createControlClient({
     const headers = {
       Authorization: `Bearer ${live.token}`,
       "OO-Docs-Api-Min": "1.0",
+      "OO-Docs-Client": "app",
       Accept: definition.binary ? "*/*" : "application/json",
       ...extraHeaders,
     };

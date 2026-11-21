@@ -2233,6 +2233,40 @@
         {}
       ]
     },
+    "EventActor": {
+      "type": "object",
+      "description": "Who caused an event (1.13). `kind` is `cli`, `app`, `mcp` (the client named by the `OO-Docs-Client` header of the control token), `agent` (an Agent token, or the control token with an `OO-Docs-Agent` header; `name` is the token name or the header), `cloud` (a cloud proxy token) or `local` (no or an unknown client header). Events appended by a background worker carry the actor of the request that caused them (same file or Drive, within 10 minutes) and none when no request is known.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "cli",
+            "app",
+            "mcp",
+            "agent",
+            "cloud",
+            "local"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "kind": "app"
+        },
+        {
+          "kind": "agent",
+          "name": "claude"
+        }
+      ]
+    },
     "Event": {
       "type": "object",
       "required": [
@@ -2259,6 +2293,9 @@
         },
         "data": {
           "type": "object"
+        },
+        "actor": {
+          "$ref": "#/$defs/EventActor"
         }
       },
       "examples": [
@@ -2267,6 +2304,16 @@
           "type": "x",
           "at": "2026-11-17T00:00:00Z",
           "data": {}
+        },
+        {
+          "seq": 7,
+          "type": "file.state_changed",
+          "at": "2026-11-17T00:00:00Z",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "data": {},
+          "actor": {
+            "kind": "cli"
+          }
         }
       ]
     },
@@ -6052,6 +6099,61 @@
           }
         }
       ]
+    },
+    "EventPublishRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "data"
+      ],
+      "description": "Body of `POST /v1/docs/events:publish` (1.13, control token only): the CLI tells the app that a database source or the pipeline changed. `data` is a JSON object of at most 4 KiB with no credential keys and no `actor` key (the engine sets it); it is delivered unchanged as `Event.data`. The event has no Drive.",
+      "properties": {
+        "type": {
+          "enum": [
+            "db.source_changed",
+            "db.pipeline_changed"
+          ]
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "type": "db.source_changed",
+          "data": {
+            "name": "shop",
+            "action": "added",
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        },
+        {
+          "type": "db.pipeline_changed",
+          "data": {
+            "command": "up",
+            "ok": true,
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        }
+      ]
+    },
+    "EventPublishResult": {
+      "type": "object",
+      "required": [
+        "seq"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "examples": [
+        {
+          "seq": 42
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -6398,6 +6500,15 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/events:publish",
+      "request": "EventPublishRequest",
+      "response": "EventPublishResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.13"
     },
     {
       "method": "GET",

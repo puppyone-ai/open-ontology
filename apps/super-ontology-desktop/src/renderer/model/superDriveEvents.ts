@@ -1,6 +1,6 @@
 import type { Drive, FileSummary, Share } from "../../shared/super-ontology/docs-api.generated";
 import { baseName, parentPath, parseFolderKey, type FolderKey } from "./superDriveRoute";
-import type { EngineEvent, FileRecord, FolderPage, SuperDriveState } from "./superDriveState";
+import type { ActivityEntry, EngineEvent, FileRecord, FolderPage, SuperDriveState } from "./superDriveState";
 
 /**
  * Folds engine events into the renderer state (20-frontend §1.7.3). It is a
@@ -354,6 +354,41 @@ function onProgress(draft: Draft, event: EngineEvent) {
   };
 }
 
+const ACTIVITY_LIMIT = 30;
+/** Events worth a line in the recent-changes feed; the rest (progress, counters) would only be noise. */
+const ACTIVITY_TYPES = new Set(["file.state_changed", "file.renamed", "drive.created", "drive.updated", "drive.deleted", "review.decided", "ontology.version_published", "db.source_changed", "db.pipeline_changed", "share.created"]);
+
+function activityLabel(event: EngineEvent): string | null {
+  const data = event.data;
+  const file = typeof data.file === "object" && data.file !== null ? (data.file as Record<string, unknown>) : null;
+  if (file && typeof file.path === "string") return file.path;
+  const name = asString(data.name) ?? asString(data.command);
+  return name;
+}
+
+/** The live part of the state: database changes, who made what (the actor tag), and the recent-changes feed. */
+function noteLive(draft: Draft, event: EngineEvent, seq: number) {
+  const isDb = event.type === "db.source_changed" || event.type === "db.pipeline_changed";
+  const file = event.type === "file.state_changed" && typeof event.data.file === "object" && event.data.file !== null ? (event.data.file as Record<string, unknown>) : null;
+  const fileId = file ? asString(file.id) : null;
+  const keepsActor = event.actor !== undefined && fileId !== null;
+  const feed = ACTIVITY_TYPES.has(event.type);
+  if (!isDb && !keepsActor && !feed) return;
+  const live = { ...draft.state.live };
+  if (isDb) live.dbRevision += 1;
+  if (keepsActor && fileId && event.actor) live.fileActors = { ...live.fileActors, [fileId]: event.actor };
+  if (feed) {
+    const subject = file ? fileId : asString(event.data.name) ?? asString(event.data.command) ?? "";
+    const key = `${event.type}:${subject}:${asString(event.drive_id) ?? ""}`;
+    const previous = live.activity.find((entry) => entry.key === key);
+    // A file that moves through parsing and extraction keeps one line, and keeps who started it.
+    const actor = event.actor ?? previous?.actor ?? null;
+    const entry: ActivityEntry = { key, seq, type: event.type, at: event.at, actor, label: activityLabel(event) };
+    live.activity = [entry, ...live.activity.filter((other) => other.key !== key)].slice(0, ACTIVITY_LIMIT);
+  }
+  draft.state.live = live;
+}
+
 /** Event types the store reacts to; anything else is ignored on purpose (newer engines may send more). */
 export function applyEvents(state: SuperDriveState, events: readonly EngineEvent[]): SuperDriveState {
   if (events.length === 0) return state;
@@ -362,6 +397,7 @@ export function applyEvents(state: SuperDriveState, events: readonly EngineEvent
   for (const event of events) {
     const seq = Number.isSafeInteger(event.seq) ? (event.seq as number) : null;
     if (seq !== null && seq > appliedSeq) appliedSeq = seq;
+    if (seq !== null) noteLive(draft, event, seq);
     switch (event.type) {
       case "file.progress": onProgress(draft, event); break; // Transient: no seq, no cursor.
       case "file.state_changed": if (seq !== null) onFileStateChanged(draft, event, seq); break;

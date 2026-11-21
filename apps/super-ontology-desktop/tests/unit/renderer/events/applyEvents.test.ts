@@ -237,3 +237,35 @@ describe("applyEvents: cursor and transient events", () => {
     expect(JSON.stringify({ files: state.files, folders: state.folders, drives: state.drives })).toBe(snapshot);
   });
 });
+
+describe("applyEvents: changes by the CLI, an agent or the app (provenance and database events)", () => {
+  it("keeps who changed a file, and one feed line per file that remembers who started it", () => {
+    const state = baseState();
+    const next = applyEvents(state, [
+      { ...stateChanged(6, makeFile("a.md", { state: "queued" })), actor: { kind: "agent", name: "qa-bot" } },
+      stateChanged(7, makeFile("a.md", { state: "published" })),
+    ]);
+    expect(next.live.fileActors["f-a.md"]).toEqual({ kind: "agent", name: "qa-bot" });
+    const lines = next.live.activity.filter((entry) => entry.type === "file.state_changed");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ seq: 7, actor: { kind: "agent", name: "qa-bot" }, label: "a.md" });
+  });
+
+  it("counts database events so the database screens load again, and lists them with their actor", () => {
+    const state = baseState();
+    expect(state.live.dbRevision).toBe(0);
+    const next = applyEvents(state, [
+      { ...event(6, "db.source_changed", { name: "shop", action: "added" }, null), actor: { kind: "cli" } },
+      { ...event(7, "db.pipeline_changed", { command: "build", ok: true, published: true }, null), actor: { kind: "cli" } },
+    ]);
+    expect(next.live.dbRevision).toBe(2);
+    expect(next.live.activity.map((entry) => [entry.type, entry.actor?.kind])).toEqual([["db.pipeline_changed", "cli"], ["db.source_changed", "cli"]]);
+    expect(next.cursor.appliedSeq).toBe(7);
+  });
+
+  it("leaves the state alone for events that carry no news for these lists", () => {
+    const state = baseState();
+    const next = applyEvents(state, [event(6, "usage.changed", {})]);
+    expect(next.live).toBe(state.live);
+  });
+});

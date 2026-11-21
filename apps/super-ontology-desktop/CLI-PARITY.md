@@ -23,6 +23,8 @@ Status: **done** = in the app and tested; **partial** = in the app with a stated
 | `oo check` | Settings > Diagnostics | done |
 | `oo --version`, `oo docs runtime status`, `oo serve --status` | Settings > Diagnostics | done |
 | `oo serve`, `oo docs runtime install` | Settings > Engine | done (earlier lanes) |
+| one engine for `oo` and the app (state folder `OO_DOCS_STATE_DIR` or `~/.local/state/open-ontology/docs`, profiles in `OO_CONFIG_DIR` or `~/.config/open-ontology`) | Settings > Engine (shared state, active profile, "Use the CLI's data") | done (lane AH): an `oo serve` started by the CLI is attached; one the app starts is found by `oo`; an install with its own data keeps it until the person switches |
+| live view of what the CLI does: `oo docs upload`, `oo source add fs\|s3\|<database>`, `oo init\|up\|build\|down`, `oo docs review decide`, ontology changes; `OO_AGENT_NAME=<name>` names an agent | Sources, Home (recent changes with an actor tag), file rows, Atlas, Query | done (lane AH): engine events with `actor` (docs-api 1.13) and `db.source_changed` / `db.pipeline_changed` announced by the CLI |
 | `oo agent token`, `oo mcp-config`, `oo mcp` | Agents > Connect | done (earlier lanes) |
 | `oo ontology search\|entity\|query`, entities, review | Ontology > Entities / Review / Conflicts | done (earlier lanes) |
 | `oo context mount` and shares | Agents > Context packs | done (earlier lanes) |

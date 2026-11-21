@@ -108,15 +108,21 @@ pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Val
         .iter()
         .map(|r| {
             let share = r.subject.as_ref().and_then(|id| shares.get(id));
+            // The actor is stored in the payload; it belongs next to `type`, not in `data`.
+            let mut payload = r.payload.clone();
+            let actor = match payload.as_object_mut().and_then(|o| o.get("actor")) {
+                Some(a) if a.is_object() => payload.as_object_mut().and_then(|o| o.remove("actor")),
+                _ => None,
+            };
             let data = match (r.kind.as_str(), r.subject.as_ref()) {
                 ("file.state_changed", Some(id)) => match summaries.get(id) {
                     Some(file) => json!({ "file": file }),
-                    None => r.payload.clone(),
+                    None => payload,
                 },
                 ("share.created" | "share.state_changed", _) if share.is_some() => {
                     json!({ "share": share })
                 }
-                _ => r.payload.clone(),
+                _ => payload,
             };
             // A share event names the Drive of its share even when the writer did not.
             let drive_id = match (&r.drive_id, share) {
@@ -125,15 +131,74 @@ pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Val
                 }
                 (d, _) => d.clone(),
             };
-            json!({
+            let mut event = json!({
                 "seq": r.seq,
                 "type": r.kind,
                 "at": r.at,
                 "drive_id": drive_id,
                 "data": data,
-            })
+            });
+            if let (Some(a), Some(o)) = (actor, event.as_object_mut()) {
+                o.insert("actor".into(), a);
+            }
+            event
         })
         .collect())
+}
+
+/// Event types a client may publish (`POST /v1/docs/events:publish`).
+pub const PUBLISHABLE: [&str; 2] = ["db.source_changed", "db.pipeline_changed"];
+/// Largest `data` of a published event.
+const PUBLISH_DATA_MAX: usize = 4096;
+
+/// `POST /v1/docs/events:publish` `{type, data}` -> `{seq}` (1.13, control token only): lets the CLI tell the
+/// desktop app that a database source or the pipeline changed. The event has no Drive; the actor of the request
+/// is attached by `append_event`.
+pub async fn publish(app: &AppState, req: &Req) -> Result<Response<Body>, ApiError> {
+    if req.cred.is_some() || req.cloud.is_some() || req.agent_token.is_some() {
+        return Err(ApiError::new(
+            code::SHARE_REFS_OUT_OF_SCOPE,
+            "only the control token can publish events",
+        ));
+    }
+    let body = super::http::parse_json(&req.body)?;
+    let obj = body
+        .as_object()
+        .ok_or_else(|| ApiError::bad("", "expected an object"))?;
+    if let Some(k) = obj.keys().find(|k| !["type", "data"].contains(&k.as_str())) {
+        return Err(ApiError::bad(&format!("/{k}"), "unknown field"));
+    }
+    let kind = obj
+        .get("type")
+        .and_then(Value::as_str)
+        .filter(|t| PUBLISHABLE.contains(t))
+        .ok_or_else(|| {
+            ApiError::bad("/type", "expected db.source_changed or db.pipeline_changed")
+        })?;
+    let data = obj
+        .get("data")
+        .filter(|d| d.is_object())
+        .ok_or_else(|| ApiError::bad("/data", "expected an object"))?;
+    if data.get("actor").is_some() {
+        return Err(ApiError::bad("/data/actor", "the engine sets the actor"));
+    }
+    let text = data.to_string();
+    if text.len() > PUBLISH_DATA_MAX {
+        return Err(ApiError::bad("/data", "data is at most 4 KiB"));
+    }
+    let mut tx = app.pool.begin().await?;
+    let seq = match crate::store::events::append_event(&mut tx, kind, None, None, &text).await {
+        Ok(seq) => seq,
+        Err(e) if e.sqlstate() == Some("OO010") => {
+            return Err(ApiError::bad(
+                "/data",
+                "data is not an acceptable event payload",
+            ));
+        }
+        Err(e) => return Err(e.into()),
+    };
+    tx.commit().await?;
+    Ok(super::http::json(200, &json!({ "seq": seq })))
 }
 
 /// One SSE frame.

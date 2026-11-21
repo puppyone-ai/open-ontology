@@ -185,3 +185,21 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   page the sorted table list (400 `ONTOLOGY_BAD_REQUEST` for a bad value); every relationship and link comes once, in the page of its
   `from` table. New URNs: table `oo:db/<profile>/<schema.table>`, column `<table urn>#<column>`, relationship
   `oo:db/<profile>/relationship/<id>`. No new error code. Additive.
+
+## 1.13 (lane AH, live CLI changes in the app)
+
+- `Event.actor` (optional object `{kind, name?}`, top level next to `type`): who caused the event. `kind` is `cli`, `app`, `mcp`, `agent`,
+  `cloud` or `local`. The engine derives it per request: an Agent token gives `{kind: agent, name: <token name>}`; a cloud token gives `cloud`;
+  the control token with an `OO-Docs-Agent` header gives `{kind: agent, name: <header>}`; the control token otherwise gives the client named
+  by the new request header. Events that a background worker appends later for the same file or Drive (a reconcile after `POST /drives/{id}:sync`,
+  parse jobs after an upload, a publish) carry the actor of the request that caused them, remembered for 10 minutes (at most 4096 keys); an event
+  with no known request has no `actor`. The engine stores the actor in the event payload and lifts it out of `data`, so `data` is unchanged.
+  `GET /events` replays it like any other field.
+- Request header `OO-Docs-Client: cli|app|mcp` (anything else or absent is `local`). The `oo` CLI always sends `cli`; the app sends `app`.
+- `POST /v1/docs/events:publish` (`since` 1.13, control token only; Agent tokens, cloud tokens and refs credentials get 403): body
+  `EventPublishRequest` `{type, data}`, closed; `type` is `db.source_changed` or `db.pipeline_changed`; `data` is an object of at most 4 KiB
+  with no credential keys and no `actor` key (400 otherwise). Answer `{seq}`. The event has no Drive and carries the actor of the request.
+- Two new persistent event types, published by the CLI through that route when a database source or the pipeline changes (`events.v1.schema.json`
+  `x-data`): `db.source_changed` `{name, action: added|removed|initialized, stack}` and `db.pipeline_changed` `{command: up|down|build|init, ok,
+  stack, profile?, published?}`; `stack` is an absolute path, `published` is true only when `oo build` ended complete with a published
+  publication. No new error code. Additive.

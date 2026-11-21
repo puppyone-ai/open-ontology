@@ -41,6 +41,8 @@
         "drive.freshness_changed",
         "share.update_appended",
         "ontology.constraint_violated",
+        "db.source_changed",
+        "db.pipeline_changed",
         "file.progress",
         "stream.lagging"
       ]
@@ -57,6 +59,40 @@
     },
     "data": {
       "type": "object"
+    },
+    "actor": {
+      "type": "object",
+      "description": "Who caused an event (1.13). `kind` is `cli`, `app`, `mcp` (the client named by the `OO-Docs-Client` header of the control token), `agent` (an Agent token, or the control token with an `OO-Docs-Agent` header; `name` is the token name or the header), `cloud` (a cloud proxy token) or `local` (no or an unknown client header). Events appended by a background worker carry the actor of the request that caused them (same file or Drive, within 10 minutes) and none when no request is known.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "cli",
+            "app",
+            "mcp",
+            "agent",
+            "cloud",
+            "local"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "kind": "app"
+        },
+        {
+          "kind": "agent",
+          "name": "claude"
+        }
+      ]
     }
   },
   "allOf": [
@@ -89,7 +125,9 @@
               "refs.accessed",
               "drive.freshness_changed",
               "share.update_appended",
-              "ontology.constraint_violated"
+              "ontology.constraint_violated",
+              "db.source_changed",
+              "db.pipeline_changed"
             ]
           }
         }
@@ -631,6 +669,44 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.source_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.source_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.pipeline_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.pipeline_changed"
+          }
+        }
+      }
     }
   ],
   "x-persistent": [
@@ -658,7 +734,9 @@
     "refs.accessed",
     "drive.freshness_changed",
     "share.update_appended",
-    "ontology.constraint_violated"
+    "ontology.constraint_violated",
+    "db.source_changed",
+    "db.pipeline_changed"
   ],
   "x-transient": [
     "file.progress",
@@ -690,6 +768,36 @@
         "unit": "page",
         "done": 1,
         "total": 2
+      }
+    },
+    {
+      "seq": 9,
+      "type": "db.source_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "name": "shop",
+        "action": "added",
+        "stack": "/Users/me/shop/stack.yaml"
+      },
+      "actor": {
+        "kind": "cli"
+      }
+    },
+    {
+      "seq": 10,
+      "type": "db.pipeline_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "command": "build",
+        "ok": true,
+        "stack": "/Users/me/shop/stack.yaml",
+        "profile": "shop",
+        "published": true
+      },
+      "actor": {
+        "kind": "cli"
       }
     }
   ],
@@ -1178,6 +1286,64 @@
     },
     "stream.lagging": {
       "type": "object"
+    },
+    "db.source_changed": {
+      "type": "object",
+      "required": [
+        "name",
+        "action",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "added",
+            "removed",
+            "initialized"
+          ]
+        },
+        "stack": {
+          "type": "string"
+        }
+      }
+    },
+    "db.pipeline_changed": {
+      "type": "object",
+      "required": [
+        "command",
+        "ok",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "enum": [
+            "up",
+            "down",
+            "build",
+            "init"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "stack": {
+          "type": "string"
+        },
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

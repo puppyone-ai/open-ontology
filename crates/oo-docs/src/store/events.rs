@@ -27,7 +27,8 @@ pub struct Event {
 }
 
 /// Append an event; returns its `seq`. `payload_json` is a JSON object (at
-/// most 16 KiB, no top-level credential keys, else `OO010`).
+/// most 16 KiB, no top-level credential keys, else `OO010`). An object without
+/// an `actor` key gets one when an actor is known (`crate::actor`).
 pub async fn append_event(
     conn: &mut PgConnection,
     kind: &str,
@@ -35,6 +36,9 @@ pub async fn append_event(
     subject: Option<&str>,
     payload_json: &str,
 ) -> Result<i64, StoreError> {
+    // The actor of the request in scope, or of the last one that touched the subject or Drive.
+    let stamped = crate::actor::stamp(payload_json, subject, drive_id);
+    let payload_json = stamped.as_deref().unwrap_or(payload_json);
     let seq = sqlx::query_scalar("SELECT _oo_docs.append_event($1, $2::uuid, $3, $4::jsonb)")
         .bind(kind)
         .bind(drive_id)

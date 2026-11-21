@@ -29,6 +29,14 @@ if (queueFile) {
     return next ? { canceled: false, filePaths: next } : { canceled: true, filePaths: [] };
   };
 }
+// SO_T1_OFFSCREEN=1: the window is never shown and the app gets no Dock icon, so a run does not take the focus from whoever is using the Mac.
+// Everything is read over the DevTools protocol; a hidden window keeps running (the harness starts Electron with --disable-renderer-backgrounding).
+if (process.env.SO_T1_OFFSCREEN === "1") {
+  const { BrowserWindow } = await import("electron");
+  BrowserWindow.prototype.show = function show() {};
+  BrowserWindow.prototype.focus = function focus() {};
+  app.dock?.hide();
+}
 const appRoot = process.env.SO_APP_ROOT;
 if (!appRoot || !path.isAbsolute(appRoot)) { console.error("SO_APP_ROOT must be the app directory"); app.exit(2); } else {
   await import(pathToFileURL(path.join(appRoot, "electron", "main", "index.mjs")).href);

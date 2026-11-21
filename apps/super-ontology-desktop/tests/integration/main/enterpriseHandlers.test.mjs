@@ -15,7 +15,7 @@ const make = (respond) => {
 
 describe("L7 audit and token channels (F-S12-02)", () => {
   it("are listed after the others, have routes on the loopback API and need no operation id", () => {
-    expect([...ENTERPRISE_CHANNELS]).toEqual(["cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime", "engine-connect-remote", "engine-disconnect-remote"]);
+    expect([...ENTERPRISE_CHANNELS]).toEqual(["cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime", "engine-connect-remote", "engine-disconnect-remote", "engine-state-read", "engine-data-use"]);
     expect(SUPER_ONTOLOGY_CHANNELS).toEqual(expect.arrayContaining([...ENTERPRISE_CHANNELS]));
     expect([ROUTES.auditShares, ROUTES.auditVerify, ROUTES.cloudTokenCreate, ROUTES.cloudTokenRevoke].map((route) => [route.method, route.template, route.cloud === true])).toEqual([
       ["GET", "/v1/docs/audit/shares", false], ["GET", "/v1/docs/audit/verify", false], ["POST", "/v1/docs/cloud-tokens", false], ["DELETE", "/v1/docs/cloud-tokens/{id}", false],

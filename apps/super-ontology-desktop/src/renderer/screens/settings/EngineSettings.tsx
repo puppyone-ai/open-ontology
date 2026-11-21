@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useLoad } from "../../hooks/useLoad";
+import { invoke } from "../../model/bridgeInvoke";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, DefinitionList, Notice, Section, Segmented, StatusDot, Switch } from "@open-ontology/design-system";
 import { FolderOpen, Play, RefreshCw, RotateCw, ScrollText, Square } from "lucide-react";
@@ -22,6 +24,7 @@ export function EngineSettings() {
   const ready = isEngineReady(engine);
   const preflight = engine?.preflight ?? null;
   const components = (engine?.health?.components ?? {}) as Record<string, { status?: string } | undefined>;
+  const shared = useLoad(() => invoke("engine-state-read", {}), [engine?.status]);
   const run = async (id: string, fn: () => Promise<unknown>) => { setBusyId(id); await fn(); setBusyId(null); };
   const running = presented.busy || action.busy;
   const status = t(presented.messageId, presented.values as Record<string, string>);
@@ -73,6 +76,21 @@ export function EngineSettings() {
           </Card>
         </Section>
       )}
+
+      <Section title={t("app.engine.shared.title")}>
+        <Card className="so-form" data-testid="engine-shared" data-mode={shared.value?.mode ?? ""} data-attached={shared.value?.attached ? "true" : "false"}>
+          <p className="so-weak">{t("app.engine.shared.body")}</p>
+          {shared.value && (
+            <DefinitionList items={[
+              { label: t("app.engine.shared.profile"), value: <span data-testid="engine-profile" data-name={shared.value.profile?.name ?? ""}>{shared.value.profile ? `${shared.value.profile.name}${shared.value.profile.gatewayHost ? ` · ${shared.value.profile.gatewayHost}` : ""}` : t("app.engine.shared.profile.none")}</span> },
+              { label: t("app.engine.shared.folder"), value: <span className="so-mono so-truncate" data-testid="engine-state-dir">{shared.value.stateDir ?? "–"}</span> },
+            ]} />
+          )}
+          {shared.value?.shared && ready && <p className="so-weak">{shared.value.attached ? t("app.engine.shared.attached") : t("app.engine.shared.owned")}</p>}
+          {shared.value && !shared.value.shared && <Notice tone="accent" title={t("app.engine.shared.appOwn")} action={<Button size="compact" onClick={() => { void invoke("engine-data-use", { mode: "cli" }); }} data-testid="engine-use-cli">{t("app.engine.shared.useCli")}</Button>}>{t("app.engine.shared.legacy")}</Notice>}
+          {shared.value?.shared && shared.value.legacyHasData && <div className="so-row"><Button size="compact" variant="ghost" onClick={() => { void invoke("engine-data-use", { mode: "app" }); }} data-testid="engine-use-app">{t("app.engine.shared.useApp")}</Button></div>}
+        </Card>
+      </Section>
 
       <Section title={t("app.engine.options")}>
         <Card className="so-form">
