@@ -9,7 +9,7 @@ import { isUploadActive, type SkippedCounts, type UploadItem } from "../../model
 /** Rows shown at most; a drop of thousands of files is a summary and the work in flight, not thousands of rows. */
 const ROW_LIMIT = 40;
 const SETTLED_HIDE_MS = 12_000;
-const SKIP_ORDER: (keyof SkippedCounts)[] = ["hidden", "junk", "temporary", "links", "special", "unreadable"];
+const SKIP_ORDER: (keyof SkippedCounts)[] = ["hidden", "junk", "gitignore", "ooignore", "temporary", "links", "special", "unreadable"];
 
 /** Active first, then failed, then the rest in the order they were queued. */
 export function visibleItems(items: readonly UploadItem[], limit = ROW_LIMIT): UploadItem[] {
@@ -31,19 +31,22 @@ export function UploadTray() {
   const state = useUploadQueueState();
   const [open, setOpen] = useState(true);
   const queue = getUploadQueue();
+  // The counts come from the main process (exact, however many rows this list keeps); the list itself is the work in flight and the last few results.
   const summary = useMemo(() => {
-    let active = 0; let failed = 0; let done = 0; let bytesDone = 0; let bytesTotal = 0;
-    for (const item of state.items) {
-      if (isUploadActive(item)) { active += 1; bytesDone += item.bytesDone; bytesTotal += item.size; }
-      else if (item.state === "failed") failed += 1;
-      else if (item.state === "done" || item.state === "skipped") done += 1;
+    let queued = 0; let settled = 0; let failed = 0; let done = 0; let duplicates = 0; let found = 0; let scanning = false; let choosing = false;
+    for (const batch of state.batches) {
+      queued += batch.queued; failed += batch.counts.failed; done += batch.counts.done + batch.counts.skipped; duplicates += batch.counts.skipped; found += batch.found;
+      settled += batch.counts.done + batch.counts.failed + batch.counts.skipped + batch.counts.cancelled;
+      if (batch.phase === "scanning") scanning = true;
+      if (batch.phase === "choice") choosing = true;
     }
-    return { active, failed, done, ratio: bytesTotal > 0 ? bytesDone / bytesTotal : active > 0 ? null : 1 };
-  }, [state.items]);
+    const active = Math.max(0, queued - settled);
+    return { active, failed, done, duplicates, found, queued, settled, scanning, choosing, ratio: queued > 0 ? settled / queued : active > 0 || scanning ? null : 1 };
+  }, [state.batches]);
   const rows = useMemo(() => visibleItems(state.items), [state.items]);
   const skippedCount = Object.values(state.skipped).reduce((sum, value) => sum + value, 0);
-  const duplicates = useMemo(() => state.items.reduce((n, item) => n + (item.state === "skipped" ? 1 : 0), 0), [state.items]);
-  const settled = summary.active === 0 && summary.failed === 0 && skippedCount === 0;
+  const duplicates = summary.duplicates;
+  const settled = summary.active === 0 && summary.failed === 0 && skippedCount === 0 && !summary.scanning && !summary.choosing;
 
   // A finished, clean list leaves by itself; one that skipped or failed something stays until it is closed.
   useEffect(() => {
@@ -53,11 +56,14 @@ export function UploadTray() {
   }, [settled, state.items.length, queue]);
 
   if (state.dismissed || (state.items.length === 0 && skippedCount === 0 && !state.error)) return null;
-  const title = summary.active > 0 ? t("app.sources.uploading", { count: summary.active }) : t("app.drop.tray.done", { count: summary.done });
-  const hidden = state.items.length - rows.length;
+  const title = summary.scanning ? t("app.drop.tray.preparing", { count: summary.found })
+    : summary.choosing ? t("app.drop.tray.choice", { count: summary.found })
+      : summary.active > 0 ? (summary.queued > 1_000 ? t("app.drop.tray.progress", { done: summary.settled, total: summary.queued }) : t("app.sources.uploading", { count: summary.active }))
+        : t("app.drop.tray.done", { count: summary.done });
+  const hidden = Math.max(state.items.length - rows.length, summary.active - rows.filter((item) => isUploadActive(item)).length);
 
   return (
-    <section className="so-tray" aria-label={t("app.drop.tray.label")} data-testid="upload-tray" data-active={summary.active} data-failed={summary.failed} data-done={summary.done} data-open={open ? "" : undefined}>
+    <section className="so-tray" aria-label={t("app.drop.tray.label")} data-testid="upload-tray" data-active={summary.active} data-failed={summary.failed} data-done={summary.done} data-total={summary.queued} data-open={open ? "" : undefined}>
       <header className="so-tray-head">
         <span className="so-tray-title" data-testid="upload-tray-title">{title}</span>
         <span className="so-tray-tools">

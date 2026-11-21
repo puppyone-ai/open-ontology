@@ -21,5 +21,11 @@ export function DropLayerConnected() {
     await getUploadQueue().discard(batchIds, root.path);
     return { ok: true as const };
   }, [actions]);
-  return <DropLayer drives={drives} firstRunOpen={app.firstRunOpen} ensureMyFiles={() => actions.ensureMyFiles()} enqueue={(driveId, folder, files) => getUploadQueue().enqueueFiles(driveId, folder, files)} keepInSync={keepInSync} />;
+  // A drop from any screen shows the Sources screen at once (leaving it alone when it is already there, so an open source stays open).
+  const { section, go } = app;
+  const onDrop = useCallback(() => { if (section !== "sources") go("sources"); }, [section, go]);
+  return (
+    <DropLayer drives={drives} firstRunOpen={app.firstRunOpen} ensureMyFiles={() => actions.ensureMyFiles()} enqueue={(driveId, folder, files) => getUploadQueue().enqueueFiles(driveId, folder, files)}
+      keepInSync={keepInSync} decide={(batchId, choice, paths) => getUploadQueue().decide(batchId, choice, paths)} cancelBatches={(ids) => getUploadQueue().cancelBatches(ids)} onDrop={onDrop} />
+  );
 }

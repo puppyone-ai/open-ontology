@@ -341,7 +341,7 @@
   .so-toast-title { font-weight: var(--so-weight-medium); line-height: var(--so-leading); overflow-wrap: anywhere; }
   .so-toast-sub { color: var(--so-text-2); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); overflow-wrap: anywhere; }
   .so-toast-sub[data-tone="danger"] { color: var(--so-danger); }
-  .so-toast-actions { display: flex; margin-top: var(--so-space-1); }
+  .so-toast-actions { display: flex; flex-wrap: wrap; gap: var(--so-space-2); margin-top: var(--so-space-1); }
 
   .so-tray { display: grid; gap: var(--so-space-2); padding: var(--so-space-3); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); animation: so-drop-in var(--so-duration) var(--so-ease); }
   .so-tray-head { display: flex; align-items: center; justify-content: space-between; gap: var(--so-space-2); min-height: var(--so-control-compact); margin-block: calc(-1 * var(--so-space-1)); }

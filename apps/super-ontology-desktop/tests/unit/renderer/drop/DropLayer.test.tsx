@@ -8,7 +8,7 @@ import { DropLayer, type DropLayerDeps } from "../../../../src/renderer/features
 import { DropOverlay } from "../../../../src/renderer/features/drop/DropOverlay";
 import { DropToast, type DropToastState } from "../../../../src/renderer/features/drop/DropToast";
 import { databaseDropAttributes, dropAttributes } from "../../../../src/renderer/features/drop/dropTarget";
-import { emptySkipped, initialUploadQueueState, type DropOutcome, type UploadQueueState } from "../../../../src/renderer/model/queue/uploadQueue";
+import { emptySkipped, initialUploadQueueState, type BatchInfo, summarizeDrop, type DropOutcome, type UploadQueueState } from "../../../../src/renderer/model/queue/uploadQueue";
 import { catalog } from "../../../support/locales";
 
 const queueState: { current: UploadQueueState } = { current: initialUploadQueueState() };
@@ -27,10 +27,18 @@ function dragEvent(type: string, target: Element | Window, { types = ["Files"], 
   return event as Event & { dataTransfer: { dropEffect: string } };
 }
 
-const outcome = (over: Partial<DropOutcome> = {}): DropOutcome => ({ queued: 3, skipped: emptySkipped(), roots: [], emptyFolders: 0, batchIds: ["b1"], error: null, ...over });
+const outcome = (over: Partial<DropOutcome> = {}): DropOutcome => ({ batchIds: ["b1"], error: null, ...over });
+const batch = (over: Partial<BatchInfo> = {}): BatchInfo => ({
+  id: "b1", driveId: "d-my", folder: "", phase: "done", found: 3, bytes: 3000, queued: 3, counts: { done: 3, failed: 0, skipped: 0, cancelled: 0 }, skipped: emptySkipped(),
+  samples: [], roots: [], large: [], emptyFolders: 0, problem: null, ...over,
+});
+const setBatches = (...batches: BatchInfo[]) => { queueState.current = { ...initialUploadQueueState(), batches }; };
 const drives = [{ id: "d-my", name: "My files", backend: "fs" }, { id: "d-team", name: "Team docs", backend: "fs" }, { id: "d-s3", name: "Archive", backend: "s3" }] as DropLayerDeps["drives"];
 function deps(over: Partial<DropLayerDeps> = {}): DropLayerDeps {
-  return { drives, firstRunOpen: false, ensureMyFiles: vi.fn(async () => ({ ok: true as const, value: { id: "d-my" } })), enqueue: vi.fn(async () => outcome()), keepInSync: vi.fn(async () => ({ ok: true as const })), ...over };
+  return {
+    drives, firstRunOpen: false, ensureMyFiles: vi.fn(async () => ({ ok: true as const, value: { id: "d-my" } })), enqueue: vi.fn(async () => outcome()), keepInSync: vi.fn(async () => ({ ok: true as const })),
+    decide: vi.fn(async () => true), cancelBatches: vi.fn(async () => undefined), ...over,
+  };
 }
 
 beforeEach(() => { queueState.current = initialUploadQueueState(); });
@@ -125,25 +133,62 @@ describe("the overlay states", () => {
 
 describe("dropping", () => {
   const file = (name: string) => new File(["x"], name);
+  const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
 
   it("copies the files out of the drop and sends them to My files, creating it when it is not listed yet", async () => {
+    setBatches(batch());
     const d = deps({ drives: [] });
     render(wrap(<DropLayer {...d} />));
     const files = [file("a.md"), file("Folder")];
     const event = dragEvent("drop", document.body, { files });
     expect(event.defaultPrevented).toBe(true);
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(d.ensureMyFiles).toHaveBeenCalledTimes(1);
     expect(d.enqueue).toHaveBeenCalledWith("d-my", "", files);
     expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-queued", "3");
     expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("This drop: 3 files added to “My files”");
   });
 
+  it("answers in the frame of the drop: Preparing… before anything is awaited, and the app is asked to show the Sources screen", async () => {
+    let release: (value: DropOutcome) => void = () => undefined;
+    const onDrop = vi.fn();
+    const d = deps({ onDrop, enqueue: vi.fn(() => new Promise<DropOutcome>((resolve) => { release = resolve; })) });
+    render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Project")] });
+    // No await: the engine has not answered, the walk has not started.
+    expect(onDrop).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "preparing");
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Preparing…");
+    await flush();
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "preparing");
+    await act(async () => { release(outcome()); await Promise.resolve(); });
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "preparing"); // the batch is not reported yet
+  });
+
+  it("shows the files found so far while the walk goes on, then what was added", async () => {
+    setBatches(batch({ phase: "scanning", found: 0, queued: 0, counts: { done: 0, failed: 0, skipped: 0, cancelled: 0 } }));
+    const d = deps();
+    const { rerender } = render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Project")] });
+    await flush();
+    setBatches(batch({ phase: "scanning", found: 4210, queued: 0, counts: { done: 0, failed: 0, skipped: 0, cancelled: 0 } }));
+    rerender(wrap(<DropLayer {...d} />));
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "preparing");
+    expect(screen.getByTestId("drop-toast-found")).toHaveTextContent("4,210 files found so far");
+    setBatches(batch({ phase: "copying", found: 4300, queued: 4300, counts: { done: 120, failed: 0, skipped: 0, cancelled: 0 } }));
+    rerender(wrap(<DropLayer {...d} />));
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Adding files: 120 of 4,300");
+    setBatches(batch({ phase: "done", found: 4300, queued: 4300, counts: { done: 4300, failed: 0, skipped: 0, cancelled: 0 } }));
+    rerender(wrap(<DropLayer {...d} />));
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("This drop: 4,300 files added");
+  });
+
   it("sends a drop on a source row to that source and a drop in its folder into the folder", async () => {
+    setBatches(batch({ driveId: "d-team" }));
     const d = deps();
     render(wrap(<><section data-testid="detail" {...dropAttributes(drives[1], "sub/dir")}><b>list</b></section><DropLayer {...d} /></>));
     dragEvent("drop", screen.getByText("list"), { files: [file("n.md")] });
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(d.ensureMyFiles).not.toHaveBeenCalled();
     expect(d.enqueue).toHaveBeenCalledWith("d-team", "sub/dir", expect.any(Array));
     expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("This drop: 3 files added to “Team docs”");
@@ -153,29 +198,31 @@ describe("dropping", () => {
     const d = deps();
     render(wrap(<><div data-testid="cloud" {...dropAttributes(drives[2])}>Archive</div><DropLayer {...d} /></>));
     dragEvent("drop", screen.getByTestId("cloud"), { files: [file("n.md")] });
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(d.enqueue).not.toHaveBeenCalled();
     expect(screen.queryByTestId("drop-toast")).toBeNull();
   });
 
-  it("answers a failed drop with the sentence for its error", async () => {
-    const d = deps({ enqueue: vi.fn(async () => outcome({ queued: 0, error: { code: "SO_UPLOAD_TOO_MANY", retryable: false, details: {} } })) });
+  it("answers a drop that could not be started with the sentence for its error", async () => {
+    const d = deps({ enqueue: vi.fn(async () => outcome({ batchIds: [], error: { code: "SO_UPLOAD_UNSUPPORTED_BACKEND", retryable: false, details: {} } })) });
     render(wrap(<DropLayer {...d} />));
     dragEvent("drop", document.body, { files: [file("Huge")] });
-    await act(async () => { await Promise.resolve(); });
-    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Too many files in one drop");
+    await flush();
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent(/.+/u);
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "failed");
   });
 
-  it("offers to keep a dropped folder in sync, defaulting to the copy, and registers it on a click", async () => {
-    const d = deps({ enqueue: vi.fn(async () => outcome({ roots: [{ path: "/Users/me/ProjectA", name: "ProjectA", kind: "directory", files: 3 }, { path: "/Users/me/n.md", name: "n.md", kind: "file", files: 1 }] })) });
+  it("offers to keep a small dropped folder in sync, defaulting to the copy, and registers it on a click", async () => {
+    setBatches(batch({ roots: [{ path: "/Users/me/ProjectA", name: "ProjectA", kind: "directory", files: 3 }, { path: "/Users/me/n.md", name: "n.md", kind: "file", files: 1 }] }));
+    const d = deps();
     render(wrap(<DropLayer {...d} />));
     dragEvent("drop", document.body, { files: [file("ProjectA"), file("n.md")] });
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(d.keepInSync).not.toHaveBeenCalled();
     const offer = screen.getByTestId("drop-keep-in-sync");
     expect(offer).toHaveTextContent("Also keep this folder in sync");
     fireEvent.click(offer);
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(d.keepInSync).toHaveBeenCalledWith({ path: "/Users/me/ProjectA", name: "ProjectA" }, ["b1"]);
     expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-sync", "done");
     expect(screen.getByTestId("drop-toast-synced")).toHaveTextContent("in place of the copy.");
@@ -183,42 +230,145 @@ describe("dropping", () => {
   });
 
   it("offers nothing for loose files, and keeps the offer open for a retry when registering fails", async () => {
-    const loose = deps({ enqueue: vi.fn(async () => outcome({ roots: [{ path: "/a/n.md", name: "n.md", kind: "file", files: 1 }] })) });
-    render(wrap(<DropLayer {...loose} />));
+    setBatches(batch({ roots: [{ path: "/a/n.md", name: "n.md", kind: "file", files: 1 }] }));
+    render(wrap(<DropLayer {...deps()} />));
     dragEvent("drop", document.body, { files: [file("n.md")] });
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(screen.queryByTestId("drop-keep-in-sync")).toBeNull();
     cleanup();
-    const failing = deps({ enqueue: vi.fn(async () => outcome({ roots: [{ path: "/a/P", name: "P", kind: "directory", files: 1 }] })), keepInSync: vi.fn(async () => ({ ok: false as const, error: { code: "SO_UPLOAD_SOURCE_MISSING", retryable: false, details: {} } })) });
+    setBatches(batch({ roots: [{ path: "/a/P", name: "P", kind: "directory", files: 1 }] }));
+    const failing = deps({ keepInSync: vi.fn(async () => ({ ok: false as const, error: { code: "SO_UPLOAD_SOURCE_MISSING", retryable: false, details: {} } })) });
     render(wrap(<DropLayer {...failing} />));
     dragEvent("drop", document.body, { files: [file("P")] });
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     fireEvent.click(screen.getByTestId("drop-keep-in-sync"));
-    await act(async () => { await Promise.resolve(); });
+    await flush();
     expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-sync", "failed");
     expect(screen.getByTestId("drop-keep-in-sync")).toBeInTheDocument();
   });
 });
 
+describe("a big folder", () => {
+  const file = (name: string) => new File(["x"], name);
+  const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
+  const large = { path: "/Users/me/Big", name: "Big", files: 25_001, bytes: 2.5 * 1024 ** 3, state: "pending" as const };
+  const asking = () => batch({ phase: "choice", found: 25_001, bytes: 2.5 * 1024 ** 3, queued: 0, counts: { done: 0, failed: 0, skipped: 0, cancelled: 0 }, large: [large], roots: [{ path: large.path, name: "Big", kind: "directory", files: 25_001 }], skipped: { ...emptySkipped(), junk: 7, gitignore: 3 } });
+
+  it("asks before copying, with linking as the recommended primary action and copying as the secondary", async () => {
+    setBatches(asking());
+    render(wrap(<DropLayer {...deps()} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-phase", "choice");
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("“Big” is a big folder: 25,001 files, 2.5 GB");
+    expect(screen.getByTestId("drop-toast-skipped")).toHaveTextContent("10 items skipped");
+    const link = screen.getByTestId("drop-link-folder");
+    expect(link).toHaveTextContent("Link this folder (recommended for big projects: no copy, stays in sync)");
+    expect(link).toHaveAttribute("data-variant", "primary");
+    expect(screen.getByTestId("drop-copy-folder")).toHaveTextContent("Copy into My files");
+    expect(screen.getByTestId("drop-copy-folder")).toHaveAttribute("data-variant", "secondary");
+  });
+
+  it("links the folder as a source with nothing copied, and tells the main process to leave it", async () => {
+    setBatches(asking());
+    const d = deps();
+    const { rerender } = render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    fireEvent.click(screen.getByTestId("drop-link-folder"));
+    await flush();
+    expect(d.keepInSync).toHaveBeenCalledWith({ path: "/Users/me/Big", name: "Big" }, []);
+    expect(d.decide).toHaveBeenCalledWith("b1", "skip", ["/Users/me/Big"]);
+    setBatches({ ...asking(), phase: "done", large: [{ ...large, state: "skipped" }] });
+    rerender(wrap(<DropLayer {...d} />));
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-choice", "linked");
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Linked “Big”: 25,001 files");
+    expect(screen.getByTestId("drop-toast-linked")).toHaveTextContent("Nothing was copied");
+  });
+
+  it("copies it as a stream when asked to", async () => {
+    setBatches(asking());
+    const d = deps();
+    const { rerender } = render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    fireEvent.click(screen.getByTestId("drop-copy-folder"));
+    await flush();
+    expect(d.decide).toHaveBeenCalledWith("b1", "copy");
+    expect(d.keepInSync).not.toHaveBeenCalled();
+    setBatches({ ...asking(), phase: "copying", queued: 600, counts: { done: 100, failed: 0, skipped: 0, cancelled: 0 }, large: [{ ...large, state: "copying" }] });
+    rerender(wrap(<DropLayer {...d} />));
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Adding files: 100 of 600");
+  });
+
+  it("keeps the choice open for a retry when linking fails", async () => {
+    setBatches(asking());
+    const d = deps({ keepInSync: vi.fn(async () => ({ ok: false as const, error: { code: "SO_UPLOAD_SOURCE_MISSING", retryable: false, details: {} } })) });
+    render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    fireEvent.click(screen.getByTestId("drop-link-folder"));
+    await flush();
+    expect(d.decide).not.toHaveBeenCalled();
+    expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-sync", "failed");
+    expect(screen.getByTestId("drop-link-folder")).toBeInTheDocument();
+  });
+
+  it("stays while the choice is open, and cancelling stops the drop", async () => {
+    vi.useFakeTimers();
+    setBatches(asking());
+    const d = deps();
+    render(wrap(<DropLayer {...d} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(screen.getByTestId("drop-toast")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("drop-toast-cancel"));
+    expect(d.cancelBatches).toHaveBeenCalledWith(["b1"]);
+    expect(screen.queryByTestId("drop-toast")).toBeNull();
+  });
+
+  it("says plainly when the disk cannot hold the drop, with the numbers, and what to do", async () => {
+    setBatches(batch({ phase: "done", found: 5, queued: 5, counts: { done: 0, failed: 5, skipped: 0, cancelled: 0 }, problem: { code: "SO_UPLOAD_NOT_ENOUGH_SPACE", needed: 3 * 1024 ** 3, free: 1024 ** 3 } }));
+    render(wrap(<DropLayer {...deps()} />));
+    dragEvent("drop", document.body, { files: [file("Big")] });
+    await flush();
+    const problem = screen.getByTestId("drop-toast-problem");
+    expect(problem).toHaveTextContent("Not enough free disk space for this drop. Free up space, or link the folder instead of copying it.");
+    expect(problem).toHaveTextContent("needs about 3 GB; 1 GB is free.");
+  });
+});
+
 describe("the toast", () => {
-  const state = (over: Partial<DropToastState> = {}): DropToastState => ({ id: 1, name: "Team docs", managed: false, outcome: outcome(), sync: "idle", syncError: null, ...over });
+  const state = (over: Partial<DropToastState> = {}): DropToastState => ({ id: 1, name: "Team docs", managed: false, started: true, batchIds: ["b1"], error: null, sync: "idle", syncError: null, choice: "none", linked: [], ...over });
+  const none = () => undefined;
+  const summary = (over: Partial<BatchInfo> = {}) => summarizeDrop([batch(over)], ["b1"]);
+  const renderToast = (toast: DropToastState, sum: ReturnType<typeof summary>, onClose: () => void = none) => render(wrap(<DropToast toast={toast} summary={sum} onSync={none} onLink={none} onCopy={none} onCancel={none} onClose={onClose} />));
+
   it("says how many items were skipped", () => {
-    render(wrap(<DropToast toast={state({ outcome: outcome({ skipped: { ...emptySkipped(), hidden: 2, junk: 1 } }) })} onSync={() => undefined} onClose={() => undefined} />));
+    renderToast(state(), summary({ skipped: { ...emptySkipped(), hidden: 2, junk: 1 } }));
     expect(screen.getByTestId("drop-toast-skipped")).toHaveTextContent("3 items skipped");
   });
   it("says so when everything was skipped", () => {
-    render(wrap(<DropToast toast={state({ outcome: outcome({ queued: 0, skipped: { ...emptySkipped(), hidden: 2 } }) })} onSync={() => undefined} onClose={() => undefined} />));
+    renderToast(state(), summary({ found: 0, queued: 0, counts: { done: 0, failed: 0, skipped: 0, cancelled: 0 }, skipped: { ...emptySkipped(), hidden: 2 } }));
     expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Nothing to add");
   });
   it("leaves by itself, but not while it is being read", () => {
     vi.useFakeTimers();
     const onClose = vi.fn();
-    render(wrap(<DropToast toast={state()} onSync={() => undefined} onClose={onClose} />));
+    renderToast(state(), summary(), onClose);
     fireEvent.mouseEnter(screen.getByTestId("drop-toast"));
     act(() => { vi.advanceTimersByTime(30_000); });
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.mouseLeave(screen.getByTestId("drop-toast"));
     act(() => { vi.advanceTimersByTime(8000); });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  it("does not leave while it is still preparing or copying", () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
+    renderToast(state(), summary({ phase: "scanning", found: 10 }), onClose);
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

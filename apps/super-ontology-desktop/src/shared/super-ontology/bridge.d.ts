@@ -92,24 +92,39 @@ export type EngineActor = { kind: "cli" | "app" | "mcp" | "agent" | "cloud" | "l
 export type EngineEvent = { seq?: number; type: string; at: string; drive_id?: string | null; data: Record<string, unknown>; actor?: EngineActor };
 export type ConnectionSnapshot = { state: ConnectionState; attempt: number; nextRetryAt: string | null; lastSeq: number };
 export type ResyncReason = "cursor_expired" | "engine_restarted" | "gap";
-export type UploadProgressPush = { batchId: string; items: { itemId: string; state: UploadItemState | string; bytesDone: number; bytesTotal: number; code?: string; drivePath?: string; skipReason?: "duplicate" }[] };
-
+/** Why a name was left out of a drop (the engine ignores these, so they are not copied): see ignore-rules.mjs. */
+export type UploadSkipReason = "hidden" | "junk" | "temporary" | "links" | "special" | "gitignore" | "ooignore";
+export type UploadSkipped = { hidden: number; links: number; junk: number; temporary: number; special: number; gitignore: number; ooignore: number };
 export type UploadItemState = "waiting" | "copying" | "done" | "failed" | "cancelled" | "skipped";
-export type UploadSkipReason = "hidden" | "junk" | "temporary" | "links" | "special";
-export type UploadStartValue = {
-  batchId: string;
-  items: { itemId: string; name: string; relative: string; size: number; source: string }[];
-  /** What was not copied, by reason: names the engine ignores (hidden, junk, temporary), links (never followed) and special files. */
-  skipped: { hidden: number; links: number; junk?: number; temporary?: number; special?: number };
-  /** A few of the skipped names with their reason, for the explanation (at most 12). */
-  skippedSamples?: { name: string; reason: UploadSkipReason }[];
-  /** What was dropped: a file or a folder (kept with its structure), with the number of files that will be copied. */
-  roots?: { path: string; name: string; kind: "file" | "directory"; files: number }[];
-  /** Empty folders in the drop that were created as folders. */
-  emptyFolders?: number;
-  /** Dropped paths or files inside them that could not be read (missing, no permission, not an absolute path). */
+/** A dropped folder over the size threshold: nothing is copied until the person chooses (link it, or copy it). */
+export type UploadLargeRoot = { path: string; name: string; files: number; bytes: number; state: "pending" | "copying" | "copied" | "skipped" | "failed" };
+/** Where a drop stands, as the main process counts it (exact, whatever the renderer kept in its list). */
+export type UploadBatchSnapshot = {
+  phase: "scanning" | "choice" | "copying" | "done" | "cancelled";
+  /** Files the walk found so far (after the ignore rules) and their bytes. */
+  found: number;
+  bytes: number;
+  /** Files handed to the copy so far. */
+  queued: number;
+  counts: { done: number; failed: number; skipped: number; cancelled: number };
+  skipped: UploadSkipped;
+  skippedSamples: { name: string; reason: UploadSkipReason }[];
+  roots: { path: string; name: string; kind: "file" | "directory"; files: number }[];
+  large: UploadLargeRoot[];
+  emptyFolders: number;
   unreadable: number;
+  /** A batch-level problem: not enough free disk space (with the bytes the drop needs and the bytes free), or a walk that failed. */
+  error?: { code: string; needed?: number; free?: number };
 };
+/** Pushed while a drop is walked and copied: what changed per item, the rows released since the last push (`added`), and the batch's own counts. */
+export type UploadProgressPush = {
+  batchId: string;
+  items: { itemId: string; state: UploadItemState | string; bytesDone: number; bytesTotal: number; code?: string; drivePath?: string; skipReason?: "duplicate" }[];
+  added?: { itemId: string; name: string; relative: string; size: number; source: string }[];
+  batch?: UploadBatchSnapshot;
+};
+/** `upload-start` answers at once; the walk and the copy report through `upload-progress`. */
+export type UploadStartValue = { batchId: string; streaming: true };
 
 /** Per file outcome of a retry batch (contract BatchResult). */
 export type BatchResult = { results: { id: string; status: "ok" | "conflict" | "not_found" | "invalid" | "not_retryable"; code?: string }[] };
@@ -275,6 +290,8 @@ export type SuperOntologyChannelMap = {
   "cloud-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: true } };
   "cloud-mode-set": { request: { mode: CloudMode; operationId?: string }; value: CloudModeState };
   "upload-cancel": { request: { batchId: string; itemId?: string; operationId?: string }; value: { cancelled: true } };
+  /** The answer for the big folders of a drop: copy them (streamed) or leave them (they are linked as sources instead). */
+  "upload-decide": { request: { batchId: string; choice: "copy" | "skip"; paths?: string[]; operationId?: string }; value: { copying: number; skipped: number } };
   /** Takes back the copies a batch made of a dropped folder (the person kept that folder in sync as a source instead). */
   "upload-discard": { request: { batchId: string; folderPath: string; operationId?: string }; value: { removed: number } };
   "entities-search": { request: { q: string; driveId?: string; type?: string; limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
