@@ -405,3 +405,57 @@ async fn non_superuser_cannot_bootstrap() {
     drop_db("oo_docs_it_noadmin").await;
     drop_db("oo_docs_it_noadmin2").await;
 }
+
+/// A database at 0153 that holds a Drive on the old default (max_files 10000) upgrades to 0154 in place: the cap moves to the new
+/// default, the new bound and the job_file index exist, and the Drive's own data is untouched.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_it_upgrade_0154";
+    installed_db(db).await;
+    let mut admin = connect(db).await;
+    // Put the database back to the state 0153 leaves: old CHECK and default, no index, no 0154 row.
+    for sql in [
+        "ALTER TABLE _oo_docs.drive DROP CONSTRAINT drive_max_files_check",
+        "ALTER TABLE _oo_docs.drive ADD CONSTRAINT drive_max_files_check CHECK (max_files BETWEEN 1 AND 10000)",
+        "ALTER TABLE _oo_docs.drive ALTER COLUMN max_files SET DEFAULT 10000",
+        "DROP INDEX _oo_docs.job_file",
+    ] {
+        admin.execute(sql).await.unwrap();
+    }
+    admin
+        .execute("INSERT INTO _oo_docs.drive (id, name, backend, config, max_files) VALUES ('00000000-0000-4000-8000-0000000000a1', 'old', 'fs', '{}', 10000), ('00000000-0000-4000-8000-0000000000a2', 'custom', 'fs', '{}', 500)")
+        .await
+        .unwrap();
+    tamper(
+        &mut admin,
+        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-drive-scale/1'",
+    )
+    .await;
+    match install(&mut admin).await.expect("upgrade") {
+        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-drive-scale/1"]),
+        other => panic!("{other:?}"),
+    }
+    let caps: Vec<(String, i32)> =
+        sqlx::query_as("SELECT name, max_files FROM _oo_docs.drive ORDER BY name")
+            .fetch_all(&mut admin)
+            .await
+            .unwrap();
+    assert_eq!(
+        caps,
+        vec![("custom".to_owned(), 500), ("old".to_owned(), 1_000_000)]
+    );
+    let index: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_indexes WHERE schemaname = '_oo_docs' AND indexname = 'job_file'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert_eq!(index, 1);
+    admin
+        .execute("UPDATE _oo_docs.drive SET max_files = 5000000 WHERE name = 'custom'")
+        .await
+        .expect("the new bound allows a larger cap");
+    drop_db(db).await;
+}

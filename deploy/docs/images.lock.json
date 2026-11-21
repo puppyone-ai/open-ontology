@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:a273df31c7c161f4a53c56ee42d0513e89c4d0ed273c5e0519184605c5a1edab",
-        "tag": "oo-docs-engine:dev-ae4",
-        "size_bytes": 288590888,
+        "image": "sha256:35c90e6b71acd950952fc6562692f913348d3268639674299506c86d96922935",
+        "tag": "oo-docs-engine:dev-ae5",
+        "size_bytes": 288836336,
         "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-ae4",
+        "lane": "super-ontology-ae5",
         "built": "2026-11-21",
-        "built_from": "so/AE4-final at c4e0b8b8f; engine with the actor tag, live events and freshness changes of lanes AH and AH2, on top of the dev-ae2 engine",
-        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae4 --build-arg OO_LANE=super-ontology-ae4 -t oo-docs-engine:dev-ae4 ."
+        "built_from": "so/AE5-final at 589c16d4e (feat/super-ontology ff4a03dbd); engine with migration 0154 (no per-Drive file cap, job_file index), drive-scale fixes and the new ignore rules",
+        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae5 --build-arg OO_LANE=super-ontology-ae5 -t oo-docs-engine:dev-ae5 ."
       },
       "linux/amd64": null
     }
