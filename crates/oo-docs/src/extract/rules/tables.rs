@@ -145,10 +145,22 @@ pub fn role_of(header: &str) -> Option<Role> {
     if key.is_empty() {
         return None;
     }
-    HEADER_SYNONYMS
-        .iter()
-        .find(|(_, words)| words.contains(&key.as_str()))
-        .map(|(r, _)| *r)
+    let by_key = |k: &str| {
+        HEADER_SYNONYMS
+            .iter()
+            .find(|(_, words)| words.contains(&k))
+            .map(|(r, _)| *r)
+    };
+    by_key(&key).or_else(|| {
+        // A bilingual header (`姓名 Name`, `角色 / Role`): its words agree on one role.
+        let mut roles = header
+            .split(|c: char| c.is_whitespace() || matches!(c, '/' | '|' | '／' | '、'))
+            .map(header_key)
+            .filter(|k| !k.is_empty())
+            .map(|k| by_key(&k));
+        let first = roles.next().flatten()?;
+        roles.all(|r| r == Some(first)).then_some(first)
+    })
 }
 
 /// What a whole table is.
@@ -511,6 +523,15 @@ mod tests {
     #[test]
     fn headers_map_by_nfkc_and_blank_free_key() {
         assert_eq!(role_of("姓 名"), Some(Role::Name));
+        assert_eq!(role_of("姓名 Name"), Some(Role::Name));
+        assert_eq!(role_of("角色 / Role"), Some(Role::Title));
+        assert_eq!(role_of("团队 Team"), Some(Role::Dept));
+        assert_eq!(
+            role_of("姓名 Email"),
+            None,
+            "words that disagree map to nothing"
+        );
+        assert_eq!(role_of("Role (EN)"), Some(Role::Title));
         assert_eq!(role_of("ＥＭＡＩＬ"), Some(Role::Email));
         assert_eq!(role_of("预算（万元）"), None);
         assert_eq!(role_of("所属项目"), Some(Role::BelongsProject));
