@@ -229,6 +229,10 @@ def build(world=world, seed=SEED, variant="golden"):
     for d in world.DOCS:
         first = infos[d["path"]][0]["anchor"]
         for k in d["about"]:
+            # DOC-G1 (spec 10 5.1): `about` ranges over Project|Topic|Term|Organization, so a document is never
+            # `about` an Event; the engine refuses such a fact and the label could never be met.
+            if world.ENT[k][0] == "Event":
+                continue
             add_fact("about", eid["doc:" + d["path"]], eid[k], d["created"], None, [first])
         for key, (typ, name, aliases, _x) in world.ENT.items():
             if typ not in MENTION_TYPES:

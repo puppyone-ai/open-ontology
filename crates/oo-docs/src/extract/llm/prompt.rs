@@ -1,14 +1,14 @@
-//! The `extract/3` prompt and the block level cache key (10 §5.2.2, §5.2.4).
+//! The `extract/4` prompt and the block level cache key (10 §5.2.2, §5.2.4).
 
 use serde_json::{Value, json};
 
 use super::batch::Batch;
 use super::{ConstrainedType, MAX_TOKENS, prompt_version};
 
-/// System text of `extract/3`. Changing a word changes the cache keys of
+/// System text of `extract/4`. Changing a word changes the cache keys of
 /// everything, which is why the prompt version is part of the key.
 ///
-/// `extract/3` over `extract/1` (10 5.2.2, D15, D16): each core type says what
+/// `extract/4` over `extract/1` (10 5.2.2, D15, D16): each core type says what
 /// counts as one, so the model stops inventing Organization, Event and Topic
 /// entities for generic words and tasks; the document itself is the entity
 /// `doc` and only a subject of `about`; known entities are reused verbatim;
@@ -21,9 +21,9 @@ pub const SYSTEM: &str = "你是信息抽取器。只抽取文本中明确陈述
   Organization：有专名的公司、机构、客户、供应商；“公司”“团队”“部门”等泛称、内部部门名都不是。\n\
   Project：有名称的项目或产品。\n\
   Decision：文本明确写出的决定本身，按原文措辞，不要改写或另起近义名称。\n\
-  Topic：被反复讨论的主题，名词短语；一次性提到的事项、动作、任务不是 Topic。\n\
-  Event：有固定名称的会议或活动；任务、工作项、步骤不是 Event。\n\
-  Term：有明确含义的术语、概念、指标、方案或技术路线的名称。\n\
+  Topic：被反复讨论的主题，名词短语；一次性提到的事项、动作、任务不是 Topic。同一主题在各文档里用同一个短名（如“周报”“办公迁址”），不要为它加“沟通”“调整”“方案”等后缀另起名称。\n\
+  Event：有专名的会议或活动（如“年度计划会”“客户沙龙”）；例行的“第N周周会”、任务、工作项、步骤不是 Event。\n\
+  Term：有明确含义的术语、概念、指标、方案或技术路线的名称；周期性事务、预算项、普通动作、文档类型不是 Term。\n\
   Document：不要创建。本文档本身用 id \"e0\"（type=\"Document\"，block_id 与 quote 取任一块）表示，只能作为 about 的主语。\n\
 核心关系与约束（domain → range）：\n\
   owns: Person|Organization → Project|Document|Decision\n\
@@ -34,6 +34,7 @@ pub const SYSTEM: &str = "你是信息抽取器。只抽取文本中明确陈述
   mentions: Document → 任意\n\
   about: Document|Decision|Event → Project|Topic|Term|Organization\n\
   tried_and_failed: Person|Organization|Project → Topic|Term|Event\n\
+tried_and_failed：原文写明某人、组织或项目尝试过某方案、技术路线或活动但没有成功、失败或被放弃时输出（宾语是被尝试的 Topic|Term|Event）；它不同于 rejects（单纯否决）。\n\
 owns 和 member_of 只在原文明确写出“谁负责/拥有什么”“谁属于哪里”时使用；只是列出某组织的项目、成员清单，不算。\n\
 必须为 e0 输出 about 关系：宾语是文档最核心的 1 到 3 个 Project、Topic、Term 或 Organization，quote 取该对象出现的原文（只需包含宾语）；mentions 不必输出。\n\
 不属于以上任何核心类型的重要对象，用 type=\"Thing\" 并给出简短 label（≤20 字，名词）。\n\
@@ -41,7 +42,7 @@ aliases 里除简称、昵称外，还要写出该实体名称的另一种语言
 已知实体中的对象（含简称、别名）必须逐字使用已知实体的写法作为 name，不得另起新名。\n\
 每一项都必须给出 block_id 和 quote：quote 是该块中逐字出现的原文片段（≤120 字）；关系的 quote 必须同时包含主语和宾语的写法（主语是 e0 时除外）。\n\
 日期写成 YYYY-MM-DD；不确定的日期留空。\n\
-confidence 只能是 high / medium / low：high 表示 quote 中一句话直接写出主语、宾语和关系；medium 表示需要结合上下文才能得出；low 表示猜测。拿不准时写 low。\n\
+confidence 只能是 high / medium / low：high 表示 quote 中一句话直接写出主语、宾语和关系（主语是 e0 的 about：quote 写出宾语，且该对象出现在标题、小标题或文中反复出现，即为 high）；medium 表示需要结合上下文才能得出；low 表示猜测。拿不准时写 low。\n\
 输出 schema：{\"entities\":[{\"id\":\"e1\",\"type\":\"Person|Organization|Project|Decision|Document|Topic|Event|Term|Thing\",\
 \"label\":\"仅 Thing\",\"name\":\"\",\"aliases\":[],\"block_id\":\"\",\"quote\":\"\",\"confidence\":\"high|medium|low\"}],\
 \"relations\":[{\"subject\":\"e1\",\"predicate\":\"owns|member_of|decides|supersedes|rejects|mentions|about|tried_and_failed\",\
@@ -235,9 +236,9 @@ mod tests {
             label: "合同".into(),
             type_name: "Contract".into(),
         }];
-        assert_eq!(prompt_version(&[]), "extract/3");
+        assert_eq!(prompt_version(&[]), "extract/4");
         let v = prompt_version(&t);
-        assert!(v.starts_with("extract/3+t") && v.len() == "extract/3+t".len() + 8);
+        assert!(v.starts_with("extract/4+t") && v.len() == "extract/4+t".len() + 8);
         assert_ne!(v, prompt_version(&[]));
         assert_eq!(system_text(&[]), SYSTEM);
         assert!(system_text(&t).contains("合同（Contract）"));
