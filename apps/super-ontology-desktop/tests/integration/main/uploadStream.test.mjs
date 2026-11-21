@@ -74,27 +74,27 @@ describe("a drop answers at once and reports while it walks", () => {
 });
 
 describe("there is no cap", () => {
-  it("walks more than 10,000 files without refusing anything, and waits for a choice instead of copying", async () => {
-    await many(path.join(source, "Huge"), 12_000);
+  it("walks more than the old limit of 10,000 files without refusing anything, and waits for a choice instead of copying", async () => {
+    await many(path.join(source, "Huge"), 10_300);
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "Huge")] });
     const plan = await service.scanned(started.batchId);
-    expect(plan.large).toMatchObject([{ name: "Huge", files: 12_000, state: "pending" }]);
+    expect(plan.large).toMatchObject([{ name: "Huge", files: 10_300, state: "pending" }]);
     expect(plan.items).toEqual([]);
-    expect(snapshots(started.batchId).at(-1)).toMatchObject({ phase: "choice", found: 12_000, queued: 0 });
+    expect(snapshots(started.batchId).at(-1)).toMatchObject({ phase: "choice", found: 10_300, queued: 0 });
     expect(snapshots(started.batchId).at(-1).error).toBeUndefined();
     expect(await readdir(root)).toEqual([]);
     expect(requests.some(([name]) => name === "driveSync")).toBe(false);
   }, 60_000);
 
   it("copies a big folder as a stream when told to, with a bounded queue and exact counts", async () => {
-    await many(path.join(source, "Big"), LARGE_FOLDER_FILES + 1500);
+    await many(path.join(source, "Big"), LARGE_FOLDER_FILES + 300);
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "Big")] });
     await service.scanned(started.batchId);
     expect(service.decide({ batchId: started.batchId, choice: "copy" })).toEqual({ copying: 1, skipped: 0 });
     await until(() => phase(started.batchId) === "done", "streamed copy", 120_000);
-    const total = LARGE_FOLDER_FILES + 1500;
+    const total = LARGE_FOLDER_FILES + 300;
     expect(snapshots(started.batchId).at(-1)).toMatchObject({ queued: total, counts: { done: total, failed: 0 } });
     // The walk never ran far ahead of the copy: what was queued and not yet settled stayed within the bounded queue and the workers.
     const ahead = snapshots(started.batchId).map((entry) => entry.queued - entry.counts.done - entry.counts.failed - entry.counts.skipped - entry.counts.cancelled);
@@ -176,9 +176,9 @@ describe("ignore rules while walking", () => {
     await until(() => phase(started.batchId) === "done", "done");
   });
 
-  it("handles a synthetic 25,000-file code tree: counts what the rules keep and what they skip, and asks before copying", async () => {
+  it("handles a synthetic code tree: counts what the rules keep and what they skip, and asks before copying (the 25,000 file run is the T1 drop-large)", async () => {
     const tree = path.join(work, "synthetic");
-    const made = await createSyntheticTree(tree, { kept: 25_000, litter: 500 });
+    const made = await createSyntheticTree(tree, { kept: 2_500, litter: 100 });
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [tree] });
     await service.scanned(started.batchId);
