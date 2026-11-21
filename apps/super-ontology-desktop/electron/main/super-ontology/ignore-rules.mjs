@@ -8,6 +8,7 @@
 // (never below an ignored folder, which is not visited), a trailing `/` matches folders only, a `/` inside a pattern anchors it to its folder,
 // otherwise a name matches at any depth. `*` `?` `[a-z]` `[!a-z]` `[^a-z]` `\x`, and `**` as a whole segment (leading, middle, trailing).
 // A rules file over 1 MiB, or a rule over 32 segments or with more than 4 `**`, is ignored.
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -188,25 +189,41 @@ export function decideTree(files, relativePath, isDir) {
   return null;
 }
 
+/** {@link loadDirRules} for a caller that cannot wait (a file system event handler): same files, same limits. */
+export function loadDirRulesSync(directory, fileSystem = fsSync) {
+  const rules = [];
+  for (const [name, source] of RULE_FILES) {
+    const file = path.join(directory, name);
+    try {
+      const stat = fileSystem.lstatSync(file);
+      if (!stat.isFile() || stat.size > MAX_RULES_BYTES) continue;
+      rules.push(...parseRules(fileSystem.readFileSync(file, "utf8"), source));
+    } catch { /* No such file, or not readable. */ }
+  }
+  return rules;
+}
+
 /**
  * A resolver for the watcher: is a path (relative to the watched root, '/' separated) ignored by the default skips or by rules files found on
- * disk? Rules per folder are cached; a change to a rules file (`invalidate`) drops the cache. The last name is taken as a file unless `isDir`.
+ * disk? Rules per folder are cached (the files are tiny and read once); a change to a rules file (`invalidate`) drops the cache. The last name is
+ * taken as a file unless `isDir`. Synchronous, so an event handler stays one.
  */
-export function createPathIgnoreResolver(root, { fsPromises = fs } = {}) {
+export function createPathIgnoreResolver(root, { fileSystem = fsSync } = {}) {
   const cache = new Map();
-  const rulesOf = async (relativeDirectory) => {
-    if (!cache.has(relativeDirectory)) cache.set(relativeDirectory, loadDirRules(path.join(root, ...relativeDirectory.split("/").filter(Boolean)), fsPromises));
-    return cache.get(relativeDirectory);
+  const rulesOf = (relativeDirectory) => {
+    let rules = cache.get(relativeDirectory);
+    if (!rules) { rules = loadDirRulesSync(path.join(root, ...relativeDirectory.split("/").filter(Boolean)), fileSystem); cache.set(relativeDirectory, rules); }
+    return rules;
   };
   return Object.freeze({
     invalidate() { cache.clear(); },
-    async isIgnored(relativePath, isDir = false) {
+    isIgnored(relativePath, isDir = false) {
       const parts = relativePath.split("/");
       let stack = createIgnoreStack();
       for (let depth = 0; depth < parts.length; depth += 1) {
         const last = depth + 1 === parts.length;
         if (ignoreReason(parts[depth], !last || isDir)) return true;
-        stack = stack.with(depth, await rulesOf(parts.slice(0, depth).join("/")));
+        stack = stack.with(depth, rulesOf(parts.slice(0, depth).join("/")));
         if (stack.ignored(parts.slice(0, depth + 1), !last || isDir)) return true;
       }
       return false;

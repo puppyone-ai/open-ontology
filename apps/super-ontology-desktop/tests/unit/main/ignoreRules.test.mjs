@@ -56,17 +56,17 @@ describe("rules files on disk", () => {
       expect(await loadDirRules(path.join(root, "src"))).toEqual([]);
 
       const resolver = createPathIgnoreResolver(root);
-      expect(await resolver.isIgnored("a.md")).toBe(true);
-      expect(await resolver.isIgnored("keep.md")).toBe(false);
-      expect(await resolver.isIgnored("secret/x.txt")).toBe(true);
-      expect(await resolver.isIgnored("node_modules/x/y.js")).toBe(true);
-      expect(await resolver.isIgnored("pkg/build/out.js")).toBe(true);
-      expect(await resolver.isIgnored("pkg/build")).toBe(false);
-      expect(await resolver.isIgnored("src/main.ts")).toBe(false);
+      expect(resolver.isIgnored("a.md")).toBe(true);
+      expect(resolver.isIgnored("keep.md")).toBe(false);
+      expect(resolver.isIgnored("secret/x.txt")).toBe(true);
+      expect(resolver.isIgnored("node_modules/x/y.js")).toBe(true);
+      expect(resolver.isIgnored("pkg/build/out.js")).toBe(true);
+      expect(resolver.isIgnored("pkg/build")).toBe(false);
+      expect(resolver.isIgnored("src/main.ts")).toBe(false);
       await fsp.writeFile(path.join(root, ".ooignore"), "*.ts\n");
-      expect(await resolver.isIgnored("src/main.ts")).toBe(false); // cached until the watcher says a rules file changed
+      expect(resolver.isIgnored("src/main.ts")).toBe(false); // cached until the watcher says a rules file changed
       resolver.invalidate();
-      expect(await resolver.isIgnored("src/main.ts")).toBe(true);
+      expect(resolver.isIgnored("src/main.ts")).toBe(true);
     } finally { await fsp.rm(root, { recursive: true, force: true }); }
   });
 });

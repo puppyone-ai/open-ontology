@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isIgnoredName } from "./upload-service.mjs";
+import { createPathIgnoreResolver, ignoreReason } from "./ignore-rules.mjs";
 import { isDrive, isPage, ensure } from "./response-guards.mjs";
 
 /** Quiet time after the last change before paths are sent (D46). */
@@ -14,15 +14,19 @@ const SYNC_RUNNING_RETRIES = 5;
 const RESTART_DELAY_MS = 5_000;
 const DRIVE_PAGE_LIMIT = 200;
 const DRIVE_PAGE_CAP = 50;
-/** Whole directories the engine never reads (10 §4.3.2). */
-const IGNORED_DIRECTORIES = new Set(["node_modules", "__pycache__"]);
+const RULE_FILE_NAMES = new Set([".gitignore", ".ooignore"]);
 const LOCK_FILE = /^\.~lock\..*#$/u;
 const DRIVE_PATH = /^(?!\/)(?!.*\/\/)(?!.*(^|\/)\.\.?(\/|$)).+$/su;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u;
 
-/** The same rule table the engine and the upload service use: a path is ignored when any of its names is. */
+/**
+ * The same rule table the engine and the upload service use (hidden, temporary and junk names, code project folders, compiled files): a path is
+ * ignored when any of its names is. Every name but the last is a folder; the last is taken as a file, so a new folder called `dist` is not
+ * ignored by name here (the sync it causes finds nothing in it). `.gitignore` and `.ooignore` rules are applied by the watcher itself.
+ */
 export function isIgnoredPath(relativePath) {
-  return relativePath.split("/").some((name) => name === "" || isIgnoredName(name) || IGNORED_DIRECTORIES.has(name) || LOCK_FILE.test(name));
+  const names = relativePath.split("/");
+  return names.some((name, index) => name === "" || ignoreReason(name, index < names.length - 1) !== null || LOCK_FILE.test(name));
 }
 
 /** A DrivePath from what `fs.watch` reports, or `null` when the change is not for the engine (ignored, outside the root, not a valid path). */
@@ -112,13 +116,15 @@ export function createDriveWatcher({
     if (disposed || watched.get(driveId) !== entry) return;
     const relative = filename === null || filename === undefined ? null : toDrivePath(String(filename));
     if (filename === null || filename === undefined || String(filename) === "") entry.overflow = true; // No path: events were lost.
+    else if (RULE_FILE_NAMES.has(path.basename(String(filename)))) { entry.ignores.invalidate(); entry.overflow = true; } // New rules: what they leave out or let in changes, so one full sync.
     else if (relative === null) return; // Hidden or junk: not the engine's business.
+    else if (entry.ignores.isIgnored(relative)) return; // Left out by a .gitignore or .ooignore of the folder.
     else entry.pending.add(relative);
     schedule(driveId, entry);
   }
 
   function start(driveId, root) {
-    const entry = { root, handle: null, pending: new Set(), overflow: false, timer: null, firstAt: null, retries: 0, restartTimer: null };
+    const entry = { root, handle: null, pending: new Set(), overflow: false, timer: null, firstAt: null, retries: 0, restartTimer: null, ignores: createPathIgnoreResolver(root) };
     try {
       entry.handle = watch(root, { recursive: true, persistent: false }, (_type, filename) => onChange(driveId, entry, filename));
     } catch (error) {
