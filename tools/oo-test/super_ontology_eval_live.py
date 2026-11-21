@@ -38,7 +38,7 @@ l2.LANE = "oo.lane=" + os.environ.get("OO_TEST_LANE", "super-ontology-be4")
 
 def latency_summary(path):
     """p50/p95/max seconds of the wire calls (`<millis> <ok|error> <tokens out>` lines of OO_DOCS_MODEL_LATENCY_LOG)."""
-    rows = [ln.split() for ln in Path(path).read_text().splitlines() if ln.strip()]
+    rows = [r for r in (ln.split() for ln in Path(path).read_text().splitlines()) if len(r) >= 3]
     ok = sorted(int(r[0]) / 1000 for r in rows if r[1] == "ok")
     errs = {}
     for r in rows:
