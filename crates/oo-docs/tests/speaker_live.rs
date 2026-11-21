@@ -1,7 +1,6 @@
-//! Speaker identity against one throwaway PostgreSQL (B-S10-08, 10 17.4, D74): extraction never waits for a
-//! speaker to be named. A speaker the transcript or the roster names gets that Person at once; the rest publish
-//! under a provisional `Speaker N` Person; a `speaker_identity` item per label is queued, and confirming merges
-//! the provisional Person into the named one so the facts are re-attributed.
+//! Speaker identity against one throwaway PostgreSQL (B-S10-08, 10 17.4, D74): facts from a speaker nobody has
+//! confirmed do not publish, a `speaker_identity` item per label is queued, and confirming merges the
+//! placeholder into the named Person so the facts publish with the right subject.
 //!
 //! `OO_DOCS_TEST_PG_PORT=<port> cargo test -p oo-docs --locked --test speaker_live -- --ignored --test-threads=1`
 
@@ -42,88 +41,19 @@ fn meeting(seed: &str) -> oo_docs::normalize::Normalized {
     finish(frag).unwrap()
 }
 
-/// The same recording with nobody introducing themselves and no roster in the file name.
-fn anonymous_meeting(seed: &str) -> oo_docs::normalize::Normalized {
-    let resp = json!({
-        "protocol": "oo.doc-parser/v1", "parser": {"id": "media", "version": "1", "adapter_version": "1"},
-        "kind": "audio", "container": "wav", "codec": "pcm", "duration_ms": 60_000, "start_ms": 0,
-        "speakers": ["S1", "S2"],
-        "profile": {"tier": "cpu", "isa": "aarch64:asimd", "models": []},
-        "items": [
-            {"kind": "utterance", "speaker": "S1", "t_start_ms": 0, "t_end_ms": 4000,
-             "text": format!("大家好。我负责星火计划。{seed}"), "word_start": 0, "word_end": 9},
-            {"kind": "utterance", "speaker": "S2", "t_start_ms": 5000, "t_end_ms": 9000,
-             "text": "好的，我们开始。", "word_start": 10, "word_end": 14}
-        ],
-        "warnings": []
-    });
-    let frag = assemble(
-        DocFormat::Audio,
-        "3".repeat(63) + seed.get(..1).unwrap_or("4"),
-        &resp,
-    )
-    .unwrap();
-    finish(frag).unwrap()
-}
-
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
-async fn a_speaker_the_transcript_names_publishes_at_once_under_that_name() {
-    let _g = CLUSTER_LOCK.lock().await;
-    let db = "oo_docs_speaker_named";
-    let mut fx = Fx::new(db).await;
-    let path = "会议/周会 参会=小王、小李.m4a";
-    let planted = fx.plant_normalized(path, meeting("a"), 1000).await;
-    let doc = oo_docs::publish::write::DocumentInput {
-        version_id: &planted.version_id,
-        b3: &planted.b3,
-        path,
-        ir: &planted.ir,
-    };
-    oo_docs::publish::write::index_document(&mut fx.rt, &doc)
-        .await
-        .unwrap();
-    oo_docs::review::speaker::propose(&mut fx.rt, &planted.version_id, &planted.ir, path, None)
-        .await
-        .unwrap();
-    let (PublishOutcome::Published(_) | PublishOutcome::NoChange { .. }) = fx.publish().await
-    else {
-        panic!("publish")
-    };
-    assert_eq!(
-        fx.scalar(
-            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND f.status = 'published' AND s.canonical_name = '小王' \
-                AND s.type = 'Person'"
-        )
-        .await,
-        1,
-        "\"我是小王。我负责星火计划\" is published under 小王 before anybody confirms"
-    );
-    assert_eq!(
-        fx.scalar(
-            "SELECT count(*) FROM _oo_docs.entity WHERE canonical_name LIKE 'Speaker %' AND status = 'active'"
-        )
-        .await,
-        0,
-        "no provisional Person is made for a named speaker"
-    );
-    fx.finish(db).await;
-}
-
-#[tokio::test]
-#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
-async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attributes_the_facts() {
+async fn an_unconfirmed_speaker_publishes_nothing_and_a_confirmation_fixes_the_subject() {
     let _g = CLUSTER_LOCK.lock().await;
     let db = "oo_docs_speaker";
     let mut fx = Fx::new(db).await;
     let planted = fx
-        .plant_normalized("会议/周会.m4a", anonymous_meeting("a"), 1000)
+        .plant_normalized("会议/周会 参会=小王、小李.m4a", meeting("a"), 1000)
         .await;
     let doc = oo_docs::publish::write::DocumentInput {
         version_id: &planted.version_id,
         b3: &planted.b3,
-        path: "会议/周会.m4a",
+        path: "会议/周会 参会=小王、小李.m4a",
         ir: &planted.ir,
     };
     oo_docs::publish::write::index_document(&mut fx.rt, &doc)
@@ -133,7 +63,7 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
         &mut fx.rt,
         &planted.version_id,
         &planted.ir,
-        "会议/周会.m4a",
+        "会议/周会 参会=小王、小李.m4a",
         None,
     )
     .await
@@ -153,7 +83,7 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
         0
     );
 
-    // The statement "我负责星火计划" is published under the provisional Speaker 1.
+    // The statement "我负责星火计划" is a draft owned by the placeholder and is not published.
     let (PublishOutcome::Published(_) | PublishOutcome::NoChange { .. }) = fx.publish().await
     else {
         panic!("publish")
@@ -161,11 +91,18 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker 1 · %' AND f.status = 'published'"
+              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker 1 · %' AND f.status = 'draft'"
         )
         .await,
-        1,
-        "an unconfirmed speaker does not hold its statements back"
+        1
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact WHERE predicate = 'owns' AND status = 'published'"
+        )
+        .await,
+        0,
+        "nothing from an unconfirmed speaker is published"
     );
     // The Document does not "mention" the placeholder either.
     assert_eq!(
@@ -177,7 +114,7 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
         0
     );
 
-    // The S1 item is still there to confirm, with no candidate names.
+    // The S1 item carries the self introduction and the attendee names as candidates.
     let (id, revision): (String, i64) = sqlx::query_as(
         "SELECT id::text, revision FROM _oo_docs.review_item WHERE kind = 'speaker_identity' \
           AND subject->>'speaker' = 'S1'",
@@ -193,9 +130,22 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
     .await
     .unwrap();
     let cands: serde_json::Value = serde_json::from_str(&cands).unwrap();
-    assert!(
-        cands.as_array().unwrap().is_empty(),
-        "nobody named S1: {cands}"
+    assert_eq!(cands[0]["name"], "小王");
+    assert_eq!(cands[0]["source"], "self_intro");
+    // The one attendee nobody else claims is a candidate for S2; nothing is confirmed by itself.
+    let s2: String = sqlx::query_scalar(
+        "SELECT (subject->'candidates'->0->>'name') FROM _oo_docs.review_item \
+          WHERE kind = 'speaker_identity' AND subject->>'speaker' = 'S2'",
+    )
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap();
+    assert_eq!(s2, "小李");
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.overlay WHERE kind = 'speaker_map'")
+            .await,
+        0,
+        "a candidate is never a confirmation"
     );
 
     // Confirm S1 = 小王.
@@ -213,9 +163,8 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
     .await
     .unwrap();
     assert_eq!(out.results[0].status, "ok", "{:?}", out.results[0]);
-    let (PublishOutcome::Published(_) | PublishOutcome::NoChange { .. }) = fx.publish().await
-    else {
-        panic!("publish after the confirmation")
+    let PublishOutcome::Published(_) = fx.publish().await else {
+        panic!("the confirmed speaker's fact publishes")
     };
     assert_eq!(
         fx.scalar(
@@ -226,15 +175,6 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
         .await,
         1,
         "the subject is the confirmed Person"
-    );
-    assert_eq!(
-        fx.scalar(
-            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker 1 · %'"
-        )
-        .await,
-        0,
-        "no fact stays with the provisional speaker"
     );
     assert_eq!(
         fx.scalar(
@@ -269,7 +209,9 @@ async fn an_unnamed_speaker_publishes_as_speaker_n_and_a_confirmation_re_attribu
 }
 
 /// A8 (L6): after a parser bump the recording is extracted again. The speaker a person already confirmed keeps
-/// the Person (the new placeholder is merged at once) and the recording returns to `published`.
+/// the Person (the new placeholder is merged at once) and a recording whose only drafts are statements of
+/// speakers nobody has confirmed still returns to `published` (those wait in the review queue, they do not hold
+/// the file back).
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
 async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_published() {
@@ -277,9 +219,7 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
     let db = "oo_docs_speaker_a8";
     let mut fx = Fx::new(db).await;
     let path = A8_PATH;
-    let planted = fx
-        .plant_normalized(path, anonymous_meeting("a"), 1000)
-        .await;
+    let planted = fx.plant_normalized(path, meeting("a"), 1000).await;
     let doc = oo_docs::publish::write::DocumentInput {
         version_id: &planted.version_id,
         b3: &planted.b3,
@@ -316,8 +256,7 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
     .await
     .unwrap();
     assert_eq!(out.results[0].status, "ok");
-    let (PublishOutcome::Published(_) | PublishOutcome::NoChange { .. }) = fx.publish().await
-    else {
+    let PublishOutcome::Published(_) = fx.publish().await else {
         panic!("confirmed publish")
     };
     assert_eq!(file_state(&mut fx).await, "published");
@@ -359,10 +298,29 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
         0
     );
 
+    // What the rerun leaves is a draft statement on a speaker's placeholder row (here the merged row of S1, the
+    // row of an unconfirmed speaker works the same). It waits for a person in the review queue; it must not keep
+    // the recording from `published`, which is what happened to the meeting wav in the compose run.
+    fx.admin_sql(&format!(
+        "WITH f AS (INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, value, status, origin, confidence_bp) \
+            SELECT gen_random_uuid(), repeat('a', 64), e.id, e.id, 'owns', '\"x\"'::jsonb, 'draft', 'rule', 9000 FROM _oo_docs.entity e \
+             WHERE e.canonical_name = '{ph}' AND e.key <> '{k1}' RETURNING id) \
+         INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, quote_b3, origin, block_id, anchor) \
+            SELECT gen_random_uuid(), 'fact', f.id, fv.id, fv.b3, fv.b3, 'rule', 'blk_' || repeat('b', 20), '{{}}'::jsonb FROM f, _oo_docs.file_version fv \
+             WHERE fv.id = '{}'::uuid",
+        planted.version_id
+    ))
+    .await;
     fx.admin_sql(&format!(
         "UPDATE _oo_docs.file SET state = 'indexed' WHERE path = '{path}'"
     ))
     .await;
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.fact WHERE status = 'draft'")
+            .await,
+        1,
+        "one held draft with live evidence on this version"
+    );
     let pool = common::pool_runtime(db, 2).await;
     let h = oo_docs::jobs::stages::PublishHandler::new(
         pool,
@@ -411,7 +369,7 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
     fx.finish(db).await;
 }
 
-const A8_PATH: &str = "会议/周会.m4a";
+const A8_PATH: &str = "会议/周会 参会=小王、小李.m4a";
 
 async fn file_state(fx: &mut Fx) -> String {
     sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(format!(
