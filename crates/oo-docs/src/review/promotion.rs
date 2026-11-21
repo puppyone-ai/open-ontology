@@ -122,6 +122,15 @@ pub async fn candidates(conn: &mut PgConnection) -> Result<Vec<Candidate>, Store
 pub async fn propose(conn: &mut PgConnection) -> Result<u32, StoreError> {
     let mut added = 0;
     for c in candidates(conn).await? {
+        // The amounts and dates two documents share are anchors, not a type a person would name.
+        if [
+            crate::extract::anchors::AMOUNT,
+            crate::extract::anchors::DATE,
+        ]
+        .contains(&c.label.as_str())
+        {
+            continue;
+        }
         let subject = json!({
             "label": c.label, "instances": c.instances, "files": c.files, "examples": c.examples,
         });

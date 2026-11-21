@@ -318,6 +318,7 @@
   "model.key.note": "A chave fica em um arquivo privado neste computador e não é mostrada de novo.",
   "model.baseUrl.help": "O endereço que o provedor informa para a API, geralmente terminado em /v1.",
   "model.model.help": "O nome do modelo exatamente como o provedor o lista.",
+  "model.model.recommended": "Sugerido: {model}.",
   "model.dialog.title": "Conexão do modelo",
   "model.dialog.description": "Qualquer provedor compatível com a API da OpenAI, ou a Anthropic.",
   "model.save": "Salvar",

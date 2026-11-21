@@ -1,0 +1,12 @@
+{
+ "calls": 84,
+ "ok": 83,
+ "errors": {
+  "Unavailable": 1
+ },
+ "p50_s": 26.3,
+ "p95_s": 52.5,
+ "p99_s": 62.2,
+ "max_s": 62.2,
+ "tokens_out_mean": 867
+}

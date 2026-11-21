@@ -65,6 +65,13 @@ impl EgressClient {
     }
 
     fn call(&self, body: &str) -> Result<ChatReply, LlmError> {
+        let t0 = std::time::Instant::now();
+        let r = self.call_once(body);
+        log_latency(t0.elapsed(), &r);
+        r
+    }
+
+    fn call_once(&self, body: &str) -> Result<ChatReply, LlmError> {
         let unavailable = |why: &str| LlmError::Unavailable(why.to_owned());
         let mut s = TcpStream::connect_timeout(&self.addr, Duration::from_secs(3))
             .map_err(|_| unavailable("connect"))?;
@@ -119,6 +126,32 @@ impl EgressClient {
     }
 }
 
+/// Diagnostics for a measuring run: with `OO_DOCS_MODEL_LATENCY_LOG` naming a file, one line per wire call
+/// (`<millis> ok|<error kind> <tokens out>`) is appended. Nothing is logged otherwise; no prompt or reply text is ever written.
+fn log_latency(took: Duration, r: &Result<ChatReply, LlmError>) {
+    let Ok(path) = std::env::var("OO_DOCS_MODEL_LATENCY_LOG") else {
+        return;
+    };
+    let (kind, out) = match r {
+        Ok(rep) => ("ok".to_owned(), rep.tokens_out),
+        Err(e) => (
+            format!("{e:?}")
+                .split(['(', ' '])
+                .next()
+                .unwrap_or("err")
+                .to_owned(),
+            0,
+        ),
+    };
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = writeln!(f, "{} {kind} {out}", took.as_millis());
+    }
+}
+
 impl LlmPort for EgressClient {
     fn model(&self) -> &str {
         &self.model
@@ -168,6 +201,16 @@ pub fn egress_args(
 /// reasoning model needs for an extraction prompt: the first packaged run against grok-4.7 logged only UPSTREAM_TIMEOUT and read
 /// no file. `OO_DOCS_MODEL_TIMEOUT_SECS` changes it (10 to 900); anything else means the default.
 pub const MODEL_TIMEOUT_SECS: u64 = 180;
+/// Calls per minute the egress admits. 30 held a fast model (7 s a call) at four parallel extractions; the default of 8 parallel
+/// extractions of a slow reasoning model needs far fewer, a fast one more. `OO_DOCS_MODEL_RPM` changes it (10 to 600).
+pub const MODEL_RPM: u32 = 120;
+
+pub fn model_rpm(env: Option<&str>) -> u32 {
+    env.and_then(|v| v.trim().parse::<u32>().ok())
+        .filter(|n| (10..=600).contains(n))
+        .unwrap_or(MODEL_RPM)
+}
+
 /// The engine waits this much longer than the egress, so the egress's own timeout answer arrives first.
 pub const CLIENT_GRACE_SECS: u64 = 30;
 
@@ -238,6 +281,9 @@ mod tests {
     #[test]
     fn the_command_line_holds_no_secret() {
         let a = egress_args("/state/model.json", "/state/meter.jsonl", 8317, 30, 180);
+        assert_eq!(model_rpm(None), MODEL_RPM);
+        assert_eq!(model_rpm(Some("240")), 240);
+        assert_eq!(model_rpm(Some("5")), MODEL_RPM);
         assert!(a.windows(2).any(|w| w == ["--timeout", "180"]));
         assert_eq!(a[0], "--config");
         assert!(

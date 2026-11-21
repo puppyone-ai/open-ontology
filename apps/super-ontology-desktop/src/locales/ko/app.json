@@ -318,6 +318,7 @@
   "model.key.note": "키는 이 컴퓨터의 비공개 파일에 저장되며 다시 표시되지 않습니다.",
   "model.baseUrl.help": "제공업체가 API용으로 안내하는 주소이며, 보통 /v1로 끝납니다.",
   "model.model.help": "제공업체 목록에 표시된 그대로의 모델 이름입니다.",
+  "model.model.recommended": "추천: {model}",
   "model.dialog.title": "모델 연결",
   "model.dialog.description": "OpenAI API를 지원하는 모든 제공업체 또는 Anthropic을 사용할 수 있습니다.",
   "model.save": "저장",

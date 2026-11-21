@@ -1576,6 +1576,10 @@ pub struct PublishHandler {
     /// File version -> hash of the names it was last linked against
     /// (`doc.link`); a pass skips a version whose names did not change.
     linked: std::sync::Mutex<HashMap<String, String>>,
+    /// File version -> the amounts and dates its text states (scanned once).
+    scanned: std::sync::Mutex<HashMap<String, Arc<Vec<crate::extract::anchors::Found>>>>,
+    /// File version -> hash of the shared values it was last linked to (`doc.anchor`).
+    anchored: std::sync::Mutex<HashMap<String, String>>,
 }
 
 fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
@@ -1587,6 +1591,78 @@ fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
 }
 
 impl PublishHandler {
+    /// `doc.anchor` (D16): an amount or a date that two documents state becomes one open `Thing` both
+    /// mention, so a report that cites a budget figure is tied to the sheet that holds it. A value one
+    /// document states ties nothing and stays out. Each version is read once; a version is written again
+    /// only when the set of shared values it states changed.
+    async fn anchor_pass(&self) -> Result<(), crate::store::StoreError> {
+        let rows: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
+               JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
+              WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
+              ORDER BY fv.path_at_version, fv.id LIMIT 5000",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        type Scanned<'a> = (
+            &'a (String, String, String),
+            Arc<Vec<crate::extract::anchors::Found>>,
+        );
+        let mut found: Vec<Scanned<'_>> = Vec::new();
+        for r in &rows {
+            let have = self.scanned.lock().ok().and_then(|m| m.get(&r.0).cloned());
+            let f = match have {
+                Some(f) => f,
+                None => {
+                    let Ok(Some(ir)) = load_ir_of(&self.pool, &self.cas, &r.1).await else {
+                        continue;
+                    };
+                    let f = Arc::new(crate::extract::anchors::scan(&ir));
+                    if let Ok(mut m) = self.scanned.lock() {
+                        m.insert(r.0.clone(), f.clone());
+                    }
+                    f
+                }
+            };
+            found.push((r, f));
+        }
+        let shared = crate::extract::anchors::shared(found.iter().map(|(_, f)| f.as_slice()));
+        if shared.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.pool.acquire().await?;
+        for (r, f) in found {
+            let mine: Vec<&(&'static str, String)> = shared
+                .iter()
+                .filter(|k| f.iter().any(|x| x.label == k.0 && x.name == k.1))
+                .collect();
+            if mine.is_empty() {
+                continue;
+            }
+            let digest = format!("{mine:?}");
+            let done = self.anchored.lock().ok().and_then(|m| m.get(&r.0).cloned());
+            if done.as_deref() == Some(digest.as_str()) {
+                continue;
+            }
+            let Ok(Some(ir)) = load_ir_of(&self.pool, &self.cas, &r.1).await else {
+                continue;
+            };
+            let doc = DocumentInput {
+                version_id: &r.0,
+                b3: &r.1,
+                path: &r.2,
+                ir: &ir,
+            };
+            let x = crate::extract::anchors::anchor_links(&r.2, &ir, &f, &shared);
+            index_extraction(&mut conn, &doc, &x).await?;
+            if let Ok(mut m) = self.anchored.lock() {
+                m.insert(r.0.clone(), digest);
+            }
+        }
+        Ok(())
+    }
+
     /// `doc.link` (10 5.1): link every document that is past the rules to the
     /// entities of the Drive it names. Entities appear in any order, so the
     /// links are made here, in front of the single publish writer, against the
@@ -1646,6 +1722,8 @@ impl PublishHandler {
             pool,
             cas,
             linked: std::sync::Mutex::new(HashMap::new()),
+            scanned: std::sync::Mutex::new(HashMap::new()),
+            anchored: std::sync::Mutex::new(HashMap::new()),
         }
     }
 
@@ -1721,6 +1799,8 @@ impl JobHandler for PublishHandler {
             // again while the names change (at most three times).
             let mut n = None;
             for _round in 0..3 {
+                // A failed anchor pass only leaves the shared values unlinked this round.
+                let _ = self.anchor_pass().await;
                 let Ok(before) = self.link_pass().await else {
                     return Outcome::failed(FailureClass::Transient, "DOCS_ENGINE_INTERNAL");
                 };
@@ -1728,6 +1808,18 @@ impl JobHandler for PublishHandler {
                     Ok(c) => c,
                     Err(e) => return db_fail(e),
                 };
+                // One person named in two scripts becomes one entity before the version is written (a failure
+                // here never blocks the publish: the pair simply stays two entities and a candidate).
+                if let Ok(mut tx) = sqlx::Connection::begin(&mut *conn).await {
+                    match crate::resolve::crosslang::run(&mut tx).await {
+                        Ok(_) => {
+                            let _ = tx.commit().await;
+                        }
+                        Err(_) => {
+                            let _ = tx.rollback().await;
+                        }
+                    }
+                }
                 let outcome = publish(&mut conn, &self.cas, &PublishConfig::default()).await;
                 drop(conn);
                 match outcome {
@@ -1903,12 +1995,18 @@ pub fn handlers_with_runtime<F: SourceFactory>(
             pool: pool.clone(),
             cas,
             linked: std::sync::Mutex::new(HashMap::new()),
+            scanned: std::sync::Mutex::new(HashMap::new()),
+            anchored: std::sync::Mutex::new(HashMap::new()),
         })),
     );
     map
 }
 
 /// Concurrency of the stage kinds: publish is a single writer (4.9).
+/// Parallel model extractions. 8 ran without one wire error against the three measured models (model comparison in
+/// testing/super-ontology/evidence/L4/eval/model-choice); `docs.json` `concurrency.extract_llm` sets it (1 to 16).
+pub const DEFAULT_EXTRACT_LLM: usize = 8;
+
 pub fn default_concurrency() -> HashMap<JobKind, usize> {
     HashMap::from([
         (JobKind::Parse, 4),
@@ -1917,7 +2015,7 @@ pub fn default_concurrency() -> HashMap<JobKind, usize> {
             crate::jobs::media_pool::DEFAULT_MEDIA_SLOTS,
         ),
         (JobKind::ExtractRules, 2),
-        (JobKind::ExtractLlm, 2),
+        (JobKind::ExtractLlm, DEFAULT_EXTRACT_LLM),
         (JobKind::Publish, 1),
     ])
 }
@@ -2395,6 +2493,32 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
                 .await?;
         let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
         let key = format!("publish:{start}");
+        let mut job = NewJob::new(JobKind::Publish, &key);
+        job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
+        if store::enqueue(&mut *conn, &job).await?.status == JobStatus::Enqueued {
+            enqueued += 1;
+        }
+    }
+    // A file whose rules are done and whose model call is still to come: its rules facts publish now. The key is its
+    // own, so a later publish in the same window (the file moved on to `indexed`) is never taken for this one.
+    let early: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \\
+                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \\
+                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \\
+                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \\
+                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \\
+                                           AND j.created_at >= x.updated_at \\
+                                           AND j.state IN ('queued', 'running', 'succeeded')))",
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+    if early {
+        let now_ms: i64 =
+            sqlx::query_scalar("SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint")
+                .fetch_one(&mut *conn)
+                .await?;
+        let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
+        let key = format!("publish:early:{start}");
         let mut job = NewJob::new(JobKind::Publish, &key);
         job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
         if store::enqueue(&mut *conn, &job).await?.status == JobStatus::Enqueued {

@@ -318,6 +318,7 @@
   "model.key.note": "キーはこのコンピュータ内の非公開ファイルに保存され、再表示されません。",
   "model.baseUrl.help": "プロバイダが API 用に提供するアドレスで、多くは /v1 で終わります。",
   "model.model.help": "プロバイダが一覧に表示するとおりのモデル名を入力してください。",
+  "model.model.recommended": "おすすめ: {model}",
   "model.dialog.title": "モデル接続",
   "model.dialog.description": "OpenAI API に対応するプロバイダ、または Anthropic が使えます。",
   "model.save": "保存",

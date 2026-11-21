@@ -30,8 +30,8 @@ use super::egress::{CLIENT_GRACE_SECS, EgressClient, LlmPort, egress_args, model
 pub const PROVIDERS: [&str; 2] = ["openai-compatible", "anthropic"];
 /// File the configuration is kept in, inside the state directory.
 pub const CONFIG_FILE: &str = "model.json";
-/// Calls per minute the egress admits.
-pub const EGRESS_RPM: u32 = 30;
+/// Calls per minute the egress admits when nothing else is set (`OO_DOCS_MODEL_RPM`, see [`super::egress::model_rpm`]).
+pub const EGRESS_RPM: u32 = super::egress::MODEL_RPM;
 
 /// The configured model. References only, never a secret.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -424,7 +424,7 @@ impl ModelRuntime {
                 &conf.to_string_lossy(),
                 &meter.to_string_lossy(),
                 port,
-                EGRESS_RPM,
+                super::egress::model_rpm(std::env::var("OO_DOCS_MODEL_RPM").ok().as_deref()),
                 upstream,
             ))
             .arg("--exit-with-parent")

@@ -318,6 +318,7 @@
   "model.key.note": "Der Schlüssel wird in einer privaten Datei auf diesem Computer gespeichert und nicht erneut angezeigt.",
   "model.baseUrl.help": "Die API-Adresse des Anbieters, oft mit /v1 am Ende.",
   "model.model.help": "Der Modellname genau so, wie ihn der Anbieter auflistet.",
+  "model.model.recommended": "Empfohlen: {model}.",
   "model.dialog.title": "Modellverbindung",
   "model.dialog.description": "Jeder Anbieter mit OpenAI-API oder Anthropic.",
   "model.save": "Speichern",

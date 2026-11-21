@@ -242,7 +242,7 @@ impl EngineConfig {
                 concurrency.insert(JobKind::Hash, (n as usize).clamp(1, 32));
             }
             if let Some(n) = doc["concurrency"]["extract_llm"].as_u64() {
-                concurrency.insert(JobKind::ExtractLlm, (n as usize).clamp(1, 8));
+                concurrency.insert(JobKind::ExtractLlm, (n as usize).clamp(1, 16));
             }
             if let Some(m) = media_ep.as_mut()
                 && let Some(p) = doc["media"]["external_ffmpeg"].as_str()
