@@ -24,10 +24,15 @@ function make({ backend = "fs", fsPromises } = {}) {
   return createUploadService({ client, broadcast: (channel, payload) => pushes.push([channel, payload]), ...(fsPromises ? { fsPromises } : {}) });
 }
 const lastProgress = () => pushes.filter(([channel]) => channel === "upload-progress").at(-1)?.[1];
-async function settled(batchId) {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const progress = lastProgress();
-    if (progress?.batchId === batchId && progress.items.every((item) => ["done", "failed", "cancelled"].includes(item.state)) && requests.some(([name]) => name === "driveSync") || (progress?.items.length && progress.items.every((item) => item.state === "failed" || item.state === "cancelled") && attempt > 10)) return progress;
+/** Pushes carry what changed, so a batch's state is the latest word on each of its items; settled when all of them are final (and the sync was asked for). */
+async function settled(started) {
+  const final = ["done", "failed", "cancelled", "skipped"];
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const latest = new Map();
+    for (const [channel, payload] of pushes) if (channel === "upload-progress" && payload.batchId === started.batchId) for (const item of payload.items) latest.set(item.itemId, item);
+    const items = [...latest.values()];
+    const syncOwed = items.some((item) => item.state === "done");
+    if (items.length === started.items.length && items.every((item) => final.includes(item.state)) && (!syncOwed || requests.some(([name]) => name === "driveSync"))) return { batchId: started.batchId, items };
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error("upload did not settle");
@@ -50,7 +55,7 @@ describe("upload service", () => {
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "docs/sub", paths: [path.join(source, "note.md")] });
     expect(started.items).toMatchObject([{ name: "note.md", size: 5 }]);
-    const progress = await settled(started.batchId);
+    const progress = await settled(started);
     expect(progress.items[0]).toMatchObject({ state: "done", bytesDone: 5, drivePath: "docs/sub/note.md" });
     expect(await readFile(path.join(root, "docs/sub/note.md"), "utf8")).toBe("hello");
     expect(await listing(path.join(root, "docs/sub"))).toEqual(["note.md"]);
@@ -63,7 +68,7 @@ describe("upload service", () => {
     await writeFile(path.join(source, "a.txt"), "new");
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "a.txt")] });
-    const progress = await settled(started.batchId);
+    const progress = await settled(started);
     expect(progress.items[0].drivePath).toBe("a (3).txt");
     expect(await readFile(path.join(root, "a.txt"), "utf8")).toBe("old");
     expect(await readFile(path.join(root, "a (3).txt"), "utf8")).toBe("new");
@@ -83,7 +88,7 @@ describe("upload service", () => {
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "in", paths: [tree] });
     expect(started.skipped).toEqual({ hidden: 1, links: 1, junk: 0, temporary: 2, special: 0 });
-    await settled(started.batchId);
+    await settled(started);
     expect(await listing(path.join(root, "in/Project"))).toEqual(["a.md", "inner"]);
     expect(await readFile(path.join(root, "in/Project/inner/b.md"), "utf8")).toBe("b");
   });
@@ -103,7 +108,7 @@ describe("upload service", () => {
     await writeFile(path.join(source, "n.txt"), "n");
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "escape", paths: [path.join(source, "n.txt")] });
-    const progress = await settled(started.batchId);
+    const progress = await settled(started);
     expect(progress.items[0]).toMatchObject({ state: "failed", code: "SO_INVALID_REQUEST" });
     expect(await listing(outside)).toEqual([]);
   });
@@ -120,15 +125,17 @@ describe("upload service", () => {
     } };
     const service = make({ fsPromises });
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "a.txt"), path.join(source, "b.txt")] });
-    const progress = await settled(started.batchId);
+    const progress = await settled(started);
     const byState = Object.fromEntries(progress.items.map((item) => [item.state, item]));
     expect(byState.failed.code).toBe("SO_UPLOAD_DISK_FULL");
     expect(byState.done.drivePath).toMatch(/\.txt$/u);
     expect((await listing(root)).filter((name) => name.endsWith(".part"))).toEqual([]);
+    // A name that is not in the Drive yet: one already there with the same bytes would be skipped, not refused.
+    await writeFile(path.join(source, "c.txt"), "c");
     await chmod(root, 0o500);
     try {
-      const denied = await make().start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "a.txt")] });
-      const result = await settled(denied.batchId);
+      const denied = await make().start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "c.txt")] });
+      const result = await settled(denied);
       expect(result.items[0]).toMatchObject({ state: "failed" });
       expect(["SO_UPLOAD_PERMISSION_DENIED", "SO_UPLOAD_FAILED"]).toContain(result.items[0].code);
     } finally { await chmod(root, 0o700); }
