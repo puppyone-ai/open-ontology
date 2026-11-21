@@ -16,6 +16,7 @@ import { driveKindLabelId } from "../Sources";
 import { reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
 import { selectFileActors, selectOntologyVersion } from "../../model/superDriveSelectors";
 import { ActorTag } from "../shared/ActorTag";
+import { useDriveLabel } from "../shared/driveLabel";
 import { FilePanel } from "./FilePanel";
 import { dropAttributes } from "../../features/drop/dropTarget";
 import { fileView, TONE, useFileStateText } from "./fileView";
@@ -47,6 +48,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const app = useApp();
   const version = useSuperDriveSelector(selectOntologyVersion);
   const actors = useSuperDriveSelector(selectFileActors);
+  const label = useDriveLabel();
   const allFiles = useSuperDriveSelector((s) => Object.values(s.drives.byId).reduce((sum, d) => sum + (d?.files_total ?? 0), 0));
   const unlinked = useUnlinked(`${version}|${allFiles}`);
   const failed = useSuperDriveSelector((s) => s.drives.byId[drive.id]?.counts?.parse_failed ?? 0) as number;
@@ -71,7 +73,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
       <div style={{ margin: "calc(-1 * var(--so-space-2)) 0 var(--so-space-2)" }}>
         <Button variant="ghost" size="compact" icon={ArrowLeft} onClick={onBack}>{t("app.sources.title")}</Button>
       </div>
-      <PageHeader title={drive.name} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
+      <PageHeader title={label(drive.name)} description={[drive.name === "My files" ? null : t(driveKindLabelId(drive)), t("app.sources.files", { count: drive.files_total ?? 0 }), drive.bytes_total ? formatBytes(drive.bytes_total, t$) : null].filter(Boolean).join(" · ")}
         actions={<>
           {fresh && <span style={{ display: "contents" }} data-testid="source-freshness" data-freshness={fresh}><StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : "accent"} label={t(`app.freshness.${fresh}`)} pulse={fresh === "processing" || fresh === "syncing"} /></span>}
           <Button icon={RefreshCw} loading={syncing} onClick={() => { void sync(); }} data-testid="source-sync">{t("app.sources.sync")}</Button>
@@ -100,7 +102,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
         <Segmented<Filter> label={t("app.sources.filter")} value={filter} onChange={setFilter} options={[{ value: "all", label: t("app.sources.filter.all") }, { value: "processing", label: t("app.sources.filter.processing") }, { value: "ready", label: t("app.sources.filter.ready") }, { value: "attention", label: t("app.sources.filter.attention") }]} />
       </div>
       <nav className="so-row" aria-label={t("app.sources.path")} style={{ marginBottom: "var(--so-space-2)", minHeight: 28 }}>
-        <Button variant="ghost" size="compact" onClick={() => setPath("")} aria-current={path === "" ? "location" : undefined}>{drive.name}</Button>
+        <Button variant="ghost" size="compact" onClick={() => setPath("")} aria-current={path === "" ? "location" : undefined}>{label(drive.name)}</Button>
         {segments.map((segment, index) => (
           <span key={segments.slice(0, index + 1).join("/")} className="so-row">
             <ChevronRight size={16} strokeWidth={1.5} className="so-weak so-icon" aria-hidden="true" />

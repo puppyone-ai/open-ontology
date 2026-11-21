@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
-import { Card, EmptyState, PageHeader, StatusDot } from "@open-ontology/design-system";
+import { Card, EmptyState, Notice, PageHeader, StatusDot } from "@open-ontology/design-system";
 import { Cloud, Database, FolderOpen, HardDrive } from "lucide-react";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
-import { selectDbRevision, selectDrives } from "../model/superDriveSelectors";
+import { selectDbRevision, selectDrives, selectMergedDrive } from "../model/superDriveSelectors";
+import { useDriveLabel } from "./shared/driveLabel";
 import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 import { AddSourceMenu } from "./sources/AddSource";
 import { useApp } from "../hooks/useApp";
@@ -28,6 +29,8 @@ export function Sources() {
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const app = useApp();
   const dbRevision = useSuperDriveSelector(selectDbRevision);
+  const merged = useSuperDriveSelector(selectMergedDrive);
+  const label = useDriveLabel();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [dbName, setDbName] = useState<string | null>(null);
   const dbs = useLoad(async () => {
@@ -64,6 +67,7 @@ export function Sources() {
   return (
     <div className="so-page" data-testid="screen-sources">
       <PageHeader title={t("app.sources.title")} description={t("app.sources.description")} actions={<AddSourceMenu onOpened={open} onDatabaseAdded={databaseAdded} />} />
+      {merged && <div style={{ marginBottom: "var(--so-space-4)" }}><Notice tone="accent" title={t("app.sources.merged.title")} testId="sources-merged">{t("app.sources.merged.body")}</Notice></div>}
       {drives.length === 0 && databases.length === 0 ? (
         <Card><EmptyState icon={FolderOpen} title={t("app.sources.empty.title")} description={t("app.sources.empty.body")} action={<AddSourceMenu onOpened={open} onDatabaseAdded={databaseAdded} />} /></Card>
       ) : (
@@ -85,7 +89,7 @@ export function Sources() {
               <button key={drive.id} type="button" className="so-list-row" onClick={() => open(drive.id)} data-testid="source-row" data-name={drive.name} data-freshness={fresh} data-kind={drive.backend !== "fs" ? "cloud" : drive.name === "My files" ? "managed" : "folder"} data-state={fresh === "syncing" || fresh === "processing" || adding.has(drive.id) ? "syncing" : fresh === "degraded" || fresh === "held" ? "error" : "idle"} {...dropAttributes(drive)}>
                 <span className="so-list-lead"><Glyph size={16} strokeWidth={1.5} aria-hidden="true" /></span>
                 <span className="so-list-text">
-                  <span className="so-list-title so-truncate">{drive.name}</span>
+                  <span className="so-list-title so-truncate">{label(drive.name)}</span>
                   <span className="so-list-sub so-truncate">{t(driveKindLabelId(drive))} · {t("app.sources.files", { count: drive.files_total ?? 0 })}</span>
                 </span>
                 {adding.has(drive.id) ? <StatusDot tone="accent" label={t("app.sources.uploading", { count: adding.get(drive.id) ?? 0 })} pulse /> : drive.status === "paused" ? <StatusDot tone="warning" label={t("app.sources.paused")} /> : <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : fresh ? "accent" : "neutral"} label={fresh ? t(`app.freshness.${fresh}`) : t("app.home.sources.unknown")} pulse={fresh === "processing" || fresh === "syncing"} />}

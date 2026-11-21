@@ -172,6 +172,8 @@ Rules:
 | `engine-runtime-select` | runtime choice | `data-value` = `auto` `docker` `lite` |
 | `engine-reveal-logs` | show the logs folder | |
 | `engine-shared` `engine-profile` `engine-state-dir` | Settings > Engine: the engine shared with the CLI, the active `oo` profile, the state folder | shared: `data-mode` = `cli` `app`, `data-attached`; profile: `data-name` |
+| `cli-data-banner` `cli-data-use` `cli-data-later` | Home: the one-time offer to use the CLI's data (own state, CLI data present) | |
+| `sources-merged` | Sources: note that an earlier CLI folder was merged into My files | |
 | `engine-use-cli` `engine-use-app` | switch the engine data between the CLI's and the app's own (the app restarts) | |
 | `engine-connect-remote` `remote-url` `remote-token-pick` `remote-connect` `remote-disconnect` | remote engine | |
 | `settings-language` | language choice | `data-value` |

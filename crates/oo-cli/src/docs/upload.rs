@@ -13,7 +13,7 @@
 //! existing file (a clash becomes `name (2).ext`). Directories are walked,
 //! symlinks and `..` are refused. For an object-store Drive the same relative
 //! path is `PUT` with the Drive's own credential, if that credential can write.
-//! Without `--drive`, the managed Drive `default` is used and created on the
+//! Without `--drive`, the managed Drive `My files` is used and created on the
 //! first upload: a folder under the oo state directory, no cloud account and no
 //! bucket. Neither command ever prompts, so an agent can run them.
 
@@ -30,7 +30,14 @@ use super::docs_cmd::{Parsed, bad, drive_id, out, state_of};
 use super::s3io::{S3Target, short_id};
 
 /// Name of the managed Drive a first upload creates.
-pub const MANAGED_DRIVE: &str = "default";
+pub const MANAGED_DRIVE: &str = "My files";
+/// What the managed Drive was called before the CLI and the desktop app shared one: still accepted, and renamed on first use.
+pub const LEGACY_MANAGED_DRIVE: &str = "default";
+
+/// Is `name` the managed Drive, under its current or its earlier name?
+pub fn is_managed(name: &str) -> bool {
+    name.eq_ignore_ascii_case(MANAGED_DRIVE) || name.eq_ignore_ascii_case(LEGACY_MANAGED_DRIVE)
+}
 const MAX_FILES: usize = 5000;
 const MAX_S3_OBJECT: u64 = 512 * 1024 * 1024;
 const MAX_STDIN: u64 = 256 * 1024 * 1024;
@@ -449,7 +456,7 @@ async fn put_s3(t: &S3Target, item: &Item) -> Result<String, CliError> {
     }
 }
 
-/// The Drive to write to: by name or id, or the managed `default`, created on demand.
+/// The Drive to write to: by name or id, or the managed `My files`, created on demand.
 async fn resolve_drive(
     d: &Daemon,
     state: &Path,
@@ -457,7 +464,34 @@ async fn resolve_drive(
 ) -> Result<(Value, bool), CliError> {
     let list = d.get_json("/v1/docs/drives?limit=200").await?;
     let name = want.unwrap_or(MANAGED_DRIVE);
-    let found = list["items"].as_array().into_iter().flatten().find(|i| {
+    let items = list["items"].as_array().cloned().unwrap_or_default();
+    if is_managed(name) {
+        // One managed folder for the CLI and the app: "My files". An earlier `default` is renamed when no "My files" exists.
+        let named = |n: &str| {
+            items.iter().find(|i| {
+                i["name"]
+                    .as_str()
+                    .is_some_and(|x| x.eq_ignore_ascii_case(n))
+            })
+        };
+        if let Some(v) = named(MANAGED_DRIVE) {
+            return Ok((v.clone(), false));
+        }
+        if let Some(old) = named(LEGACY_MANAGED_DRIVE)
+            && let Some(id) = old["id"].as_str()
+        {
+            let rev = old["revision"].as_i64().unwrap_or(1);
+            d.write_json_if(
+                reqwest::Method::PATCH,
+                &format!("/v1/docs/drives/{id}"),
+                &json!({"name": MANAGED_DRIVE}),
+                &super::docs_cmd::rev_header(rev),
+            )
+            .await?;
+            return Ok((d.get_json(&format!("/v1/docs/drives/{id}")).await?, false));
+        }
+    }
+    let found = items.iter().find(|i| {
         i["id"] == name
             || i["name"]
                 .as_str()
@@ -466,7 +500,7 @@ async fn resolve_drive(
     if let Some(v) = found {
         return Ok((v.clone(), false));
     }
-    if !name.eq_ignore_ascii_case(MANAGED_DRIVE) {
+    if !is_managed(name) {
         return Err(CliError::new(
             exit::OTHER,
             "DOCS_SOURCE_DRIVE_NOT_FOUND",
@@ -475,7 +509,7 @@ async fn resolve_drive(
             ),
         ));
     }
-    let root = state.join("drives").join(MANAGED_DRIVE);
+    let root = state.join("drives").join("my-files");
     for p in [state.join("drives"), root.clone()] {
         fs::DirBuilder::new()
             .mode(0o755)
@@ -629,7 +663,7 @@ pub async fn upload(d: &Daemon, p: &Parsed) -> Result<u8, CliError> {
     }
     let mut result = json!({
         "drive": {"id": id, "name": drive["name"], "backend": backend},
-        "managed": drive["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(MANAGED_DRIVE)),
+        "managed": drive["name"].as_str().is_some_and(is_managed),
         "created_drive": created,
         "files": placed,
         "uploaded": rels.len(),
@@ -642,7 +676,7 @@ pub async fn upload(d: &Daemon, p: &Parsed) -> Result<u8, CliError> {
     let mut human = format!(
         "{}uploaded {} file(s) to drive {} (drive_rev {})",
         if created {
-            "created the managed drive `default`; "
+            "created the managed drive `My files`; "
         } else {
             ""
         },
@@ -993,5 +1027,84 @@ mod tests {
         let plain = json!({"config": {"root": host.display().to_string()}});
         assert_eq!(host_root(&state, &plain).unwrap(), host);
         let _ = fs::remove_dir_all(&state);
+    }
+
+    #[test]
+    fn the_managed_folder_answers_to_its_current_and_its_earlier_name() {
+        assert!(is_managed("My files") && is_managed("my FILES") && is_managed("default"));
+        assert!(!is_managed("notes"));
+    }
+
+    /// A daemon that answers `drives` with `items`, accepts one PATCH and records every request line.
+    async fn fake_daemon(items: Value) -> (Daemon, tokio::task::JoinHandle<Vec<String>>) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        let h = tokio::spawn(async move {
+            let mut seen = Vec::new();
+            for _ in 0..3 {
+                let Ok(Ok((mut s, _))) =
+                    tokio::time::timeout(Duration::from_secs(2), l.accept()).await
+                else {
+                    break;
+                };
+                let mut buf = vec![0u8; 8192];
+                let n = s.read(&mut buf).await.unwrap();
+                let head = String::from_utf8_lossy(&buf[..n]).to_string();
+                let line = head.lines().next().unwrap_or("").to_owned();
+                let body = if line.starts_with("GET /v1/docs/drives?") {
+                    json!({"items": items}).to_string()
+                } else {
+                    json!({"id": "d1", "name": "My files", "revision": 2}).to_string()
+                };
+                seen.push(line);
+                let _ = s
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                            body.len()
+                        )
+                        .as_bytes(),
+                    )
+                    .await;
+            }
+            seen
+        });
+        (
+            Daemon::remote(&format!("http://127.0.0.1:{port}"), "t", None).unwrap(),
+            h,
+        )
+    }
+
+    #[tokio::test]
+    async fn an_earlier_default_drive_is_renamed_to_my_files_on_first_use() {
+        let (d, seen) = fake_daemon(json!([{"id": "d1", "name": "default", "revision": 1}])).await;
+        let (drive, created) = resolve_drive(&d, Path::new("/nonexistent"), None)
+            .await
+            .unwrap();
+        assert!(!created);
+        assert_eq!(drive["name"], "My files");
+        let lines = seen.await.unwrap();
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.starts_with("PATCH /v1/docs/drives/d1")),
+            "{lines:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn when_both_exist_the_upload_goes_to_my_files_and_nothing_is_renamed() {
+        let (d, seen) = fake_daemon(json!([
+            {"id": "d1", "name": "default", "revision": 1},
+            {"id": "d2", "name": "My files", "revision": 1}
+        ]))
+        .await;
+        let (drive, _) = resolve_drive(&d, Path::new("/nonexistent"), None)
+            .await
+            .unwrap();
+        assert_eq!(drive["id"], "d2");
+        let lines = seen.await.unwrap();
+        assert!(lines.iter().all(|l| !l.starts_with("PATCH")), "{lines:?}");
     }
 }

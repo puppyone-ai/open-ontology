@@ -12,6 +12,8 @@ import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
 import { useUnlinked } from "../model/unlinked";
 import { ActorTag } from "./shared/ActorTag";
+import { useDriveLabel } from "./shared/driveLabel";
+import { CliDataBanner } from "./home/CliDataBanner";
 
 const ACTIVITY_LABEL: Record<string, string> = {
   "file.state_changed": "app.home.activity.file", "file.renamed": "app.home.activity.fileRenamed", "drive.created": "app.home.activity.sourceAdded",
@@ -40,6 +42,7 @@ export function Home() {
   const pending = useSuperDriveSelector(selectPendingReviewTotal);
   const version = useSuperDriveSelector(selectOntologyVersion);
   const activity = useSuperDriveSelector(selectActivity);
+  const driveLabel = useDriveLabel();
   const loadedDrives = useSuperDriveSelector((s) => s.drives.loaded);
   const files = drives.reduce((sum, d) => sum + (d.files_total ?? 0), 0);
   const entities = useLoad(() => ontologyApi.searchEntities({ q: "", limit: 200 }), [ready, version], { enabled: ready });
@@ -63,6 +66,8 @@ export function Home() {
   return (
     <div className="so-page" data-testid="screen-home">
       <PageHeader title={t("app.home.title")} description={t("app.home.description")} />
+
+      <CliDataBanner />
 
       {!ready && engine !== null && (
         <div style={{ marginBottom: "var(--so-space-5)" }}>
@@ -104,7 +109,7 @@ export function Home() {
               const label = fresh ? t(`app.freshness.${fresh}`) : t("app.home.sources.unknown");
               return (
                 <button key={drive.id} type="button" className="so-list-row" onClick={() => { actions.openDrive(drive.id); app.go("sources"); }}>
-                  <span className="so-list-text"><span className="so-list-title so-truncate">{drive.name}</span><span className="so-list-sub">{t("app.home.sources.files", { count: drive.files_total ?? 0 })}</span></span>
+                  <span className="so-list-text"><span className="so-list-title so-truncate">{driveLabel(drive.name)}</span><span className="so-list-sub">{t("app.home.sources.files", { count: drive.files_total ?? 0 })}</span></span>
                   <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : fresh ? "accent" : "neutral"} label={label} pulse={fresh === "processing" || fresh === "syncing"} />
                 </button>
               );
