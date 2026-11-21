@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "Le cloud n’est pas configuré dans cette app",
   "errors.SO_CLOUD_SESSION_REQUIRED": "Connectez-vous d’abord au cloud",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Le cloud ne propose pas encore cette action",
-  "errors.SO_INTERNAL": "Un problème inattendu s’est produit"
+  "errors.SO_INTERNAL": "Un problème inattendu s’est produit",
+  "errors.SO_UPLOAD_TOO_MANY": "Trop de fichiers d’un coup (limite : 10 000)"
 }

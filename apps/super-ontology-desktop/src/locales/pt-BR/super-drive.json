@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "A nuvem não está configurada neste app",
   "errors.SO_CLOUD_SESSION_REQUIRED": "Entre na nuvem primeiro",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "A nuvem ainda não oferece esta ação",
-  "errors.SO_INTERNAL": "Ocorreu um problema inesperado"
+  "errors.SO_INTERNAL": "Ocorreu um problema inesperado",
+  "errors.SO_UPLOAD_TOO_MANY": "Arquivos demais de uma vez (o limite é 10.000)"
 }

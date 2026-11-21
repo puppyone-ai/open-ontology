@@ -315,3 +315,50 @@
   .so-file-reason svg { flex: none; }
   .so-home-unlinked { display: flex; align-items: center; gap: var(--so-space-2); margin: var(--so-space-3) 0 0; font-size: var(--so-text-sm); }
 }
+
+/* ---------- Dropping files and folders (25 §4, D86): the window-wide overlay, the toast and the upload list ---------- */
+@layer so-app {
+  /* Over every screen and dialog; it only paints, so the pointer keeps resolving the element underneath. */
+  .so-drop-overlay { position: fixed; inset: 0; z-index: var(--so-z-tooltip); display: grid; place-items: center; padding: var(--so-space-2); pointer-events: none; animation: so-drop-in var(--so-duration) var(--so-ease); }
+  .so-drop-overlay::before { content: ""; position: absolute; inset: var(--so-space-2); border: 1px solid color-mix(in srgb, var(--so-accent) 55%, transparent); border-radius: var(--so-radius-dialog); background: color-mix(in srgb, var(--so-accent-soft) 78%, transparent); }
+  .so-drop-overlay[data-state="rejected"]::before { border-color: var(--so-line-strong); background: color-mix(in srgb, var(--so-inset) 82%, transparent); }
+  .so-drop-card { position: relative; display: grid; justify-items: center; gap: var(--so-space-1); max-width: 440px; padding: var(--so-space-5) var(--so-space-6); border: 1px solid var(--so-line); border-radius: var(--so-radius-dialog); background: var(--so-panel); box-shadow: var(--so-shadow-menu); text-align: center; }
+  .so-drop-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: var(--so-space-2); border-radius: 20px; background: var(--so-accent-soft); color: var(--so-accent); }
+  .so-drop-overlay[data-state="rejected"] .so-drop-icon { background: var(--so-warning-soft); color: var(--so-warning); }
+  .so-drop-title { max-width: 100%; font-size: var(--so-text-md); font-weight: var(--so-weight-medium); line-height: var(--so-leading); }
+  .so-drop-detail { color: var(--so-text-2); font-variant-numeric: tabular-nums; }
+  .so-drop-hint { color: var(--so-text-muted); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); }
+  @keyframes so-drop-in { from { opacity: 0; } to { opacity: 1; } }
+  /* The source the drop would go into. */
+  [data-drop-over]:not(.so-page) { outline: 2px solid var(--so-accent); outline-offset: -2px; background: var(--so-accent-soft); }
+  [data-drop-over][data-drop-reject]:not(.so-page) { outline-color: var(--so-line-strong); background: var(--so-inset); }
+
+  /* Toast and upload list share one column at the bottom right, above the status bar. */
+  .so-float { position: fixed; right: var(--so-space-4); bottom: calc(var(--so-statusbar-height) + var(--so-space-3)); z-index: 65; display: grid; gap: var(--so-space-2); width: 360px; max-width: calc(100vw - 2 * var(--so-space-4)); pointer-events: none; }
+  .so-float > * { pointer-events: auto; }
+  .so-toast { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--so-space-2); padding: var(--so-space-3); padding-inline-end: var(--so-space-2); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); animation: so-drop-in var(--so-duration) var(--so-ease); }
+  .so-toast-body { display: grid; gap: var(--so-space-1); min-width: 0; }
+  .so-toast-title { font-weight: var(--so-weight-medium); line-height: var(--so-leading); overflow-wrap: anywhere; }
+  .so-toast-sub { color: var(--so-text-2); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); overflow-wrap: anywhere; }
+  .so-toast-sub[data-tone="danger"] { color: var(--so-danger); }
+  .so-toast-actions { display: flex; margin-top: var(--so-space-1); }
+
+  .so-tray { display: grid; gap: var(--so-space-2); padding: var(--so-space-3); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); animation: so-drop-in var(--so-duration) var(--so-ease); }
+  .so-tray-head { display: flex; align-items: center; justify-content: space-between; gap: var(--so-space-2); min-height: var(--so-control-compact); margin-block: calc(-1 * var(--so-space-1)); }
+  .so-tray-title { font-weight: var(--so-weight-medium); font-variant-numeric: tabular-nums; }
+  .so-tray-tools { display: inline-flex; gap: var(--so-space-1); margin-inline-end: calc(-1 * var(--so-space-1)); }
+  .so-tray-error { margin: 0; color: var(--so-danger); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); }
+  .so-tray-list { display: grid; max-height: 232px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+  .so-tray-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; column-gap: var(--so-space-2); min-height: 40px; padding: 4px 0; border-top: 1px solid var(--so-line); }
+  .so-tray-row:first-child { border-top: 0; }
+  .so-tray-name { display: grid; min-width: 0; }
+  .so-tray-sub { color: var(--so-text-muted); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); font-variant-numeric: tabular-nums; }
+  .so-tray-state { display: inline-flex; align-items: center; gap: var(--so-space-1); justify-self: end; font-size: var(--so-text-xs); }
+  .so-tray-meter { grid-column: 2 / 4; padding-bottom: var(--so-space-1); }
+  .so-tray-more { padding: var(--so-space-2) 0 0; font-size: var(--so-text-xs); }
+  .so-tray-skipped { display: grid; gap: var(--so-space-1); padding-top: var(--so-space-2); border-top: 1px solid var(--so-line); }
+  .so-tray-subtitle { font-size: var(--so-text-xs); font-weight: var(--so-weight-medium); line-height: var(--so-leading-xs); }
+  .so-tray-reasons { display: grid; margin: 0; padding: 0; list-style: none; font-size: var(--so-text-xs); line-height: var(--so-leading-xs); color: var(--so-text-2); }
+  .so-tray-reasons li { display: flex; justify-content: space-between; gap: var(--so-space-2); }
+  .so-tray-count { font-variant-numeric: tabular-nums; }
+}

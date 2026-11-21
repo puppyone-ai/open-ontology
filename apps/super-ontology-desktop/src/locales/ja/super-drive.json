@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "このアプリではクラウドが設定されていません",
   "errors.SO_CLOUD_SESSION_REQUIRED": "先にクラウドにサインインしてください",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "クラウドではこの操作をまだ利用できません",
-  "errors.SO_INTERNAL": "予期しない問題が発生しました"
+  "errors.SO_INTERNAL": "予期しない問題が発生しました",
+  "errors.SO_UPLOAD_TOO_MANY": "一度に追加できるファイルが多すぎます（上限 10,000 個）"
 }

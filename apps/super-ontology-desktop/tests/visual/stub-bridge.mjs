@@ -7,7 +7,7 @@ export function stubBridgeSource(scenario) {
     const snapshot = (status) => ({ revision: 1, status, reason: null, code: status === "crashed" ? "SO_SERVE_START_TIMEOUT" : null, logPath: status === "crashed" ? "/Users/example/Library/Logs/Super Ontology/super-ontology-serve.log" : null, preflight: null, health: status === "healthy" ? { events_head: 0 } : null, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: now, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 }, mode: "local", remote: null });
     const drive = (id, name, files, extra = {}) => ({ id, name, backend: "fs", config: { root: "/Users/example/" + name }, status: "active", revision: 1, counts: { published: files }, files_total: files, bytes_total: files * 2048, pending_review: 0, created_at: now, freshness: { state: "up_to_date" }, ...extra });
     const entity = (n, name, type, facts) => ({ id: "00000000-0000-4000-8000-0000000001" + String(n).padStart(2, "0"), key: name.toLowerCase().replace(/ /g, "-"), type, name, counts: { facts } });
-    const drives = scenario.engine === "starting" ? [] : [drive("00000000-0000-4000-8000-000000000001", "My files", 3), drive("00000000-0000-4000-8000-000000000002", "Team docs", 12)];
+    const drives = scenario.engine === "starting" ? [] : [drive("00000000-0000-4000-8000-000000000001", "My files", 3), drive("00000000-0000-4000-8000-000000000002", "Team docs", 12), ...(scenario.cloud ? [drive("00000000-0000-4000-8000-000000000003", "Archive bucket", 40, { backend: "s3", config: { bucket: "archive" } })] : [])];
     const entities = [entity(1, "Dana Lee", "Person", 4), entity(2, "Project Alpha", "Project", 5), entity(3, "Harbor feed", "Topic", 2), entity(4, "Projects/alpha.md", "Document", 3)];
     const empty = { items: [], next_cursor: null };
     const cli = (data, extra = {}) => ({ ok: true, exit: 0, data, error: null, cli: "oo command --json", ...extra });
@@ -55,13 +55,24 @@ export function stubBridgeSource(scenario) {
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
         case "drives-list": return drives;
+        // A drop of files and folders: names with a dot are files, the others are folders holding two files; a few names are skipped.
+        case "upload-start": {
+          const names = request.paths.map((entry) => entry.split("/").pop());
+          const items = names.flatMap((name) => (name.includes(".") ? [{ name, relative: name }] : [{ name: "readme.md", relative: name + "/readme.md" }, { name: "deep.txt", relative: name + "/notes/deep.txt" }]));
+          return {
+            batchId: "00000000-0000-4000-8000-0000000000b1",
+            items: items.map((entry, index) => ({ itemId: "00000000-0000-4000-8000-00000000010" + index, name: entry.name, relative: entry.relative, size: 2048 * (index + 1), source: "/Users/example/dragged/" + entry.relative })),
+            roots: names.map((name, index) => ({ path: request.paths[index], name, kind: name.includes(".") ? "file" : "directory", files: name.includes(".") ? 1 : 2 })),
+            skipped: { hidden: 2, links: 0, junk: 1, temporary: 1, special: 0 }, skippedSamples: [{ name: ".DS_Store", reason: "hidden" }, { name: "node_modules", reason: "junk" }], emptyFolders: 0, unreadable: 0,
+          };
+        }
         case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request?.driveId), next_cursor: null } : empty;
         case "file-detail": return scenario.unlinked ? detail(request?.fileId) : empty;
         case "ask-run": return askAnswers[scenario.ask] ?? askAnswers.answered;
         case "entities-search": return { items: entities, next_cursor: null };
         case "agent-token-list": return empty;
         case "model-config-read": return scenario.ask ? { configured: scenario.ask !== "no_model", provider: "openai-compatible", base_url: "https://model.example.test/v1", model: "example-model", key_ref: "file:/k" } : { configured: false };
-        case "events-subscribe": return { instanceId: "stub", seq: 0 };
+        case "events-subscribe": return scenario.live ? { instanceId: "stub", lastSeq: 0, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 } } : { instanceId: "stub", seq: 0 };
         default: return empty;
       }
     };
@@ -97,7 +108,7 @@ export function stubBridgeSource(scenario) {
     window.superOntology = {
       invoke: async (channel, request) => (channel === "ask-run" && (window.__askId = request.askId, scenario.ask === "pending") ? new Promise(() => undefined) : { ok: true, value: answer(channel, request) }),
       subscribe: (callback) => { listeners.add(callback); return () => listeners.delete(callback); },
-      pathsForFiles: () => ({ paths: [], unreadable: 0 }),
+      pathsForFiles: (files) => ({ paths: Array.from(files ?? []).map((file) => "/Users/example/dragged/" + file.name), unreadable: 0 }),
       openExternal: async () => undefined,
       shell: { info: async () => ({ name: "Super Ontology", version: "0.1.0", platform: "darwin", arch: "arm64", locale: "en-US", packaged: true, license: "Apache-2.0", releaseUrl: "" }), readSettings: async () => ({ language: scenario.language ?? "en", ooExecutable: null, runtime: "auto", keepEngineOnQuit: false, remote: null }), writeSettings: async (patch) => patch, onSettingsChanged: () => () => undefined, onMenuCommand: () => () => undefined, readNotice: async () => "", copyToClipboard: async () => true, openReleasePage: async () => true },
     };

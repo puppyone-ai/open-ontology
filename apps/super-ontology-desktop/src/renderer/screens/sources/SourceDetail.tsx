@@ -16,6 +16,7 @@ import { driveKindLabelId } from "../Sources";
 import { reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
 import { selectOntologyVersion } from "../../model/superDriveSelectors";
 import { FilePanel } from "./FilePanel";
+import { dropAttributes } from "../../features/drop/dropTarget";
 import { fileView, TONE, useFileStateText } from "./fileView";
 
 type Filter = "all" | "processing" | "ready" | "attention";
@@ -33,7 +34,6 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<SuperDriveError | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const menuAnchor = useRef<HTMLButtonElement>(null);
   const [menu, setMenu] = useState(false);
   const uploads = useUploadQueueState();
@@ -62,16 +62,10 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
     if (!result.ok) { setError(result.error); setRemoving(false); return; }
     onBack();
   };
-  const onDrop = (event: React.DragEvent) => {
-    event.preventDefault(); setDragging(false);
-    if (readOnly) return;
-    void getUploadQueue().enqueueFiles(drive.id, path, Array.from(event.dataTransfer.files));
-  };
   const pickFiles = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="so-page" data-wide={selected ? "" : undefined} data-testid="screen-source-detail" data-name={drive.name}
-      onDragOver={(event) => { if (!readOnly) { event.preventDefault(); setDragging(true); } }} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }} onDrop={onDrop}>
+    <div className="so-page" data-wide={selected ? "" : undefined} data-testid="screen-source-detail" data-name={drive.name} {...dropAttributes(drive, path)}>
       <div style={{ margin: "calc(-1 * var(--so-space-2)) 0 var(--so-space-2)" }}>
         <Button variant="ghost" size="compact" icon={ArrowLeft} onClick={onBack}>{t("app.sources.title")}</Button>
       </div>
@@ -114,7 +108,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
       </nav>
 
       <div className={selected ? "so-split" : undefined}>
-        <Card className="so-dropzone-host" data-testid="file-panel" data-dragging={dragging ? "true" : undefined} style={{ overflow: "hidden", outline: dragging ? "2px solid var(--so-accent)" : undefined }}>
+        <Card className="so-dropzone-host" data-testid="file-panel" style={{ overflow: "hidden" }}>
           {initialLoading ? (
             <div className="so-list" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width={16} height={16} /><Skeleton width={`${40 + (i % 3) * 15}%`} height={13} /></div>)}</div>
           ) : page.error && files.length === 0 ? (

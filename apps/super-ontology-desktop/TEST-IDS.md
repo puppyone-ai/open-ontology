@@ -172,3 +172,16 @@ Rules:
 | `settings-language` | language choice | `data-value` |
 | `about-version` **(T1)** | the version line | |
 | `about-notice` `about-third-party` `about-license` | legal text | |
+
+## Dropping files and folders
+
+| id | element | attributes |
+|---|---|---|
+| `drop-overlay` **(T1)** | the window-wide cover while files or folders are dragged over the app | `data-state` = `ready` `rejected`, `data-target` = `my-files` `source` `cloud` `database` |
+| `drop-overlay-title` `drop-overlay-count` **(T1)** | where the drop goes; how many items are dragged | `data-count` |
+| `drop-toast` **(T1)** | what a drop did (added, skipped, the offer to keep a folder in sync) | `data-queued`, `data-skipped`, `data-sync` = `idle` `busy` `done` `failed` |
+| `drop-toast-title` `drop-toast-skipped` `drop-toast-synced` `drop-toast-close` | parts of the toast | |
+| `drop-keep-in-sync` **(T1)** | "Also keep this folder in sync" | |
+| `upload-tray` `upload-tray-title` `upload-tray-toggle` `upload-tray-close` | the list of files being added | `data-active` `data-failed` `data-done` |
+| `upload-items` `upload-item` `upload-more` | its rows (at most 40) | row: `data-name`, `data-state` = `waiting` `copying` `done` `failed` `cancelled` `skipped` |
+| `upload-skipped` **(T1)** | what was left out of the drops, with reasons | `data-count`; rows `data-reason` = `hidden` `junk` `temporary` `links` `special` `unreadable` `duplicate` |

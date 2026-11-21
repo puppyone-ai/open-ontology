@@ -117,6 +117,7 @@ export type SuperDriveApi = OntologyApi & {
   pathsForFiles(files: ArrayLike<File>): { paths: string[]; unreadable: number };
   startUpload(input: { driveId: string; folder: string; paths: string[] }): Promise<ApiResult<UploadStartValue>>;
   cancelUpload(input: { batchId: string; itemId?: string }): Promise<ApiResult<{ cancelled: true }>>;
+  discardUpload(input: { batchId: string; folderPath: string }): Promise<ApiResult<{ removed: number }>>;
   fileDetail(input: { fileId: string; include?: ("history" | "entities" | "facts" | "shares")[] }): Promise<ApiResult<EngineFileDetail>>;
   fileBlocks(input: { fileId: string; page?: number; limit?: number; cursor?: string }): Promise<ApiResult<EnginePage<EngineBlock>>>;
   /** Capability URL of the original (fs Drives only). */
@@ -165,6 +166,7 @@ export const superDriveApi: SuperDriveApi = {
   pathsForFiles: (files) => readBridge()?.pathsForFiles?.(files) ?? { paths: [], unreadable: Array.from(files ?? []).length },
   startUpload: (input) => invoke("upload-start", input),
   cancelUpload: (input) => invoke("upload-cancel", input),
+  discardUpload: (input) => invoke("upload-discard", input),
   fileDetail: (input) => invoke("file-detail", input),
   fileBlocks: (input) => invoke("file-blocks", input),
   previewUrl: (input) => invoke("file-preview-url", input),
