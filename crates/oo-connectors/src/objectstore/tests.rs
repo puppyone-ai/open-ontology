@@ -77,6 +77,7 @@ fn objectstore_skip_table() {
         "a.tmp",
         "b.PART",
         "c.crdownload",
+        "d.swp",
         "node_modules",
         "__pycache__",
     ] {

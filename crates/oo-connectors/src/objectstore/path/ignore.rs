@@ -369,6 +369,26 @@ mod tests {
     }
 
     #[test]
+    fn shared_fixture_default_skips_match_the_app() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/ignore-semantics.json"
+        ))
+        .unwrap();
+        let rows = fixture["defaults"].as_array().unwrap();
+        assert!(rows.len() >= 50);
+        for row in rows {
+            let name = row["name"].as_str().unwrap();
+            let is_dir = row["dir"].as_bool().unwrap();
+            let skipped = super::super::skip_reason_fs(name, is_dir).is_some();
+            assert_eq!(
+                skipped,
+                row["skipped"].as_bool().unwrap(),
+                "{name} (dir: {is_dir})"
+            );
+        }
+    }
+
+    #[test]
     fn hostile_rules_are_dropped_not_slow() {
         let mut set = RuleSet::default();
         set.add("a/**/b/**/c/**/d/**/e/**/f/z\n", Source::GitIgnore);

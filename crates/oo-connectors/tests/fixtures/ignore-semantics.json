@@ -756,5 +756,287 @@
     }
    ]
   }
+ ],
+ "defaults": [
+  {
+   "name": ".git",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".venv",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".next",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".cache",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".idea",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".vscode",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".DS_Store",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".env",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".~lock.a.docx#",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "node_modules",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "__pycache__",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "target",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "dist",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "build",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "venv",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "node_modules",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "__pycache__",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "target",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "dist",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "build",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "venv",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "a.pyc",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "a.pyc",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "B.PYO",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "B.PYO",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "Thumbs.db",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "desktop.ini",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "~$a.docx",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "a.tmp",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "b.PART",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "c.crdownload",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "x.swp",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "src",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "src",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "docs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "docs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "main.rs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "main.rs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "build.rs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "build.rs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "targets",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "targets",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "distance",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "distance",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "env",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "env",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "a.py",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "a.py",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "pyc",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "pyc",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "计划.md",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "计划.md",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "tmp",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "tmp",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "partial.txt",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "partial.txt",
+   "dir": true,
+   "skipped": false
+  }
  ]
 }

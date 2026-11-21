@@ -28,7 +28,7 @@ pub enum SkipReason {
     /// Office lock file `~$*`.
     OfficeLock,
     /// OS metadata and tool junk (`Thumbs.db`, `desktop.ini`, `node_modules`,
-    /// `__pycache__`, `*.tmp`, `*.part`, `*.crdownload`).
+    /// `__pycache__`, `*.tmp`, `*.part`, `*.swp`, `*.crdownload`).
     Junk,
 }
 
@@ -55,6 +55,7 @@ pub fn skip_reason(name: &str) -> Option<SkipReason> {
         || name == "__pycache__"
         || ends_with_ci(name, ".tmp")
         || ends_with_ci(name, ".part")
+        || ends_with_ci(name, ".swp")
         || ends_with_ci(name, ".crdownload")
     {
         return Some(SkipReason::Junk);
