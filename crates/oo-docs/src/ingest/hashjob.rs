@@ -469,8 +469,7 @@ async fn load_row(
             .fetch_optional(&mut *conn)
             .await?;
     let Some(drive) = drive else { return Ok(None) };
-    let rows = files::load_files(&mut conn, &drive).await?;
-    let found = rows.into_iter().find(|r| r.id == file_id);
+    let found = files::load_file(&mut conn, file_id).await?;
     Ok(found.map(|r| {
         let deleted = r.deleted;
         (r, drive, deleted)

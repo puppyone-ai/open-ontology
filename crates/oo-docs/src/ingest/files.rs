@@ -39,61 +39,78 @@ pub struct FileRow {
     pub seen: i64,
 }
 
+macro_rules! file_row_select {
+    () => {
+        "SELECT f.id::text AS id, encode(f.raw_key, 'hex') AS raw_hex, f.path, f.state, \
+         f.state_code, (f.deleted_at IS NOT NULL) AS deleted, f.current_version_id::text AS vid, \
+         cv.b3 AS b3, cv.fp::text AS fp, f.last_seen_generation AS seen, f.fp_size, f.fp_mtime_ns, \
+         f.fp_ino, f.fp_etag, f.fp_version_id \
+         FROM _oo_docs.file f LEFT JOIN _oo_docs.file_version cv ON cv.id = f.current_version_id"
+    };
+}
+
+fn file_row(r: &sqlx::postgres::PgRow) -> Result<FileRow, IngestError> {
+    let raw_hex: String = r.try_get("raw_hex")?;
+    let fp: Option<String> = r.try_get("fp")?;
+    let fp_size: Option<i64> = r.try_get("fp_size")?;
+    let from_version: Option<Fingerprint> = fp.and_then(|t| serde_json::from_str(&t).ok());
+    let fp = from_version.or_else(|| {
+        fp_size.map(|size| Fingerprint {
+            size: size.max(0) as u64,
+            etag: r.try_get("fp_etag").ok().flatten(),
+            last_modified_ns: r
+                .try_get::<Option<i64>, _>("fp_mtime_ns")
+                .ok()
+                .flatten()
+                .map(i128::from),
+            version_id: r.try_get("fp_version_id").ok().flatten(),
+            fs_ino: r
+                .try_get::<Option<i64>, _>("fp_ino")
+                .ok()
+                .flatten()
+                .map(|i| i as u64),
+            fs_ctime_ns: None,
+        })
+    });
+    Ok(FileRow {
+        id: r.try_get("id")?,
+        raw_key: unhex(&raw_hex).ok_or_else(|| IngestError::Protocol("raw_key hex".into()))?,
+        path: r.try_get("path")?,
+        state: r.try_get("state")?,
+        state_code: r.try_get("state_code")?,
+        deleted: r.try_get("deleted")?,
+        version_id: r.try_get("vid")?,
+        b3: r.try_get("b3")?,
+        fp,
+        seen: r.try_get("seen")?,
+    })
+}
+
 /// Every file row of a Drive, deleted ones included (a deleted raw key that
 /// reappears reuses its row, `UNIQUE (drive_id, raw_key)`).
 pub async fn load_files(
     conn: &mut PgConnection,
     drive_id: &str,
 ) -> Result<Vec<FileRow>, IngestError> {
-    let rows = sqlx::query(
-        "SELECT f.id::text AS id, encode(f.raw_key, 'hex') AS raw_hex, f.path, f.state, \
-         f.state_code, (f.deleted_at IS NOT NULL) AS deleted, f.current_version_id::text AS vid, \
-         cv.b3 AS b3, cv.fp::text AS fp, f.last_seen_generation AS seen, f.fp_size, f.fp_mtime_ns, \
-         f.fp_ino, f.fp_etag, f.fp_version_id \
-         FROM _oo_docs.file f LEFT JOIN _oo_docs.file_version cv ON cv.id = f.current_version_id \
-         WHERE f.drive_id = $1::uuid",
-    )
-    .bind(drive_id)
-    .fetch_all(&mut *conn)
-    .await?;
-    let mut out = Vec::with_capacity(rows.len());
-    for r in &rows {
-        let raw_hex: String = r.try_get("raw_hex")?;
-        let fp: Option<String> = r.try_get("fp")?;
-        let fp_size: Option<i64> = r.try_get("fp_size")?;
-        let from_version: Option<Fingerprint> = fp.and_then(|t| serde_json::from_str(&t).ok());
-        let fp = from_version.or_else(|| {
-            fp_size.map(|size| Fingerprint {
-                size: size.max(0) as u64,
-                etag: r.try_get("fp_etag").ok().flatten(),
-                last_modified_ns: r
-                    .try_get::<Option<i64>, _>("fp_mtime_ns")
-                    .ok()
-                    .flatten()
-                    .map(i128::from),
-                version_id: r.try_get("fp_version_id").ok().flatten(),
-                fs_ino: r
-                    .try_get::<Option<i64>, _>("fp_ino")
-                    .ok()
-                    .flatten()
-                    .map(|i| i as u64),
-                fs_ctime_ns: None,
-            })
-        });
-        out.push(FileRow {
-            id: r.try_get("id")?,
-            raw_key: unhex(&raw_hex).ok_or_else(|| IngestError::Protocol("raw_key hex".into()))?,
-            path: r.try_get("path")?,
-            state: r.try_get("state")?,
-            state_code: r.try_get("state_code")?,
-            deleted: r.try_get("deleted")?,
-            version_id: r.try_get("vid")?,
-            b3: r.try_get("b3")?,
-            fp,
-            seen: r.try_get("seen")?,
-        });
-    }
-    Ok(out)
+    let rows = sqlx::query(concat!(file_row_select!(), " WHERE f.drive_id = $1::uuid"))
+        .bind(drive_id)
+        .fetch_all(&mut *conn)
+        .await?;
+    rows.iter().map(file_row).collect()
+}
+
+/// One file row by id. A hash job needs only its own row: loading the whole
+/// Drive for each job made ingesting N files cost N times N row decodes
+/// (30,000 files took half an hour).
+pub async fn load_file(
+    conn: &mut PgConnection,
+    file_id: &str,
+) -> Result<Option<FileRow>, IngestError> {
+    let row = sqlx::query(concat!(file_row_select!(), " WHERE f.id = $1::uuid"))
+        .bind(file_id)
+        .fetch_optional(&mut *conn)
+        .await?;
+    row.as_ref().map(file_row).transpose()
 }
 
 fn state_payload(file_id: &str, from: Option<&str>, to: &str, code: Option<&str>) -> String {
