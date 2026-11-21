@@ -5,8 +5,10 @@
 //! context scoring). Fuzzy matching, identity attributes, merges and splits
 //! belong to later cards.
 
+pub mod crosslang;
 pub mod exact;
 pub mod honorific;
 pub mod merge;
 pub mod normalize;
 pub mod pg;
+pub mod pinyin;

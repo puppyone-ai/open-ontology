@@ -1808,6 +1808,18 @@ impl JobHandler for PublishHandler {
                     Ok(c) => c,
                     Err(e) => return db_fail(e),
                 };
+                // One person named in two scripts becomes one entity before the version is written (a failure
+                // here never blocks the publish: the pair simply stays two entities and a candidate).
+                if let Ok(mut tx) = sqlx::Connection::begin(&mut *conn).await {
+                    match crate::resolve::crosslang::run(&mut tx).await {
+                        Ok(_) => {
+                            let _ = tx.commit().await;
+                        }
+                        Err(_) => {
+                            let _ = tx.rollback().await;
+                        }
+                    }
+                }
                 let outcome = publish(&mut conn, &self.cas, &PublishConfig::default()).await;
                 drop(conn);
                 match outcome {

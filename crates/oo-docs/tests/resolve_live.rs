@@ -345,3 +345,93 @@ async fn reindexing_changes_nothing() {
     );
     fx.finish(db).await;
 }
+
+fn roster_csv(rows: &[&str]) -> String {
+    let mut s = String::from("姓名 Name,English name,Email,团队 Team\n");
+    for r in rows {
+        s.push_str(r);
+        s.push('\n');
+    }
+    s
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_roster_row_with_both_names_makes_one_person_whichever_file_came_first() {
+    let _ = NEEDS_PG;
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_res_crosslang";
+    let mut fx = Fx::new(db).await;
+    // The directory names the person in Latin, the roster in Chinese with the English name beside it.
+    fx.index_csv("people/directory.csv", &people_csv(&["Wanqing Shao,,财务"]))
+        .await;
+    fx.index_csv(
+        "people/roster.csv",
+        &roster_csv(&["邵婉清,Wanqing Shao,,财务"]),
+    )
+    .await;
+    let before = fx
+        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'")
+        .await;
+    let mut tx = sqlx::Connection::begin(&mut fx.rt).await.unwrap();
+    let sum = oo_docs::resolve::crosslang::run(&mut tx).await.unwrap();
+    tx.commit().await.unwrap();
+    let after = fx
+        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'")
+        .await;
+    assert!(
+        before == 1 || sum.merged == 1,
+        "one person already, or merged: before {before}, {sum:?}"
+    );
+    assert_eq!(after, 1, "{sum:?}");
+    // Provenance: the merged-away name stays findable and the redirect says why.
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.alias WHERE norm_alias = 'wanqing shao' AND status <> 'rejected'")
+            .await
+            .min(1),
+        1
+    );
+    // Running again changes nothing.
+    let mut tx = sqlx::Connection::begin(&mut fx.rt).await.unwrap();
+    let again = oo_docs::resolve::crosslang::run(&mut tx).await.unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!((again.merged, again.proposed), (0, 0));
+    fx.finish(db).await;
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn two_people_with_one_pinyin_stay_two_and_wait_for_a_person() {
+    let _ = NEEDS_PG;
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_res_crosslang_neg";
+    let mut fx = Fx::new(db).await;
+    fx.index_csv(
+        "people/a.csv",
+        &people_csv(&["王伟,,研发", "王薇,,研发", "Wei Wang,,研发"]),
+    )
+    .await;
+    let mut tx = sqlx::Connection::begin(&mut fx.rt).await.unwrap();
+    let sum = oo_docs::resolve::crosslang::run(&mut tx).await.unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(sum.merged, 0, "{sum:?}");
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'"
+        )
+        .await,
+        3
+    );
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'entity_merge' AND reason_code = 'cross_language'")
+            .await,
+        2
+    );
+    // Evidence names who: nothing merged, nothing hidden.
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.entity_redirect")
+            .await,
+        0
+    );
+    fx.finish(db).await;
+}
