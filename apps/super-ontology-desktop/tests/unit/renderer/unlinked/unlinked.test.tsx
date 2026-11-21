@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TestLocalizationProvider } from "@open-ontology/design-system/localization/testing";
 import { mergeCatalogNamespaces } from "@open-ontology/design-system/localization/core";
-import { analyzeUnlinked, fileReason, formatOf, reasonForRow, type UnlinkedReport, type UnlinkedSource } from "../../../../src/renderer/model/unlinked";
+import { analyzeUnlinked, fileReason, formatOf, reasonForRow, readUnlinked, resetUnlinked, UNLINKED_REFRESH_DEBOUNCE_MS, useUnlinked, type UnlinkedReport, type UnlinkedSource } from "../../../../src/renderer/model/unlinked";
 import { applyUnlinked, GROUP_ENTRY_PREFIX, GROUP_ROWS_MAX, UNLINKED_GROUP_ID, unlinkedCount } from "../../../../src/renderer/features/atlas/unlinked";
 import { AtlasList } from "../../../../src/renderer/features/atlas/AtlasList";
 import type { AtlasData } from "../../../../src/renderer/features/atlas/model";
@@ -246,5 +246,43 @@ describe("the not-connected list", () => {
     expect(screen.getAllByTestId("atlas-reason").length).toBe(8);
     fireEvent.click(head);
     expect(screen.queryAllByTestId("atlas-reason").length).toBe(0);
+  });
+});
+
+describe("reading what is not connected while a big folder is ingested", () => {
+  afterEach(() => { vi.useRealTimers(); resetUnlinked(); });
+  const slowSource = (log: string[], gate: { release: () => void }) => {
+    const base = source([f("a")], { a: { entities: [], facts: [] } });
+    return { ...base, files: async (input: { driveId: string; cursor?: string }) => { log.push("files"); await new Promise<void>((resolve) => { gate.release = resolve; }); return base.files(input); } } as UnlinkedSource;
+  };
+  it("lets a reading for a newer key wait for the one on its way instead of running beside it", async () => {
+    const log: string[] = [];
+    const gate = { release: () => undefined };
+    const slow = slowSource(log, gate);
+    const first = readUnlinked("v1|10", slow);
+    const second = readUnlinked("v2|10", slow);
+    await Promise.resolve();
+    expect(log).toEqual(["files"]);
+    gate.release();
+    await first;
+    await vi.waitFor(() => expect(log).toEqual(["files", "files"]));
+    gate.release();
+    await second;
+  });
+
+  it("shows a report that arrives after its key went stale, and reads the newer key only once the key has stood still", async () => {
+    vi.useFakeTimers();
+    const reads: string[] = [];
+    const src: UnlinkedSource = { ...source([f("a")], { a: { entities: [], facts: [] } }), files: vi.fn(async () => { reads.push("read"); return { ok: true as const, value: { items: [f("a")] as never, next_cursor: null } }; }) };
+    const { result, rerender } = renderHook(({ key }: { key: string }) => useUnlinked(key, { source: src }), { initialProps: { key: "v1|10" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.status).toBe("ready");
+    expect(reads).toHaveLength(1);
+    // The ontology moves on: nothing is read again until the key has stood still, however often it changes.
+    for (const key of ["v2|10", "v3|10", "v4|10"]) { rerender({ key }); await act(async () => { await vi.advanceTimersByTimeAsync(UNLINKED_REFRESH_DEBOUNCE_MS - 1_000); }); }
+    expect(reads).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(reads).toHaveLength(2);
+    expect(result.current.report).not.toBeNull();
   });
 });
