@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "La nube no está configurada en esta aplicación",
   "errors.SO_CLOUD_SESSION_REQUIRED": "Inicia sesión en la nube primero",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "La nube todavía no ofrece esta acción",
-  "errors.SO_INTERNAL": "Ocurrió un problema inesperado"
+  "errors.SO_INTERNAL": "Ocurrió un problema inesperado",
+  "errors.SO_UPLOAD_TOO_MANY": "Demasiados archivos a la vez (el límite es 10 000)"
 }

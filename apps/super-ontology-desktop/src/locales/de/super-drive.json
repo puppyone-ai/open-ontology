@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "Die Cloud ist in dieser App nicht eingerichtet",
   "errors.SO_CLOUD_SESSION_REQUIRED": "Melden Sie sich zuerst bei der Cloud an",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Die Cloud bietet diese Aktion noch nicht an",
-  "errors.SO_INTERNAL": "Etwas Unerwartetes ist schiefgelaufen"
+  "errors.SO_INTERNAL": "Etwas Unerwartetes ist schiefgelaufen",
+  "errors.SO_UPLOAD_TOO_MANY": "Zu viele Dateien auf einmal (Grenze: 10.000)"
 }

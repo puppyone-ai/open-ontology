@@ -82,7 +82,7 @@ describe("upload service", () => {
     await symlink(path.join(tree, "a.md"), path.join(tree, "link.md"));
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "in", paths: [tree] });
-    expect(started.skipped).toEqual({ hidden: 3, links: 1 });
+    expect(started.skipped).toEqual({ hidden: 1, links: 1, junk: 0, temporary: 2, special: 0 });
     await settled(started.batchId);
     expect(await listing(path.join(root, "in/Project"))).toEqual(["a.md", "inner"]);
     expect(await readFile(path.join(root, "in/Project/inner/b.md"), "utf8")).toBe("b");
