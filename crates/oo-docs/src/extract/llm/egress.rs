@@ -65,6 +65,13 @@ impl EgressClient {
     }
 
     fn call(&self, body: &str) -> Result<ChatReply, LlmError> {
+        let t0 = std::time::Instant::now();
+        let r = self.call_once(body);
+        log_latency(t0.elapsed(), &r);
+        r
+    }
+
+    fn call_once(&self, body: &str) -> Result<ChatReply, LlmError> {
         let unavailable = |why: &str| LlmError::Unavailable(why.to_owned());
         let mut s = TcpStream::connect_timeout(&self.addr, Duration::from_secs(3))
             .map_err(|_| unavailable("connect"))?;
@@ -116,6 +123,32 @@ impl EgressClient {
             )),
             _ => Err(LlmError::Unavailable(format!("status {status}"))),
         }
+    }
+}
+
+/// Diagnostics for a measuring run: with `OO_DOCS_MODEL_LATENCY_LOG` naming a file, one line per wire call
+/// (`<millis> ok|<error kind> <tokens out>`) is appended. Nothing is logged otherwise; no prompt or reply text is ever written.
+fn log_latency(took: Duration, r: &Result<ChatReply, LlmError>) {
+    let Ok(path) = std::env::var("OO_DOCS_MODEL_LATENCY_LOG") else {
+        return;
+    };
+    let (kind, out) = match r {
+        Ok(rep) => ("ok".to_owned(), rep.tokens_out),
+        Err(e) => (
+            format!("{e:?}")
+                .split(['(', ' '])
+                .next()
+                .unwrap_or("err")
+                .to_owned(),
+            0,
+        ),
+    };
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = writeln!(f, "{} {kind} {out}", took.as_millis());
     }
 }
 
