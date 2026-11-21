@@ -796,6 +796,8 @@
   "unlinked.reason.no_relations": "{count, plural, one {Se encontró # elemento, ninguno aparece en otro sitio} other {Se encontraron # elementos, ninguno aparece en otro sitio}}",
   "unlinked.reason.entity": "Aparece en un solo archivo",
   "unlinked.reason.entity_in": "Solo aparece en {file}",
+  "unlinked.reason.speaker": "Esperando la confirmación de los hablantes ({count})",
+  "unlinked.speaker.action": "Confirmar hablantes",
   "home.next.unlinked.title": "{count, plural, one {# archivo no comparte nada con tus otros archivos} other {# archivos no comparten nada con tus otros archivos}}",
   "home.next.unlinked.body": "Mira por qué se queda fuera cada uno y qué hacer.",
   "home.next.unlinked.action": "Ver sin relación",

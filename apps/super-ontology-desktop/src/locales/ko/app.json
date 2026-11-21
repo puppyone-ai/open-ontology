@@ -796,6 +796,8 @@
   "unlinked.reason.no_relations": "{count, plural, other {#개를 찾았지만 다른 곳에는 나타나지 않습니다}}",
   "unlinked.reason.entity": "한 파일에만 나타납니다",
   "unlinked.reason.entity_in": "{file}에만 나타납니다",
+  "unlinked.reason.speaker": "화자 확인 대기 중 ({count})",
+  "unlinked.speaker.action": "화자 확인하기",
   "home.next.unlinked.title": "{count, plural, other {다른 파일과 공유하는 것이 없는 파일 #개}}",
   "home.next.unlinked.body": "각각 제외된 이유와 해결 방법을 확인하세요.",
   "home.next.unlinked.action": "연결 없음 보기",

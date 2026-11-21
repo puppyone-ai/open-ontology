@@ -796,6 +796,8 @@
   "unlinked.reason.no_relations": "{count, plural, one {# item encontrado, nenhum aparece em outro lugar} other {# itens encontrados, nenhum aparece em outro lugar}}",
   "unlinked.reason.entity": "Aparece em um só arquivo",
   "unlinked.reason.entity_in": "Aparece só em {file}",
+  "unlinked.reason.speaker": "Aguardando confirmação de falantes ({count})",
+  "unlinked.speaker.action": "Confirmar falantes",
   "home.next.unlinked.title": "{count, plural, one {# arquivo não compartilha nada com os outros} other {# arquivos não compartilham nada com os outros}}",
   "home.next.unlinked.body": "Veja por que cada um ficou de fora e o que fazer.",
   "home.next.unlinked.action": "Ver não conectados",

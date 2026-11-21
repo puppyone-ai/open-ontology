@@ -22,6 +22,8 @@ export type UnlinkedReason =
   | { kind: "encrypted" }
   /** Entities found, but none of them appears in any other file or source. `count` is how many things the file holds. */
   | { kind: "no_relations"; count: number }
+  /** A recording whose speakers nobody has confirmed: what they said waits (D74). `count` is how many speakers wait. */
+  | { kind: "speaker"; count: number }
   /** An entity on an island that touches one file only (the atlas side); `file` names that file. */
   | { kind: "entity"; file?: string };
 
@@ -46,13 +48,14 @@ export const formatOf = (file: Pick<FileLike, "path" | "format">): string => {
  * Why a file is not connected, or `null` when it is (or when nothing can be said yet). `facts` is what the file produced; `null`
  * means it was not read, and a ready file is then left out rather than guessed.
  */
-export function fileReason(file: FileLike, facts: FileFacts | null): UnlinkedReason | null {
+export function fileReason(file: FileLike, facts: FileFacts | null, speakers = 0): UnlinkedReason | null {
   if (IGNORED.has(file.state)) return null;
   if (file.state === "unsupported") return { kind: "unsupported", format: formatOf(file) };
   if (file.state === "parse_failed") return { kind: "parse_failed", code: typeof file.state_code === "string" && file.state_code ? file.state_code : "PARSE_FAILED" };
   if (file.state === "too_large") return { kind: "too_large" };
   if (file.state === "encrypted") return { kind: "encrypted" };
   // An indexed file whose facts wait for a person is not still being processed: the engine finished and asks to be reviewed.
+  if (speakers > 0 && (file.state === "indexed" || READY.has(file.state))) return { kind: "speaker", count: speakers };
   if (file.state === "indexed" && pending(file)) return { kind: "review" };
   if (PROCESSING.has(file.state)) return { kind: "processing" };
   if (!READY.has(file.state)) return null;
@@ -82,6 +85,8 @@ export type UnlinkedSource = {
   detail(fileId: string): Promise<ApiResult<EngineFileDetail>>;
   /** Files that hold an entity linked to a database row (the atlas draws these as links). */
   linkedFilePaths(): Promise<Set<string>>;
+  /** Pending speaker confirmations per file id. */
+  speakerPending?(): Promise<Map<string, number>>;
 };
 
 type EntityRefLike = { key?: string; name?: string; type?: string };
@@ -114,6 +119,7 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
     }
   }
   const linkedPaths = await source.linkedFilePaths().catch(() => new Set<string>());
+  const speakers = await (source.speakerPending?.() ?? Promise.resolve(new Map<string, number>())).catch(() => new Map<string, number>());
   const ready = all.filter((file) => READY.has(file.state));
   const toRead = ready.slice(0, maxFiles);
   limited = ready.length > toRead.length;
@@ -158,7 +164,7 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
     const keys = fileEntities.get(file.id);
     // Cut short: what other files hold is not known, so a ready file is never called unconnected on that evidence.
     const shared = !keys || limited || fileEntities.size < 2 || linkedFile(file.id) || [...keys].some((key) => (holders.get(key)?.size ?? 0) > 1 || islandReaches(find(key)));
-    const reason = fileReason(file, keys ? { entities: keys.size, connected: shared } : null);
+    const reason = fileReason(file, keys ? { entities: keys.size, connected: shared } : null, speakers.get(file.id) ?? 0);
     if (reason) files.push({ fileId: file.id, driveId: file.drive_id, path: file.path, name: file.path.slice(file.path.lastIndexOf("/") + 1), reason });
   }
   const entities: UnlinkedEntity[] = [];
@@ -175,6 +181,23 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
 
 /** The reading of the real bridge. */
 export const bridgeUnlinkedSource: UnlinkedSource = {
+  speakerPending: async () => {
+    const counts = new Map<string, number>();
+    const drives = await invoke("drives-list", {});
+    if (!drives.ok) return counts;
+    for (const drive of drives.value) {
+      if (drive.status === "deleted") continue;
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page += 1) {
+        const result = await invoke("review-list", { driveId: drive.id, kind: "speaker_identity", status: "pending", limit: 200, ...(cursor ? { cursor } : {}) });
+        if (!result.ok) break;
+        for (const item of result.value.items as { source?: { file_id?: string } | null }[]) if (item.source?.file_id) counts.set(item.source.file_id, (counts.get(item.source.file_id) ?? 0) + 1);
+        cursor = (result.value as { next_cursor?: string | null }).next_cursor ?? undefined;
+        if (!cursor) break;
+      }
+    }
+    return counts;
+  },
   drives: async () => {
     const result = await invoke("drives-list", {});
     return result.ok ? { ok: true, value: result.value.map((d) => ({ id: d.id, name: d.name, status: d.status })) } : result;
@@ -234,6 +257,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
       case "unsupported": return t("app.unlinked.reason.unsupported", { format: reason.format });
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
       case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
+      case "speaker": return t("app.unlinked.reason.speaker", { count: reason.count });
       case "entity": return reason.file ? t("app.unlinked.reason.entity_in", { file: reason.file }) : t("app.unlinked.reason.entity");
       default: return t(`app.unlinked.reason.${reason.kind}`);
     }

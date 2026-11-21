@@ -796,6 +796,8 @@
   "unlinked.reason.no_relations": "Found {count, plural, one {# thing} other {# things}}, none appear elsewhere",
   "unlinked.reason.entity": "Appears in one file only",
   "unlinked.reason.entity_in": "Only appears in {file}",
+  "unlinked.reason.speaker": "Waiting for speaker confirmation ({count})",
+  "unlinked.speaker.action": "Confirm speakers",
   "home.next.unlinked.title": "{count, plural, one {# file shares nothing with your other files} other {# files share nothing with your other files}}",
   "home.next.unlinked.body": "See why each one is left out, and what to do about it.",
   "home.next.unlinked.action": "See not connected",

@@ -13,7 +13,7 @@ const PAGE = 100;
 const SOURCE_ICON = { files: File, folder: Folder, bucket: Package, database: Database } as const;
 export const COUNT_KEY = { type: "app.atlas.count.entities", drive: "app.atlas.count.files", db: "app.atlas.count.tables", unlinked: "app.atlas.count.unlinked" } as const;
 
-export function AtlasList({ data, query, onOpen, only = null }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void; /** Shows this group alone (the not-connected filter). */ only?: string | null }) {
+export function AtlasList({ data, query, onOpen, only = null, onReviewSpeakers }: { data: AtlasData; query: string; onOpen: (member: AtlasMember) => void; /** Opens Review, where the speakers wait to be confirmed. */ onReviewSpeakers?: () => void; /** Shows this group alone (the not-connected filter). */ only?: string | null }) {
   const { t, formatNumber } = useLocalization();
   const reasonText = useUnlinkedText();
   // A picture of a few groups (a database alone, say) shows its members at once: there is nothing else to look at.
@@ -63,6 +63,7 @@ export function AtlasList({ data, query, onOpen, only = null }: { data: AtlasDat
                       {member.reason && <span className="so-weak so-atlas-reason so-truncate" data-testid="atlas-reason" data-reason={member.reason.kind}>{reasonText(member.reason)}</span>}
                       {(tree.links.get(member.id) ?? 0) > 0 && <span className="so-weak so-atlas-count">{t("app.atlas.linked", { count: tree.links.get(member.id) ?? 0 })}</span>}
                     </button>
+                    {member.reason?.kind === "speaker" && onReviewSpeakers && <Button size="compact" variant="ghost" icon={ChevronRight} data-testid="atlas-speaker-review" onClick={() => onReviewSpeakers?.()}>{t("app.unlinked.speaker.action")}</Button>}
                   </li>
                 ))}
                 {members.length > limit && (
