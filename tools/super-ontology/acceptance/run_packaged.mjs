@@ -44,7 +44,7 @@ if (flag("--model")) {
   await fs.writeFile(path.join(engineDir, "docs.json"), JSON.stringify({ version: "oo.docs/v1", concurrency: { extract_llm: Number(opt("--extract-parallel", "8")) } }), { mode: 0o600 });
 }
 const exe = path.join(appPath, "Contents/MacOS/Super Ontology");
-const env = { ...process.env, HOME: home, SUPER_ONTOLOGY_USER_DATA: profile, DOCKER_CONFIG: path.join(os.homedir(), ".docker"), OO_DOCS_LANE: "super-ontology-ab" };
+const env = { ...process.env, HOME: home, SUPER_ONTOLOGY_USER_DATA: profile, DOCKER_CONFIG: path.join(os.homedir(), ".docker"), OO_DOCS_LANE: process.env.OO_DOCS_LANE || "super-ontology-ab" };
 const child = spawn(exe, [`--user-data-dir=${profile}`, "--remote-debugging-port=0"], { env, stdio: ["ignore", "pipe", "pipe"] });
 const mainLog = [];
 child.stdout.on("data", (c) => mainLog.push(String(c)));
