@@ -288,6 +288,7 @@
 | SO-B-S20-52 | D84 | merged | feat/super-ontology (车道 AD 并入) | 141336f7b → 141336f7b | — | — | Lock the engine image built from this tree |
 | SO-B-S20-53 | D84 | merged | feat/super-ontology (车道 AD 并入) | 67a1e60ce → 67a1e60ce | — | — | Record the model comparison and the acceptance run of lane AD |
 | SO-B-S20-60 | D85 | merged | feat/super-ontology (车道 AE2 并入) | 19ca40e30 → 19ca40e30 | — | — | Settle an indexed file that has nothing left to publish |
+| SO-B-S20-70 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4a9dddaaa → 4a9dddaaa | — | — | Start oo serve without waiting for the parser install, and clean up on a signal during start-up |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
@@ -343,6 +344,8 @@
 | SO-F-S20-62 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | efa3ba06d → efa3ba06d | — | — | Press Show more before reading the Not connected list |
 | SO-F-S20-63 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | c80f2ad27 → c80f2ad27 | — | — | Allow the model on folders the app creates on this computer |
 | SO-F-S20-64 | D85 | merged | feat/super-ontology (车道 AE2 并入) | 152cffd7a → 152cffd7a | — | — | Lock the engine image with the settle step |
+| SO-F-S20-72 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4e8668f80 → 4e8668f80 | — | — | Keep the engine logs of a failed T2 attempt and name the missing engine |
+| SO-F-S20-71 | D83 | merged | feat/super-ontology (车道 AF 并入) | 517d24093 → 517d24093 | — | — | Show a failed engine start on the first-run screen with Try again and the log path |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
