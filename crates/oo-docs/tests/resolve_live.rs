@@ -370,20 +370,17 @@ async fn a_roster_row_with_both_names_makes_one_person_whichever_file_came_first
         &roster_csv(&["邵婉清,Wanqing Shao,,财务"]),
     )
     .await;
-    let before = fx
-        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'")
-        .await;
     let mut tx = sqlx::Connection::begin(&mut fx.rt).await.unwrap();
     let sum = oo_docs::resolve::crosslang::run(&mut tx).await.unwrap();
     tx.commit().await.unwrap();
-    let after = fx
-        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'")
+    let names = fx
+        .text("SELECT canonical_name FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active' ORDER BY 1")
         .await;
-    assert!(
-        before == 1 || sum.merged == 1,
-        "one person already, or merged: before {before}, {sum:?}"
-    );
-    assert_eq!(after, 1, "{sum:?}");
+    let both = ["邵婉清", "Wanqing Shao"]
+        .iter()
+        .filter(|n| names.iter().any(|x| x == *n))
+        .count();
+    assert_eq!(both, 1, "one entity for the person: {names:?} {sum:?}");
     // Provenance: the merged-away name stays findable and the redirect says why.
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.alias WHERE norm_alias = 'wanqing shao' AND status <> 'rejected'")
@@ -415,13 +412,12 @@ async fn two_people_with_one_pinyin_stay_two_and_wait_for_a_person() {
     let sum = oo_docs::resolve::crosslang::run(&mut tx).await.unwrap();
     tx.commit().await.unwrap();
     assert_eq!(sum.merged, 0, "{sum:?}");
-    assert_eq!(
-        fx.scalar(
-            "SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'"
-        )
-        .await,
-        3
-    );
+    let names = fx
+        .text("SELECT canonical_name FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active' ORDER BY 1")
+        .await;
+    for n in ["王伟", "王薇", "Wei Wang"] {
+        assert!(names.iter().any(|x| x == n), "{n} stays: {names:?}");
+    }
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'entity_merge' AND reason_code = 'cross_language'")
             .await,

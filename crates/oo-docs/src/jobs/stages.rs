@@ -2464,13 +2464,6 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
                                           AND j.created_at >= f.state_since \
                                           AND j.state IN ('queued', 'running', 'succeeded'))) \
-             OR EXISTS (SELECT 1 FROM _oo_docs.file f \
-                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \
-                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \
-                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \
-                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
-                                           AND j.created_at >= x.updated_at \
-                                           AND j.state IN ('queued', 'running', 'succeeded'))) \
              OR EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv \
                           ON fv.id = f.current_version_id \
                          WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
@@ -2496,6 +2489,32 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
                 .await?;
         let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
         let key = format!("publish:{start}");
+        let mut job = NewJob::new(JobKind::Publish, &key);
+        job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
+        if store::enqueue(&mut *conn, &job).await?.status == JobStatus::Enqueued {
+            enqueued += 1;
+        }
+    }
+    // A file whose rules are done and whose model call is still to come: its rules facts publish now. The key is its
+    // own, so a later publish in the same window (the file moved on to `indexed`) is never taken for this one.
+    let early: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \\
+                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \\
+                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \\
+                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \\
+                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \\
+                                           AND j.created_at >= x.updated_at \\
+                                           AND j.state IN ('queued', 'running', 'succeeded')))",
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+    if early {
+        let now_ms: i64 =
+            sqlx::query_scalar("SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint")
+                .fetch_one(&mut *conn)
+                .await?;
+        let start = now_ms - now_ms.rem_euclid(PUBLISH_WINDOW_MS);
+        let key = format!("publish:early:{start}");
         let mut job = NewJob::new(JobKind::Publish, &key);
         job.run_after_ms = (start + PUBLISH_WINDOW_MS - now_ms).max(0);
         if store::enqueue(&mut *conn, &job).await?.status == JobStatus::Enqueued {

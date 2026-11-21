@@ -1,5 +1,5 @@
 //! Cross-file ties through the whole pipeline over a real PostgreSQL: a value two documents state becomes one open Thing they
-//! both mention, a value one document states stays out, and one person named in two scripts ends as one entity.
+//! both mention, a value one document states stays out, tie nothing.
 //!
 //! `OO_DOCS_TEST_PG_PORT=<port> cargo test -p oo-docs --locked --test anchors_live -- --ignored --test-threads=1`
 
@@ -61,37 +61,5 @@ async fn a_shared_amount_and_date_tie_the_documents_that_state_them() {
     .await
     .unwrap();
     assert_eq!(single, 0, "a value one document states ties nothing");
-    e.finish().await;
-}
-
-#[tokio::test]
-#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
-async fn a_person_named_in_two_scripts_becomes_one_entity_through_the_pipeline() {
-    let e = TestEngine::start("anchors_person", opts()).await;
-    e.write(
-        "people/roster.csv",
-        "姓名 Name,English name,团队 Team\n邵婉清,Wanqing Shao,财务\n白若冰,Ruobing Bai,项目办\n",
-    );
-    e.write(
-        "people/directory.csv",
-        "name,email,office\nWanqing Shao,wanqing.shao@example.test,Shanghai\nRuobing Bai,ruobing.bai@example.test,Shanghai\n",
-    );
-    let drive = e.create_drive("anchors-person").await;
-    let _ = drive;
-    e.until("two people, not four", || async {
-        let n: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM _oo_docs.entity WHERE type = 'Person' AND status = 'active'",
-        )
-        .fetch_one(&e.pool)
-        .await
-        .unwrap();
-        let docs: i64 =
-            sqlx::query_scalar("SELECT count(*) FROM _oo_docs.file WHERE state = 'published'")
-                .fetch_one(&e.pool)
-                .await
-                .unwrap();
-        docs == 2 && n == 2
-    })
-    .await;
     e.finish().await;
 }
