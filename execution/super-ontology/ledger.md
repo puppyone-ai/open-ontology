@@ -346,6 +346,14 @@
 | SO-F-S20-64 | D85 | merged | feat/super-ontology (车道 AE2 并入) | 152cffd7a → 152cffd7a | — | — | Lock the engine image with the settle step |
 | SO-F-S20-72 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4e8668f80 → 4e8668f80 | — | — | Keep the engine logs of a failed T2 attempt and name the missing engine |
 | SO-F-S20-71 | D83 | merged | feat/super-ontology (车道 AF 并入) | 517d24093 → 517d24093 | — | — | Show a failed engine start on the first-run screen with Try again and the log path |
+| SO-F-S21-01 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | e45faa3d2 → e45faa3d2 | — | apps/super-ontology-desktop/ | Walk dropped folders with the engine's ignore rules and say what was skipped |
+| SO-F-S21-02 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | bab08fa15 → bab08fa15 | — | apps/super-ontology-desktop/ | Turn a dropped folder into a one-use source grant and describe the richer upload answer |
+| SO-F-S21-03 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | ef0a5fdf2 → ef0a5fdf2 | — | apps/super-ontology-desktop/ | Queue drops of any size and keep early progress pushes |
+| SO-F-S21-04 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 87a94b169 → 3ff60aaae | — | apps/super-ontology-desktop/ | Take back the copy when a dropped folder is kept in sync instead |
+| SO-F-S21-05 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 794d1ec65 → 9a0149ff0 | — | apps/super-ontology-desktop/ | Read upload progress per item in the existing upload service tests |
+| SO-F-S21-06 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 0e5778f59 → 0e5778f59 | — | apps/super-ontology-desktop/ | Test the overlay states, the drop and the toast as components |
+| SO-F-S21-07 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 7fcb14e20 → 7fcb14e20 | — | apps/super-ontology-desktop/ | Test dragging files and folders into the app against a real engine |
+| SO-F-S21-08 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 8c7ed8e54 → da9301513 | — | apps/super-ontology-desktop/ | Give the upload list rows room for a folder line |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |

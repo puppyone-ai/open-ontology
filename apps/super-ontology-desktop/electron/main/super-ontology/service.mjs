@@ -304,6 +304,7 @@ export function createSuperOntologyService({
     },
     "upload-start": async ({ driveId, folder, paths }) => uploads.start({ driveId, folder, paths }),
     "upload-cancel": async ({ batchId, itemId }) => uploads.cancel({ batchId, itemId }),
+    "upload-discard": async ({ batchId, folderPath }) => uploads.discard({ batchId, folderPath }),
     "events-subscribe": async ({ sinceSeq } = {}, { sender } = {}) => eventBridge.subscribe(sender, { sinceSeq }),
     "events-since": async ({ instanceId, seq }) => eventBridge.since({ instanceId, seq }),
     "events-unsubscribe": async (_request, { sender } = {}) => eventBridge.unsubscribe(sender),
@@ -311,6 +312,12 @@ export function createSuperOntologyService({
       const selected = await pickPath({ sender, purpose });
       if (!selected) return { cancelled: true };
       return grants.issue(sender, purpose, selected);
+    },
+    "grant-dropped-folder": async ({ path: dropped }, { sender } = {}) => {
+      if (!path.isAbsolute(dropped)) throw new SuperOntologyError("SO_INVALID_REQUEST");
+      const real = await fs.realpath(dropped).catch(() => null);
+      if (!real || !(await fs.stat(real).then((stat) => stat.isDirectory(), () => false))) throw new SuperOntologyError("SO_UPLOAD_SOURCE_MISSING");
+      return grants.issue(sender, "drive-root", real);
     },
     "engine-set-executable": async ({ grantId }, { sender } = {}) => {
       const selected = grants.resolve(sender, grantId, "oo-executable");

@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "이 앱에는 클라우드가 설정되어 있지 않습니다",
   "errors.SO_CLOUD_SESSION_REQUIRED": "먼저 클라우드에 로그인하세요",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "클라우드에서 아직 이 작업을 지원하지 않습니다",
-  "errors.SO_INTERNAL": "예기치 않은 문제가 발생했습니다"
+  "errors.SO_INTERNAL": "예기치 않은 문제가 발생했습니다",
+  "errors.SO_UPLOAD_TOO_MANY": "한 번에 추가할 파일이 너무 많습니다(최대 10,000개)"
 }

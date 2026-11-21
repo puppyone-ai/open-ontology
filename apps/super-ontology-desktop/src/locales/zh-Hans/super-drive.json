@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "此应用尚未配置云端",
   "errors.SO_CLOUD_SESSION_REQUIRED": "请先登录云端",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "云端暂不支持此操作",
-  "errors.SO_INTERNAL": "发生了意外问题"
+  "errors.SO_INTERNAL": "发生了意外问题",
+  "errors.SO_UPLOAD_TOO_MANY": "一次拖入的文件太多（上限 10,000 个）"
 }

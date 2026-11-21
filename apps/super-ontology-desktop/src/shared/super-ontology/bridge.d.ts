@@ -92,14 +92,22 @@ export type EngineActor = { kind: "cli" | "app" | "mcp" | "agent" | "cloud" | "l
 export type EngineEvent = { seq?: number; type: string; at: string; drive_id?: string | null; data: Record<string, unknown>; actor?: EngineActor };
 export type ConnectionSnapshot = { state: ConnectionState; attempt: number; nextRetryAt: string | null; lastSeq: number };
 export type ResyncReason = "cursor_expired" | "engine_restarted" | "gap";
-export type UploadProgressPush = { batchId: string; items: { itemId: string; state: UploadItemState | string; bytesDone: number; bytesTotal: number; code?: string; drivePath?: string }[] };
+export type UploadProgressPush = { batchId: string; items: { itemId: string; state: UploadItemState | string; bytesDone: number; bytesTotal: number; code?: string; drivePath?: string; skipReason?: "duplicate" }[] };
 
-export type UploadItemState = "waiting" | "copying" | "done" | "failed" | "cancelled";
+export type UploadItemState = "waiting" | "copying" | "done" | "failed" | "cancelled" | "skipped";
+export type UploadSkipReason = "hidden" | "junk" | "temporary" | "links" | "special";
 export type UploadStartValue = {
   batchId: string;
   items: { itemId: string; name: string; relative: string; size: number; source: string }[];
-  skipped: { hidden: number; links: number };
-  /** Dropped paths that could not be read (missing, or not an absolute path). */
+  /** What was not copied, by reason: names the engine ignores (hidden, junk, temporary), links (never followed) and special files. */
+  skipped: { hidden: number; links: number; junk?: number; temporary?: number; special?: number };
+  /** A few of the skipped names with their reason, for the explanation (at most 12). */
+  skippedSamples?: { name: string; reason: UploadSkipReason }[];
+  /** What was dropped: a file or a folder (kept with its structure), with the number of files that will be copied. */
+  roots?: { path: string; name: string; kind: "file" | "directory"; files: number }[];
+  /** Empty folders in the drop that were created as folders. */
+  emptyFolders?: number;
+  /** Dropped paths or files inside them that could not be read (missing, no permission, not an absolute path). */
   unreadable: number;
 };
 
@@ -243,6 +251,8 @@ export type SuperOntologyChannelMap = {
   "events-since": { request: { instanceId: string; seq: number; operationId?: string }; value: { events: EngineEvent[]; lastSeq: number } };
   "events-unsubscribe": { request: { operationId?: string }; value: { unsubscribed: true } };
   "pick-path": { request: { purpose: PickPathPurpose; operationId?: string }; value: PickPathValue };
+  /** A folder the person dropped onto the window, turned into a one-use `drive-root` grant (the main process checks it is a real folder). */
+  "grant-dropped-folder": { request: { path: string; operationId?: string }; value: { grantId: string; displayPath: string } };
   "engine-set-executable": { request: { grantId: string; operationId?: string }; value: EngineSnapshot };
   "upload-start": { request: { driveId: string; folder: string; paths: string[]; operationId?: string }; value: UploadStartValue };
   "file-detail": { request: { fileId: string; include?: ("history" | "entities" | "facts" | "shares")[]; operationId?: string }; value: EngineFileDetail };
@@ -265,6 +275,8 @@ export type SuperOntologyChannelMap = {
   "cloud-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: true } };
   "cloud-mode-set": { request: { mode: CloudMode; operationId?: string }; value: CloudModeState };
   "upload-cancel": { request: { batchId: string; itemId?: string; operationId?: string }; value: { cancelled: true } };
+  /** Takes back the copies a batch made of a dropped folder (the person kept that folder in sync as a source instead). */
+  "upload-discard": { request: { batchId: string; folderPath: string; operationId?: string }; value: { removed: number } };
   "entities-search": { request: { q: string; driveId?: string; type?: string; limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
   "entity-detail": { request: { entityIdOrKey: string; includeHistory?: boolean; operationId?: string }; value: EngineDocument };
   "resolve": { request: { text: string; driveId?: string; types?: string[]; limit?: number; operationId?: string }; value: EngineDocument };

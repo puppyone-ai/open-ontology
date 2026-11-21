@@ -10,6 +10,7 @@ import { Ontology } from "./screens/Ontology";
 import { Agents } from "./screens/Agents";
 import { SettingsScreen } from "./screens/Settings";
 import { FirstRun } from "./screens/FirstRun";
+import { DropLayerConnected } from "./features/drop/DropLayerConnected";
 
 function Screen() {
   const app = useApp();
@@ -42,6 +43,7 @@ function Shell() {
       </main>
       <StatusBar />
       {app.firstRunOpen && <FirstRun />}
+      <DropLayerConnected />
     </div>
   );
 }

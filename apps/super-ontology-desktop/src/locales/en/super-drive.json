@@ -1170,5 +1170,6 @@
   "errors.SO_CLOUD_NOT_CONFIGURED": "Cloud isn't set up in this app",
   "errors.SO_CLOUD_SESSION_REQUIRED": "Sign in to the cloud first",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "The cloud doesn't offer this action yet",
-  "errors.SO_INTERNAL": "Something unexpected went wrong"
+  "errors.SO_INTERNAL": "Something unexpected went wrong",
+  "errors.SO_UPLOAD_TOO_MANY": "Too many files in one drop (the limit is 10,000)"
 }
