@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { liveRecorders, startRecording, stopAllRecordings } from "../e2e/harness/recorder.mjs";
-import { withLimit } from "../e2e/t2/run-packaged.mjs";
+import { saveEngineLogs, withLimit } from "../e2e/t2/run-packaged.mjs";
 
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "rec-")), "run.mov");
@@ -42,5 +42,24 @@ describe("T2 recorder limits", () => {
     expect(result.ok).toBe(false);
     await wait(300);
     expect(alive(r.pid)).toBe(false);
+  });
+});
+
+describe("a failed attempt keeps the engine logs", () => {
+  it("copies the logs of the profile and lists its files, skipping the database files", async () => {
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), "so-profile-"));
+    const destination = path.join(profile, "..", `${path.basename(profile)}-evidence`);
+    fs.mkdirSync(path.join(profile, "logs"), { recursive: true });
+    fs.mkdirSync(path.join(profile, "engine", "state", "pg", "data"), { recursive: true });
+    fs.writeFileSync(path.join(profile, "logs", "super-ontology-serve.log"), "oo serve: downloading the pinned uv\n");
+    fs.writeFileSync(path.join(profile, "engine", "state", "engine.log"), "engine log\n");
+    fs.writeFileSync(path.join(profile, "engine", "state", "pg", "data", "postgresql.log"), "not copied\n");
+    await saveEngineLogs(profile, destination);
+    expect(fs.readFileSync(path.join(destination, "logs__super-ontology-serve.log"), "utf8")).toContain("downloading the pinned uv");
+    expect(fs.existsSync(path.join(destination, "engine__state__engine.log"))).toBe(true);
+    expect(fs.existsSync(path.join(destination, "engine__state__pg__data__postgresql.log"))).toBe(false);
+    expect(fs.readFileSync(path.join(destination, "listing.txt"), "utf8")).toContain("engine/state/engine.log");
+    fs.rmSync(profile, { recursive: true, force: true });
+    fs.rmSync(destination, { recursive: true, force: true });
   });
 });
