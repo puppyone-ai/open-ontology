@@ -226,7 +226,10 @@ export function createOntologyHandlers({ client, grants, revealPath = () => {}, 
      */
     "model-config-save": async ({ provider, baseUrl, model, apiKey, revision = 0 }) => {
       let keyRef;
-      if (apiKey) {
+      if (typeof apiKey === "string" && /^file:\/\S+$/u.test(apiKey)) {
+        // A path to a file that already holds the key (a 0600 file the person keeps): the reference is used as it is, nothing is copied.
+        keyRef = apiKey;
+      } else if (apiKey) {
         if (!secretsDirectory) throw new SuperOntologyError("SO_SECRET_STORE_UNAVAILABLE");
         const directory = secretsDirectory;
         const file = path.join(directory, "model-key");
