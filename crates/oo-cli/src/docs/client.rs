@@ -145,6 +145,8 @@ impl Daemon {
     async fn send(&self, req: reqwest::RequestBuilder) -> Result<(u16, Vec<u8>), CliError> {
         let resp = req
             .header("authorization", format!("Bearer {}", self.token))
+            // Names the CLI as the origin of the change in the engine's event log (docs-api 1.13).
+            .header("oo-docs-client", "cli")
             .send()
             .await
             .map_err(|_| {
@@ -413,5 +415,29 @@ mod tests {
         let d = std::env::temp_dir().join(format!("oo-client-none-{}", std::process::id()));
         let e = read_connection(&d).unwrap_err();
         assert_eq!(e.exit, 3);
+    }
+
+    #[tokio::test]
+    async fn every_request_names_the_cli_as_the_client() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        let seen = tokio::spawn(async move {
+            let (mut s, _) = l.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let n = s.read(&mut buf).await.unwrap();
+            s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
+                .await
+                .unwrap();
+            String::from_utf8_lossy(&buf[..n]).to_ascii_lowercase()
+        });
+        let d = Daemon {
+            base: format!("http://127.0.0.1:{port}"),
+            token: "t".into(),
+            http: reqwest::Client::new(),
+        };
+        d.get_json("/v1/docs/health").await.unwrap();
+        let head = seen.await.unwrap();
+        assert!(head.contains("oo-docs-client: cli\r\n"), "{head}");
     }
 }

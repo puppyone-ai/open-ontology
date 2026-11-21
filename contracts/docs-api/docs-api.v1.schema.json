@@ -2233,6 +2233,40 @@
         {}
       ]
     },
+    "EventActor": {
+      "type": "object",
+      "description": "Who caused an event (1.13). `kind` is `cli`, `app`, `mcp` (the client named by the `OO-Docs-Client` header of the control token), `agent` (an Agent token, or the control token with an `OO-Docs-Agent` header; `name` is the token name or the header), `cloud` (a cloud proxy token) or `local` (no or an unknown client header). Events appended by a background worker carry the actor of the request that caused them (same file or Drive, within 10 minutes) and none when no request is known.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "cli",
+            "app",
+            "mcp",
+            "agent",
+            "cloud",
+            "local"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "kind": "app"
+        },
+        {
+          "kind": "agent",
+          "name": "claude"
+        }
+      ]
+    },
     "Event": {
       "type": "object",
       "required": [
@@ -2259,6 +2293,9 @@
         },
         "data": {
           "type": "object"
+        },
+        "actor": {
+          "$ref": "#/$defs/EventActor"
         }
       },
       "examples": [
@@ -2267,6 +2304,16 @@
           "type": "x",
           "at": "2026-11-17T00:00:00Z",
           "data": {}
+        },
+        {
+          "seq": 7,
+          "type": "file.state_changed",
+          "at": "2026-11-17T00:00:00Z",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "data": {},
+          "actor": {
+            "kind": "cli"
+          }
         }
       ]
     },

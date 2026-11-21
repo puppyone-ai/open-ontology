@@ -108,15 +108,21 @@ pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Val
         .iter()
         .map(|r| {
             let share = r.subject.as_ref().and_then(|id| shares.get(id));
+            // The actor is stored in the payload; it belongs next to `type`, not in `data`.
+            let mut payload = r.payload.clone();
+            let actor = match payload.as_object_mut().and_then(|o| o.get("actor")) {
+                Some(a) if a.is_object() => payload.as_object_mut().and_then(|o| o.remove("actor")),
+                _ => None,
+            };
             let data = match (r.kind.as_str(), r.subject.as_ref()) {
                 ("file.state_changed", Some(id)) => match summaries.get(id) {
                     Some(file) => json!({ "file": file }),
-                    None => r.payload.clone(),
+                    None => payload,
                 },
                 ("share.created" | "share.state_changed", _) if share.is_some() => {
                     json!({ "share": share })
                 }
-                _ => r.payload.clone(),
+                _ => payload,
             };
             // A share event names the Drive of its share even when the writer did not.
             let drive_id = match (&r.drive_id, share) {
@@ -125,13 +131,17 @@ pub async fn envelopes(conn: &mut PgConnection, rows: &[Row3]) -> Result<Vec<Val
                 }
                 (d, _) => d.clone(),
             };
-            json!({
+            let mut event = json!({
                 "seq": r.seq,
                 "type": r.kind,
                 "at": r.at,
                 "drive_id": drive_id,
                 "data": data,
-            })
+            });
+            if let (Some(a), Some(o)) = (actor, event.as_object_mut()) {
+                o.insert("actor".into(), a);
+            }
+            event
         })
         .collect())
 }

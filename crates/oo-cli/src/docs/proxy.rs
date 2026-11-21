@@ -900,6 +900,34 @@ mod tests {
         assert!(text.ends_with("\r\n\r\n{}"));
     }
 
+    #[test]
+    fn the_client_header_is_forwarded_and_only_the_control_token_is_swapped() {
+        let c = cfg(1, None);
+        let engine: SocketAddr = "127.0.0.1:9".parse().unwrap();
+        let control = parse_head(
+            b"POST /v1/docs/events:publish HTTP/1.1\r\nHost: 127.0.0.1:1\r\nAuthorization: Bearer oodt_secret\r\nOO-Docs-Client: app\r\nContent-Length: 2\r\n\r\n",
+        )
+        .unwrap();
+        let text = String::from_utf8(upstream_request(&control, b"{}", &c, engine)).unwrap();
+        assert!(text.contains("authorization: Bearer oodi_engine\r\n"));
+        assert!(text.contains("oo-docs-client: app\r\n"));
+        // An Agent token is forwarded as is; the engine refuses it on this route.
+        let agent = parse_head(
+            b"POST /v1/docs/events:publish HTTP/1.1\r\nHost: 127.0.0.1:1\r\nAuthorization: Bearer ooa_abc\r\nContent-Length: 2\r\n\r\n",
+        )
+        .unwrap();
+        assert!(credential_call(&agent));
+        let text = String::from_utf8(upstream_request(&agent, b"{}", &c, engine)).unwrap();
+        assert!(text.contains("authorization: Bearer ooa_abc\r\n"));
+        assert!(!text.contains("oodi_engine"));
+        // A refs credential never reaches this route: the proxy answers 401 before forwarding.
+        let cred = parse_head(
+            b"POST /v1/docs/events:publish HTTP/1.1\r\nHost: 127.0.0.1:1\r\nAuthorization: Bearer oodr_abc\r\nContent-Length: 2\r\n\r\n",
+        )
+        .unwrap();
+        assert!(!credential_call(&cred));
+    }
+
     async fn raw(addr: SocketAddr, request: &str) -> String {
         let mut s = TcpStream::connect(addr).await.unwrap();
         s.write_all(request.as_bytes()).await.unwrap();

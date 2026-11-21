@@ -522,6 +522,10 @@ async fn route(
     } else {
         Bytes::new()
     };
+    let client_header = headers
+        .get("oo-docs-client")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
     let headers_agent = headers
         .get("oo-docs-agent")
         .and_then(|v| v.to_str().ok())
@@ -570,7 +574,34 @@ async fn route(
         drop(conn);
         verdict?;
     }
-    dispatch(app, &req).await
+    let who = crate::actor::derive(
+        client_header.as_deref(),
+        req.agent.as_deref(),
+        req.agent_token.as_ref().map(|p| p.name.as_str()),
+        req.cloud.is_some(),
+    );
+    crate::actor::scope(who, async {
+        if req.method != Method::GET {
+            note_touched(&req);
+        }
+        dispatch(app, &req).await
+    })
+    .await
+}
+
+/// Tell the actor ledger which Drive or file a changing request names, so the
+/// events that background workers append for it later carry its actor.
+fn note_touched(req: &Req) {
+    let id_like = |s: &str| s.len() == 36 && s.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-');
+    for seg in req.path.trim_start_matches('/').split('/') {
+        let id = seg.split(':').next().unwrap_or("");
+        if id_like(id) {
+            crate::actor::note(id);
+        }
+    }
+    if let Some(d) = req.query.get("drive_id").filter(|d| id_like(d)) {
+        crate::actor::note(&d.to_ascii_lowercase());
+    }
 }
 
 /// Paths the contract names that this engine build does not serve yet.
