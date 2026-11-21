@@ -2,11 +2,11 @@
 //! what they own. Pure and deterministic.
 //!
 //! Speaker labels (`S1`, `S2`) are file-local and carry no identity, and extraction never waits for a person to
-//! name them. A statement such as "我负责星火计划" is recorded for the speaker's Person: the name the transcript
-//! or the attendee list states (`resolved`: "我是邵婉清", "I am Tianyou Jiang", or the one attendee nobody else
-//! claims), else a provisional Person, `Speaker 1 · <blob prefix>`. Both publish like any other fact; the
-//! `speaker_identity` item is a confirmation, and confirming (`review::speaker`) merges the provisional Person
-//! into the named one, so the facts are re-attributed. No voiceprint is stored or compared.
+//! name them. A statement such as "我负责星火计划" is recorded for a provisional Person, `Speaker 1 · <blob
+//! prefix>`, whose facts stay drafts (D74): the publisher holds them until a person confirms who `S1` is
+//! (`review::speaker`), when the provisional Person is merged into the named one. What the transcript or the roster
+//! says (`resolved`: "我是邵婉清", "I am Tianyou Jiang", the one attendee nobody else claims) is a candidate on the
+//! review item, never a confirmation. No voiceprint is stored or compared.
 //!
 //! Candidates for "who is S1" come in three layers, all of which end in a `speaker_identity` review item:
 //! 1. `media.attendees`: meeting metadata, the attendee names in the file name (`参会：甲、乙`) or in a minutes
@@ -27,7 +27,7 @@ use crate::extract::model::{EntityRef, EntityType, Predicate};
 pub const PLACEHOLDER_PREFIX: &str = "Speaker ";
 /// The prefix before 2026-11-20, still recognised so that a Person made then is not taken for a real name.
 const OLD_PLACEHOLDER_PREFIX: &str = "说话人 ";
-/// Confidence of a statement made by a speaker, whether or not the name is known yet.
+/// Confidence of a statement made by a speaker whose identity is still unknown (held until the speaker is confirmed).
 const STATEMENT_BP: u16 = 9000;
 
 /// Where a candidate name came from.
@@ -309,7 +309,7 @@ pub fn introductions(ir: &DocIr) -> Vec<SpeakerCandidate> {
     out.into_iter().collect()
 }
 
-/// Who each speaker is, as far as the transcript and the roster say. A label with exactly one self-introduced name
+/// Who each speaker probably is, as far as the transcript and the roster say (a candidate, never a confirmation). A label with exactly one self-introduced name
 /// gets it; when exactly one label is left and exactly one attendee is not claimed by another label, the two are
 /// paired. Never a guess beyond that: the rest stay provisional until a person confirms.
 pub fn resolved(
@@ -347,28 +347,15 @@ pub fn resolved(
     out
 }
 
-/// `media.statement`: "我负责X" in an utterance becomes `owns(<the speaker>, X)` with the utterance as evidence. The
-/// subject is the resolved Person, else the provisional one; nothing waits for a confirmation. A speaker who
-/// introduced themselves is an entity of the file even when they own nothing.
-pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, path: &str) {
+/// `media.statement`: "我负责X" in an utterance becomes `owns(<placeholder of the speaker>, X)` with the utterance as
+/// evidence. The subject is the provisional Person; the publisher holds the fact until the speaker is confirmed.
+pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
     if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
         return;
     }
-    let who = resolved(ir, &attendees(path, None), &introductions(ir));
-    let person = |spk: &str| {
-        EntityRef::new(
-            EntityType::Person,
-            who.get(spk)
-                .cloned()
-                .unwrap_or_else(|| placeholder_name(&ir.blob_b3, spk)),
-        )
-    };
     for b in &ir.blocks {
         let Some(spk) = speaker_of(b) else { continue };
         let ev = EvidenceRef::from_block(b);
-        if who.contains_key(spk) {
-            ctx.col.entity(&person(spk), Some(&ev));
-        }
         for sentence in b.text.split(['。', '！', '？', '.', '\n']) {
             let Some(rest) = after(sentence.trim(), &["我负责", "我来负责"]) else {
                 continue;
@@ -378,9 +365,10 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, path: &str) {
             if thing.is_empty() || thing.chars().count() > 40 {
                 continue;
             }
+            let subject = EntityRef::new(EntityType::Person, placeholder_name(&ir.blob_b3, spk));
             let object = EntityRef::new(EntityType::Project, thing);
             ctx.fact(
-                &person(spk),
+                &subject,
                 Predicate::Owns,
                 Some(object),
                 None,
