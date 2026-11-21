@@ -318,6 +318,7 @@
   "model.key.note": "La clé est conservée dans un fichier privé sur cet ordinateur et n’est plus affichée.",
   "model.baseUrl.help": "L’adresse de l’API donnée par le fournisseur, souvent terminée par /v1.",
   "model.model.help": "Le nom du modèle exactement comme le fournisseur le liste.",
+  "model.model.recommended": "Suggestion : {model}.",
   "model.dialog.title": "Connexion au modèle",
   "model.dialog.description": "Tout fournisseur compatible avec l’API OpenAI, ou Anthropic.",
   "model.save": "Enregistrer",

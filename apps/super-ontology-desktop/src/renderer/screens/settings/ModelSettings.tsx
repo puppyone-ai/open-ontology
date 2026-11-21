@@ -7,6 +7,7 @@ import type { ModelConfig } from "../../../shared/super-ontology/docs-api.genera
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isEngineReady } from "../../model/superDriveStateModel";
+import { RECOMMENDED_MODEL, SUGGESTED_MODELS } from "../../model/settings/recommendedModels";
 
 type Provider = "openai-compatible" | "anthropic";
 const URL_PATTERN = /^https?:\/\/\S+$/u;
@@ -16,7 +17,7 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
   const actions = useSuperDriveActions();
   const [provider, setProvider] = useState<Provider>(config?.provider ?? "openai-compatible");
   const [baseUrl, setBaseUrl] = useState(config?.base_url ?? "");
-  const [model, setModel] = useState(config?.model ?? "");
+  const [model, setModel] = useState(config?.model ?? RECOMMENDED_MODEL);
   const [apiKey, setApiKey] = useState("");
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -41,7 +42,9 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
         <option value="anthropic">Anthropic</option>
       </Select>
       <TextField label={t("app.model.baseUrl")} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://" error={touched ? urlError : null} helper={t("app.model.baseUrl.help")} spellCheck={false} />
-      <TextField label={t("app.model.model")} value={model} onChange={(e) => setModel(e.target.value)} error={touched && model.trim() === "" ? t("app.model.required") : null} helper={t("app.model.model.help")} spellCheck={false} />
+      <TextField label={t("app.model.model")} value={model} onChange={(e) => setModel(e.target.value)} error={touched && model.trim() === "" ? t("app.model.required") : null}
+        helper={`${t("app.model.model.help")} ${t("app.model.model.recommended", { model: RECOMMENDED_MODEL })}`} spellCheck={false} list="so-model-suggestions" />
+      <datalist id="so-model-suggestions">{SUGGESTED_MODELS.map((m) => <option key={m} value={m} />)}</datalist>
       <TextField label={t("app.model.key")} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
         placeholder={config?.configured ? t("app.model.key.saved") : undefined} error={touched && keyNeeded && apiKey.trim() === "" ? t("app.model.required") : null}
         helper={config?.configured ? t("app.model.key.keep") : t("app.model.key.note")} />

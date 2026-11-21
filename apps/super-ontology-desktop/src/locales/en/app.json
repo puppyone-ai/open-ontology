@@ -318,6 +318,7 @@
   "model.key.note": "The key is stored in a private file on this computer and is not shown again.",
   "model.baseUrl.help": "The address the provider gives for its API, often ending in /v1.",
   "model.model.help": "The model name exactly as the provider lists it.",
+  "model.model.recommended": "Suggested: {model}.",
   "model.dialog.title": "Model connection",
   "model.dialog.description": "Any provider that speaks the OpenAI API, or Anthropic.",
   "model.save": "Save",

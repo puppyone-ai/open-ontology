@@ -318,6 +318,7 @@
   "model.key.note": "密钥保存在这台电脑的私有文件中，之后不会再显示。",
   "model.baseUrl.help": "服务商提供的 API 地址，通常以 /v1 结尾。",
   "model.model.help": "与服务商列出的模型名完全一致。",
+  "model.model.recommended": "推荐：{model}。",
   "model.dialog.title": "模型连接",
   "model.dialog.description": "任何兼容 OpenAI 接口的服务商，或 Anthropic。",
   "model.save": "保存",
