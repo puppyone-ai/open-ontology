@@ -371,6 +371,7 @@
 | SO-F-S21-43 | D86 | merged | feat/super-ontology (车道 AI 并入) | 4a4b866d1 → 192f8a586 | — | — | Keep reading Not connected from starting over while a big folder publishes |
 | SO-F-S21-44 | D86 | merged | feat/super-ontology (车道 AI 并入) | d2b6e8c8b → d2b6e8c8b | — | — | Watch a linked code folder by the same rules as the engine and the copy |
 | SO-F-S21-45 | D86 | merged | feat/super-ontology (车道 AI 并入) | 366d44eac → 366d44eac | — | — | Add the off-screen T1 runs for a code project drop and its timings |
+| SO-F-S21-49 | D86 | merged | feat/super-ontology (车道 AI 并入，协调者台账) | ff4a03dbd → ff4a03dbd | — | — | Ledger rows for lane AI |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
