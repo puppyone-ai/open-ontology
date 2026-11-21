@@ -54,7 +54,8 @@ export async function runScenario(options, scenario) {
   await fs.mkdir(reportDirectory, { recursive: true });
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), `so-t1-${name}-`)));
   const userData = path.join(root, "user-data");
-  const stateDirectory = path.join(userData, "engine", "state");
+  // `sharedEngine`: the app and the CLI use one engine, whose state is the CLI default under the scenario's own HOME (never the real one).
+  const stateDirectory = options.sharedEngine ? path.join(root, "cli-home", ".local", "state", "open-ontology", "docs") : path.join(userData, "engine", "state");
   await fs.mkdir(userData, { recursive: true, mode: 0o700 });
   const fixtures = await createFixtures(root);
   const queueFile = path.join(root, "dialog-queue.json");
@@ -76,7 +77,13 @@ export async function runScenario(options, scenario) {
   environment.FAKE_OO_LOG = path.join(root, "cli-calls.jsonl");
   // `cliHome: "home"` makes that folder the home of every process (the app, its `oo` calls and the engine), so a Gateway profile the build saves
   // is the one the engine reads for the atlas; the person's own `~/.config/open-ontology` is never read or written.
-  if (options.cliHome === "home") environment.HOME = environment.SO_CLI_HOME;
+  if (options.cliHome === "home" || options.sharedEngine) environment.HOME = environment.SO_CLI_HOME;
+  // Unless a scenario shares the engine with the CLI, the app keeps its own state folder: a run must never reach the person's real `oo` state.
+  environment.SUPER_ONTOLOGY_ENGINE_DATA = options.sharedEngine ? "cli" : "app";
+  delete environment.OO_DOCS_STATE_DIR;
+  delete environment.OO_CONFIG_DIR;
+  if (options.sharedEngine || process.env.SO_T1_OFFSCREEN === "1") environment.SO_T1_OFFSCREEN = "1";
+  await fs.mkdir(environment.SO_CLI_HOME, { recursive: true, mode: 0o700 });
   if (options.cliOo === "fake") environment.SO_CLI_OO = path.join(harnessDirectory, "..", "..", "support", "fake-oo-cli.mjs");
   if (engineKind === "real") {
     state.ooBinary = await firstExisting([process.env.SO_T1_OO_BIN, path.join(repoRoot, "target", "debug", "oo"), path.join(repoRoot, "target", "release", "oo")]);
@@ -276,6 +283,28 @@ export async function runScenario(options, scenario) {
     await session.until("document.readyState === 'complete'", "page load", { timeoutMs: 30_000 });
   }
   session.launch = launch;
+  /** One `oo` call as the person's own shell would make it: the scenario's HOME, no GUI. Resolves with { code, stdout, stderr }. */
+  session.cli = async (args, { stdin = null, cwd = root, timeoutMs = 120_000, env = {} } = {}) => new Promise((resolve) => {
+    const child = spawn(state.ooBinary, args, { cwd, env: { ...environment, ...env }, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = ""; let stderr = "";
+    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("close", (code) => { clearTimeout(timer); resolve({ code, stdout, stderr }); });
+    child.stdin.end(stdin ?? "");
+  });
+  /** Starts `oo serve` from the CLI (not from the app) and waits for its serve.json. */
+  session.startCliServe = async ({ timeoutMs: limit = 120_000 } = {}) => {
+    const out = await fs.open(path.join(reportDirectory, "cli-serve.log"), "w");
+    state.cliServe = spawn(state.ooBinary, ["serve", "--runtime", "embedded", "--json"], { cwd: root, env: environment, stdio: ["ignore", out.fd, out.fd] });
+    const started = Date.now();
+    while (Date.now() - started < limit) {
+      try { JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8")); return; } catch { /* not yet */ }
+      if (state.cliServe.exitCode !== null) throw new Error(`oo serve exited with ${state.cliServe.exitCode}`);
+      await wait(250);
+    }
+    throw new Error("oo serve did not write serve.json");
+  };
   /** Quits the app the way a person does (the engine it owns is stopped by the app) and starts it again with the same user data. */
   session.relaunch = async () => { await quit(); await launch(); };
 
@@ -314,6 +343,7 @@ export async function runScenario(options, scenario) {
 
   const guard = setTimeout(() => { console.error(`${name} timed out after ${timeoutMs} ms`); report.error = "timeout"; void finish(); }, timeoutMs);
   try {
+    if (options.beforeLaunch) await options.beforeLaunch(session);
     await launch();
     await scenario(session);
     report.ok = true;
