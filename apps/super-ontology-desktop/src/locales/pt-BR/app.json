@@ -815,7 +815,7 @@
   "drop.toast.none": "Nada para adicionar: tudo foi ignorado ou não pôde ser lido.",
   "drop.toast.sync": "{count, plural, one {Manter também esta pasta sincronizada} other {Manter também estas # pastas sincronizadas}}",
   "drop.toast.syncing": "Adicionando como fonte…",
-  "drop.toast.synced": "Agora é uma fonte sincronizada. A cópia em “Meus arquivos” continua.",
+  "drop.toast.synced": "Agora é uma fonte sincronizada; a cópia foi removida.",
   "drop.toast.syncFailed": "Não foi possível adicionar a pasta como fonte.",
   "drop.tray.label": "Progresso do envio",
   "drop.tray.done": "{count, plural, one {# arquivo adicionado} other {# arquivos adicionados}}",

@@ -815,7 +815,7 @@
   "drop.toast.none": "추가할 항목이 없습니다. 모두 건너뛰었거나 읽을 수 없습니다.",
   "drop.toast.sync": "{count, plural, one {이 폴더도 계속 동기화} other {이 폴더 #개도 계속 동기화}}",
   "drop.toast.syncing": "소스로 추가하는 중…",
-  "drop.toast.synced": "동기화되는 소스로 추가했습니다. ‘내 파일’의 사본은 그대로 남습니다.",
+  "drop.toast.synced": "동기화되는 소스로 추가했고 사본은 삭제했습니다.",
   "drop.toast.syncFailed": "폴더를 소스로 추가하지 못했습니다.",
   "drop.tray.label": "추가 진행률",
   "drop.tray.done": "파일 {count}개 추가됨",

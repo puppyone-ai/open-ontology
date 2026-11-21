@@ -815,7 +815,7 @@
   "drop.toast.none": "追加するものがありません。すべてスキップされたか、読み取れませんでした。",
   "drop.toast.sync": "{count, plural, one {このフォルダも同期し続ける} other {これら # 個のフォルダも同期し続ける}}",
   "drop.toast.syncing": "ソースとして追加中…",
-  "drop.toast.synced": "同期するソースとして追加しました。「マイファイル」のコピーはそのまま残ります。",
+  "drop.toast.synced": "同期するソースとして追加しました。コピーは削除しました。",
   "drop.toast.syncFailed": "フォルダをソースとして追加できませんでした。",
   "drop.tray.label": "追加の進捗",
   "drop.tray.done": "{count} 個のファイルを追加しました",

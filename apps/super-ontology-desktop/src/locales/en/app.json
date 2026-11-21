@@ -815,7 +815,7 @@
   "drop.toast.none": "Nothing to add: every item was skipped or could not be read.",
   "drop.toast.sync": "{count, plural, one {Also keep this folder in sync} other {Also keep these # folders in sync}}",
   "drop.toast.syncing": "Adding as a source…",
-  "drop.toast.synced": "Now a source that stays in sync. The copy in My files stays.",
+  "drop.toast.synced": "Now a source that stays in sync, in place of the copy.",
   "drop.toast.syncFailed": "Couldn’t add the folder as a source.",
   "drop.tray.label": "Upload progress",
   "drop.tray.done": "{count, plural, one {# file added} other {# files added}}",

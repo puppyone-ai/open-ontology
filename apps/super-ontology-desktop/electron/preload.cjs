@@ -6,7 +6,7 @@ const CHANNELS = new Set([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
   "engine-reveal-logs", "pick-path", "grant-dropped-folder", "engine-set-executable",
   "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
-  "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel",
+  "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel", "upload-discard",
   "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
   "suggestions-list", "suggestions-digest", "suggestion-diff", "suggestion-decide", "suggestions-decide-source",
   "entities-search", "entity-detail", "resolve", "review-list", "review-decide", "pack-compile", "pack-read", "shares-list",

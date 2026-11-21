@@ -263,6 +263,8 @@ export type SuperOntologyChannelMap = {
   "cloud-token-revoke": { request: { tokenId: string; operationId?: string }; value: { revoked: true } };
   "cloud-mode-set": { request: { mode: CloudMode; operationId?: string }; value: CloudModeState };
   "upload-cancel": { request: { batchId: string; itemId?: string; operationId?: string }; value: { cancelled: true } };
+  /** Takes back the copies a batch made of a dropped folder (the person kept that folder in sync as a source instead). */
+  "upload-discard": { request: { batchId: string; folderPath: string; operationId?: string }; value: { removed: number } };
   "entities-search": { request: { q: string; driveId?: string; type?: string; limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
   "entity-detail": { request: { entityIdOrKey: string; includeHistory?: boolean; operationId?: string }; value: EngineDocument };
   "resolve": { request: { text: string; driveId?: string; types?: string[]; limit?: number; operationId?: string }; value: EngineDocument };

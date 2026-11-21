@@ -14,13 +14,13 @@ export type DropLayerDeps = {
   firstRunOpen: boolean;
   ensureMyFiles: () => Promise<{ ok: true; value: { id: string } } | Failure>;
   enqueue: (driveId: string, folder: string, files: File[]) => Promise<DropOutcome>;
-  /** Registers a dropped folder as a watched local source. */
-  keepInSync: (root: { path: string; name: string }) => Promise<{ ok: true } | Failure>;
+  /** Registers a dropped folder as a watched local source and takes back the copies this drop made of it (`batchIds`). */
+  keepInSync: (root: { path: string; name: string }, batchIds: string[]) => Promise<{ ok: true } | Failure>;
 };
 
 /** Hides when no dragover has been seen for this long: a drag that leaves the window quickly can lose its last dragleave. */
 const WATCHDOG_MS = 1500;
-const emptyOutcome = (error: SuperDriveError | null): DropOutcome => ({ queued: 0, skipped: { hidden: 0, links: 0, junk: 0, temporary: 0, special: 0, unreadable: 0 }, roots: [], emptyFolders: 0, error });
+const emptyOutcome = (error: SuperDriveError | null): DropOutcome => ({ queued: 0, skipped: { hidden: 0, links: 0, junk: 0, temporary: 0, special: 0, unreadable: 0 }, roots: [], emptyFolders: 0, batchIds: [], error });
 
 /**
  * Window-wide drop target. Dragging files or folders anywhere over the app shows one overlay naming where the drop goes: My files by default, a
@@ -126,7 +126,7 @@ export function DropLayer({ drives, firstRunOpen, ensureMyFiles, enqueue, keepIn
     // One at a time: each folder needs its own one-use grant.
     let failure: SuperDriveError | null = null;
     for (const root of droppedFolders(current.outcome)) {
-      const result = await keepInSync({ path: root.path, name: root.name });
+      const result = await keepInSync({ path: root.path, name: root.name }, current.outcome.batchIds);
       if (!result.ok) { failure = result.error; break; }
     }
     setToast((now) => (now && now.id === current.id ? { ...now, sync: failure ? "failed" : "done", syncError: failure } : now));

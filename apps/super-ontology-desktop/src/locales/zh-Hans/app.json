@@ -815,7 +815,7 @@
   "drop.toast.none": "没有可添加的文件：所有项目都被跳过或无法读取。",
   "drop.toast.sync": "{count, plural, one {同时保持此文件夹同步} other {同时保持这 # 个文件夹同步}}",
   "drop.toast.syncing": "正在添加为来源…",
-  "drop.toast.synced": "已添加为来源并保持同步，『我的文件』里的副本保留。",
+  "drop.toast.synced": "已添加为来源并保持同步，不再保留副本。",
   "drop.toast.syncFailed": "无法把文件夹添加为来源。",
   "drop.tray.label": "添加进度",
   "drop.tray.done": "已添加 {count} 个文件",

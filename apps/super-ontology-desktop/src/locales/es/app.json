@@ -815,7 +815,7 @@
   "drop.toast.none": "Nada que añadir: todo se omitió o no se pudo leer.",
   "drop.toast.sync": "{count, plural, one {Mantener también esta carpeta sincronizada} other {Mantener también estas # carpetas sincronizadas}}",
   "drop.toast.syncing": "Añadiendo como fuente…",
-  "drop.toast.synced": "Ahora es una fuente sincronizada. La copia en «Mis archivos» se conserva.",
+  "drop.toast.synced": "Ahora es una fuente sincronizada; se quitó la copia.",
   "drop.toast.syncFailed": "No se pudo añadir la carpeta como fuente.",
   "drop.tray.label": "Progreso de la subida",
   "drop.tray.done": "{count, plural, one {# archivo añadido} other {# archivos añadidos}}",

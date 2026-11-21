@@ -50,6 +50,8 @@ export type DropOutcome = {
   skipped: SkippedCounts;
   roots: NonNullable<UploadStartValue["roots"]>;
   emptyFolders: number;
+  /** The batches the drop started (the choice to keep a folder in sync takes the copies of these back). */
+  batchIds: string[];
   error: SuperDriveError | null;
 };
 
@@ -125,7 +127,7 @@ export type UploadQueue = ReturnType<typeof createUploadQueue>;
  * Client side of the upload queue (20-frontend §3.3): turns a drop into an upload batch in the main process and folds
  * its progress pushes into a small state the queue panel and the drop zone read. Framework independent.
  */
-export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<SuperDriveApi, "pathsForFiles" | "startUpload" | "cancelUpload" | "subscribePushes">; now?: () => number }) {
+export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<SuperDriveApi, "pathsForFiles" | "startUpload" | "cancelUpload" | "subscribePushes"> & Partial<Pick<SuperDriveApi, "discardUpload">>; now?: () => number }) {
   let state = initialUploadQueueState();
   const listeners = new Set<() => void>();
   let unsubscribe: (() => void) | null = null;
@@ -151,7 +153,7 @@ export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<S
   }
 
   async function startPaths(driveId: string, folder: string, paths: string[], unreadable: number): Promise<DropOutcome> {
-    const none = (error: SuperDriveError | null): DropOutcome => ({ queued: 0, skipped: { ...emptySkipped(), unreadable }, roots: [], emptyFolders: 0, error });
+    const none = (error: SuperDriveError | null): DropOutcome => ({ queued: 0, skipped: { ...emptySkipped(), unreadable }, roots: [], emptyFolders: 0, batchIds: [], error });
     const result = await api.startUpload({ driveId, folder, paths });
     if (!result.ok) { const error = toSuperDriveError(result); set({ ...state, error, dismissed: false }); return none(error); }
     const { batchId, items, skipped, skippedSamples, roots, emptyFolders, unreadable: refused } = result.value;
@@ -174,12 +176,12 @@ export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<S
     // What was pushed while the answer was on its way.
     for (const push of early.get(batchId) ?? []) set(applyUploadProgress(state, push, now()));
     early.delete(batchId);
-    return { queued: added.length, skipped: dropSkipped, roots: roots ?? [], emptyFolders: emptyFolders ?? 0, error: null };
+    return { queued: added.length, skipped: dropSkipped, roots: roots ?? [], emptyFolders: emptyFolders ?? 0, batchIds: [batchId], error: null };
   }
 
   /** The paths in requests of at most UPLOAD_PATHS_PER_REQUEST: a drop of many top-level items is several batches, started one after the other. */
   async function startAll(driveId: string, folder: string, paths: string[], unreadable: number): Promise<DropOutcome> {
-    const outcome: DropOutcome = { queued: 0, skipped: emptySkipped(), roots: [], emptyFolders: 0, error: null };
+    const outcome: DropOutcome = { queued: 0, skipped: emptySkipped(), roots: [], emptyFolders: 0, batchIds: [], error: null };
     if (paths.length === 0) {
       outcome.skipped.unreadable = unreadable;
       set({ ...state, skipped: { ...state.skipped, unreadable: state.skipped.unreadable + unreadable }, dismissed: false });
@@ -191,6 +193,7 @@ export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<S
       for (const key of Object.keys(outcome.skipped) as (keyof SkippedCounts)[]) outcome.skipped[key] += part.skipped[key];
       outcome.roots.push(...part.roots);
       outcome.emptyFolders += part.emptyFolders;
+      outcome.batchIds.push(...part.batchIds);
       if (part.error) { outcome.error = part.error; break; }
     }
     return outcome;
@@ -210,6 +213,15 @@ export function createUploadQueue({ api, now = () => Date.now() }: { api: Pick<S
     async cancel(itemId: string) {
       const item = state.items.find((entry) => entry.id === itemId);
       if (item) await api.cancelUpload({ batchId: item.batchId, itemId });
+    },
+    /** Takes back what a drop copied of `folderPath` (the folder is kept in sync as a source instead); how many copies were removed. */
+    async discard(batchIds: readonly string[], folderPath: string): Promise<number> {
+      let removed = 0;
+      for (const batchId of batchIds) {
+        const result = await api.discardUpload?.({ batchId, folderPath });
+        if (result?.ok) removed += result.value.removed;
+      }
+      return removed;
     },
     async cancelAll() {
       for (const batchId of new Set(state.items.filter(isUploadActive).map((item) => item.batchId))) await api.cancelUpload({ batchId });

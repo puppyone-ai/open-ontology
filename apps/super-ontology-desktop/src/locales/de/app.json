@@ -815,7 +815,7 @@
   "drop.toast.none": "Nichts hinzuzufügen: Alles wurde übersprungen oder war nicht lesbar.",
   "drop.toast.sync": "{count, plural, one {Diesen Ordner auch synchron halten} other {Diese # Ordner auch synchron halten}}",
   "drop.toast.syncing": "Wird als Quelle hinzugefügt …",
-  "drop.toast.synced": "Jetzt eine Quelle, die synchron bleibt. Die Kopie in „Meine Dateien“ bleibt.",
+  "drop.toast.synced": "Jetzt eine synchrone Quelle, die Kopie wurde entfernt.",
   "drop.toast.syncFailed": "Der Ordner konnte nicht als Quelle hinzugefügt werden.",
   "drop.tray.label": "Fortschritt",
   "drop.tray.done": "{count, plural, one {# Datei hinzugefügt} other {# Dateien hinzugefügt}}",

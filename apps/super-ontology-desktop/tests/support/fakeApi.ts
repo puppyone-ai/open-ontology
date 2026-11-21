@@ -86,6 +86,7 @@ export function createFakeApi(overrides: Partial<Record<keyof SuperDriveApi, unk
     createCloudToken: vi.fn(async (input: { tenant: string; driveIds: string[]; expiresInSeconds?: number }) => okResult({ id: "00000000-0000-4000-8000-0000000000d1", token: "oodc_testtokentesttokentesttokentest0123", tenant: input.tenant, drive_ids: input.driveIds, expires_in_seconds: input.expiresInSeconds ?? 86_400 })),
     revokeCloudToken: vi.fn(async () => okResult({ revoked: true as const })),
     cancelUpload: vi.fn(async () => okResult({ cancelled: true as const })),
+    discardUpload: vi.fn(async () => okResult({ removed: 0 })),
     searchEntities: vi.fn(async () => okResult({ items: [], next_cursor: null, as_of_seq: 1 })),
     entityDetail: vi.fn(async (input: { entityIdOrKey: string }) => okResult({ id: input.entityIdOrKey, key: input.entityIdOrKey, type: "Person", name: "Entity", status: "active", aliases: [], facts: [], history: [], redirect_from: [], files: [], revision: 1 } as never)),
     resolveText: vi.fn(async () => okResult({ mentions: [] })),

@@ -184,3 +184,47 @@ describe("very large drops", () => {
     expect(await readdir(root)).toEqual([]);
   }, 60_000);
 });
+
+describe("keeping a dropped folder in sync instead of the copy", () => {
+  it("takes back the copies this drop made of that folder, and nothing else", async () => {
+    await put(path.join(source, "Keep", "a.md"), "aaa");
+    await put(path.join(source, "Keep", "deep", "b.md"), "bbb");
+    await put(path.join(source, "other.md"), "ooo");
+    await put(path.join(root, "Keep", "already.md"), "was there before");
+    const service = make();
+    const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "Keep"), path.join(source, "other.md")] });
+    await settled(started);
+    requests.length = 0;
+    expect(await service.discard({ batchId: started.batchId, folderPath: path.join(source, "Keep") })).toEqual({ removed: 2 });
+    expect(await tree(root)).toEqual(["Keep/already.md", "other.md"]);
+    expect(requests.filter(([name]) => name === "driveSync")).toHaveLength(1);
+  });
+
+  it("removes the folders the drop made once they are empty, but never the destination", async () => {
+    await put(path.join(source, "P", "sub", "x.md"), "x");
+    const service = make();
+    const started = await service.start({ driveId: DRIVE_ID, folder: "in/here", paths: [path.join(source, "P")] });
+    await settled(started);
+    expect((await service.discard({ batchId: started.batchId, folderPath: path.join(source, "P") })).removed).toBe(1);
+    expect(await tree(root)).toEqual(["in/here/"]);
+  });
+
+  it("leaves a copy alone that changed since, and a file that was already there", async () => {
+    await put(path.join(source, "P", "a.md"), "first");
+    await put(path.join(source, "P", "b.md"), "same");
+    await put(path.join(root, "P", "b.md"), "same");
+    const service = make();
+    const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "P")] });
+    await settled(started);
+    await writeFile(path.join(root, "P", "a.md"), "edited meanwhile, longer");
+    expect((await service.discard({ batchId: started.batchId, folderPath: path.join(source, "P") })).removed).toBe(0);
+    expect(await tree(root)).toEqual(["P/a.md", "P/b.md"]);
+  });
+
+  it("refuses an unknown batch and a relative folder", async () => {
+    const service = make();
+    await expect(service.discard({ batchId: "00000000-0000-4000-8000-0000000000ff", folderPath: "/x" })).rejects.toMatchObject({ code: "SO_INVALID_REQUEST" });
+    const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [] });
+    await expect(service.discard({ batchId: started.batchId, folderPath: "relative" })).rejects.toMatchObject({ code: "SO_INVALID_REQUEST" });
+  });
+});

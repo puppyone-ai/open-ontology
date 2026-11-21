@@ -815,7 +815,7 @@
   "drop.toast.none": "Rien à ajouter : tout a été ignoré ou était illisible.",
   "drop.toast.sync": "{count, plural, one {Garder aussi ce dossier synchronisé} other {Garder aussi ces # dossiers synchronisés}}",
   "drop.toast.syncing": "Ajout comme source…",
-  "drop.toast.synced": "Désormais une source synchronisée. La copie dans « Mes fichiers » reste.",
+  "drop.toast.synced": "Désormais une source synchronisée, la copie a été retirée.",
   "drop.toast.syncFailed": "Impossible d’ajouter le dossier comme source.",
   "drop.tray.label": "Progression de l’ajout",
   "drop.tray.done": "{count, plural, one {# fichier ajouté} other {# fichiers ajoutés}}",

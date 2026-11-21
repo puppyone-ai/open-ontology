@@ -310,6 +310,44 @@ export function createUploadService({ client, broadcast, fsPromises = fs, create
       return { cancelled: true };
     },
 
+    /**
+     * Takes back the copies this batch made of a dropped folder, because the person chose to keep that folder in sync as a source instead: what
+     * is still waiting or copying is cancelled, a finished copy is deleted only while it still has the size it was copied with, and the folders
+     * this drop made are removed when they are empty. Files that were already in the Drive before the drop are never touched.
+     */
+    async discard({ batchId, folderPath }) {
+      const batch = batches.get(batchId);
+      if (!batch || !path.isAbsolute(folderPath)) throw new SuperOntologyError("SO_INVALID_REQUEST");
+      const prefix = folderPath.endsWith(path.sep) ? folderPath : `${folderPath}${path.sep}`;
+      const own = batch.items.filter((item) => item.source.startsWith(prefix));
+      for (const item of own) {
+        if (item.state === "waiting") { item.state = "cancelled"; touch(batch, item); }
+        else if (item.state === "copying") { item.state = "cancelled"; touch(batch, item); item.abort?.(); }
+      }
+      let removed = 0;
+      const directories = new Set();
+      for (const item of own) {
+        if (item.state !== "done" || !item.drivePath) continue;
+        const target = path.join(batch.realRoot, ...item.drivePath.split("/"));
+        if (!isInside(batch.realRoot, target)) continue;
+        const stat = await fsPromises.lstat(target).catch(() => null);
+        if (!stat?.isFile() || stat.size !== item.size) continue;
+        await fsPromises.rm(target, { force: true });
+        removed += 1;
+        directories.add(path.dirname(target));
+      }
+      for (const start of [...directories].sort((a, b) => b.length - a.length)) {
+        for (let directory = start; directory.startsWith(`${batch.destination}${path.sep}`); directory = path.dirname(directory)) {
+          try { await fsPromises.rmdir(directory); } catch { break; }
+        }
+      }
+      publish(batch, { force: true });
+      if (removed > 0) {
+        try { await client.request("driveSync", { params: { id: batch.driveId }, body: {}, operationId: `sync-${createId().replaceAll("-", "")}` }); } catch (error) { logger.debug?.("Super Drive discard sync request failed.", { code: error?.code }); }
+      }
+      return { removed };
+    },
+
     /** Stops everything (app shutdown). */
     dispose() {
       for (const batch of batches.values()) {

@@ -27,7 +27,7 @@ function dragEvent(type: string, target: Element | Window, { types = ["Files"], 
   return event as Event & { dataTransfer: { dropEffect: string } };
 }
 
-const outcome = (over: Partial<DropOutcome> = {}): DropOutcome => ({ queued: 3, skipped: emptySkipped(), roots: [], emptyFolders: 0, error: null, ...over });
+const outcome = (over: Partial<DropOutcome> = {}): DropOutcome => ({ queued: 3, skipped: emptySkipped(), roots: [], emptyFolders: 0, batchIds: ["b1"], error: null, ...over });
 const drives = [{ id: "d-my", name: "My files", backend: "fs" }, { id: "d-team", name: "Team docs", backend: "fs" }, { id: "d-s3", name: "Archive", backend: "s3" }] as DropLayerDeps["drives"];
 function deps(over: Partial<DropLayerDeps> = {}): DropLayerDeps {
   return { drives, firstRunOpen: false, ensureMyFiles: vi.fn(async () => ({ ok: true as const, value: { id: "d-my" } })), enqueue: vi.fn(async () => outcome()), keepInSync: vi.fn(async () => ({ ok: true as const })), ...over };
@@ -176,9 +176,9 @@ describe("dropping", () => {
     expect(offer).toHaveTextContent("Also keep this folder in sync");
     fireEvent.click(offer);
     await act(async () => { await Promise.resolve(); });
-    expect(d.keepInSync).toHaveBeenCalledWith({ path: "/Users/me/ProjectA", name: "ProjectA" });
+    expect(d.keepInSync).toHaveBeenCalledWith({ path: "/Users/me/ProjectA", name: "ProjectA" }, ["b1"]);
     expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-sync", "done");
-    expect(screen.getByTestId("drop-toast-synced")).toHaveTextContent("The copy in My files stays.");
+    expect(screen.getByTestId("drop-toast-synced")).toHaveTextContent("in place of the copy.");
     expect(screen.queryByTestId("drop-keep-in-sync")).toBeNull();
   });
 
