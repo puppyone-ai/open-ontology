@@ -121,7 +121,8 @@ Rules:
 | `ontology-tab-entities` `ontology-tab-review` `ontology-tab-conflicts` | the views | `data-active` |
 | `ontology-tab-atlas` **(T1)** | the atlas view | `data-active` |
 | `atlas` `atlas-search` `atlas-matches` `atlas-tally` `atlas-partial` `atlas-truncated` `atlas-inspector` `atlas-open` `atlas-play` `atlas-fit` `atlas-mode-type` `atlas-mode-source` `atlas-view-graph` | the atlas screen: search, matches, counts, notices, inspector, controls | |
-| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` |
+| `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` (what the canvas was built from; live changes are applied in place) |
+| `atlas` | the Atlas screen | `data-live-cells`, `data-live-groups`, `data-live-links`: what the app knows now, including changes since the canvas was built |
 | `ontology-tab-ask` | the Ask tab | `data-active` |
 | `ontology-ask` `ask-input` `ask-send` `ask-stop` `ask-clear` `ask-turns` `ask-turn` `ask-question` | Ask: the composer and the session's turns | turn: `data-state` = `running` `done`, `data-status` |
 | `ask-progress` `ask-step` `ask-answer` `ask-answer-text` `ask-sources` `ask-source` `ask-uncited` `ask-copy` `ask-cli` `ask-cli-toggle` `ask-cli-value` `ask-cli-copy` | Ask: steps, the cited answer, its source chips and the equivalent command | step: `data-tool`, `data-state`; source: `data-kind`, `data-id` |

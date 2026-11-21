@@ -152,12 +152,13 @@ runScenario({ name: "cli-live", title: "What the CLI does shows up in the app, l
     if (items.length === 0) {
       s.note("the engine produced no pending review item for these files");
     } else {
-      await within("the app counts the pending review item the CLI lists", `Number(document.querySelector('[data-testid="home-pending"]')?.getAttribute("data-count") ?? 0) >= 1`, Date.now());
-      const before = Number(await s.attr("home-pending", "data-count"));
+      // Home puts "review what is waiting" first as soon as an item is pending, and takes it away when none is left.
+      const step = `document.querySelector('[data-testid="home-next-step"]')?.getAttribute("data-step")`;
+      await within("Home asks for a review as soon as the CLI lists a pending item", `${step} === "review"`, Date.now());
       const decided = await cli(["docs", "review", "decide", "accept", items[0].id, "--json"]);
       t0 = Date.now();
       s.check("oo docs review decide accept succeeds", decided.code === 0, `${decided.code} ${decided.stderr.slice(0, 200)}`);
-      await within("the pending count drops in the app", `Number(document.querySelector('[data-testid="home-pending"]')?.getAttribute("data-count") ?? 99) < ${before}`, t0);
+      await within("the review request leaves Home after the CLI accepts the item", `${step} !== "review"`, t0);
     }
     await within("Home lists what changed with its actor", `document.querySelectorAll('[data-testid="activity-row"] [data-testid="actor-tag"]').length > 0`, Date.now());
 
@@ -176,7 +177,7 @@ runScenario({ name: "cli-live", title: "What the CLI does shows up in the app, l
       await s.click("atlas-mode-source");
       await s.waitFor("atlas-mode-source", { "data-selected": "true" });
       await s.wait(1_000);
-      cellsBefore = Number(await s.attr("atlas-canvas", "data-cells"));
+      cellsBefore = Number(await s.attr("atlas", "data-live-cells"));
     }
     s.note(`atlas cells before the database: ${cellsBefore}`);
     // The model reaches the stack by path: the key is copied (0600) into the isolated HOME's secret store, never printed.
@@ -227,8 +228,19 @@ runScenario({ name: "cli-live", title: "What the CLI does shows up in the app, l
     }
     t0 = Date.now();
     s.check("oo build --resume publishes", finalBuild.code === 0, `${finalBuild.code} ${finalBuild.stderr.slice(0, 300)}`);
-    await within("the atlas gains the four tables", `Number(document.querySelector('[data-testid="atlas-canvas"]')?.getAttribute("data-cells")) >= ${cellsBefore + 4}`, t0);
-    await within("and the three foreign keys as links", `Number(document.querySelector('[data-testid="atlas-canvas"]')?.getAttribute("data-links")) >= 3`, t0);
+    // On a timeout the run says what the app's own reads return, so the cause is in the report (counts and codes only).
+    const diagnose = async () => {
+      const read = await s.evaluate(`(async () => { const schema = await window.superOntology.invoke("ontology-schema", { limit: 50 }); const dbs = await window.superOntology.invoke("cli-db-list", {}); const sub = await window.superOntology.invoke("events-subscribe", {}); const since = sub.ok ? await window.superOntology.invoke("events-since", { instanceId: sub.value.instanceId, seq: 0 }) : sub; const dbEvents = since.ok ? since.value.events.filter((e) => e.type.startsWith("db.")).map((e) => [e.seq, e.type, e.data.command ?? e.data.action, e.data.ok, e.data.published, e.actor?.kind].join(":")) : since.error; const atlas = document.querySelector('[data-testid="atlas-canvas"]'); return JSON.stringify({ dbEvents, schema: schema.ok ? { tables: schema.value.tables?.length, relationships: schema.value.relationships?.length, sides: schema.value.sides, warnings: schema.value.warnings } : schema.error, dbs: dbs.ok ? (dbs.value.data?.sources ?? []).map((x) => x.name) : dbs.error, cells: atlas?.getAttribute("data-cells"), links: atlas?.getAttribute("data-links"), live: document.querySelector('[data-testid="atlas"]')?.getAttribute("data-live-cells") }); })()`).catch((error) => String(error));
+      s.note(`atlas diagnosis: ${String(read).slice(0, 900)}`);
+      // Leaving the Atlas and coming back reads everything again: if the tables are there now, the earlier refresh came too early.
+      await s.click("nav-home");
+      await s.click("nav-ontology");
+      await s.waitFor("atlas-canvas", {}, { timeoutMs: 30_000 }).catch(() => {});
+      await s.wait(4_000);
+      s.note(`atlas after coming back: cells ${await s.attr("atlas-canvas", "data-cells")}, links ${await s.attr("atlas-canvas", "data-links")}`);
+    };
+    await within("the atlas gains the four tables", `Number(document.querySelector('[data-testid="atlas"]')?.getAttribute("data-live-cells")) >= ${cellsBefore + 4}`, t0).catch(async (error) => { await diagnose(); throw error; });
+    await within("and the three foreign keys as links", `Number(document.querySelector('[data-testid="atlas"]')?.getAttribute("data-live-links")) >= 3`, t0);
     await s.shot("atlas-with-database");
     await s.click("nav-sources");
     await s.waitFor("screen-sources");
