@@ -354,10 +354,20 @@
 | SO-F-S21-06 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 0e5778f59 → 0e5778f59 | — | apps/super-ontology-desktop/ | Test the overlay states, the drop and the toast as components |
 | SO-F-S21-07 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 7fcb14e20 → 7fcb14e20 | — | apps/super-ontology-desktop/ | Test dragging files and folders into the app against a real engine |
 | SO-F-S21-08 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 8c7ed8e54 → da9301513 | — | apps/super-ontology-desktop/ | Give the upload list rows room for a folder line |
+| SO-F-S21-10 | D83 | merged | feat/super-ontology (车道 AH 并入) | 957958ece → 957958ece | — | — | Share one local engine between the app and the oo CLI |
+| SO-F-S21-11 | D83 | merged | feat/super-ontology (车道 AH 并入) | bb9dbe45f → bb9dbe45f | — | — | Show database and file changes made by the CLI or an agent as they happen |
+| SO-F-S21-12 | D83 | merged | feat/super-ontology (车道 AH 并入) | c2aefc6a7 → c65b164df | — | — | Keep the actor tag's test attributes on an element the design system keeps |
+| SO-F-S21-13 | D83 | merged | feat/super-ontology (车道 AH 并入) | f1fa462ea → 2f3368292 | — | — | Expose what the Atlas knows now, and finish the live CLI run |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
 | SO-B-S14-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 7c02efdac → 7c02efdac | — | testing/super-ontology/evidence/L8/ | 无 Docker 运行时评审与原型测量（ADR-S14） |
+| SO-B-S21-10 | D83 | merged | feat/super-ontology (车道 AH 并入) | c8dd79f52 → c8dd79f52 | — | — | Attach the actor of a request to the events it causes |
+| SO-B-S21-11 | D83 | merged | feat/super-ontology (车道 AH 并入) | e607a4ee4 → e607a4ee4 | — | — | Add POST /v1/docs/events:publish for database pipeline events |
+| SO-B-S21-12 | D83 | merged | feat/super-ontology (车道 AH 并入) | 6988153d1 → 6988153d1 | — | — | Announce database pipeline changes from the CLI to a running serve |
+| SO-B-S21-13 | D83 | merged | feat/super-ontology (车道 AH 并入) | 325bfb320 → 325bfb320 | — | — | Record docs-api 1.13 in the contract changelog |
+| SO-B-S21-14 | D83 | merged | feat/super-ontology (车道 AH 并入) | 824d77283 → 824d77283 | — | — | Let an agent name itself to the engine with OO_AGENT_NAME |
+| SO-B-S21-15 | D83 | merged | feat/super-ontology (车道 AH 并入) | 91705fc0c → 91705fc0c | — | — | Announce review items that enter or leave a queue without a decision |
 
 ## 签收
 
