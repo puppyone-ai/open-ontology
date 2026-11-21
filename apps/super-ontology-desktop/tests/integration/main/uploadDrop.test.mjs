@@ -173,9 +173,11 @@ describe("very large drops", () => {
     expect(started.items).toHaveLength(1200);
     const last = await settled(started);
     expect(last.items.every((item) => item.state === "done")).toBe(true);
-    const sizes = progresses().map((entry) => entry.items.length);
+    const all = progresses();
+    const sizes = all.map((entry) => entry.items.length);
+    const released = all.findIndex((entry) => (entry.added ?? []).length > 0);
     expect(sizes.filter((size) => size >= 1200)).toHaveLength(2);
-    expect(Math.max(...sizes.slice(2, -1))).toBeLessThan(1200);
+    expect(Math.max(...sizes.slice(released + 1, -1))).toBeLessThan(1200);
     expect((await tree(root)).length).toBe(1200);
   }, 60_000);
 });

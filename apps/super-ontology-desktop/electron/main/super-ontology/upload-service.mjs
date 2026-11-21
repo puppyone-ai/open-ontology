@@ -270,7 +270,8 @@ export function createUploadService({ client, broadcast, fsPromises = fs, create
           buffer.push(file);
           if (files > LARGE_FOLDER_FILES || bytes > LARGE_FOLDER_BYTES) { large = true; buffer.length = 0; empties.length = 0; }
         }
-        publish(batch);
+        // The first file found goes out at once (the count starts moving), the rest every PROGRESS_INTERVAL_MS.
+        publish(batch, { force: batch.found === 1 });
       },
       empty(relative) { if (!large) empties.push(relative); },
     }, countingReport(batch));
