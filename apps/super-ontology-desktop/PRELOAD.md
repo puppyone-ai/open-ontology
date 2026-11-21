@@ -41,7 +41,7 @@ Same names and request/response shapes as the earlier Super Drive bridge (`share
 
 `engine-read engine-preflight engine-start engine-stop engine-restart engine-set-keep engine-reveal-logs pick-path engine-set-executable engine-set-runtime engine-state-read engine-data-use`
 `drives-list drive-get drive-create drive-update drive-delete drive-sync drive-tree files-list`
-`events-subscribe events-since events-unsubscribe upload-start upload-cancel files-retry files-retry-matching file-detail file-blocks file-preview-url`
+`events-subscribe events-since events-unsubscribe upload-start upload-cancel upload-discard upload-decide files-retry files-retry-matching file-detail file-blocks file-preview-url`
 `suggestions-list suggestions-digest suggestion-diff suggestion-decide suggestions-decide-source`
 `entities-search entity-detail resolve review-list review-decide pack-compile pack-read shares-list share-get share-mount share-refresh share-revoke share-reveal share-updates share-group-refresh`
 `usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel atlas-links ontology-schema`

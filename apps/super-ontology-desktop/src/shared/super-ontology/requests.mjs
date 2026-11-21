@@ -21,7 +21,7 @@ export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
   "engine-reveal-logs", "pick-path", "grant-dropped-folder", "engine-set-executable",
   "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
-  "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel", "upload-discard",
+  "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel", "upload-discard", "upload-decide",
   "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
   "suggestions-list", "suggestions-digest", "suggestion-diff", "suggestion-decide", "suggestions-decide-source",
   ...ONTOLOGY_CHANNELS,
@@ -194,6 +194,7 @@ const REQUEST_FIELDS = Object.freeze({
   "upload-start": Object.freeze({ driveId: field.uuid, folder: field.drivePath, paths: field.stringList(1000, 4096) }),
   "upload-cancel": Object.freeze({ batchId: field.uuid, itemId: field.optional(field.uuid) }),
   "upload-discard": Object.freeze({ batchId: field.uuid, folderPath: field.string(4096) }),
+  "upload-decide": Object.freeze({ batchId: field.uuid, choice: field.enum(["copy", "skip"]), paths: field.optional(field.stringList(1000, 4096)) }),
   "files-retry": Object.freeze({ fileIds: field.uuidList(500), mode: field.optional(field.enum(["normal", "safe"])) }),
   "files-retry-matching": Object.freeze({
     driveId: field.uuid,

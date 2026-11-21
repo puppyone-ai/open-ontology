@@ -307,6 +307,7 @@ export function createSuperOntologyService({
     "upload-start": async ({ driveId, folder, paths }) => uploads.start({ driveId, folder, paths }),
     "upload-cancel": async ({ batchId, itemId }) => uploads.cancel({ batchId, itemId }),
     "upload-discard": async ({ batchId, folderPath }) => uploads.discard({ batchId, folderPath }),
+    "upload-decide": async ({ batchId, choice, paths }) => uploads.decide({ batchId, choice, paths }),
     "events-subscribe": async ({ sinceSeq } = {}, { sender } = {}) => eventBridge.subscribe(sender, { sinceSeq }),
     "events-since": async ({ instanceId, seq }) => eventBridge.since({ instanceId, seq }),
     "events-unsubscribe": async (_request, { sender } = {}) => eventBridge.unsubscribe(sender),
