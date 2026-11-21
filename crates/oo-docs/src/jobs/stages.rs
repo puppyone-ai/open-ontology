@@ -2003,6 +2003,10 @@ pub fn handlers_with_runtime<F: SourceFactory>(
 }
 
 /// Concurrency of the stage kinds: publish is a single writer (4.9).
+/// Parallel model extractions. 8 ran without one wire error against the three measured models (model comparison in
+/// testing/super-ontology/evidence/L4/eval/model-choice); `docs.json` `concurrency.extract_llm` sets it (1 to 16).
+pub const DEFAULT_EXTRACT_LLM: usize = 8;
+
 pub fn default_concurrency() -> HashMap<JobKind, usize> {
     HashMap::from([
         (JobKind::Parse, 4),
@@ -2011,7 +2015,7 @@ pub fn default_concurrency() -> HashMap<JobKind, usize> {
             crate::jobs::media_pool::DEFAULT_MEDIA_SLOTS,
         ),
         (JobKind::ExtractRules, 2),
-        (JobKind::ExtractLlm, 2),
+        (JobKind::ExtractLlm, DEFAULT_EXTRACT_LLM),
         (JobKind::Publish, 1),
     ])
 }
