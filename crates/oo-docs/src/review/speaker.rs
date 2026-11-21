@@ -2,10 +2,13 @@
 //!
 //! Three layers feed the queue (`extract::rules::media`): attendee names from meeting metadata, self
 //! introductions and name calls, and the person who decides here. A label (`S1`) means nothing outside its file.
-//! Until it is confirmed, the facts a speaker's statements produced belong to a placeholder Person and stay
-//! drafts ([`HELD_SQL`] is the condition the publisher's classifier uses); confirming merges the placeholder into
-//! the named Person, so the facts get the right subject and are judged like any other draft. Nothing about a
-//! voice is stored: no voiceprint, no embedding, no comparison across recordings.
+//! Extraction never waits for them, but nothing is auto-confirmed (D74). What a speaker's statements produced belongs
+//! to a provisional Person (`Speaker 1 · <blob prefix>`) and stays draft ([`HELD_SQL`] is the condition the
+//! publisher's classifier uses): not published, not in the BRIEF. The rest of the file proceeds. What the transcript
+//! or the roster says ("我是小王", "I am Wanqing", the one attendee left) is only a candidate on the
+//! `speaker_identity` item; confirming merges the provisional Person into the named one, so the facts are
+//! re-attributed and judged like any other draft (a later re-extraction keeps the choice, [`apply_confirmed`]).
+//! Nothing about a voice is stored: no voiceprint, no embedding, no comparison across recordings.
 
 use oo_core::docir::DocIr;
 use serde_json::{Value, json};
@@ -26,8 +29,8 @@ pub const REASON: &str = "speaker_unconfirmed";
 pub const CODE_UNCONFIRMED: &str = "DOCS_REVIEW_SPEAKER_UNCONFIRMED";
 
 /// SQL condition on the alias `s` (the fact's subject entity): the subject is a speaker placeholder.
-pub const HELD_SQL: &str =
-    "(s.canonical_name LIKE '说话人 S%' AND s.canonical_name LIKE '% · %' AND s.type = 'Person')";
+pub const HELD_SQL: &str = "(s.type = 'Person' AND s.canonical_name LIKE '% · %' \
+     AND (s.canonical_name LIKE 'Speaker %' OR s.canonical_name LIKE '说话人 S%'))";
 
 /// Overlay `speaker_map` binds: one speaker of one recording (by blob hash, so a renamed copy shares it).
 pub fn binds(blob_b3: &str, speaker: &str) -> String {
@@ -72,7 +75,22 @@ pub async fn propose(
     minutes: Option<&str>,
 ) -> Result<u32, StoreError> {
     let attendees = media::attendees(path, minutes);
-    let intros = media::introductions(ir);
+    let mut intros = media::introductions(ir);
+    // The one attendee nobody else claims is a candidate for the one label left (never confirmed by itself).
+    for (spk, name) in media::resolved(ir, &attendees, &intros) {
+        if !intros
+            .iter()
+            .any(|c| c.speaker.as_deref() == Some(&spk) && c.name == name)
+        {
+            intros.push(SpeakerCandidate {
+                speaker: Some(spk),
+                name,
+                source: media::CandidateSource::Attendees,
+                block_id: None,
+                quote: None,
+            });
+        }
+    }
     let mut added = 0;
     for spk in media::speakers(ir) {
         let confirmed: bool = sqlx::query_scalar(
@@ -293,5 +311,15 @@ mod tests {
         assert_eq!(names, ["小王", "林川"]);
         assert_eq!(v["speaker"], "S1");
         assert!(media::is_placeholder(v["placeholder"].as_str().unwrap()));
+    }
+
+    #[test]
+    fn a_provisional_speaker_is_held_by_name_and_a_real_person_is_not() {
+        assert!(HELD_SQL.contains("Speaker %") && HELD_SQL.contains("说话人 S%"));
+        assert!(media::is_placeholder(&media::placeholder_name(
+            &"d".repeat(64),
+            "S3"
+        )));
+        assert!(!media::is_placeholder("Speaker Lee"));
     }
 }

@@ -192,13 +192,13 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
         <div className="so-atlas-stage so-atlas-stage-list" data-testid="atlas-unlinked-view">
           {unlinked.status === "loading" && !report ? <Skeleton height="100%" radius={8} />
             : unlinkedTotal === 0 ? <EmptyState icon={Network} title={t("app.atlas.unlinked.empty.title")} description={t("app.atlas.unlinked.empty.body")} />
-              : <AtlasList data={shownLive} query={query} only={UNLINKED_GROUP_ID} onOpen={(member: AtlasMember) => open(member.ref)} />}
+              : <AtlasList data={shownLive} query={query} only={UNLINKED_GROUP_ID} onOpen={(member: AtlasMember) => open(member.ref)} onReviewSpeakers={() => app.go("ontology", { ontology: "review" })} />}
         </div>
       ) : !hasData ? (
         <div className="so-atlas-stage"><EmptyState icon={Network} title={t("app.atlas.empty.title")} description={t("app.atlas.empty.body")} /></div>
       ) : view === "list" ? (
         <div className="so-atlas-stage so-atlas-stage-list">
-          <AtlasList data={shownLive} query={query} onOpen={(member: AtlasMember) => open(member.ref)} />
+          <AtlasList data={shownLive} query={query} onOpen={(member: AtlasMember) => open(member.ref)} onReviewSpeakers={() => app.go("ontology", { ontology: "review" })} />
         </div>
       ) : (
         <div className="so-atlas-stage" data-busy={status === "loading" ? "true" : undefined}>

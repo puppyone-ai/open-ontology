@@ -3,6 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, Notice, PageHeader, ProgressBar, Segmented, Skeleton, StatusDot, Tooltip } from "@open-ontology/design-system";
 import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2, Unlink } from "lucide-react";
 import { ErrorText } from "../shared/ErrorText";
+import { useApp } from "../../hooks/useApp";
 import { useDriveFolderPages } from "../../model/browser/useDriveFolderPages";
 import type { Drive } from "../../../shared/super-ontology/docs-api.generated";
 import { formatBytes } from "../../model/format";
@@ -42,6 +43,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const folderFilter = useMemo(() => ({ ...(filter === "all" ? {} : { states: statesOfGroups(GROUPS[filter]) }), ...(query.trim() ? { q: query.trim(), recursive: true } : {}) }), [filter, query]);
   const { page, files, initialLoading, loadMore, reload } = useDriveFolderPages(drive.id, path, folderFilter);
   const unlinkedText = useUnlinkedText();
+  const app = useApp();
   const version = useSuperDriveSelector(selectOntologyVersion);
   const allFiles = useSuperDriveSelector((s) => Object.values(s.drives.byId).reduce((sum, d) => sum + (d?.files_total ?? 0), 0));
   const unlinked = useUnlinked(`${version}|${allFiles}`);
@@ -136,7 +138,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
                   const reason = reasonForRow({ ...file, id: file.id }, unlinked.report);
                   return (
                     <tr key={file.id} data-selectable aria-selected={selected === file.id} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(file.id); } }} onClick={() => setSelected(file.id)} data-testid="file-row" data-name={file.name ?? file.path} data-state={file.state}>
-                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}><Unlink size={12} strokeWidth={1.5} aria-hidden="true" />{unlinkedText(reason)}</span>}</td>
+                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}><Unlink size={12} strokeWidth={1.5} aria-hidden="true" />{unlinkedText(reason)}{reason.kind === "speaker" && <> <Button size="compact" variant="ghost" data-testid="file-speaker-review" onClick={(e) => { e.stopPropagation(); app.go("ontology", { ontology: "review" }); }}>{t("app.unlinked.speaker.action")}</Button></>}</span>}</td>
                       <td><span className="so-row"><StatusDot tone={TONE[view.tone]} label={label} pulse={view.busy} />{view.reviewCount > 0 && <Badge tone="warning">{formatNumber(view.reviewCount)}</Badge>}</span></td>
                       <td data-numeric className="so-muted">{formatBytes(file.size, t$)}</td>
                       <td className="so-muted so-truncate">{file.modified_at ? formatDate(new Date(file.modified_at), { dateStyle: "medium" }) : ""}</td>
