@@ -274,6 +274,19 @@
 | SO-B-S20-04 | D84 | merged | feat/super-ontology (车道 U 并入) | 603a88af9 → 603a88af9 | — | — | Name the fact state row of the eval diagnostics |
 | SO-B-S20-06 | D84 | merged | feat/super-ontology (车道 U 并入) | 16d69be4d → 16d69be4d | — | — | Bump the merged prompt to extract/4 |
 | SO-B-S20-07 | D84 | merged | feat/super-ontology (车道 U 并入) | b9affae49 → b9affae49 | — | — | Record the grok-4.7 quality measurement |
+| SO-B-S20-40 | D84 | merged | feat/super-ontology (车道 AD 并入) | db02114a7 → db02114a7 | — | — | Log the wire latency of each model call for a measuring run |
+| SO-B-S20-41 | D84 | merged | feat/super-ontology (车道 AD 并入) | f44537fd0 → f44537fd0 | — | — | Pass the model timeout and the latency log on to the engine of the L4 run |
+| SO-B-S20-42 | D84 | merged | feat/super-ontology (车道 AD 并入) | 10705b90e → 10705b90e | — | — | Read a bilingual header as one column |
+| SO-B-S20-43 | D84 | merged | feat/super-ontology (车道 AD 并入) | 1d62d409e → 1d62d409e | — | — | Tie documents by the amounts and dates they share |
+| SO-B-S20-44 | D84 | merged | feat/super-ontology (车道 AD 并入) | 0463fd9b5 → 0463fd9b5 | — | — | Merge the same person named in two scripts |
+| SO-B-S20-45 | D84 | merged | feat/super-ontology (车道 AD 并入) | ef335f2d0 → ef335f2d0 | — | — | Publish the rules facts of a file while its model call runs |
+| SO-B-S20-46 | D84 | merged | feat/super-ontology (车道 AD 并入) | 9e7896981 → 9e7896981 | — | — | Suggest a model when a connection is set up |
+| SO-B-S20-48 | D84 | merged | feat/super-ontology (车道 AD 并入) | 49eecc883 → 49eecc883 | — | — | Skip a malformed line of the latency log |
+| SO-B-S20-49 | D84 | merged | feat/super-ontology (车道 AD 并入) | 7db5a2778 → 7db5a2778 | — | — | Let the model egress admit 120 calls a minute and make it configurable |
+| SO-B-S20-50 | D84 | merged | feat/super-ontology (车道 AD 并入) | 987ba5891 → 987ba5891 | — | — | Give the early publish its own job key and fix the cross-language tests |
+| SO-B-S20-51 | D84 | merged | feat/super-ontology (车道 AD 并入) | b6abab7c9 → b6abab7c9 | — | — | Default to eight parallel model extractions and the measured model |
+| SO-B-S20-52 | D84 | merged | feat/super-ontology (车道 AD 并入) | 141336f7b → 141336f7b | — | — | Lock the engine image built from this tree |
+| SO-B-S20-53 | D84 | merged | feat/super-ontology (车道 AD 并入) | 67a1e60ce → 67a1e60ce | — | — | Record the model comparison and the acceptance run of lane AD |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
