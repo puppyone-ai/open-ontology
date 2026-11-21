@@ -347,6 +347,7 @@
   "first.engine.ready": "Bereit",
   "first.engine.settings": "Einstellungen öffnen",
   "first.engine.help": "Sie können das in den Einstellungen beheben und dann zurückkommen.",
+  "first.engine.logPath": "Protokolldatei: {path}",
   "first.add.title": "Erste Dateien hinzufügen",
   "first.add.body": "Beginnen Sie mit ein paar Dokumenten: Notizen, Besprechungsprotokolle, eine Tabelle.",
   "first.add.drop": "Dateien hier ablegen",

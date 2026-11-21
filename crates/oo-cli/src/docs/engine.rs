@@ -177,7 +177,35 @@ pub fn reap_stale(pid_file: &Path) {
 pub struct Supervisor {
     stop: Arc<AtomicBool>,
     child_pid: Arc<Mutex<Option<u32>>>,
+    spec: Arc<Mutex<EngineSpec>>,
     thread: Option<JoinHandle<()>>,
+}
+
+/// Lets a background task hand the running engine a parser that became ready
+/// after `serve.json` was written (the engine restarts once to pick it up).
+#[derive(Clone)]
+pub struct ParserHandle {
+    stop: Arc<AtomicBool>,
+    child_pid: Arc<Mutex<Option<u32>>>,
+    spec: Arc<Mutex<EngineSpec>>,
+}
+
+impl ParserHandle {
+    /// Later (re)starts of the engine get `env`; the running engine is asked to
+    /// stop so the supervisor starts it again with it.
+    pub fn attach_parser(&self, env: Vec<(String, String)>) {
+        {
+            let mut spec = self.spec.lock().unwrap_or_else(|p| p.into_inner());
+            spec.extra_env = env;
+            spec.parser_note = None;
+        }
+        if self.stop.load(Ordering::SeqCst) {
+            return;
+        }
+        if let Some(pid) = *self.child_pid.lock().unwrap_or_else(|p| p.into_inner()) {
+            signal(pid, "TERM");
+        }
+    }
 }
 
 impl Supervisor {
@@ -192,20 +220,24 @@ impl Supervisor {
         let stop = Arc::new(AtomicBool::new(false));
         let child_pid = Arc::new(Mutex::new(None));
         let (s2, p2) = (stop.clone(), child_pid.clone());
+        let spec = Arc::new(Mutex::new(spec));
+        let spec2 = spec.clone();
         let thread = std::thread::spawn(move || {
             let mut current = Some(first);
             let mut delay = Duration::from_millis(500);
             while !s2.load(Ordering::SeqCst) {
                 let (mut child, addr) = match current.take() {
                     Some(c) => c,
-                    None => match start_once(&spec) {
-                        Ok(c) => c,
-                        Err(_) => {
-                            std::thread::sleep(delay);
-                            delay = (delay * 2).min(Duration::from_secs(10));
-                            continue;
+                    None => {
+                        match start_once(&spec2.lock().unwrap_or_else(|p| p.into_inner()).clone()) {
+                            Ok(c) => c,
+                            Err(_) => {
+                                std::thread::sleep(delay);
+                                delay = (delay * 2).min(Duration::from_secs(10));
+                                continue;
+                            }
                         }
-                    },
+                    }
                 };
                 delay = Duration::from_millis(500);
                 *p2.lock().unwrap_or_else(|p| p.into_inner()) = Some(child.id());
@@ -222,7 +254,17 @@ impl Supervisor {
         Self {
             stop,
             child_pid,
+            spec,
             thread: Some(thread),
+        }
+    }
+
+    /// A handle for attaching a parser that finishes installing later.
+    pub fn parser_handle(&self) -> ParserHandle {
+        ParserHandle {
+            stop: self.stop.clone(),
+            child_pid: self.child_pid.clone(),
+            spec: self.spec.clone(),
         }
     }
 

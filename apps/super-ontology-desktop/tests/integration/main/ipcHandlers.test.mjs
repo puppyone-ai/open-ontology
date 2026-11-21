@@ -43,7 +43,7 @@ describe("Super Ontology IPC handlers", () => {
     expect(result.ok).toBe(true);
     expect(result.value).toMatchObject({ status: "idle", connection: { state: "offline" } });
     expect(Object.keys(JSON.parse(JSON.stringify(result.value))).sort()).toEqual([
-      "code", "connection", "health", "keepEngineOnQuit", "mode", "ownedByDesktop", "preflight",
+      "code", "connection", "health", "keepEngineOnQuit", "logPath", "mode", "ownedByDesktop", "preflight",
       "reason", "remote", "restarts", "revision", "startedAt", "status",
     ]);
   });

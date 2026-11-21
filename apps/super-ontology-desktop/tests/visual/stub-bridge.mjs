@@ -4,7 +4,7 @@
 export function stubBridgeSource(scenario) {
   return `(${function install(scenario) {
     const now = "2026-11-10T10:00:00Z";
-    const snapshot = (status) => ({ revision: 1, status, reason: null, code: null, preflight: null, health: status === "healthy" ? { events_head: 0 } : null, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: now, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 }, mode: "local", remote: null });
+    const snapshot = (status) => ({ revision: 1, status, reason: null, code: status === "crashed" ? "SO_SERVE_START_TIMEOUT" : null, logPath: status === "crashed" ? "/Users/example/Library/Logs/Super Ontology/super-ontology-serve.log" : null, preflight: null, health: status === "healthy" ? { events_head: 0 } : null, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: now, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 }, mode: "local", remote: null });
     const drive = (id, name, files, extra = {}) => ({ id, name, backend: "fs", config: { root: "/Users/example/" + name }, status: "active", revision: 1, counts: { published: files }, files_total: files, bytes_total: files * 2048, pending_review: 0, created_at: now, freshness: { state: "up_to_date" }, ...extra });
     const entity = (n, name, type, facts) => ({ id: "00000000-0000-4000-8000-0000000001" + String(n).padStart(2, "0"), key: name.toLowerCase().replace(/ /g, "-"), type, name, counts: { facts } });
     const drives = scenario.engine === "starting" ? [] : [drive("00000000-0000-4000-8000-000000000001", "My files", 3), drive("00000000-0000-4000-8000-000000000002", "Team docs", 12)];

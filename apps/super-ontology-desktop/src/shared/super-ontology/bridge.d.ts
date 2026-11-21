@@ -33,6 +33,8 @@ export type EngineSnapshot = {
   ownedByDesktop: boolean;
   keepEngineOnQuit: boolean;
   startedAt: string | null;
+  /** The engine log file; `null` where the app keeps none. */
+  logPath?: string | null;
   mode: "local" | "remote";
   remote: { host: string } | null;
   connection: { state: ConnectionState; attempt: number; nextRetryAt: string | null; lastSeq: number };

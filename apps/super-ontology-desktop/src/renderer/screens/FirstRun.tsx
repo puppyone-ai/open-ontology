@@ -43,7 +43,10 @@ export function FirstRun() {
   const files = useSuperDriveSelector((s) => Object.values(s.files));
   const version = useSuperDriveSelector(selectOntologyVersion);
   const presented = presentEngine(engine);
+  const engineBusy = useSuperDriveSelector((s) => s.engineAction.busy);
   const started = useRef(false);
+  // A failed start is started again from here, the same way the engine page does it.
+  const retryEngine = async () => { await actions.startEngine(); };
   const [error, setError] = useState<SuperDriveError | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -84,7 +87,9 @@ export function FirstRun() {
   const understood = drives.length > 0 && processing === 0 && published > 0;
   const { addFolder, error: folderError } = useAddFolder(() => setStep(3));
   const [cloud, setCloud] = useState(false);
-  const engineState = ready ? "ready" : !engine || ["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) ? "starting" : "error";
+  // A "stopped" engine that carries an error code is a start that failed (an environment check, an unreachable engine): not "still starting".
+  const failed = !ready && engine !== null && (!["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) || (engine.status === "stopped" && engine.code !== null));
+  const engineState = ready ? "ready" : failed ? "error" : "starting";
 
   useEffect(() => { if (step > 1) window.sessionStorage.setItem("so.firstRun.engaged", "1"); }, [step]);
 
@@ -102,9 +107,16 @@ export function FirstRun() {
               <p className="so-firstrun-lead">{t("app.first.welcome.body")}</p>
               <Card id="firstrun-engine-state" className="so-form" role="status" aria-live="polite" data-testid="firstrun-progress" data-state={engineState}>
                 <div className="so-row">
-                  {ready ? <StatusDot tone="success" label={t("app.first.engine.ready")} /> : <><Spinner size={16} label={t("app.first.engine.starting")} /><span>{engine?.status === "starting" || engine?.status === "probing" || !engine ? t("app.first.engine.starting") : t(presented.messageId, presented.values as Record<string, string>)}</span></>}
+                  {ready ? <StatusDot tone="success" label={t("app.first.engine.ready")} /> : failed ? null : <><Spinner size={16} label={t("app.first.engine.starting")} /><span>{engine?.status === "starting" || engine?.status === "probing" || !engine ? t("app.first.engine.starting") : t(presented.messageId, presented.values as Record<string, string>)}</span></>}
                 </div>
-                {!ready && engine && !["starting", "probing", "idle", "stopped", "restarting"].includes(engine.status) && <Notice tone={presented.tone === "danger" ? "danger" : "warning"} title={t(presented.pillId)} action={<Button size="compact" onClick={() => finish()}>{t("app.first.engine.settings")}</Button>}>{t("app.first.engine.help")}</Notice>}
+                {failed && engine && (
+                  <Notice tone={presented.tone === "danger" ? "danger" : "warning"} title={t(presented.pillId)} data-testid="firstrun-engine-error"
+                    action={<span className="so-row"><Button size="compact" variant="primary" disabled={engineBusy} onClick={() => void retryEngine()} data-testid="firstrun-engine-retry">{t("app.common.retry")}</Button><Button size="compact" onClick={() => finish()}>{t("app.first.engine.settings")}</Button></span>}>
+                    {engine.code ? <p data-testid="firstrun-engine-code"><ErrorText error={{ code: engine.code, retryable: true, details: {} }} /></p> : null}
+                    <p>{t("app.first.engine.help")}</p>
+                    {engine.logPath ? <p className="so-weak" data-testid="firstrun-engine-log">{t("app.first.engine.logPath", { path: engine.logPath })}</p> : null}
+                  </Notice>
+                )}
               </Card>
               <div className="so-firstrun-actions"><Button variant="primary" disabled={!ready} aria-describedby="firstrun-engine-state" onClick={() => setStep(2)} data-testid="firstrun-start">{t("app.first.start")}</Button></div>
             </>

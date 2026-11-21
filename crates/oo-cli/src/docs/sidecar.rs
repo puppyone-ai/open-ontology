@@ -60,6 +60,12 @@ pub struct Sidecar {
     pub token_file: PathBuf,
 }
 
+impl Sidecar {
+    pub fn pid(&self) -> u32 {
+        self.child.id()
+    }
+}
+
 impl Drop for Sidecar {
     fn drop(&mut self) {
         let _ = self.child.kill();

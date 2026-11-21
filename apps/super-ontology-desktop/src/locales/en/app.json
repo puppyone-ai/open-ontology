@@ -347,6 +347,7 @@
   "first.engine.ready": "Ready",
   "first.engine.settings": "Open settings",
   "first.engine.help": "You can fix this from Settings, then come back.",
+  "first.engine.logPath": "Log file: {path}",
   "first.add.title": "Add your first files",
   "first.add.body": "Start with a few documents: notes, meeting minutes, a spreadsheet.",
   "first.add.drop": "Drop files here",

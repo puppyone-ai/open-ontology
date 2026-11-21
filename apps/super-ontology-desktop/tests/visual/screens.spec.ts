@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { stubBridgeSource } from "./stub-bridge.mjs";
 
 const app = "http://127.0.0.1:5276/";
-type Scenario = { engine: "healthy" | "starting"; firstRun?: boolean };
+type Scenario = { engine: "healthy" | "starting" | "crashed"; firstRun?: boolean };
 
 async function open(page: Page, scenario: Scenario) {
   await page.clock.install({ time: new Date("2026-11-12T10:00:00Z") });
@@ -36,6 +36,13 @@ test.describe("screens", () => {
     await open(page, { engine: "starting", firstRun: true });
     await expect(page.locator("[data-testid=firstrun-start]")).toBeDisabled();
     await expect(page).toHaveScreenshot("first-run-starting.png");
+  });
+  test("first run: a failed engine start offers Try again and names the log file", async ({ page }) => {
+    await open(page, { engine: "crashed", firstRun: true });
+    await expect(page.locator("[data-testid=firstrun-engine-retry]")).toBeVisible();
+    await expect(page.locator("[data-testid=firstrun-engine-log]")).toContainText("super-ontology-serve.log");
+    await expect(page.locator("[data-testid=firstrun-start]")).toBeDisabled();
+    await expect(page).toHaveScreenshot("first-run-engine-failed.png");
   });
   test("first run: ready", async ({ page }) => {
     await open(page, { engine: "healthy", firstRun: true });

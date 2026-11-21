@@ -347,6 +347,7 @@
   "first.engine.ready": "Prêt",
   "first.engine.settings": "Ouvrir les paramètres",
   "first.engine.help": "Vous pouvez corriger cela depuis les Réglages, puis revenir.",
+  "first.engine.logPath": "Fichier journal : {path}",
   "first.add.title": "Ajoutez vos premiers fichiers",
   "first.add.body": "Commencez avec quelques documents : notes, comptes rendus de réunion, un tableur.",
   "first.add.drop": "Déposez des fichiers ici",

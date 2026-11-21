@@ -101,6 +101,31 @@ async function loadAssertions() {
 
 const sha256 = async (file) => crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex");
 
+/**
+ * A failed attempt keeps the logs of the engine the app started (the app's serve log, `oo serve`'s engine logs, the private PostgreSQL's log) and
+ * the file names of the state directory, so "the engine never came up" can be explained afterwards. Best effort: never throws.
+ */
+export async function saveEngineLogs(profile, destination) {
+  try {
+    await fs.mkdir(destination, { recursive: true });
+    const listing = [];
+    const walk = async (directory, depth) => {
+      for (const entry of await fs.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+        const full = path.join(directory, entry.name);
+        const relative = path.relative(profile, full);
+        if (entry.isDirectory() && depth < 5 && !["data", "uv-cache", "sidecar", "fixtures", "Cache", "Code Cache", "GPUCache"].includes(entry.name)) await walk(full, depth + 1);
+        else if (entry.isFile()) {
+          const { size } = await fs.stat(full).catch(() => ({ size: 0 }));
+          listing.push(`${size}\t${relative}`);
+          if (/\.log(\.\d+)?$/u.test(entry.name) && size <= 8 * 1024 * 1024) await fs.copyFile(full, path.join(destination, relative.replaceAll(path.sep, "__"))).catch(() => undefined);
+        }
+      }
+    };
+    await walk(profile, 0);
+    await fs.writeFile(path.join(destination, "listing.txt"), `${listing.join("\n")}\n`);
+  } catch { /* evidence only */ }
+}
+
 async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures: sharedFixtures, options }) {
   let fixtures = sharedFixtures;
   const run = { id: scenario.id, locale, ok: false, steps: [], error: null };
@@ -197,7 +222,10 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
       // Waits for the engine the app started, registers a folder as a source and waits until its files have settled.
       case "seedSource": {
         const folder = text(step.path);
-        for (let attempt = 0; attempt < 240; attempt += 1) { try { if ((await engineApi("/v1/docs/health")).status === 200) break; } catch { /* not yet */ } await sleep(500); }
+        let engineUp = false;
+        for (let attempt = 0; attempt < 240 && !engineUp; attempt += 1) { try { engineUp = (await engineApi("/v1/docs/health")).status === 200; } catch { /* not yet */ } if (!engineUp) await sleep(500); }
+        // Say what is wrong instead of failing later on a missing serve.json (the engine start is the app's, not this step's).
+        if (!engineUp) throw new Error(`the engine never came up: no healthy engine after 120 s (serve.json ${await fs.access(path.join(stateDirectory, "serve.json")).then(() => "exists", () => "never appeared")}); the engine logs are in serve-logs/`);
         const created = await engineApi("/v1/docs/drives", { method: "POST", headers: { "idempotency-key": `t2-${scenario.id}-${step.name}-${Date.now()}`.replace(/[^A-Za-z0-9_-]/gu, "-").padEnd(16, "0") }, body: { name: step.name, backend: "fs", config: { root: folder } } });
         if (![200, 201].includes(created.status)) throw new Error(`source create answered ${created.status}`);
         await engineApi(`/v1/docs/drives/${created.body.id}:sync`, { method: "POST", body: {}, headers: { "idempotency-key": `t2-sync-${created.body.id}-${Date.now()}` } });
@@ -274,6 +302,7 @@ async function attemptScenario({ scenario, locale, catalog, assertions, applicat
     await peekaboo.see(path.join(directory, "failure.png")).catch(() => undefined);
     await peekaboo.elements().then((list) => fs.writeFile(path.join(directory, "failure.elements.json"), JSON.stringify(list.map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1))).catch(() => undefined);
     await fs.writeFile(path.join(directory, "renderer-console.json"), JSON.stringify(cdp?.console() ?? [], null, 2)).catch(() => undefined);
+    await saveEngineLogs(profile, path.join(directory, "serve-logs"));
   } finally {
     await recording?.stop();
     await quit();

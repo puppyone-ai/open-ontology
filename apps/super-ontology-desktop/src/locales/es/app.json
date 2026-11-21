@@ -347,6 +347,7 @@
   "first.engine.ready": "Listo",
   "first.engine.settings": "Abrir ajustes",
   "first.engine.help": "Puedes solucionarlo desde Ajustes y volver aquí.",
+  "first.engine.logPath": "Archivo de registro: {path}",
   "first.add.title": "Añade tus primeros archivos",
   "first.add.body": "Empieza con unos pocos documentos: notas, actas de reuniones, una hoja de cálculo.",
   "first.add.drop": "Suelta archivos aquí",
