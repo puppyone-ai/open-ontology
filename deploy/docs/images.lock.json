@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:807a13e07406946615bec2f051e1b885bf0d4f15801b9fda2af0bc26d73ee7d5",
-        "tag": "oo-docs-engine:dev-ae2",
-        "size_bytes": 287755040,
+        "image": "sha256:a273df31c7c161f4a53c56ee42d0513e89c4d0ed273c5e0519184605c5a1edab",
+        "tag": "oo-docs-engine:dev-ae4",
+        "size_bytes": 288590888,
         "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-ae2",
-        "built": "2026-11-20",
-        "built_from": "so/AE2-final at 19ca40e30; engine with the settle step for indexed files that have nothing left to publish, on top of the dev-ad engine",
-        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae2 --build-arg OO_LANE=super-ontology-ae2 -t oo-docs-engine:dev-ae2 ."
+        "lane": "super-ontology-ae4",
+        "built": "2026-11-21",
+        "built_from": "so/AE4-final at c4e0b8b8f; engine with the actor tag, live events and freshness changes of lanes AH and AH2, on top of the dev-ae2 engine",
+        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae4 --build-arg OO_LANE=super-ontology-ae4 -t oo-docs-engine:dev-ae4 ."
       },
       "linux/amd64": null
     }
