@@ -7,5 +7,5 @@ export function ActorTag({ actor }: { actor: EngineActor | null | undefined }) {
   const { t } = useLocalization();
   if (!actor || actor.kind === "local") return null;
   const label = actor.kind === "agent" ? t("app.actor.agent", { name: actor.name ?? "" }) : t(`app.actor.${actor.kind}`);
-  return <Badge tone="neutral" data-testid="actor-tag" data-actor={actor.kind} data-name={actor.name}>{label}</Badge>;
+  return <span data-testid="actor-tag" data-actor={actor.kind} data-name={actor.name}><Badge tone="neutral">{label}</Badge></span>;
 }
