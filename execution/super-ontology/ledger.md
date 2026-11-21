@@ -354,6 +354,7 @@
 | SO-F-S21-06 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 0e5778f59 → 0e5778f59 | — | apps/super-ontology-desktop/ | Test the overlay states, the drop and the toast as components |
 | SO-F-S21-07 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 7fcb14e20 → 7fcb14e20 | — | apps/super-ontology-desktop/ | Test dragging files and folders into the app against a real engine |
 | SO-F-S21-08 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | 8c7ed8e54 → da9301513 | — | apps/super-ontology-desktop/ | Give the upload list rows room for a folder line |
+| SO-F-S21-09 | D86 | merged | feat/super-ontology (App 车道 AG 并入，协调者台账) | ffbbea5b6 → ffbbea5b6 | — | — | Add the ledger rows for lane AG |
 | SO-F-S21-10 | D83 | merged | feat/super-ontology (车道 AH 并入) | 957958ece → 957958ece | — | — | Share one local engine between the app and the oo CLI |
 | SO-F-S21-11 | D83 | merged | feat/super-ontology (车道 AH 并入) | bb9dbe45f → bb9dbe45f | — | — | Show database and file changes made by the CLI or an agent as they happen |
 | SO-F-S21-12 | D83 | merged | feat/super-ontology (车道 AH 并入) | c2aefc6a7 → c65b164df | — | — | Keep the actor tag's test attributes on an element the design system keeps |
