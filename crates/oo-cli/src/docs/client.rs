@@ -111,6 +111,13 @@ pub fn read_connection(state: &Path) -> Result<(u16, String), CliError> {
     Ok((port, token))
 }
 
+/// The name an agent gave itself through `OO_AGENT_NAME`: 1..=200 characters, none a control character.
+fn agent_name(raw: Option<&str>) -> Option<String> {
+    let name = raw?.trim();
+    (!name.is_empty() && name.chars().count() <= 200 && !name.chars().any(char::is_control))
+        .then(|| name.to_owned())
+}
+
 fn agent_headers(agent: &str) -> Result<reqwest::header::HeaderMap, CliError> {
     let mut h = reqwest::header::HeaderMap::new();
     h.insert(
@@ -143,19 +150,21 @@ impl Daemon {
     }
 
     async fn send(&self, req: reqwest::RequestBuilder) -> Result<(u16, Vec<u8>), CliError> {
-        let resp = req
+        let mut req = req
             .header("authorization", format!("Bearer {}", self.token))
             // Names the CLI as the origin of the change in the engine's event log (docs-api 1.13).
-            .header("oo-docs-client", "cli")
-            .send()
-            .await
-            .map_err(|_| {
-                CliError::new(
-                    exit::ENGINE_UNAVAILABLE,
-                    "DOCS_ENGINE_UNAVAILABLE",
-                    "cannot reach oo serve; is it running?",
-                )
-            })?;
+            .header("oo-docs-client", "cli");
+        // An agent that drives `oo` says who it is with `OO_AGENT_NAME`; the desktop app then shows "via agent <name>".
+        if let Some(name) = agent_name(std::env::var("OO_AGENT_NAME").ok().as_deref()) {
+            req = req.header("oo-docs-agent", name);
+        }
+        let resp = req.send().await.map_err(|_| {
+            CliError::new(
+                exit::ENGINE_UNAVAILABLE,
+                "DOCS_ENGINE_UNAVAILABLE",
+                "cannot reach oo serve; is it running?",
+            )
+        })?;
         let status = resp.status().as_u16();
         let body = resp
             .bytes()
@@ -439,5 +448,14 @@ mod tests {
         d.get_json("/v1/docs/health").await.unwrap();
         let head = seen.await.unwrap();
         assert!(head.contains("oo-docs-client: cli\r\n"), "{head}");
+    }
+
+    #[test]
+    fn an_agent_name_is_taken_only_when_it_is_a_clean_short_text() {
+        assert_eq!(agent_name(Some(" qa-bot ")).as_deref(), Some("qa-bot"));
+        assert_eq!(agent_name(None), None);
+        assert_eq!(agent_name(Some("  ")), None);
+        assert_eq!(agent_name(Some("a\nb")), None);
+        assert_eq!(agent_name(Some(&"x".repeat(201))), None);
     }
 }
