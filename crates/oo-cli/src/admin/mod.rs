@@ -150,7 +150,68 @@ pub fn dispatch(args: &[String]) -> Option<Result<Invocation, Failure>> {
             }),
         );
     }
-    Some(execute(command, rest))
+    let result = execute(command, rest);
+    #[cfg(feature = "docs")]
+    if matches!(command.as_str(), "init" | "up" | "down" | "build") {
+        announce(
+            crate::docs::live::default_state().as_deref(),
+            command,
+            rest,
+            &result,
+        );
+    }
+    Some(result)
+}
+
+/// Tell a running `oo serve` (and keep the stack registry) that `init`, `up`, `down` or `build` ended, so the
+/// desktop app shows it. Best effort: it never changes the result.
+#[cfg(feature = "docs")]
+fn announce(
+    state: Option<&Path>,
+    command: &str,
+    rest: &[String],
+    result: &Result<Invocation, Failure>,
+) {
+    use crate::docs::live;
+    let config = rest
+        .iter()
+        .enumerate()
+        .find_map(|(i, a)| match a.strip_prefix("--config=") {
+            Some(v) => Some(v.to_owned()),
+            None if a == "--config" => rest.get(i + 1).cloned(),
+            None => None,
+        })
+        .unwrap_or_else(|| "stack.yaml".into());
+    let stack = Path::new(&config);
+    let (ok, body) = match result {
+        Ok(Invocation::AdminReport(body, code)) => (*code == 0, Some(body.as_str())),
+        Ok(_) => (true, None),
+        Err(_) => (false, None),
+    };
+    let published = command == "build" && ok && body.is_some_and(live::build_published);
+    let profile = if command != "build" {
+        None
+    } else {
+        body.and_then(live::report_profile)
+            .or_else(|| published.then(active_profile).flatten())
+    };
+    if command == "init" && ok {
+        let name = read_stack(stack)
+            .ok()
+            .and_then(|s| s.sources.first().map(|x| x.id.clone()))
+            .unwrap_or_default();
+        live::source_changed(state, &name, "initialized", stack);
+    }
+    live::pipeline_changed(state, command, ok, stack, profile.as_deref(), published);
+}
+
+/// The name in `active-profile.json` of the CLI profile directory.
+#[cfg(feature = "docs")]
+fn active_profile() -> Option<String> {
+    let dir = crate::lifecycle::directory().ok()?;
+    let doc: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.join("active-profile.json")).ok()?).ok()?;
+    doc["profile"].as_str().map(str::to_owned)
 }
 
 fn offline_bundle(command: &str, rest: &[String]) -> Result<Vec<String>, Failure> {
@@ -573,5 +634,60 @@ mod tests {
         assert_eq!(value["model"]["key"]["secret_ref"], "model-key");
         assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(feature = "docs")]
+    #[test]
+    fn a_finished_build_is_announced_with_its_outcome() {
+        use crate::docs::secrets;
+        use std::io::{Read, Write};
+        let root = std::env::temp_dir().join(format!("oo-announce-{}", std::process::id()));
+        let state = root.join("state");
+        secrets::ensure_state_dir(&state).unwrap();
+        let token = state.join("control.token");
+        secrets::write_secret_file(&token, "oodt_t\n").unwrap();
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let doc = serde_json::json!({"protocol": secrets::SERVE_PROTOCOL,
+            "port": l.local_addr().unwrap().port(), "token_file": token.display().to_string()});
+        secrets::write_secret_file(&state.join("serve.json"), &doc.to_string()).unwrap();
+        let seen = std::thread::spawn(move || {
+            (0..2)
+                .map(|_| {
+                    let (mut s, _) = l.accept().unwrap();
+                    let mut buf = [0u8; 4096];
+                    let n = s.read(&mut buf).unwrap();
+                    let _ = s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 9\r\n\r\n{\"seq\":1}");
+                    let t = String::from_utf8_lossy(&buf[..n]).into_owned();
+                    serde_json::from_str::<serde_json::Value>(t.split("\r\n\r\n").nth(1).unwrap())
+                        .unwrap()["data"]
+                        .clone()
+                })
+                .collect::<Vec<_>>()
+        });
+        let stack = root.join("s.yaml");
+        std::fs::write(&stack, "x").unwrap();
+        let rest = vec![
+            "--config".to_owned(),
+            stack.display().to_string(),
+            "--json".into(),
+        ];
+        let done = Ok(Invocation::AdminReport(
+            r#"{"status":"complete","publication":"published","profile":"shop"}"#.into(),
+            0,
+        ));
+        announce(Some(&state), "build", &rest, &done);
+        let failed = Ok(Invocation::AdminReport("{}".into(), 1));
+        announce(Some(&state), "up", &rest, &failed);
+        let got = seen.join().unwrap();
+        let abs = std::fs::canonicalize(&stack).unwrap().display().to_string();
+        assert_eq!(
+            got[0],
+            serde_json::json!({"command":"build","ok":true,"stack":abs,"published":true,"profile":"shop"})
+        );
+        assert_eq!(
+            got[1],
+            serde_json::json!({"command":"up","ok":false,"stack":abs,"published":false})
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

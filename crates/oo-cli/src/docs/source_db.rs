@@ -409,6 +409,12 @@ pub fn add(p: &Parsed, kind: &str) -> Result<(), CliError> {
                 path.display()
             );
             out(p, "oo.source/v1", shown, human);
+            super::live::source_changed(
+                super::docs_cmd::state_of(p).ok().as_deref(),
+                name,
+                "added",
+                &path,
+            );
             Ok(())
         }
         Err(e) => {
@@ -470,6 +476,12 @@ pub fn rm(p: &Parsed, name: &str) -> Result<(), CliError> {
                 ""
             }
         ),
+    );
+    super::live::source_changed(
+        super::docs_cmd::state_of(p).ok().as_deref(),
+        name,
+        "removed",
+        &path,
     );
     Ok(())
 }
@@ -755,5 +767,102 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn adding_and_removing_a_source_tells_the_running_serve() {
+        use std::io::{Read, Write};
+        let root = std::env::temp_dir().join(format!("oo-src-live-{}", std::process::id()));
+        let state = root.join("state");
+        super::super::secrets::ensure_state_dir(&state).unwrap();
+        let token = state.join("control.token");
+        super::super::secrets::write_secret_file(&token, "oodt_t\n").unwrap();
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let doc = json!({"protocol": super::super::secrets::SERVE_PROTOCOL,
+            "port": l.local_addr().unwrap().port(), "token_file": token.display().to_string()});
+        super::super::secrets::write_secret_file(&state.join("serve.json"), &doc.to_string())
+            .unwrap();
+        let seen = std::thread::spawn(move || {
+            let mut bodies = Vec::new();
+            for _ in 0..3 {
+                let (mut s, _) = l.accept().unwrap();
+                let mut buf = [0u8; 4096];
+                let n = s.read(&mut buf).unwrap();
+                let text = String::from_utf8_lossy(&buf[..n]).into_owned();
+                bodies.push(text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned());
+                let _ = s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 9\r\n\r\n{\"seq\":1}");
+            }
+            bodies
+        });
+        let file = root.join("stack.yaml");
+        std::fs::write(
+            &file,
+            "version: oo.stack/v1\nmodel: {provider: openai-compatible, base_url: \"https://api.example.com/v1\", model: m, key: {secret_ref: model-key}}\n",
+        )
+        .unwrap();
+        let (f, st) = (file.display().to_string(), state.display().to_string());
+        let args = |name: &'static str| -> Vec<String> {
+            [
+                "--name",
+                name,
+                "--host",
+                "db.local",
+                "--database",
+                "app",
+                "--user",
+                "ro",
+                "--tls-ca-ref",
+                "env:CA",
+                "--include",
+                "public.t",
+                "--password-ref",
+                "env:P",
+                "--non-interactive",
+                "--json",
+            ]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .chain([
+                "--config".into(),
+                f.clone(),
+                "--state-dir".into(),
+                st.clone(),
+            ])
+            .collect()
+        };
+        let p = |a: Vec<String>| {
+            super::super::docs_cmd::parse(
+                &a,
+                super::super::source::VALUED,
+                super::super::source::SWITCHES,
+            )
+            .unwrap()
+        };
+        add(&p(args("one")), "postgres").unwrap();
+        add(&p(args("two")), "postgres").unwrap();
+        let rm_args: Vec<String> = ["--config", &f, "--state-dir", &st, "--json"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        rm(&p(rm_args), "two").unwrap();
+        let bodies = seen.join().unwrap();
+        let events: Vec<Value> = bodies
+            .iter()
+            .map(|b| serde_json::from_str(b).unwrap())
+            .collect();
+        let want = std::fs::canonicalize(&file).unwrap().display().to_string();
+        for (e, (name, action)) in
+            events
+                .iter()
+                .zip([("one", "added"), ("two", "added"), ("two", "removed")])
+        {
+            assert_eq!(e["type"], "db.source_changed");
+            assert_eq!(
+                e["data"],
+                json!({"name": name, "action": action, "stack": want})
+            );
+        }
+        assert_eq!(super::super::live::read_stacks(&state).len(), 1);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

@@ -15,6 +15,7 @@ pub mod docs_cmd;
 pub mod embedded;
 pub mod engine;
 pub mod federate;
+pub mod live;
 pub mod mounts;
 pub mod ontology;
 pub mod proxy;
