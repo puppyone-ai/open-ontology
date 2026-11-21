@@ -1,0 +1,53 @@
+{
+  "entities": 105,
+  "facts": 346,
+  "facts_by_origin": [
+    [
+      "llm",
+      42
+    ],
+    [
+      "rule",
+      331
+    ]
+  ],
+  "files": 46,
+  "jobs": [
+    [
+      "extract_llm",
+      "succeeded",
+      46
+    ],
+    [
+      "extract_rules",
+      "succeeded",
+      46
+    ]
+  ],
+  "model": true,
+  "published_entities": 84,
+  "published_facts": 330,
+  "seconds": 199.199590125,
+  "states": {
+    "indexed": 1,
+    "published": 45
+  },
+  "usage": {
+    "drives": [
+      {
+        "cache_hits": 0,
+        "calls": 77,
+        "day": "2026-11-21",
+        "drive_id": "247ee98a-d1ca-4e2d-b5ab-3db46f90a168",
+        "files_limited": 0,
+        "limit": 2000,
+        "tokens_in": 323540,
+        "tokens_out": 54905
+      }
+    ],
+    "model": {
+      "status": "ok"
+    },
+    "per_file_limit": 20
+  }
+}

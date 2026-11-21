@@ -37,11 +37,11 @@ await fs.mkdir(profile, { recursive: true });
 await fs.rm(path.join(profile, "DevToolsActivePort"), { force: true });
 await fs.writeFile(path.join(profile, "settings.json"), JSON.stringify({ language: opt("--language", "en"), runtime: opt("--runtime", "auto") }), { flag: "wx", mode: 0o600 }).catch(() => undefined);
 // The engine reads <state>/engine/docs.json at start. A reasoning model needs minutes per extraction call, and the default of 2 parallel extractions
-// would take an hour for 45 files, so a run with --model asks for --extract-parallel (default 8, the engine's maximum) like an operator would.
-if (flag("--model")) {
+// would take an hour for 45 files, so a run may ask for --extract-parallel like an operator would; without it the engine's own default (8 since lane AD) applies.
+if (flag("--model") && opt("--extract-parallel")) {
   const engineDir = path.join(profile, "engine", "state", "engine");
   await fs.mkdir(engineDir, { recursive: true, mode: 0o700 });
-  await fs.writeFile(path.join(engineDir, "docs.json"), JSON.stringify({ version: "oo.docs/v1", concurrency: { extract_llm: Number(opt("--extract-parallel", "8")) } }), { mode: 0o600 });
+  await fs.writeFile(path.join(engineDir, "docs.json"), JSON.stringify({ version: "oo.docs/v1", concurrency: { extract_llm: Number(opt("--extract-parallel")) } }), { mode: 0o600 });
 }
 const exe = path.join(appPath, "Contents/MacOS/Super Ontology");
 const env = { ...process.env, HOME: home, SUPER_ONTOLOGY_USER_DATA: profile, DOCKER_CONFIG: path.join(os.homedir(), ".docker"), OO_DOCS_LANE: process.env.OO_DOCS_LANE || "super-ontology-ab" };
