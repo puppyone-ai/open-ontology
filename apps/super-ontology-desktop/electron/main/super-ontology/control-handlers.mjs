@@ -110,15 +110,17 @@ export function createControlHandlers({ client, grants, lifecycle, secretFiles, 
       ensure(listed, isPage);
       const existing = listed.items.find((item) => isObject(item) && item.name === MY_FILES_NAME && item.backend === "fs" && item.status !== "deleting" && item.status !== "deleted");
       if (existing) return ensure(existing, isDrive);
-      const { value, replayed } = await call("driveCreate", { body: { name: MY_FILES_NAME, backend: "fs", config: { root: managedFilesDir } }, operationId });
+      const { value, replayed } = await call("driveCreate", { body: { name: MY_FILES_NAME, backend: "fs", config: { root: managedFilesDir }, model_enabled: true }, operationId });
       ensure(value, isDrive);
       return handlerResult(value, { replayed });
     },
 
     "drive-create": async (request, { sender } = {}) => {
       const { operationId, name, backend, exclude, modelEnabled, llmDailyCalls } = request;
+      // A folder on this computer allows the model unless the request says otherwise: the model is only ever asked once the person
+      // connected one in Settings, and the Privacy tab shows where excerpts go. A cloud bucket keeps the engine's default (off).
       const options = {
-        ...(modelEnabled === undefined ? {} : { model_enabled: modelEnabled }),
+        ...(modelEnabled === undefined ? (OBJECT_STORE_BACKENDS.has(backend) ? {} : { model_enabled: true }) : { model_enabled: modelEnabled }),
         ...(llmDailyCalls === undefined ? {} : { llm_daily_calls: llmDailyCalls }),
       };
       if (OBJECT_STORE_BACKENDS.has(backend)) return createObjectStoreDrive({ request, options });

@@ -204,6 +204,12 @@ describe("model-config-save", () => {
     }
   });
 
+  it("uses a file: path in the key field as the reference and copies nothing", async () => {
+    const { handlers, calls } = make({ secretsDirectory: "/unused-secrets", responses: { modelConfigPut: { value: { configured: true, revision: 3 } } } });
+    await handlers["model-config-save"]({ provider: "openai-compatible", baseUrl: "file:/home/someone/endpoint", model: "m", apiKey: "file:/home/someone/key", revision: 2 });
+    expect(calls).toEqual([["modelConfigPut", { body: { provider: "openai-compatible", base_url: "file:/home/someone/endpoint", model: "m", key_ref: "file:/home/someone/key" }, revision: 2 }]]);
+  });
+
   it("keeps the existing key reference when no new key is given", async () => {
     const { handlers, calls } = make({ secretsDirectory: "/unused", responses: { modelConfigGet: { value: { configured: true, key_ref: "env:MODEL_KEY", revision: 1 } }, modelConfigPut: { value: { configured: true, revision: 2 } } } });
     await handlers["model-config-save"]({ provider: "anthropic", baseUrl: "https://models.example.test", model: "m", revision: 1 });

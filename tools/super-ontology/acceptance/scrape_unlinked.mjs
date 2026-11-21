@@ -17,6 +17,13 @@ for (const id of ["nav-ontology", "ontology-tab-atlas", "atlas-unlinked-filter",
   console.error("click", id, ok);
   await sleep(id === "atlas-view-list" ? 2500 : 1500);
 }
+// The list shows 100 rows per group and keeps the rest behind a "Show more" button (AtlasList PAGE); the Not connected group holds the entity
+// islands as well as the files, so the files are often past the first page. Press it until every row is in the document.
+for (let i = 0; i < 200; i += 1) {
+  const pressed = await cdp.evaluate(`(() => { const b = [...document.querySelectorAll('[data-testid="atlas-list"] .so-atlas-list-members > li > button:not([data-testid])')].find((e) => /\\d/u.test(e.innerText)); if (!b) return false; b.click(); return true; })()`);
+  if (!pressed) break;
+  await sleep(300);
+}
 const raw = JSON.parse(await cdp.evaluate(`JSON.stringify([...document.querySelectorAll('[data-testid="atlas-list-member"]')].map((e) => ({ name: e.dataset.name, kind: e.querySelector('[data-testid="atlas-reason"]')?.dataset.reason ?? null, text: (e.querySelector('[data-testid="atlas-reason"]')?.innerText ?? '').trim() })))`));
 const run = JSON.parse(await fs.readFile(opt("--run"), "utf8"));
 const byBase = {};

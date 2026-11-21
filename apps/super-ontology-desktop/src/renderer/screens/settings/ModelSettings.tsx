@@ -7,10 +7,9 @@ import type { ModelConfig } from "../../../shared/super-ontology/docs-api.genera
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isEngineReady } from "../../model/superDriveStateModel";
-import { RECOMMENDED_MODEL, SUGGESTED_MODELS } from "../../model/settings/recommendedModels";
+import { isModelAddress, RECOMMENDED_MODEL, SUGGESTED_MODELS } from "../../model/settings/recommendedModels";
 
 type Provider = "openai-compatible" | "anthropic";
-const URL_PATTERN = /^https?:\/\/\S+$/u;
 
 function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose: () => void }) {
   const { t } = useLocalization();
@@ -23,7 +22,7 @@ function ModelDialog({ config, onClose }: { config: ModelConfig | null; onClose:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SuperDriveError | null>(null);
   const keyNeeded = !config?.configured;
-  const urlError = baseUrl.trim() === "" ? t("app.model.required") : !URL_PATTERN.test(baseUrl.trim()) ? t("app.model.url.bad") : null;
+  const urlError = baseUrl.trim() === "" ? t("app.model.required") : !isModelAddress(baseUrl.trim()) ? t("app.model.url.bad") : null;
   const save = async () => {
     setTouched(true);
     if (urlError || model.trim() === "" || (keyNeeded && apiKey.trim() === "")) return;

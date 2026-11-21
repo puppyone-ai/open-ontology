@@ -254,6 +254,22 @@ describe("control client", () => {
       await expect(handlers["drive-create"]({ ...request, operationId: "op_other_0123456789" }, { sender })).rejects.toMatchObject({ code: "SO_GRANT_REQUIRED" });
     });
 
+    it("a folder on this computer allows the model unless the request says otherwise", async () => {
+      await build();
+      const { grantId } = grants.issue(sender, "drive-root", "/Users/example/Drive");
+      await handlers["drive-create"]({ operationId: OP, name: "Docs", rootGrantId: grantId }, { sender });
+      expect(server.requests[0].body).toEqual({ name: "Docs", backend: "fs", config: { root: "/Users/example/Drive" }, model_enabled: true });
+    });
+
+    it("My files is created with the model allowed", async () => {
+      server = await startContractServer({ script: (request) => (request.method === "GET" ? { body: { items: [], next_cursor: null, as_of_seq: 1 } } : undefined) });
+      const noFs = { mkdir: async () => undefined };
+      const mine = createControlHandlers({ client: make(), grants, lifecycle, managedFilesDir: "/Users/example/My files", fsPromises: noFs });
+      await mine["my-files-ensure"]({ operationId: OP }).catch(() => undefined);
+      const created = server.requests.find((request) => request.method === "POST");
+      expect(created.body).toEqual({ name: "My files", backend: "fs", config: { root: "/Users/example/My files" }, model_enabled: true });
+    });
+
     it("drive-create needs a grant from this window", async () => {
       await build();
       await expect(handlers["drive-create"]({ operationId: OP, name: "Docs", rootGrantId: "grant-9999-9999" }, { sender })).rejects.toMatchObject({ code: "SO_GRANT_REQUIRED" });
