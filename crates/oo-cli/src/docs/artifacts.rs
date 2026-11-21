@@ -70,7 +70,17 @@ fn verify(path: &Path, want: &str) -> Result<(), String> {
 
 fn curl(url: &str, dest: &Path) -> Result<(), String> {
     let st = Command::new("curl")
-        .args(["-fsSL", "--retry", "2", "-o"])
+        // Bounded: a stalled network must end the download, never hang the caller.
+        .args([
+            "-fsSL",
+            "--retry",
+            "2",
+            "--connect-timeout",
+            "20",
+            "--max-time",
+            "900",
+            "-o",
+        ])
         .arg(dest)
         .arg(url)
         .stdin(Stdio::null())

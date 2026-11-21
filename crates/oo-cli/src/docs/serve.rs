@@ -11,7 +11,7 @@
 //! compose project of `deploy/docs` (see `compose.rs`).
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
@@ -216,6 +216,69 @@ fn stop(state: &Path) -> u8 {
     exit::OTHER
 }
 
+/// What to undo when a SIGTERM or SIGINT arrives while the daemon is still starting. The shutdown path of
+/// `serve_loop` only exists once the loop runs; before that the default action would end the process and leave the
+/// private PostgreSQL cluster (and its shared memory) and the engine behind, to pile up across restarts.
+/// `None` once the loop owns the signals.
+type StartupHooks = Vec<Box<dyn FnOnce() + Send>>;
+static STARTUP_HOOKS: Mutex<Option<StartupHooks>> = Mutex::new(Some(Vec::new()));
+
+pub(super) fn on_startup_signal(hook: impl FnOnce() + Send + 'static) {
+    if let Some(hooks) = STARTUP_HOOKS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .as_mut()
+    {
+        hooks.push(Box::new(hook));
+    }
+}
+
+fn disarm_startup_hooks() {
+    *STARTUP_HOOKS.lock().unwrap_or_else(|p| p.into_inner()) = None;
+}
+
+fn arm_startup_guard() {
+    let _ = std::thread::Builder::new()
+        .name("startup-signal".into())
+        .spawn(|| {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+            rt.block_on(wait_for_signal());
+            let hooks = STARTUP_HOOKS
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .take();
+            if let Some(hooks) = hooks {
+                eprintln!("oo serve: stopped while starting; cleaning up");
+                for hook in hooks.into_iter().rev() {
+                    hook();
+                }
+                std::process::exit(143);
+            }
+        });
+}
+
+/// Ends what the background parser install left running (curl, uv, tar): those are plain children of this process.
+fn stop_helper_children() {
+    let me = std::process::id().to_string();
+    let Ok(out) = std::process::Command::new("pgrep")
+        .args(["-P", &me])
+        .output()
+    else {
+        return;
+    };
+    for pid in String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.trim().parse::<u32>().ok())
+    {
+        engine::signal(pid, "TERM");
+    }
+}
+
 fn start(args: &ServeArgs, state: &Path) -> u8 {
     let _lock = match secrets::acquire_lock(state) {
         Ok(LockResult::Held(l)) => l,
@@ -237,6 +300,12 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
             return exit::STATE_DIR;
         }
     };
+    arm_startup_guard();
+    on_startup_signal(stop_helper_children);
+    {
+        let state = state.to_owned();
+        on_startup_signal(move || secrets::clean_runtime_files(&state));
+    }
     // A crashed predecessor left files and maybe an engine behind.
     engine::reap_stale(&state.join("engine.pid"));
     secrets::clean_runtime_files(state);
@@ -309,44 +378,55 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         secrets::clean_runtime_files(state);
         return exit::STATE_DIR;
     }
-    // The Docker-free parser sidecar (ADR-S14 step 2), when its environment is there.
-    let mut sidecar: Option<super::sidecar::Sidecar> = None;
+    // The Docker-free parser sidecar (ADR-S14 step 2). When its environment is there it starts now; when it is
+    // not, the first-use install runs in the background: it downloads, so it may take minutes or hang on a bad
+    // network, and `serve.json` (the app's readiness signal) must never wait for it.
+    let slot: ParserSlot = Arc::new(Mutex::new((false, None)));
+    let mut parser_job: Option<ParserJob> = None;
     let mut extra_env: Vec<(String, String)> = Vec::new();
     let mut parser_note: Option<String> = None;
     if std::env::var_os("OO_DOCS_PARSER_URL").is_some() {
         // the operator's own parser: engine.rs forwards the variables
     } else if kind == RuntimeKind::Embedded {
         let sdir = super::sidecar::env_dir(state);
-        if !super::runtime::installed(&sdir)
-            && super::sidecar::probe(&sdir).is_err()
-            && std::env::var("OO_DOCS_RUNTIME_AUTOINSTALL").as_deref() != Ok("0")
+        let autoinstall = std::env::var("OO_DOCS_RUNTIME_AUTOINSTALL").as_deref() != Ok("0");
+        if !super::runtime::installed(&sdir) && super::sidecar::probe(&sdir).is_err() && autoinstall
         {
-            eprintln!("oo serve: installing the Docker-free parser runtime (first use, one time)");
-            if let Err(why) = super::runtime::install(state, &sdir, &|m| eprintln!("oo serve: {m}"))
-            {
-                eprintln!("oo serve: {why}");
+            parser_note = Some(
+                "the parser runtime is installing in the background; docx and pdf stay unsupported until it is ready"
+                    .into(),
+            );
+            parser_job = Some(ParserJob {
+                state: state.to_owned(),
+                dir: sdir,
+                slot: slot.clone(),
+            });
+        } else {
+            match super::sidecar::probe(&sdir) {
+                Ok(senv) => match super::sidecar::start(state, &senv) {
+                    Ok(sc) => {
+                        let pid = sc.pid();
+                        on_startup_signal(move || {
+                            engine::signal(pid, "TERM");
+                        });
+                        eprintln!(
+                            "oo serve: parser sidecar listening ({})",
+                            senv.dir.display()
+                        );
+                        extra_env.push(("OO_DOCS_PARSER_URL".into(), sc.url.clone()));
+                        extra_env.push((
+                            "OO_DOCS_PARSER_TOKEN_FILE".into(),
+                            sc.token_file.display().to_string(),
+                        ));
+                        slot.lock().unwrap_or_else(|p| p.into_inner()).1 = Some(sc);
+                    }
+                    Err(why) => {
+                        eprintln!("oo serve: {why}");
+                        parser_note = Some(why);
+                    }
+                },
+                Err(why) => parser_note = Some(why),
             }
-        }
-        match super::sidecar::probe(&sdir) {
-            Ok(senv) => match super::sidecar::start(state, &senv) {
-                Ok(sc) => {
-                    eprintln!(
-                        "oo serve: parser sidecar listening ({})",
-                        senv.dir.display()
-                    );
-                    extra_env.push(("OO_DOCS_PARSER_URL".into(), sc.url.clone()));
-                    extra_env.push((
-                        "OO_DOCS_PARSER_TOKEN_FILE".into(),
-                        sc.token_file.display().to_string(),
-                    ));
-                    sidecar = Some(sc);
-                }
-                Err(why) => {
-                    eprintln!("oo serve: {why}");
-                    parser_note = Some(why);
-                }
-            },
-            Err(why) => parser_note = Some(why),
         }
     } else {
         parser_note = Some("no parser is configured (set OO_DOCS_PARSER_URL and OO_DOCS_PARSER_TOKEN_FILE, or use the compose runtime); docx and pdf stay unsupported".into());
@@ -374,6 +454,12 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         }
     };
 
+    {
+        let pid = first.0.id();
+        on_startup_signal(move || {
+            engine::signal(pid, "TERM");
+        });
+    }
     let rt = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -388,11 +474,17 @@ fn start(args: &ServeArgs, state: &Path) -> u8 {
         &token_file,
         &control,
         &engine_token,
-        Backend::Host(spec, first),
+        Backend::Host(spec, first, parser_job),
     ));
     secrets::clean_runtime_files(state);
-    drop(sidecar);
+    {
+        // A background install that ends after this point must not start a sidecar nobody stops.
+        let mut guard = slot.lock().unwrap_or_else(|p| p.into_inner());
+        guard.0 = true;
+        drop(guard.1.take());
+    }
     drop(embedded);
+    stop_helper_children();
     code
 }
 
@@ -596,10 +688,59 @@ fn start_compose(args: &ServeArgs, state: &Path) -> u8 {
     code
 }
 
+/// The running parser sidecar, and whether `oo serve` is already shutting down.
+type ParserSlot = Arc<Mutex<(bool, Option<super::sidecar::Sidecar>)>>;
+
+/// The first-use install of the Docker-free parser runtime, run after `serve.json` exists.
+struct ParserJob {
+    state: PathBuf,
+    dir: PathBuf,
+    slot: ParserSlot,
+}
+
+fn run_parser_job(job: &ParserJob, engine: &engine::ParserHandle) {
+    eprintln!(
+        "oo serve: installing the Docker-free parser runtime in the background (first use, one time)"
+    );
+    if let Err(why) = super::runtime::install(&job.state, &job.dir, &|m| eprintln!("oo serve: {m}"))
+    {
+        eprintln!("oo serve: {why}");
+    }
+    let sc = match super::sidecar::probe(&job.dir)
+        .and_then(|env| super::sidecar::start(&job.state, &env))
+    {
+        Ok(sc) => sc,
+        Err(why) => {
+            eprintln!("oo serve: {why}");
+            return;
+        }
+    };
+    let env = vec![
+        ("OO_DOCS_PARSER_URL".to_owned(), sc.url.clone()),
+        (
+            "OO_DOCS_PARSER_TOKEN_FILE".to_owned(),
+            sc.token_file.display().to_string(),
+        ),
+    ];
+    {
+        let mut guard = job.slot.lock().unwrap_or_else(|p| p.into_inner());
+        if guard.0 {
+            return; // shutting down: dropping `sc` stops it
+        }
+        guard.1 = Some(sc);
+    }
+    eprintln!("oo serve: parser sidecar listening; restarting the engine to use it");
+    engine.attach_parser(env);
+}
+
 /// What runs the engine.
 #[allow(clippy::large_enum_variant)] // one value per process
 enum Backend {
-    Host(EngineSpec, (std::process::Child, std::net::SocketAddr)),
+    Host(
+        EngineSpec,
+        (std::process::Child, std::net::SocketAddr),
+        Option<ParserJob>,
+    ),
     Compose(Arc<compose::Runtime>),
 }
 
@@ -615,7 +756,7 @@ async fn serve_loop(
         Ok(l) => l,
         Err(_) => {
             match backend {
-                Backend::Host(_, mut first) => {
+                Backend::Host(_, mut first, _) => {
                     let _ = first.0.kill();
                     let _ = first.0.wait();
                 }
@@ -631,13 +772,17 @@ async fn serve_loop(
     };
     let link = Arc::new(EngineLink::default());
     let (supervisor, compose_rt, engine_json, drives) = match backend {
-        Backend::Host(spec, first) => {
+        Backend::Host(spec, first, parser_job) => {
             let pid = first.0.id();
             let parser = match &spec.parser_note {
                 Some(n) => json!({"mode": "none", "note": n}),
                 None => json!({"mode": "configured"}),
             };
             let sup = Supervisor::spawn(spec, first, link.clone(), state.join("engine.pid"));
+            if let Some(job) = parser_job {
+                let handle = sup.parser_handle();
+                std::thread::spawn(move || run_parser_job(&job, &handle));
+            }
             (
                 Some(sup),
                 None,
@@ -691,6 +836,8 @@ async fn serve_loop(
         stop_rx,
         Duration::from_secs(10),
     ));
+    // From here on this loop owns the signals.
+    disarm_startup_hooks();
     wait_for_signal().await;
     // Stop accepting, drain in-flight requests, then remove the secrets
     // before the engine goes (10 §8.6 point 7).

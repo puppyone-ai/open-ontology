@@ -197,6 +197,8 @@ impl Embedded {
             runtime_password,
             stopped: false,
         };
+        // From here a signal during start-up must stop the cluster too (see `serve::on_startup_signal`).
+        super::serve::on_startup_signal(me.stopper());
         me.sql(
             "postgres",
             &format!(
@@ -275,6 +277,21 @@ impl Embedded {
             "postgres://{LOGIN}:{pw}@127.0.0.1:{}/{DB}",
             self.port
         ))
+    }
+
+    /// A closure that stops the cluster, for a signal handler that cannot own `self`.
+    pub fn stopper(&self) -> impl FnOnce() + Send + 'static {
+        let (bins, data) = (self.bins.clone(), self.data.clone());
+        move || {
+            let _ = bins
+                .cmd("pg_ctl")
+                .arg("-D")
+                .arg(&data)
+                .args(["-m", "fast", "-w", "-t", "60", "stop"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
     }
 
     /// Stop the cluster (fast shutdown). Idempotent.

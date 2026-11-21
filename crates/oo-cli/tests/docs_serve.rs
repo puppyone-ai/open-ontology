@@ -330,3 +330,136 @@ fn startup_failures_use_the_documented_exit_codes() {
         Some(2)
     );
 }
+
+/// A first-use parser install that stalls (a dead network) must not hold back `serve.json`: the app waits on it.
+#[test]
+fn serve_json_does_not_wait_for_the_parser_install() {
+    let f = fx("parser");
+    let pg = f.dir.join("pg-bin");
+    let fakebin = f.dir.join("fakebin");
+    fs::create_dir_all(&pg).unwrap();
+    fs::create_dir_all(&fakebin).unwrap();
+    let script = |dir: &Path, name: &str, body: &str| {
+        let p = dir.join(name);
+        fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+    };
+    // A PostgreSQL that does nothing: no cluster is running, "start" succeeds, psql accepts any SQL.
+    script(
+        &pg,
+        "initdb",
+        "while [ $# -gt 0 ]; do [ \"$1\" = -D ] && d=$2; shift; done; mkdir -p \"$d\"; touch \"$d/PG_VERSION\"",
+    );
+    script(
+        &pg,
+        "pg_ctl",
+        "for a in \"$@\"; do [ \"$a\" = status ] && exit 3; done; exit 0",
+    );
+    script(&pg, "psql", "cat > /dev/null");
+    // A network that never answers.
+    let pidfile = f.dir.join("curl.pid");
+    script(
+        &fakebin,
+        "curl",
+        &format!("echo $$ > {}\nexec sleep 600", pidfile.display()),
+    );
+    let path = format!("{}:/usr/bin:/bin", fakebin.display());
+    let started = Instant::now();
+    let mut child = f
+        .cmd(&["serve", "--json", "--port", "0", "--runtime", "embedded"])
+        .env("PATH", path)
+        .env("OO_DOCS_PG_BIN_DIR", &pg)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.as_mut().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    let daemon = Daemon(child);
+    let info: serde_json::Value = serde_json::from_str(line.trim())
+        .unwrap_or_else(|e| panic!("serve.json line {line:?}: {e}"));
+    assert_eq!(info["protocol"], "oo.docs.serve/v1");
+    assert!(
+        started.elapsed() < Duration::from_secs(30),
+        "serve.json waited for the install: {:?}",
+        started.elapsed()
+    );
+    assert!(
+        info["engine"]["parser"]["note"]
+            .as_str()
+            .is_some_and(|n| n.contains("installing in the background")),
+        "{info}"
+    );
+    // The install really is running (and stuck) behind it.
+    wait_until("the stalled download", || pidfile.exists());
+    drop(daemon);
+    if let Some(pid) = fs::read_to_string(&pidfile)
+        .ok()
+        .and_then(|t| t.trim().parse::<u32>().ok())
+    {
+        let _ = Command::new("kill")
+            .args(["-KILL", &pid.to_string()])
+            .status();
+    }
+}
+
+/// A SIGTERM while the daemon is still starting (the app quitting or giving up) must stop the private PostgreSQL it
+/// already started: the shutdown path of the serve loop does not exist yet at that point.
+#[test]
+fn a_signal_during_startup_stops_the_private_postgres() {
+    let f = fx("startsig");
+    let pg = f.dir.join("pg-bin");
+    fs::create_dir_all(&pg).unwrap();
+    let log = f.dir.join("pg-calls.log");
+    let script = |name: &str, body: &str| {
+        let p = pg.join(name);
+        fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
+    };
+    script(
+        "initdb",
+        "while [ $# -gt 0 ]; do [ \"$1\" = -D ] && d=$2; shift; done; mkdir -p \"$d\"; touch \"$d/PG_VERSION\"",
+    );
+    script(
+        "pg_ctl",
+        &format!(
+            "echo \"$@\" >> {}\nfor a in \"$@\"; do [ \"$a\" = status ] && exit 3; done; exit 0",
+            log.display()
+        ),
+    );
+    // The first SQL never returns: the daemon is stuck in its start-up.
+    let psql_pid = f.dir.join("psql.pid");
+    script(
+        "psql",
+        &format!("echo $$ > {}\nexec sleep 600", psql_pid.display()),
+    );
+    let mut child = f
+        .cmd(&["serve", "--json", "--port", "0", "--runtime", "embedded"])
+        .env("OO_DOCS_PG_BIN_DIR", &pg)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    wait_until("the cluster start", || {
+        fs::read_to_string(&log).is_ok_and(|t| t.contains(" start"))
+    });
+    // Give the signal guard time to be listening, then ask the daemon to stop.
+    std::thread::sleep(Duration::from_millis(300));
+    let _ = Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status();
+    let status = child.wait().unwrap();
+    assert_eq!(status.code(), Some(143), "{status:?}");
+    let calls = fs::read_to_string(&log).unwrap();
+    assert!(calls.contains(" stop"), "pg_ctl calls: {calls}");
+    if let Some(pid) = fs::read_to_string(&psql_pid)
+        .ok()
+        .and_then(|t| t.trim().parse::<u32>().ok())
+    {
+        let _ = Command::new("kill")
+            .args(["-KILL", &pid.to_string()])
+            .status();
+    }
+}
