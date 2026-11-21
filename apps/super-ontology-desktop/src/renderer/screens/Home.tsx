@@ -7,10 +7,18 @@ import { useRelativeTime } from "../hooks/useText";
 import { ErrorText } from "./shared/ErrorText";
 import { ontologyApi } from "../model/superDriveOntologyApi";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
-import { selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
+import { selectActivity, selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
 import { useUnlinked } from "../model/unlinked";
+import { ActorTag } from "./shared/ActorTag";
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  "file.state_changed": "app.home.activity.file", "file.renamed": "app.home.activity.fileRenamed", "drive.created": "app.home.activity.sourceAdded",
+  "drive.updated": "app.home.activity.sourceChanged", "drive.deleted": "app.home.activity.sourceRemoved", "review.decided": "app.home.activity.review",
+  "ontology.version_published": "app.home.activity.ontology", "db.source_changed": "app.home.activity.dbSource", "db.pipeline_changed": "app.home.activity.dbImport",
+  "share.created": "app.home.activity.share",
+};
 
 function Metric({ label, value, count, icon, onClick, loading, testId }: { label: string; value: string; count: number | null; icon: LucideIcon; onClick: () => void; loading?: boolean; testId: string }) {
   return (
@@ -31,6 +39,7 @@ export function Home() {
   const ready = isEngineReady(engine);
   const pending = useSuperDriveSelector(selectPendingReviewTotal);
   const version = useSuperDriveSelector(selectOntologyVersion);
+  const activity = useSuperDriveSelector(selectActivity);
   const loadedDrives = useSuperDriveSelector((s) => s.drives.loaded);
   const files = drives.reduce((sum, d) => sum + (d.files_total ?? 0), 0);
   const entities = useLoad(() => ontologyApi.searchEntities({ q: "", limit: 200 }), [ready, version], { enabled: ready });
@@ -100,6 +109,20 @@ export function Home() {
                 </button>
               );
             })}
+          </Card>
+        </Section>
+      )}
+
+      {activity.length > 0 && (
+        <Section title={t("app.home.activity.title")}>
+          <Card className="so-list" data-testid="home-activity">
+            {activity.slice(0, 8).map((entry) => (
+              <div key={entry.key} className="so-list-row" data-testid="activity-row" data-type={entry.type}>
+                <span className="so-list-text"><span className="so-list-title so-truncate">{t(ACTIVITY_LABEL[entry.type] ?? "app.home.activity.file")}</span>{entry.label && <span className="so-list-sub so-truncate">{entry.label}</span>}</span>
+                <ActorTag actor={entry.actor} />
+                <span className="so-weak">{relative(entry.at)}</span>
+              </div>
+            ))}
           </Card>
         </Section>
       )}
