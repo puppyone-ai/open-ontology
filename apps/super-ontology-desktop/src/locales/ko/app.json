@@ -811,14 +811,14 @@
   "drop.overlay.count": "{count}개 항목",
   "drop.reject.cloud": "클라우드 스토리지 소스는 읽기 전용입니다.",
   "drop.reject.database": "데이터베이스 소스에는 파일을 추가할 수 없습니다.",
-  "drop.toast.added": "파일 {count}개를 ‘{name}’에 추가했습니다",
+  "drop.toast.added": "이번 드롭: “{name}”에 {count, plural, other {파일 #개 추가됨}}",
   "drop.toast.none": "추가할 항목이 없습니다. 모두 건너뛰었거나 읽을 수 없습니다.",
   "drop.toast.sync": "{count, plural, one {이 폴더도 계속 동기화} other {이 폴더 #개도 계속 동기화}}",
   "drop.toast.syncing": "소스로 추가하는 중…",
   "drop.toast.synced": "동기화되는 소스로 추가했고 사본은 삭제했습니다.",
   "drop.toast.syncFailed": "폴더를 소스로 추가하지 못했습니다.",
   "drop.tray.label": "추가 진행률",
-  "drop.tray.done": "파일 {count}개 추가됨",
+  "drop.tray.done": "총 {count, plural, other {파일 #개 추가됨}}",
   "drop.tray.collapse": "목록 접기",
   "drop.tray.expand": "목록 펼치기",
   "drop.tray.more": "외 {count}개",
@@ -864,5 +864,9 @@
   "engine.shared.useApp": "앱 자체 데이터 사용",
   "engine.shared.appOwn": "이 앱은 CLI와 별도인 자체 데이터 폴더를 사용합니다.",
   "sources.merged.title": "내 파일 폴더는 하나",
-  "sources.merged.body": "CLI의 이전 “default” 폴더에 있던 파일을 내 파일로 복사했습니다. 원본은 디스크에 그대로 있고 삭제된 것은 없습니다."
+  "sources.merged.body": "CLI의 이전 “default” 폴더에 있던 파일을 내 파일로 복사했습니다. 원본은 디스크에 그대로 있고 삭제된 것은 없습니다.",
+  "home.banner.cli.title": "CLI에 자체 데이터가 있습니다",
+  "home.banner.cli.body": "앱과 CLI가 동기화되도록 CLI 데이터를 사용할까요?",
+  "home.banner.cli.use": "CLI 데이터 사용",
+  "home.banner.cli.later": "나중에"
 }

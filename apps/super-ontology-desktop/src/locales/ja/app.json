@@ -811,14 +811,14 @@
   "drop.overlay.count": "{count} 件",
   "drop.reject.cloud": "クラウドストレージのソースは読み取り専用です。",
   "drop.reject.database": "データベースのソースにはファイルを追加できません。",
-  "drop.toast.added": "{count} 個のファイルを「{name}」に追加しました",
+  "drop.toast.added": "今回のドロップ：「{name}」に {count, plural, other {# 件のファイルを追加}}",
   "drop.toast.none": "追加するものがありません。すべてスキップされたか、読み取れませんでした。",
   "drop.toast.sync": "{count, plural, one {このフォルダも同期し続ける} other {これら # 個のフォルダも同期し続ける}}",
   "drop.toast.syncing": "ソースとして追加中…",
   "drop.toast.synced": "同期するソースとして追加しました。コピーは削除しました。",
   "drop.toast.syncFailed": "フォルダをソースとして追加できませんでした。",
   "drop.tray.label": "追加の進捗",
-  "drop.tray.done": "{count} 個のファイルを追加しました",
+  "drop.tray.done": "合計 {count, plural, other {# 件のファイルを追加済み}}",
   "drop.tray.collapse": "一覧を隠す",
   "drop.tray.expand": "一覧を表示",
   "drop.tray.more": "ほか {count} 件",
@@ -864,5 +864,9 @@
   "engine.shared.useApp": "アプリ独自のデータを使う",
   "engine.shared.appOwn": "このアプリは CLI とは別の独自データフォルダを使っています。",
   "sources.merged.title": "「マイファイル」は 1 つに統合",
-  "sources.merged.body": "CLI の以前の「default」フォルダにあったファイルを「マイファイル」にコピーしました。元のファイルはディスクに残り、何も削除していません。"
+  "sources.merged.body": "CLI の以前の「default」フォルダにあったファイルを「マイファイル」にコピーしました。元のファイルはディスクに残り、何も削除していません。",
+  "home.banner.cli.title": "CLI には独自のデータがあります",
+  "home.banner.cli.body": "CLI のデータを使って、アプリと CLI の同期を保ちますか？",
+  "home.banner.cli.use": "CLI のデータを使う",
+  "home.banner.cli.later": "今はしない"
 }

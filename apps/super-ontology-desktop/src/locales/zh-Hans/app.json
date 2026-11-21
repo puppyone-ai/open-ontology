@@ -811,14 +811,14 @@
   "drop.overlay.count": "{count} 项",
   "drop.reject.cloud": "云存储来源只能读取，不能上传。",
   "drop.reject.database": "数据库来源不接受文件。",
-  "drop.toast.added": "已添加 {count} 个文件到『{name}』",
+  "drop.toast.added": "本次拖入：已向“{name}”添加 {count, plural, other {# 个文件}}",
   "drop.toast.none": "没有可添加的文件：所有项目都被跳过或无法读取。",
   "drop.toast.sync": "{count, plural, one {同时保持此文件夹同步} other {同时保持这 # 个文件夹同步}}",
   "drop.toast.syncing": "正在添加为来源…",
   "drop.toast.synced": "已添加为来源并保持同步，不再保留副本。",
   "drop.toast.syncFailed": "无法把文件夹添加为来源。",
   "drop.tray.label": "添加进度",
-  "drop.tray.done": "已添加 {count} 个文件",
+  "drop.tray.done": "共已添加 {count, plural, other {# 个文件}}",
   "drop.tray.collapse": "收起列表",
   "drop.tray.expand": "展开列表",
   "drop.tray.more": "还有 {count} 项",
@@ -864,5 +864,9 @@
   "engine.shared.useApp": "改用本应用自己的数据",
   "engine.shared.appOwn": "本应用使用自己的数据文件夹，与 CLI 分开。",
   "sources.merged.title": "只有一个“我的文件”文件夹",
-  "sources.merged.body": "CLI 早先“default”文件夹里的文件已复制到“我的文件”。原文件仍在磁盘上，没有删除任何内容。"
+  "sources.merged.body": "CLI 早先“default”文件夹里的文件已复制到“我的文件”。原文件仍在磁盘上，没有删除任何内容。",
+  "home.banner.cli.title": "CLI 有自己的数据",
+  "home.banner.cli.body": "改用 CLI 的数据，让应用和 CLI 保持同步？",
+  "home.banner.cli.use": "改用 CLI 数据",
+  "home.banner.cli.later": "暂不"
 }
