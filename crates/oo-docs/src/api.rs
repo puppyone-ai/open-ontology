@@ -880,6 +880,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             method_allowed(req, &["GET"])?;
             events::stream(app, req).await
         }
+        ["v1", "docs", "events:publish"] => {
+            method_allowed(req, &["POST"])?;
+            events::publish(app, req).await
+        }
         ["v1", "docs", "files:retry"] => {
             method_allowed(req, &["POST"])?;
             file_detail::retry(app, req).await

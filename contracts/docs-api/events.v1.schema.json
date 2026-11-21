@@ -41,6 +41,8 @@
         "drive.freshness_changed",
         "share.update_appended",
         "ontology.constraint_violated",
+        "db.source_changed",
+        "db.pipeline_changed",
         "file.progress",
         "stream.lagging"
       ]
@@ -123,7 +125,9 @@
               "refs.accessed",
               "drive.freshness_changed",
               "share.update_appended",
-              "ontology.constraint_violated"
+              "ontology.constraint_violated",
+              "db.source_changed",
+              "db.pipeline_changed"
             ]
           }
         }
@@ -665,6 +669,44 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.source_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.source_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.pipeline_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.pipeline_changed"
+          }
+        }
+      }
     }
   ],
   "x-persistent": [
@@ -692,7 +734,9 @@
     "refs.accessed",
     "drive.freshness_changed",
     "share.update_appended",
-    "ontology.constraint_violated"
+    "ontology.constraint_violated",
+    "db.source_changed",
+    "db.pipeline_changed"
   ],
   "x-transient": [
     "file.progress",
@@ -724,6 +768,36 @@
         "unit": "page",
         "done": 1,
         "total": 2
+      }
+    },
+    {
+      "seq": 9,
+      "type": "db.source_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "name": "shop",
+        "action": "added",
+        "stack": "/Users/me/shop/stack.yaml"
+      },
+      "actor": {
+        "kind": "cli"
+      }
+    },
+    {
+      "seq": 10,
+      "type": "db.pipeline_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "command": "build",
+        "ok": true,
+        "stack": "/Users/me/shop/stack.yaml",
+        "profile": "shop",
+        "published": true
+      },
+      "actor": {
+        "kind": "cli"
       }
     }
   ],
@@ -1212,6 +1286,64 @@
     },
     "stream.lagging": {
       "type": "object"
+    },
+    "db.source_changed": {
+      "type": "object",
+      "required": [
+        "name",
+        "action",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "added",
+            "removed",
+            "initialized"
+          ]
+        },
+        "stack": {
+          "type": "string"
+        }
+      }
+    },
+    "db.pipeline_changed": {
+      "type": "object",
+      "required": [
+        "command",
+        "ok",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "enum": [
+            "up",
+            "down",
+            "build",
+            "init"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "stack": {
+          "type": "string"
+        },
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

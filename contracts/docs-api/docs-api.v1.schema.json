@@ -6099,6 +6099,61 @@
           }
         }
       ]
+    },
+    "EventPublishRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "data"
+      ],
+      "description": "Body of `POST /v1/docs/events:publish` (1.13, control token only): the CLI tells the app that a database source or the pipeline changed. `data` is a JSON object of at most 4 KiB with no credential keys and no `actor` key (the engine sets it); it is delivered unchanged as `Event.data`. The event has no Drive.",
+      "properties": {
+        "type": {
+          "enum": [
+            "db.source_changed",
+            "db.pipeline_changed"
+          ]
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "type": "db.source_changed",
+          "data": {
+            "name": "shop",
+            "action": "added",
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        },
+        {
+          "type": "db.pipeline_changed",
+          "data": {
+            "command": "up",
+            "ok": true,
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        }
+      ]
+    },
+    "EventPublishResult": {
+      "type": "object",
+      "required": [
+        "seq"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "examples": [
+        {
+          "seq": 42
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -6445,6 +6500,15 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/events:publish",
+      "request": "EventPublishRequest",
+      "response": "EventPublishResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.13"
     },
     {
       "method": "GET",

@@ -105,3 +105,94 @@ async fn the_actor_of_a_request_is_on_its_events() {
     .await;
     e.finish().await;
 }
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn events_publish_is_for_the_control_token_and_carries_the_actor() {
+    let e = TestEngine::start("oo_docs_publish_live", Opts::default()).await;
+    let ok = json!({"type": "db.source_changed", "data": {"name": "pg", "action": "added", "stack": "/tmp/s.yaml"}});
+    let post = |h: &'static [(&'static str, &'static str)], b: Value| {
+        let e = &e;
+        async move { e.req("POST", "/v1/docs/events:publish", h, Some(&b)).await }
+    };
+    let r = post(&[("OO-Docs-Client", "cli")], ok.clone()).await;
+    assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+    let seq = r.json()["seq"].as_i64().expect("seq");
+    let evs = events(&e).await;
+    let got = evs.iter().find(|v| v["seq"] == seq).expect("the event");
+    assert_eq!(got["type"], "db.source_changed");
+    assert_eq!(got["drive_id"], Value::Null);
+    assert_eq!(got["actor"], json!({"kind": "cli"}));
+    assert_eq!(got["data"], ok["data"]);
+
+    // Closed request: type, extra fields, data shape and size, credential keys, a forged actor.
+    for (why, body) in [
+        ("other type", json!({"type": "drive.deleted", "data": {}})),
+        ("no data", json!({"type": "db.pipeline_changed"})),
+        (
+            "array data",
+            json!({"type": "db.pipeline_changed", "data": []}),
+        ),
+        (
+            "extra field",
+            json!({"type": "db.pipeline_changed", "data": {}, "drive_id": "x"}),
+        ),
+        (
+            "too large",
+            json!({"type": "db.pipeline_changed", "data": {"x": "a".repeat(4100)}}),
+        ),
+        (
+            "credential key",
+            json!({"type": "db.source_changed", "data": {"password": "hunter2"}}),
+        ),
+        (
+            "forged actor",
+            json!({"type": "db.source_changed", "data": {"actor": {"kind": "app"}}}),
+        ),
+    ] {
+        let r = post(&[], body).await;
+        assert_eq!(r.status, 400, "{why}: {}", String::from_utf8_lossy(&r.body));
+    }
+    let r = e.req("GET", "/v1/docs/events:publish", &[], None).await;
+    assert_eq!(r.status, 405);
+
+    // An Agent token and a missing token are refused.
+    let t = e
+        .req(
+            "POST",
+            "/v1/docs/agent-tokens",
+            &[],
+            Some(&json!({"name": "reader", "scopes": ["docs:read"], "all_drives": true})),
+        )
+        .await;
+    assert_eq!(t.status, 201, "{}", String::from_utf8_lossy(&t.body));
+    let token = t.json()["token"].as_str().unwrap().to_owned();
+    let auth = format!("Bearer {token}");
+    let r = common::http::request(
+        e.addr,
+        "POST",
+        "/v1/docs/events:publish",
+        &[("Authorization", &auth)],
+        Some(&ok.to_string()),
+    )
+    .await;
+    assert_eq!(r.status, 403, "{}", String::from_utf8_lossy(&r.body));
+    let r = common::http::request(
+        e.addr,
+        "POST",
+        "/v1/docs/events:publish",
+        &[],
+        Some(&ok.to_string()),
+    )
+    .await;
+    assert_eq!(r.status, 401);
+    // Nothing of the refused calls was appended.
+    let evs = events(&e).await;
+    assert_eq!(
+        evs.iter()
+            .filter(|v| v["type"] == "db.source_changed")
+            .count(),
+        1
+    );
+    e.finish().await;
+}
