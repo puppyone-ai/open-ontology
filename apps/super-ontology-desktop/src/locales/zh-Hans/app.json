@@ -793,7 +793,7 @@
   "unlinked.reason.parse_failed": "无法读取（{code}）",
   "unlinked.reason.too_large": "文件太大，无法处理",
   "unlinked.reason.encrypted": "已加密，无法读取",
-  "unlinked.reason.no_shared": "找到 {count} 个对象，没有一个在别处出现",
+  "unlinked.reason.no_relations": "找到 {count} 个对象，没有一个在别处出现",
   "unlinked.reason.entity": "只出现在一个文件里",
   "unlinked.reason.entity_in": "只出现在 {file}",
   "home.next.unlinked.title": "{count} 个文件与其他文件没有任何共同内容",

@@ -31,7 +31,7 @@ describe("why a file is not connected", () => {
     expect(fileReason(file({ pending_review: 2 }), null)).toEqual({ kind: "review" });
     expect(fileReason(file({}), { entities: 0, connected: false })).toEqual({ kind: "no_entities" });
     expect(fileReason(file({ pending_review: 1 }), { entities: 0, connected: false })).toEqual({ kind: "review" });
-    expect(fileReason(file({}), { entities: 3, connected: false })).toEqual({ kind: "no_shared", count: 3 });
+    expect(fileReason(file({}), { entities: 3, connected: false })).toEqual({ kind: "no_relations", count: 3 });
     expect(fileReason(file({}), { entities: 3, connected: true })).toBeNull();
   });
   it("reads the format from the extension, lower case", () => {
@@ -64,14 +64,14 @@ describe("reading the files", () => {
       },
     ));
     const byId = Object.fromEntries(report.files.map((x) => [x.fileId, x.reason]));
-    expect(byId).toEqual({ c: { kind: "no_entities" }, d: { kind: "unsupported", format: "psd" }, e: { kind: "processing" }, g: { kind: "no_shared", count: 1 }, h: { kind: "no_shared", count: 2 } });
+    expect(byId).toEqual({ c: { kind: "no_entities" }, d: { kind: "unsupported", format: "psd" }, e: { kind: "processing" }, g: { kind: "no_relations", count: 1 }, h: { kind: "no_relations", count: 2 } });
     // Islands that touch one file only: the lone entity and the recipe pair (with the file named); ann and proj reach two files.
     expect(report.entities.map((x) => x.key).sort()).toEqual(["FLOUR", "LONELY", "TART"].map((k) => k.toLowerCase()));
     expect(report.entities.find((x) => x.key === "lonely")).toMatchObject({ fileIds: ["g"], fileNames: ["g.md"] });
     expect(report.complete).toBe(true);
     expect(report.read).toContain("a");
     expect(reasonForRow({ ...f("a") } as never, report)).toBeNull();
-    expect(reasonForRow({ ...f("h") } as never, report)).toEqual({ kind: "no_shared", count: 2 });
+    expect(reasonForRow({ ...f("h") } as never, report)).toEqual({ kind: "no_relations", count: 2 });
   });
 
   it("a thing in two files connects both; a relation reaching a thing another file holds connects too", async () => {
@@ -176,7 +176,7 @@ describe("the not-connected list", () => {
         { fileId: "f3", driveId: "d", path: "a/p.pdf", name: "p.pdf", reason: { kind: "processing" } },
         { fileId: "f4", driveId: "d", path: "a/r.docx", name: "r.docx", reason: { kind: "review" } },
         { fileId: "f5", driveId: "d", path: "a/bad.xlsx", name: "bad.xlsx", reason: { kind: "parse_failed", code: "PARSE_XLSX_CORRUPT" } },
-        { fileId: "f6", driveId: "d", path: "a/lone.md", name: "lone.md", reason: { kind: "no_shared", count: 6 } },
+        { fileId: "f6", driveId: "d", path: "a/lone.md", name: "lone.md", reason: { kind: "no_relations", count: 6 } },
       ],
     })),
   });

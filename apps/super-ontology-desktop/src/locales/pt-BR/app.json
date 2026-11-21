@@ -793,7 +793,7 @@
   "unlinked.reason.parse_failed": "Não foi possível ler ({code})",
   "unlinked.reason.too_large": "Grande demais para processar",
   "unlinked.reason.encrypted": "Criptografado, não pode ser lido",
-  "unlinked.reason.no_shared": "{count, plural, one {# item encontrado, nenhum aparece em outro lugar} other {# itens encontrados, nenhum aparece em outro lugar}}",
+  "unlinked.reason.no_relations": "{count, plural, one {# item encontrado, nenhum aparece em outro lugar} other {# itens encontrados, nenhum aparece em outro lugar}}",
   "unlinked.reason.entity": "Aparece em um só arquivo",
   "unlinked.reason.entity_in": "Aparece só em {file}",
   "home.next.unlinked.title": "{count, plural, one {# arquivo não compartilha nada com os outros} other {# arquivos não compartilham nada com os outros}}",

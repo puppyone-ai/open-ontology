@@ -793,7 +793,7 @@
   "unlinked.reason.parse_failed": "읽을 수 없습니다({code})",
   "unlinked.reason.too_large": "너무 커서 처리할 수 없습니다",
   "unlinked.reason.encrypted": "암호화되어 읽을 수 없습니다",
-  "unlinked.reason.no_shared": "{count, plural, other {#개를 찾았지만 다른 곳에는 나타나지 않습니다}}",
+  "unlinked.reason.no_relations": "{count, plural, other {#개를 찾았지만 다른 곳에는 나타나지 않습니다}}",
   "unlinked.reason.entity": "한 파일에만 나타납니다",
   "unlinked.reason.entity_in": "{file}에만 나타납니다",
   "home.next.unlinked.title": "{count, plural, other {다른 파일과 공유하는 것이 없는 파일 #개}}",

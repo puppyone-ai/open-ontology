@@ -793,7 +793,7 @@
   "unlinked.reason.parse_failed": "Could not be read ({code})",
   "unlinked.reason.too_large": "Too large to process",
   "unlinked.reason.encrypted": "Encrypted, so it can't be read",
-  "unlinked.reason.no_shared": "Found {count, plural, one {# thing} other {# things}}, none appear elsewhere",
+  "unlinked.reason.no_relations": "Found {count, plural, one {# thing} other {# things}}, none appear elsewhere",
   "unlinked.reason.entity": "Appears in one file only",
   "unlinked.reason.entity_in": "Only appears in {file}",
   "home.next.unlinked.title": "{count, plural, one {# file shares nothing with your other files} other {# files share nothing with your other files}}",

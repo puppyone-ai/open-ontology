@@ -21,7 +21,7 @@ export type UnlinkedReason =
   | { kind: "too_large" }
   | { kind: "encrypted" }
   /** Entities found, but none of them appears in any other file or source. `count` is how many things the file holds. */
-  | { kind: "no_shared"; count: number }
+  | { kind: "no_relations"; count: number }
   /** An entity on an island that touches one file only (the atlas side); `file` names that file. */
   | { kind: "entity"; file?: string };
 
@@ -58,7 +58,7 @@ export function fileReason(file: FileLike, facts: FileFacts | null): UnlinkedRea
   if (!READY.has(file.state)) return null;
   if (facts === null) return pending(file) ? { kind: "review" } : null;
   if (facts.entities === 0) return pending(file) ? { kind: "review" } : { kind: "no_entities" };
-  return facts.connected ? null : { kind: "no_shared", count: facts.entities };
+  return facts.connected ? null : { kind: "no_relations", count: facts.entities };
 }
 
 export type UnlinkedFile = { fileId: string; driveId: string; path: string; name: string; reason: UnlinkedReason };
@@ -233,7 +233,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
     switch (reason.kind) {
       case "unsupported": return t("app.unlinked.reason.unsupported", { format: reason.format });
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
-      case "no_shared": return t("app.unlinked.reason.no_shared", { count: reason.count });
+      case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
       case "entity": return reason.file ? t("app.unlinked.reason.entity_in", { file: reason.file }) : t("app.unlinked.reason.entity");
       default: return t(`app.unlinked.reason.${reason.kind}`);
     }
