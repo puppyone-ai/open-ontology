@@ -576,3 +576,142 @@ async fn objectstore_fs_scopes_are_none_for_a_non_utf8_top_level_name() {
     std::fs::write(bad.join("a.md"), b"x").unwrap();
     assert_eq!(s.list_scopes().await.unwrap(), None, "listed whole instead");
 }
+
+#[test]
+fn objectstore_fs_skip_rule_adds_project_folders_and_compiled_files() {
+    assert_eq!(skip_reason_fs("target", true), Some(SkipReason::Junk));
+    for name in [
+        "dist",
+        "build",
+        "venv",
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        ".next",
+        ".cache",
+        ".idea",
+        ".vscode",
+        ".git",
+    ] {
+        assert!(skip_reason_fs(name, true).is_some(), "{name}");
+    }
+    for name in ["a.pyc", "B.PYO"] {
+        assert!(skip_reason_fs(name, false).is_some(), "{name}");
+        assert!(
+            skip_reason_fs(name, true).is_none(),
+            "{name} as a folder is not compiled code"
+        );
+    }
+    // A file with a project folder's name is an ordinary file; the legacy rule (also used by S3 listings) is unchanged.
+    for name in ["build", "target", "dist"] {
+        assert!(skip_reason_fs(name, false).is_none(), "{name}");
+        assert!(skip_reason(name).is_none(), "{name}");
+    }
+    assert!(!is_skipped_path("proj/build/out.md"));
+    assert!(is_skipped_fs_path("proj/build/out.md"));
+    assert!(is_skipped_fs_path("proj/app/__init__.pyc"));
+    assert!(
+        !is_skipped_fs_path("proj/docs/build"),
+        "a last segment is a file"
+    );
+    assert!(!is_skipped_fs_path("proj/src/lib.rs"));
+}
+
+fn fs_project(t: &Tmp) {
+    for rel in [
+        "README.md",
+        "src/main.rs",
+        "src/lib.rs",
+        "src/gen/api.rs",
+        "target/debug/app",
+        "dist/bundle.js",
+        "build/out.txt",
+        "venv/lib/site.py",
+        "node_modules/dep/index.js",
+        "pkg/__pycache__/m.pyc",
+        "pkg/mod.py",
+        "pkg/mod.pyc",
+        "logs/run.log",
+        "logs/keep.txt",
+        "secrets/key.txt",
+        "pkg/local/notes.md",
+        "pkg/local/gen/x.md",
+    ] {
+        t.put(rel, b"x");
+    }
+    t.put(".gitignore", b"src/gen/\n*.log\n!logs/keep.log\n");
+    t.put(".ooignore", b"secrets/\n");
+    t.put("pkg/local/.gitignore", b"gen/\n");
+}
+
+#[tokio::test]
+async fn objectstore_fs_listing_applies_project_defaults_and_ignore_files() {
+    let t = Tmp::new("ignore");
+    fs_project(&t);
+    let s = src(&t);
+    let (entries, complete) = all(&s, 1000).await;
+    assert!(complete);
+    assert_eq!(
+        keys(&entries),
+        [
+            "README.md",
+            "logs/keep.txt",
+            "pkg/local/notes.md",
+            "pkg/mod.py",
+            "src/lib.rs",
+            "src/main.rs",
+        ]
+    );
+    // Pages of one entry give the same answer (the cursor walk prunes the same folders).
+    let (paged, complete) = all(&s, 1).await;
+    assert!(complete);
+    assert_eq!(keys(&paged), keys(&entries));
+}
+
+#[tokio::test]
+async fn objectstore_fs_scoped_listing_applies_the_same_rules() {
+    let t = Tmp::new("ignore-scope");
+    fs_project(&t);
+    let s = src(&t);
+    let scopes = s.list_scopes().await.unwrap().unwrap();
+    assert_eq!(
+        scopes,
+        ["", "logs", "pkg", "src"],
+        "target, dist, build, venv, node_modules and secrets are no scopes"
+    );
+    let mut found = Vec::new();
+    for scope in &scopes {
+        let page = s.list_scope(scope, None, 1000).await.unwrap();
+        assert!(page.complete);
+        found.extend(keys(&page.entries));
+    }
+    found.sort();
+    let (whole, _) = all(&s, 1000).await;
+    assert_eq!(found, keys(&whole));
+    // A scope the root rules ignore lists as nothing.
+    let page = s.list_scope("secrets", None, 1000).await.unwrap();
+    assert!(page.entries.is_empty());
+}
+
+#[tokio::test]
+async fn objectstore_fs_lists_thirty_thousand_files_in_pages_without_stalling() {
+    let t = Tmp::new("big");
+    for dir in 0..600 {
+        for file in 0..50 {
+            t.put(&format!("src/d{dir}/f{file}.ts"), b"x");
+        }
+    }
+    for file in 0..2000 {
+        t.put(&format!("node_modules/m/f{file}.js"), b"x");
+    }
+    let s = src(&t);
+    let started = std::time::Instant::now();
+    let (entries, complete) = all(&s, 10_000).await;
+    assert!(complete);
+    assert_eq!(entries.len(), 30_000);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(20),
+        "{:?}",
+        started.elapsed()
+    );
+}

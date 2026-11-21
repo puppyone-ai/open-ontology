@@ -8,6 +8,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod ignore;
+
 use unicode_normalization::UnicodeNormalization;
 
 use super::{DocPath, DocPathError, MAX_PATH_BYTES, MAX_SEGMENT_BYTES, ObjectMeta};
@@ -60,9 +62,38 @@ pub fn skip_reason(name: &str) -> Option<SkipReason> {
     None
 }
 
+/// Dependency and build folders of code projects an fs Drive does not read (directories only: a file called `build` is a file).
+pub const PROJECT_DIRS: [&str; 4] = ["target", "dist", "build", "venv"];
+
+/// The rule of an fs Drive for one entry: the built-ins of [`skip_reason`], plus code project folders ([`PROJECT_DIRS`], as directories)
+/// and compiled Python (`*.pyc`, `*.pyo`, as files). `.git`, `.venv`, `.next`, `.cache`, `.idea` and `.vscode` are already hidden names.
+/// The desktop app's copy path and watcher apply the same rule, so a folder copied, linked and watched is read the same way.
+pub fn skip_reason_fs(name: &str, is_dir: bool) -> Option<SkipReason> {
+    if let Some(reason) = skip_reason(name) {
+        return Some(reason);
+    }
+    let project = if is_dir {
+        PROJECT_DIRS.contains(&name)
+    } else {
+        ends_with_ci(name, ".pyc") || ends_with_ci(name, ".pyo")
+    };
+    project.then_some(SkipReason::Junk)
+}
+
 /// True when any segment of a '/'-separated relative path is skipped.
 pub fn is_skipped_path(path: &str) -> bool {
     path.split('/').any(|s| skip_reason(s).is_some())
+}
+
+/// [`is_skipped_path`] with the fs Drive rule ([`skip_reason_fs`]): every segment but the last is a directory, the last is a file.
+pub fn is_skipped_fs_path(path: &str) -> bool {
+    let mut parts = path.split('/').peekable();
+    while let Some(segment) = parts.next() {
+        if skip_reason_fs(segment, parts.peek().is_some()).is_some() {
+            return true;
+        }
+    }
+    false
 }
 
 /// The structural rules of [`DocPath`] on bytes, with no allocation and no
