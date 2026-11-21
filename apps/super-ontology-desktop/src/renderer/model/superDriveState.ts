@@ -1,10 +1,22 @@
-import type { ConnectionSnapshot, EngineEvent, EngineSnapshot } from "../../shared/super-ontology/bridge";
+import type { ConnectionSnapshot, EngineActor, EngineEvent, EngineSnapshot } from "../../shared/super-ontology/bridge";
 import type { Constraint, Drive, FileSummary, ModelConfig, ReviewGroup, ReviewItem, Share, ShareUpdate, TreeDir } from "../../shared/super-ontology/docs-api.generated";
 import { LruMap } from "./lruMap";
 import { INITIAL_ROUTE, type FolderKey, type SuperDriveRoute } from "./superDriveRoute";
 import type { SuperDriveError } from "./superDriveErrors";
 
-export type { EngineEvent, EngineSnapshot };
+export type { EngineActor, EngineEvent, EngineSnapshot };
+
+/** One entry of the "recent changes" feed: what moved, when, and who made it (shown as a small tag). */
+export type ActivityEntry = { key: string; seq: number; type: string; at: string; actor: EngineActor | null; label: string | null };
+
+/** Changes by anything but this window: counted so screens that read the database side load again, and listed with their actor. */
+export type LiveState = {
+  /** Bumped by every `db.*` event (a source added or removed with the CLI, an import or build finished). */
+  dbRevision: number;
+  activity: ActivityEntry[];
+  /** The actor of the last change to each file, by file id. */
+  fileActors: Record<string, EngineActor>;
+};
 
 /** Marks a row whose shown state is a guess waiting for the engine (20-frontend §1.7.5). */
 export type OptimisticMark = { op: "retry"; prev: FileSummary };
@@ -96,6 +108,7 @@ export type SuperDriveState = {
   usage: Record<string, UsageToday>;
   ontology: Record<string, OntologyVersionInfo>;
   notices: Notice[];
+  live: LiveState;
   /** The engine action in flight (start, stop, preflight, ...) and the last failure of one, for the engine page. */
   engineAction: { busy: boolean; error: SuperDriveError | null };
   selection: { driveId: string | null; ids: ReadonlySet<string>; anchorId: string | null; allMatching: boolean };
@@ -127,6 +140,7 @@ export function createInitialState(): SuperDriveState {
     usage: {},
     ontology: {},
     notices: [],
+    live: { dbRevision: 0, activity: [], fileActors: {} },
     engineAction: { busy: false, error: null },
     selection: { driveId: null, ids: new Set(), anchorId: null, allMatching: false },
   };

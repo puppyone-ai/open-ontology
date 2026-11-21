@@ -3,7 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Card, EmptyState, PageHeader, StatusDot } from "@open-ontology/design-system";
 import { Cloud, Database, FolderOpen, HardDrive } from "lucide-react";
 import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDriveProvider";
-import { selectDrives } from "../model/superDriveSelectors";
+import { selectDbRevision, selectDrives } from "../model/superDriveSelectors";
 import type { Drive } from "../../shared/super-ontology/docs-api.generated";
 import { AddSourceMenu } from "./sources/AddSource";
 import { useApp } from "../hooks/useApp";
@@ -24,13 +24,14 @@ export function Sources() {
   const actions = useSuperDriveActions();
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i]));
   const app = useApp();
+  const dbRevision = useSuperDriveSelector(selectDbRevision);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [dbName, setDbName] = useState<string | null>(null);
   const dbs = useLoad(async () => {
     const result = await invoke("cli-db-list", {});
     if (!result.ok) return result;
     return { ok: true as const, value: result.value.ok ? result.value.data?.sources ?? [] : [] as DbSourceInfo[] };
-  }, [app.navTick]);
+  }, [app.navTick, dbRevision]);
   const databases: DbSourceInfo[] = dbs.value ?? [];
   const [initial, setInitial] = useState<{ fileId: string; path: string } | null>(null);
   useEffect(() => { setDetailId(null); setDbName(null); setInitial(null); }, [app.navTick]);

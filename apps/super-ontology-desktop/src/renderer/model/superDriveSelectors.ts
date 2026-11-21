@@ -48,3 +48,8 @@ export const selectConnectionLabel = (state: SuperDriveState) => (state.connecti
 
 /** The newest ontology version any Drive has published, from `ontology.version_published`: screens that read the ontology load again when it moves. */
 export const selectOntologyVersion = (state: SuperDriveState): number => Object.values(state.ontology).reduce((newest, known) => Math.max(newest, known.n), 0);
+
+/** Bumps whenever the CLI or an agent changed a database source or finished an import or build; screens that list databases load again. */
+export const selectDbRevision = (state: SuperDriveState): number => state.live.dbRevision;
+export const selectActivity = (state: SuperDriveState) => state.live.activity;
+export const selectFileActors = (state: SuperDriveState) => state.live.fileActors;

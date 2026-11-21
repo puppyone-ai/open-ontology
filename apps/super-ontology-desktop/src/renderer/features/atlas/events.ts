@@ -44,11 +44,14 @@ export function opsForEvent(event: EngineEvent, context: EventContext): AtlasOp[
       return id && context.mode === "source" && context.hasMember(fileId(id)) ? [{ type: "pulse", id: fileId(id) }] : [];
     }
     // The picture changed in ways the event does not describe: read it again and let the diff say what budded or faded.
+    // (A database the CLI added, removed, imported or built is one of them: tables and relations appear or move.)
     case "files.bulk_changed":
     case "drive.sync_completed":
     case "review.decided":
     case "drive.created":
     case "drive.deleted":
+    case "db.source_changed":
+    case "db.pipeline_changed":
       return [{ type: "refresh" }];
     case "ontology.version_published":
       return [{ type: "breathe" }, { type: "refresh" }];

@@ -10,6 +10,8 @@ import { hasNextStep, runCli, withOperation } from "../../model/cliApi";
 import { createOperationId } from "../../model/operationIds";
 import { CliCommand, CliErrorNotice } from "../shared/Cli";
 import { useApp } from "../../hooks/useApp";
+import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
+import { selectDbRevision } from "../../model/superDriveSelectors";
 import { BuildReview, type Decision } from "./BuildReview";
 
 type Doctor = { status?: string; sources?: { source_id: string; status: string; error?: string; probe?: { capabilities?: Record<string, { state: string; reason?: string }> }; dba_requirements?: { name: string; dba_statement: string | null; observed?: string; required: string }[]; chunk_plans?: { table: { schema: string; name: string }; estimated_rows: number | null; chunks: number }[] }[]; model?: { status: string } };
@@ -144,6 +146,21 @@ export function DatabaseDetail({ source, onBack, onRemoved }: { source: DbSource
     });
     return () => { live = false; };
   }, []);
+
+  // The CLI (or an agent) changed this database's pipeline: read the status and the build record again, unless an import started here is running.
+  const dbRevision = useSuperDriveSelector(selectDbRevision);
+  useEffect(() => {
+    if (dbRevision === 0) return undefined;
+    let live = true;
+    void readPipeline();
+    void invoke("cli-review-read", {}).then((result) => {
+      if (!live || !result.ok || phaseRef.current === "up" || phaseRef.current === "build") return;
+      setBuild(result.value.build); setDigest(result.value.digest);
+      if (result.value.build?.review && result.value.digest) setPhase("review");
+      else if (result.value.build?.status === "complete") setPhase("done");
+    });
+    return () => { live = false; };
+  }, [dbRevision, readPipeline]);
 
   const job = useJob((finished) => {
     if (finished.build) setBuild(finished.build);
