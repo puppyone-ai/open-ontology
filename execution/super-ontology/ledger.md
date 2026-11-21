@@ -337,6 +337,10 @@
 | SO-F-S20-56 | D74 | merged | feat/super-ontology (车道 AC 并入) | f7cbb45df → f7cbb45df | — | — | Hold the statements of an unconfirmed speaker again |
 | SO-F-S20-57 | D74 | merged | feat/super-ontology (车道 AC 并入) | 58a454727 → 58a454727 | — | — | Assert the speaker hold in the live and unit tests |
 | SO-F-S20-58 | D74 | merged | feat/super-ontology (车道 AC 并入) | c6fe014bd → c6fe014bd | — | — | Show a recording that waits for speaker confirmation as such |
+| SO-F-S20-60 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | 2355f1e6d → 2355f1e6d | — | — | Lock the engine image rebuilt for the final build |
+| SO-F-S20-61 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | 259065e1b → 259065e1b | — | — | Let the model dialog take file paths for the address and the key |
+| SO-F-S20-62 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | efa3ba06d → efa3ba06d | — | — | Press Show more before reading the Not connected list |
+| SO-F-S20-63 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | c80f2ad27 → c80f2ad27 | — | — | Allow the model on folders the app creates on this computer |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
