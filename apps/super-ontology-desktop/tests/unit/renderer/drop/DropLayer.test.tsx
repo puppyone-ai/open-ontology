@@ -136,7 +136,7 @@ describe("dropping", () => {
     expect(d.ensureMyFiles).toHaveBeenCalledTimes(1);
     expect(d.enqueue).toHaveBeenCalledWith("d-my", "", files);
     expect(screen.getByTestId("drop-toast")).toHaveAttribute("data-queued", "3");
-    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Added 3 files to “My files”");
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("This drop: 3 files added to “My files”");
   });
 
   it("sends a drop on a source row to that source and a drop in its folder into the folder", async () => {
@@ -146,7 +146,7 @@ describe("dropping", () => {
     await act(async () => { await Promise.resolve(); });
     expect(d.ensureMyFiles).not.toHaveBeenCalled();
     expect(d.enqueue).toHaveBeenCalledWith("d-team", "sub/dir", expect.any(Array));
-    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("Added 3 files to “Team docs”");
+    expect(screen.getByTestId("drop-toast-title")).toHaveTextContent("This drop: 3 files added to “Team docs”");
   });
 
   it("copies nothing onto a cloud source and says nothing was queued", async () => {

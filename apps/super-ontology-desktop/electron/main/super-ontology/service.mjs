@@ -180,7 +180,7 @@ export function createSuperOntologyService({
     const usable = snapshot.status === "healthy" || snapshot.status === "degraded";
     if (usable === engineUsable) return;
     engineUsable = usable;
-    if (usable) { void managedFolder.merge().then(() => driveWatcher.refresh()); void driveWatcher.refresh(); hostDecode?.start(); }
+    if (usable) { void driveWatcher.refresh(); void managedFolder.merge().then((done) => { if (done.action === "merged" || done.action === "renamed") void driveWatcher.refresh(); }); hostDecode?.start(); }
     else { driveWatcher.stopAll(); hostDecode?.stop(); }
   });
   const driveFileTokens = createDriveFileTokens();
