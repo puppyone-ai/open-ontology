@@ -64,16 +64,35 @@ test.describe("drop overlay", () => {
 });
 
 test.describe("after a drop", () => {
+  const BATCH = "00000000-0000-4000-8000-0000000000b1";
   test("the toast offers to keep the folder in sync, and the list shows each item", async ({ page }) => {
     await open(page);
     await drag(page, "[data-testid=screen-sources]", "drop", ["ProjectA", "loose.md"]);
-    await page.locator("[data-testid=drop-toast]").waitFor();
+    await page.locator("[data-testid=drop-toast][data-phase=copying]").waitFor();
     await page.locator("[data-testid=upload-tray]").waitFor();
-    await page.evaluate(() => (window as unknown as { __push: (push: unknown) => void }).__push({ channel: "upload-progress", payload: { batchId: "00000000-0000-4000-8000-0000000000b1", items: [
+    await page.evaluate((batchId) => (window as unknown as { __push: (push: unknown) => void }).__push({ channel: "upload-progress", payload: { batchId, items: [
       { itemId: "00000000-0000-4000-8000-000000000100", state: "done", bytesDone: 2048, bytesTotal: 2048, drivePath: "ProjectA/readme.md" },
       { itemId: "00000000-0000-4000-8000-000000000101", state: "copying", bytesDone: 2048, bytesTotal: 4096 },
-    ] } }));
+    ], batch: { phase: "copying", found: 3, bytes: 12288, queued: 3, counts: { done: 1, failed: 0, skipped: 0, cancelled: 0 }, skipped: { hidden: 2, links: 0, junk: 3, temporary: 1, special: 0, gitignore: 2, ooignore: 1 }, skippedSamples: [{ name: ".DS_Store", reason: "hidden" }, { name: "node_modules", reason: "junk" }], roots: [{ path: "/Users/example/dragged/ProjectA", name: "ProjectA", kind: "directory", files: 2 }, { path: "/Users/example/dragged/loose.md", name: "loose.md", kind: "file", files: 1 }], large: [], emptyFolders: 0, unreadable: 0 } } }), BATCH);
     await page.waitForTimeout(400);
     await expect(page).toHaveScreenshot("drop-toast-and-list.png");
+  });
+
+  test("while the folder is walked: Preparing… with the files found so far", async ({ page }) => {
+    await open(page, { drop: "preparing" });
+    await drag(page, "[data-testid=screen-sources]", "drop", ["Project"]);
+    await page.locator("[data-testid=drop-toast][data-phase=preparing]").waitFor();
+    await page.locator("[data-testid=drop-toast-found]").waitFor();
+    await page.waitForTimeout(400);
+    await expect(page).toHaveScreenshot("drop-toast-preparing.png");
+  });
+
+  test("a big folder asks: link it (recommended) or copy it", async ({ page }) => {
+    await open(page, { drop: "choice" });
+    await drag(page, "[data-testid=screen-sources]", "drop", ["proj"]);
+    await page.locator("[data-testid=drop-toast][data-phase=choice]").waitFor();
+    await page.locator("[data-testid=drop-link-folder]").waitFor();
+    await page.waitForTimeout(400);
+    await expect(page).toHaveScreenshot("drop-toast-big-folder-choice.png");
   });
 });
