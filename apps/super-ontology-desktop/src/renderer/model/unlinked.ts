@@ -15,8 +15,8 @@ import { pool } from "../features/atlas/adapter";
 export type UnlinkedReason =
   | { kind: "no_entities" }
   | { kind: "unsupported"; format: string }
-  /** Many unsupported files (a code folder: .ts, .py, .rs ...) shown as one entry with a count instead of one row each. `formats` names the biggest few. */
-  | { kind: "unsupported_group"; count: number; formats: string }
+  /** Many files with the same reason (a code folder: unsupported formats, still processing, no entities) shown as one entry with a count instead of one row each. `detail` names the biggest formats of unsupported files. */
+  | { kind: "group"; of: GroupedKind; count: number; detail?: string }
   | { kind: "processing" }
   | { kind: "review" }
   | { kind: "parse_failed"; code: string }
@@ -29,6 +29,8 @@ export type UnlinkedReason =
   /** An entity on an island that touches one file only (the atlas side); `file` names that file. */
   | { kind: "entity"; file?: string };
 
+/** The reasons that can hold thousands of files at once; above a few they are shown as one entry each. */
+export type GroupedKind = "unsupported" | "processing" | "no_entities" | "review" | "parse_failed" | "too_large" | "encrypted";
 export type FileFacts = { entities: number; connected: boolean };
 /** The fields of a file summary this module reads. */
 export type FileLike = { id?: string; drive_id?: string; state: string; state_code?: unknown; path: string; format?: unknown; pending_review?: unknown };
@@ -257,7 +259,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
   return (reason) => {
     switch (reason.kind) {
       case "unsupported": return t("app.unlinked.reason.unsupported", { format: reason.format });
-      case "unsupported_group": return t("app.unlinked.reason.unsupported_group", { count: reason.count, formats: reason.formats });
+      case "group": return t(`app.unlinked.reason.group.${reason.of}`, { count: reason.count, formats: reason.detail ?? "" });
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
       case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
       case "speaker": return t("app.unlinked.reason.speaker", { count: reason.count });
