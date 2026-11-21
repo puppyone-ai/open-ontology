@@ -13,6 +13,9 @@ import { DatabaseDetail } from "./sources/DatabaseDetail";
 import { useLoad } from "../hooks/useLoad";
 import { dbKind } from "../../shared/super-ontology/db-kinds.mjs";
 import type { DbSourceInfo } from "../../shared/super-ontology/bridge";
+import { databaseDropAttributes, dropAttributes } from "../features/drop/dropTarget";
+import { useUploadQueueState } from "../model/uploadStore";
+import { isUploadActive } from "../model/queue/uploadQueue";
 
 export function driveKindLabelId(drive: Drive): string {
   if (drive.backend !== "fs") return "app.sources.kind.cloud";
@@ -32,6 +35,10 @@ export function Sources() {
     return { ok: true as const, value: result.value.ok ? result.value.data?.sources ?? [] : [] as DbSourceInfo[] };
   }, [app.navTick]);
   const databases: DbSourceInfo[] = dbs.value ?? [];
+  // Files being added right now, per source: the row says so while the engine has not listed them yet.
+  const uploads = useUploadQueueState();
+  const adding = new Map<string, number>();
+  for (const item of uploads.items) if (isUploadActive(item)) adding.set(item.driveId, (adding.get(item.driveId) ?? 0) + 1);
   const [initial, setInitial] = useState<{ fileId: string; path: string } | null>(null);
   useEffect(() => { setDetailId(null); setDbName(null); setInitial(null); }, [app.navTick]);
   const focus = app.focusFile;
@@ -61,7 +68,7 @@ export function Sources() {
       ) : (
         <Card className="so-list" data-testid="source-list">
           {databases.map((entry) => (
-            <button key={`db-${entry.name}`} type="button" className="so-list-row" onClick={() => setDbName(entry.name)} data-testid="source-row" data-name={entry.name} data-kind="database" data-state="idle">
+            <button key={`db-${entry.name}`} type="button" className="so-list-row" onClick={() => setDbName(entry.name)} data-testid="source-row" data-name={entry.name} data-kind="database" data-state="idle" {...databaseDropAttributes(entry.name)}>
               <span className="so-list-lead"><Database size={16} strokeWidth={1.5} aria-hidden="true" /></span>
               <span className="so-list-text">
                 <span className="so-list-title so-truncate">{entry.name}</span>
@@ -74,13 +81,13 @@ export function Sources() {
             const fresh = drive.freshness?.state;
             const Glyph = drive.backend !== "fs" ? Cloud : drive.name === "My files" ? HardDrive : FolderOpen;
             return (
-              <button key={drive.id} type="button" className="so-list-row" onClick={() => open(drive.id)} data-testid="source-row" data-name={drive.name} data-freshness={fresh} data-kind={drive.backend !== "fs" ? "cloud" : drive.name === "My files" ? "managed" : "folder"} data-state={fresh === "syncing" || fresh === "processing" ? "syncing" : fresh === "degraded" || fresh === "held" ? "error" : "idle"}>
+              <button key={drive.id} type="button" className="so-list-row" onClick={() => open(drive.id)} data-testid="source-row" data-name={drive.name} data-freshness={fresh} data-kind={drive.backend !== "fs" ? "cloud" : drive.name === "My files" ? "managed" : "folder"} data-state={fresh === "syncing" || fresh === "processing" || adding.has(drive.id) ? "syncing" : fresh === "degraded" || fresh === "held" ? "error" : "idle"} {...dropAttributes(drive)}>
                 <span className="so-list-lead"><Glyph size={16} strokeWidth={1.5} aria-hidden="true" /></span>
                 <span className="so-list-text">
                   <span className="so-list-title so-truncate">{drive.name}</span>
                   <span className="so-list-sub so-truncate">{t(driveKindLabelId(drive))} · {t("app.sources.files", { count: drive.files_total ?? 0 })}</span>
                 </span>
-                {drive.status === "paused" ? <StatusDot tone="warning" label={t("app.sources.paused")} /> : <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : fresh ? "accent" : "neutral"} label={fresh ? t(`app.freshness.${fresh}`) : t("app.home.sources.unknown")} pulse={fresh === "processing" || fresh === "syncing"} />}
+                {adding.has(drive.id) ? <StatusDot tone="accent" label={t("app.sources.uploading", { count: adding.get(drive.id) ?? 0 })} pulse /> : drive.status === "paused" ? <StatusDot tone="warning" label={t("app.sources.paused")} /> : <StatusDot tone={fresh === "up_to_date" ? "success" : fresh === "degraded" || fresh === "held" ? "warning" : fresh ? "accent" : "neutral"} label={fresh ? t(`app.freshness.${fresh}`) : t("app.home.sources.unknown")} pulse={fresh === "processing" || fresh === "syncing"} />}
                 {(drive.pending_review ?? 0) > 0 && <span className="so-badge" data-tone="warning">{t("app.sources.review", { count: drive.pending_review ?? 0 })}</span>}
               </button>
             );

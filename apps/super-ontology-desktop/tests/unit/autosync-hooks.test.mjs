@@ -24,7 +24,9 @@ describe("the page exposes what P07 measures", () => {
 describe("uploads on the source page hand the bridge real File objects", () => {
   it("the picker and the drop pass an Array copy, never the live FileList", () => {
     const detail = read("src/renderer/screens/sources/SourceDetail.tsx");
-    expect(detail).toMatch(/enqueueFiles\(drive\.id, path, Array\.from\(event\.dataTransfer\.files\)\)/u);
+    // The drop itself is the window-wide layer's (features/drop): the files are copied out of the list inside the drop handler.
+    expect(read("src/renderer/features/drop/DropLayer.tsx")).toMatch(/const files = Array\.from\(event\.dataTransfer\?\.files \?\? \[\]\)/u);
+    expect(detail).not.toMatch(/dataTransfer/u);
     expect(detail).toMatch(/const picked = e\.target\.files \? Array\.from\(e\.target\.files\) : \[\]/u);
     expect(detail).not.toMatch(/enqueueFiles\(drive\.id, path, e\.target\.files\)/u);
   });
