@@ -14,6 +14,7 @@ import { createMainWindow, createSenderCheck, isExternalUrl, originOf } from "./
 import { DRIVE_FILE_SCHEME, DRIVE_FILE_SCHEME_PRIVILEGES, registerDriveFileProtocol } from "./super-ontology/drive-file-protocol.mjs";
 import { createNativePathPicker } from "./super-ontology/path-picker.mjs";
 import { createSuperOntologyService } from "./super-ontology/service.mjs";
+import { resolveEngineState } from "./super-ontology/engine-state.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const APP_NAME = "Super Ontology";
@@ -58,10 +59,14 @@ async function main() {
   const pickPath = createNativePathPicker({
     dialog, translate: t, getOwnerWindow: (sender) => BrowserWindow.fromWebContents(sender) ?? null,
   });
+  // One engine per user: by default the CLI's own state directory, so `oo` and this app share one `oo serve` (see engine-state.mjs).
+  const engineState = await resolveEngineState({ legacyDir: path.join(engineRoot, "state"), choice: initial.engineData });
   const service = createSuperOntologyService({
     logger,
     platformHost: { platform: "macos" },
-    paths: { stateDir: path.join(engineRoot, "state"), logsDir: path.join(engineRoot, "logs"), managedFilesDir: path.join(userData, "My files") },
+    engineState,
+    relaunch: () => { app.relaunch(); app.exit(0); },
+    paths: { stateDir: engineState.stateDir, dataDir: engineRoot, logsDir: path.join(engineRoot, "logs"), managedFilesDir: path.join(userData, "My files") },
     settings,
     bundledExecutable: () => bundledExecutablePath({ resourcesPath, appRoot }),
     readEnvironment: createEnvironmentReader(),

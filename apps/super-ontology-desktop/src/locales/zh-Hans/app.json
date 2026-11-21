@@ -803,5 +803,16 @@
   "home.next.unlinked.title": "{count} 个文件与其他文件没有任何共同内容",
   "home.next.unlinked.body": "查看每个文件被排除的原因以及怎么处理。",
   "home.next.unlinked.action": "查看未关联",
-  "ask.step.disagreements": "核对各来源对“{arg}”是否一致"
+  "ask.step.disagreements": "核对各来源对“{arg}”是否一致",
+  "engine.shared.title": "与 CLI 共用",
+  "engine.shared.body": "应用与 oo 命令行共用同一个引擎和同一份数据。Agent 通过 oo 所做的操作会实时显示在这里。",
+  "engine.shared.attached": "已连接到正在运行的引擎。",
+  "engine.shared.owned": "由本应用启动；oo 命令也会使用它。",
+  "engine.shared.profile": "当前配置",
+  "engine.shared.profile.none": "无",
+  "engine.shared.folder": "引擎数据文件夹",
+  "engine.shared.legacy": "本应用还保留着自己早先的数据。改用 CLI 的数据即可看到 oo 看到的内容，旧数据仍留在磁盘上。",
+  "engine.shared.useCli": "改用 CLI 的数据",
+  "engine.shared.useApp": "改用本应用自己的数据",
+  "engine.shared.appOwn": "本应用使用自己的数据文件夹，与 CLI 分开。"
 }

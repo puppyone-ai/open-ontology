@@ -14,7 +14,7 @@ const CHANNELS = new Set([
   "usage-read", "ontology-versions", "model-config-read", "model-config-save", "fact-correct", "entity-merge", "entity-split", "constraints-list",
   "media-decode", "media-decode-cancel", "atlas-links", "ontology-schema",
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
-  "engine-connect-remote", "engine-disconnect-remote",
+  "engine-connect-remote", "engine-disconnect-remote", "engine-state-read", "engine-data-use",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
   "ask-run", "ask-cancel",
   "cli-db-kinds", "cli-db-list", "cli-db-check", "cli-db-add", "cli-db-remove", "cli-db-test",

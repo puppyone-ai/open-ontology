@@ -803,5 +803,16 @@
   "home.next.unlinked.title": "{count, plural, one {# arquivo não compartilha nada com os outros} other {# arquivos não compartilham nada com os outros}}",
   "home.next.unlinked.body": "Veja por que cada um ficou de fora e o que fazer.",
   "home.next.unlinked.action": "Ver não conectados",
-  "ask.step.disagreements": "Verificando se as fontes divergem sobre “{arg}”"
+  "ask.step.disagreements": "Verificando se as fontes divergem sobre “{arg}”",
+  "engine.shared.title": "Compartilhado com a CLI",
+  "engine.shared.body": "O app e a linha de comando oo usam um só motor e os mesmos dados. O que um agente faz com o oo aparece aqui na hora.",
+  "engine.shared.attached": "Conectado a um motor que já estava em execução.",
+  "engine.shared.owned": "Iniciado por este app; os comandos oo também o usam.",
+  "engine.shared.profile": "Perfil ativo",
+  "engine.shared.profile.none": "Nenhum",
+  "engine.shared.folder": "Pasta de dados do motor",
+  "engine.shared.legacy": "Este app também guarda dados próprios de antes. Use os dados da CLI para ver o que o oo vê. Os dados antigos continuam no disco.",
+  "engine.shared.useCli": "Usar os dados da CLI",
+  "engine.shared.useApp": "Usar os dados próprios do app",
+  "engine.shared.appOwn": "Este app usa a própria pasta de dados, separada da CLI."
 }

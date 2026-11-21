@@ -7,7 +7,7 @@ export const RUNTIMES = Object.freeze(["auto", "docker", "lite"]);
 export const RENDERER_WRITABLE = Object.freeze(["language"]);
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  language: "system", ooExecutable: null, runtime: "auto", keepEngineOnQuit: false, remote: null,
+  language: "system", ooExecutable: null, runtime: "auto", keepEngineOnQuit: false, remote: null, engineData: null,
 });
 
 /** Returns a clean settings object; anything invalid falls back to the default of its key. */
@@ -22,6 +22,7 @@ export function sanitizeSettings(input) {
     runtime: RUNTIMES.includes(source.runtime) ? source.runtime : DEFAULT_SETTINGS.runtime,
     keepEngineOnQuit: source.keepEngineOnQuit === true,
     remote,
+    engineData: source.engineData === "cli" || source.engineData === "app" ? source.engineData : null,
   };
 }
 

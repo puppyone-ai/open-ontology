@@ -1,3 +1,4 @@
+import { readActiveProfile } from "./engine-state.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
@@ -41,7 +42,8 @@ import { createUploadService } from "./upload-service.mjs";
  * @param {{
  *   logger?: any,
  *   platformHost?: { platform: string, executableDiscovery?: { captureEnvironment: Function } },
- *   paths?: { stateDir?: string, managedFilesDir?: string, logsDir?: string, liteRuntimeDir?: string, exchangeDir?: string },
+ *   engineState?: object, relaunch?: () => void,
+ *   paths?: { stateDir?: string, dataDir?: string, managedFilesDir?: string, logsDir?: string, liteRuntimeDir?: string, exchangeDir?: string },
  *   settings?: { read: () => Promise<object>, update: (patch: object) => Promise<object> },
  *   bundledExecutable?: () => (string | null),
  *   broadcast?: (channel: string, payload: unknown) => void,
@@ -67,6 +69,8 @@ export function createSuperOntologyService({
   logger = console,
   platformHost = { platform: "macos" },
   paths = {},
+  engineState = null,
+  relaunch = () => {},
   settings = null,
   bundledExecutable = () => null,
   broadcast = () => {},
@@ -88,9 +92,11 @@ export function createSuperOntologyService({
   onFileWritten,
 } = {}) {
   const stateDir = paths.stateDir;
+  /** The app's own data (secrets, stack file, write-back journal, logs) stays beside the app even when the engine state is the CLI's. */
+  const dataDir = paths.dataDir ?? (stateDir ? path.dirname(stateDir) : null);
   /** The engine reads host decode output from here (`OO_DOCS_EXCHANGE`); only macOS has a helper that writes it. */
   const exchangeRoot = platformHost.platform === "macos" && stateDir ? (paths.exchangeDir ?? path.join(stateDir, "exchange")) : null;
-  const logsDir = paths.logsDir ?? (stateDir ? path.join(path.dirname(stateDir), "logs") : undefined);
+  const logsDir = paths.logsDir ?? (dataDir ? path.join(dataDir, "logs") : undefined);
   const snapshots = createSnapshotStore({ broadcast });
   const grants = createGrantStore();
   const locator = createEngineLocator({
@@ -156,7 +162,7 @@ export function createSuperOntologyService({
   const hostMount = stateDir
     ? createHostMount({ stateDir, fs: fsPromises, fetchPackFile: async (packId, relativePath) => (await client.request("packFile", { params: { pid: packId, path: relativePath } })).value })
     : null;
-  const secretFiles = createSecretFiles({ directory: stateDir ? path.join(path.dirname(stateDir), "secrets") : undefined, fsPromises });
+  const secretFiles = createSecretFiles({ directory: dataDir ? path.join(dataDir, "secrets") : undefined, fsPromises });
   const nodePlatform = platformHost.platform === "macos" ? "darwin" : platformHost.platform;
   const mediaDecoder = createMediaDecoder({
     helperPath: mediaDecoderPath, exchangeRoot, platform: nodePlatform, logger, fsPromises,
@@ -177,17 +183,18 @@ export function createSuperOntologyService({
   });
   const driveFileTokens = createDriveFileTokens();
   const driveFileHandler = createDriveFileHandler({ tokens: driveFileTokens });
+  const liveHooks = { onEvent: null };
   const eventBridge = createEventBridge({
-    lifecycle, snapshots, broadcast, logger,
+    lifecycle, snapshots, broadcast, logger, onEvent: (event) => liveHooks.onEvent?.(event),
     ...(fetchImpl ? { fetchImpl } : {}), ...(timers ? { timers } : {}), ...(bridgeTuning ? { tuning: bridgeTuning } : {}),
   });
 
-  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles, managedFilesDir: paths.managedFilesDir ?? (stateDir ? path.join(path.dirname(stateDir), "My files") : null), fsPromises });
+  const controlHandlers = createControlHandlers({ client, grants, lifecycle, secretFiles, managedFilesDir: paths.managedFilesDir ?? (dataDir ? path.join(dataDir, "My files") : null), fsPromises });
   // Write-back of accepted editor suggestions (F-S8-03). The journal records suggestion, Share, files and evidence for every write;
   // `onFileWritten` lets the host nudge the Git auto-commit flow (its watcher also sees the change).
   const writeback = createWriteback({
     client, logger, onWritten: onFileWritten ?? (async () => undefined),
-    journalFile: stateDir ? path.join(path.dirname(stateDir), "writeback", "journal.jsonl") : null,
+    journalFile: dataDir ? path.join(dataDir, "writeback", "journal.jsonl") : null,
   });
   const suggestHandlers = createSuggestHandlers({ client, writeback });
 
@@ -207,9 +214,9 @@ export function createSuperOntologyService({
   };
 
   /** Request handlers keyed by channel name; the IPC layer validates the request first. */
-  const cliHandlers = createCliHandlers({ locator, getUserExecutable: () => userExecutable, client, grants, stateDir, fsPromises, platform: nodePlatform });
+  const cliHandlers = createCliHandlers({ locator, getUserExecutable: () => userExecutable, client, grants, stateDir, dataDir, stateRegistryDir: stateDir, configDir: engineState?.configDir ?? null, liveHooks, fsPromises, platform: nodePlatform });
   const askHandlers = createAskHandlers({
-    client, credentials: () => lifecycle.credentials(), secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, broadcast,
+    client, credentials: () => lifecycle.credentials(), secretsDirectory: dataDir ? path.join(dataDir, "secrets") : null, fsPromises, broadcast,
     ...(fetchImpl ? { fetchImpl } : {}),
     listDatabases: async () => {
       const listed = await cliHandlers["cli-db-list"]({});
@@ -224,7 +231,7 @@ export function createSuperOntologyService({
     ...createAgentHandlers({ client }),
     ...cliHandlers,
     ...createFileHandlers({ client, tokens: driveFileTokens }),
-    ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: stateDir ? path.join(path.dirname(stateDir), "secrets") : null, fsPromises, mediaDecoder, hostMount }),
+    ...createOntologyHandlers({ client, grants, revealPath, secretsDirectory: dataDir ? path.join(dataDir, "secrets") : null, fsPromises, mediaDecoder, hostMount }),
     ...Object.fromEntries(["drive-create", "drive-update", "drive-delete"].map((name) => [name, watchesDrives(name, controlHandlers[name])])),
     "engine-read": async () => snapshots.get(),
     "engine-preflight": async () => { await loadSettings(); return lifecycle.preflight(); },
@@ -258,6 +265,24 @@ export function createSuperOntologyService({
       runtimeChoice = runtime;
       await saveSettings();
       return lifecycle.preflight();
+    },
+    /** Where the engine state lives (shared with the CLI or the app's own) and the active `oo` profile; paths only, never a token. */
+    "engine-state-read": async () => {
+      const live = lifecycle.credentials();
+      const profile = engineState?.configDir ? await readActiveProfile({ configDir: engineState.configDir, fsPromises }) : null;
+      return {
+        mode: engineState?.mode ?? "app", decided: engineState?.decided ?? false, stateDir, cliDir: engineState?.cliDir ?? null,
+        legacyDir: engineState?.legacyDir ?? null, legacyHasData: engineState?.legacyHasData ?? false, cliHasData: engineState?.cliHasData ?? false,
+        shared: (engineState?.mode ?? "app") === "cli", attached: live !== null && snapshots.peek().ownedByDesktop === false,
+        profile,
+      };
+    },
+    /** "Use the CLI's data" (or back to the app's own): saves the choice and restarts the app, which reads it at start-up. */
+    "engine-data-use": async ({ mode }) => {
+      await loadSettings();
+      await settings?.update({ engineData: mode });
+      setTimeout(() => relaunch(), 300).unref?.();
+      return { mode, relaunching: true };
     },
     "engine-restart": async () => { await loadSettings(); return lifecycle.restart(); },
     "engine-set-keep": async ({ keepEngineOnQuit }) => {

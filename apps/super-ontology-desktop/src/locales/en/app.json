@@ -803,5 +803,16 @@
   "home.next.unlinked.title": "{count, plural, one {# file shares nothing with your other files} other {# files share nothing with your other files}}",
   "home.next.unlinked.body": "See why each one is left out, and what to do about it.",
   "home.next.unlinked.action": "See not connected",
-  "ask.step.disagreements": "Checking whether sources disagree about “{arg}”"
+  "ask.step.disagreements": "Checking whether sources disagree about “{arg}”",
+  "engine.shared.title": "Shared with the CLI",
+  "engine.shared.body": "The app and the oo command line use one engine and one set of data. What an agent does through oo shows up here as it happens.",
+  "engine.shared.attached": "Attached to an engine that was already running.",
+  "engine.shared.owned": "Started by this app; oo commands use it too.",
+  "engine.shared.profile": "Active profile",
+  "engine.shared.profile.none": "None",
+  "engine.shared.folder": "Engine data folder",
+  "engine.shared.legacy": "This app also holds data of its own from before. Use the CLI's data to see what oo sees. The old data stays on disk.",
+  "engine.shared.useCli": "Use the CLI's data",
+  "engine.shared.useApp": "Use this app's own data",
+  "engine.shared.appOwn": "This app uses its own data folder, separate from the CLI."
 }

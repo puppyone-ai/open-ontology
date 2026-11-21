@@ -7,7 +7,7 @@ export const SUPER_ONTOLOGY_CHANNEL_PREFIX = "super-ontology:";
 /** L7 and L8 channels (Cloud proxy mode, audit, runtime): placed after the ontology channels. */
 export const ENTERPRISE_CHANNELS = Object.freeze([
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
-  "engine-connect-remote", "engine-disconnect-remote",
+  "engine-connect-remote", "engine-disconnect-remote", "engine-state-read", "engine-data-use",
 ]);
 
 /** Agent › Connect: Agent tokens (docs-api 1.6) and the connection text for an Agent. Nothing here writes into another app's files. */
@@ -184,6 +184,8 @@ const REQUEST_FIELDS = Object.freeze({
   "engine-set-executable": Object.freeze({ grantId: field.grantId }),
   "engine-connect-remote": Object.freeze({ url: field.string(2048), tokenGrantId: field.grantId }),
   "engine-disconnect-remote": Object.freeze({}),
+  "engine-state-read": Object.freeze({}),
+  "engine-data-use": Object.freeze({ mode: field.enum(["cli", "app"]) }),
   "engine-set-runtime": Object.freeze({ runtime: field.enum(["auto", "docker", "lite"]) }),
   "events-subscribe": Object.freeze({ sinceSeq: field.optional(field.int(0, Number.MAX_SAFE_INTEGER)) }),
   "events-since": Object.freeze({ instanceId: field.string(128), seq: field.int(0, Number.MAX_SAFE_INTEGER) }),

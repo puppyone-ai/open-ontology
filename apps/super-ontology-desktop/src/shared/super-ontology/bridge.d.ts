@@ -87,7 +87,9 @@ export type DrivePatchRequest = {
 };
 
 /** Persistent events carry `seq`; transient ones (`file.progress`) do not. Payload shapes follow events.v1.schema.json. */
-export type EngineEvent = { seq?: number; type: string; at: string; drive_id?: string | null; data: Record<string, unknown> };
+/** Who caused a change (docs-api 1.13): the CLI, this app, an MCP client, an Agent token (by name) or the cloud. Absent for changes the engine made on its own. */
+export type EngineActor = { kind: "cli" | "app" | "mcp" | "agent" | "cloud" | "local"; name?: string };
+export type EngineEvent = { seq?: number; type: string; at: string; drive_id?: string | null; data: Record<string, unknown>; actor?: EngineActor };
 export type ConnectionSnapshot = { state: ConnectionState; attempt: number; nextRetryAt: string | null; lastSeq: number };
 export type ResyncReason = "cursor_expired" | "engine_restarted" | "gap";
 export type UploadProgressPush = { batchId: string; items: { itemId: string; state: UploadItemState | string; bytesDone: number; bytesTotal: number; code?: string; drivePath?: string }[] };
@@ -162,6 +164,12 @@ export type DiagnosticsReport = {
   version: CliResult<{ name?: string; version?: string }> | null; check: CliResult | null; runtime: CliResult | null; serve: CliResult | null;
 };
 
+export type EngineStateInfo = {
+  mode: "cli" | "app"; decided: boolean; stateDir: string | null; cliDir: string | null; legacyDir: string | null;
+  legacyHasData: boolean; cliHasData: boolean; shared: boolean; attached: boolean;
+  profile: { name: string; gatewayHost: string | null; saved: boolean } | null;
+};
+
 export type SuperOntologyChannelMap = {
   "engine-read": { request: { operationId?: string }; value: EngineSnapshot };
   "engine-preflight": { request: { operationId?: string }; value: EngineSnapshot };
@@ -169,6 +177,10 @@ export type SuperOntologyChannelMap = {
   "engine-set-runtime": { request: { runtime: "auto" | "docker" | "lite"; operationId?: string }; value: EngineSnapshot };
   "engine-connect-remote": { request: { url: string; tokenGrantId: string; operationId?: string }; value: EngineSnapshot };
   "engine-disconnect-remote": { request: { operationId?: string }; value: EngineSnapshot };
+  /** Where the engine keeps its state (shared with the `oo` CLI, or the app's own) and the active `oo` profile (name and Gateway host only). */
+  "engine-state-read": { request: { operationId?: string }; value: EngineStateInfo };
+  /** Picks the state the engine uses from the next start: "cli" (shared with `oo`) or "app" (the app's own directory). The app restarts. */
+  "engine-data-use": { request: { mode: "cli" | "app"; operationId?: string }; value: { mode: "cli" | "app"; relaunching: true } };
   "engine-stop": { request: { operationId?: string }; value: EngineSnapshot };
   "engine-restart": { request: { operationId?: string }; value: EngineSnapshot };
   "engine-set-keep": { request: { keepEngineOnQuit: boolean; operationId?: string }; value: EngineSnapshot };

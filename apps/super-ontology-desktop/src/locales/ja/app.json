@@ -803,5 +803,16 @@
   "home.next.unlinked.title": "{count, plural, other {# 件のファイルがほかのファイルと何も共有していません}}",
   "home.next.unlinked.body": "それぞれが外れている理由と対処法を確認できます。",
   "home.next.unlinked.action": "つながりなしを見る",
-  "ask.step.disagreements": "「{arg}」について出典間の食い違いを確認中"
+  "ask.step.disagreements": "「{arg}」について出典間の食い違いを確認中",
+  "engine.shared.title": "CLI と共有",
+  "engine.shared.body": "アプリと oo コマンドラインは同じエンジンと同じデータを使います。Agent が oo で行った操作はここにすぐ表示されます。",
+  "engine.shared.attached": "すでに動作中のエンジンに接続しています。",
+  "engine.shared.owned": "このアプリが起動しました。oo コマンドも同じものを使います。",
+  "engine.shared.profile": "アクティブなプロファイル",
+  "engine.shared.profile.none": "なし",
+  "engine.shared.folder": "エンジンのデータフォルダ",
+  "engine.shared.legacy": "このアプリには以前の独自データも残っています。CLI のデータに切り替えると oo と同じ内容が見えます。古いデータはディスクに残ります。",
+  "engine.shared.useCli": "CLI のデータを使う",
+  "engine.shared.useApp": "アプリ独自のデータを使う",
+  "engine.shared.appOwn": "このアプリは CLI とは別の独自データフォルダを使っています。"
 }
