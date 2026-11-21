@@ -2464,6 +2464,13 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
                                           AND j.created_at >= f.state_since \
                                           AND j.state IN ('queued', 'running', 'succeeded'))) \
+             OR EXISTS (SELECT 1 FROM _oo_docs.file f \
+                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \
+                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \
+                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \
+                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                           AND j.created_at >= x.updated_at \
+                                           AND j.state IN ('queued', 'running', 'succeeded'))) \
              OR EXISTS (SELECT 1 FROM _oo_docs.file f JOIN _oo_docs.file_version fv \
                           ON fv.id = f.current_version_id \
                          WHERE f.state = 'duplicate' AND f.deleted_at IS NULL \
