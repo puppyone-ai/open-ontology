@@ -347,6 +347,7 @@
   "first.engine.ready": "준비 완료",
   "first.engine.settings": "설정 열기",
   "first.engine.help": "설정에서 해결한 뒤 돌아오세요.",
+  "first.engine.logPath": "로그 파일: {path}",
   "first.add.title": "첫 파일 추가하기",
   "first.add.body": "메모, 회의록, 스프레드시트 같은 문서 몇 개로 시작하세요.",
   "first.add.drop": "여기에 파일 놓기",

@@ -95,7 +95,7 @@ export function createEngineLifecycle({
   }
 
   function update(patch) {
-    return snapshots.update({ keepEngineOnQuit: keepEngine, ...patch });
+    return snapshots.update({ keepEngineOnQuit: keepEngine, logPath: serveLog?.file ?? null, ...patch });
   }
 
   function setTerminal(status, code, extra = {}) {
@@ -258,6 +258,7 @@ export function createEngineLifecycle({
         return;
       }
       if (timers.now() > startDeadline) {
+        logger.warn?.("Super Drive engine start timed out: serve.json never appeared.", { gen, waitedMs: t.startTimeoutMs });
         terminate(process).catch(() => {});
         generation += 1;
         setTerminal("crashed", "SO_SERVE_START_TIMEOUT");
@@ -366,6 +367,7 @@ export function createEngineLifecycle({
 
   function handleExit(gen, code, signal) {
     if (stale(gen)) return;
+    logger.warn?.("Super Drive engine process exited.", { code, signal, gen });
     clearTimers();
     credentials = null;
     owned = false;

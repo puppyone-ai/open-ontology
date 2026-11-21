@@ -359,7 +359,11 @@ describe("engine lifecycle", () => {
     env.FAKE_OO_START_DELAY_MS = "60000";
     create({ lifecycleTuning: { pollIntervalMs: 30, startTimeoutMs: 400, stopGraceMs: 500 } });
     await call("engine-start");
-    expect(await untilStatus("crashed")).toMatchObject({ code: "SO_SERVE_START_TIMEOUT" });
+    const crashed = await untilStatus("crashed");
+    expect(crashed).toMatchObject({ code: "SO_SERVE_START_TIMEOUT" });
+    // The person is told where the log is, and the app log says why the start failed.
+    expect(crashed.logPath).toBe(`${tools.root}/logs/super-ontology-serve.log`);
+    expect(warnings.some((entry) => String(entry[0]).includes("serve.json never appeared"))).toBe(true);
   });
 
   it("removes a stale serve.json left by a killed daemon before starting", async () => {

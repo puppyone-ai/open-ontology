@@ -16,6 +16,7 @@ export function createIdleEngineSnapshot() {
     ownedByDesktop: false,
     keepEngineOnQuit: false,
     startedAt: null,
+    logPath: null,
     mode: "local",
     remote: null,
     connection: { state: "offline", attempt: 0, nextRetryAt: null, lastSeq: 0 },
@@ -42,6 +43,8 @@ export function toPublicSnapshot(snapshot) {
     ownedByDesktop: snapshot.ownedByDesktop === true,
     keepEngineOnQuit: snapshot.keepEngineOnQuit === true,
     startedAt: snapshot.startedAt ?? null,
+    // Where the engine writes its log: shown with a failed start so the person can find it.
+    logPath: typeof snapshot.logPath === "string" ? snapshot.logPath : null,
     mode: snapshot.mode === "remote" ? "remote" : "local",
     remote: snapshot.mode === "remote" && typeof snapshot.remote?.host === "string" ? { host: snapshot.remote.host } : null,
     connection: {

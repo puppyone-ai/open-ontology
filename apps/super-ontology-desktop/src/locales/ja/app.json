@@ -347,6 +347,7 @@
   "first.engine.ready": "準備完了",
   "first.engine.settings": "設定を開く",
   "first.engine.help": "設定で解決してから、こちらに戻ってください。",
+  "first.engine.logPath": "ログファイル: {path}",
   "first.add.title": "最初のファイルを追加",
   "first.add.body": "メモ、議事録、スプレッドシートなど、まず数点のドキュメントから始めましょう。",
   "first.add.drop": "ここにファイルをドロップ",

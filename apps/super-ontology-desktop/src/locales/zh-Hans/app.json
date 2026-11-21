@@ -347,6 +347,7 @@
   "first.engine.ready": "已就绪",
   "first.engine.settings": "打开设置",
   "first.engine.help": "可以先到设置中解决，再回到这里。",
+  "first.engine.logPath": "日志文件：{path}",
   "first.add.title": "添加你的第一批文件",
   "first.add.body": "先放几份文档：笔记、会议纪要、一张表格。",
   "first.add.drop": "把文件拖到这里",
