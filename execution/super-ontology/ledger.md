@@ -344,6 +344,7 @@
 | SO-F-S20-62 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | efa3ba06d → efa3ba06d | — | — | Press Show more before reading the Not connected list |
 | SO-F-S20-63 | D85 | merged | feat/super-ontology (App 车道 AE 并入) | c80f2ad27 → c80f2ad27 | — | — | Allow the model on folders the app creates on this computer |
 | SO-F-S20-64 | D85 | merged | feat/super-ontology (车道 AE2 并入) | 152cffd7a → 152cffd7a | — | — | Lock the engine image with the settle step |
+| SO-F-S20-65 | D85 | merged | feat/super-ontology (App 车道 AE4 并入) | 2d9e7ce9f → 2d9e7ce9f | — | deploy/docs/images.lock.json | Lock the engine image built for the redelivered app |
 | SO-F-S20-72 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4e8668f80 → 4e8668f80 | — | — | Keep the engine logs of a failed T2 attempt and name the missing engine |
 | SO-F-S20-71 | D83 | merged | feat/super-ontology (车道 AF 并入) | 517d24093 → 517d24093 | — | — | Show a failed engine start on the first-run screen with Try again and the log path |
 | SO-F-S21-01 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | e45faa3d2 → e45faa3d2 | — | apps/super-ontology-desktop/ | Walk dropped folders with the engine's ignore rules and say what was skipped |
