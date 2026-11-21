@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s] [--no-start]   (`-` reads stdin; no --drive uses the managed folder `default`; starts `oo serve` itself when none runs unless --no-start)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]\n  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)\n  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify\n  oo docs versions | constraints\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  oo docs runtime install|status   (the Docker-free parser environment under the state dir)\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s] [--no-start]   (`-` reads stdin; no --drive uses the managed folder `My files`; starts `oo serve` itself when none runs unless --no-start)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]\n  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)\n  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify\n  oo docs versions | constraints\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  oo docs runtime install|status   (the Docker-free parser environment under the state dir)\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -124,15 +124,26 @@ pub(super) fn out(p: &Parsed, protocol: &str, mut v: Value, human: String) {
 /// A drive by id or name.
 pub(super) async fn drive_id(d: &Daemon, want: &str) -> Result<String, CliError> {
     let list = d.get_json("/v1/docs/drives?limit=200").await?;
+    // The managed folder is "My files"; an earlier `default` still answers to its old name.
+    let wanted = if super::upload::is_managed(want)
+        && list["items"].as_array().into_iter().flatten().any(|i| {
+            i["name"]
+                .as_str()
+                .is_some_and(|n| n.eq_ignore_ascii_case(super::upload::MANAGED_DRIVE))
+        }) {
+        super::upload::MANAGED_DRIVE
+    } else {
+        want
+    };
     list["items"]
         .as_array()
         .into_iter()
         .flatten()
         .find(|i| {
-            i["id"] == want
+            i["id"] == wanted
                 || i["name"]
                     .as_str()
-                    .is_some_and(|n| n.eq_ignore_ascii_case(want))
+                    .is_some_and(|n| n.eq_ignore_ascii_case(wanted))
         })
         .and_then(|i| i["id"].as_str().map(str::to_owned))
         .ok_or_else(|| {
