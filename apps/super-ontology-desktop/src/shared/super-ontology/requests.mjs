@@ -19,7 +19,7 @@ export const ASK_CHANNELS = Object.freeze(["ask-run", "ask-cancel"]);
 /** Request/response channels implemented so far. `electron/preload.cjs` repeats this list (a sandboxed preload cannot import it); a test keeps both equal. */
 export const SUPER_ONTOLOGY_CHANNELS = Object.freeze([
   "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
-  "engine-reveal-logs", "pick-path", "engine-set-executable",
+  "engine-reveal-logs", "pick-path", "grant-dropped-folder", "engine-set-executable",
   "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
   "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel",
   "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
@@ -181,6 +181,7 @@ const REQUEST_FIELDS = Object.freeze({
   "engine-set-keep": Object.freeze({ keepEngineOnQuit: field.boolean }),
   "engine-reveal-logs": Object.freeze({ target: field.optional(field.enum(["logs", "state"])) }),
   "pick-path": Object.freeze({ purpose: field.enum(["drive-root", "mount-target", "oo-executable", "token-file", "ca-file", "export-dir"]) }),
+  "grant-dropped-folder": Object.freeze({ path: field.string(4096) }),
   "engine-set-executable": Object.freeze({ grantId: field.grantId }),
   "engine-connect-remote": Object.freeze({ url: field.string(2048), tokenGrantId: field.grantId }),
   "engine-disconnect-remote": Object.freeze({}),

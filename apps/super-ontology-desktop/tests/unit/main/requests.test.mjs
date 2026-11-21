@@ -117,18 +117,18 @@ describe("parseSuperOntologyRequest", () => {
   });
 
   it("covers exactly the implemented channels", () => {
-    expect([...SUPER_ONTOLOGY_CHANNELS].slice(0, 33)).toEqual([
+    expect([...SUPER_ONTOLOGY_CHANNELS].slice(0, 34)).toEqual([
       "engine-read", "engine-preflight", "engine-start", "engine-stop", "engine-restart", "engine-set-keep",
-      "engine-reveal-logs", "pick-path", "engine-set-executable",
+      "engine-reveal-logs", "pick-path", "grant-dropped-folder", "engine-set-executable",
       "drives-list", "drive-get", "drive-create", "my-files-ensure", "drive-update", "drive-delete", "drive-sync", "drive-tree", "files-list",
       "events-subscribe", "events-since", "events-unsubscribe", "upload-start", "upload-cancel",
       "files-retry", "files-retry-matching", "file-detail", "file-blocks", "file-preview-url",
       "suggestions-list", "suggestions-digest", "suggestion-diff", "suggestion-decide", "suggestions-decide-source",
     ]);
     // The L4 and L6 channels follow, exactly as ontology-requests.mjs lists them.
-    expect([...SUPER_ONTOLOGY_CHANNELS].slice(33, 33 + ONTOLOGY_CHANNELS.length)).toEqual([...ONTOLOGY_CHANNELS]);
+    expect([...SUPER_ONTOLOGY_CHANNELS].slice(34, 34 + ONTOLOGY_CHANNELS.length)).toEqual([...ONTOLOGY_CHANNELS]);
     // The L7 and L8 channels (Cloud mode, audit, runtime) come last.
-    expect([...SUPER_ONTOLOGY_CHANNELS].slice(33 + ONTOLOGY_CHANNELS.length)).toEqual([...ENTERPRISE_CHANNELS, ...AGENT_CHANNELS, ...ASK_CHANNELS, ...CLI_CHANNELS]);
+    expect([...SUPER_ONTOLOGY_CHANNELS].slice(34 + ONTOLOGY_CHANNELS.length)).toEqual([...ENTERPRISE_CHANNELS, ...AGENT_CHANNELS, ...ASK_CHANNELS, ...CLI_CHANNELS]);
   });
 
   it("validates the upload channels", () => {

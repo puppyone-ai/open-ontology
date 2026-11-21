@@ -287,6 +287,12 @@ export function createSuperOntologyService({
       if (!selected) return { cancelled: true };
       return grants.issue(sender, purpose, selected);
     },
+    "grant-dropped-folder": async ({ path: dropped }, { sender } = {}) => {
+      if (!path.isAbsolute(dropped)) throw new SuperOntologyError("SO_INVALID_REQUEST");
+      const real = await fs.realpath(dropped).catch(() => null);
+      if (!real || !(await fs.stat(real).then((stat) => stat.isDirectory(), () => false))) throw new SuperOntologyError("SO_UPLOAD_SOURCE_MISSING");
+      return grants.issue(sender, "drive-root", real);
+    },
     "engine-set-executable": async ({ grantId }, { sender } = {}) => {
       const selected = grants.resolve(sender, grantId, "oo-executable");
       const environment = await locator.environment();
