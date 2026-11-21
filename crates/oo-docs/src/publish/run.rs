@@ -254,6 +254,61 @@ pub async fn load_ir_index(
     Ok(index)
 }
 
+/// Files that are `indexed` with nothing left that could publish them and nothing a person can act on (10 5.3, 4.2).
+///
+/// A file reaches `published` when a version publishes a fact or alias that cites it. A file whose model output was only
+/// alias candidates (the spec: a model alias is a draft candidate, 6 step 6, and has no review item) or facts below the
+/// queue floor cites nothing that can publish, so it stayed `indexed` for ever with no review item to explain it. Such a
+/// file settles: no pending review item cites it and no eligible draft of its current version is still unpublished
+/// (an eligible draft that a gate blocked, or a statement of an unconfirmed speaker, keeps it waiting).
+async fn settle_candidates(
+    tx: &mut sqlx::PgConnection,
+    eligible: &[String],
+) -> Result<Vec<(String, String)>, PublishError> {
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT f.id::text, f.current_version_id::text FROM _oo_docs.file f \
+          WHERE f.state = 'indexed' AND f.deleted_at IS NULL AND f.current_version_id IS NOT NULL \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
+                             WHERE r.source_file_id = f.id AND r.status = 'pending') \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j \
+                             WHERE j.file_id = f.id AND j.version_id = f.current_version_id \
+                               AND j.kind IN ('extract_rules', 'extract_llm') \
+                               AND j.state IN ('queued', 'running')) \
+            AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
+                              JOIN _oo_docs.fact x ON x.id = e.target_id \
+                             WHERE e.target_kind = 'fact' AND e.version_id = f.current_version_id \
+                               AND e.withdrawn_at IS NULL AND x.status = 'draft' \
+                               AND x.id = ANY($1::text[]::uuid[])) \
+          ORDER BY 1",
+    )
+    .bind(eligible)
+    .fetch_all(&mut *tx)
+    .await?;
+    Ok(rows)
+}
+
+async fn settle_file(
+    tx: &mut sqlx::PgConnection,
+    file_id: &str,
+    version_id: &str,
+) -> Result<bool, PublishError> {
+    let req = Transition {
+        file_id,
+        expect_from: FileState::parse("indexed"),
+        to: FileState::Published,
+        code: None,
+        retryable: false,
+        version_id: Some(version_id),
+        attempt: None,
+        detail_json: Some(&json!({"settled": "nothing_left_to_publish"}).to_string()),
+    };
+    match transition_in_tx(tx, &req).await {
+        Ok(_) => Ok(true),
+        Err(TransitionError::Conflict { .. } | TransitionError::NotFound) => Ok(false),
+        Err(e) => Err(PublishError::Transition(e.to_string())),
+    }
+}
+
 /// Publish eligible drafts as the next ontology version.
 pub async fn publish(
     conn: &mut PgConnection,
@@ -511,6 +566,17 @@ pub async fn publish(
         && retractions.is_empty()
         && !uncovered_duplicate
     {
+        let settle = settle_candidates(&mut tx, &eligible).await?;
+        let ids: Vec<String> = settle.iter().map(|(f, _)| f.clone()).collect();
+        sqlx::query(
+            "SELECT id FROM _oo_docs.file WHERE id = ANY($1::text[]::uuid[]) ORDER BY id FOR UPDATE",
+        )
+        .bind(&ids)
+        .fetch_all(&mut *tx)
+        .await?;
+        for (file_id, version_id) in &settle {
+            settle_file(&mut tx, file_id, version_id).await?;
+        }
         tx.commit().await?;
         return Ok(PublishOutcome::NoChange {
             blocked_facts,
@@ -658,9 +724,11 @@ pub async fn publish(
     // appends an event, which holds the `event_head` lock until commit, and a
     // stage that holds a file row waits for that lock. Taking the rows one by
     // one after the first event would deadlock with it.
+    let settle = settle_candidates(&mut tx, &eligible).await?;
     let lock_ids: Vec<String> = files
         .iter()
         .map(|(f, _, _)| f.clone())
+        .chain(settle.iter().map(|(f, _)| f.clone()))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
@@ -690,6 +758,12 @@ pub async fn publish(
             Ok(_) => files_published += 1,
             Err(TransitionError::Conflict { .. } | TransitionError::NotFound) => {}
             Err(e) => return Err(PublishError::Transition(e.to_string())),
+        }
+    }
+
+    for (file_id, version_id) in &settle {
+        if seen_files.insert(file_id.clone()) && settle_file(&mut tx, file_id, version_id).await? {
+            files_published += 1;
         }
     }
 

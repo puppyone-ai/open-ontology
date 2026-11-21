@@ -660,3 +660,75 @@ async fn compile_from_the_store_matches_the_memory_reader_and_respects_scope() {
     );
     fx.finish(db).await;
 }
+
+/// A file whose model output is only alias drafts (no review item, below the publish line) used to stay `indexed` for ever: the
+/// rules facts had published while it was still extracting, and nothing later cited it from a published fact or alias.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_file_with_only_alias_drafts_left_settles_as_published() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_pub_settle";
+    let mut fx = Fx::new(db).await;
+    let text =
+        "Weekly launch sync on Tuesdays 10:00. Budget review monthly. Readiness check biweekly.\n";
+    let (version_id, _, _) = fx.plant("notes/meeting-cadence.md", text.as_bytes()).await;
+    // The rules output is published first (early publish); the file is still extracting meanwhile.
+    fx.index(
+        "notes/other.md",
+        b"# Other\n\nBudget review is owned by Ana Lima.\n",
+    )
+    .await;
+    let _ = fx.publish().await;
+    // The model's only output: an alias saved as a draft at 5000 bp, with its evidence in the file.
+    let entity: String = sqlx::query_scalar("SELECT id::text FROM _oo_docs.entity LIMIT 1")
+        .fetch_one(&mut fx.admin)
+        .await
+        .unwrap();
+    let alias_id = uuid();
+    sqlx::query(
+        "INSERT INTO _oo_docs.alias (id, entity_id, alias, norm_alias, origin, confidence_bp, status) \
+         VALUES ($1::uuid, $2::uuid, 'budget review (model)', 'budget review (model)', 'llm', 5000, 'draft')",
+    )
+    .bind(&alias_id)
+    .bind(&entity)
+    .execute(&mut fx.admin)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, block_id, anchor, quote_b3, origin) \
+         SELECT gen_random_uuid(), 'alias', $1::uuid, $2::uuid, b3, block_id, anchor, quote_b3, origin \
+           FROM _oo_docs.evidence WHERE target_kind = 'entity' LIMIT 1",
+    )
+    .bind(&alias_id)
+    .bind(&version_id)
+    .execute(&mut fx.admin)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE _oo_docs.file SET state = 'indexed', current_version_id = $1::uuid WHERE path = 'notes/meeting-cadence.md'")
+        .bind(&version_id)
+        .execute(&mut fx.admin)
+        .await
+        .unwrap();
+    let before: String = sqlx::query_scalar(
+        "SELECT state FROM _oo_docs.file WHERE path = 'notes/meeting-cadence.md'",
+    )
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap();
+    assert_eq!(before, "indexed");
+    let _ = fx.publish().await;
+    let after: String = sqlx::query_scalar(
+        "SELECT state FROM _oo_docs.file WHERE path = 'notes/meeting-cadence.md'",
+    )
+    .fetch_one(&mut fx.admin)
+    .await
+    .unwrap();
+    assert_eq!(after, "published", "alias drafts must not hold the file");
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.alias WHERE status = 'draft'")
+            .await,
+        1,
+        "the alias stays a candidate"
+    );
+    fx.finish(db).await;
+}
