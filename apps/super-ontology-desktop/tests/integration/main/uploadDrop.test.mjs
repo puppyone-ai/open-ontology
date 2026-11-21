@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile 
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createUploadService, ignoreReason, MAX_UPLOAD_ITEMS } from "@so-main/upload-service.mjs";
+import { createUploadService, ignoreReason } from "@so-main/upload-service.mjs";
 
 // Folder walking and the rules of a drop (25 §2): any mix of files and folders, the engine's ignore rules, links, empty folders, repeats.
 const DRIVE_ID = "00000000-0000-4000-8000-000000000001";
@@ -11,7 +11,9 @@ let work; let root; let source; let pushes; let requests;
 function make() {
   requests = [];
   const client = { request: vi.fn(async (name, options) => { requests.push([name, options]); return name === "driveGet" ? { value: { id: DRIVE_ID, backend: "fs", config: { root } } } : { value: { status: "queued" } }; }) };
-  return createUploadService({ client, broadcast: (channel, payload) => pushes.push([channel, payload]) });
+  const service = createUploadService({ client, broadcast: (channel, payload) => pushes.push([channel, payload]) });
+  // `start` answers at once and the walk streams; most of these tests read the finished plan the way the old synchronous answer gave it.
+  return { ...service, raw: service, start: async (input) => { const started = await service.start(input); return { ...started, ...(await service.scanned(started.batchId)) }; } };
 }
 const progresses = () => pushes.filter(([channel]) => channel === "upload-progress").map(([, payload]) => payload);
 /** The last snapshot that lists every item, once all are settled and the sync was asked for (or nothing was copied). */
@@ -64,7 +66,7 @@ describe("walking a mixed drop", () => {
     await put(path.join(source, "ProjectB", "plan.md"));
     await put(path.join(source, "loose.md"));
     const started = await make().start({ driveId: DRIVE_ID, folder: "in", paths: [path.join(source, "ProjectA"), path.join(source, "loose.md"), path.join(source, "ProjectB")] });
-    expect(started.skipped).toEqual({ hidden: 1, links: 0, junk: 1, temporary: 2, special: 0 });
+    expect(started.skipped).toEqual({ hidden: 1, links: 0, junk: 1, temporary: 2, special: 0, gitignore: 0, ooignore: 0 });
     expect(started.skippedSamples.map((entry) => entry.reason).sort()).toEqual(["hidden", "junk", "temporary", "temporary"]);
     expect(started.roots.map(({ name, kind, files }) => [name, kind, files])).toEqual([["ProjectA", "directory", 2], ["loose.md", "file", 1], ["ProjectB", "directory", 1]]);
     await settled(started);
@@ -165,23 +167,18 @@ describe("the same drop twice", () => {
 });
 
 describe("very large drops", () => {
-  it("copies 1,200 files in several batches of changes without freezing, pushing only what changed and one full snapshot at the end", async () => {
+  it("copies 1,200 files with pushes of what changed: the whole list goes out when the rows are released and once more at the end", async () => {
     await Promise.all(Array.from({ length: 1200 }, (_, index) => put(path.join(source, "Big", `d${index % 12}`, `f${index}.md`), `n${index}`)));
     const started = await make().start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "Big")] });
     expect(started.items).toHaveLength(1200);
     const last = await settled(started);
     expect(last.items.every((item) => item.state === "done")).toBe(true);
-    const sizes = progresses().map((entry) => entry.items.length);
-    expect(Math.max(...sizes.slice(0, -1))).toBeLessThan(1200);
-    expect(sizes.at(-1)).toBe(1200);
+    const all = progresses();
+    const sizes = all.map((entry) => entry.items.length);
+    const released = all.findIndex((entry) => (entry.added ?? []).length > 0);
+    expect(sizes.filter((size) => size >= 1200)).toHaveLength(2);
+    expect(Math.max(...sizes.slice(released + 1, -1))).toBeLessThan(1200);
     expect((await tree(root)).length).toBe(1200);
-  }, 60_000);
-
-  it("refuses more files than the engine takes in one Drive, with its own error", async () => {
-    await mkdir(path.join(source, "Huge"));
-    await Promise.all(Array.from({ length: MAX_UPLOAD_ITEMS + 1 }, (_, index) => writeFile(path.join(source, "Huge", `f${index}.md`), "")));
-    await expect(make().start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "Huge")] })).rejects.toMatchObject({ code: "SO_UPLOAD_TOO_MANY" });
-    expect(await readdir(root)).toEqual([]);
   }, 60_000);
 });
 

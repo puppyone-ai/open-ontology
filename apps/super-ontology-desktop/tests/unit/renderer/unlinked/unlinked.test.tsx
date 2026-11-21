@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TestLocalizationProvider } from "@open-ontology/design-system/localization/testing";
 import { mergeCatalogNamespaces } from "@open-ontology/design-system/localization/core";
-import { analyzeUnlinked, fileReason, formatOf, reasonForRow, type UnlinkedReport, type UnlinkedSource } from "../../../../src/renderer/model/unlinked";
-import { applyUnlinked, UNLINKED_GROUP_ID, unlinkedCount } from "../../../../src/renderer/features/atlas/unlinked";
+import { analyzeUnlinked, fileReason, formatOf, reasonForRow, readUnlinked, resetUnlinked, UNLINKED_REFRESH_DEBOUNCE_MS, useUnlinked, type UnlinkedReport, type UnlinkedSource } from "../../../../src/renderer/model/unlinked";
+import { applyUnlinked, GROUP_ENTRY_PREFIX, GROUP_ROWS_MAX, UNLINKED_GROUP_ID, unlinkedCount } from "../../../../src/renderer/features/atlas/unlinked";
 import { AtlasList } from "../../../../src/renderer/features/atlas/AtlasList";
 import type { AtlasData } from "../../../../src/renderer/features/atlas/model";
 import { catalog } from "../../../support/locales";
@@ -160,6 +160,25 @@ describe("the not-connected group of the atlas", () => {
     expect(side[1]!.ref).toEqual({ kind: "file", fileId: "f9", path: "docs/scan.psd" });
     expect(unlinkedCount(data)).toBe(2);
   });
+  it("shows the files of a code folder as one entry per reason, with a count and the biggest formats, not one row each", () => {
+    const formats = ["ts", "ts", "ts", "py", "py", "rs"];
+    const unsupported = Array.from({ length: 28_000 }, (_, index) => ({ fileId: `u${index}`, driveId: "d1", path: `src/f${index}.${formats[index % formats.length]}`, name: `f${index}.${formats[index % formats.length]}`, reason: { kind: "unsupported" as const, format: formats[index % formats.length]! } }));
+    const processing = Array.from({ length: 20_000 }, (_, index) => ({ fileId: `p${index}`, driveId: "d1", path: `src/p${index}.md`, name: `p${index}.md`, reason: { kind: "processing" as const } }));
+    const odd = { fileId: "m1", driveId: "d1", path: "docs/none.md", name: "none.md", reason: { kind: "no_entities" as const } };
+    const out = applyUnlinked(base(), report({ files: [...unsupported, ...processing, odd] }));
+    const side = out.members.filter((m) => m.group === UNLINKED_GROUP_ID);
+    expect(side).toHaveLength(3);
+    expect(side.find((m) => m.id === `${GROUP_ENTRY_PREFIX}unsupported`)).toMatchObject({ reason: { kind: "group", of: "unsupported", count: 28_000, detail: "ts ×14001, py ×9333, rs ×4666" } });
+    expect(side.find((m) => m.id === `${GROUP_ENTRY_PREFIX}processing`)).toMatchObject({ reason: { kind: "group", of: "processing", count: 20_000 } });
+    expect(side.find((m) => m.id === "f:m1")?.reason).toEqual({ kind: "no_entities" });
+    expect(unlinkedCount(out)).toBe(48_001);
+  });
+  it("keeps a few files of one reason as rows", () => {
+    const few = Array.from({ length: GROUP_ROWS_MAX }, (_, index) => ({ fileId: `u${index}`, driveId: "d1", path: `a/f${index}.psd`, name: `f${index}.psd`, reason: { kind: "unsupported" as const, format: "psd" } }));
+    const out = applyUnlinked(base(), report({ files: few }));
+    expect(out.members.filter((m) => m.group === UNLINKED_GROUP_ID)).toHaveLength(GROUP_ROWS_MAX);
+    expect(out.members.some((m) => m.id.startsWith(GROUP_ENTRY_PREFIX))).toBe(false);
+  });
   it("leaves the data alone when everything is connected", () => {
     const data = base();
     expect(applyUnlinked(data, report())).toBe(data);
@@ -192,6 +211,15 @@ describe("the not-connected list", () => {
     })),
   });
   const onReview = vi.fn();
+  it("names a grouped entry with its count and the reason, in plain words", () => {
+    const grouped = applyUnlinked(base(), report({ files: Array.from({ length: 30 }, (_, index) => ({ fileId: `u${index}`, driveId: "d", path: `a/f${index}.ts`, name: `f${index}.ts`, reason: { kind: "unsupported" as const, format: "ts" } })) }));
+    render(<TestLocalizationProvider messages={messages}><AtlasList data={grouped} query="" onOpen={() => undefined} only={UNLINKED_GROUP_ID} /></TestLocalizationProvider>);
+    const rows = screen.getAllByTestId("atlas-list-member");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("30 files");
+    expect(within(rows[0]!).getByTestId("atlas-reason")).toHaveTextContent("In formats the engine doesn’t read: ts ×30");
+    expect(screen.getByTestId("atlas-list-group")).toHaveTextContent("30");
+  });
   it("shows every reason in plain words next to each row, in a group alone when filtered", () => {
     render(<TestLocalizationProvider messages={messages}><AtlasList data={data()} query="" onOpen={() => undefined} only={UNLINKED_GROUP_ID} onReviewSpeakers={onReview} /></TestLocalizationProvider>);
     expect(screen.getAllByTestId("atlas-list-group")).toHaveLength(1);
@@ -218,5 +246,43 @@ describe("the not-connected list", () => {
     expect(screen.getAllByTestId("atlas-reason").length).toBe(8);
     fireEvent.click(head);
     expect(screen.queryAllByTestId("atlas-reason").length).toBe(0);
+  });
+});
+
+describe("reading what is not connected while a big folder is ingested", () => {
+  afterEach(() => { vi.useRealTimers(); resetUnlinked(); });
+  const slowSource = (log: string[], gate: { release: () => void }) => {
+    const base = source([f("a")], { a: { entities: [], facts: [] } });
+    return { ...base, files: async (input: { driveId: string; cursor?: string }) => { log.push("files"); await new Promise<void>((resolve) => { gate.release = resolve; }); return base.files(input); } } as UnlinkedSource;
+  };
+  it("lets a reading for a newer key wait for the one on its way instead of running beside it", async () => {
+    const log: string[] = [];
+    const gate = { release: () => undefined };
+    const slow = slowSource(log, gate);
+    const first = readUnlinked("v1|10", slow);
+    const second = readUnlinked("v2|10", slow);
+    await Promise.resolve();
+    expect(log).toEqual(["files"]);
+    gate.release();
+    await first;
+    await vi.waitFor(() => expect(log).toEqual(["files", "files"]));
+    gate.release();
+    await second;
+  });
+
+  it("shows a report that arrives after its key went stale, and reads the newer key only once the key has stood still", async () => {
+    vi.useFakeTimers();
+    const reads: string[] = [];
+    const src: UnlinkedSource = { ...source([f("a")], { a: { entities: [], facts: [] } }), files: vi.fn(async () => { reads.push("read"); return { ok: true as const, value: { items: [f("a")] as never, next_cursor: null } }; }) };
+    const { result, rerender } = renderHook(({ key }: { key: string }) => useUnlinked(key, { source: src }), { initialProps: { key: "v1|10" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.status).toBe("ready");
+    expect(reads).toHaveLength(1);
+    // The ontology moves on: nothing is read again until the key has stood still, however often it changes.
+    for (const key of ["v2|10", "v3|10", "v4|10"]) { rerender({ key }); await act(async () => { await vi.advanceTimersByTimeAsync(UNLINKED_REFRESH_DEBOUNCE_MS - 1_000); }); }
+    expect(reads).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(reads).toHaveLength(2);
+    expect(result.current.report).not.toBeNull();
   });
 });

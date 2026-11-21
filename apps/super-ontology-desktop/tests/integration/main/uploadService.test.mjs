@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,7 +21,9 @@ function make({ backend = "fs", fsPromises } = {}) {
       return { value: { status: "queued" } };
     }),
   };
-  return createUploadService({ client, broadcast: (channel, payload) => pushes.push([channel, payload]), ...(fsPromises ? { fsPromises } : {}) });
+  const service = createUploadService({ client, broadcast: (channel, payload) => pushes.push([channel, payload]), ...(fsPromises ? { fsPromises } : {}) });
+  // `start` answers at once and the walk streams; these tests read the finished plan the way the old synchronous answer gave it.
+  return { ...service, start: async (input) => { const started = await service.start(input); return { ...started, ...(await service.scanned(started.batchId)) }; } };
 }
 const lastProgress = () => pushes.filter(([channel]) => channel === "upload-progress").at(-1)?.[1];
 /** Pushes carry what changed, so a batch's state is the latest word on each of its items; settled when all of them are final (and the sync was asked for). */
@@ -66,6 +68,8 @@ describe("upload service", () => {
     await writeFile(path.join(root, "a.txt"), "old");
     await writeFile(path.join(root, "a (2).txt"), "old2");
     await writeFile(path.join(source, "a.txt"), "new");
+    // Same size, different modification time: not the same file (the size and time shortcut must not call it a duplicate).
+    await utimes(path.join(root, "a.txt"), new Date("2020-01-01"), new Date("2020-01-01"));
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "", paths: [path.join(source, "a.txt")] });
     const progress = await settled(started);
@@ -87,7 +91,7 @@ describe("upload service", () => {
     await symlink(path.join(tree, "a.md"), path.join(tree, "link.md"));
     const service = make();
     const started = await service.start({ driveId: DRIVE_ID, folder: "in", paths: [tree] });
-    expect(started.skipped).toEqual({ hidden: 1, links: 1, junk: 0, temporary: 2, special: 0 });
+    expect(started.skipped).toEqual({ hidden: 1, links: 1, junk: 0, temporary: 2, special: 0, gitignore: 0, ooignore: 0 });
     await settled(started);
     expect(await listing(path.join(root, "in/Project"))).toEqual(["a.md", "inner"]);
     expect(await readFile(path.join(root, "in/Project/inner/b.md"), "utf8")).toBe("b");

@@ -55,16 +55,23 @@ export function stubBridgeSource(scenario) {
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
         case "drives-list": return drives;
-        // A drop of files and folders: names with a dot are files, the others are folders holding two files; a few names are skipped.
+        // A drop of files and folders: the answer is the batch id; what the main process would push while it walks and copies follows from
+        // the stub (`scenario.drop`: "preparing" only starts the batch, "choice" finds a big folder, anything else releases the rows of a small drop).
         case "upload-start": {
           const names = request.paths.map((entry) => entry.split("/").pop());
-          const items = names.flatMap((name) => (name.includes(".") ? [{ name, relative: name }] : [{ name: "readme.md", relative: name + "/readme.md" }, { name: "deep.txt", relative: name + "/notes/deep.txt" }]));
-          return {
-            batchId: "00000000-0000-4000-8000-0000000000b1",
-            items: items.map((entry, index) => ({ itemId: "00000000-0000-4000-8000-00000000010" + index, name: entry.name, relative: entry.relative, size: 2048 * (index + 1), source: "/Users/example/dragged/" + entry.relative })),
-            roots: names.map((name, index) => ({ path: request.paths[index], name, kind: name.includes(".") ? "file" : "directory", files: name.includes(".") ? 1 : 2 })),
-            skipped: { hidden: 2, links: 0, junk: 1, temporary: 1, special: 0 }, skippedSamples: [{ name: ".DS_Store", reason: "hidden" }, { name: "node_modules", reason: "junk" }], emptyFolders: 0, unreadable: 0,
-          };
+          const batchId = "00000000-0000-4000-8000-0000000000b1";
+          const skipped = { hidden: 2, links: 0, junk: 3, temporary: 1, special: 0, gitignore: 2, ooignore: 1 };
+          const rows = names.flatMap((name) => (name.includes(".") ? [{ name, relative: name }] : [{ name: "readme.md", relative: name + "/readme.md" }, { name: "deep.txt", relative: name + "/notes/deep.txt" }]));
+          const roots = names.map((name, index) => ({ path: request.paths[index], name, kind: name.includes(".") ? "file" : "directory", files: name.includes(".") ? 1 : 2 }));
+          const base = { phase: "scanning", found: 0, bytes: 0, queued: 0, counts: { done: 0, failed: 0, skipped: 0, cancelled: 0 }, skipped: { hidden: 0, links: 0, junk: 0, temporary: 0, special: 0, gitignore: 0, ooignore: 0 }, skippedSamples: [], roots: [], large: [], emptyFolders: 0, unreadable: 0 };
+          const push = (payload) => window.setTimeout(() => window.__push({ channel: "upload-progress", payload: { batchId, items: [], ...payload } }), 30);
+          if (scenario.drop === "preparing") push({ batch: { ...base, found: 4210 } });
+          else if (scenario.drop === "choice") push({ batch: { ...base, phase: "choice", found: 25001, bytes: 2684354560, skipped: { hidden: 5, links: 0, junk: 7, temporary: 0, special: 0, gitignore: 3, ooignore: 1 }, skippedSamples: [{ name: "node_modules", reason: "junk" }, { name: ".git", reason: "hidden" }], roots: [{ path: "/Users/example/dragged/proj", name: "proj", kind: "directory", files: 25001 }], large: [{ path: "/Users/example/dragged/proj", name: "proj", files: 25001, bytes: 2684354560, state: "pending" }] } });
+          else push({
+            added: rows.map((entry, index) => ({ itemId: "00000000-0000-4000-8000-00000000010" + index, name: entry.name, relative: entry.relative, size: 2048 * (index + 1), source: "/Users/example/dragged/" + entry.relative })),
+            batch: { ...base, phase: "copying", found: rows.length, bytes: 12288, queued: rows.length, roots, skipped, skippedSamples: [{ name: ".DS_Store", reason: "hidden" }, { name: "node_modules", reason: "junk" }] },
+          });
+          return { batchId, streaming: true };
         }
         case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request?.driveId), next_cursor: null } : empty;
         case "file-detail": return scenario.unlinked ? detail(request?.fileId) : empty;

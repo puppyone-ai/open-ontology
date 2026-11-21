@@ -27,6 +27,12 @@ describe("path rules", () => {
     for (const kept of ["plan.md", "Projects/a/plan.md", "报告 (2).pdf", "a.b.c.txt", "node_modules_not/x.md"]) expect(isIgnoredPath(kept), kept).toBe(false);
   });
 
+  it("skips the same code project folders as the engine: target, dist, build, venv as folders, compiled files, at any depth", () => {
+    for (const ignored of ["target/debug/app", "web/dist/bundle.js", "build/out.txt", "venv/lib/site.py", "src/mod.pyc", "src/mod.PYO", ".next/cache/a", ".venv/x", ".idea/workspace.xml", ".vscode/settings.json", ".cache/a"]) expect(isIgnoredPath(ignored), ignored).toBe(true);
+    // The last name is taken as a file (a new folder called dist is not known to be one): it is not ignored by name, and a file called build is kept.
+    for (const kept of ["docs/build", "build.rs", "targets/a.md", "distance/a.md", "venv.md", "src/main.rs"]) expect(isIgnoredPath(kept), kept).toBe(false);
+  });
+
   it("turns what fs.watch reports into a DrivePath, or nothing", () => {
     expect(toDrivePath("Projects/plan.md")).toBe("Projects/plan.md");
     expect(toDrivePath(["Projects", "plan.md"].join(path.sep))).toBe("Projects/plan.md");
@@ -87,6 +93,33 @@ describe("the watcher with a fake file system and clock", () => {
     handle.listener("change", "new-name.md");
     await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
     expect(syncs().map((entry) => entry.body)).toEqual([{}, { paths: ["new-name.md"] }]);
+  });
+
+  it("honours .gitignore and .ooignore of the Drive, and a changed rules file is one full sync", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "so-watch-rules-"));
+    try {
+      fs.mkdirSync(path.join(dir, "src", "gen"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".gitignore"), "src/gen/\n*.log\n");
+      fs.writeFileSync(path.join(dir, ".ooignore"), "secrets/\n");
+      watcher.dispose();
+      watcher = createDriveWatcher({ client, logger: { debug: vi.fn() }, watch: fake.watch, exists: () => true, readDrives: async () => [drive(DRIVE, dir)], timers });
+      const handle = await start();
+      for (const name of ["src/gen/api.ts", "run.log", "logs/a.log", "secrets/key.txt"]) handle.listener("change", name);
+      await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+      expect(syncs()).toEqual([]);
+      handle.listener("change", "src/main.ts");
+      await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+      expect(syncs()).toMatchObject([{ body: { paths: ["src/main.ts"] } }]);
+      client.request.mockClear();
+      fs.writeFileSync(path.join(dir, ".ooignore"), "*.ts\n");
+      handle.listener("change", ".ooignore");
+      await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+      expect(syncs()).toMatchObject([{ body: {} }]);
+      client.request.mockClear();
+      handle.listener("change", "src/main.ts");
+      await vi.advanceTimersByTimeAsync(WATCH_DEBOUNCE_MS + 10);
+      expect(syncs()).toEqual([]);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
   it("sends nothing for hidden or junk files", async () => {

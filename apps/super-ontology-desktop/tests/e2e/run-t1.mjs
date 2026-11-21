@@ -13,12 +13,12 @@ const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : u
 const only = option("--only")?.split(",");
 const order = ["engine-boot", "first-run", "home", "sources", "databases", "ontology", "atlas", "query", "agents", "settings"];
 // Needs labelled local database containers (see the scenario header); never part of a default run.
-const optional = ["databases-live", "cli-live"];
+const optional = ["databases-live", "cli-live", "drop-large", "drop-latency"];
 const selected = (only ? [...order, ...optional] : order).filter((name) => !only || only.includes(name));
 const env = { ...process.env, ...(option("--engine") ? { SO_T1_ENGINE: option("--engine") } : {}) };
 const ATTEMPT_MS = 5 * 60_000;
 // The live database path starts containers, runs the real build and calls a real model.
-const attemptMs = (name) => (name === "databases-live" || name === "cli-live" ? 30 * 60_000 : ATTEMPT_MS);
+const attemptMs = (name) => (["databases-live", "cli-live", "drop-large", "drop-latency"].includes(name) ? 30 * 60_000 : ATTEMPT_MS);
 
 function attempt(name) {
   return new Promise((resolve) => {

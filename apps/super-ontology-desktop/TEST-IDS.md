@@ -186,9 +186,11 @@ Rules:
 |---|---|---|
 | `drop-overlay` **(T1)** | the window-wide cover while files or folders are dragged over the app | `data-state` = `ready` `rejected`, `data-target` = `my-files` `source` `cloud` `database` |
 | `drop-overlay-title` `drop-overlay-count` **(T1)** | where the drop goes; how many items are dragged | `data-count` |
-| `drop-toast` **(T1)** | what a drop did (added, skipped, the offer to keep a folder in sync) | `data-queued`, `data-skipped`, `data-sync` = `idle` `busy` `done` `failed` |
-| `drop-toast-title` `drop-toast-skipped` `drop-toast-synced` `drop-toast-close` | parts of the toast | |
+| `drop-toast` **(T1)** | what a drop is doing, from the frame it lands (Preparing, the choice for a big folder, copying, done) and what it did (added, skipped, the offer to keep a folder in sync) | `data-phase` = `preparing` `choice` `copying` `done` `cancelled` `failed`, `data-choice` = `none` `linking` `linked` `copying`, `data-found`, `data-queued`, `data-skipped`, `data-sync` = `idle` `busy` `done` `failed` |
+| `drop-toast-title` `drop-toast-skipped` `drop-toast-synced` `drop-toast-found` `drop-toast-linked` `drop-toast-problem` `drop-toast-close` `drop-toast-cancel` | parts of the toast: the files found so far (`data-count`), the skipped count (`data-count`), the disk space problem, cancel while working | |
+| `drop-choice` | the row of the two actions below | |
+| `drop-link-folder` `drop-copy-folder` **(T1)** | the choice for a big folder: link it (primary, recommended) or copy it | `data-variant` |
 | `drop-keep-in-sync` **(T1)** | "Also keep this folder in sync" | |
-| `upload-tray` `upload-tray-title` `upload-tray-toggle` `upload-tray-close` | the list of files being added | `data-active` `data-failed` `data-done` |
+| `upload-tray` `upload-tray-title` `upload-tray-toggle` `upload-tray-close` | the list of files being added | `data-active` `data-failed` `data-done` `data-total` |
 | `upload-items` `upload-item` `upload-more` | its rows (at most 40) | row: `data-name`, `data-state` = `waiting` `copying` `done` `failed` `cancelled` `skipped` |
 | `upload-skipped` **(T1)** | what was left out of the drops, with reasons | `data-count`; rows `data-reason` = `hidden` `junk` `temporary` `links` `special` `unreadable` `duplicate` |

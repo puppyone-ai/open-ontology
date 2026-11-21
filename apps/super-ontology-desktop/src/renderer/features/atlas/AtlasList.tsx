@@ -51,7 +51,7 @@ export function AtlasList({ data, query, onOpen, only = null, onReviewSpeakers }
               <Icon icon={ChevronRight} className="so-atlas-list-chevron" />
               {group.source ? (() => { const Glyph = SOURCE_ICON[group.source]; return <Glyph className="so-atlas-kind" size={12} strokeWidth={1.5} absoluteStrokeWidth aria-hidden="true" focusable="false" />; })() : <span className="so-atlas-swatch" aria-hidden="true" />}
               <span className="so-atlas-list-name so-truncate">{group.label}</span>
-              <span className="so-weak so-atlas-count">{t(COUNT_KEY[group.kind], { count: members.length })}</span>
+              <span className="so-weak so-atlas-count">{t(COUNT_KEY[group.kind], { count: group.kind === "unlinked" ? members.reduce((n, m) => n + (m.reason?.kind === "group" ? m.reason.count : 1), 0) : members.length })}</span>
             </button>
             {expanded && group.kind === "unlinked" && <p className="so-weak so-atlas-caption" data-testid="atlas-unlinked-caption">{t("app.atlas.unlinked.caption")}</p>}
             {expanded && (
@@ -59,7 +59,7 @@ export function AtlasList({ data, query, onOpen, only = null, onReviewSpeakers }
                 {members.slice(0, limit).map((member) => (
                   <li key={member.id}>
                     <button type="button" className="so-atlas-list-row" onClick={() => onOpen(member)} data-testid="atlas-list-member" data-name={member.label}>
-                      <span className="so-atlas-list-name so-truncate">{member.label}</span>
+                      <span className="so-atlas-list-name so-truncate">{member.reason?.kind === "group" ? t("app.unlinked.group.name", { count: member.reason.count }) : member.label}</span>
                       {member.reason && <span className="so-weak so-atlas-reason so-truncate" data-testid="atlas-reason" data-reason={member.reason.kind}>{reasonText(member.reason)}</span>}
                       {(tree.links.get(member.id) ?? 0) > 0 && <span className="so-weak so-atlas-count">{t("app.atlas.linked", { count: tree.links.get(member.id) ?? 0 })}</span>}
                     </button>

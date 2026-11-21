@@ -118,6 +118,8 @@ export type SuperDriveApi = OntologyApi & {
   startUpload(input: { driveId: string; folder: string; paths: string[] }): Promise<ApiResult<UploadStartValue>>;
   cancelUpload(input: { batchId: string; itemId?: string }): Promise<ApiResult<{ cancelled: true }>>;
   discardUpload(input: { batchId: string; folderPath: string }): Promise<ApiResult<{ removed: number }>>;
+  /** The answer for the big folders of a drop: copy them (streamed) or leave them (they are linked as sources instead). */
+  decideUpload(input: { batchId: string; choice: "copy" | "skip"; paths?: string[] }): Promise<ApiResult<{ copying: number; skipped: number }>>;
   fileDetail(input: { fileId: string; include?: ("history" | "entities" | "facts" | "shares")[] }): Promise<ApiResult<EngineFileDetail>>;
   fileBlocks(input: { fileId: string; page?: number; limit?: number; cursor?: string }): Promise<ApiResult<EnginePage<EngineBlock>>>;
   /** Capability URL of the original (fs Drives only). */
@@ -167,6 +169,7 @@ export const superDriveApi: SuperDriveApi = {
   startUpload: (input) => invoke("upload-start", input),
   cancelUpload: (input) => invoke("upload-cancel", input),
   discardUpload: (input) => invoke("upload-discard", input),
+  decideUpload: (input) => invoke("upload-decide", input),
   fileDetail: (input) => invoke("file-detail", input),
   fileBlocks: (input) => invoke("file-blocks", input),
   previewUrl: (input) => invoke("file-preview-url", input),

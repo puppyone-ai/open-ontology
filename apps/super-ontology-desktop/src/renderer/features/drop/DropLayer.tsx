@@ -5,6 +5,8 @@ import type { DropOutcome } from "../../model/queue/uploadQueue";
 import { DropOverlay, type DropOverState } from "./DropOverlay";
 import { DropToast, droppedFolders, type DropToastState } from "./DropToast";
 import { UploadTray } from "./UploadTray";
+import { useUploadQueueState } from "../../model/uploadStore";
+import { summarizeDrop } from "../../model/queue/uploadQueue";
 import { dragItemCount, isFileDrag, isMyFiles, resolveDropTarget, type DropTarget } from "./dropTarget";
 
 type Failure = { ok: false; error: SuperDriveError };
@@ -16,11 +18,16 @@ export type DropLayerDeps = {
   enqueue: (driveId: string, folder: string, files: File[]) => Promise<DropOutcome>;
   /** Registers a dropped folder as a watched local source and takes back the copies this drop made of it (`batchIds`). */
   keepInSync: (root: { path: string; name: string }, batchIds: string[]) => Promise<{ ok: true } | Failure>;
+  /** The answer for the big folders a drop found: copy them (streamed) or leave them (they were linked). */
+  decide: (batchId: string, choice: "copy" | "skip", paths?: string[]) => Promise<boolean>;
+  /** Stops a drop that is still being walked or copied. */
+  cancelBatches: (batchIds: string[]) => Promise<void>;
+  /** Called in the frame of the drop, before anything is awaited: the app shows the Sources screen. */
+  onDrop?: () => void;
 };
 
 /** Hides when no dragover has been seen for this long: a drag that leaves the window quickly can lose its last dragleave. */
 const WATCHDOG_MS = 1500;
-const emptyOutcome = (error: SuperDriveError | null): DropOutcome => ({ queued: 0, skipped: { hidden: 0, links: 0, junk: 0, temporary: 0, special: 0, unreadable: 0 }, roots: [], emptyFolders: 0, batchIds: [], error });
 
 /**
  * Window-wide drop target. Dragging files or folders anywhere over the app shows one overlay naming where the drop goes: My files by default, a
@@ -28,25 +35,35 @@ const emptyOutcome = (error: SuperDriveError | null): DropOutcome => ({ queued: 
  * everything (folders keep their structure; the main process walks them) and answers with a toast. Everything lives in one window listener, so a
  * screen needs only the attributes, never its own handlers, and a file dropped on the wrong spot never navigates the window away.
  */
-export function DropLayer({ drives, firstRunOpen, ensureMyFiles, enqueue, keepInSync }: DropLayerDeps) {
+export function DropLayer({ drives, firstRunOpen, ensureMyFiles, enqueue, keepInSync, decide, cancelBatches, onDrop: onDropped }: DropLayerDeps) {
   const [over, setOver] = useState<DropOverState | null>(null);
   const [toast, setToast] = useState<DropToastState | null>(null);
   const serial = useRef(0);
   const myFiles = useMemo(() => drives.find((drive) => isMyFiles(drive)) ?? null, [drives]);
-  const live = useRef({ myFiles, firstRunOpen, ensureMyFiles, enqueue });
-  live.current = { myFiles, firstRunOpen, ensureMyFiles, enqueue };
+  const live = useRef({ myFiles, firstRunOpen, ensureMyFiles, enqueue, onDropped });
+  live.current = { myFiles, firstRunOpen, ensureMyFiles, enqueue, onDropped };
+  const { batches } = useUploadQueueState();
+  const summary = useMemo(() => {
+    if (!toast) return null;
+    const own = summarizeDrop(batches, toast.batchIds);
+    return toast.started ? own : { ...own, phase: "preparing" as const };
+  }, [toast, batches]);
 
   const handle = useCallback(async (target: Extract<DropTarget, { kind: "drive" }>, files: File[]) => {
     serial.current += 1;
     const id = serial.current;
+    const base: DropToastState = { id, name: target.name, managed: target.managed, started: false, batchIds: [], error: null, sync: "idle", syncError: null, choice: "none", linked: [] };
+    // The same frame as the drop: the toast says "Preparing…" and the app moves to the Sources screen, before anything is awaited.
+    setToast(base);
+    live.current.onDropped?.();
     let driveId = target.driveId;
     if (!driveId) {
       const ensured = await live.current.ensureMyFiles();
-      if (!ensured.ok) { setToast({ id, name: target.name, managed: true, outcome: emptyOutcome(ensured.error), sync: "idle", syncError: null }); return; }
+      if (!ensured.ok) { setToast((now) => (now && now.id === id ? { ...now, managed: true, started: true, error: ensured.error } : now)); return; }
       driveId = ensured.value.id;
     }
-    const outcome = await live.current.enqueue(driveId, target.folder, files);
-    setToast({ id, name: target.name, managed: target.managed, outcome, sync: "idle", syncError: null });
+    const outcome: DropOutcome = await live.current.enqueue(driveId, target.folder, files);
+    setToast((now) => (now && now.id === id ? { ...now, started: true, batchIds: outcome.batchIds, error: outcome.error } : now));
   }, []);
 
   useEffect(() => {
@@ -121,22 +138,50 @@ export function DropLayer({ drives, firstRunOpen, ensureMyFiles, enqueue, keepIn
 
   const sync = useCallback(async () => {
     const current = toast;
-    if (!current) return;
+    if (!current || !summary) return;
     setToast({ ...current, sync: "busy", syncError: null });
     // One at a time: each folder needs its own one-use grant.
     let failure: SuperDriveError | null = null;
-    for (const root of droppedFolders(current.outcome)) {
-      const result = await keepInSync({ path: root.path, name: root.name }, current.outcome.batchIds);
+    for (const root of droppedFolders(summary)) {
+      const result = await keepInSync({ path: root.path, name: root.name }, current.batchIds);
       if (!result.ok) { failure = result.error; break; }
     }
     setToast((now) => (now && now.id === current.id ? { ...now, sync: failure ? "failed" : "done", syncError: failure } : now));
-  }, [toast, keepInSync]);
+  }, [toast, summary, keepInSync]);
+
+  /** The recommended answer for a big folder: no copy, it becomes a source that stays in sync. */
+  const link = useCallback(async () => {
+    const current = toast;
+    if (!current || !summary) return;
+    setToast({ ...current, choice: "linking", sync: "idle", syncError: null });
+    let failure: SuperDriveError | null = null;
+    const linked: { name: string; files: number }[] = [];
+    for (const root of summary.pending) {
+      const result = await keepInSync({ path: root.path, name: root.name }, []);
+      if (!result.ok) { failure = result.error; break; }
+      await decide(root.batchId, "skip", [root.path]);
+      linked.push({ name: root.name, files: root.files });
+    }
+    setToast((now) => (now && now.id === current.id ? { ...now, choice: failure ? "none" : "linked", sync: failure ? "failed" : "idle", syncError: failure, linked } : now));
+  }, [toast, summary, keepInSync, decide]);
+
+  const copyLarge = useCallback(async () => {
+    const current = toast;
+    if (!current || !summary) return;
+    setToast({ ...current, choice: "copying" });
+    for (const batchId of new Set(summary.pending.map((root) => root.batchId))) await decide(batchId, "copy");
+  }, [toast, summary, decide]);
+
+  const cancel = useCallback(() => {
+    if (toast) void cancelBatches(toast.batchIds);
+    setToast(null);
+  }, [toast, cancelBatches]);
 
   return (
     <>
       <DropOverlay over={over} />
       <div className="so-float">
-        {toast && <DropToast toast={toast} onSync={() => { void sync(); }} onClose={() => setToast(null)} />}
+        {toast && summary && <DropToast toast={toast} summary={summary} onSync={() => { void sync(); }} onLink={() => { void link(); }} onCopy={() => { void copyLarge(); }} onCancel={cancel} onClose={() => setToast(null)} />}
         <UploadTray />
       </div>
     </>

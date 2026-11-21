@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import type { EngineFileDetail, EngineFileSummary } from "../../shared/super-ontology/bridge";
 import { invoke, type ApiResult } from "./bridgeInvoke";
@@ -15,6 +15,8 @@ import { pool } from "../features/atlas/adapter";
 export type UnlinkedReason =
   | { kind: "no_entities" }
   | { kind: "unsupported"; format: string }
+  /** Many files with the same reason (a code folder: unsupported formats, still processing, no entities) shown as one entry with a count instead of one row each. `detail` names the biggest formats of unsupported files. */
+  | { kind: "group"; of: GroupedKind; count: number; detail?: string }
   | { kind: "processing" }
   | { kind: "review" }
   | { kind: "parse_failed"; code: string }
@@ -27,6 +29,8 @@ export type UnlinkedReason =
   /** An entity on an island that touches one file only (the atlas side); `file` names that file. */
   | { kind: "entity"; file?: string };
 
+/** The reasons that can hold thousands of files at once; above a few they are shown as one entry each. */
+export type GroupedKind = "unsupported" | "processing" | "no_entities" | "review" | "parse_failed" | "too_large" | "encrypted";
 export type FileFacts = { entities: number; connected: boolean };
 /** The fields of a file summary this module reads. */
 export type FileLike = { id?: string; drive_id?: string; state: string; state_code?: unknown; path: string; format?: unknown; pending_review?: unknown };
@@ -225,10 +229,14 @@ let cached: Cached | null = null;
 let inflight: { key: string; promise: Promise<UnlinkedReport> } | null = null;
 const MAX_AGE_MS = 60_000;
 
-/** One reading per `key` (the ontology version and the file count are a good key); concurrent callers share it. */
+/**
+ * One reading per `key` (the ontology version and the file count are a good key); concurrent callers share it. A reading for another key waits for
+ * the one on its way instead of running beside it: reading every file page of a big folder is the expensive part.
+ */
 export function readUnlinked(key: string, source: UnlinkedSource = bridgeUnlinkedSource, { force = false }: { force?: boolean } = {}): Promise<UnlinkedReport> {
   if (!force && cached && cached.key === key && Date.now() - cached.at < MAX_AGE_MS) return Promise.resolve(cached.report);
   if (inflight && inflight.key === key) return inflight.promise;
+  if (inflight) return inflight.promise.then(() => readUnlinked(key, source, { force }), () => readUnlinked(key, source, { force }));
   const promise = analyzeUnlinked(source).then((report) => { cached = { key, at: Date.now(), report }; return report; }).finally(() => { if (inflight?.promise === promise) inflight = null; });
   inflight = { key, promise };
   return promise;
@@ -237,14 +245,25 @@ export const resetUnlinked = () => { cached = null; inflight = null; };
 
 export type UnlinkedState = { status: "loading" | "ready" | "error"; report: UnlinkedReport | null };
 
-/** The report for the current data, `loading` the first time. A file or version change (`key`) reads again. */
+/** A newer key waits this long before it reads again once there is a report to show (the ontology moves on every publish while a big folder is ingested). */
+export const UNLINKED_REFRESH_DEBOUNCE_MS = 8_000;
+
+/**
+ * The report for the current data, `loading` the first time. A file or version change (`key`) reads again, once the key has stood still for a
+ * moment; the report that is on its way is shown when it arrives even if its key went stale meanwhile (a big folder never stops publishing).
+ */
 export function useUnlinked(key: string, { enabled = true, source = bridgeUnlinkedSource }: { enabled?: boolean; source?: UnlinkedSource } = {}): UnlinkedState {
   const [state, setState] = useState<UnlinkedState>({ status: "loading", report: cached?.report ?? null });
+  const mounted = useRef(true);
+  const shown = useRef(state.report !== null);
+  shown.current = state.report !== null;
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     if (!enabled) return undefined;
-    let live = true;
-    void readUnlinked(key, source).then((report) => { if (live) setState({ status: "ready", report }); }).catch(() => { if (live) setState((s) => ({ status: "error", report: s.report })); });
-    return () => { live = false; };
+    const timer = window.setTimeout(() => {
+      void readUnlinked(key, source).then((report) => { if (mounted.current) setState({ status: "ready", report }); }).catch(() => { if (mounted.current) setState((s) => ({ status: "error", report: s.report })); });
+    }, shown.current ? UNLINKED_REFRESH_DEBOUNCE_MS : 0);
+    return () => window.clearTimeout(timer);
   }, [key, enabled, source]);
   return state;
 }
@@ -255,6 +274,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
   return (reason) => {
     switch (reason.kind) {
       case "unsupported": return t("app.unlinked.reason.unsupported", { format: reason.format });
+      case "group": return t(`app.unlinked.reason.group.${reason.of}`, { count: reason.count, formats: reason.detail ?? "" });
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
       case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
       case "speaker": return t("app.unlinked.reason.speaker", { count: reason.count });

@@ -364,18 +364,33 @@ pub async fn propose_merges(
     version_id: &str,
 ) -> Result<u32, StoreError> {
     let pairs: Vec<(String, String, String)> = sqlx::query_as(
-        "SELECT DISTINCT LEAST(a.key, b.key), GREATEST(a.key, b.key), pa.norm_alias \
-           FROM _oo_docs.entity a \
-           JOIN _oo_docs.alias pa ON pa.entity_id = a.id AND pa.status = 'published' \
-           JOIN _oo_docs.alias pb ON pb.norm_alias = pa.norm_alias AND pb.status = 'published' \
-           JOIN _oo_docs.entity b ON b.id = pb.entity_id AND b.id <> a.id \
-                AND b.type = a.type AND b.status = 'active' \
-          WHERE a.status = 'active' AND (a.key = ANY($1::text[]) OR b.key = ANY($1::text[])) \
-            AND EXISTS (SELECT 1 FROM _oo_docs.evidence ea WHERE ea.target_kind = 'entity' \
-                         AND ea.target_id = a.id AND ea.withdrawn_at IS NULL) \
-            AND EXISTS (SELECT 1 FROM _oo_docs.evidence eb WHERE eb.target_kind = 'entity' \
-                         AND eb.target_id = b.id AND eb.withdrawn_at IS NULL) \
-          ORDER BY 1, 2, 3",
+        // Two branches, one anchored on each end of the pair: an `OR` over the two keys is applied after the alias join, so every pair of
+        // entities sharing an alias (thousands of documents of one stem in a code folder) was built and thrown away on each publish.
+        "SELECT DISTINCT lo, hi, norm_alias FROM ( \
+           SELECT LEAST(a.key, b.key) AS lo, GREATEST(a.key, b.key) AS hi, pa.norm_alias \
+             FROM _oo_docs.entity a \
+             JOIN _oo_docs.alias pa ON pa.entity_id = a.id AND pa.status = 'published' \
+             JOIN _oo_docs.alias pb ON pb.norm_alias = pa.norm_alias AND pb.status = 'published' \
+             JOIN _oo_docs.entity b ON b.id = pb.entity_id AND b.id <> a.id \
+                  AND b.type = a.type AND b.status = 'active' \
+            WHERE a.status = 'active' AND a.key = ANY($1::text[]) \
+              AND EXISTS (SELECT 1 FROM _oo_docs.evidence ea WHERE ea.target_kind = 'entity' \
+                           AND ea.target_id = a.id AND ea.withdrawn_at IS NULL) \
+              AND EXISTS (SELECT 1 FROM _oo_docs.evidence eb WHERE eb.target_kind = 'entity' \
+                           AND eb.target_id = b.id AND eb.withdrawn_at IS NULL) \
+           UNION ALL \
+           SELECT LEAST(a.key, b.key), GREATEST(a.key, b.key), pa.norm_alias \
+             FROM _oo_docs.entity b \
+             JOIN _oo_docs.alias pb ON pb.entity_id = b.id AND pb.status = 'published' \
+             JOIN _oo_docs.alias pa ON pa.norm_alias = pb.norm_alias AND pa.status = 'published' \
+             JOIN _oo_docs.entity a ON a.id = pa.entity_id AND a.id <> b.id \
+                  AND a.type = b.type AND a.status = 'active' \
+            WHERE b.status = 'active' AND b.key = ANY($1::text[]) \
+              AND EXISTS (SELECT 1 FROM _oo_docs.evidence ea WHERE ea.target_kind = 'entity' \
+                           AND ea.target_id = a.id AND ea.withdrawn_at IS NULL) \
+              AND EXISTS (SELECT 1 FROM _oo_docs.evidence eb WHERE eb.target_kind = 'entity' \
+                           AND eb.target_id = b.id AND eb.withdrawn_at IS NULL) \
+         ) pairs ORDER BY 1, 2, 3",
     )
     .bind(keys)
     .fetch_all(&mut *conn)

@@ -1171,5 +1171,5 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "Inicia sesión en la nube primero",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "La nube todavía no ofrece esta acción",
   "errors.SO_INTERNAL": "Ocurrió un problema inesperado",
-  "errors.SO_UPLOAD_TOO_MANY": "Demasiados archivos a la vez (el límite es 10 000)"
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "No hay espacio libre suficiente en el disco para este grupo. Libera espacio o vincula la carpeta en lugar de copiarla."
 }

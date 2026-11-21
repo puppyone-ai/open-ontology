@@ -24,7 +24,7 @@
 //! compensating control.
 
 use std::collections::BTreeSet;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs::{File, Metadata};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -32,7 +32,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::hash::{DualDigest, hash_reader};
-use super::path::{ExcludeSet, normalize_raw_key, raw_key_is_safe, skip_reason};
+use super::path::ignore::{IgnoreStack, load_dir_rules};
+use super::path::{ExcludeSet, normalize_raw_key, raw_key_is_safe, skip_reason, skip_reason_fs};
 use super::{
     DocBackend, DocCapability, DocSourceError, DocumentSource, EntryKind, ListCursor, ListPage,
     ObjectMeta, ReadExpect,
@@ -357,6 +358,8 @@ struct Walk<'a> {
     /// Do not descend: list the files and links of one directory only (the
     /// `""` scope of a scoped listing).
     shallow: bool,
+    /// Rules files found on the way down (`.gitignore`, `.ooignore`) above the directory being walked.
+    stack: IgnoreStack,
 }
 
 impl Walk<'_> {
@@ -373,27 +376,59 @@ impl Walk<'_> {
             self.incomplete = true;
             return;
         };
-        let mut names = Vec::new();
+        let mut names: Vec<(OsString, bool)> = Vec::new();
+        let mut has_rules = false;
         for entry in rd {
             match entry {
-                Ok(e) => names.push(e.file_name()),
+                Ok(e) => {
+                    let name = e.file_name();
+                    has_rules |= name == ".gitignore" || name == ".ooignore";
+                    let is_dir = e.file_type().is_ok_and(|t| t.is_dir());
+                    names.push((name, is_dir));
+                }
                 Err(_) => self.incomplete = true,
             }
         }
-        names.sort_by_key(|n| raw_bytes(n));
-        for name in names {
+        names.sort_by_key(|(n, _)| raw_bytes(n));
+        let outer = if has_rules {
+            let next = self.stack.with(rel.len(), load_dir_rules(abs));
+            Some(std::mem::replace(&mut self.stack, next))
+        } else {
+            None
+        };
+        for (name, is_dir) in names {
             if self.full() {
                 self.more = true;
-                return;
+                break;
             }
             let bytes = raw_bytes(&name);
-            if skip_reason(&String::from_utf8_lossy(&bytes)).is_some() {
+            if skip_reason_fs(&String::from_utf8_lossy(&bytes), is_dir).is_some() {
+                continue;
+            }
+            if self.ignored_by_rules(rel, &bytes, is_dir) {
                 continue;
             }
             rel.push(bytes);
             self.entry(abs, &name, rel);
             rel.pop();
         }
+        if let Some(outer) = outer {
+            self.stack = outer;
+        }
+    }
+
+    /// True when a `.gitignore` or `.ooignore` above the entry (named `name`, below the directory `rel`) ignores it.
+    fn ignored_by_rules(&self, rel: &[Vec<u8>], name: &[u8], is_dir: bool) -> bool {
+        if self.stack.is_empty() {
+            return false;
+        }
+        let mut parts: Vec<String> = rel
+            .iter()
+            .map(|s| String::from_utf8_lossy(s).into_owned())
+            .collect();
+        parts.push(String::from_utf8_lossy(name).into_owned());
+        let refs: Vec<&str> = parts.iter().map(String::as_str).collect();
+        self.stack.ignored(&refs, is_dir).is_some()
     }
 
     fn entry(&mut self, abs: &Path, name: &OsStr, rel: &mut Vec<Vec<u8>>) {
@@ -497,6 +532,7 @@ impl Inner {
             incomplete: carried_incomplete,
             more: false,
             shallow: false,
+            stack: IgnoreStack::default(),
         };
         walk.dir(&self.root, &mut Vec::new());
         Ok(finish_page(walk, limit))
@@ -509,6 +545,7 @@ impl Inner {
         let rd = std::fs::read_dir(&self.root).map_err(|_| root_missing())?;
         let mut dirs: Vec<String> = Vec::new();
         let mut root_files = false;
+        let rules = IgnoreStack::default().with(0, load_dir_rules(&self.root));
         for entry in rd {
             let entry = entry.map_err(|_| DocSourceError::Io("root listing failed"))?;
             let name = entry.file_name();
@@ -520,7 +557,13 @@ impl Inner {
             }
             let md = std::fs::symlink_metadata(self.root.join(&name))
                 .map_err(|_| DocSourceError::Io("root listing failed"))?;
-            match kind_of(&md) {
+            let kind = kind_of(&md);
+            if skip_reason_fs(text, kind == EntryKind::Dir).is_some()
+                || rules.ignored(&[text], kind == EntryKind::Dir).is_some()
+            {
+                continue;
+            }
+            match kind {
                 EntryKind::Dir => dirs.push(text.to_owned()),
                 EntryKind::File | EntryKind::Symlink => root_files = true,
                 EntryKind::Other => {}
@@ -567,14 +610,18 @@ impl Inner {
             incomplete: carried_incomplete,
             more: false,
             shallow: scope.is_empty(),
+            stack: IgnoreStack::default().with(0, load_dir_rules(&self.root)),
         };
         if scope.is_empty() {
+            walk.stack = IgnoreStack::default();
             walk.dir(&self.root, &mut Vec::new());
         } else {
             let name = OsStr::new(scope);
             // A scope that has vanished lists as nothing: its files are gone.
             if std::fs::symlink_metadata(self.root.join(name))
                 .is_ok_and(|m| kind_of(&m) == EntryKind::Dir)
+                && skip_reason_fs(scope, true).is_none()
+                && !walk.ignored_by_rules(&[], scope.as_bytes(), true)
             {
                 walk.entry(&self.root, name, &mut vec![scope.as_bytes().to_vec()]);
             }

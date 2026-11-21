@@ -1493,8 +1493,11 @@ pub async fn targeted_sync<S: HashableSource>(
         }
         match DocPath::new(p) {
             Ok(dp)
-                if !oo_connectors::objectstore::path::is_skipped_path(p)
-                    && policy.permits(dp.as_str()) =>
+                if !(if drive.backend == "fs" {
+                    oo_connectors::objectstore::path::is_skipped_fs_path(p)
+                } else {
+                    oo_connectors::objectstore::path::is_skipped_path(p)
+                }) && policy.permits(dp.as_str()) =>
             {
                 if let Some(parent) = dp.parent() {
                     parents.insert(parent.as_str().to_owned());

@@ -16,7 +16,7 @@ import { dbKind } from "../../shared/super-ontology/db-kinds.mjs";
 import type { DbSourceInfo } from "../../shared/super-ontology/bridge";
 import { databaseDropAttributes, dropAttributes } from "../features/drop/dropTarget";
 import { useUploadQueueState } from "../model/uploadStore";
-import { isUploadActive } from "../model/queue/uploadQueue";
+import { addingOf } from "../model/queue/uploadQueue";
 
 export function driveKindLabelId(drive: Drive): string {
   if (drive.backend !== "fs") return "app.sources.kind.cloud";
@@ -42,7 +42,7 @@ export function Sources() {
   // Files being added right now, per source: the row says so while the engine has not listed them yet.
   const uploads = useUploadQueueState();
   const adding = new Map<string, number>();
-  for (const item of uploads.items) if (isUploadActive(item)) adding.set(item.driveId, (adding.get(item.driveId) ?? 0) + 1);
+  for (const batch of uploads.batches) { const count = addingOf(batch); if (count > 0) adding.set(batch.driveId, (adding.get(batch.driveId) ?? 0) + count); }
   const [initial, setInitial] = useState<{ fileId: string; path: string } | null>(null);
   useEffect(() => { setDetailId(null); setDbName(null); setInitial(null); }, [app.navTick]);
   const focus = app.focusFile;
