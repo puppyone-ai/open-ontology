@@ -9,7 +9,7 @@
 // Environment: SO_T1_PACKAGED_APP (path of a built `Super Ontology.app`: that executable is launched instead of electron + the source tree, with the oo it bundles;
 //               the native-dialog queue does not exist there, so steps that answer a dialog are skipped: `session.packaged`), SO_T1_OO_BIN (absolute path of an `oo` built with docs, with `oo-docs-engine` next to it), SO_T1_ENGINE,
 // SO_APP_ROOT (the app directory to launch; default: this one), SO_T1_KEEP=1 (keep the temporary folder), SO_T1_LANGUAGE (interface language of the run, e.g. zh-Hans),
-// SO_T1_SCALE (device pixel ratio of the window and its screenshots, default 1; 2 for review shots), SO_T1_RUNTIME (`docker`: the compose engine with its parsers, for Office, PDF and audio sources; default `lite`).
+// SO_T1_VISIBLE=1 (show the window; by default a source-tree run keeps it off-screen, inactive and out of the Dock, so it never takes focus from the person using the Mac), SO_T1_SCALE (device pixel ratio of the window and its screenshots, default 1; 2 for review shots), SO_T1_RUNTIME (`docker`: the compose engine with its parsers, for Office, PDF and audio sources; default `lite`).
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import fs from "node:fs/promises";
@@ -159,12 +159,19 @@ export async function runScenario(options, scenario) {
       await state.page.send("Input.dispatchKeyEvent", { type: "keyDown", key, code });
       await state.page.send("Input.dispatchKeyEvent", { type: "keyUp", key, code });
     },
-    /** Drops real files (absolute paths) on an element, the way a Finder drag does. */
-    async dropFiles(id, paths) {
-      const at = await session.point(await session.waitFor(id));
+    /** Drops real files and folders (absolute paths) on an element, the way a Finder drag does. `attributes` picks one of several matching elements. */
+    async dropFiles(id, paths, attributes = {}) {
+      const at = await session.point(await session.waitFor(id, attributes));
       const data = { items: [], files: paths, dragOperationsMask: 1 };
       for (const type of ["dragEnter", "dragOver", "drop"]) await state.page.send("Input.dispatchDragEvent", { type, ...at, data });
     },
+    /** A drag that enters and stays over an element (no drop yet): the window shows its overlay. `dragCancel` ends it. */
+    async dragHover(id, paths, attributes = {}) {
+      const at = await session.point(await session.waitFor(id, attributes));
+      const data = { items: [], files: paths, dragOperationsMask: 1 };
+      for (const type of ["dragEnter", "dragOver"]) await state.page.send("Input.dispatchDragEvent", { type, ...at, data });
+    },
+    async dragCancel() { await state.page.send("Input.dispatchDragEvent", { type: "dragCancel", x: 1, y: 1, data: { items: [], files: [], dragOperationsMask: 1 } }); },
     /** The next native open dialog answers with these absolute paths (one call = one dialog). */
     async answerDialog(...paths) {
       const queue = JSON.parse(await fs.readFile(queueFile, "utf8"));
@@ -252,7 +259,7 @@ export async function runScenario(options, scenario) {
     } else {
       const electronPath = createRequire(path.join(appRoot, "package.json"))("electron");
       state.child = spawn(electronPath, [path.join(harnessDirectory, "electron-main.mjs"), "--remote-debugging-port=0", `--user-data-dir=${userData}`, "--disable-renderer-backgrounding"], {
-        env: { ...environment, SO_APP_ROOT: appRoot, SUPER_ONTOLOGY_USER_DATA: userData, SO_T1_DIALOG_QUEUE: queueFile },
+        env: { ...environment, SO_APP_ROOT: appRoot, SUPER_ONTOLOGY_USER_DATA: userData, SO_T1_DIALOG_QUEUE: queueFile, SO_T1_OFFSCREEN: process.env.SO_T1_VISIBLE === "1" ? "0" : "1" },
         stdio: ["ignore", out.fd, out.fd],
       });
     }

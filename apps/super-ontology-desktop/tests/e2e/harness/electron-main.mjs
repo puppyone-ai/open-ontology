@@ -6,6 +6,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+// Off-screen by default: the window is moved far outside every display and shown without activating the app, and the app stays out of the
+// Dock and the app switcher, so a run never takes the focus of the person using the machine. Rendering is not throttled for it.
+if (process.env.SO_T1_OFFSCREEN === "1") {
+  app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  if (process.platform === "darwin") app.setActivationPolicy("accessory");
+  app.on("browser-window-created", (_event, window) => {
+    const park = () => window.setBounds({ x: -12_000, y: -12_000, width: 1280, height: 820 });
+    window.show = () => { park(); window.showInactive(); park(); };
+    window.focus = () => {};
+    park();
+  });
+}
 const queueFile = process.env.SO_T1_DIALOG_QUEUE;
 if (queueFile) {
   dialog.showOpenDialog = async () => {
