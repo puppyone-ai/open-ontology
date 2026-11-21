@@ -289,6 +289,7 @@
 | SO-B-S20-53 | D84 | merged | feat/super-ontology (车道 AD 并入) | 67a1e60ce → 67a1e60ce | — | — | Record the model comparison and the acceptance run of lane AD |
 | SO-B-S20-60 | D85 | merged | feat/super-ontology (车道 AE2 并入) | 19ca40e30 → 19ca40e30 | — | — | Settle an indexed file that has nothing left to publish |
 | SO-B-S20-70 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4a9dddaaa → 4a9dddaaa | — | — | Start oo serve without waiting for the parser install, and clean up on a signal during start-up |
+| SO-B-S20-61 | D85 | merged | feat/super-ontology (车道 AE5 并入) | 589c16d4e → 589c16d4e | — | — | Prove that 0154 upgrades a database at 0153 with a capped Drive |
 | SO-F-S19-81 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 586ef4202 → 586ef4202 | — | apps/super-ontology-desktop/ | Make the T2 runner click, type and choose folders deterministically |
 | SO-F-S19-82 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 7f45363a3 → 7f45363a3 | — | apps/super-ontology-desktop/ | Correct the T2 scenarios against what the app does |
 | SO-F-S19-83 | D85 | merged | feat/super-ontology (App 车道 N 并入) | 3b40e46cf → 3b40e46cf | — | apps/super-ontology-desktop/ | Keep the fake engine for the T1 scenarios that declare it and stop the packaged query run  |
@@ -347,6 +348,7 @@
 | SO-F-S20-65 | D85 | merged | feat/super-ontology (App 车道 AE4 并入) | 2d9e7ce9f → 2d9e7ce9f | — | deploy/docs/images.lock.json | Lock the engine image built for the redelivered app |
 | SO-F-S20-72 | D83 | merged | feat/super-ontology (车道 AF 并入) | 4e8668f80 → 4e8668f80 | — | — | Keep the engine logs of a failed T2 attempt and name the missing engine |
 | SO-F-S20-71 | D83 | merged | feat/super-ontology (车道 AF 并入) | 517d24093 → 517d24093 | — | — | Show a failed engine start on the first-run screen with Try again and the log path |
+| SO-F-S20-66 | D85 | merged | feat/super-ontology (车道 AE5 并入) | 67635e2d4 → 67635e2d4 | — | — | Lock the engine image with migration 0154 and the drive-scale fixes |
 | SO-F-S21-01 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | e45faa3d2 → e45faa3d2 | — | apps/super-ontology-desktop/ | Walk dropped folders with the engine's ignore rules and say what was skipped |
 | SO-F-S21-02 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | bab08fa15 → bab08fa15 | — | apps/super-ontology-desktop/ | Turn a dropped folder into a one-use source grant and describe the richer upload answer |
 | SO-F-S21-03 | D86 | merged | feat/super-ontology (App 车道 AG 并入) | ef0a5fdf2 → ef0a5fdf2 | — | apps/super-ontology-desktop/ | Queue drops of any size and keep early progress pushes |
