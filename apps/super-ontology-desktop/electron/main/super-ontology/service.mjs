@@ -1,4 +1,5 @@
 import { readActiveProfile } from "./engine-state.mjs";
+import { createManagedFolder } from "./managed-folder.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { SuperOntologyError } from "../../../src/shared/super-ontology/errors.mjs";
@@ -171,6 +172,7 @@ export function createSuperOntologyService({
   const uploads = createUploadService({ client, broadcast, logger });
   // D46: change hints for fs Drives come from here, not from the container. Off in tests that bring no real engine.
   const driveWatcher = createDriveWatcher({ client, logger, ...(driveWatcherOptions ?? {}) });
+  const managedFolder = createManagedFolder({ client, fsPromises, logger });
   let engineUsable = false;
   /** Set once the handlers exist (it decodes through the `media-decode` handler); null in tests that turn it off. */
   let hostDecode = null;
@@ -178,7 +180,7 @@ export function createSuperOntologyService({
     const usable = snapshot.status === "healthy" || snapshot.status === "degraded";
     if (usable === engineUsable) return;
     engineUsable = usable;
-    if (usable) { void driveWatcher.refresh(); hostDecode?.start(); }
+    if (usable) { void managedFolder.merge().then(() => driveWatcher.refresh()); void driveWatcher.refresh(); hostDecode?.start(); }
     else { driveWatcher.stopAll(); hostDecode?.stop(); }
   });
   const driveFileTokens = createDriveFileTokens();

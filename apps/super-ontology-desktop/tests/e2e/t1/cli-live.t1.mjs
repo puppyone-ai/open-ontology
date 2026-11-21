@@ -103,8 +103,8 @@ runScenario({ name: "cli-live", title: "What the CLI does shows up in the app, l
     const first = await cli(["docs", "upload", path.join(agentFiles, names[0]), "--wait", "none", "--json"], agent);
     s.check("oo docs upload creates the managed source", first.code === 0, `${first.code} ${first.stderr.slice(0, 200)}`);
     t0 = Date.now();
-    await within("the managed source appears in Sources", rows("default"), t0);
-    await s.click("source-row", { "data-name": "default" });
+    await within("the managed source appears in Sources", rows("My files"), t0);
+    await s.click("source-row", { "data-name": "My files" });
     await within("its first file row appears", `document.querySelectorAll('[data-testid="file-row"]').length === 1`, Date.now());
     // Two more files while the source is open: their rows must appear without leaving or reloading the page.
     const more = await cli(["docs", "upload", path.join(agentFiles, names[1]), path.join(agentFiles, names[2]), "--wait", "none", "--json"], agent);

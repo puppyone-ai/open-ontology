@@ -862,5 +862,7 @@
   "engine.shared.legacy": "Diese App hat auch noch eigene Daten von früher. Mit den CLI-Daten siehst du, was oo sieht. Die alten Daten bleiben auf dem Datenträger.",
   "engine.shared.useCli": "CLI-Daten verwenden",
   "engine.shared.useApp": "Eigene Daten der App verwenden",
-  "engine.shared.appOwn": "Diese App nutzt einen eigenen Datenordner, getrennt von der CLI."
+  "engine.shared.appOwn": "Diese App nutzt einen eigenen Datenordner, getrennt von der CLI.",
+  "sources.merged.title": "Ein Ordner „Meine Dateien“",
+  "sources.merged.body": "Dateien aus dem früheren „default“-Ordner der CLI wurden nach „Meine Dateien“ kopiert. Die Originale liegen weiter auf dem Datenträger, nichts wurde gelöscht."
 }

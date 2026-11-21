@@ -862,5 +862,7 @@
   "engine.shared.legacy": "이 앱에는 이전에 쓰던 자체 데이터도 있습니다. CLI 데이터를 사용하면 oo가 보는 내용을 볼 수 있습니다. 기존 데이터는 디스크에 남습니다.",
   "engine.shared.useCli": "CLI 데이터 사용",
   "engine.shared.useApp": "앱 자체 데이터 사용",
-  "engine.shared.appOwn": "이 앱은 CLI와 별도인 자체 데이터 폴더를 사용합니다."
+  "engine.shared.appOwn": "이 앱은 CLI와 별도인 자체 데이터 폴더를 사용합니다.",
+  "sources.merged.title": "내 파일 폴더는 하나",
+  "sources.merged.body": "CLI의 이전 “default” 폴더에 있던 파일을 내 파일로 복사했습니다. 원본은 디스크에 그대로 있고 삭제된 것은 없습니다."
 }

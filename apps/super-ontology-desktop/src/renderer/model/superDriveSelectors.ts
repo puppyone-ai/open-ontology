@@ -8,7 +8,10 @@ export const selectEngine = (state: SuperDriveState) => state.engine;
 export const selectEngineStatus = (state: SuperDriveState) => state.engine?.status ?? "idle";
 export const selectIsEngineLive = (state: SuperDriveState) => LIVE_STATUSES.includes(selectEngineStatus(state));
 
-export const selectDrives = (state: SuperDriveState): Drive[] => state.drives.order.map((id) => state.drives.byId[id]).filter(Boolean);
+/** An earlier CLI folder that was merged into "My files" stays as a paused Drive; it is a note on Sources, not a source. */
+export const MERGED_DRIVE_NAME = "My files (earlier CLI folder)";
+export const selectDrives = (state: SuperDriveState): Drive[] => state.drives.order.map((id) => state.drives.byId[id]).filter((drive): drive is Drive => Boolean(drive) && drive.name !== MERGED_DRIVE_NAME);
+export const selectMergedDrive = (state: SuperDriveState): Drive | null => state.drives.order.map((id) => state.drives.byId[id]).find((drive) => drive?.name === MERGED_DRIVE_NAME) ?? null;
 export const selectActiveDrive = (state: SuperDriveState): Drive | null => driveForRoute(state.route, state.drives.byId, state.drives.order);
 export const selectHasNoDrives = (state: SuperDriveState) => state.drives.loaded && state.drives.order.length === 0;
 

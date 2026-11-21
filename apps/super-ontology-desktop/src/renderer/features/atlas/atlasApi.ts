@@ -65,7 +65,7 @@ export const atlasSource: AtlasSource = {
   entities: ({ limit, cursor }) => ontologyApi.searchEntities({ q: "", limit, cursor }),
   entity: (key) => ontologyApi.entityDetail({ entityIdOrKey: key }),
   versions: () => ontologyApi.ontologyVersions({ limit: 200 }),
-  drives: () => superDriveApi.listDrives(),
+  drives: async () => { const result = await superDriveApi.listDrives(); return result.ok ? { ...result, value: result.value.filter((drive) => drive.name !== "My files (earlier CLI folder)") } : result; },
   files: ({ driveId, limit, cursor }) => superDriveApi.listFiles({ driveId, recursive: true, limit, cursor }),
   links: async () => validated(await invoke("atlas-links", {}), (value) => (isLinkList(value) ? value : null)),
   databaseName: async () => {

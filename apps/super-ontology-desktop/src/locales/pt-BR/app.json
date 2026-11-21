@@ -862,5 +862,7 @@
   "engine.shared.legacy": "Este app também guarda dados próprios de antes. Use os dados da CLI para ver o que o oo vê. Os dados antigos continuam no disco.",
   "engine.shared.useCli": "Usar os dados da CLI",
   "engine.shared.useApp": "Usar os dados próprios do app",
-  "engine.shared.appOwn": "Este app usa a própria pasta de dados, separada da CLI."
+  "engine.shared.appOwn": "Este app usa a própria pasta de dados, separada da CLI.",
+  "sources.merged.title": "Uma só pasta Meus arquivos",
+  "sources.merged.body": "Os arquivos da antiga pasta “default” da CLI foram copiados para Meus arquivos. Os originais continuam no disco e nada foi apagado."
 }

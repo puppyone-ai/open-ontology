@@ -862,5 +862,7 @@
   "engine.shared.legacy": "本应用还保留着自己早先的数据。改用 CLI 的数据即可看到 oo 看到的内容，旧数据仍留在磁盘上。",
   "engine.shared.useCli": "改用 CLI 的数据",
   "engine.shared.useApp": "改用本应用自己的数据",
-  "engine.shared.appOwn": "本应用使用自己的数据文件夹，与 CLI 分开。"
+  "engine.shared.appOwn": "本应用使用自己的数据文件夹，与 CLI 分开。",
+  "sources.merged.title": "只有一个“我的文件”文件夹",
+  "sources.merged.body": "CLI 早先“default”文件夹里的文件已复制到“我的文件”。原文件仍在磁盘上，没有删除任何内容。"
 }
