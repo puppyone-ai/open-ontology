@@ -7,3 +7,4 @@ blake3
 Pillow
 rapidocr==3.10.0
 scenedetect==0.7.3
+sherpa-onnx

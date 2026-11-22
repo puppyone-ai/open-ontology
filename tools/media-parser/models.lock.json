@@ -88,6 +88,28 @@
           "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b"
         }
       ]
+    },
+    {
+      "name": "whisper-base-sherpa-onnx",
+      "kind": "local",
+      "local_dir": "whisper-base",
+      "license": "MIT",
+      "note": "OpenAI Whisper base (multilingual) int8 export for sherpa-onnx (MIT, openai/whisper repository and weights; sherpa-onnx is Apache-2.0). Language identification per chunk and transcription of non-Chinese speech (lane AL, D98). Review: supply-chain/media-asr-model-reviews.json.",
+      "rebuild": "curl -L -o w.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2 (sha256 of the archive is not pinned; each extracted file is); tar xjf w.tar.bz2; copy sherpa-onnx-whisper-base/{base-encoder.int8.onnx,base-decoder.int8.onnx,base-tokens.txt} into tools/media-parser/models-local/",
+      "files": [
+        {
+          "local": "base-encoder.int8.onnx",
+          "sha256": "0b8fb1304b6109976038efff5ace81720e00386f3ff6b54ee8c75291ca0a1e11"
+        },
+        {
+          "local": "base-decoder.int8.onnx",
+          "sha256": "9759d217388a01b3a4c7c15533201067b48ae819c4daafc8624e64b9409dc02d"
+        },
+        {
+          "local": "base-tokens.txt",
+          "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+        }
+      ]
     }
   ],
   "files": [
