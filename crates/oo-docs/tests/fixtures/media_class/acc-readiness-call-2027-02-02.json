@@ -1,16 +1,72 @@
 {
  "duration_ms": 21680,
  "speakers": [
-  "S1"
+  "S1",
+  "S2",
+  "S3"
  ],
  "items": [
   {
    "kind": "utterance",
    "speaker": "S1",
    "t_start_ms": 0,
-   "t_end_ms": 21170,
-   "text": "这里是二月二日在就性检查我是白若冰柯嘴仙镜片良率现在多少我是柯子仙良率提高到了百分之八十八高于百分之八十五的定在三月五日好发布日期保持三月十八日转天又负责跟踪速达快运的空运",
+   "t_end_ms": 2560,
+   "text": "这里是二月二日在就性检查我",
    "word_start": 0,
+   "word_end": 12
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 2560,
+   "t_end_ms": 4640,
+   "text": "是白若冰柯嘴仙",
+   "word_start": 13,
+   "word_end": 19
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 4640,
+   "t_end_ms": 6820,
+   "text": "镜片良率现在多少我是",
+   "word_start": 20,
+   "word_end": 29
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 6820,
+   "t_end_ms": 7440,
+   "text": "柯子仙",
+   "word_start": 30,
+   "word_end": 32
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 7440,
+   "t_end_ms": 14460,
+   "text": "良率提高到了百分之八十八高于百分之八十五的定在三月五日好",
+   "word_start": 33,
+   "word_end": 60
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 14460,
+   "t_end_ms": 16510,
+   "text": "发布日期保",
+   "word_start": 61,
+   "word_end": 65
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 16510,
+   "t_end_ms": 21170,
+   "text": "持三月十八日转天又负责跟踪速达快运的空运",
+   "word_start": 66,
    "word_end": 85
   }
  ]

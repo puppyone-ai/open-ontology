@@ -1,17 +1,36 @@
 {
  "duration_ms": 26165,
  "speakers": [
-  "S1"
+  "S1",
+  "S2"
  ],
  "items": [
   {
    "kind": "utterance",
    "speaker": "S1",
    "t_start_ms": 0,
-   "t_end_ms": 25946,
-   "text": "this is the supplier of you on january is six teams i am shanania jane handing auto electronics quoted a total of two million four hundred eighty thousand u n for the landsets haniccole from legal i will have the contract ready to sign on january twenty eeth miiwan who approved handding as our primary length supplier handing promised a delivery lead time of twenty one days after each purchase order and a yield of at least eighty five percent",
+   "t_end_ms": 10240,
+   "text": "This is the supplier of Uon January 16th.I am Shayanaya Zhang,handing auto electronics quoted a total of 2,480,000 Uon for the lens sets",
    "word_start": 0,
-   "word_end": 79
+   "word_end": 30
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 10240,
+   "t_end_ms": 18570,
+   "text": ".Hennicol from Legal,I will have the contract ready to sign on January 20th.Mingi Yuangu approved Henning as our primary lens supplier",
+   "word_start": 31,
+   "word_end": 56
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 18570,
+   "t_end_ms": 25940,
+   "text": ".Henning promised a delivery-led time of 21 days after each purchase order,and a yield of at least 85%.",
+   "word_start": 57,
+   "word_end": 78
   }
  ]
 }

@@ -1,7 +1,7 @@
 //! The four audio files of the acceptance corpus through the engine (D74 revision, lane AL): what class each gets, how many
 //! speaker items are asked before (every label, the old rule) and after, which entities are published before anybody is named,
 //! and what a name does. The input is the media-parser's real output for the files (`tests/fixtures/media_class/acc-*.json`);
-//! the model that settles an undecided recording is a stand-in that answers `conversation` (the real model is not called here).
+//! (the real model's decision is measured in `media_class_model_live`).
 //!
 //! `OO_DOCS_TEST_PG_PORT=<port> cargo test -p oo-docs --locked --test media_acceptance_live -- --ignored --test-threads=1 --nocapture`
 
@@ -32,25 +32,6 @@ const FILES: [(&str, &str); 4] = [
         "meetings/audio/readiness-call-2027-02-02.m4a",
     ),
 ];
-
-struct Says;
-impl oo_docs::extract::llm::egress::LlmPort for Says {
-    fn model(&self) -> &str {
-        "stand-in"
-    }
-    fn complete<'a>(
-        &'a self,
-        _r: &'a oo_docs::extract::llm::prompt::ChatRequest,
-    ) -> oo_docs::extract::llm::egress::CallFuture<'a> {
-        Box::pin(async {
-            Ok(oo_docs::extract::llm::egress::ChatReply {
-                content: "conversation".into(),
-                tokens_in: 1,
-                tokens_out: 1,
-            })
-        })
-    }
-}
 
 fn normalized(fixture: &str, n: usize) -> oo_docs::normalize::Normalized {
     let raw = std::fs::read_to_string(format!(
@@ -114,30 +95,14 @@ async fn the_acceptance_audio_by_class_items_and_naming() {
     eprintln!(
         "MEASURE rules only: class {classes:?}; published facts/entities/placeholders/items = {a:?}"
     );
-    assert_eq!(a.3, 0, "undecided recordings queue nothing");
-
-    for (path, p) in &planted {
-        oo_docs::publish::media_profile::ask_model(&mut fx.rt, &Says, &p.ir, path)
-            .await
-            .unwrap();
-        fx.index_planted(path, p).await;
-        oo_docs::review::speaker::propose(&mut fx.rt, &p.version_id, &p.ir, path, None)
-            .await
-            .unwrap();
-    }
-    fx.publish().await;
-    let classes = fx
-        .text("SELECT class || ':' || source FROM _oo_docs.media_profile ORDER BY b3")
-        .await;
-    let b = counts(&mut fx).await;
-    eprintln!(
-        "MEASURE after the model (stand-in) says conversation: class {classes:?}; published facts/entities/placeholders/items = {b:?}"
+    assert!(
+        classes.iter().all(|c| c.starts_with("conversation")),
+        "every acceptance call is a conversation from the sound and the words alone: {classes:?}"
     );
-    assert_eq!(
-        b.3 as usize, 4,
-        "one item per voice, none for the stray label"
+    assert!(
+        a.3 >= 8,
+        "one item per voice, none counted as a review: {a:?}"
     );
-
     let items: Vec<(String, i64, String)> = sqlx::query_as(
         "SELECT id::text, revision, COALESCE(subject->'candidates'->0->>'name', 'Test Person ' || (subject->>'speaker')) \
            FROM _oo_docs.review_item WHERE kind = 'speaker_identity' AND status = 'pending' ORDER BY id",

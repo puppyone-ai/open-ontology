@@ -3,8 +3,7 @@
 //! files of the acceptance corpus went through the media-parser's own VAD, ASR and speaker clustering
 //! (`run_pipeline.py`); `tests/fixtures/media_class/*.json` is what came out. The meetings were clustered with the
 //! two-speaker hint the engine sends when the metadata names the attendees; the promos and the acceptance files
-//! with the default clustering, which merges synthetic voices that sound alike (so most acceptance calls arrive as
-//! one label and the rules ask the model instead of deciding).
+//! with the default clustering (centred spectral count, Whisper for non-Chinese chunks).
 
 use oo_core::docir::DocFormat;
 use oo_docs::extract::rules::media_class::{MediaClass, MediaProfile, classify};
@@ -75,28 +74,21 @@ fn a_dialogue_that_ends_in_music_is_still_a_conversation() {
 }
 
 #[test]
-fn acceptance_calls_with_a_merged_voice_go_to_the_model_not_to_a_guess() {
-    // The diarization gave these three one label each; the names say call and sync and the text has two people.
+fn the_acceptance_calls_are_conversations_now_that_the_voices_are_told_apart() {
+    // With the centred spectral clustering every call has two or more voices taking turns, and English is transcribed by Whisper.
     for f in [
         "acc-launch-sync-2027-01-12",
-        "acc-readiness-call-2027-02-02",
+        "acc-budget-call-2027-01-26",
         "acc-supplier-call-2027-01-16",
+        "acc-readiness-call-2027-02-02",
     ] {
         let p = profile(f, &format!("meetings/audio/{}.wav", &f[4..]));
-        assert_eq!(p.class, MediaClass::Unsure, "{f}: {p:?}");
-        assert!(!p.class.identifies_speakers());
+        eprintln!(
+            "MEASURE {f}: {:?} voices={} turns={}",
+            p.class, p.signals.voices, p.signals.turns
+        );
+        assert_eq!(p.class, MediaClass::Conversation, "{f}: {p:?}");
     }
-}
-
-#[test]
-fn a_call_with_two_voices_is_a_conversation_and_its_stray_label_is_not_a_voice() {
-    let name = "meetings/audio/budget-call-2027-01-26.wav";
-    let p = profile("acc-budget-call-2027-01-26", name);
-    // One voice holds the floor and the second label speaks for a second: the name and the two self introductions
-    // leave it to the model.
-    assert_eq!(p.signals.speakers, 2);
-    assert_eq!(p.signals.voices, 1, "{:?}", p.signals);
-    assert_eq!(p.class, MediaClass::Unsure, "{p:?}");
 }
 
 /// D98 re-validation: eight synthetic meetings (macOS voices with their own rate and pitch; two and three speakers; Chinese and

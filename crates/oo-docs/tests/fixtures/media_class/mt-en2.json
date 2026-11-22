@@ -9,64 +9,64 @@
    "kind": "utterance",
    "speaker": "S1",
    "t_start_ms": 10,
-   "t_end_ms": 5230,
-   "text": "good morning everyone let's start the weekly project meeting with last week's progress the",
+   "t_end_ms": 5110,
+   "text": "Good morning everyone,let's start the weekly project meeting with last week's progress.The prototype is",
    "word_start": 0,
-   "word_end": 13
+   "word_end": 17
   },
   {
    "kind": "utterance",
    "speaker": "S2",
-   "t_start_ms": 5230,
-   "t_end_ms": 10460,
-   "text": "prototype is finished an internal testing starts on monday we need three people",
-   "word_start": 14,
-   "word_end": 26
+   "t_start_ms": 5110,
+   "t_end_ms": 10290,
+   "text": "finished and internal testing starts on Monday,we need three people.Who will set up",
+   "word_start": 18,
+   "word_end": 34
   },
   {
    "kind": "utterance",
    "speaker": "S1",
-   "t_start_ms": 11136,
-   "t_end_ms": 14486,
-   "text": "who will set up the test environment and is the budget still",
-   "word_start": 27,
-   "word_end": 38
+   "t_start_ms": 10290,
+   "t_end_ms": 14630,
+   "text": "the test environment,and is the budget still fine?I will",
+   "word_start": 35,
+   "word_end": 47
   },
   {
    "kind": "utterance",
    "speaker": "S2",
-   "t_start_ms": 14486,
-   "t_end_ms": 20526,
-   "text": "fine i will set up the environment and the budget is enough no extra money is needed",
-   "word_start": 39,
-   "word_end": 55
+   "t_start_ms": 14630,
+   "t_end_ms": 20460,
+   "text": "set up the environment,and the budget is enough,no extra money is needed",
+   "word_start": 48,
+   "word_end": 63
   },
   {
    "kind": "utterance",
    "speaker": "S1",
-   "t_start_ms": 20526,
-   "t_end_ms": 25054,
-   "text": "one more point the supplier quote is confirmed and delivery takes twenty one days",
-   "word_start": 56,
-   "word_end": 69
-  },
-  {
-   "kind": "utterance",
-   "speaker": "S2",
-   "t_start_ms": 25054,
-   "t_end_ms": 29334,
-   "text": "great then we send the test plan to everyone before friday",
-   "word_start": 70,
+   "t_start_ms": 20460,
+   "t_end_ms": 25270,
+   "text": ".One more point,the supplier quote is confirmed and delivery takes 21 days.Great",
+   "word_start": 64,
    "word_end": 80
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 25270,
+   "t_end_ms": 29340,
+   "text": ",then we send the test plan to everyone before Friday.",
+   "word_start": 81,
+   "word_end": 92
   },
   {
    "kind": "utterance",
    "speaker": "S1",
    "t_start_ms": 29974,
    "t_end_ms": 34174,
-   "text": "understand i will send it thursday evening and we meet again next tuesday",
-   "word_start": 81,
-   "word_end": 93
+   "text": "understood,I will send it Thursday evening and we meet again next Tuesday.",
+   "word_start": 93,
+   "word_end": 107
   }
  ]
 }
