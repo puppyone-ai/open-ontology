@@ -42,6 +42,7 @@ def main():
     ap.add_argument("--model-key-file")
     ap.add_argument("--model-id")
     ap.add_argument("--workers", default="4")
+    ap.add_argument("--ask-oo", help="oo binary: also run the acceptance questions through the CLI agent baseline (secondary, D95)")
     a = ap.parse_args()
     repo = Path(a.repo)
     out = Path(a.out) / a.label
@@ -90,6 +91,18 @@ def main():
                            capture_output=True, text=True)
         (out / "score.log").write_text(r.stdout + r.stderr)
         print(r.stdout[-3000:] or r.stderr[-1500:])
+        if a.ask_oo:
+            body = json.dumps({"name": "acc-ask", "scopes": ["docs:read"], "all_drives": True}).encode()
+            rq = urllib.request.Request(base + "/v1/docs/agent-tokens", data=body, method="POST", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "OO-Docs-Api-Min": "1.0"})
+            tok = json.loads(urllib.request.urlopen(rq, timeout=30).read())["token"]
+            (out / "agent.token").write_text(tok)
+            q = subprocess.run([sys.executable, "-B", str(repo / "tools/super-ontology/acceptance/agent_baseline.py"), "--oo", a.ask_oo, "--endpoint", base, "--token-file", str(out / "agent.token"),
+                                "--out", str(out / "ask"), "--model", a.model_id or "cb/gpt-6.2-sol", "--model-endpoint-file", a.model_endpoint_file, "--model-key-file", a.model_key_file],
+                               capture_output=True, text=True, timeout=3000)
+            (out / "ask.log").write_text(q.stdout[-3000:] + q.stderr[-3000:])
+            sc = subprocess.run([sys.executable, "-B", str(repo / "tools/super-ontology/acceptance/score_ask.py"), "--ask-results", str(out / "ask/ask-results.json"),
+                                 "--questions", str(repo / "testing/super-ontology/acceptance/gold/questions.jsonl"), "--out", str(out / "score-ask.json")], capture_output=True, text=True)
+            print(sc.stdout[-1500:] or sc.stderr[-800:])
     finally:
         flag.write_text("release")
         if proc:
@@ -98,7 +111,7 @@ def main():
             except subprocess.TimeoutExpired:
                 proc.kill()
         pg.stop()
-        for f in ("token",):
+        for f in ("token", "agent.token"):
             (out / f).unlink(missing_ok=True)
 
 
