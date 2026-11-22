@@ -95,6 +95,11 @@ SOURCES = {
         "url": "https://github.com/MeirKriheli/python-bidi",
         "how": "Unmodified PyPI wheel (a compiled Python extension). Pulled in by PaddleOCR.",
     },
+    "libasound (ALSA library, bundled by sherpa-onnx)": {
+        "kind": "lgpl",
+        "url": "https://www.alsa-project.org/wiki/Download",
+        "how": "Unmodified ALSA library (libasound.so.2) vendored in the sherpa-onnx manylinux wheel, a separate shared object loaded dynamically (replaceable by another build with the same file name). It is used for microphone capture only; Super Ontology reads audio files and never opens a sound device.",
+    },
     "libgeos (shapely)": {
         "kind": "lgpl",
         "url": "https://libgeos.org/usage/download/",

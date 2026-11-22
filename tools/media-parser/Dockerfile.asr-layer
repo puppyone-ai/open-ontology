@@ -14,6 +14,7 @@ RUN /opt/venv/bin/pip install --no-deps --require-hashes --no-cache-dir -r /tmp/
  && /opt/venv/bin/python -c "import sherpa_onnx"
 COPY models-local/base-encoder.int8.onnx models-local/base-decoder.int8.onnx models-local/base-tokens.txt /opt/models/whisper-base/
 COPY models.lock.json /opt/app/models.lock.json
+COPY THIRD_PARTY_NOTICES.md /usr/share/licenses/oo-docs-media-parser/THIRD_PARTY_NOTICES.md
 COPY --from=dp doc_parser /opt/app/doc_parser
 COPY media_parser /opt/app/media_parser
 COPY asr /opt/app/asr

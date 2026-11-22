@@ -1,0 +1,8 @@
+SBOM gate: PASS  components={'python': 28, 'native-in-wheel': 19, 'own-build': 1, 'base-os': 97, 'model': 12}
+  REVIEWED  certifi 2026.10.23  [python]  MPL-2.0
+  REVIEWED  tqdm 4.70.1  [python]  MPL-2.0 AND MIT
+  REVIEWED  libasound (ALSA library, bundled by sherpa-onnx) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgeos (shapely) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgeos_c (shapely) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgfortran (GCC Fortran runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEWED  ffmpeg-lgpl-own-build libavcodec.so.63  [own-build]  LGPL-2.1-or-later

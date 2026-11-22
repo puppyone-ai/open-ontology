@@ -23,6 +23,7 @@ KNOWN_NATIVE = [
     (r"^libgomp", "libgomp (GCC OpenMP runtime)", "GPL-3.0-or-later WITH GCC-exception-3.1"),
     (r"^libgfortran", "libgfortran (GCC Fortran runtime)", "GPL-3.0-or-later WITH GCC-exception-3.1"),
     (r"^libquadmath", "libquadmath (GCC)", "LGPL-2.1-or-later"),
+    (r"^libasound", "libasound (ALSA library, bundled by sherpa-onnx)", "LGPL-2.1-or-later"),
     (r"^libstdc\+\+", "libstdc++ (GCC)", "GPL-3.0-or-later WITH GCC-exception-3.1"),
     (r"^libgcc_s", "libgcc_s (GCC)", "GPL-3.0-or-later WITH GCC-exception-3.1"),
     (r"^libscipy_openblas|^libopenblas", "OpenBLAS", "BSD-3-Clause"),
