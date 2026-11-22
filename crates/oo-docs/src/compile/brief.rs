@@ -795,8 +795,28 @@ impl Frame<'_> {
                     == crate::profile::Profile::Instruction
             })
             .collect();
+        // Written for an Agent first (AGENTS.md, CLAUDE.md, SOPs), the README and ADRs last.
+        let tier = |p: &str| -> u8 {
+            let name = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
+            if matches!(
+                name.as_str(),
+                "agents.md" | "claude.md" | "gemini.md" | ".cursorrules"
+            ) || name.contains("sop")
+                || p.contains("/sop/")
+            {
+                0
+            } else if name.starts_with("readme") || p.contains("/adr/") {
+                2
+            } else {
+                1
+            }
+        };
         files.sort_by(|a, b| {
-            (a.path.matches('/').count(), &a.path).cmp(&(b.path.matches('/').count(), &b.path))
+            (tier(&a.path), a.path.matches('/').count(), &a.path).cmp(&(
+                tier(&b.path),
+                b.path.matches('/').count(),
+                &b.path,
+            ))
         });
         let mut out = Vec::new();
         let mut used = 0u64;
