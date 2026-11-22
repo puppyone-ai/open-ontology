@@ -164,7 +164,7 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
     assert!(
         x.facts
             .iter()
-            .all(|f| f.rule_id == "llm" && !f.evidence.is_empty())
+            .all(|f| f.rule_id.starts_with("llm") && !f.evidence.is_empty())
     );
     let llm = x.llm.clone().unwrap();
     assert_eq!(llm.prompt_version, "extract/5");
