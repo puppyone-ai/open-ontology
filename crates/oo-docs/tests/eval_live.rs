@@ -299,7 +299,10 @@ async fn diagnostics(s: &Stack, out: &std::path::Path) {
     .unwrap_or_default();
     let lines: Vec<String> = ents
         .iter()
-        .map(|r| json!({"type": r.0, "name": r.1, "status": r.2, "origins": r.3, "facts": r.4}).to_string())
+        .map(|r| {
+            json!({"type": r.0, "name": r.1, "status": r.2, "origins": r.3, "facts": r.4})
+                .to_string()
+        })
         .collect();
     std::fs::write(out.join("entities-all.jsonl"), lines.join("\n")).unwrap();
     // Facts behind the items, so a person reading the run sees what each question is about.
@@ -498,6 +501,19 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
         .map(|r| json!({"predicate": r.0, "origin": r.1, "status": r.2, "bp": r.3, "subject_type": r.4, "subject": r.5, "object_type": r.6, "object": r.7, "review": r.8}).to_string())
         .collect();
     std::fs::write(out.join("llm-facts-state.jsonl"), lines.join("\n")).unwrap();
+    // OO_EVAL_HOLD=<flag file>: keep the engine up, write its address and token next to the predictions, and wait
+    // until the flag file exists, so the acceptance scorers (which read the engine over HTTP) can run on it.
+    if let Ok(flag) = std::env::var("OO_EVAL_HOLD") {
+        std::fs::write(
+            out.join("engine.json"),
+            json!({"addr": s.addr().to_string()}).to_string(),
+        )
+        .unwrap();
+        std::fs::write(out.join("token"), common::engine::TOKEN).unwrap();
+        while !std::path::Path::new(&flag).exists() {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    }
     if std::env::var("OO_EVAL_KEEP").is_ok() {
         eprintln!("kept: db {} state {}", s.db, s.state.display());
         std::mem::forget(s);
