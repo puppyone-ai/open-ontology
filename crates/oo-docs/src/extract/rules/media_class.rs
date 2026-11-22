@@ -88,6 +88,9 @@ pub struct Signals {
     pub turn_rate_x100: u64,
     pub scenes: u32,
     pub video: bool,
+    /// Different names the speakers give themselves in the text ("我是小王", "I am Priya"): several of them under one
+    /// or two voice labels mean the diarization merged people.
+    pub text_voices: u32,
     /// `conversation`, `non_conversation` or `none`: what the file name suggests.
     pub name_hint: &'static str,
 }
@@ -184,6 +187,28 @@ fn name_hint(path: &str) -> &'static str {
     }
 }
 
+/// The voice labels that carry the talk, in order of first appearance: the ones a person is asked about. A label
+/// that speaks for a moment (a clustering stray) is not a voice.
+pub fn voices(ir: &DocIr) -> Vec<String> {
+    let utts: Vec<(u64, u64, &str)> = ir.blocks.iter().filter_map(utterance).collect();
+    let mut by: BTreeMap<&str, u64> = BTreeMap::new();
+    for (s, e, spk) in &utts {
+        *by.entry(spk).or_default() += e - s;
+    }
+    let total: u64 = by.values().sum::<u64>().max(1);
+    let mut out: Vec<String> = Vec::new();
+    for (_, _, spk) in &utts {
+        let ms = by[spk];
+        if ms * 10_000 / total >= VOICE_SHARE_BP
+            && ms >= VOICE_MIN_MS
+            && !out.iter().any(|o| o == spk)
+        {
+            out.push((*spk).to_owned());
+        }
+    }
+    out
+}
+
 /// Measure a recording.
 pub fn signals(ir: &DocIr, path: &str) -> Signals {
     let mut utts: Vec<(u64, u64, &str)> = ir.blocks.iter().filter_map(utterance).collect();
@@ -251,6 +276,15 @@ pub fn signals(ir: &DocIr, path: &str) -> Signals {
         turn_rate_x100: u64::from(turns) * 6_000_000 / span_ms,
         scenes: u32::try_from(scenes).unwrap_or(u32::MAX),
         video: ir.format == DocFormat::Video,
+        text_voices: u32::try_from(
+            super::media::introductions(ir)
+                .iter()
+                .filter(|c| c.source == super::media::CandidateSource::SelfIntro)
+                .map(|c| c.name.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+        )
+        .unwrap_or(u32::MAX),
         name_hint: name_hint(path),
     }
 }
@@ -276,8 +310,15 @@ pub fn decide(s: &Signals) -> MediaProfile {
             9000,
         );
     }
-    // One voice (or one voice and a stray label): a promo read, a talk, a lecture, a narration.
+    // One voice (or one voice and a stray label): a promo read, a talk, a lecture, a narration. Unless the text says
+    // several people spoke (they introduce themselves, or the name says call or meeting) and the diarization merged
+    // them: then the model reads the text.
     if s.voices <= 1 {
+        if s.speech_ms >= 8000
+            && (s.text_voices >= 2 || (s.name_hint == "conversation" && s.speech_ms < LECTURE_MS))
+        {
+            return mk(Unsure, "undecided", 4000);
+        }
         let kind = if s.speech_ms >= LECTURE_MS {
             "lecture"
         } else {
@@ -287,11 +328,9 @@ pub fn decide(s: &Signals) -> MediaProfile {
         return mk(NonConversation, kind, conf);
     }
     let minutes_x100 = s.duration_ms * 100 / 60_000;
-    let cuts_per_min = if minutes_x100 == 0 {
-        0
-    } else {
-        u64::from(s.scenes) * 100 / minutes_x100
-    };
+    let cuts_per_min = (u64::from(s.scenes) * 100)
+        .checked_div(minutes_x100)
+        .unwrap_or(0);
     let talking = u64::from(s.turns) >= TURNS_MIN && s.turn_rate_x100 >= TURN_RATE_MIN_X100;
     // A cut-heavy video where the speech is a part of it: a film, a trailer, an edited piece.
     if s.video && cuts_per_min >= CUTS_PER_MIN_EDITED && s.speech_ratio_bp < 6000 {

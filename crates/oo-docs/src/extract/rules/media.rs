@@ -371,8 +371,13 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, class: super::media_class::Me
     if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) || !class.identifies_speakers() {
         return;
     }
+    let voices = super::media_class::voices(ir);
     for b in &ir.blocks {
         let Some(spk) = speaker_of(b) else { continue };
+        // A label that speaks for a moment is a clustering stray: nobody is asked about it, so nothing is made for it.
+        if !voices.iter().any(|v| v == spk) {
+            continue;
+        }
         let ev = EvidenceRef::from_block(b);
         for sentence in b.text.split(['。', '！', '？', '.', '\n']) {
             let Some(rest) = after(sentence.trim(), &["我负责", "我来负责"]) else {

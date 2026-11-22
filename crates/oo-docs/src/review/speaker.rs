@@ -104,7 +104,8 @@ pub async fn propose(
         }
     }
     let mut added = 0;
-    for spk in media::speakers(ir) {
+    let voices = crate::extract::rules::media_class::voices(ir);
+    for spk in voices {
         let confirmed: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM _oo_docs.overlay_current \
               WHERE kind = 'speaker_map' AND binds = $1 AND status = 'active')",
