@@ -482,6 +482,10 @@ fn map_relation(
         return;
     }
     let confidence = calibrated(rel.confidence, subject, object, &rel.quote);
+    // D91: the program checked the quote for both ends; a statement the model did not call a guess is `verified`.
+    let verified = rel.confidence != Confidence::Low
+        && (subject.is_doc || subject.written_in(&rel.quote))
+        && object.written_in(&rel.quote);
     col.fact(FactMention {
         subject: subject_e.clone(),
         predicate,
@@ -491,7 +495,7 @@ fn map_relation(
         valid_to: rel.valid_to.clone(),
         valid_precision: rel.valid_from.as_ref().map(|_| "day"),
         confidence_bp: confidence.bp(),
-        rule_id: "llm",
+        rule_id: if verified { "llm.verified" } else { "llm" },
         evidence: vec![ev],
     });
 }
@@ -549,7 +553,8 @@ mod tests {
         assert_eq!(x.facts.len(), 1);
         assert_eq!(
             (x.facts[0].confidence_bp, x.facts[0].rule_id),
-            (7000, "llm")
+            (7000, "llm.verified"),
+            "the quote names both ends and the model did not say low"
         );
         assert_eq!(x.facts[0].valid_precision, Some("day"));
         assert_eq!(x.aliases.len(), 1);

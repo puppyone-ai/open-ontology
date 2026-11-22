@@ -42,6 +42,11 @@ pub struct Signals {
     pub new_single_entity: bool,
     /// The object is a `Thing`.
     pub object_is_thing: bool,
+    /// The model's statement, checked by the program: the quote names both ends and the model did not say `low`
+    /// (rule id `llm.verified`). D91: such a statement needs no person unless another claim contradicts it.
+    pub verified: bool,
+    /// Another live fact makes the opposite claim (a second owner of the same thing).
+    pub conflicted: bool,
 }
 
 /// Base score with the adjustments applied.
