@@ -97,18 +97,32 @@ fn flow_list(items: &[String]) -> String {
     )
 }
 
-/// Document properties that name rows of a database table through a link rule (the existing source link).
+/// Share of a property's values that must be rows of the table before the property is linked to it.
+const LINK_MIN_SHARE: f64 = 0.5;
+
+/// Document properties that name rows of a database table through a link rule (the existing source link). Like the inclusion
+/// dependency of a foreign key, it is the values that decide: at least half of the distinct values of the property are in the name
+/// (or alias) columns of the table. A property whose type is an entity type only links to a table whose rule names that type.
 pub fn cross_links(classes: &[ClassStructure], db: &DbSide) -> Vec<CrossLink> {
     let mut out = Vec::new();
     for c in classes.iter().filter(|c| c.status != Status::Rejected) {
         for p in c.live_properties() {
-            let Some(ty) = p.value_type.entity_type() else {
+            let ty = p.value_type.entity_type();
+            if !matches!(
+                p.value_type,
+                ValueType::Person
+                    | ValueType::Project
+                    | ValueType::Organization
+                    | ValueType::Text
+                    | ValueType::Enum
+                    | ValueType::Id
+            ) {
                 continue;
-            };
+            }
             for rule in db
                 .rules
                 .iter()
-                .filter(|r| r.entity_type == ty || r.entity_type.is_empty())
+                .filter(|r| ty.is_none_or(|t| r.entity_type == t || r.entity_type.is_empty()))
             {
                 let Some(names) = db.names.get(&rule.table) else {
                     continue;
@@ -122,7 +136,7 @@ pub fn cross_links(classes: &[ClassStructure], db: &DbSide) -> Vec<CrossLink> {
                     .iter()
                     .filter(|v| names.contains(&norm(v)))
                     .count();
-                if matched > 0 {
+                if matched > 0 && matched as f64 / of as f64 >= LINK_MIN_SHARE {
                     out.push(CrossLink {
                         class_key: c.class_key.clone(),
                         property: p.slug.clone(),
@@ -130,7 +144,7 @@ pub fn cross_links(classes: &[ClassStructure], db: &DbSide) -> Vec<CrossLink> {
                         column: rule.name_col.clone(),
                         matched,
                         of,
-                        entity_type: ty.to_owned(),
+                        entity_type: rule.entity_type.clone(),
                         projected: db.projected.get(&rule.table).copied().unwrap_or(0),
                     });
                 }

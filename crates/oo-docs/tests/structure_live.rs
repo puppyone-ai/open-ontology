@@ -27,6 +27,39 @@ use sidecar_support::testing_root;
 use sqlx::Row;
 use stack::{Stack, copy_tree};
 
+fn pg_url(db: &str) -> String {
+    let host = std::env::var("OO_DOCS_TEST_PG_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let port = std::env::var("OO_DOCS_TEST_PG_PORT").expect("port");
+    let user = std::env::var("OO_DOCS_TEST_PG_USER").unwrap_or_else(|_| "postgres".into());
+    format!("postgres://{user}@{host}:{port}/{db}")
+}
+
+/// The acceptance shop (4 tables, 3 foreign keys) as the Agent DB: a database of its own and a secrets directory that names it.
+async fn shop_database(fixtures: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    common::create_db("oo_am_shop").await;
+    let mut c = common::connect("oo_am_shop").await;
+    sqlx::raw_sql("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'oo_reader') THEN CREATE ROLE oo_reader NOLOGIN; END IF; END $$").execute(&mut c).await.unwrap();
+    for f in [
+        "shop_fixture_1_schema_seed.sql",
+        "shop_fixture_2_skewed_orders.sql",
+    ] {
+        sqlx::raw_sql(sqlx::AssertSqlSafe(
+            std::fs::read_to_string(fixtures.join(f)).unwrap(),
+        ))
+        .execute(&mut c)
+        .await
+        .unwrap();
+    }
+    let dir = std::env::temp_dir().join(format!("oo-am-secrets-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("agentdb");
+    std::fs::write(&f, pg_url("oo_am_shop")).unwrap();
+    std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o600)).unwrap();
+    dir
+}
+
 async fn settle(
     s: &Stack,
     n: usize,
@@ -159,6 +192,52 @@ async fn snapshot(
     doc
 }
 
+/// Ask (secondary, D95): the BRIEF of the Drive is compiled, and the frozen questions are answered from it by the app's own model client.
+async fn ask(s: &Stack, drive_id: &str, out: &Path, tag: &str) {
+    let compiled = s
+        .call("POST", "/v1/docs/context-packs:compile", Some(&json!({"drive_id": drive_id, "task": "Answer questions about the meetings, decisions, weekly reports, people, projects and contracts of this team", "budget": 16000, "wait_ms": 0})))
+        .await;
+    assert!(
+        compiled.status == 200 || compiled.status == 201,
+        "{}",
+        String::from_utf8_lossy(&compiled.body)
+    );
+    let pack_id = compiled.json()["id"].as_str().unwrap().to_owned();
+    let brief = s
+        .call(
+            "GET",
+            &format!("/v1/docs/context-packs/{pack_id}/files/BRIEF.md"),
+            None,
+        )
+        .await;
+    assert_eq!(brief.status, 200);
+    let brief_path = out.join(format!("brief-{tag}.md"));
+    std::fs::write(&brief_path, &brief.body).unwrap();
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/super-ontology/profiles/ask_headless.mjs")
+        .canonicalize()
+        .unwrap();
+    let dir = out.join(format!("ask-{tag}"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let status = std::process::Command::new("node")
+        .arg(&script)
+        .args([
+            "--base-url",
+            &format!("http://{}", s.addr()),
+            "--token",
+            common::engine::TOKEN,
+            "--questions",
+        ])
+        .arg(testing_root().join("structure/gold/questions.jsonl"))
+        .arg("--out")
+        .arg(&dir)
+        .arg("--brief")
+        .arg(&brief_path)
+        .status()
+        .expect("node");
+    assert!(status.success(), "ask_headless failed");
+}
+
 fn score_acceptance(script: &str, s: &Stack, out: &Path, tag: &str) {
     let token = out.join("token.txt");
     std::fs::write(&token, common::engine::TOKEN).unwrap();
@@ -210,7 +289,15 @@ async fn the_structure_layer_through_the_real_pipeline() {
         .iter()
         .filter_map(|k| std::env::var(k).ok().map(|v| ((*k).to_owned(), v)))
         .collect();
+    let shop_fixtures = std::env::var("OO_STRUCTURE_SHOP").ok().map(PathBuf::from);
+    let secrets = match &shop_fixtures {
+        Some(dir) => Some(shop_database(dir).await.to_string_lossy().into_owned()),
+        None => None,
+    };
     let mut env: Vec<(&str, &str)> = vec![("OO_DOCS_MODEL_EGRESS", script_s.as_str())];
+    if let Some(dir) = &secrets {
+        env.push(("OO_DOCS_SECRETS_DIR", dir.as_str()));
+    }
     env.extend(pass.iter().map(|(k, v)| (k.as_str(), v.as_str())));
     s.spawn_engine(&env);
     let n = copy_tree(&project, &s.root);
@@ -260,6 +347,9 @@ async fn the_structure_layer_through_the_real_pipeline() {
     if let Some(script) = &acceptance {
         score_acceptance(script, &s, &out, "before");
     }
+    if with_model && std::env::var("OO_STRUCTURE_ASK").is_ok() {
+        ask(&s, &drive_id, &out, "before").await;
+    }
     let slot_before: i64 =
         sqlx::query_scalar("SELECT count(*) FROM _oo_docs.fact WHERE rule_id = 'structure.slot'")
             .fetch_one(&s.pool)
@@ -293,6 +383,79 @@ async fn the_structure_layer_through_the_real_pipeline() {
     let after = snapshot(&s, &drive_id, &out, "after", &st).await;
     if let Some(script) = &acceptance {
         score_acceptance(script, &s, &out, "after");
+    }
+    if with_model && std::env::var("OO_STRUCTURE_ASK").is_ok() {
+        ask(&s, &drive_id, &out, "after").await;
+    }
+
+    // One ontology: the shop database (tables, keys) and the documents (classes, properties), with the cross-links of the source link.
+    if shop_fixtures.is_some() {
+        let r = s
+            .call(
+                "PUT",
+                "/v1/docs/agent-db-binding",
+                Some(&json!({"secret_ref": "agentdb"})),
+            )
+            .await;
+        assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+        let r = s.call("PUT", "/v1/docs/link-rules", Some(&json!({"drive_id": drive_id, "db_table": "public.customers", "key_col": "id", "name_col": "name", "entity_type": "Organization"}))).await;
+        assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+        let r = s
+            .call(
+                "POST",
+                "/v1/docs/links:project",
+                Some(&json!({"drive_id": drive_id, "force": true})),
+            )
+            .await;
+        assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+        let y = s
+            .call(
+                "GET",
+                &format!("/v1/docs/drives/{drive_id}/structure/yaml"),
+                None,
+            )
+            .await;
+        assert_eq!(y.status, 200, "{}", String::from_utf8_lossy(&y.body));
+        let body = y.json();
+        assert_eq!(body["agent_db"], "bound");
+        let text = body["text"].as_str().unwrap().to_owned();
+        std::fs::write(out.join("merged.yaml"), &text).unwrap();
+        let docs_only = s
+            .call(
+                "GET",
+                &format!("/v1/docs/drives/{drive_id}/structure/yaml?database=0"),
+                None,
+            )
+            .await
+            .json();
+        std::fs::write(
+            out.join("documents-only.yaml"),
+            docs_only["text"].as_str().unwrap(),
+        )
+        .unwrap();
+        assert!(
+            text.contains("origin: documents") && text.contains("origin: database"),
+            "both sides in one file"
+        );
+        for t in [
+            "public.customers",
+            "public.products",
+            "public.orders",
+            "public.order_items",
+        ] {
+            assert!(text.contains(&format!("name: {t}")), "table {t}");
+        }
+        assert_eq!(
+            text.matches("kind: foreign_key\n").count(),
+            3,
+            "the three foreign keys of the shop"
+        );
+        let links = text.matches("kind: source_link").count();
+        std::fs::write(out.join("merged-summary.json"), json!({"tables": 4, "foreign_keys": 3, "source_links": links, "document_classes": after["classes"].as_array().map_or(0, Vec::len)}).to_string()).unwrap();
+        assert!(
+            links >= 1,
+            "a document property names rows of public.customers:\n{text}"
+        );
     }
 
     // After: the structure is confirmed and effective.
@@ -360,7 +523,7 @@ async fn the_structure_layer_through_the_real_pipeline() {
 
     // A property that recurs in a confirmed class is a proposal (type promotion), not a silent change.
     let mut proposed = 0i64;
-    if acceptance.is_none() {
+    if std::env::var("OO_STRUCTURE_PROJECT").is_err() {
         for i in 0..4 {
             let dir = s.root.join("meetings/星河");
             std::fs::write(dir.join(format!("2026-09-0{}-预算会.md", i + 1)), format!("---\n日期: 2026-09-0{}\n项目: 星河\n主持人: 周若溪\n---\n\n# 预算会\n\n## 参会人\n\n- 陈子墨\n- 周若溪\n\n## 决定\n\n- 追加预算\n\n## 待办\n\n- 提交预算\n\n## 预算\n\n- 追加{}万\n", i + 1, 10 + i)).unwrap();

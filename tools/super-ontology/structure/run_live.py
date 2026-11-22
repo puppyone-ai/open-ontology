@@ -26,7 +26,9 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--project")
     ap.add_argument("--acceptance", action="store_true")
+    ap.add_argument("--shop", action="store_true", help="the acceptance shop database as the Agent DB: one merged ontology YAML")
     ap.add_argument("--model", action="store_true")
+    ap.add_argument("--ask", action="store_true", help="with --model: answer the frozen questions from the BRIEF before and after (secondary)")
     ap.add_argument("--endpoint-file")
     ap.add_argument("--key-file")
     ap.add_argument("--model-id")
@@ -44,6 +46,10 @@ def main():
             env["OO_STRUCTURE_ACCEPTANCE"] = str(REPO / "tools/super-ontology/acceptance/score.py")
         elif a.project:
             env["OO_STRUCTURE_PROJECT"] = a.project
+        if a.shop:
+            env["OO_STRUCTURE_SHOP"] = str(REPO / "testing/super-ontology/agent-qa")
+        if a.model and a.ask:
+            env["OO_STRUCTURE_ASK"] = "1"
         if a.model:
             if not (a.endpoint_file and a.key_file and a.model_id):
                 raise SystemExit("--endpoint-file, --key-file and --model-id are required with --model")
@@ -56,13 +62,17 @@ def main():
         if p.returncode != 0:
             ev.log((p.stdout + p.stderr)[-3000:])
             ok = False
-        elif not a.acceptance:
+        elif not a.acceptance and not a.project:
             for tag in ("before", "after"):
                 d = out / tag
                 d.mkdir(exist_ok=True)
                 (d / "structure.json").write_text((out / f"structure-{tag}.json").read_text())
                 q = subprocess.run([sys.executable, "-B", str(HERE / "score.py"), "--run", str(d), "--out", str(out / f"score-{tag}.json")], capture_output=True, text=True)
                 ev.log(f"== {tag} ==\n" + q.stdout[-1500:])
+                if a.model and a.ask:
+                    r = subprocess.run([sys.executable, "-B", str(REPO / "tools/super-ontology/acceptance/score_ask.py"), "--ask-results", str(out / f"ask-{tag}" / "ask-results.json"),
+                                        "--questions", str(REPO / "testing/super-ontology/structure/gold/questions.jsonl"), "--out", str(out / f"score-ask-{tag}.json")], capture_output=True, text=True)
+                    ev.log(f"== ask {tag} ==\n" + r.stdout[-800:])
     finally:
         pg.stop()
     sys.exit(0 if ok else 1)

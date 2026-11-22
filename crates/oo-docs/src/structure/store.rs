@@ -209,7 +209,8 @@ async fn write_classes(
     Ok(())
 }
 
-/// Record files of a Drive with their observation: `(file_id, path, obs)`.
+/// Record files of a Drive with their observation: `(file_id, path, obs)`. At most 20,000 files (a spread by the hash of the path, the
+/// same files every time) are read into memory; the induction of a larger Drive describes that sample.
 async fn observed(
     conn: &mut PgConnection,
     drive_id: &str,
@@ -226,7 +227,7 @@ async fn observed(
            JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
            JOIN _oo_docs.structure_observation o ON o.b3 = fv.b3 \
           WHERE f.drive_id = $1::uuid AND f.deleted_at IS NULL AND COALESCE(f.profile, 'business') IN ('business', 'meeting', 'table') \
-          ORDER BY f.path",
+          ORDER BY md5(f.path) LIMIT 20000",
     )
     .bind(drive_id)
     .fetch_all(&mut *conn)
