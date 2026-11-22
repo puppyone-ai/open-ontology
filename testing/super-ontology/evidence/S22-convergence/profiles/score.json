@@ -1,0 +1,95 @@
+{
+ "classification": {
+  "files": 41,
+  "class_accuracy": 1.0,
+  "profile_accuracy": 1.0,
+  "by_class": {
+   "other": "6/6",
+   "reference": "5/5",
+   "instruction": "8/8",
+   "code": "12/12",
+   "media": "2/2",
+   "record": "8/8"
+  },
+  "wrong": []
+ },
+ "admission": {
+  "entities_from_instruction_code_other_and_foreign_to_reference": 0,
+  "violations": [],
+  "linked_to_existing_entities": [],
+  "record_entities": {
+   "gold": 6,
+   "found": 6,
+   "recall": 1.0
+  }
+ },
+ "reference_ontology": {
+  "entities": {
+   "gold": 27,
+   "pred": 26,
+   "tp": 26,
+   "precision": 1.0,
+   "recall": 0.963
+  },
+  "relations": {
+   "gold": 22,
+   "pred": 21,
+   "tp": 21,
+   "precision": 1.0,
+   "recall": 0.955
+  },
+  "by_type": {
+   "Reference": {
+    "gold": 17,
+    "pred": 16,
+    "tp": 16,
+    "precision": 1.0,
+    "recall": 0.941
+   },
+   "Person": {
+    "gold": 10,
+    "pred": 10,
+    "tp": 10,
+    "precision": 1.0,
+    "recall": 1.0
+   }
+  },
+  "by_relation": {
+   "cites": {
+    "gold": 12,
+    "pred": 11,
+    "tp": 11,
+    "precision": 1.0,
+    "recall": 0.917
+   },
+   "authored": {
+    "gold": 10,
+    "pred": 10,
+    "tp": 10,
+    "precision": 1.0,
+    "recall": 1.0
+   }
+  },
+  "missed": [
+   [
+    "papers/label-efficient-segmentation.pdf",
+    "Reference",
+    "segment anything"
+   ],
+   [
+    "papers/label-efficient-segmentation.pdf",
+    "label-efficient segmentation of satellite imagery",
+    "cites",
+    "segment anything"
+   ]
+  ],
+  "extra": []
+ },
+ "brief": {
+  "has_section": true,
+  "missing_files": [],
+  "missing_quotes": [],
+  "lines_without_source": 0
+ },
+ "hard_gates_pass": true
+}

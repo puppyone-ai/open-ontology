@@ -1,0 +1,28 @@
+{
+ "entities_by_type": {
+  "Decision": 8,
+  "Document": 46,
+  "Person": 6,
+  "Project": 1,
+  "Thing": 1,
+  "Topic": 9
+ },
+ "decision_total": 8,
+ "decision_false": 0,
+ "decision_false_by_origin": {},
+ "decision_false_names": [],
+ "decision_true_found": 7,
+ "decision_true_total": 8,
+ "generic_named": {
+  "Person": [],
+  "Event": [],
+  "Topic": [],
+  "Term": [],
+  "Organization": [],
+  "Project": [],
+  "Thing": []
+ },
+ "review_pending": 0,
+ "review_pending_by_kind_reason": {},
+ "review_all_by_kind_reason": {}
+}
