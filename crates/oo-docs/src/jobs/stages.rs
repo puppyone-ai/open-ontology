@@ -1165,6 +1165,41 @@ async fn withdraw_superseded(
 }
 
 impl ExtractHandler {
+    /// D94: the class of the file. The user's override first, then the rules; the model only when the rules cannot decide and the
+    /// Drive uses the model. The result is stored on the file with the reason.
+    async fn classify_file(&self, s: &Subject, ir: &DocIr) -> crate::profile::Profile {
+        let overrides = match self.pool.acquire().await {
+            Ok(mut c) => crate::profile::load_overrides(&mut c, &s.drive_id)
+                .await
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        let mut class = crate::profile::classify_with(&s.path, ir, &overrides);
+        if !class.decided
+            && llm_wanted(&self.pool, &self.model, &s.drive_id).await
+            && let Some(port) = self.model.port()
+        {
+            {
+                let asked = tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    crate::profile::classify_by_model(port.as_ref(), &s.path, ir),
+                )
+                .await;
+                if let Ok(Some(profile)) = asked {
+                    class = crate::profile::Classified {
+                        profile,
+                        reason: "model",
+                        decided: true,
+                    };
+                }
+            }
+        }
+        if let Ok(mut c) = self.pool.acquire().await {
+            let _ = crate::profile::store(&mut c, &s.file_id, &class).await;
+        }
+        class.profile
+    }
+
     /// Text of the minutes file with the same stem next to a recording (`周会.m4a` and `周会.md`), when it has
     /// been parsed: the attendee list there is layer 1 of the speaker identity (D74).
     async fn sibling_minutes(&self, s: &Subject) -> Option<String> {
@@ -1251,10 +1286,7 @@ impl JobHandler for ExtractHandler {
                 return Outcome::Cancelled;
             }
             // D89: the profile of the file, stored for the file list and decisive for the model supplement.
-            let profile = crate::profile::classify(&s.path, &ir).profile;
-            if let Ok(mut c) = self.pool.acquire().await {
-                let _ = crate::profile::store(&mut c, &s.file_id, profile).await;
-            }
+            let profile = self.classify_file(&s, &ir).await;
             // Same blocks as the previous version: nothing to extract, the
             // evidence moves (D53).
             let reused = match super::reuse::reusable_version(
@@ -1606,6 +1638,7 @@ impl PublishHandler {
             "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
               WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND (f.profile IS NULL OR f.profile IN ('business', 'meeting', 'table', 'media')) \
                 AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
               ORDER BY fv.path_at_version, fv.id LIMIT 5000",
         )
@@ -1684,6 +1717,7 @@ impl PublishHandler {
             "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
               WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND (f.profile IS NULL OR f.profile IN ('business', 'meeting', 'table', 'media')) \
                 AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
               ORDER BY fv.path_at_version, fv.id LIMIT 5000",
         )

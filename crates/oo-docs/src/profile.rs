@@ -1,27 +1,24 @@
-//! Document profiles (D89): every file gets a profile first, and the profile decides what is extracted.
+//! Document profiles and admission (D94): every file is classified first, and the class decides whether and how the file enters
+//! the ontology.
 //!
-//! The profile is chosen deterministically from the path (file name conventions, directories, extension), the blob
-//! format and, for prose, the content (frontmatter, headings, an abstract with references or a DOI). No model is
-//! asked. A file with nothing to extract is still indexed and searchable: "no entities" is not an error.
+//! The class is chosen by rules (user override, frontmatter, file name, extension, directory, blob format, content structure);
+//! the model is asked only when the rules cannot decide. Nothing here reads a file's body for entities except the `record` and
+//! `reference` classes:
 //!
-//! | profile | what it is | extracted |
+//! | class | profiles | what happens |
 //! |---|---|---|
-//! | `business` | reports, plans, contracts, notes | the core rules of 10 section 5.1 (and the model) |
-//! | `meeting` | minutes, interviews, transcripts | the core rules (and the model) |
-//! | `table` | csv, xlsx | the table rules |
-//! | `instruction` | AGENTS.md, CLAUDE.md, README, CONTRIBUTING, ADR, style guides | `Rule`, `Command`, `Tool`, `Path` |
-//! | `code` | source files and package manifests | `Function`, `Class`, `Type`, `Dependency`, `Package`, `Path` |
-//! | `paper` | research papers | `Paper`, `Person` (authors), `Venue`, `Method`, `Dataset`, `Metric`, cited `Paper` |
-//! | `media` | audio, video, images | the media rules |
-//! | `other` | logs, configuration, licences, unknown text | the Document only |
+//! | `record` | `business`, `meeting`, `table` | enters the ontology through the per-class templates (core rules of 10 section 5.1, model supplement) |
+//! | `instruction` | `instruction` | no entities; the file is attached as an instruction (working convention) to its project or directory; shared with an Agent its original text goes into the BRIEF section 工作约定 |
+//! | `reference` | `reference` | one `Reference` instance (title, authors, year, venue, cites); no body extraction |
+//! | `code` | `code` | no content extraction; structural facts only (project, CODEOWNERS owners) |
+//! | `media` | `media` | the media rules (lane AL, D98) |
+//! | `other` | `other` | archive only, searchable by file name |
 //!
-//! The types of the profile extractors are `Thing{label}` (D16, 10 section 5.1.1): the labels in [`LABELS`] are
-//! registered by the profile, so they are never proposed for promotion and the open candidate cap does not apply.
+//! "Not in the ontology" is a normal state, not an error: the app shows the class and the reason.
 
 pub mod code;
 pub mod instruction;
-pub mod manifest;
-pub mod paper;
+pub mod reference;
 
 #[cfg(test)]
 mod tests;
@@ -40,9 +37,38 @@ pub enum Profile {
     Table,
     Instruction,
     Code,
-    Paper,
+    Reference,
     Media,
     Other,
+}
+
+/// The admission class of D94: where a file goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Class {
+    Record,
+    Instruction,
+    Reference,
+    Code,
+    Media,
+    Other,
+}
+
+impl Class {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Record => "record",
+            Self::Instruction => "instruction",
+            Self::Reference => "reference",
+            Self::Code => "code",
+            Self::Media => "media",
+            Self::Other => "other",
+        }
+    }
+
+    /// Whether files of this class put entities into the ontology (a `reference` only its `Reference` instances).
+    pub const fn admits_entities(self) -> bool {
+        matches!(self, Self::Record | Self::Reference | Self::Media)
+    }
 }
 
 impl Profile {
@@ -52,7 +78,7 @@ impl Profile {
         Self::Table,
         Self::Instruction,
         Self::Code,
-        Self::Paper,
+        Self::Reference,
         Self::Media,
         Self::Other,
     ];
@@ -65,7 +91,7 @@ impl Profile {
             Self::Table => "table",
             Self::Instruction => "instruction",
             Self::Code => "code",
-            Self::Paper => "paper",
+            Self::Reference => "reference",
             Self::Media => "media",
             Self::Other => "other",
         }
@@ -75,10 +101,26 @@ impl Profile {
         Self::ALL.into_iter().find(|p| p.as_str() == text)
     }
 
-    /// Whether the model supplement (10 section 5.2) runs for this profile. Code and instruction documents are read by
-    /// parsers and rules only (D89: no model guessing for structure), `other` has nothing to ask.
+    /// The admission class (D94).
+    pub const fn class(self) -> Class {
+        match self {
+            Self::Business | Self::Meeting | Self::Table => Class::Record,
+            Self::Instruction => Class::Instruction,
+            Self::Reference => Class::Reference,
+            Self::Code => Class::Code,
+            Self::Media => Class::Media,
+            Self::Other => Class::Other,
+        }
+    }
+
+    /// Whether the model supplement (10 section 5.2) runs: records and media only.
     pub const fn uses_model(self) -> bool {
-        !matches!(self, Self::Code | Self::Instruction | Self::Other)
+        matches!(self.class(), Class::Record | Class::Media)
+    }
+
+    /// The reason the app shows for a file that does not enter the ontology.
+    pub const fn admitted(self) -> bool {
+        self.class().admits_entities()
     }
 }
 
@@ -88,29 +130,15 @@ pub struct Classified {
     pub profile: Profile,
     /// Short code of the deciding evidence (`name`, `dir`, `ext`, `format`, `content`, `default`).
     pub reason: &'static str,
+    /// False when no rule decided and the profile is the default (the model may be asked).
+    pub decided: bool,
 }
 
-/// `Thing` labels the profile extractors create.
-pub const RULE: &str = "Rule";
-pub const COMMAND: &str = "Command";
-pub const TOOL: &str = "Tool";
-pub const PATH: &str = "Path";
-pub const FUNCTION: &str = "Function";
-pub const CLASS: &str = "Class";
-pub const TYPE: &str = "Type";
-pub const DEPENDENCY: &str = "Dependency";
-pub const PACKAGE: &str = "Package";
-pub const PAPER: &str = "Paper";
-pub const VENUE: &str = "Venue";
-pub const METHOD: &str = "Method";
-pub const DATASET: &str = "Dataset";
-pub const METRIC: &str = "Metric";
+/// `Thing` label of a reference (a paper, a book, an external report): the 文献 instance.
+pub const REFERENCE: &str = "Reference";
 
-/// Every label above: registered by the profile, never promoted as a type.
-pub const LABELS: &[&str] = &[
-    RULE, COMMAND, TOOL, PATH, FUNCTION, CLASS, TYPE, DEPENDENCY, PACKAGE, PAPER, VENUE, METHOD,
-    DATASET, METRIC,
-];
+/// Every label the profile extractors own: registered, never proposed for promotion.
+pub const LABELS: &[&str] = &[REFERENCE];
 
 /// Whether `label` belongs to a profile extractor.
 pub fn is_profile_label(label: &str) -> bool {
@@ -145,6 +173,30 @@ pub(crate) fn attr(
         predicate: Predicate::Attr(name.to_owned()),
         object: None,
         value: Some(serde_json::json!({ "text": text })),
+        valid_from: None,
+        valid_to: None,
+        valid_precision: None,
+        confidence_bp: conf,
+        rule_id: rule,
+        evidence: vec![ev.clone()],
+    });
+}
+
+/// `attr.<name>` fact with an enum value.
+pub(crate) fn attr_enum(
+    col: &mut Collector,
+    subject: &EntityRef,
+    name: &str,
+    value: &str,
+    rule: &'static str,
+    conf: u16,
+    ev: &EvidenceRef,
+) {
+    col.fact(FactMention {
+        subject: subject.clone(),
+        predicate: Predicate::Attr(name.to_owned()),
+        object: None,
+        value: Some(serde_json::json!({ "enum": value })),
         valid_from: None,
         valid_to: None,
         valid_precision: None,
@@ -192,7 +244,6 @@ const INSTRUCTION_NAMES: &[&str] = &[
     "contributing",
     "code_of_conduct.md",
     "security.md",
-    "codeowners",
     "development.md",
     "hacking.md",
     "style.md",
@@ -244,6 +295,16 @@ fn instruction_name(path: &str) -> bool {
     {
         return true;
     }
+    if stem == "sop"
+        || stem.starts_with("sop-")
+        || stem.starts_with("sop_")
+        || stem.ends_with("-sop")
+        || stem.contains("操作规范")
+        || stem.contains("操作手册")
+        || stem.contains("runbook")
+    {
+        return true;
+    }
     let dirs = dir_segments(path);
     let textual = matches!(
         extension(path).as_str(),
@@ -251,6 +312,15 @@ fn instruction_name(path: &str) -> bool {
     );
     // .cursor/rules/*.mdc, .claude/**, docs/adr/*
     if dirs.iter().any(|d| d == ".cursor") && dirs.iter().any(|d| d == "rules") {
+        return true;
+    }
+    if dirs.iter().any(|d| {
+        matches!(
+            d.as_str(),
+            "sop" | "sops" | "runbooks" | "playbooks" | "操作规范"
+        )
+    }) && textual
+    {
         return true;
     }
     if dirs.iter().any(|d| d == ".claude") && textual {
@@ -385,12 +455,42 @@ const OTHER_NAMES: &[&str] = &[
     "changelog",
 ];
 
+/// CODEOWNERS: a code file, read for its owners only.
+pub fn is_codeowners(path: &str) -> bool {
+    file_name(path).eq_ignore_ascii_case("codeowners")
+}
+
+/// Directories and extensions that hold references: papers, books, external reports.
+fn reference_by_path(path: &str, ext: &str) -> bool {
+    if matches!(ext, "epub" | "mobi" | "bib") {
+        return true;
+    }
+    dir_segments(path).iter().any(|d| {
+        matches!(
+            d.as_str(),
+            "papers"
+                | "paper"
+                | "literature"
+                | "references"
+                | "books"
+                | "文献"
+                | "论文"
+                | "参考文献"
+                | "书籍"
+        )
+    }) && matches!(ext, "pdf" | "docx" | "md" | "txt" | "epub")
+}
+
 /// The profile from path and blob format alone (`format` is `_oo_docs.blob.format`; `None` when not known yet).
 /// Rows of a file list use this when the content based profile is not stored yet.
 pub fn classify_path(path: &str, format: Option<&str>) -> Classified {
     let ext = extension(path);
     let name = file_name(path).to_ascii_lowercase();
-    let c = |profile, reason| Classified { profile, reason };
+    let c = |profile, reason: &'static str| Classified {
+        profile,
+        reason,
+        decided: reason != "default",
+    };
     match format {
         Some("audio" | "video" | "image") => return c(Profile::Media, "format"),
         Some("csv" | "xlsx") => return c(Profile::Table, "format"),
@@ -428,7 +528,10 @@ pub fn classify_path(path: &str, format: Option<&str>) -> Classified {
     if instruction_name(path) {
         return c(Profile::Instruction, "name");
     }
-    if is_manifest(path) || code_language(path).is_some() {
+    if reference_by_path(path, &ext) {
+        return c(Profile::Reference, "dir");
+    }
+    if is_manifest(path) || is_codeowners(path) || code_language(path).is_some() {
         return c(
             Profile::Code,
             if is_manifest(path) { "name" } else { "ext" },
@@ -470,8 +573,8 @@ fn starts_with_word(text: &str, words: &[&str]) -> bool {
     })
 }
 
-/// A research paper reads as one: an abstract and (references or a DOI/arXiv id) or references and a DOI/arXiv id.
-pub fn looks_like_paper(ir: &DocIr) -> bool {
+/// A reference (paper, book, external report) reads as one: an abstract and (references or a DOI/arXiv id) or references and a DOI/arXiv id.
+pub fn looks_like_reference(ir: &DocIr) -> bool {
     let mut abstract_ = false;
     let mut refs = false;
     let mut id = false;
@@ -584,19 +687,25 @@ pub fn classify(path: &str, ir: &DocIr) -> Classified {
             | DocFormat::PdfScanned
             | DocFormat::Pptx
     );
+    let done = |profile, reason| Classified {
+        profile,
+        reason,
+        decided: true,
+    };
+    // Frontmatter says what the author says it is: `type: instruction | reference | sop | ...`.
+    if prose
+        && by_path.profile != Profile::Code
+        && let Some(p) = frontmatter_profile(ir)
+    {
+        return done(p, "frontmatter");
+    }
     match by_path.profile {
         Profile::Business | Profile::Meeting | Profile::Other if prose => {
-            if looks_like_paper(ir) {
-                return Classified {
-                    profile: Profile::Paper,
-                    reason: "content",
-                };
+            if looks_like_reference(ir) {
+                return done(Profile::Reference, "content");
             }
             if by_path.profile != Profile::Meeting && looks_like_meeting(ir) {
-                return Classified {
-                    profile: Profile::Meeting,
-                    reason: "content",
-                };
+                return done(Profile::Meeting, "content");
             }
             // A text file without a known extension that holds prose is a document, not an unknown blob.
             if by_path.profile == Profile::Other
@@ -611,7 +720,8 @@ pub fn classify(path: &str, ir: &DocIr) -> Classified {
             {
                 return Classified {
                     profile: Profile::Business,
-                    reason: "content",
+                    reason: "default",
+                    decided: false,
                 };
             }
             by_path
@@ -620,12 +730,121 @@ pub fn classify(path: &str, ir: &DocIr) -> Classified {
     }
 }
 
-/// Run the extractor of the profile on a parsed file; entities and facts go into `col`.
-pub(crate) fn apply(class: &Classified, path: &str, ir: &DocIr, col: &mut Collector) {
+/// `type:` (or `class:`) of the frontmatter, when it names a class.
+fn frontmatter_profile(ir: &DocIr) -> Option<Profile> {
+    let fm = ir.meta.frontmatter.as_ref()?;
+    let v = fm.get("type").or_else(|| fm.get("class"))?.as_str()?;
+    Some(match v.trim().to_ascii_lowercase().as_str() {
+        "instruction" | "instructions" | "convention" | "conventions" | "sop" | "runbook"
+        | "指令" | "工作约定" | "操作规范" => Profile::Instruction,
+        "reference" | "paper" | "book" | "literature" | "report-external" | "文献" | "论文" => {
+            Profile::Reference
+        }
+        "code" | "source" => Profile::Code,
+        "meeting" | "interview" | "minutes" | "会议" | "访谈" => Profile::Meeting,
+        "record" | "decision" | "weekly" | "contract" | "person" | "project" | "preference" => {
+            Profile::Business
+        }
+        "other" | "archive" => Profile::Other,
+        _ => return None,
+    })
+}
+
+/// A user's choice for a file or a directory (`_oo_docs.profile_override`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Override {
+    /// Drive-relative path of the file or directory (no trailing slash).
+    pub path: String,
+    pub dir: bool,
+    pub profile: Profile,
+}
+
+/// The override that applies to `path`: the file's own, else the nearest directory above it.
+pub fn override_for(path: &str, overrides: &[Override]) -> Option<Profile> {
+    if let Some(o) = overrides.iter().find(|o| !o.dir && o.path == path) {
+        return Some(o.profile);
+    }
+    overrides
+        .iter()
+        .filter(|o| o.dir && (o.path.is_empty() || path.starts_with(&format!("{}/", o.path))))
+        .max_by_key(|o| o.path.len())
+        .map(|o| o.profile)
+}
+
+/// [`classify`] with the user's overrides on top.
+pub fn classify_with(path: &str, ir: &DocIr, overrides: &[Override]) -> Classified {
+    match override_for(path, overrides) {
+        Some(profile) => Classified {
+            profile,
+            reason: "user",
+            decided: true,
+        },
+        None => classify(path, ir),
+    }
+}
+
+/// [`classify_path`] with the user's overrides on top (file lists).
+pub fn classify_path_with(path: &str, format: Option<&str>, overrides: &[Override]) -> Classified {
+    match override_for(path, overrides) {
+        Some(profile) => Classified {
+            profile,
+            reason: "user",
+            decided: true,
+        },
+        None => classify_path(path, format),
+    }
+}
+
+/// Ask the model to decide a file the rules could not (D94): one word out of the six classes, from the name and the head
+/// of the text. `None` when the model fails or answers something else; the rule default then stands.
+pub async fn classify_by_model(
+    port: &dyn crate::extract::llm::egress::LlmPort,
+    path: &str,
+    ir: &DocIr,
+) -> Option<Profile> {
+    let head: String = head_text(ir, 12)
+        .map(|b| b.text.trim())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .chars()
+        .take(1500)
+        .collect();
+    let req = crate::extract::llm::prompt::ChatRequest {
+        model: port.model().to_owned(),
+        system: "Classify a file for an ontology. Answer with exactly one word: record (meeting minutes, decisions, reports, people or project tables, contracts), instruction (agent or engineering instructions, README, SOP, working conventions), reference (paper, book, external report), code, media, other (archive, data export, material).".to_owned(),
+        user: format!("File name: {path}\n\nStart of the text:\n{head}"),
+    };
+    let reply = port.complete(&req).await.ok()?;
+    match reply
+        .content
+        .trim()
+        .trim_matches(|c: char| !c.is_alphabetic())
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "record" => Some(Profile::Business),
+        "instruction" => Some(Profile::Instruction),
+        "reference" => Some(Profile::Reference),
+        "code" => Some(Profile::Code),
+        "media" => Some(Profile::Media),
+        "other" => Some(Profile::Other),
+        _ => None,
+    }
+}
+
+/// Run the extractor of the profile on a parsed file; entities and facts go into `col`. `siblings` are the other live paths
+/// of the Drive (they tell which directory is the project).
+pub(crate) fn apply(
+    class: &Classified,
+    path: &str,
+    ir: &DocIr,
+    siblings: &[String],
+    col: &mut Collector,
+) {
     match class.profile {
-        Profile::Instruction => instruction::extract(path, ir, col),
-        Profile::Code => code::extract(path, ir, col),
-        Profile::Paper => paper::extract(path, ir, col),
+        Profile::Instruction => instruction::extract(path, ir, siblings, col),
+        Profile::Code => code::extract(path, ir, siblings, col),
+        Profile::Reference => reference::extract(path, ir, col),
         _ => {}
     }
 }
@@ -633,24 +852,99 @@ pub(crate) fn apply(class: &Classified, path: &str, ir: &DocIr, col: &mut Collec
 /// What the profile extractor of `path` finds, on its own (the rules of 10 section 5.1 add the rest). For tests and
 /// measurements.
 pub fn extraction(path: &str, ir: &DocIr) -> crate::extract::model::Extraction {
+    extraction_in(path, ir, &[])
+}
+
+/// [`extraction`] with the other paths of the Drive.
+pub fn extraction_in(
+    path: &str,
+    ir: &DocIr,
+    siblings: &[String],
+) -> crate::extract::model::Extraction {
     let class = classify(path, ir);
     let mut col = Collector::default();
-    apply(&class, path, ir, &mut col);
+    apply(&class, path, ir, siblings, &mut col);
     col.finish(path)
 }
 
-/// Store the profile on the file (`_oo_docs.file.profile`). Idempotent; no revision bump, no event.
+/// File names (lower case) that mark the root of a project.
+pub const MARKERS: &[&str] = &[
+    "cargo.toml",
+    "package.json",
+    "pyproject.toml",
+    "go.mod",
+    "pom.xml",
+    "build.gradle",
+    "agents.md",
+    "claude.md",
+    "codeowners",
+];
+
+/// The directory of the project a file belongs to: the nearest directory (the file's own first) that holds a project marker.
+/// Empty string: the root of the Drive.
+pub fn project_dir(path: &str, siblings: &[String]) -> String {
+    let mut dir = path.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
+    loop {
+        let prefix = if dir.is_empty() {
+            String::new()
+        } else {
+            format!("{dir}/")
+        };
+        let has = siblings.iter().any(|s| {
+            s.strip_prefix(&prefix).is_some_and(|rest| {
+                !rest.contains('/') && MARKERS.contains(&rest.to_ascii_lowercase().as_str())
+            })
+        });
+        if has {
+            return dir;
+        }
+        match dir.rsplit_once('/') {
+            Some((up, _)) => dir = up.to_owned(),
+            None if dir.is_empty() => {
+                return path.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
+            }
+            None => dir = String::new(),
+        }
+    }
+}
+
+/// Store the profile and why on the file (`_oo_docs.file.profile`, `profile_reason`). Idempotent; no revision bump, no event.
 pub async fn store(
     conn: &mut sqlx::PgConnection,
     file_id: &str,
-    profile: Profile,
+    class: &Classified,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
-        "UPDATE _oo_docs.file SET profile = $2 WHERE id = $1::uuid AND profile IS DISTINCT FROM $2",
+        "UPDATE _oo_docs.file SET profile = $2, profile_reason = $3 WHERE id = $1::uuid \
+            AND (profile IS DISTINCT FROM $2 OR profile_reason IS DISTINCT FROM $3)",
     )
     .bind(file_id)
-    .bind(profile.as_str())
+    .bind(class.profile.as_str())
+    .bind(class.reason)
     .execute(&mut *conn)
     .await?;
     Ok(())
+}
+
+/// The user's overrides of one Drive.
+pub async fn load_overrides(
+    conn: &mut sqlx::PgConnection,
+    drive_id: &str,
+) -> Result<Vec<Override>, sqlx::Error> {
+    let rows: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT path, scope, profile FROM _oo_docs.profile_override WHERE drive_id = $1::uuid ORDER BY scope, path",
+    )
+    .bind(drive_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(path, scope, profile)| {
+            Some(Override {
+                path,
+                dir: scope == "dir",
+                profile: Profile::parse(&profile)?,
+            })
+        })
+        .collect())
 }

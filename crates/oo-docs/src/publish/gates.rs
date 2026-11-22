@@ -192,6 +192,9 @@ fn domain_range(p: &Predicate) -> Option<(&'static [T], &'static [T])> {
                 T::Person,
             ],
         ),
+        // D94: a reference cites a reference; a person wrote a reference. Labels are not visible to the gate.
+        Predicate::Cites => (&[T::Thing], &[T::Thing]),
+        Predicate::Authored => (&[T::Person], &[T::Thing]),
         Predicate::Attr(_) => return None,
     })
 }

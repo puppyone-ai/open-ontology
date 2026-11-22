@@ -82,6 +82,10 @@ pub enum Predicate {
     Mentions,
     About,
     TriedAndFailed,
+    /// A reference cites another (D94).
+    Cites,
+    /// A person wrote a reference (D94, the reference's own authors only).
+    Authored,
     /// `attr.<name>`, name `[a-z_]{1,40}`.
     Attr(String),
 }
@@ -98,6 +102,8 @@ impl Predicate {
             Self::Mentions => "mentions".into(),
             Self::About => "about".into(),
             Self::TriedAndFailed => "tried_and_failed".into(),
+            Self::Cites => "cites".into(),
+            Self::Authored => "authored".into(),
             Self::Attr(a) => format!("attr.{a}"),
         }
     }
@@ -114,6 +120,8 @@ impl Predicate {
             "mentions" => Self::Mentions,
             "about" => Self::About,
             "tried_and_failed" => Self::TriedAndFailed,
+            "cites" => Self::Cites,
+            "authored" => Self::Authored,
             other => {
                 let attr = other.strip_prefix("attr.")?;
                 let ok = (1..=40).contains(&attr.len())

@@ -37,7 +37,7 @@ use self::kv::Field;
 use super::model::{
     Collector, EntityRef, EntityType, EvidenceRef, Extraction, FactMention, Predicate,
 };
-use crate::profile::Profile;
+use crate::profile::{Class, Profile};
 
 /// Version tag stored with every rule fact.
 pub const RULESET_VERSION: &str = "rules/1";
@@ -298,6 +298,10 @@ fn clip(s: &str, max: usize) -> String {
 pub struct Siblings<'a> {
     /// Drive-relative NFC paths of live files (any directory).
     pub paths: &'a [String],
+    /// The profile stored on the file (the user's override and the model's say are in it); `None`: classify here.
+    pub profile: Option<Profile>,
+    /// Paths of the project marker files of the Drive (manifests, AGENTS.md, CODEOWNERS), for the project of a file.
+    pub markers: &'a [String],
 }
 
 /// The default `valid_from` of the facts of one file, with its precision:
@@ -358,8 +362,16 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     let info: PathInfo = dirs::path_info(&path);
     let blocks = &ir.blocks;
     // D89: the profile decides what is read. Code and unknown text have no prose to read.
-    let class = crate::profile::classify(&path, ir);
-    let structured = matches!(class.profile, Profile::Code | Profile::Other);
+    let class = match siblings.profile {
+        Some(profile) => crate::profile::Classified {
+            profile,
+            reason: "stored",
+            decided: true,
+        },
+        None => crate::profile::classify(&path, ir),
+    };
+    // D94: only records (and media) are read for entities by the core rules; instruction, reference, code and other files are not.
+    let structured = !matches!(class.profile.class(), Class::Record | Class::Media);
     // Evidence anchors: heading (level 1 first), frontmatter block.
     let h1 = blocks
         .iter()
@@ -661,7 +673,7 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     ctx.block_date = None;
 
     // The profile extractors (instruction, code, paper): `Thing` candidates registered by the profile.
-    crate::profile::apply(&class, &path, ir, &mut ctx.col);
+    crate::profile::apply(&class, &path, ir, siblings.markers, &mut ctx.col);
 
     // dir.terms: definition lists and two column tables.
     if info.dir == Dir::Terms {
@@ -672,11 +684,15 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         tables::apply(&mut ctx, blocks);
     }
     // doc.meta, pptx.title, name.version, text.email.
-    doc_meta(&mut ctx, ir, &anchor_ev);
+    if !structured {
+        doc_meta(&mut ctx, ir, &anchor_ev);
+    }
     if ir.format == DocFormat::Pptx {
         pptx_title(&mut ctx, blocks);
     }
-    name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
+    if !structured {
+        name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
+    }
     if !structured {
         text_email(&mut ctx, blocks);
     }

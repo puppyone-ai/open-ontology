@@ -32,13 +32,6 @@ pulldown-cmark = { version = "=0.13.6", default-features = false }
 unicode-normalization = "=0.1.25"
 calamine = { version = "=0.38.0", default-features = false }
 sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
-# D89 code profile: syntax parsers for module, symbol and import extraction, no model guessing. MIT, C runtime built by `cc`.
-tree-sitter = { version = "=0.26.13", default-features = false }
-tree-sitter-rust = "=0.24.2"
-tree-sitter-python = "=0.23.6"
-tree-sitter-javascript = "=0.23.1"
-tree-sitter-typescript = "=0.23.2"
-tree-sitter-go = "=0.25.0"
 # Control-plane database stack, same pins as oo-pipeline. Default features
 # stay off; TLS is the patched sqlx-core `_tls-rustls-ring-no-roots` (caller
 # CA only). The facade pulls sqlx-core `migrate`; this crate does not call it,

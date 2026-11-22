@@ -102,6 +102,8 @@ pub fn predicate_cn(p: &Predicate) -> String {
         Predicate::Supersedes => "取代了".into(),
         Predicate::About => "关于".into(),
         Predicate::Mentions => "提及".into(),
+        Predicate::Cites => "引用了".into(),
+        Predicate::Authored => "撰写了".into(),
         Predicate::Attr(a) => format!("{}为", attr_cn(a)),
     }
 }
@@ -113,6 +115,12 @@ fn attr_cn(name: &str) -> &str {
         "author" => "作者",
         "created" => "创建时间",
         "definition" => "定义",
+        "class" => "类别",
+        "scope" => "适用范围",
+        "owners" => "负责人",
+        "venue" => "出处",
+        "year" => "年份",
+        "doi" => "DOI",
         other => other,
     }
 }

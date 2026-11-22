@@ -69,7 +69,40 @@ pub async fn index_document_with(
     doc: &DocumentInput<'_>,
     siblings: &[String],
 ) -> Result<IndexSummary, StoreError> {
-    let extraction = extract_in(doc.path, doc.ir, &Siblings { paths: siblings });
+    // D94: the profile stored on the file (the user's choice or the model's included), and the markers of the project.
+    let stored: Option<String> = sqlx::query_scalar(
+        "SELECT f.profile FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id WHERE fv.id = $1::uuid",
+    )
+    .bind(doc.version_id)
+    .fetch_optional(&mut *conn)
+    .await?
+    .flatten();
+    let profile = stored.as_deref().and_then(crate::profile::Profile::parse);
+    let markers: Vec<String> = if matches!(
+        profile,
+        Some(crate::profile::Profile::Instruction | crate::profile::Profile::Code)
+    ) {
+        sqlx::query_scalar(
+            "SELECT m.path FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id \
+               JOIN _oo_docs.file m ON m.drive_id = f.drive_id AND m.deleted_at IS NULL \
+              WHERE fv.id = $1::uuid AND lower(regexp_replace(m.path, '^.*/', '')) = ANY($2::text[])",
+        )
+        .bind(doc.version_id)
+        .bind(crate::profile::MARKERS)
+        .fetch_all(&mut *conn)
+        .await?
+    } else {
+        Vec::new()
+    };
+    let extraction = extract_in(
+        doc.path,
+        doc.ir,
+        &Siblings {
+            paths: siblings,
+            profile,
+            markers: &markers,
+        },
+    );
     index_extraction(conn, doc, &extraction).await
 }
 
