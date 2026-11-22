@@ -1047,5 +1047,6 @@
   "structure.atlas.title": "Klassenstruktur",
   "structure.atlas.item": "{count, plural, one {# Eigenschaft} other {# Eigenschaften}}",
   "structure.atlas.open": "Struktur öffnen",
-  "files.group.structure": "Struktur"
+  "files.group.structure": "Struktur",
+  "structure.type.version": "Version"
 }

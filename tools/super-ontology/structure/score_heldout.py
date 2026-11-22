@@ -77,6 +77,15 @@ def main():
                     rep["wrong"].append(f"{name}.{pn}: relation {rel.get('target')} (gold {want})")
             elif (p.get("relation") or {}).get("target_kind") == "class":
                 rel_fp += 1
+    # Completeness: the share of a gold class's files that sit in its class (purity is the share of the class that is the gold class).
+    comp = {}
+    for name, gc in g["classes"].items():
+        files = [x for x in (ROOT / "testing/super-ontology/structure-heldout/project" / gc["prefix"]).rglob("*") if x.is_file()]
+        k = found_key.get(name)
+        got = sum(1 for q in members.get(k, []) if q.startswith(gc["prefix"])) if k else 0
+        comp[name] = round(got / len(files), 3) if files else 0
+    rep["completeness"] = comp
+    rep["completeness_min"] = min(comp.values()) if comp else 0
     conf = sum(len(ps) for k, ps in members.items() if classes.get(k, {}).get("status") == "confirmed")
     rep.update({"classes_found": len(found_key), "classes_gold": len(g["classes"]), "property_recall": round(prop_found / prop_gold, 3),
                 "type_accuracy": round(ty_ok / ty_all, 3) if ty_all else 0, "relation_recall": round(rel_tp / (rel_tp + rel_fn), 3) if rel_tp + rel_fn else 1,

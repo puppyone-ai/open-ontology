@@ -1047,5 +1047,6 @@
   "structure.atlas.title": "类别结构",
   "structure.atlas.item": "{count} 个属性",
   "structure.atlas.open": "打开结构",
-  "files.group.structure": "结构"
+  "files.group.structure": "结构",
+  "structure.type.version": "版本号"
 }

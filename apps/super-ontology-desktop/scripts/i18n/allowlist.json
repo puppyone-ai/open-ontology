@@ -125,7 +125,8 @@
       "app:structure.col.actions": "Actions",
       "app:structure.source.section": "Section",
       "app:structure.type.date": "Date",
-      "app:files.group.structure": "Structure"
+      "app:files.group.structure": "Structure",
+      "app:structure.type.version": "Version"
     },
     "de": {
       "app:status.engine": "Engine: {state}",
@@ -175,7 +176,8 @@
       "app:structure.rename.label": "Name",
       "app:structure.type.url": "Link",
       "app:structure.type.person": "Person",
-      "app:structure.type.text": "Text"
+      "app:structure.type.text": "Text",
+      "app:structure.type.version": "Version"
     },
     "ja": {
       "super-drive:browser.driveSwitcher": "Drive",

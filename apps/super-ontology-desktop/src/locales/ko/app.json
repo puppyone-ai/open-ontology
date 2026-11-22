@@ -1047,5 +1047,6 @@
   "structure.atlas.title": "클래스 구조",
   "structure.atlas.item": "속성 {count}개",
   "structure.atlas.open": "구조 열기",
-  "files.group.structure": "구조"
+  "files.group.structure": "구조",
+  "structure.type.version": "버전"
 }

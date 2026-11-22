@@ -1047,5 +1047,6 @@
   "structure.atlas.title": "クラス構造",
   "structure.atlas.item": "プロパティ {count} 件",
   "structure.atlas.open": "構造を開く",
-  "files.group.structure": "構造"
+  "files.group.structure": "構造",
+  "structure.type.version": "バージョン"
 }
