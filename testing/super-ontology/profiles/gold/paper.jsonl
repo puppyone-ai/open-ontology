@@ -1,0 +1,40 @@
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Dataset", "name": "SpaceNet 7"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Dataset", "name": "xView2"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Method", "name": "GeoSeg-Lite"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Metric", "name": "Accuracy"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Metric", "name": "F1"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Metric", "name": "mIoU"}
+{"cited_by": "papers/label-efficient-segmentation.pdf", "file": "papers/label-efficient-segmentation.pdf", "label": "Paper", "name": "Deep Residual Learning for Image Recognition"}
+{"arxiv": "2403.01882", "file": "papers/label-efficient-segmentation.pdf", "label": "Paper", "name": "Label-Efficient Segmentation of Satellite Imagery", "year": "2024"}
+{"cited_by": "papers/label-efficient-segmentation.pdf", "file": "papers/label-efficient-segmentation.pdf", "label": "Paper", "name": "Segment Anything"}
+{"cited_by": "papers/label-efficient-segmentation.pdf", "file": "papers/label-efficient-segmentation.pdf", "label": "Paper", "name": "Sparse Lexical Mixing for Efficient Passage Retrieval"}
+{"cited_by": "papers/label-efficient-segmentation.pdf", "file": "papers/label-efficient-segmentation.pdf", "label": "Paper", "name": "U-Net: Convolutional Networks for Biomedical Image Segmentation"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Person", "name": "Priya Raman"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Person", "name": "Tomas Novak"}
+{"file": "papers/label-efficient-segmentation.pdf", "label": "Venue", "name": "arXiv"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Dataset", "name": "CMedQA"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Dataset", "name": "webMedQA"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Method", "name": "MedCL"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Metric", "name": "F1"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Metric", "name": "MRR"}
+{"cited_by": "papers/medical-qa-contrastive.pdf", "file": "papers/medical-qa-contrastive.pdf", "label": "Paper", "name": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"}
+{"cited_by": "papers/medical-qa-contrastive.pdf", "file": "papers/medical-qa-contrastive.pdf", "label": "Paper", "name": "Dense Passage Retrieval for Open-Domain Question Answering"}
+{"cited_by": "papers/medical-qa-contrastive.pdf", "file": "papers/medical-qa-contrastive.pdf", "label": "Paper", "name": "Sparse Lexical Mixing for Efficient Passage Retrieval"}
+{"doi": "10.5555/emnlp.2023.0452", "file": "papers/medical-qa-contrastive.pdf", "label": "Paper", "name": "基于对比学习的中文医疗问答检索", "year": "2023"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Person", "name": "周雅婷"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Person", "name": "李明华"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Person", "name": "陈思远"}
+{"file": "papers/medical-qa-contrastive.pdf", "label": "Venue", "name": "EMNLP"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Dataset", "name": "MS MARCO"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Dataset", "name": "Natural Questions"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Method", "name": "SpaMix"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Metric", "name": "MRR"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Metric", "name": "Recall"}
+{"cited_by": "papers/sparse-lexical-mixing.pdf", "file": "papers/sparse-lexical-mixing.pdf", "label": "Paper", "name": "Attention Is All You Need"}
+{"cited_by": "papers/sparse-lexical-mixing.pdf", "file": "papers/sparse-lexical-mixing.pdf", "label": "Paper", "name": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"}
+{"cited_by": "papers/sparse-lexical-mixing.pdf", "file": "papers/sparse-lexical-mixing.pdf", "label": "Paper", "name": "Dense Passage Retrieval for Open-Domain Question Answering"}
+{"doi": "10.5555/acl.2024.0117", "file": "papers/sparse-lexical-mixing.pdf", "label": "Paper", "name": "Sparse Lexical Mixing for Efficient Passage Retrieval", "year": "2024"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Person", "name": "Daniel Reyes"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Person", "name": "Hana Suzuki"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Person", "name": "Mira Okafor"}
+{"file": "papers/sparse-lexical-mixing.pdf", "label": "Venue", "name": "ACL"}

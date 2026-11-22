@@ -1,0 +1,62 @@
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "cargo build --workspace"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "cargo fmt --all"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "cargo test -p harborq-core"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "make generate"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "pnpm --dir web test"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "pnpm install"}
+{"file": "harborq/AGENTS.md", "label": "Command", "name": "python3 tools/report.py --since 7d"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "core/src/generated"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "core/src/worker.rs"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "docs/adr"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "docs/adr/0001-use-sqlite-for-storage.md"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "tools/report.py"}
+{"file": "harborq/AGENTS.md", "label": "Path", "name": "web"}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Do not add a dependency without an ADR in docs/adr/."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Keep public functions documented with a doc comment."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Never edit files under core/src/generated/ by hand; run make generate instead."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Prefer small pull requests that change one thing."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Run the unit tests with cargo test -p harborq-core before every commit."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Use cargo fmt --all before committing Rust code; CI rejects unformatted code."}
+{"file": "harborq/AGENTS.md", "label": "Rule", "name": "Web code must pass pnpm --dir web test and eslint."}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "cargo"}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "eslint"}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "make"}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "pnpm"}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "python3"}
+{"file": "harborq/AGENTS.md", "label": "Tool", "name": "rustup"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Command", "name": "cargo test --workspace"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Command", "name": "git checkout -b my-change"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Command", "name": "pnpm --dir web test"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Path", "name": "CHANGELOG.md"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Path", "name": "core/src"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Path", "name": "tools"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Path", "name": "web/src"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Rule", "name": "Commit messages must use the imperative mood."}
+{"file": "harborq/CONTRIBUTING.md", "label": "Rule", "name": "Do not force-push to a branch that already has review comments."}
+{"file": "harborq/CONTRIBUTING.md", "label": "Rule", "name": "Every pull request needs at least one reviewer from the Platform Team."}
+{"file": "harborq/CONTRIBUTING.md", "label": "Rule", "name": "Update CHANGELOG.md for every user visible change."}
+{"file": "harborq/CONTRIBUTING.md", "label": "Tool", "name": "cargo"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Tool", "name": "git"}
+{"file": "harborq/CONTRIBUTING.md", "label": "Tool", "name": "pnpm"}
+{"file": "harborq/README.md", "label": "Command", "name": "cargo add harborq-core"}
+{"file": "harborq/README.md", "label": "Command", "name": "pip install harborq-tools"}
+{"file": "harborq/README.md", "label": "Path", "name": "CONTRIBUTING.md"}
+{"file": "harborq/README.md", "label": "Path", "name": "tools"}
+{"file": "harborq/README.md", "label": "Path", "name": "web"}
+{"file": "harborq/README.md", "label": "Rule", "name": "Always call Queue::close before the process exits so pending writes are flushed."}
+{"file": "harborq/README.md", "label": "Tool", "name": "cargo"}
+{"file": "harborq/README.md", "label": "Tool", "name": "pip"}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Command", "name": "pnpm --dir web format"}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "Error types end with Error."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "Name queues with lowercase kebab-case."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "Public items need doc comments."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "Python code follows black with a line length of 100."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "Rust code is formatted by rustfmt with the default settings."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Rule", "name": "TypeScript uses prettier; run pnpm --dir web format to fix a file."}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Tool", "name": "black"}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Tool", "name": "pnpm"}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Tool", "name": "prettier"}
+{"file": "harborq/docs/STYLE_GUIDE.md", "label": "Tool", "name": "rustfmt"}
+{"file": "harborq/docs/adr/0001-use-sqlite-for-storage.md", "label": "Path", "name": "core/src/queue.rs"}
+{"file": "harborq/docs/adr/0002-retry-with-backoff.md", "label": "Path", "name": "core/src/retry.rs"}
+{"file": "harborq/docs/adr/0002-retry-with-backoff.md", "label": "Rule", "name": "Workers must not retry a job that failed with a validation error."}
