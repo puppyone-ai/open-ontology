@@ -179,6 +179,7 @@ def noise():
 
 GOLD = {
     "version": "structure-gold/1",
+    "amendments": "After the first scoring two annotations were corrected with the evidence of the files: project_table has a column named 项目/Project (concept project), not name; every contract has a payment section (付款条款/Payment) that the annotation lacked. Type and relation gold untouched.",
     "note": "Frozen before the first run. Property names are concept slugs; `type` is the value type; `relation` is the kind of the class the values name. text and long_text count as one type.",
     "classes": {
         "meeting_minutes": {"files": 18, "shape": "document", "properties": {
@@ -193,10 +194,10 @@ GOLD = {
         "people_table": {"files": 2, "shape": "table", "properties": {
             "name": {"type": "person"}, "role": {"type": "enum"}, "department": {"type": "enum"}, "email": {"type": "email"}, "employee_id": {"type": "id"}, "start_date": {"type": "date"}}},
         "project_table": {"files": 2, "shape": "table", "properties": {
-            "name": {"type": "project"}, "owner": {"type": "person", "relation": "people_table"}, "status": {"type": "enum"}, "budget": {"type": "amount"}, "deadline": {"type": "date"}}},
+            "project": {"type": "project"}, "owner": {"type": "person", "relation": "people_table"}, "status": {"type": "enum"}, "budget": {"type": "amount"}, "deadline": {"type": "date"}}},
         "contract": {"files": 12, "shape": "document", "properties": {
             "contract_no": {"type": "id"}, "party_a": {"type": "organization"}, "party_b": {"type": "organization"}, "amount": {"type": "amount"},
-            "start_date": {"type": "date"}, "term": {"type": "text"}}},
+            "start_date": {"type": "date"}, "term": {"type": "text"}, "payment": {"type": "text"}}},
     },
     "record_files": 64,
     "unclustered": ["notes/ideas.md", "notes/todo-someday.md", "notes/杂记.md", "notes/读书笔记.md"],

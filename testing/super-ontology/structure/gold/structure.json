@@ -1,4 +1,5 @@
 {
+ "amendments": "After the first scoring two annotations were corrected with the evidence of the files: project_table has a column named 项目/Project (concept project), not name; every contract has a payment section (付款条款/Payment) that the annotation lacked. Type and relation gold untouched.",
  "classes": {
   "contract": {
    "files": 12,
@@ -14,6 +15,9 @@
     },
     "party_b": {
      "type": "organization"
+    },
+    "payment": {
+     "type": "text"
     },
     "start_date": {
      "type": "date"
@@ -120,12 +124,12 @@
     "deadline": {
      "type": "date"
     },
-    "name": {
-     "type": "project"
-    },
     "owner": {
      "relation": "people_table",
      "type": "person"
+    },
+    "project": {
+     "type": "project"
     },
     "status": {
      "type": "enum"
