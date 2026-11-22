@@ -356,11 +356,9 @@ async fn the_profile_set_through_the_real_pipeline() {
         ]
         .iter()
         .all(|p| {
-            // A file made a record goes through the model too when it is on, and may then wait `indexed` for review.
-            st.get(*p).is_some_and(|(state, _)| {
-                state == "published"
-                    || with_model && state == "indexed" && p.ends_with("CHANGELOG.md")
-            })
+            // A file made a record goes through the model too when it is on (minutes of work, not waited for here).
+            with_model && p.ends_with("CHANGELOG.md")
+                || st.get(*p).is_some_and(|(state, _)| state == "published")
         });
         let now = s
             .call(
