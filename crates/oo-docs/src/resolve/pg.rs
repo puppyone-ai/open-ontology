@@ -357,6 +357,16 @@ pub async fn same_identity_pairs(
     Ok(rows)
 }
 
+/// `(entity key, type, name, content hash, version:block, path)` of one live evidence row.
+type EvidenceRow = (
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
 /// What [`propose_merges`] did with the pairs of entities that share a published alias.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct MergeOutcome {
@@ -435,7 +445,7 @@ pub async fn propose_merges(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    let rows: Vec<(String, String, String, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+    let rows: Vec<EvidenceRow> = sqlx::query_as(
         "SELECT e.key, e.type, e.canonical_name, ev.b3, ev.version_id::text || ':' || ev.block_id, fv.path_at_version \
            FROM _oo_docs.entity e \
            JOIN _oo_docs.evidence ev ON ev.target_kind = 'entity' AND ev.target_id = e.id AND ev.withdrawn_at IS NULL \

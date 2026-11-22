@@ -14,7 +14,9 @@ use oo_docs::extract::rules::{Siblings, extract_ungated, extract_with_quality};
 use oo_docs::resolve::normalize::norm;
 
 fn root(set: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testing/super-ontology").join(set)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testing/super-ontology")
+        .join(set)
 }
 
 fn labelled(set: &str) -> BTreeSet<(String, String)> {
@@ -24,7 +26,13 @@ fn labelled(set: &str) -> BTreeSet<(String, String)> {
         let v: serde_json::Value = serde_json::from_str(l).unwrap();
         if v["kind"] == "entity" {
             let mut names = vec![v["name"].as_str().unwrap().to_owned()];
-            names.extend(v["aliases"].as_array().into_iter().flatten().filter_map(|a| a.as_str().map(str::to_owned)));
+            names.extend(
+                v["aliases"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|a| a.as_str().map(str::to_owned)),
+            );
             for n in names {
                 out.insert((v["type"].as_str().unwrap().to_owned(), norm(&n)));
             }
@@ -66,7 +74,11 @@ fn check(set: &str) {
     for f in files {
         let Some(ir) = ir_of(&f) else { continue };
         seen += 1;
-        let rel = f.strip_prefix(&docs).unwrap().to_string_lossy().into_owned();
+        let rel = f
+            .strip_prefix(&docs)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
         let before = extract_ungated(&rel, &ir, &Siblings::default());
         let (after, stats) = extract_with_quality(&rel, &ir, &Siblings::default());
         kept_total += after.entities.len();
@@ -89,9 +101,14 @@ fn check(set: &str) {
             }
         }
     }
-    eprintln!("{set}: {seen} text files, {kept_total} entities kept, {dropped_total} dropped by the gate");
+    eprintln!(
+        "{set}: {seen} text files, {kept_total} entities kept, {dropped_total} dropped by the gate"
+    );
     assert!(seen > 10, "{seen} text files");
-    assert!(lost.is_empty(), "the gate dropped labelled entities: {lost:#?}");
+    assert!(
+        lost.is_empty(),
+        "the gate dropped labelled entities: {lost:#?}"
+    );
 }
 
 #[test]
