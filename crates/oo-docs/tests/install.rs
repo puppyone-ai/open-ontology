@@ -118,7 +118,7 @@ async fn empty_db_install_then_readiness() {
             .fetch_one(&mut admin)
             .await
             .unwrap();
-    assert_eq!(tables, 48 + i64::try_from(extra).unwrap());
+    assert_eq!(tables, 49 + i64::try_from(extra).unwrap());
 
     // The runtime principal can verify readiness without installing.
     let mut rt = connect_runtime("oo_docs_it_empty").await;
@@ -442,7 +442,7 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation")
+        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
@@ -509,7 +509,7 @@ async fn a_database_at_0154_upgrades_to_0157_with_the_media_profile_table() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation")
+        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
@@ -564,7 +564,7 @@ async fn a_database_at_0157_upgrades_to_0159_with_the_file_class() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation")
+        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
@@ -622,7 +622,7 @@ async fn a_database_at_0159_upgrades_to_0160_with_the_structure_layer() {
     let mut admin = connect(db).await;
     admin
         .execute(
-            "DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation",
+            "DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment",
         )
         .await
         .unwrap();
@@ -641,7 +641,7 @@ async fn a_database_at_0159_upgrades_to_0160_with_the_structure_layer() {
     .fetch_one(&mut admin)
     .await
     .unwrap();
-    assert_eq!(tables, 4);
+    assert_eq!(tables, 5);
     let bad = admin
         .execute("INSERT INTO _oo_docs.structure_version (drive_id, n, reason, actor, doc) VALUES (gen_random_uuid(), 1, 'whatever', 'engine', '{}')")
         .await;
