@@ -54,7 +54,9 @@ export type PickPathValue = { grantId: string; displayPath: string } | { cancell
 /** Engine documents are carried verbatim (snake_case); the renderer narrows them with the generated guards. */
 export type EngineDrive = { id: string; name: string; backend: string; status: string; revision: number; [key: string]: unknown };
 export type EnginePage<T> = { items: T[]; next_cursor: string | null; as_of_seq: number };
-export type EngineFileSummary = { id: string; drive_id: string; path: string; state: string; [key: string]: unknown };
+/** `profile` is the document profile that decides extraction (docs-api FileSummary.profile); older engines omit it and newer ones may add values, so read it with `profileOf`. */
+export type EngineFileProfile = "business" | "meeting" | "table" | "instruction" | "code" | "paper" | "media" | "other";
+export type EngineFileSummary = { id: string; drive_id: string; path: string; state: string; profile?: EngineFileProfile | (string & {}); [key: string]: unknown };
 export type EngineTree = { dirs: { path: string; files: number; counts: Record<string, number> }[]; files: EnginePage<EngineFileSummary> };
 /** A parsed block (oo.doc-ir/v1 block plus the `src` provenance label); anchors differ per format. */
 export type EngineAnchor =
