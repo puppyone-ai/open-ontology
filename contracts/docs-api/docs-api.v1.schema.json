@@ -1036,6 +1036,32 @@
               "items": {
                 "type": "string"
               }
+            },
+            "media": {
+              "type": "object",
+              "description": "Audio and video only (1.14, D74 revision): what kind of recording this is, decided before speakers are told apart. `class` is `conversation` (a meeting, an interview, a call: speakers are told apart and a `speaker_identity` item per speaker may wait for a name), `non_conversation` (a promo, an edited video, a film, music, a talk by one speaker: no speaker attribution, no item) or `unsure`. `kind` says why (`conversation`, `monologue`, `lecture`, `music_or_ambient`, `edited_video`, `undecided`); `source` is `rules` or `model`; `speakers_to_name` counts the pending `speaker_identity` items of this recording.",
+              "properties": {
+                "class": {
+                  "enum": [
+                    "conversation",
+                    "non_conversation",
+                    "unsure"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "rules",
+                    "model"
+                  ]
+                },
+                "speakers_to_name": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
             }
           }
         },

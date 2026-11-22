@@ -203,3 +203,14 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `x-data`): `db.source_changed` `{name, action: added|removed|initialized, stack}` and `db.pipeline_changed` `{command: up|down|build|init, ok,
   stack, profile?, published?}`; `stack` is an absolute path, `published` is true only when `oo build` ended complete with a published
   publication. No new error code. Additive.
+
+## 1.14 (lane AL, D74 revision: speakers never block, recordings are classified first)
+
+- `FileDetail.parse.media` (optional object, audio and video only): `{class, kind, source, speakers_to_name}`. `class` is `conversation`,
+  `non_conversation` or `unsure`; `kind` says why (`conversation`, `monologue`, `lecture`, `music_or_ambient`, `edited_video`, `undecided`);
+  `source` is `rules` or `model`. Only a conversation has speakers told apart; any other recording publishes its transcript facts with no
+  speaker attribution and queues no `speaker_identity` item. Additive.
+- `speaker_identity` items (`ReviewKind`, unchanged) now exist only for conversations, and their subject carries `letter` (`A`, `B`, ...)
+  next to `b3`, `speaker`, `placeholder` and `candidates`. An unnamed speaker no longer holds anything: facts publish under the placeholder Person
+  `Speaker A · <blob prefix>` and move to the named Person when the item is accepted (`edit.name`). `DOCS_REVIEW_SPEAKER_UNCONFIRMED` is no longer
+  produced (the code stays for older clients). Rejecting an item ("not anyone known") keeps the placeholder and its published facts.
