@@ -332,8 +332,20 @@ pub fn resolve_scored(
                     .filter(|(s, _)| best - s < LEAD_MIN_BP)
                     .map(|(_, c)| c)
                     .collect();
+                // D91: names that tie are settled by a roster: exactly one of them is a person or thing the
+                // Drive knows by an identity attribute (an email, an employee id), and the name is exactly
+                // its own (canonical or published alias). A tie among rostered entities stays a question.
+                let rostered: Vec<&Candidate> = std::iter::once(best_c)
+                    .chain(close.iter().copied())
+                    .filter(|c| {
+                        !c.identity.is_empty()
+                            && matches!(c.via, Via::CanonicalName | Via::AliasPublished)
+                    })
+                    .collect();
                 if close.is_empty() {
                     Resolution::Bind(best_c.key.clone())
+                } else if let [only] = rostered.as_slice() {
+                    Resolution::Bind(only.key.clone())
                 } else {
                     let mut keys: Vec<String> = std::iter::once(best_c)
                         .chain(close)

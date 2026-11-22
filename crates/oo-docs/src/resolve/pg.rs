@@ -7,10 +7,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use serde_json::json;
 use sqlx::PgConnection;
 
 use super::exact::{Candidate, MapIndex, Via, dir_of, identities_of};
 use super::honorific::{stripped_forms, surname_form};
+use super::merge::{MergeError, merge_entities};
 use crate::extract::model::{EntityType, Extraction};
 use crate::store::StoreError;
 
@@ -355,14 +357,37 @@ pub async fn same_identity_pairs(
     Ok(rows)
 }
 
-/// Queue `entity_merge` items (never merges) for entities of `keys` that share
-/// at least one published alias with another active entity of the same type
-/// (5.4 step 6). Returns how many items were queued.
+/// What [`propose_merges`] did with the pairs of entities that share a published alias.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MergeOutcome {
+    /// `entity_merge` items queued: pairs only a person can judge.
+    pub queued: u32,
+    /// Pairs merged without a person (D91): the same name once punctuation and width are ignored, or the same
+    /// sentence of the same file, or the same file content.
+    pub merged: u32,
+    /// Pairs that need no question at all: two different documents are never one entity.
+    pub dismissed: u32,
+}
+
+/// The name with everything but letters and digits removed: `A.B Corp` and `a b corp` are one name.
+fn loose_name(name: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    name.nfkc()
+        .flat_map(char::to_lowercase)
+        .filter(|c| c.is_alphanumeric())
+        .collect()
+}
+
+/// Entities of `keys` that share at least one published alias with another active entity of the same type
+/// (5.4 step 6). D91: what a program can settle is settled here and never queued.
+/// * documents: the same content (`b3`) is one document; different content is never one entity;
+/// * the same name once punctuation, spacing and width are ignored, or evidence in the same block: merged;
+/// * everything else is queued as `entity_merge` with the files of both entities.
 pub async fn propose_merges(
     conn: &mut PgConnection,
     keys: &[String],
     version_id: &str,
-) -> Result<u32, StoreError> {
+) -> Result<MergeOutcome, StoreError> {
     let pairs: Vec<(String, String, String)> = sqlx::query_as(
         // Two branches, one anchored on each end of the pair: an `OR` over the two keys is applied after the alias join, so every pair of
         // entities sharing an alias (thousands of documents of one stem in a code folder) was built and thrown away on each publish.
@@ -399,28 +424,124 @@ pub async fn propose_merges(
     for (a, b, alias) in pairs {
         grouped.entry((a, b)).or_default().push(alias);
     }
-    let mut queued = 0u32;
+    let mut out = MergeOutcome::default();
+    if grouped.is_empty() {
+        return Ok(out);
+    }
+    // What the decision reads about every entity of every pair: type, name, content hashes, evidence blocks, files.
+    let involved: Vec<String> = grouped
+        .keys()
+        .flat_map(|(a, b)| [a.clone(), b.clone()])
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let rows: Vec<(String, String, String, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT e.key, e.type, e.canonical_name, ev.b3, ev.version_id::text || ':' || ev.block_id, fv.path_at_version \
+           FROM _oo_docs.entity e \
+           JOIN _oo_docs.evidence ev ON ev.target_kind = 'entity' AND ev.target_id = e.id AND ev.withdrawn_at IS NULL \
+           JOIN _oo_docs.file_version fv ON fv.id = ev.version_id \
+          WHERE e.key = ANY($1::text[])",
+    )
+    .bind(&involved)
+    .fetch_all(&mut *conn)
+    .await?;
+    #[derive(Default)]
+    struct Info {
+        ty: String,
+        name: String,
+        b3: BTreeSet<String>,
+        blocks: BTreeSet<String>,
+        files: BTreeSet<String>,
+    }
+    let mut info: BTreeMap<String, Info> = BTreeMap::new();
+    for (key, ty, name, b3, block, path) in rows {
+        let i = info.entry(key).or_default();
+        i.ty = ty;
+        i.name = name;
+        i.b3.extend(b3);
+        i.blocks.extend(block);
+        i.files.extend(path);
+    }
     for ((a, b), aliases) in grouped {
+        let (Some(ia), Some(ib)) = (info.get(&a), info.get(&b)) else {
+            continue;
+        };
+        let same_content = !ia.b3.is_empty() && ia.b3 == ib.b3;
+        let (settled, why): (bool, &str) = if ia.ty == "Document" {
+            if same_content {
+                (true, "same_content")
+            } else {
+                out.dismissed += 1;
+                continue;
+            }
+        } else if loose_name(&ia.name) == loose_name(&ib.name) {
+            (true, "same_name")
+        } else if !ia.blocks.is_disjoint(&ib.blocks) {
+            (true, "same_evidence")
+        } else {
+            (false, "shared_alias")
+        };
+        let dedupe = format!("entity_merge:{a}:{b}");
+        if settled {
+            match merge_entities(conn, &b, &a, "merge", None).await {
+                Ok(_) => {
+                    out.merged += 1;
+                    // The decision stays visible: a closed item, decided by the engine.
+                    sqlx::query(
+                        "INSERT INTO _oo_docs.review_item \
+                           (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, \
+                            confidence_bp, reason_code, status, decided_at, decided_by, decision_note) \
+                         SELECT gen_random_uuid(), 'entity_merge', $1, f.drive_id, f.id, fv.id, \
+                                jsonb_build_object('entity_keys', jsonb_build_array($2::text, $3::text), 'shared_aliases', $4::jsonb), \
+                                NULL, $6, 'accepted', clock_timestamp(), 'engine', $6 \
+                           FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id \
+                          WHERE fv.id = $5::uuid \
+                         ON CONFLICT (dedupe_key) DO NOTHING",
+                    )
+                    .bind(&dedupe)
+                    .bind(&a)
+                    .bind(&b)
+                    .bind(serde_json::to_string(&aliases).unwrap_or_else(|_| "[]".into()))
+                    .bind(version_id)
+                    .bind(why)
+                    .execute(&mut *conn)
+                    .await?;
+                    continue;
+                }
+                // An identity conflict, an entity merged meanwhile: a person decides, or nothing is left to decide.
+                Err(MergeError::IdentityConflict(..)) => {}
+                Err(
+                    MergeError::NotActive(_) | MergeError::NotFound(_) | MergeError::SameEntity,
+                ) => continue,
+                Err(MergeError::Store(e)) => return Err(e),
+                Err(e) => return Err(StoreError::Protocol(e.to_string())),
+            }
+        }
+        let evidence = json!([
+            {"key": a, "files": ia.files.iter().take(3).collect::<Vec<_>>()},
+            {"key": b, "files": ib.files.iter().take(3).collect::<Vec<_>>()},
+        ]);
         let done = sqlx::query(
             "INSERT INTO _oo_docs.review_item \
                (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, \
                 confidence_bp, reason_code) \
              SELECT gen_random_uuid(), 'entity_merge', $1, f.drive_id, f.id, fv.id, \
                     jsonb_build_object('entity_keys', jsonb_build_array($2::text, $3::text), \
-                                       'shared_aliases', $4::jsonb), \
+                                       'shared_aliases', $4::jsonb, 'evidence', $6::jsonb), \
                     NULL, 'shared_alias' \
                FROM _oo_docs.file_version fv JOIN _oo_docs.file f ON f.id = fv.file_id \
               WHERE fv.id = $5::uuid \
              ON CONFLICT (dedupe_key) DO NOTHING",
         )
-        .bind(format!("entity_merge:{a}:{b}"))
+        .bind(&dedupe)
         .bind(&a)
         .bind(&b)
         .bind(serde_json::to_string(&aliases).unwrap_or_else(|_| "[]".into()))
         .bind(version_id)
+        .bind(evidence.to_string())
         .execute(&mut *conn)
         .await?;
-        queued += u32::try_from(done.rows_affected()).unwrap_or(0);
+        out.queued += u32::try_from(done.rows_affected()).unwrap_or(0);
     }
-    Ok(queued)
+    Ok(out)
 }

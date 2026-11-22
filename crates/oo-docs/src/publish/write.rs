@@ -217,7 +217,9 @@ async fn post_resolve(
         }
     }
     let keys: Vec<String> = resolved.entities.iter().map(|e| e.key.clone()).collect();
-    summary.merge_proposals += propose_merges(conn, &keys, doc.version_id).await?;
+    let merges = propose_merges(conn, &keys, doc.version_id).await?;
+    summary.merge_proposals += merges.queued;
+    summary.identity_merges += merges.merged;
     Ok(())
 }
 
