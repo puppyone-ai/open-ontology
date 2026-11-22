@@ -32,14 +32,14 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:0d9e99be1b5be8a7c92b4d6becd783beb042ab323156d47c0fd7bd06b00ef028",
-        "tag": "oo-docs-engine:dev-ae6",
-        "size_bytes": 292197132,
+        "image": "sha256:f1bda02655ed0ae4199daaffdb4bc7c0c16ade9ac41acf7cbb6c1cbad82d5dfb",
+        "tag": "oo-docs-engine:dev-ae6b",
+        "size_bytes": 292196508,
         "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
         "lane": "super-ontology-ae6",
         "built": "2026-11-22",
-        "built_from": "so/AE6-final at feat/super-ontology 36df993e8 plus two test fixes; engine with the structure layer (0160), file classes (0159), media class and placeholder speakers (0157), D96/D97 eligibility and minimal review, language-routed media parser interface",
+        "built_from": "so/AE6-final at feat/super-ontology 36df993e8 plus two test fixes; engine with the structure layer (0160), file classes (0159), media class and placeholder speakers (0157), D96/D97 eligibility and minimal review, language-routed media parser interface; plus the settle step that ignores speaker_identity items",
         "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae6 --build-arg OO_LANE=super-ontology-ae6 -t oo-docs-engine:dev-ae6 ."
       },
       "linux/amd64": null
