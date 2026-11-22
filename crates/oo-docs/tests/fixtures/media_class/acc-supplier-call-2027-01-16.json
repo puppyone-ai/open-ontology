@@ -1,0 +1,17 @@
+{
+ "duration_ms": 26165,
+ "speakers": [
+  "S1"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 0,
+   "t_end_ms": 25946,
+   "text": "this is the supplier of you on january is six teams i am shanania jane handing auto electronics quoted a total of two million four hundred eighty thousand u n for the landsets haniccole from legal i will have the contract ready to sign on january twenty eeth miiwan who approved handding as our primary length supplier handing promised a delivery lead time of twenty one days after each purchase order and a yield of at least eighty five percent",
+   "word_start": 0,
+   "word_end": 79
+  }
+ ]
+}

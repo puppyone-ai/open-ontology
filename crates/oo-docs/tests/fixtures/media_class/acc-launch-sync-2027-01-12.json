@@ -1,0 +1,17 @@
+{
+ "duration_ms": 40983,
+ "speakers": [
+  "S1"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 0,
+   "t_end_ms": 40440,
+   "text": "this is the err n p dash seven launch singink on january twelve twenty twenty seven danuel orords where are we on landyield lend ield from the current supplier sevenseventy one percent the threshold eighty five percent minjelan ru decided this morning to move the launch from march fourth to march eighteen understood this is green ramon marketing will move the present embargo to marge sixteen and i will tell youngphone media today youngund media shoots the launch video on febulary ten ruw up and by will send the sign memo tomorrow we will also ask candia you'told ling chronics for a quote",
+   "word_start": 0,
+   "word_end": 102
+  }
+ ]
+}

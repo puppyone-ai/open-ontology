@@ -1,0 +1,45 @@
+{
+ "duration_ms": 49899,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 64,
+   "t_end_ms": 7744,
+   "text": "good morning and everyone this is the weekly product in i am daniel and i will start with a lunch land",
+   "word_start": 0,
+   "word_end": 20
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 7744,
+   "t_end_ms": 12428,
+   "text": "thanks daniel i am real the protoct i was ready in testing starts",
+   "word_start": 21,
+   "word_end": 33
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 12428,
+   "t_end_ms": 19008,
+   "text": "next week how many people do we need for testing and as the budget still fine three",
+   "word_start": 34,
+   "word_end": 50
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 19038,
+   "t_end_ms": 23998,
+   "text": "people and yes the budget is fine i will set up the test environment myself",
+   "word_start": 51,
+   "word_end": 65
+  }
+ ]
+}

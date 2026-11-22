@@ -1,0 +1,54 @@
+{
+ "duration_ms": 30534,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 20,
+   "t_end_ms": 5530,
+   "text": "这里是极光定期付息预算庭审日期是二零二七年一月二十六",
+   "word_start": 0,
+   "word_end": 25
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 5530,
+   "t_end_ms": 6210,
+   "text": "日我是邵",
+   "word_start": 26,
+   "word_end": 29
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 6210,
+   "t_end_ms": 15472,
+   "text": "万清总预算是六百八十五万元好我是顾明远我决定把印刷预算万八万元裸照视频制作交给云发传",
+   "word_start": 30,
+   "word_end": 71
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 15472,
+   "t_end_ms": 16322,
+   "text": "播收",
+   "word_start": 72,
+   "word_end": 73
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 16322,
+   "t_end_ms": 30042,
+   "text": "到市场预算调整后是一百四十二万元费用金四十五万元保持不变恒景光键字合同金额是两百四十八万元一月二十日已经签署我会在二月二日前更新预算表",
+   "word_start": 74,
+   "word_end": 140
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "duration_ms": 40000,
+ "speakers": [
+  "S1"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 36,
+   "t_end_ms": 14936,
+   "text": "星火智能音箱让每一个清晨都有好心情倾诉一下音乐天气日程全部就绪现在下单限时立减两百元还送一元内容会员星火点亮你的生活",
+   "word_start": 0,
+   "word_end": 57
+  }
+ ]
+}
