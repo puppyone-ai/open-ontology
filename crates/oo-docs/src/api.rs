@@ -65,6 +65,7 @@ pub mod routes_suggest;
 pub mod routes_usage;
 pub mod search;
 pub mod shares;
+pub mod structure;
 
 use error::{ApiError, code};
 use http::Query;
@@ -858,6 +859,22 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
                 Method::PATCH => drives::patch(app, last, req).await,
                 _ => drives::delete(app, last, req).await,
             }
+        }
+        ["v1", "docs", "drives", id, "structure"] => {
+            method_allowed(req, &["GET"])?;
+            structure::get(app, id, req).await
+        }
+        ["v1", "docs", "drives", id, "structure:induce"] => {
+            method_allowed(req, &["POST"])?;
+            structure::induce(app, id).await
+        }
+        ["v1", "docs", "drives", id, "structure:decide"] => {
+            method_allowed(req, &["POST"])?;
+            structure::decide(app, id, req).await
+        }
+        ["v1", "docs", "drives", id, "structure", "yaml"] => {
+            method_allowed(req, &["GET"])?;
+            structure::yaml(app, id, req).await
         }
         ["v1", "docs", "drives", id, "profile-overrides"] => {
             method_allowed(req, &["GET", "PUT"])?;

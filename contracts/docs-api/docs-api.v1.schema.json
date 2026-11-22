@@ -6377,6 +6377,571 @@
           "affected": 3
         }
       ]
+    },
+    "StructureProperty": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "slug",
+        "name",
+        "keys",
+        "source",
+        "value_type",
+        "multi",
+        "files_with",
+        "coverage",
+        "fill",
+        "required",
+        "examples",
+        "enum_values",
+        "relation",
+        "status"
+      ],
+      "description": "One property of a record class (1.16, D93): a field that recurs across the files of the class (a frontmatter key, a table header, a fixed section heading, a `key: value` line, a varying directory level), with the type its values decide. `slug` is stable (the `attr.<slug>` of the instance layer); renaming changes `name` only. A value that names an entity of another class makes the property a relation.",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z_]{1,40}$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "frontmatter",
+            "column",
+            "section",
+            "line",
+            "directory"
+          ]
+        },
+        "value_type": {
+          "type": "string",
+          "enum": [
+            "date",
+            "amount",
+            "number",
+            "percent",
+            "email",
+            "url",
+            "id",
+            "person",
+            "project",
+            "organization",
+            "enum",
+            "text",
+            "long_text"
+          ]
+        },
+        "multi": {
+          "type": "boolean"
+        },
+        "files_with": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fill": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sample_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enum_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "relation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "target",
+                "target_kind",
+                "resolved",
+                "predicate"
+              ],
+              "properties": {
+                "target": {
+                  "type": "string"
+                },
+                "target_kind": {
+                  "type": "string",
+                  "enum": [
+                    "entity_type",
+                    "class"
+                  ]
+                },
+                "resolved": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "predicate": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "edited": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "slug": "attendees",
+          "name": "参会人",
+          "keys": [
+            "attendees"
+          ],
+          "source": "section",
+          "value_type": "person",
+          "multi": true,
+          "files_with": 18,
+          "coverage": 1.0,
+          "fill": 1.0,
+          "required": true,
+          "examples": [
+            "陈子墨",
+            "周若溪"
+          ],
+          "sample_values": [
+            "陈子墨",
+            "周若溪"
+          ],
+          "enum_values": [],
+          "relation": {
+            "target": "people_table",
+            "target_kind": "class",
+            "resolved": 1.0,
+            "predicate": "mentions"
+          },
+          "status": "proposed",
+          "edited": false
+        }
+      ]
+    },
+    "StructureClass": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "class_key",
+        "label",
+        "kind",
+        "shape",
+        "status",
+        "version",
+        "files",
+        "rows",
+        "properties",
+        "sample_paths",
+        "signature"
+      ],
+      "description": "One class of record files with its structure (1.16, D93). `kind` is `meeting_minutes`, `decision_log`, `weekly_report`, `people_table`, `project_table`, `contract` or `other`. A class is `proposed` until a person confirms it; the extraction reads only a confirmed class.",
+      "properties": {
+        "class_key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "document",
+            "table"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StructureProperty"
+          }
+        },
+        "sample_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "class_key": "meeting_minutes",
+          "label": "meeting_minutes",
+          "kind": "meeting_minutes",
+          "shape": "document",
+          "status": "proposed",
+          "version": 1,
+          "files": 18,
+          "rows": 18,
+          "properties": [
+            {
+              "slug": "attendees",
+              "name": "参会人",
+              "keys": [
+                "attendees"
+              ],
+              "source": "section",
+              "value_type": "person",
+              "multi": true,
+              "files_with": 18,
+              "coverage": 1.0,
+              "fill": 1.0,
+              "required": true,
+              "examples": [
+                "陈子墨",
+                "周若溪"
+              ],
+              "sample_values": [
+                "陈子墨",
+                "周若溪"
+              ],
+              "enum_values": [],
+              "relation": {
+                "target": "people_table",
+                "target_kind": "class",
+                "resolved": 1.0,
+                "predicate": "mentions"
+              },
+              "status": "proposed",
+              "edited": false
+            }
+          ],
+          "sample_paths": [
+            "meetings/atlas/2026-04-01-kickoff.md"
+          ],
+          "signature": [
+            "attendees",
+            "date"
+          ]
+        }
+      ]
+    },
+    "StructureCoverage": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_files",
+        "in_class",
+        "confirmed",
+        "share_in_class",
+        "share_confirmed"
+      ],
+      "description": "Coverage of the structure layer (1.16): record files, those that belong to a class, those whose class is confirmed, and the shares of the record files.",
+      "properties": {
+        "record_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in_class": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "confirmed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "share_in_class": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "share_confirmed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "examples": [
+        {
+          "record_files": 66,
+          "in_class": 62,
+          "confirmed": 62,
+          "share_in_class": 0.939,
+          "share_confirmed": 0.939
+        }
+      ]
+    },
+    "StructureSchema": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "protocol",
+        "version",
+        "classes",
+        "coverage"
+      ],
+      "description": "The structure layer of a Drive (1.16): the schema version (every change is a version), the classes and the coverage. `induced` is present in the answer of `structure:induce`.",
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StructureClass"
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/StructureCoverage"
+        },
+        "induced": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.docs.structure/v1",
+          "version": 2,
+          "classes": [
+            {
+              "class_key": "meeting_minutes",
+              "label": "meeting_minutes",
+              "kind": "meeting_minutes",
+              "shape": "document",
+              "status": "proposed",
+              "version": 1,
+              "files": 18,
+              "rows": 18,
+              "properties": [
+                {
+                  "slug": "attendees",
+                  "name": "参会人",
+                  "keys": [
+                    "attendees"
+                  ],
+                  "source": "section",
+                  "value_type": "person",
+                  "multi": true,
+                  "files_with": 18,
+                  "coverage": 1.0,
+                  "fill": 1.0,
+                  "required": true,
+                  "examples": [
+                    "陈子墨",
+                    "周若溪"
+                  ],
+                  "sample_values": [
+                    "陈子墨",
+                    "周若溪"
+                  ],
+                  "enum_values": [],
+                  "relation": {
+                    "target": "people_table",
+                    "target_kind": "class",
+                    "resolved": 1.0,
+                    "predicate": "mentions"
+                  },
+                  "status": "proposed",
+                  "edited": false
+                }
+              ],
+              "sample_paths": [
+                "meetings/atlas/2026-04-01-kickoff.md"
+              ],
+              "signature": [
+                "attendees",
+                "date"
+              ]
+            }
+          ],
+          "coverage": {
+            "record_files": 66,
+            "in_class": 62,
+            "confirmed": 62,
+            "share_in_class": 0.939,
+            "share_confirmed": 0.939
+          }
+        }
+      ]
+    },
+    "StructureDecide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "class_key"
+      ],
+      "description": "Body of `POST /v1/docs/drives/{id}/structure:decide` (1.16): accept or reject a class (`property` null) or one property, rename a class or a property (`name`), or merge a property into another one of the class (`into`; the fields it read are read as the target). Accepting a class confirms its proposed properties and sends its files through extraction again.",
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject",
+            "rename",
+            "merge"
+          ]
+        },
+        "class_key": {
+          "type": "string"
+        },
+        "property": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "into": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "op": "accept",
+          "class_key": "meeting_minutes",
+          "property": null
+        },
+        {
+          "op": "rename",
+          "class_key": "meeting_minutes",
+          "property": "attendees",
+          "name": "Who came"
+        },
+        {
+          "op": "merge",
+          "class_key": "decision_log",
+          "property": "rationale",
+          "into": "decisions"
+        }
+      ]
+    },
+    "StructureYaml": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "protocol",
+        "version",
+        "sources",
+        "agent_db",
+        "text"
+      ],
+      "description": "The ontology YAML of both sides (1.16, D93): the structure layer of the documents and, when an Agent DB is bound, the structure of its tables with the cross-links between a document property and a table the link rules name. `?database=0` leaves the database out.",
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "documents",
+              "database"
+            ]
+          }
+        },
+        "agent_db": {
+          "type": "string",
+          "enum": [
+            "bound",
+            "unbound"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.docs.structure/v1",
+          "version": 2,
+          "sources": [
+            "documents"
+          ],
+          "agent_db": "unbound",
+          "text": "protocol: oo.docs.structure/v1\nstructure_version: 2\nsources: [documents]\ntypes: []\nrelations: []\n"
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -7101,6 +7666,42 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.15"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/structure",
+      "request": null,
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}/structure:induce",
+      "request": null,
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}/structure:decide",
+      "request": "StructureDecide",
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/structure/yaml",
+      "request": null,
+      "response": "StructureYaml",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
     }
   ]
 }
