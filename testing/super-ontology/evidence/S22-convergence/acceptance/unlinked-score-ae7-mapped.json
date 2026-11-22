@@ -1,0 +1,82 @@
+{
+ "summary": {
+  "files": 7,
+  "correct": 7,
+  "correct_pct": 100.0
+ },
+ "rows": [
+  {
+   "file": "misc/lemon-tart-recipe.docx",
+   "gold": "unrelated_content",
+   "app_reason": "not_admitted:other",
+   "mapped": "unrelated_content",
+   "correct": true,
+   "state": "published",
+   "size": 4789
+  },
+  {
+   "file": "misc/lisbon-itinerary.pdf",
+   "gold": "unrelated_content",
+   "app_reason": "not_admitted:other",
+   "mapped": "unrelated_content",
+   "correct": true,
+   "state": "published",
+   "size": 2375
+  },
+  {
+   "file": "misc/random-readings.csv",
+   "gold": "unrelated_content",
+   "app_reason": "no_entities",
+   "mapped": "unrelated_content",
+   "correct": true,
+   "state": "published",
+   "size": 620
+  },
+  {
+   "file": "misc/empty-notes.txt",
+   "gold": "empty_file",
+   "app_reason": "no_entities",
+   "mapped": "empty_file",
+   "correct": true,
+   "state": "published",
+   "size": 0
+  },
+  {
+   "file": "misc/broken-report.pdf",
+   "gold": "corrupt_file",
+   "app_reason": "parse_failed",
+   "mapped": "corrupt_file",
+   "correct": true,
+   "state": "parse_failed",
+   "size": 358
+  },
+  {
+   "file": "misc/brand-mockup.key",
+   "gold": "unsupported_format",
+   "app_reason": "unsupported",
+   "mapped": "unsupported_format",
+   "correct": true,
+   "state": "unsupported",
+   "size": 2268
+  },
+  {
+   "file": "misc/icon-set.sketch",
+   "gold": "unsupported_format",
+   "app_reason": "unsupported",
+   "mapped": "unsupported_format",
+   "correct": true,
+   "state": "unsupported",
+   "size": 236
+  }
+ ],
+ "false_alarms": [
+  {
+   "file": "notes/meeting-cadence.txt",
+   "reason": "no_entities"
+  },
+  {
+   "file": "notes/retro-prep.md",
+   "reason": "no_entities"
+  }
+ ]
+}
