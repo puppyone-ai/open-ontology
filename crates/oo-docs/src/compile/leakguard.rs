@@ -47,6 +47,16 @@ pub(super) fn provenance_gaps(files: &[PackFile], g: &VisibleGraph) -> usize {
             a.evidence.iter().for_each(&mut add);
         }
     }
+    // 工作约定 (D94): the blocks of the instruction files in scope are sources too.
+    for f in g.snapshot() {
+        if crate::profile::classify_path(&f.path, None).profile
+            == crate::profile::Profile::Instruction
+        {
+            for (_, _, anchor) in g.file_blocks(&f.version_id) {
+                allowed.insert((f.path.clone(), source::frag(anchor)));
+            }
+        }
+    }
     let mut bad = 0;
     for f in files {
         let checked = f.path == "BRIEF.md"
