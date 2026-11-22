@@ -1551,6 +1551,10 @@ impl JobHandler for ExtractLlmHandler {
                 let types = crate::review::promotion::constrained_types(&mut conn)
                     .await
                     .unwrap_or_default();
+                // D93: a record file of a class with a confirmed structure is read against its slots only.
+                let class = crate::structure::store::template_for(&mut conn, &s.drive_id, &ir)
+                    .await
+                    .unwrap_or(None);
                 let input = LlmInput {
                     drive_id: &s.drive_id,
                     path: &s.path,
@@ -1559,16 +1563,22 @@ impl JobHandler for ExtractLlmHandler {
                     known,
                     calls_used,
                     types,
+                    template: class
+                        .as_ref()
+                        .map(crate::structure::template::prompt_section),
                 };
                 let limits = Limits {
                     daily,
                     ..Limits::default()
                 };
-                let (x, stats) =
+                let (mut x, stats) =
                     match extract_llm(&mut conn, &self.cas, &*port, limits, &input).await {
                         Ok(r) => r,
                         Err(e) => return db_fail(e),
                     };
+                if let Some(c) = &class {
+                    crate::structure::template::constrain_llm(&mut x, c);
+                }
                 let doc = DocumentInput {
                     version_id: &s.version_id,
                     b3: &s.b3,
@@ -1689,6 +1699,8 @@ pub struct PublishHandler {
     scanned: std::sync::Mutex<HashMap<String, Arc<Vec<crate::extract::anchors::Found>>>>,
     /// File version -> hash of the shared values it was last linked to (`doc.anchor`).
     anchored: std::sync::Mutex<HashMap<String, String>>,
+    /// D93: aligns field labels the dictionary does not know.
+    model: Arc<ModelRuntime>,
 }
 
 fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
@@ -1835,6 +1847,7 @@ impl PublishHandler {
             linked: std::sync::Mutex::new(HashMap::new()),
             scanned: std::sync::Mutex::new(HashMap::new()),
             anchored: std::sync::Mutex::new(HashMap::new()),
+            model: ModelRuntime::disabled(),
         }
     }
 
@@ -1967,6 +1980,24 @@ impl JobHandler for PublishHandler {
                 let _ = crate::review::overlay::sweep_orphans(&mut c).await;
                 // Open types that reached the thresholds become `type_promotion` items (D16).
                 let _ = crate::review::promotion::propose(&mut c).await;
+                // D93: the structure layer follows the files (a change is a schema version; new properties of a
+                // confirmed class are proposals).
+                let drives: Vec<String> = sqlx::query_scalar(
+                    "SELECT id::text FROM _oo_docs.drive WHERE status = 'active'",
+                )
+                .fetch_all(&mut *c)
+                .await
+                .unwrap_or_default();
+                for d in drives {
+                    if !std::env::var("OO_DOCS_STRUCTURE_ALIGN_MODEL").is_ok_and(|v| v == "0")
+                        && llm_wanted(&self.pool, &self.model, &d).await
+                        && let Some(port) = self.model.port()
+                    {
+                        let _ =
+                            crate::structure::store::align_unknown(&mut c, &d, port.as_ref()).await;
+                    }
+                    let _ = crate::structure::store::induce_drive(&mut c, &d).await;
+                }
             }
             let n = match n {
                 Some(n) => Some(n),
@@ -2093,7 +2124,7 @@ pub fn handlers_with_runtime<F: SourceFactory>(
         Arc::new(Contended(ExtractLlmHandler {
             pool: pool.clone(),
             cas: cas.clone(),
-            model,
+            model: model.clone(),
         })),
     );
     map.insert(
@@ -2104,6 +2135,7 @@ pub fn handlers_with_runtime<F: SourceFactory>(
             linked: std::sync::Mutex::new(HashMap::new()),
             scanned: std::sync::Mutex::new(HashMap::new()),
             anchored: std::sync::Mutex::new(HashMap::new()),
+            model,
         })),
     );
     map

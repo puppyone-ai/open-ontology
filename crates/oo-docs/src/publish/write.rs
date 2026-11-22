@@ -110,6 +110,17 @@ pub async fn index_document_with(
             media,
         },
     );
+    // D93: a record file is read against the confirmed structure of its class (nothing changes without one).
+    let extraction = crate::structure::store::on_extract(
+        conn,
+        doc.version_id,
+        doc.b3,
+        doc.ir,
+        profile,
+        doc.path,
+        extraction,
+    )
+    .await?;
     index_extraction(conn, doc, &extraction).await
 }
 

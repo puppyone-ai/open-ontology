@@ -221,6 +221,30 @@ export function createOntologyHandlers({ client, grants, revealPath = () => {}, 
       return ensure(value, (v) => isObject(v) && Number.isInteger(v.affected));
     },
 
+    /** The structure layer (D93): the classes of record files with their properties, types and coverage. */
+    "structure-read": async ({ driveId }) => {
+      const { value } = await call("structureGet", { params: { id: driveId } });
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.classes) && isObject(v.coverage));
+    },
+
+    "structure-induce": async ({ driveId }) => {
+      const { value } = await call("structureInduce", { params: { id: driveId } });
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.classes));
+    },
+
+    /** Accept, reject, rename or merge a class or a property; the answer is the schema as it is now. */
+    "structure-decide": async ({ driveId, op, classKey, property, name, into }) => {
+      const body = { op, class_key: classKey, property: property ?? null, ...(name === undefined ? {} : { name }), ...(into === undefined ? {} : { into }) };
+      const { value } = await call("structureDecide", { params: { id: driveId }, body });
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.classes));
+    },
+
+    /** The ontology YAML of the documents and, when a database is bound, of its tables with the cross-links. */
+    "structure-yaml": async ({ driveId, database }) => {
+      const { value } = await call("structureYaml", { params: { id: driveId }, query: database === false ? { database: "0" } : {} });
+      return ensure(value, (v) => isObject(v) && typeof v.text === "string");
+    },
+
     "ontology-versions": async ({ limit, cursor }) => {
       const { value } = await call("ontologyVersions", { query: { limit, cursor } });
       return ensure(value, isPage);

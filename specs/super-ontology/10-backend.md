@@ -1225,6 +1225,28 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 **BRIEF 的“工作约定”一节**：范围内的指令类文件的原文，按块、每块带 `[src:路径#位置]`；先给写给 Agent 的（AGENTS.md、CLAUDE.md、SOP），再是其余，同级按路径深浅；本节上限为预算的 20%，超出的文件注明“其余内容超出本节预算，见原文”；范围外的文件不会出现（可见性与泄漏守卫同其余章节）。范围内没有指令类文件时，整节省略。
 
+#### 5.1.2 结构层：本体的两层与结构归纳（D93，迁移 0160，`docs-api/1.16`）
+
+本体由**结构层**（类、属性、类型、关系，对应数据库的表结构与外键）和**实例层**（对应行）组成。文档的结构层像数据库列画像一样归纳：同一类记录文件中反复出现的字段就是该类的属性，取值决定类型，取值指向另一类的记录就是关系。结构层先建出并可确认，实例只能填进已有结构；文档本体与数据库本体合成一个本体（同一份 YAML，见下）。
+
+**字段（`structure::observe`，纯函数）。** 每个记录类文件（`business|meeting|table`）抽取时记一次“它带有哪些字段”，按内容哈希存 `structure_observation`（`obs_version = structure-obs/1`）。字段来自五处：frontmatter 键（`frontmatter`）、表头（`column`，表格类文件每行一条记录，文档类文件的表按列并入）、固定章节标题（`section`，二级及以下标题，值是其下的段落与列表项）、`key: value` 行（`line`，键后为空则取随后的列表项）、会随文件变化的目录层级（`directory`）。字段键先折叠拼写与语言：约 40 个概念各带中英同义词（`参会人`、`与会人员`、`Attendees` 都是 `attendees`），键是概念名，否则是折叠后的原文；属性的稳定名（`slug`，`[a-z_]{1,40}`，写成 `attr.<slug>`）来自概念名，无法用 `[a-z_]` 表达的键用其哈希的字母码（`f_xxxxxx`），界面显示原文。
+
+**聚类与属性（`structure::induce`，纯函数）。** 文档类与表格类分别聚类：以文件的字段键集合与簇中心键集合（出现在簇内一半以上文件）的 Jaccard ≥ 0.5 并入，两遍（第二遍用定稿的簇中心重分配）；只出现在一个文件的键不参与聚类。文档类簇至少 3 个文件，表格类簇至少 3 行。簇内一个字段在 ≥ 40% 的文件、且至少 2 个文件出现，就是属性，记 `coverage`（带该字段的文件占比）、`files_with`、`fill`（非空值占比）、`required`（覆盖 ≥ 90%）、示例与至多 40 个去重取值。类的 `kind` 由属性概念判定：`meeting_minutes`（有 `attendees` 与 决定/待办/议程/摘要之一）、`decision_log`、`weekly_report`、`contract`、`people_table`、`project_table`，其余 `other`，类名取所在目录；簇里不属于任何这些的文件仍成类（`other`）。
+
+**类型（`structure::vtype`，值决定类型，顺序固定）。** 邮箱、链接、日期（含带时刻）、百分比、数字或金额（带货币符号或“元/万/USD”判金额，键名为 `amount|budget|price` 也判金额）、编号（形如 `CT-2026-007` 且几乎不重复）、人／项目／组织（取值逐项命中 Drive 里同类型实体的比例 ≥ 60%，或键名提示该类型且取值像名字；组织只由键名提示判定，因为任何短语都可能是组织）、枚举（≤ 12 个不同值、值重复、≥ 5 条取值、不重复比例 ≤ 60%、每个值 ≤ 24 字、**不含数字**——“12 个月”是数量；章节正文是散文，不判枚举）、否则文本（平均超过 60 字为长文本）。值按 `、，,；;/` 与换行拆成项再判人名等；一条记录里有多项或有多条列表项即 `multi`。
+
+**关系。** 人／项目／组织类型的属性带 `relation{target, target_kind, resolved, predicate}`。取值逐项命中**另一个类**的标识列（人员表的 `name`、项目表的项目列）达 60% 时，属性改为该类的实体类型，`target_kind = class`、`target` 为类键；否则命中 Drive 实体时 `target_kind = entity_type`。写入关系用的核心谓词：人 `mentions`，项目与组织 `about`（受 DOC-G1 域/值域约束）。
+
+**版本与人的决定（`structure::store`）。** 结构层是版本化的模式对象：`structure_class`（现状，`doc` 是 `ClassStructure`）、`structure_member`（文件属于哪个类）、`structure_version`（每次变化一行：`n`、`reason ∈ induce|accept|reject|rename|merge|propose`、`actor ∈ engine|person`、整份模式快照）。每次发布后重新归纳（`induce_drive`，对 Drive 加锁），与已存的类对账（`reconcile`）：类保持原键、名称、状态，属性保持原 `slug`、名称、状态、已合并的键，已确认的属性类型不变；人决定过的属性即使文件里不再出现也保留。类与属性的状态是 `proposed|confirmed|rejected`；`structure:decide` 支持确认、拒绝、改名（改 `name`，`slug` 不变）与合并（被合并属性的字段改读作目标属性）。**已确认类中新出现、在 ≥ 3 个文件复现的字段**不静默进结构，而是类型升格提议：`review_item(kind=type_promotion, reason_code=structure_property, subject.structure={class_key, property, name})`，接受即确认该属性、拒绝则排除（这是 D97 留下的少数几种待确认之一）。
+
+**模板抽取（`structure::template`，抽取钩子）。** 只有已确认类的记录文件按模板读：`index_document_with` 在规则抽取之后调用 `on_extract`，记字段，并对已确认类的文档类文件（表格类不做）：(1) 丢掉类中没有槽位的字面属性事实（`attr.*` 的名字不在已确认属性里）；(2) 按已确认属性填槽：关系槽给出实体与关系事实（`rule_id = structure.slot`，置信度 9300），字面槽给出 `attr.<slug>`（日期、枚举、文本，每槽至多 12 项）；证据取含该值的块，没有则取 frontmatter 块。模型补抽也只填槽：提示词附“模板（类名）：只填写下列槽位，模板之外的内容不要抽取”和槽位清单，缓存键含模板（无模板时与以前相同），输出里槽位之外的字面属性事实与开放 `Thing` 被丢掉。没有已确认类时，抽取结果原样返回，行为与以前相同。确认或合并或拒绝后，该类的文件经 `outdated` 重新抽取；**DOC-G10** 只对“未被结构解释的变化”把关（结构新增的槽位事实、被结构删去的字面事实、链接/锚点/模型遍随后重写的事实不计入），仍保护正被 Share 使用的事实。
+
+**YAML（本体 › 文件 `ontology-structure.yaml`，`GET /v1/docs/drives/{id}/structure/yaml`）。** 一份 YAML：`protocol`、`structure_version`、`sources: [documents, database]`、`types`（文档类：`origin: documents`，属性带 `type`、`source`、`coverage`、`status`、`relation`；数据库表：`origin: database`，列、主键、外键）、`relations`（类间关系、外键，以及**跨链接** `kind: source_link`：文档属性的取值命中某张表的名称列，该表有 `oo source link` 规则且实体类型相同；带 `matched`/`of` 与投影已建立的 `projected_links`）。数据库一侧从绑定的 Agent DB 目录读取（只读）；未绑定时只有文档一侧。
+
+**度量（30 §4）。** 结构层覆盖率 = 属于已确认类的记录文件 ÷ 记录文件；属性类型准确率、关系召回与精确率对冻结的合成记录语料（`testing/super-ontology/structure`，中英、模板加变体，确定性生成）计分；L4 评测集的实体精确率、类型精确率与“单词 Decision”数照旧计分。
+
+**边界与已知限制。** 表格类（人员表、项目表）只有结构与确认，不做模板填槽（行实体仍由 §5.1 的表格规则抽取）；同一 Drive 内中英两种语言的类别名不同的枚举取值各算一个值；类的归并是按字段键的相似度，不理解语义，叫法不同又没有同义词的字段会成为两个属性（人可合并）。
+
 ### 5.2 LLM 补抽
 
 #### 5.2.1 批次切分

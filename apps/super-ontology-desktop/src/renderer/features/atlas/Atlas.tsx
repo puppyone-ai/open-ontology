@@ -13,6 +13,7 @@ import { atlasSource } from "./atlasApi";
 import { diffAtlas, loadAtlas, type AtlasSource } from "./adapter";
 import { AtlasCanvas, type AtlasCanvasHandle } from "./AtlasCanvas";
 import { AtlasList, COUNT_KEY } from "./AtlasList";
+import { AtlasStructure } from "./AtlasStructure";
 import { opsForEvents } from "./events";
 import { emptyAtlas, type AtlasData, type AtlasMember, type AtlasMode, type AtlasRef } from "./model";
 import type { SceneNode } from "./scene";
@@ -213,6 +214,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
             <IconButton icon={ZoomOut} label={t("app.atlas.zoomOut")} shortcut="-" variant="secondary" size="compact" onClick={() => handle.current?.zoomOut()} />
             <IconButton icon={Maximize2} label={t("app.atlas.fit")} shortcut="0" variant="secondary" size="compact" onClick={() => handle.current?.fit()} data-testid="atlas-fit" />
           </div>
+          <AtlasStructure enabled={ready} />
           {selected && (
             <aside className="so-atlas-inspector" data-testid="atlas-inspector" data-tone={selected.tone}>
               <p className="so-atlas-inspector-title so-truncate">{selected.label}</p>

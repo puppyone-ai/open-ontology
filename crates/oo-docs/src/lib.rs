@@ -45,6 +45,7 @@ pub mod review;
 pub mod share;
 pub mod state;
 pub mod store;
+pub mod structure;
 pub mod suggest;
 pub mod temporal;
 pub mod vector;

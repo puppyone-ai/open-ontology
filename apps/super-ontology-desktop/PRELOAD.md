@@ -44,7 +44,7 @@ Same names and request/response shapes as the earlier Super Drive bridge (`share
 `events-subscribe events-since events-unsubscribe upload-start upload-cancel upload-discard upload-decide files-retry files-retry-matching file-detail file-blocks file-preview-url`
 `suggestions-list suggestions-digest suggestion-diff suggestion-decide suggestions-decide-source`
 `entities-search entity-detail resolve review-list review-decide pack-compile pack-read shares-list share-get share-mount share-refresh share-revoke share-reveal share-updates share-group-refresh`
-`usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel atlas-links ontology-schema profile-overrides-list profile-override-set`
+`usage-read ontology-versions model-config-read model-config-save fact-correct entity-merge entity-split constraints-list media-decode media-decode-cancel atlas-links ontology-schema profile-overrides-list profile-override-set structure-read structure-induce structure-decide structure-yaml`
 `cloud-mode-read cloud-mode-set audit-shares audit-verify cloud-token-create cloud-token-revoke`
 `agent-token-create agent-token-list agent-token-revoke agent-connect-snippet` (Agent > Connect, below)
 `engine-connect-remote engine-disconnect-remote` (below)

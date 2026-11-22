@@ -416,3 +416,34 @@
   .so-transcript-text { font-size: var(--so-text-sm); line-height: 1.45; overflow-wrap: anywhere; }
   @media (max-width: 1100px) { .so-review-layout[data-pane] { grid-template-columns: minmax(0, 1fr); } .so-review-pane { position: static; } }
 }
+
+@layer so-app {
+  /* Ontology > Structure (D93): classes of record files with their properties, like the columns of a table. */
+  .so-struct-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--so-space-5); padding: var(--so-space-4) var(--so-space-5); }
+  .so-struct-figure { display: grid; gap: 2px; min-width: 120px; }
+  .so-struct-meter { display: grid; gap: var(--so-space-2); min-width: 0; }
+  .so-struct-class { display: grid; gap: 0; padding: 0; overflow: hidden; }
+  .so-struct-head { display: flex; align-items: center; gap: var(--so-space-3); padding: var(--so-space-4) var(--so-space-4) var(--so-space-3); }
+  .so-struct-title { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+  .so-struct-table { display: grid; }
+  .so-struct-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) 128px minmax(120px, 1.4fr) 132px; align-items: center; gap: var(--so-space-3); min-height: 52px; padding: var(--so-space-2) var(--so-space-4); border-top: 1px solid var(--so-line); }
+  .so-struct-row[data-status="proposed"] .so-list-title { font-weight: var(--so-weight-medium); }
+  .so-struct-header { min-height: 32px; color: var(--so-text-muted); font-size: var(--so-text-xs); background: color-mix(in srgb, var(--so-inset) 55%, var(--so-panel)); }
+  .so-struct-name { display: grid; min-width: 0; }
+  .so-struct-type { display: flex; align-items: center; gap: var(--so-space-2); min-width: 0; }
+  .so-struct-rel { color: var(--so-accent); font-size: var(--so-text-xs); min-width: 0; }
+  .so-struct-cover { display: flex; align-items: center; gap: var(--so-space-2); }
+  .so-struct-bar { flex: 1 1 auto; height: 4px; border-radius: 2px; background: var(--so-inset); overflow: hidden; }
+  .so-struct-bar > span { display: block; height: 100%; background: var(--so-accent); }
+  .so-struct-pct { min-width: 36px; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--so-text-xs); color: var(--so-text-2); }
+  .so-struct-examples { font-size: var(--so-text-xs); }
+  .so-struct-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--so-space-2); }
+  .so-struct-atlas { display: grid; gap: var(--so-space-2); padding: var(--so-space-3) var(--so-space-4); }
+  .so-struct-atlas-row { display: flex; align-items: center; gap: var(--so-space-3); min-height: 28px; }
+  .so-struct-atlas-links { display: flex; flex-wrap: wrap; gap: var(--so-space-1) var(--so-space-2); color: var(--so-accent); font-size: var(--so-text-xs); }
+  @media (max-width: 900px) {
+    .so-struct-summary { grid-template-columns: minmax(0, 1fr); }
+    .so-struct-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .so-struct-row > :nth-child(3), .so-struct-row > :nth-child(4) { display: none; }
+  }
+}

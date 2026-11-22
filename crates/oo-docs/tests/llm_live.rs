@@ -78,10 +78,13 @@ async fn rig(db: &str) -> Rig {
     assert_eq!(bs.len(), 2, "the fixture has two sections");
     let reqs: Vec<_> = bs
         .iter()
-        .map(|b| request(MODEL, "星图项目", "md", &[], &[], b))
+        .map(|b| request(MODEL, "星图项目", "md", &[], &[], None, b))
         .collect();
     // The prompt is pinned: the keys of the two batches.
-    let keys: Vec<String> = bs.iter().map(|b| cache_key(MODEL, &[], &[], b)).collect();
+    let keys: Vec<String> = bs
+        .iter()
+        .map(|b| cache_key(MODEL, &[], &[], None, b))
+        .collect();
     if replies["pinned_keys"]
         .as_array()
         .is_some_and(|a| !a.is_empty())
@@ -130,6 +133,7 @@ impl Rig {
             ir: &self.ir,
             known: vec![],
             calls_used: used,
+            template: None,
         };
         extract_llm(&mut self.fx.rt, &self.fx.cas, &self.port, limits, &input)
             .await

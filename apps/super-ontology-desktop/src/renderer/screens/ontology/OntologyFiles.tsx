@@ -9,8 +9,11 @@ import { copyText } from "../../model/format";
 import { createOperationId } from "../../model/operationIds";
 import { diffLines, namesFrom, tokenizeYamlLine, toYaml, type DiffLine } from "../../model/cliFormat";
 import { CliCommand, CliErrorNotice } from "../shared/Cli";
+import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
+import { selectDrives, selectOntologyVersion } from "../../model/superDriveSelectors";
+import { structureApi } from "../../model/structureModel";
 
-type OntologyFile = { id: string; name: string; group: "version" | "gateway"; text: string };
+type OntologyFile = { id: string; name: string; group: "version" | "structure" | "gateway"; text: string };
 
 /** The YAML manifest of one ontology version (what the engine records about it). */
 export function versionYaml(version: OntologyVersion): string {
@@ -47,6 +50,9 @@ export function OntologyFiles() {
   const [versions, setVersions] = useState<OntologyVersion[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [gatewayFiles, setGatewayFiles] = useState<OntologyFile[]>([]);
+  const [structureFiles, setStructureFiles] = useState<OntologyFile[]>([]);
+  const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d.id === b[i]?.id));
+  const ontologyVersion = useSuperDriveSelector(selectOntologyVersion);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [compareId, setCompareId] = useState<string>("");
   const [copied, setCopied] = useState(false);
@@ -66,7 +72,16 @@ export function OntologyFiles() {
   }, []);
 
   const versionFiles = useMemo<OntologyFile[]>(() => (versions ?? []).map((v) => ({ id: `v${v.n}`, name: `ontology-v${v.n}.yaml`, group: "version", text: versionYaml(v) })), [versions]);
-  const files = useMemo(() => [...versionFiles, ...gatewayFiles], [versionFiles, gatewayFiles]);
+  // D93: the structure layer of the documents and, with a database bound, of its tables and the links between them: one ontology YAML.
+  useEffect(() => {
+    let live = true;
+    void Promise.all(drives.map(async (d) => ({ d, r: await structureApi.yaml(d.id) }))).then((all) => {
+      if (!live) return;
+      setStructureFiles(all.flatMap(({ d, r }) => (r.ok && /^types:\n {2}- /mu.test(r.value.text) ? [{ id: `s:${d.id}`, name: all.length > 1 ? `ontology-structure-${d.name}.yaml` : "ontology-structure.yaml", group: "structure" as const, text: r.value.text }] : [])));
+    });
+    return () => { live = false; };
+  }, [drives, ontologyVersion]);
+  const files = useMemo(() => [...versionFiles, ...structureFiles, ...gatewayFiles], [versionFiles, structureFiles, gatewayFiles]);
   useEffect(() => { if (!selectedId && files.length > 0) setSelectedId(files[0].id); }, [files, selectedId]);
   const selected = files.find((f) => f.id === selectedId) ?? null;
   const compare = files.find((f) => f.id === compareId) ?? null;
@@ -106,13 +121,13 @@ export function OntologyFiles() {
       <div className="so-split so-files-split">
         <Card className="so-files-list">
           {files.length === 0 && <EmptyState icon={FileText} title={t("app.files.empty")} description={t("app.files.emptyBody")} />}
-          {(["version", "gateway"] as const).map((group) => {
+          {(["version", "structure", "gateway"] as const).map((group) => {
             const rows = files.filter((f) => f.group === group);
             if (rows.length === 0) return null;
             return (
               <Fragment key={group}>
-                <p className="so-files-group">{t(group === "version" ? "app.files.group.versions" : "app.files.group.gateway")}</p>
-                <ul className="so-query-names" aria-label={t(group === "version" ? "app.files.group.versions" : "app.files.group.gateway")}>
+                <p className="so-files-group">{t(`app.files.group.${group === "version" ? "versions" : group}`)}</p>
+                <ul className="so-query-names" aria-label={t(`app.files.group.${group === "version" ? "versions" : group}`)}>
                   {rows.map((f) => <li key={f.id}><button type="button" className="so-list-row" aria-current={selectedId === f.id ? "true" : undefined} onClick={() => { setSelectedId(f.id); setCompareId((c) => (c === f.id ? "" : c)); }} data-testid="ontology-file-row" data-name={f.name}><span className="so-list-lead"><FileText size={16} strokeWidth={1.5} aria-hidden="true" /></span><span className="so-list-text"><span className="so-list-title so-truncate so-mono">{f.name}</span></span></button></li>)}
                 </ul>
               </Fragment>

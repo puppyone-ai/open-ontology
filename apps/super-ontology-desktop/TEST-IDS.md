@@ -124,6 +124,9 @@ Rules:
 | `atlas-canvas` **(T1)** | the drawing surface | `data-cells`, `data-groups`, `data-links`, `data-reduced` (what the canvas was built from; live changes are applied in place) |
 | `atlas` | the Atlas screen | `data-live-cells`, `data-live-groups`, `data-live-links`: what the app knows now, including changes since the canvas was built |
 | `ontology-tab-ask` | the Ask tab | `data-active` |
+| `ontology-tab-structure` | the Structure tab | `data-active` |
+| `structure` `structure-drive` `structure-coverage` `structure-class` `structure-property` `structure-confirm` `structure-accept` `structure-rename` `structure-merge` `structure-reject` `structure-dialog` `structure-dialog-save` | Ontology > Structure (D93): the classes of record files with their properties, types and coverage; accept, rename, merge, reject | coverage: `data-confirmed`, `data-record-files`; class: `data-class`, `data-status` = `proposed` `confirmed`; property: `data-slug`, `data-type`, `data-status` |
+| `atlas-structure` `atlas-structure-open` | the class structure panel on the atlas | `data-classes` |
 | `ontology-ask` `ask-input` `ask-send` `ask-stop` `ask-clear` `ask-turns` `ask-turn` `ask-question` | Ask: the composer and the session's turns | turn: `data-state` = `running` `done`, `data-status` |
 | `ask-progress` `ask-step` `ask-answer` `ask-answer-text` `ask-sources` `ask-source` `ask-uncited` `ask-copy` `ask-cli` `ask-cli-toggle` `ask-cli-value` `ask-cli-copy` | Ask: steps, the cited answer, its source chips and the equivalent command | step: `data-tool`, `data-state`; source: `data-kind`, `data-id` |
 | `ask-unanswerable` `ask-reason` `ask-searched` `ask-cancelled` `ask-error` | Ask: the plain "not in your data" answer and the calm error states | |

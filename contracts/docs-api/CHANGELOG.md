@@ -229,3 +229,15 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `GET` and `PUT /v1/docs/drives/{id}/profile-overrides` (`ProfileOverride`, `ProfileOverridePut`, `ProfileOverrideResult`): a person's choice of the class of a file or a directory. `PUT` with
   `profile: null` removes the choice; the files covered are reclassified (reason `user`) and extracted again. No new error code. Additive.
 - Fact predicates `cites` (Thing to Thing) and `authored` (Person to Thing) join the core relations (DB check widened in 0159); both are written by the reference class only.
+
+## 1.16 (lane AM, the structure layer, D93)
+
+- `GET /v1/docs/drives/{id}/structure` (`StructureSchema`, `StructureClass`, `StructureProperty`, `StructureCoverage`): the structure layer of the documents, like the table schemas of a database. Files of one record
+  class share fields (frontmatter keys, table headers, fixed section headings, `key: value` lines, a varying directory level); a field that recurs is a property of the class, its values decide the type
+  (`date|amount|number|percent|email|url|id|person|project|organization|enum|text|long_text`) and a value that names an entity of another class makes it a relation. Every property carries its coverage, fill, examples and status.
+- `POST /v1/docs/drives/{id}/structure:induce`: induce now (the engine also does it after every publish). `POST /v1/docs/drives/{id}/structure:decide` (`StructureDecide`): a person accepts, rejects, renames or
+  merges a class or a property; every change is a schema version. A confirmed class is read by the extraction (template-driven: its properties fill slots, facts outside the structure do not enter the ontology); a property
+  that appears later in a confirmed class is a proposal, queued as a `type_promotion` item whose subject has a `structure` object (reason `structure_property`).
+- `GET /v1/docs/drives/{id}/structure/yaml[?database=0]` (`StructureYaml`): the ontology YAML of both sides. With an Agent DB bound it holds the tables, columns, keys and foreign keys of the database and the cross-links where a
+  document property names rows of a table through a link rule. Migration 0160 (`docs-structure/1`). No new error code. Additive.
+- Structure properties: `value_type` `version` (`v1.2.3`, `2.0`) and `aliases` (the other labels a property is written with: another language or spelling; the field labels of zh and en files of one kind of record align into one class, by the built-in dictionary and, for unknown labels, a cached model alignment, `structure_alignment` in 0160). Additive.

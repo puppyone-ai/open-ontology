@@ -13,7 +13,7 @@ export const ONTOLOGY_CHANNELS = Object.freeze([
   "shares-list", "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save",
   "fact-correct", "entity-merge", "entity-split", "constraints-list", "media-decode", "media-decode-cancel",
-  "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set",
+  "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set", "structure-read", "structure-induce", "structure-decide", "structure-yaml",
 ]);
 
 /** Channels of this module whose request must carry an `operationId`. */
@@ -147,6 +147,14 @@ export function createOntologyRequestFields(field) {
       driveId: field.uuid, scope: field.enum(["file", "dir"]), path: field.drivePath,
       profile: field.nullable(field.enum(["business", "meeting", "table", "instruction", "code", "reference", "media", "other"])),
     }),
+    /** The structure layer (D93, docs-api 1.16). */
+    "structure-read": Object.freeze({ driveId: field.uuid }),
+    "structure-induce": Object.freeze({ driveId: field.uuid }),
+    "structure-decide": Object.freeze({
+      driveId: field.uuid, op: field.enum(["accept", "reject", "rename", "merge"]), classKey: field.string(64),
+      property: field.optional(field.nullable(field.string(64))), name: field.optional(field.string(80)), into: field.optional(field.string(64)),
+    }),
+    "structure-yaml": Object.freeze({ driveId: field.uuid, database: field.optional(field.boolean) }),
     "media-decode": Object.freeze({ fileId: field.uuid }),
     "media-decode-cancel": Object.freeze({ fileId: field.uuid }),
   });

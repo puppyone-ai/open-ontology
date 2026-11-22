@@ -295,3 +295,33 @@ describe("file class overrides (D94)", () => {
     expect(parseSuperOntologyRequest("profile-overrides-list", { driveId: drive })).toEqual({ driveId: drive });
   });
 });
+
+describe("the structure layer (D93)", () => {
+  const drive = "00000000-0000-4000-8000-0000000000d2";
+  const schema = { protocol: "oo.docs.structure/v1", version: 2, classes: [{ class_key: "meeting_minutes" }], coverage: { record_files: 10, in_class: 9, confirmed: 0, share_in_class: 0.9, share_confirmed: 0 } };
+  it("reads the schema, induces it and decides with the engine's body shape", async () => {
+    const { handlers, calls } = make({ responses: { structureGet: { value: schema }, structureInduce: { value: schema }, structureDecide: { value: schema }, structureYaml: { value: { text: "protocol: x\n" } } } });
+    expect((await handlers["structure-read"]({ driveId: drive })).version).toBe(2);
+    expect((await handlers["structure-induce"]({ driveId: drive })).classes).toHaveLength(1);
+    await handlers["structure-decide"]({ driveId: drive, op: "rename", classKey: "meeting_minutes", property: "attendees", name: "Who came" });
+    expect(calls.find(([name]) => name === "structureDecide")[1]).toMatchObject({ params: { id: drive }, body: { op: "rename", class_key: "meeting_minutes", property: "attendees", name: "Who came" } });
+    await handlers["structure-decide"]({ driveId: drive, op: "accept", classKey: "meeting_minutes" });
+    expect(calls.filter(([name]) => name === "structureDecide")[1][1].body).toEqual({ op: "accept", class_key: "meeting_minutes", property: null });
+    expect((await handlers["structure-yaml"]({ driveId: drive, database: false })).text).toBe("protocol: x\n");
+    expect(calls.find(([name]) => name === "structureYaml")[1]).toMatchObject({ query: { database: "0" } });
+    expect(ROUTES.structureGet.method).toBe("GET");
+    expect(ROUTES.structureDecide.method).toBe("POST");
+    expect(ROUTES.structureInduce.method).toBe("POST");
+  });
+  it("rejects an answer that is not a schema", async () => {
+    const { handlers } = make({ responses: { structureGet: { value: { classes: [] } } } });
+    await expect(handlers["structure-read"]({ driveId: drive })).rejects.toMatchObject({ code: "SO_RESPONSE_INVALID" });
+  });
+  it("validates the request: a Drive, a known operation, bounded names", () => {
+    expect(parseSuperOntologyRequest("structure-read", { driveId: drive })).toEqual({ driveId: drive });
+    expect(() => parseSuperOntologyRequest("structure-read", {})).toThrow();
+    expect(parseSuperOntologyRequest("structure-decide", { driveId: drive, op: "merge", classKey: "c", property: "a", into: "b" }).into).toBe("b");
+    expect(parseSuperOntologyRequest("structure-decide", { driveId: drive, op: "accept", classKey: "c", property: null }).property).toBeNull();
+    for (const bad of [{ op: "delete" }, { classKey: "x".repeat(65) }, { name: "y".repeat(81) }, { extra: 1 }]) expect(() => parseSuperOntologyRequest("structure-decide", { driveId: drive, op: "rename", classKey: "c", name: "n", ...bad })).toThrow();
+  });
+});

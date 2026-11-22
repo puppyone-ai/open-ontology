@@ -125,11 +125,18 @@ pub fn request(
     format: &str,
     known: &[Known],
     types: &[ConstrainedType],
+    template: Option<&str>,
     batch: &Batch<'_>,
 ) -> ChatRequest {
+    let mut system = system_text(types);
+    // D93: a record file of a class with a confirmed structure is read against its template; the model fills only its slots.
+    if let Some(t) = template {
+        system.push('\n');
+        system.push_str(t);
+    }
     ChatRequest {
         model: model.to_owned(),
-        system: system_text(types),
+        system,
         user: user_message(title, format, known, batch),
     }
 }
@@ -140,6 +147,7 @@ pub fn cache_key(
     model: &str,
     known: &[Known],
     types: &[ConstrainedType],
+    template: Option<&str>,
     batch: &Batch<'_>,
 ) -> String {
     let blocks: Vec<Value> = batch
@@ -159,6 +167,11 @@ pub fn cache_key(
     // nobody bumped the version.
     h.update(blake3::hash(system_text(types).as_bytes()).as_bytes());
     h.update(b"\0");
+    if let Some(t) = template {
+        h.update(b"template\0");
+        h.update(blake3::hash(t.as_bytes()).as_bytes());
+        h.update(b"\0");
+    }
     h.update(model.as_bytes());
     h.update(b"\0");
     h.update(oo_builder::canonical_json(&Value::Array(blocks)).as_bytes());
@@ -217,7 +230,7 @@ mod tests {
             "Person:陈子墨".to_owned(),
         ];
         let bi = bs.len() - 1;
-        let req = request("m-1", "T", "md", &known, &[], &bs[bi]);
+        let req = request("m-1", "T", "md", &known, &[], None, &bs[bi]);
         assert!(req.user.starts_with("文档：T（格式：md）\n已知实体"));
         assert!(req.user.contains("Person:陈子墨、Project:星图"));
         assert!(req.user.contains("<<<BLOCKS\n{\"block_id\":\"blk_"));
@@ -226,17 +239,17 @@ mod tests {
         assert_eq!(body["temperature"], 0);
         assert_eq!(body["max_tokens"], 2048);
         assert_eq!(body["stream"], false);
-        let k1 = cache_key("m-1", &known, &[], &bs[bi]);
+        let k1 = cache_key("m-1", &known, &[], None, &bs[bi]);
         assert_eq!(k1.len(), 64);
-        assert_eq!(k1, cache_key("m-1", &known, &[], &bs[bi]));
+        assert_eq!(k1, cache_key("m-1", &known, &[], None, &bs[bi]));
         assert_ne!(
             k1,
-            cache_key("m-2", &known, &[], &bs[bi]),
+            cache_key("m-2", &known, &[], None, &bs[bi]),
             "the model is part of the key"
         );
         assert_ne!(
             k1,
-            cache_key("m-1", &[], &[], &bs[bi]),
+            cache_key("m-1", &[], &[], None, &bs[bi]),
             "so are the known entities"
         );
         let other = parse_markdown("# T\n\n## 甲\n\n陈子墨负责灯塔\n".as_bytes())
@@ -244,7 +257,7 @@ mod tests {
             .ir;
         assert_ne!(
             k1,
-            cache_key("m-1", &known, &[], batches(&other).last().unwrap())
+            cache_key("m-1", &known, &[], None, batches(&other).last().unwrap())
         );
     }
 
@@ -265,7 +278,10 @@ mod tests {
             .ir;
         let bs = batches(&ir);
         let b = bs.last().unwrap();
-        assert_ne!(cache_key("m", &[], &[], b), cache_key("m", &[], &t, b));
+        assert_ne!(
+            cache_key("m", &[], &[], None, b),
+            cache_key("m", &[], &t, None, b)
+        );
         // Order of the set does not matter.
         let t2 = vec![
             t[0].clone(),
@@ -285,13 +301,17 @@ mod tests {
             .unwrap()
             .ir;
         let bs = batches(&ir);
-        let k = cache_key("m", &[], &[], &bs[0]);
+        let k = cache_key("m", &[], &[], None, &bs[0]);
         let t = vec![ConstrainedType {
             label: "合同".into(),
             type_name: "Contract".into(),
         }];
-        assert_ne!(k, cache_key("m", &[], &t, &bs[0]), "system text differs");
+        assert_ne!(
+            k,
+            cache_key("m", &[], &t, None, &bs[0]),
+            "system text differs"
+        );
         // The key is built from the text itself: same text, same key.
-        assert_eq!(k, cache_key("m", &[], &[], &bs[0]));
+        assert_eq!(k, cache_key("m", &[], &[], None, &bs[0]));
     }
 }

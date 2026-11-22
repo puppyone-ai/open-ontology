@@ -101,6 +101,38 @@ fn anchor_json(list: &[(String, String, Option<Value>)]) -> Vec<Value> {
 /// `published_only`: what the product acts on: facts in a published version, and the
 /// entities they connect (plus every Document); otherwise every candidate fact that is
 /// not rejected or retracted, the whole extraction output.
+async fn settle(
+    s: &Stack,
+    n: usize,
+    limit: Duration,
+) -> BTreeMap<String, (String, Option<String>)> {
+    let t0 = Instant::now();
+    let mut quiet = 0;
+    let mut st = s.states().await;
+    while quiet < 5 && t0.elapsed() < limit {
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        st = s.states().await;
+        let open: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm', 'publish')",
+        )
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+        let moving = st.values().any(|(state, _)| {
+            matches!(
+                state.as_str(),
+                "stored" | "queued" | "parsing" | "parsed" | "extracting" | "outdated"
+            )
+        });
+        quiet = if st.len() >= n && open == 0 && !moving {
+            quiet + 1
+        } else {
+            0
+        };
+    }
+    st
+}
+
 async fn export(s: &Stack, dir: &std::path::Path, published_only: bool) -> (usize, usize) {
     // Anchors per target (fact, alias or entity), live evidence only.
     let rows = sqlx::query(
@@ -395,28 +427,56 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     // a row (the publish job runs the link pass of the last files: it is debounced by 2 s
     // and takes seconds, and the export must come after it).
     let limit = Duration::from_secs(if with_model { 3000 } else { 900 });
-    let mut quiet = 0;
-    let mut st = s.states().await;
-    while quiet < 5 && t0.elapsed() < limit {
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-        st = s.states().await;
-        let open: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm', 'publish')",
-        )
-        .fetch_one(&s.pool)
-        .await
-        .unwrap();
-        let moving = st.values().any(|(state, _)| {
-            matches!(
-                state.as_str(),
-                "stored" | "queued" | "parsing" | "parsed" | "extracting"
+    let mut st = settle(&s, n, limit).await;
+    // D93: OO_EVAL_STRUCTURE=1 plays the person who confirms the induced structure of every class; the files of the classes go through
+    // extraction again against their templates (the model, when on, fills only their slots) and settle before the export.
+    if std::env::var("OO_EVAL_STRUCTURE").is_ok_and(|v| v == "1") {
+        let drive_id = r.json()["id"].as_str().unwrap().to_owned();
+        let induced = s
+            .call(
+                "POST",
+                &format!("/v1/docs/drives/{drive_id}/structure:induce"),
+                None,
             )
-        });
-        quiet = if st.len() >= n && open == 0 && !moving {
-            quiet + 1
-        } else {
-            0
-        };
+            .await;
+        assert_eq!(
+            induced.status,
+            200,
+            "{}",
+            String::from_utf8_lossy(&induced.body)
+        );
+        let schema = induced.json();
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(
+            out.join("structure-induced.json"),
+            serde_json::to_string_pretty(&schema).unwrap(),
+        )
+        .unwrap();
+        for c in schema["classes"].as_array().unwrap() {
+            let d = s
+                .call(
+                    "POST",
+                    &format!("/v1/docs/drives/{drive_id}/structure:decide"),
+                    Some(&json!({"op": "accept", "class_key": c["class_key"], "property": null})),
+                )
+                .await;
+            assert_eq!(d.status, 200, "{}", String::from_utf8_lossy(&d.body));
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        st = settle(&s, n, limit).await;
+        let after = s
+            .call(
+                "GET",
+                &format!("/v1/docs/drives/{drive_id}/structure"),
+                None,
+            )
+            .await
+            .json();
+        std::fs::write(
+            out.join("structure-confirmed.json"),
+            serde_json::to_string_pretty(&after).unwrap(),
+        )
+        .unwrap();
     }
     let secs = t0.elapsed().as_secs_f64();
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();

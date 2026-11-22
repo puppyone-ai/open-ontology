@@ -12,7 +12,7 @@ const CHANNELS = new Set([
   "entities-search", "entity-detail", "resolve", "review-list", "review-decide", "pack-compile", "pack-read", "shares-list",
   "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save", "fact-correct", "entity-merge", "entity-split", "constraints-list",
-  "media-decode", "media-decode-cancel", "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set",
+  "media-decode", "media-decode-cancel", "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set", "structure-read", "structure-induce", "structure-decide", "structure-yaml",
   "cloud-mode-read", "cloud-mode-set", "audit-shares", "audit-verify", "cloud-token-create", "cloud-token-revoke", "engine-set-runtime",
   "engine-connect-remote", "engine-disconnect-remote", "engine-state-read", "engine-data-use",
   "agent-token-create", "agent-token-list", "agent-token-revoke", "agent-connect-snippet",
