@@ -1204,6 +1204,33 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 规则只建核心类型；规则从不建 `Thing`。人名提及的识别规则只用于结构化位置（frontmatter、表格列、kv 行、目录名），正文中的自由人名交给 LLM（无模型时不抽正文人名，这是“不配模型也能用”的代价，评测报告单列）。
 
+#### 5.1.1 文档画像与画像类型集（D89）
+
+每个文件先判定**画像**，画像决定读法。判定是确定性的，不问模型：路径与文件名约定（`AGENTS.md`、`CLAUDE.md`、`README*`、`CONTRIBUTING*`、`docs/adr/`、风格指南、`meetings/`）、扩展名与已知清单文件名、blob 格式、以及对正文的结构判断（摘要加参考文献或 DOI/arXiv 号判为科研文献；与会人名单判为会议）。画像存于 `_oo_docs.file.profile`（迁移 0156，可空；未抽取过的文件由 API 按路径与格式推出）并出现在 `FileSummary.profile`。
+
+| 画像 | `profile` 值 | 读法 |
+|---|---|---|
+| 业务文档 | `business` | §5.1 核心规则与 §5.2 模型补抽（不变） |
+| 会议与访谈 | `meeting` | 同上 |
+| 表格 | `table` | 表格规则（不变） |
+| Agent/工程指令文档 | `instruction` | `profile.rule` 等，下表；不调用模型 |
+| 代码 | `code` | 语法树，下表；不调用模型；不跑散文规则 |
+| 科研文献 | `paper` | 论文规则，下表；模型补抽照常 |
+| 媒体素材 | `media` | 媒体规则（不变） |
+| 其他 | `other` | 只有 Document，不抽实体；仍被索引、可检索 |
+
+画像抽取器只建**登记的开放类型**：`Thing{label}`，label 取下表（共 14 个，代码里的 `profile::LABELS`）。登记的 label 不受 §5.1 “规则从不建 `Thing`” 的限制，也不进入类型升格提议（D16 的 ≥5 实例、≥3 文件阈值对它们不适用）；`Thing` 的存储、resolve 与 DOC-G1 不变。关系仍只用核心谓词；规则与符号之间的指向用 `attr.*`（值类型 `text`），不新增谓词。
+
+| 画像 | label 与实体名 | 事实 | 证据 |
+|---|---|---|---|
+| `instruction` | `Rule`（一条规则一个条目，名为规则原文的第一句，≤160 字）、`Command`（命令行）、`Tool`（命令的程序名与行文中提到的工具名，小写）、`Path`（行文中的路径，去掉前导 `./` 与结尾 `/`） | `Rule` 的 `attr.uses_tool`、`attr.runs_command`、`attr.applies_to_path`（该规则自己的文字，或紧随其后的代码块里提到的）；文档对每个条目 `mentions`（`doc.entity`） | 规则所在的块（列表项或段落）；命令取代码块或句子所在块 |
+| `code` | `Function`、`Class`、`Type`（struct、enum、trait、interface、type）、`Dependency`（包名，源码导入与清单共用同一实体）、`Package`（清单声明的包）、`Path`（文件所在目录）；符号名为 `文件路径::限定名` | `Package` 的 `attr.depends_on`、`attr.version` | 声明所在的块 |
+| `paper` | `Paper`（标题；自己与被引用的论文同名同实体）、`Person`（作者）、`Venue`、`Method`、`Dataset`、`Metric` | `Paper` 的 `attr.doi`、`attr.arxiv`、`attr.year`；文档对被引论文的 `mentions` 带规则 `paper.cites`，对自己的带 `paper.self` | 作者行、摘要句、参考文献条目所在的块 |
+
+代码语言（语法解析器）：Rust、Python、JavaScript、TypeScript/TSX、Go（tree-sitter，MIT，供应链记录见 `supply-chain/tree-sitter-audit.json`）；其他语言与清单之外的文件只得到 `Path`。界限：单个源文件 > 1.5 MB 只索引不解析；每文件最多 40 个符号、40 个导入；清单依赖最多 150；每份指令文档最多 200 条规则、60 条命令、40 个路径；每篇论文最多 200 条引用。不逐行抽事实。
+
+“没有结构化对象”不是失败：文件状态仍是 `published`，界面写“已索引，可检索”，Ask 与知识检索照常引用它的块（D89）。
+
 ### 5.2 LLM 补抽
 
 #### 5.2.1 批次切分
