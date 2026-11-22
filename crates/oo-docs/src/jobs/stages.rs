@@ -1845,7 +1845,9 @@ impl PublishHandler {
         // drafts and stays where it is. A draft that waits for a person in the
         // review queue does not hold the file back (`pending_review` counts it, 4.2); neither does a
         // fact of a new extraction that DOC-G10 holds (a `reprocess_diff` item waits). A speaker nobody has named does
-        // not hold anything (D74 as revised): the statements publish under the placeholder.
+        // not hold anything (D74 as revised): the statements publish under the placeholder. Nor does an alias draft: the eligible aliases
+        // were published with the version this runs after, and one still a draft is a candidate that has no review item and is neither
+        // published nor queued (10 6 step 6), so waiting for it would hold the file for ever (the model's cross-language alias, extract/3).
         let rows: Vec<(String, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
@@ -1862,10 +1864,6 @@ impl PublishHandler {
                                    AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
                                                     WHERE r.status = 'pending' \
                                                       AND r.subject->>'fact_id' = ft.id::text)) \
-                AND NOT EXISTS (SELECT 1 FROM _oo_docs.evidence e \
-                                  JOIN _oo_docs.alias a ON a.id = e.target_id \
-                                 WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
-                                   AND e.withdrawn_at IS NULL AND a.status = 'draft') \
               ORDER BY 1 LIMIT 500",
             // A new extraction that DOC-G10 holds for a person: the old extraction stays live, so the file is
             // published (the reprocess_diff item is what waits).
