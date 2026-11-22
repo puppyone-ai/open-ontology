@@ -16,6 +16,10 @@ Kinds:
   bench     bench_compile / bench_scale: release build, OO_BENCH_OUT=<tmp file>, OO_SCALE_FILES small
             (the 10,000 file run with its asserts is `oo-test l3 run --suite super-ontology --bench scale10k`)
   faults    the failpoints feature and OO_DOCS_TEST_PG_CONTAINER (the Postgres restart test)
+  profiles  profiles_live: docker + OO_PROFILES_OUT=<tmp dir>, model off (the scored run with the model is
+            tools/super-ontology/profiles/run_live.py)
+  model     media_class_model_live: needs the model egress on loopback (OO_AL_EGRESS_PORT and OO_AL_MODEL), skipped
+            when unset; it asks the real model, so it is never part of a gate that has no model
   s3pg      drive_s3_family_live: pg + a RustFS in OO_S3_ENDPOINT/ACCESS/SECRET/BUCKET (skipped when unset)
   s3        download: needs a RustFS / MinIO; runs through super_ontology_s3.py with --with-s3, else skipped
 
@@ -58,6 +62,8 @@ KINDS = {
     "l3_routing": "docker",
     "health_sidecar_live": "docker",
     "drive_s3_family_live": "s3pg",
+    "profiles_live": "profiles",
+    "media_class_model_live": "model",
 }
 
 
@@ -93,6 +99,9 @@ def run_target(name, kind, pg, env_base, timeout):
         env["OO_SCALE_FILES"] = "1000"
         tmp = Path(tempfile.mkdtemp(prefix="oo-live-bench-", dir="/tmp"))
         env["OO_BENCH_OUT"] = str(tmp / "bench.json")
+    if kind == "profiles":
+        tmp = Path(tempfile.mkdtemp(prefix="oo-live-profiles-", dir="/tmp"))
+        env["OO_PROFILES_OUT"] = str(tmp / "out")  # no OO_PROFILES_MODEL: model off
     if kind == "eval":
         tmp = Path(tempfile.mkdtemp(prefix="oo-live-eval-", dir="/tmp"))
         env["OO_EVAL_OUT"] = str(tmp / "out")  # model off: no OO_EVAL_MODEL
@@ -170,6 +179,8 @@ def main(argv=None):
             elif kind == "s3":
                 rows.append(run_s3(args.run_id, timeout) if args.with_s3 else
                             {"target": name, "kind": kind, "status": "skipped", "reason": "needs an S3 store; rerun with --with-s3"})
+            elif kind == "model" and not all(os.environ.get(k) for k in ("OO_AL_EGRESS_PORT", "OO_AL_MODEL")):
+                rows.append({"target": name, "kind": kind, "status": "skipped", "reason": "needs the model egress: OO_AL_EGRESS_PORT and OO_AL_MODEL"})
             elif kind == "s3pg" and not all(os.environ.get(k) for k in ("OO_S3_ENDPOINT", "OO_S3_ACCESS", "OO_S3_SECRET", "OO_S3_BUCKET")):
                 rows.append({"target": name, "kind": kind, "status": "skipped", "reason": "needs OO_S3_ENDPOINT, OO_S3_ACCESS, OO_S3_SECRET, OO_S3_BUCKET"})
             else:
