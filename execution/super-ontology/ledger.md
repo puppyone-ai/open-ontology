@@ -465,6 +465,31 @@
 | SO-B-S22-70 | D93 | merged | feat/super-ontology (车道 AM 并入) | c90d1c395 → c90d1c395 | — | — | Add a held-out structure corpus and freeze its gold |
 | SO-B-S22-71 | D93 | merged | feat/super-ontology (车道 AM 并入) | ddbd40b0e → ddbd40b0e | — | — | Score the held-out corpus: members per class, labels, types and relations |
 | SO-B-S22-72 | D93 | merged | feat/super-ontology (车道 AM 并入) | 5c8faa841 → 5c8faa841 | — | — | Align field labels across languages into one class, and read level codes and versions |
+| SO-B-S22-79 | D93 | merged | feat/super-ontology (车道 AM 并入，协调者台账) | 0b15b78b6 → 0b15b78b6 | — | — | Ledger rows for lane AM |
+| SO-B-S22-01 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 7ef1ddaf5 → 7ef1ddaf5 | — | — | Add the engineering corpus and a quality runner with entity and review-queue diagnostics |
+| SO-B-S22-02 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 556131bf9 → e10dab139 | — | — | State in the gate that what fails is dropped, not kept as text |
+| SO-B-S22-03 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 9768f7ea7 → 9768f7ea7 | — | — | Settle entity merges a program can settle instead of asking |
+| SO-B-S22-04 | D96 | merged | feat/super-ontology (车道 AJ 并入) | d71179c7d → d71179c7d | — | — | Ask about low-confidence facts only when they contradict each other |
+| SO-B-S22-05 | D96 | merged | feat/super-ontology (车道 AJ 并入) | ea9c9bd66 → ea9c9bd66 | — | — | Add the review-queue scale test and an engine hold for the acceptance scorers |
+| SO-B-S22-06 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 8a175e41f → b7060b45c | — | — | Format the guard test and name the evidence row type |
+| SO-B-S22-07 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 6c3a1a29a → 6c3a1a29a | — | — | Make the review and the test fixtures follow D91 |
+| SO-B-S22-08 | D96 | merged | feat/super-ontology (车道 AJ 并入) | d189956b8 → d189956b8 | — | — | WIP: paused by owner |
+| SO-B-S22-09 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 334b8fd2e → 334b8fd2e | — | — | Make the gate and the queue follow D96 and D97 |
+| SO-B-S22-10 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 74e0bfcc2 → 74e0bfcc2 | — | — | Gate Thing entities like Terms |
+| SO-B-S22-11 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 3b2979c89 → 3b2979c89 | — | — | Fix the scale test paths so no two files collide |
+| SO-B-S22-12 | D96 | merged | feat/super-ontology (车道 AJ 并入) | e839e682e → e839e682e | — | — | Name the acceptance runner's file listing route and drop a unit binding |
+| SO-B-S22-13 | D96 | merged | feat/super-ontology (车道 AJ 并入) | c7b0aaf7e → c7b0aaf7e | — | — | Report type precision and count a bare mention as no fact |
+| SO-B-S22-14 | D96 | merged | feat/super-ontology (车道 AJ 并入) | a07b553b8 → a07b553b8 | — | — | Mix instruction files, design notes with bare-word lists and moves into the scale folder |
+| SO-B-S22-15 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 8c554ef1d → 8c554ef1d | — | — | Let the acceptance runner also ask the questions through the CLI agent |
+| SO-B-S22-17 | D96 | merged | feat/super-ontology (车道 AJ 并入) | c79cf4b69 → c79cf4b69 | — | — | Run the quality gate on the model's output as the model's output |
+| SO-B-S22-18 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 3ed04b9d7 → 3ed04b9d7 | — | — | Leave proper names to the cross-file count |
+| SO-B-S22-19 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 88c10c1ab → 88c10c1ab | — | — | Make the live tests follow D97 supersede handling |
+| SO-B-S23-01 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 7848e580c → 7848e580c | — | — | Ask the file classifier to keep chat logs, plans and test plans as records |
+| SO-B-S23-02 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 4e4e14abb → 4e4e14abb | — | — | Admit the model's mention of a Term a rule already defined |
+| SO-B-S23-04 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 5c846aaf1 → 5c846aaf1 | — | — | Pin the prompt version and the recorded keys after the AN merge |
+| SO-B-S23-05 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 921f00a8a → 921f00a8a | — | — | Settle a cross-language pair by an exact alias or a unique pinyin |
+| SO-B-S23-06 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 6ac9e8c13 → 6ac9e8c13 | — | — | Publish a verified about link to a project or an organisation |
+| SO-B-S23-07 | D96 | merged | feat/super-ontology (车道 AJ 并入) | 0484e88ba → 0484e88ba | — | — | Limit the verified about link to projects and organisations a rule placed |
 
 ## 签收
 
