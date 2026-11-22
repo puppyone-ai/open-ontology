@@ -49,6 +49,22 @@ const until = async (condition, ceilingMs = 20_000) => {
   return condition();
 };
 
+/**
+ * Barrier on the real watcher: a hidden file (ignored by the watcher, so it causes no timer and no request) is written until its event reaches
+ * the listener. Before that the OS stream may not be live yet, which on a loaded machine loses a change made right after `refresh`; after it,
+ * every event for an earlier change has been delivered, because one stream delivers in order. Then the debounce timers that those earlier events
+ * started are waited out. No elapsed time is asserted: the loop only ends when the event arrives.
+ */
+async function settled(real, root) {
+  for (let probe = 0; probe < 400; probe += 1) {
+    const name = `.barrier-${probe}`;
+    fs.writeFileSync(path.join(root, name), "x");
+    if (await until(() => real.seen.events.includes(name), 250)) break;
+  }
+  expect(await until(() => real.seen.pending.size === 0)).toBe(true);
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+}
+
 describe("path rules", () => {
   it("skips what the engine skips: hidden, lock, partial, junk and dependency folders, at any depth", () => {
     for (const ignored of [".DS_Store", "a/.git/HEAD", "~$report.docx", ".~lock.sheet.ods#", "dl.crdownload", "x.part", "x.tmp", "Thumbs.db", "desktop.ini", "node_modules/a/b.js", "src/__pycache__/m.pyc", ".so-upload-1.part", "dir/.hidden/file.md"]) expect(isIgnoredPath(ignored), ignored).toBe(true);
@@ -285,9 +301,10 @@ describe("the watcher on the real file system", () => {
     watcher = createDriveWatcher({ client, logger: { debug() {} }, watch: real.watch, timers: real.timers, readDrives: async () => [drive(DRIVE, root)] });
     await watcher.refresh();
     expect(watcher.watching()).toEqual([DRIVE]);
+    await settled(real, root);
     fs.mkdirSync(path.join(root, "notes"));
     // The folder's own event has been seen and answered; only then is the change under test made.
-    expect(await until(() => sent.length > 0)).toBe(true);
+    await settled(real, root);
     sent.length = 0;
     real.seen.timeouts.length = 0;
     fs.writeFileSync(path.join(root, ".hidden"), "x");
@@ -308,7 +325,9 @@ describe("the watcher on the real file system", () => {
     const real = observedReal();
     watcher = createDriveWatcher({ client, logger: { debug() {} }, watch: real.watch, timers: real.timers, readDrives: async () => [drive(DRIVE, root)] });
     await watcher.refresh();
+    await settled(real, root);
     real.seen.timeouts.length = 0;
+    sent.length = 0;
     fs.rmSync(path.join(root, "a.md"));
     expect(await until(() => sent.length >= 1)).toBe(true);
     expect(sent[0]).toEqual({});
@@ -330,11 +349,8 @@ describe("the watcher on the real file system", () => {
     await watcher.refresh();
     // Cost does not grow with the tree: one recursive watcher, not one per file or folder.
     expect(real.seen.handles).toBe(1);
-    // Settle without a guessed sleep: events arrive in order, so once the last file written is reported, nothing older is still to come; then the
-    // watcher's debounce has fired and its sync has been answered (the tree's own creation events may have been one full sync).
-    fs.writeFileSync(path.join(root, "zz-last.md"), "x");
-    expect(await until(() => real.seen.events.includes("zz-last.md") && real.seen.pending.size === 0 && sent.length > 0)).toBe(true);
-    await Promise.resolve();
+    // Settle without a guessed sleep: what the tree's creation left in the stream is delivered and answered before the barrier returns.
+    await settled(real, root);
     client.request.mockClear();
     real.seen.events.length = 0;
     real.seen.timeouts.length = 0;
