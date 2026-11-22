@@ -129,6 +129,15 @@ async fn an_unnamed_speaker_publishes_under_a_placeholder_and_naming_re_attribut
         1,
         "the file is published with its speakers still unnamed"
     );
+    // Naming a speaker is not a review (D97): the items wait in the file's own list and count nowhere.
+    oo_docs::review::queue::refresh_pending_counts(&mut fx.rt)
+        .await
+        .unwrap();
+    assert_eq!(
+        fx.scalar("SELECT COALESCE(sum(pending_review), 0) FROM _oo_docs.file")
+            .await,
+        0
+    );
     // The typed objects (D93, D98): a Recording, a Meeting recorded in it, and its two participants.
     assert_eq!(
         fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Recording'")

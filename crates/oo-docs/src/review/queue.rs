@@ -282,13 +282,15 @@ pub async fn enqueue(conn: &mut PgConnection, th: Thresholds) -> Result<EnqueueR
     })
 }
 
-/// `file.pending_review` = pending items of the file (what the tree shows).
+/// `file.pending_review` = pending items of the file (what the tree shows). Naming a speaker is not a review (D97, D98): those items
+/// wait in the file's own list and never count here.
 pub async fn refresh_pending_counts(conn: &mut PgConnection) -> Result<(), StoreError> {
     sqlx::query(
         "UPDATE _oo_docs.file f SET pending_review = c.n \
            FROM (SELECT f2.id, \
                         (SELECT count(*) FROM _oo_docs.review_item r \
-                          WHERE r.source_file_id = f2.id AND r.status = 'pending')::int AS n \
+                          WHERE r.source_file_id = f2.id AND r.status = 'pending' \
+                             AND r.kind <> 'speaker_identity')::int AS n \
                    FROM _oo_docs.file f2) c \
           WHERE f.id = c.id AND f.pending_review <> c.n",
     )

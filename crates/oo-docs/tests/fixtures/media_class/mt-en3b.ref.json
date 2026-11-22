@@ -1,0 +1,40 @@
+{
+ "speakers": 3,
+ "segments": [
+  {
+   "speaker": "S1",
+   "start_ms": 0,
+   "end_ms": 7488
+  },
+  {
+   "speaker": "S2",
+   "start_ms": 7938,
+   "end_ms": 12008
+  },
+  {
+   "speaker": "S3",
+   "start_ms": 12458,
+   "end_ms": 15924
+  },
+  {
+   "speaker": "S1",
+   "start_ms": 16374,
+   "end_ms": 23712
+  },
+  {
+   "speaker": "S2",
+   "start_ms": 24162,
+   "end_ms": 28284
+  },
+  {
+   "speaker": "S3",
+   "start_ms": 28734,
+   "end_ms": 31999
+  },
+  {
+   "speaker": "S1",
+   "start_ms": 32449,
+   "end_ms": 38544
+  }
+ ]
+}

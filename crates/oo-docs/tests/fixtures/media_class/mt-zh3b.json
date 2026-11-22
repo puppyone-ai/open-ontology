@@ -1,0 +1,54 @@
+{
+ "duration_ms": 38775,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 0,
+   "t_end_ms": 11200,
+   "text": "大家好我们开始今天的项目周会先看一下下周的进度好的原型已经完成下周一开始内部测试需要三位同事参与",
+   "word_start": 0,
+   "word_end": 47
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 12150,
+   "t_end_ms": 17780,
+   "text": "可是环境谁来标建预算方面还有没有",
+   "word_start": 48,
+   "word_end": 63
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 17780,
+   "t_end_ms": 26614,
+   "text": "问题预算作需要追加我补充一点儿供应商月报价已经确认交付周期是二十一天",
+   "word_start": 64,
+   "word_end": 97
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 27614,
+   "t_end_ms": 33254,
+   "text": "很好那就定在周五之前把此十计划发给所有人收到",
+   "word_start": 98,
+   "word_end": 119
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 33254,
+   "t_end_ms": 37814,
+   "text": "我周四晚上发出来下周二再开一次晚会同步",
+   "word_start": 120,
+   "word_end": 138
+  }
+ ]
+}

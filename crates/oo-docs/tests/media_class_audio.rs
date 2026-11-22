@@ -98,3 +98,31 @@ fn a_call_with_two_voices_is_a_conversation_and_its_stray_label_is_not_a_voice()
     assert_eq!(p.signals.voices, 1, "{:?}", p.signals);
     assert_eq!(p.class, MediaClass::Unsure, "{p:?}");
 }
+
+/// D98 re-validation: eight synthetic meetings (macOS voices with their own rate and pitch; two and three speakers; Chinese and
+/// English) through the media-parser's own clustering with its default settings. The speaker count and the DER come from
+/// `tools/super-ontology/media_class/der.py` (numbers in the lane report); here the class of each is measured with and without a
+/// word in the file name that says meeting.
+#[test]
+fn synthetic_meetings_are_conversations_when_the_clustering_finds_two_voices() {
+    let names = ["en2", "en2b", "en3", "en3b", "zh2", "zh2b", "zh3", "zh3b"];
+    let (mut bare, mut named) = (0, 0);
+    for n in names {
+        let fixture = format!("mt-{n}");
+        if profile(&fixture, &format!("{n}.wav")).class == MediaClass::Conversation {
+            bare += 1;
+        }
+        let p = profile(&fixture, &format!("meeting-{n}.wav"));
+        if p.class.identifies_speakers() {
+            named += 1;
+        }
+        eprintln!(
+            "MEASURE {n}: {:?} {} voices={} turns={}",
+            p.class, p.kind, p.signals.voices, p.signals.turns
+        );
+    }
+    eprintln!(
+        "MEASURE class accuracy on 8 meetings: {bare}/8 from the sound alone, {named}/8 with 'meeting' in the file name"
+    );
+    assert!(bare >= 7 && named >= 7);
+}

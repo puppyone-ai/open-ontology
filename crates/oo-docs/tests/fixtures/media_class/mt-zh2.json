@@ -1,0 +1,109 @@
+{
+ "duration_ms": 39227,
+ "speakers": [
+  "S1",
+  "S2",
+  "S3"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 68,
+   "t_end_ms": 5458,
+   "text": "大家好我们开始今天的项目周会先看一下上周的进度好的虽然",
+   "word_start": 0,
+   "word_end": 26
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 5458,
+   "t_end_ms": 6538,
+   "text": "行为",
+   "word_start": 27,
+   "word_end": 28
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 6818,
+   "t_end_ms": 11468,
+   "text": "已经完成下周一开始内部测试需要三位同事参与",
+   "word_start": 29,
+   "word_end": 49
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 12420,
+   "t_end_ms": 12670,
+   "text": "测",
+   "word_start": 50,
+   "word_end": 50
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 12670,
+   "t_end_ms": 16610,
+   "text": "试环境谁来搭建预算方面还有没",
+   "word_start": 51,
+   "word_end": 64
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 16610,
+   "t_end_ms": 17560,
+   "text": "有",
+   "word_start": 65,
+   "word_end": 65
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 17560,
+   "t_end_ms": 20610,
+   "text": "问题环境我来追加那",
+   "word_start": 66,
+   "word_end": 74
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 21530,
+   "t_end_ms": 27612,
+   "text": "我补充一点供应商的报价已经确认交付周期是二十一天",
+   "word_start": 75,
+   "word_end": 98
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 28290,
+   "t_end_ms": 31730,
+   "text": "很好那就就带着五岁前把测试计",
+   "word_start": 99,
+   "word_end": 112
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 31730,
+   "t_end_ms": 33050,
+   "text": "划发",
+   "word_start": 113,
+   "word_end": 114
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 33050,
+   "t_end_ms": 38590,
+   "text": "给所有人收到我周四晚上发出来下周二再开一次短会同步",
+   "word_start": 115,
+   "word_end": 139
+  }
+ ]
+}

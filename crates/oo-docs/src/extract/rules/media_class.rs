@@ -24,7 +24,7 @@ const SPEECH_RATIO_MIN_BP: u64 = 800;
 const SPEECH_MIN_MS: u64 = 3000;
 /// A conversation changes speaker at least this often (per minute of talk) and at least this many times.
 const TURN_RATE_MIN_X100: u64 = 200;
-const TURNS_MIN: u64 = 3;
+const TURNS_MIN: u64 = 2;
 /// And a third of the file is speech.
 const CONVERSATION_SPEECH_BP: u64 = 3000;
 /// One voice for this long is a lecture or a talk rather than a clip.

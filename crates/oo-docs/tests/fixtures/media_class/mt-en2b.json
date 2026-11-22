@@ -1,0 +1,17 @@
+{
+ "duration_ms": 30951,
+ "speakers": [
+  "S1"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 23224,
+   "t_end_ms": 30498,
+   "text": "free exthing we say they kiss plan to everyone but for friday我我觉都是是觉",
+   "word_start": 0,
+   "word_end": 18
+  }
+ ]
+}

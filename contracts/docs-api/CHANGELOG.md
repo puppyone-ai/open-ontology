@@ -217,3 +217,4 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - D98: `EntityType` gains `Recording` (a recording or media asset: attributes `media_class`, `duration_ms`) and `Meeting` (held in a recording, `recorded_in` it,
   `has_participant` its speakers); `fact.predicate` gains `recorded_in` and `has_participant`. Speaker placeholders are Person entities named
   `《<meeting>》的说话人 A` (with a blob suffix that clients hide). `non_conversation` recordings are media assets: a Recording and nothing read from their sound.
+- D97/D98: pending `speaker_identity` items no longer count in `File.pending_review`, `Drive.pending_review`, the freshness state or `review.changed` counts; they stay listable (`GET /review?kind=speaker_identity`) and decidable, and `FileDetail.parse.media.speakers_to_name` says how many wait.

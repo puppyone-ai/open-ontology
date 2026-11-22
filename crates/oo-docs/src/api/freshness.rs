@@ -127,7 +127,8 @@ async fn compute_with(
          GREATEST((SELECT COALESCE(sum(f.pending_review), 0) FROM _oo_docs.file f \
                     WHERE f.drive_id = d.id AND f.deleted_at IS NULL), \
                   (SELECT count(*) FROM _oo_docs.review_item r \
-                    WHERE r.drive_id = d.id AND r.status = 'pending')) AS pending \
+                    WHERE r.drive_id = d.id AND r.status = 'pending' \
+                       AND r.kind <> 'speaker_identity')) AS pending \
          FROM _oo_docs.drive d WHERE d.id = ANY($1::text[]::uuid[])",
     )
     .bind(drive_ids)
@@ -249,7 +250,7 @@ async fn tick_review(pool: &PgPool, last: &mut HashMap<String, Pending>) -> Resu
     .await?;
     let rows: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT drive_id::text, kind, count(*)::bigint FROM _oo_docs.review_item \
-          WHERE status = 'pending' AND drive_id = ANY($1::text[]::uuid[]) GROUP BY drive_id, kind",
+          WHERE status = 'pending' AND kind <> 'speaker_identity' AND drive_id = ANY($1::text[]::uuid[]) GROUP BY drive_id, kind",
     )
     .bind(&ids)
     .fetch_all(&mut *conn)

@@ -509,7 +509,7 @@ pub async fn decide(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, Ap
         for drive in touched {
             let pending: Vec<(String, i64)> = sqlx::query_as(
                 "SELECT kind, count(*)::bigint FROM _oo_docs.review_item \
-                  WHERE status = 'pending' AND drive_id IS NOT DISTINCT FROM $1::uuid GROUP BY kind",
+                  WHERE status = 'pending' AND kind <> 'speaker_identity' AND drive_id IS NOT DISTINCT FROM $1::uuid GROUP BY kind",
             )
             .bind(&drive)
             .fetch_all(&mut *tx)

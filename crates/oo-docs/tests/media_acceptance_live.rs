@@ -171,3 +171,83 @@ async fn the_acceptance_audio_by_class_items_and_naming() {
     assert_eq!(c.3, 0);
     fx.finish(db).await;
 }
+
+/// The eight synthetic meetings (real pipeline output, default clustering): class, what is published before anybody is named
+/// (Recording, Meeting, placeholder participants and what they state), and what naming every speaker does.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn the_synthetic_meetings_publish_before_naming_and_move_to_the_named_person() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_mt_audio";
+    let mut fx = Fx::new(db).await;
+    for (i, n) in ["en2", "en2b", "en3", "en3b", "zh2", "zh2b", "zh3", "zh3b"]
+        .iter()
+        .enumerate()
+    {
+        let path = format!("会议/meeting-{n}.wav");
+        let p = fx
+            .plant_normalized(&path, normalized(&format!("mt-{n}"), i + 1), 1000)
+            .await;
+        fx.index_planted(&path, &p).await;
+        oo_docs::review::speaker::propose(&mut fx.rt, &p.version_id, &p.ir, &path, None)
+            .await
+            .unwrap();
+    }
+    fx.publish().await;
+    let recordings = fx
+        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Recording'")
+        .await;
+    let meetings = fx
+        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Meeting'")
+        .await;
+    let classes = fx
+        .text("SELECT class FROM _oo_docs.media_profile ORDER BY b3")
+        .await;
+    let before = counts(&mut fx).await;
+    let participants = fx
+        .scalar("SELECT count(*) FROM _oo_docs.fact WHERE predicate = 'has_participant' AND status = 'published'")
+        .await;
+    eprintln!("MEASURE meetings: recordings={recordings} meetings={meetings} classes={classes:?}");
+    eprintln!(
+        "MEASURE meetings before naming: published facts/entities/placeholders/items = {before:?}; published has_participant = {participants}"
+    );
+    let items: Vec<(String, i64, String)> = sqlx::query_as(
+        "SELECT id::text, revision, 'Person ' || md5(id::text) FROM _oo_docs.review_item \
+          WHERE kind = 'speaker_identity' AND status = 'pending' ORDER BY id",
+    )
+    .fetch_all(&mut fx.admin)
+    .await
+    .unwrap();
+    let n_items = items.len();
+    let decisions: Vec<ItemDecision> = items
+        .into_iter()
+        .map(|(id, revision, name)| ItemDecision {
+            id,
+            revision,
+            decision: Decision::Accept,
+            edit: Some(json!({ "name": &name[..14] })),
+            note: None,
+        })
+        .collect();
+    let out = decide_items(&mut fx.rt, "tester", &decisions)
+        .await
+        .unwrap();
+    assert!(out.results.iter().all(|r| r.status == "ok"));
+    fx.publish().await;
+    let after = counts(&mut fx).await;
+    let moved = fx
+        .scalar(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity p ON p.id = f.object_id \
+              WHERE f.predicate = 'has_participant' AND f.status = 'published' AND p.canonical_name LIKE 'Person %'",
+        )
+        .await;
+    eprintln!(
+        "MEASURE meetings after naming {n_items} items: published facts/entities/placeholders/items = {after:?}; participants now on named Persons = {moved}"
+    );
+    assert_eq!(
+        after.2, 0,
+        "no placeholder is left once every speaker is named"
+    );
+    assert_eq!(moved, participants);
+    fx.finish(db).await;
+}

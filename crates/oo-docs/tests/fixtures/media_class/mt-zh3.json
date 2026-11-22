@@ -1,0 +1,82 @@
+{
+ "duration_ms": 40137,
+ "speakers": [
+  "S1",
+  "S2",
+  "S3"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 68,
+   "t_end_ms": 6538,
+   "text": "大家好我们开始今天的项目周会先看一下上周的进度好的虽然行为",
+   "word_start": 0,
+   "word_end": 28
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 6818,
+   "t_end_ms": 16510,
+   "text": "已经完成下周一开始内部测试需要三位同事参与测试环境谁来搭建预算方面还有没有",
+   "word_start": 29,
+   "word_end": 65
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 16510,
+   "t_end_ms": 18080,
+   "text": "问题",
+   "word_start": 66,
+   "word_end": 67
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 18080,
+   "t_end_ms": 22810,
+   "text": "环境我来搭建预算够用不需要追加那我补",
+   "word_start": 68,
+   "word_end": 85
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 22810,
+   "t_end_ms": 23650,
+   "text": "充一点儿",
+   "word_start": 86,
+   "word_end": 89
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 23940,
+   "t_end_ms": 32746,
+   "text": "供应十二人报价已经确认交付周期是二十一天很好那就进入在周五之前把此计计划给",
+   "word_start": 90,
+   "word_end": 126
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 32746,
+   "t_end_ms": 34006,
+   "text": "所",
+   "word_start": 127,
+   "word_end": 127
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 34006,
+   "t_end_ms": 39496,
+   "text": "有人收到我周四晚上发出来下周二再开一次短会同步",
+   "word_start": 128,
+   "word_end": 150
+  }
+ ]
+}
