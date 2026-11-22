@@ -336,6 +336,11 @@ export type SuperOntologyChannelMap = {
   /** File class overrides (D94, docs-api 1.14). `profile: null` removes the choice; `affected` is how many files were reclassified and sent through extraction again. */
   "profile-overrides-list": { request: { driveId: string; operationId?: string }; value: { items: EngineProfileOverride[] } };
   "profile-override-set": { request: { driveId: string; scope: "file" | "dir"; path: string; profile: EngineFileProfile | null; operationId?: string }; value: { affected: number } };
+  /** The structure layer (D93, docs-api 1.16): classes of record files with properties, types and coverage; a person's decision; the ontology YAML. */
+  "structure-read": { request: { driveId: string; operationId?: string }; value: import("./docs-api.generated").StructureSchema };
+  "structure-induce": { request: { driveId: string; operationId?: string }; value: import("./docs-api.generated").StructureSchema };
+  "structure-decide": { request: { driveId: string; op: "accept" | "reject" | "rename" | "merge"; classKey: string; property?: string | null; name?: string; into?: string; operationId?: string }; value: import("./docs-api.generated").StructureSchema };
+  "structure-yaml": { request: { driveId: string; database?: boolean; operationId?: string }; value: import("./docs-api.generated").StructureYaml };
   "constraints-list": { request: { limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
   /** Ontology › Ask: a question answered from the data by a bounded read-only tool loop; steps arrive on `ask-progress`. */
   "ask-run": { request: { askId: string; question: string; history?: { question: string; answer: string }[]; operationId?: string }; value: AskOutcome };

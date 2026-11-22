@@ -57,6 +57,11 @@ const rawRoutes = {
   // File class overrides (D94, docs-api 1.14): the person's choice of class for a file or a folder.
   profileOverridesList: route("GET", "/v1/docs/drives/{id}/profile-overrides", { params: { id: UUID } }),
   profileOverridesPut: route("PUT", "/v1/docs/drives/{id}/profile-overrides", { params: { id: UUID } }),
+  // The structure layer of the ontology (D93, docs-api 1.16): classes of record files with properties, types and coverage; a person's decisions; the ontology YAML.
+  structureGet: route("GET", "/v1/docs/drives/{id}/structure", { params: { id: UUID } }),
+  structureInduce: route("POST", "/v1/docs/drives/{id}/structure:induce", { params: { id: UUID }, idempotent: true }),
+  structureDecide: route("POST", "/v1/docs/drives/{id}/structure:decide", { params: { id: UUID }, idempotent: true }),
+  structureYaml: route("GET", "/v1/docs/drives/{id}/structure/yaml", { params: { id: UUID } }),
   factCorrect: route("POST", "/v1/docs/facts/{id}:correct", { params: { id: UUID }, idempotent: true, ifMatch: true }),
   entitiesMerge: route("POST", "/v1/docs/entities:merge", { idempotent: true, ifMatch: true }),
   entitySplit: route("POST", "/v1/docs/entities/{eid}:split", { params: { eid: KEY }, idempotent: true, ifMatch: true }),
