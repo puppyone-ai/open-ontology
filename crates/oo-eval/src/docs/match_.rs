@@ -1,7 +1,7 @@
 //! Matching, anchor overlap and bootstrap for `oo-eval docs`.
 
 use super::labels::{Anchor, Entity, Fact, LabelSet};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// Outcome of one evaluated item.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -253,6 +253,9 @@ pub struct EntityMatching {
     pub pred_to_gold: HashMap<String, String>,
     pub outcomes: Vec<Outcome>,
     pub covered: usize,
+    /// 30 section 4 type precision: of the predicted entities whose identity (a name or alias, in any type) is
+    /// a gold entity's, `(identity matched, type also matches)`.
+    pub type_check: (usize, usize),
 }
 
 fn order(preds: &[(f64, String, usize)]) -> Vec<usize> {
@@ -349,10 +352,24 @@ pub fn match_entities(gold: &[Entity], pred: &[Entity]) -> EntityMatching {
             });
         }
     }
+    let mut any: HashSet<String> = HashSet::new();
+    for g in gold {
+        any.extend(entity_strings(g));
+    }
+    let (mut ident, mut typed) = (0, 0);
+    for (i, p) in pred.iter().enumerate() {
+        if taken.contains_key(&i) {
+            ident += 1;
+            typed += 1;
+        } else if entity_strings(p).iter().any(|x| any.contains(x)) {
+            ident += 1;
+        }
+    }
     EntityMatching {
         pred_to_gold,
         outcomes,
         covered,
+        type_check: (ident, typed),
     }
 }
 

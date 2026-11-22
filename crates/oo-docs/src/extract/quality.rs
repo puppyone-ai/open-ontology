@@ -954,6 +954,7 @@ fn ctx<'a>(x: &'a Extraction, ir: &DocIr, known: &[String]) -> Ctx<'a> {
         placed: x
             .facts
             .iter()
+            .filter(|f| f.predicate != Predicate::Mentions)
             .flat_map(|f| std::iter::once(f.subject.clone()).chain(f.object.clone()))
             .chain(x.identities.iter().map(|i| i.entity.clone()))
             .collect(),
