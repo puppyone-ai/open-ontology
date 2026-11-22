@@ -15,7 +15,7 @@ use sqlx::{Connection, Executor, Row};
 #[test]
 fn compiled_files_have_stable_shape() {
     let list = migrations();
-    assert_eq!(list.len(), 17);
+    assert_eq!(list.len(), 18);
     let mut seen = std::collections::HashSet::new();
     for (m, min) in list.iter().zip(SCHEMA_MIN) {
         assert_eq!(m.version, min);
@@ -108,7 +108,7 @@ async fn empty_db_install_then_readiness() {
     .await
     .unwrap();
     let extra = usize::from(has_vector(&mut admin).await);
-    assert_eq!(rows.len(), 17 + extra);
+    assert_eq!(rows.len(), 18 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
@@ -590,4 +590,41 @@ async fn a_database_at_0157_upgrades_to_0159_with_the_file_class() {
         "the check keeps the media relations and adds cites and authored"
     );
     drop_db(db).await;
+}
+
+/// A database at 0159 upgrades to 0160 in place: the four structure tables (D93) exist, empty, and the class table takes
+/// only the three statuses.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_database_at_0159_upgrades_to_0160_with_the_structure_layer() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_it_upgrade_0160";
+    installed_db(db).await;
+    let mut admin = connect(db).await;
+    admin
+        .execute(
+            "DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation",
+        )
+        .await
+        .unwrap();
+    tamper(
+        &mut admin,
+        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-structure/1'",
+    )
+    .await;
+    match install(&mut admin).await.expect("upgrade") {
+        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-structure/1"]),
+        other => panic!("{other:?}"),
+    }
+    let tables: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = '_oo_docs' AND table_name LIKE 'structure\\_%'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert_eq!(tables, 4);
+    let bad = admin
+        .execute("INSERT INTO _oo_docs.structure_version (drive_id, n, reason, actor, doc) VALUES (gen_random_uuid(), 1, 'whatever', 'engine', '{}')")
+        .await;
+    assert!(bad.is_err(), "the version reason is a closed list");
 }

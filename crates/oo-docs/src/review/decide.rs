@@ -453,6 +453,31 @@ async fn apply_one(
             close_item(conn, id, "rejected", by, note).await?;
             Ok((ItemResult::ok(id), Some("rejected")))
         }
+        ("type_promotion", d @ (Decision::Accept | Decision::Reject))
+            if item.subject.get("structure").is_some() =>
+        {
+            // D93: a new property of a confirmed class is a structure proposal, not an open `Thing` label.
+            let drive: Option<String> = sqlx::query_scalar(
+                "SELECT drive_id::text FROM _oo_docs.review_item WHERE id = $1::uuid",
+            )
+            .bind(id)
+            .fetch_one(&mut *conn)
+            .await?;
+            crate::structure::store::decide_proposal(
+                conn,
+                drive.as_deref(),
+                &item.subject,
+                d == Decision::Accept,
+            )
+            .await?;
+            let status = if d == Decision::Accept {
+                "accepted"
+            } else {
+                "rejected"
+            };
+            close_item(conn, id, status, by, note).await?;
+            Ok((ItemResult::ok(id), Some(status)))
+        }
         ("type_promotion", Decision::Accept) => {
             let type_name = it
                 .edit
