@@ -50,6 +50,8 @@ pub struct Signals {
     pub conflicted: bool,
     /// A supersession whose old object has facts a live Share uses (D97).
     pub share_used: bool,
+    /// The object is a Project or an Organization: a proper name, so a verified `about` link to it is a statement.
+    pub object_proper: bool,
 }
 
 /// Base score with the adjustments applied.

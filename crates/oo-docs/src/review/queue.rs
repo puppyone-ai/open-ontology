@@ -22,6 +22,9 @@ use crate::temporal::{Origin, certain_supersedes};
 
 /// Lowest effective score of a verified model statement that publishes without a person (D91).
 pub const VERIFIED_MIN_BP: i32 = 7000;
+/// The same for a verified `about` link to a project or an organisation: a medium statement of one file loses 1000 as a
+/// single-sourced one and still counts (the quote names both ends).
+pub const VERIFIED_ABOUT_MIN_BP: i32 = 6000;
 
 /// Thresholds of a run.
 #[derive(Clone, Copy, Debug)]
@@ -99,11 +102,20 @@ pub fn classify(
         // nothing contradicts stay candidates on the entity page and are never queued. Two owners of one project
         // are also asked by the integrity constraints (D57).
         Disposition::Queue => {
-            let relation =
-                !matches!(predicate, "about" | "mentions") && !predicate.starts_with("attr.");
+            let relation = (!matches!(predicate, "about" | "mentions")
+                && !predicate.starts_with("attr."))
+                || (predicate == "about" && signals.object_proper);
             if relation && signals.conflicted {
                 Class::Queue("low_confidence")
-            } else if relation && signals.verified && bp >= VERIFIED_MIN_BP {
+            } else if relation
+                && signals.verified
+                && bp
+                    >= if predicate == "about" {
+                        VERIFIED_ABOUT_MIN_BP
+                    } else {
+                        VERIFIED_MIN_BP
+                    }
+            {
                 Class::Eligible
             } else {
                 Class::Hold
@@ -148,6 +160,7 @@ pub async fn classify_drafts(
     let sql = format!(
         "SELECT f.id::text AS id, f.fact_key, f.predicate, f.origin, f.rule_id, f.confidence_bp, \
                 COALESCE(o.type = 'Thing', false) AS object_thing, \
+                COALESCE(o.type IN ('Project', 'Organization'), false) AS object_proper, \
                 GREATEST((SELECT count(DISTINCT e.version_id) FROM _oo_docs.evidence e \
                            WHERE e.target_kind = 'fact' AND e.target_id = f.id \
                              AND e.withdrawn_at IS NULL) - 1, 0) AS extra_versions, \
@@ -193,6 +206,7 @@ pub async fn classify_drafts(
             verified: r.try_get("verified")?,
             conflicted: r.try_get("conflicted")?,
             share_used: r.try_get("share_used")?,
+            object_proper: r.try_get("object_proper")?,
         };
         let predicate: String = r.try_get("predicate")?;
         let rule_id: Option<String> = r.try_get("rule_id")?;
@@ -520,6 +534,12 @@ mod tests {
         // Verified but below the floor, or only a topic: a candidate on the entity page, not a question.
         assert_eq!(with(v, "owns", 6500), Class::Hold);
         assert_eq!(with(v, "about", 7500), Class::Hold);
+        // A verified link to a project or an organisation is a statement, not a topic.
+        let proper = Signals {
+            object_proper: true,
+            ..v
+        };
+        assert_eq!(with(proper, "about", 7500), Class::Eligible);
         assert_eq!(with(Signals::default(), "about", 7500), Class::Hold);
         assert_eq!(with(Signals::default(), "owns", 7500), Class::Hold);
         // Another claim for the same thing: asked, verified or not; a topical link never is.
