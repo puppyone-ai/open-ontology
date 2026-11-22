@@ -3,9 +3,9 @@ import { stubBridgeSource } from "./stub-bridge.mjs";
 
 const app = "http://127.0.0.1:5276/";
 
-async function open(page: Page) {
+async function open(page: Page, language?: string) {
   await page.clock.install({ time: new Date("2026-11-12T10:00:00Z") });
-  await page.addInitScript(stubBridgeSource({ engine: "healthy", live: true }));
+  await page.addInitScript(stubBridgeSource({ engine: "healthy", live: true, ...(language ? { language } : {}) }));
   await page.goto(app);
   await page.waitForSelector("[data-testid=app-root]");
   await page.clock.resume();
@@ -56,4 +56,13 @@ test.describe("structure", () => {
     await page.getByRole("button", { name: "ontology-structure-My files.yaml" }).or(page.getByRole("button", { name: "ontology-structure.yaml" })).first().click();
     await expect(page.locator("[data-testid=ontology-yaml]")).toContainText("meeting_minutes");
   });
+
+  for (const [language, word] of [["zh-Hans", "确认结构"], ["de", "Struktur bestätigen"]] as const) {
+    test(`the tab speaks ${language}`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 1400 });
+      await open(page, language);
+      await expect(page.locator("[data-testid=structure-confirm]").first()).toHaveText(word);
+      await expect(page).toHaveScreenshot(`structure-${language}.png`);
+    });
+  }
 });
