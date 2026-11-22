@@ -349,15 +349,36 @@ describe("the watcher on the real file system", () => {
     await watcher.refresh();
     // Cost does not grow with the tree: one recursive watcher, not one per file or folder.
     expect(real.seen.handles).toBe(1);
-    // Settle without a guessed sleep: what the tree's creation left in the stream is delivered and answered before the barrier returns.
-    await settled(real, root);
+    // Drain what the tree's creation left in the stream, driven by events and never by elapsed time: one barrier round writes a hidden file (the
+    // watcher ignores it: no timer, no request) and waits for its own event. Creating 10,000 files can leave a long backlog (the OS may deliver it
+    // late on a loaded machine), so rounds repeat until QUIET_ROUNDS in a row delivered nothing but their own barrier.
+    const QUIET_ROUNDS = 5;
+    const barrier = (name) => name.startsWith(".barrier-");
+    let round = 0;
+    const roundOf = async () => {
+      const before = real.seen.events.filter((name) => !barrier(name)).length;
+      const name = `.barrier-drain-${round}`;
+      round += 1;
+      fs.writeFileSync(path.join(root, name), "x");
+      expect(await until(() => real.seen.events.includes(name), 60_000)).toBe(true);
+      return real.seen.events.filter((entry) => !barrier(entry)).length - before;
+    };
+    for (let quiet = 0, rounds = 0; quiet < QUIET_ROUNDS; rounds += 1) {
+      expect(rounds).toBeLessThan(5_000);
+      quiet = (await roundOf()) === 0 ? quiet + 1 : 0;
+    }
+    // The backlog is delivered; the debounce timers it started have run out and every request they made has been answered.
+    expect(await until(() => real.seen.pending.size === 0, 60_000)).toBe(true);
     client.request.mockClear();
     real.seen.events.length = 0;
     real.seen.timeouts.length = 0;
-    // Idle window: the property is that the watcher is woken by nothing (no event, no timer, no request); how much CPU a wake-up costs is the machine's business.
-    await new Promise((resolve) => { setTimeout(resolve, 2_000); });
-    expect(real.seen.events).toEqual([]);
+    // Idle window, in events: the watcher is woken by nothing. The same barrier rounds now run with nothing else happening on disk; each event of
+    // the stream is delivered in order, so when the last barrier is back, everything that could have woken the watcher before it has been
+    // delivered. No event other than the barrier files, no timer and no request may appear in any of them.
+    for (let idle = 0; idle < QUIET_ROUNDS; idle += 1) expect(await roundOf()).toBe(0);
+    expect(real.seen.events.filter((name) => !barrier(name))).toEqual([]);
     expect(real.seen.timeouts).toEqual([]);
+    expect(real.seen.pending.size).toBe(0);
     expect(client.request).not.toHaveBeenCalled();
     expect(real.seen.handles).toBe(1);
   }, 60_000);

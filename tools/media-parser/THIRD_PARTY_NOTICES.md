@@ -2,7 +2,7 @@
 
 This file is generated from the image SBOM by `tools/doc-parser/notices.py`; do not edit it by hand. It ships in the image at `/usr/share/licenses/oo-docs-media-parser/THIRD_PARTY_NOTICES.md`. Every Python package keeps its own license and notice files unmodified under `/opt/venv/lib/python3.13/site-packages/<distribution>.dist-info/`; Debian packages of the base image keep theirs under `/usr/share/doc/<package>/copyright`. This file adds the inventory, the source offer and the notices that the weak-copyleft licenses require.
 
-Image: `oo-docs-parser` (dev). Components: 26 Python distributions, 18 native libraries inside wheels, 9 model files, 97 base-image packages.
+Image: `oo-docs-parser` (dev). Components: 28 Python distributions, 19 native libraries inside wheels, 12 model files, 97 base-image packages.
 
 ## 1. Source offer for weak-copyleft components (LGPL, GPL with runtime exception, MPL)
 
@@ -12,6 +12,7 @@ The components below are licensed under the GNU LGPL, under the GPL with the GCC
 |---|---|---|---|---|
 | certifi | 2026.10.23 | MPL-2.0 | https://github.com/certifi/python-certifi | Unmodified PyPI wheel. The Covered Software files are the Python source and the CA bundle data, which stay in the image as shipped, so the source form is the file itself. |
 | tqdm | 4.70.1 | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm | Unmodified PyPI wheel. The MPL-2.0 files are plain Python source and stay in the image as shipped. |
+| libasound (ALSA library, bundled by sherpa-onnx) | bundled | LGPL-2.1-or-later | https://www.alsa-project.org/wiki/Download | Unmodified ALSA library (libasound.so.2) vendored in the sherpa-onnx manylinux wheel, a separate shared object loaded dynamically (replaceable by another build with the same file name). It is used for microphone capture only; Super Ontology reads audio files and never opens a sound device. |
 | libgeos (shapely) | bundled | LGPL-2.1-or-later | https://libgeos.org/usage/download/ | Unmodified GEOS shared object vendored in the shapely wheel (a separate library loaded dynamically; replaceable by another build with the same file name). |
 | libgeos_c (shapely) | bundled | LGPL-2.1-or-later | https://libgeos.org/usage/download/ | Unmodified GEOS C API shared object vendored in the shapely wheel (a separate library loaded dynamically). |
 | libgfortran (GCC Fortran runtime) | bundled | GPL-3.0-or-later WITH GCC-exception-3.1 | https://ftp.gnu.org/gnu/gcc/ | Unmodified GCC runtime library shipped inside the numpy and scipy wheels as a shared object. |
@@ -41,6 +42,9 @@ opencv_python_headless 5.0.0.93 (Apache-2.0) is built from source in the Dockerf
 | rapidocr-ppocrv5/rec.onnx | Apache-2.0 | `5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5` |
 | rapidocr-ppocrv5/rec_keys.txt | Apache-2.0 | `d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b` |
 | silero-vad/silero_vad.onnx | MIT | `1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3` |
+| whisper-base/base-decoder.int8.onnx | MIT | `9759d217388a01b3a4c7c15533201067b48ae819c4daafc8624e64b9409dc02d` |
+| whisper-base/base-encoder.int8.onnx | MIT | `0b8fb1304b6109976038efff5ace81720e00386f3ff6b54ee8c75291ca0a1e11` |
+| whisper-base/base-tokens.txt | MIT | `b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126` |
 
 The layout model (`docling-project/docling-layout-heron`) is Apache-2.0; its text is in section 6.
 
@@ -71,6 +75,8 @@ The layout model (`docling-project/docling-layout-heron`) is Apache-2.0; its tex
 | requests | 2.34.2 | Apache-2.0 | Python distribution |
 | scenedetect | 0.7.3 | BSD-3-Clause | Python distribution |
 | shapely | 2.2.0 | BSD-3-Clause | Python distribution |
+| sherpa-onnx-core | 2.0.1 | Apache-2.0 | Python distribution |
+| sherpa_onnx | 2.0.1 | Apache licensed, as found in the LICENSE file | Python distribution |
 | six | 1.17.0 | MIT | Python distribution |
 | tqdm | 4.70.1 | MPL-2.0 AND MIT | Python distribution |
 | urllib3 | 2.8.0 | MIT | Python distribution |
@@ -78,6 +84,7 @@ The layout model (`docling-project/docling-layout-heron`) is Apache-2.0; its tex
 | Brotli | bundled | MIT | native library in a wheel |
 | FreeType | bundled | FTL OR GPL-2.0-only | native library in a wheel |
 | HarfBuzz | bundled | MIT | native library in a wheel |
+| libasound (ALSA library, bundled by sherpa-onnx) | bundled | LGPL-2.1-or-later | native library in a wheel |
 | libgeos (shapely) | bundled | LGPL-2.1-or-later | native library in a wheel |
 | libgeos_c (shapely) | bundled | LGPL-2.1-or-later | native library in a wheel |
 | libgfortran (GCC Fortran runtime) | bundled | GPL-3.0-or-later WITH GCC-exception-3.1 | native library in a wheel |

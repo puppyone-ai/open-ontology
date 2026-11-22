@@ -144,6 +144,27 @@ pub fn acquire_lock(state: &Path) -> io::Result<LockResult> {
     })
 }
 
+/// Take the lock, waiting for an instance that is shutting down.
+///
+/// The lock is held until the old process has exited, and `serve.json` is removed as soon as it begins to stop (a compose
+/// runtime needs about 20 s to bring its containers down). A start in that window finds the lock busy and no `serve.json`:
+/// that is an instance on its way out (or still starting), not a running one. It is waited for up to `patience`; the moment
+/// a `serve.json` appears the instance is running and `Busy` is returned so the caller reuses it.
+pub fn acquire_lock_waiting(state: &Path, patience: std::time::Duration) -> io::Result<LockResult> {
+    let started = std::time::Instant::now();
+    loop {
+        match acquire_lock(state)? {
+            LockResult::Held(l) => return Ok(LockResult::Held(l)),
+            LockResult::Busy => {
+                if read_serve_json(state).is_some() || started.elapsed() >= patience {
+                    return Ok(LockResult::Busy);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+}
+
 /// Is an instance holding the lock right now? (The probe takes and drops it.)
 pub fn is_running(state: &Path) -> bool {
     match open_lock(state) {
@@ -226,6 +247,59 @@ mod tests {
         let p = std::env::temp_dir().join(format!("oo-docs-secrets-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&p);
         p
+    }
+
+    #[test]
+    fn a_start_right_after_a_stop_waits_for_the_old_instance_to_let_go() {
+        let base = tmp("restart");
+        ensure_state_dir(&base).unwrap();
+        // The dying instance: it holds the lock, serve.json is already gone, and it lets go after 700 ms.
+        let held = match acquire_lock(&base).unwrap() {
+            LockResult::Held(l) => l,
+            LockResult::Busy => panic!("free lock reported busy"),
+        };
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(700));
+            drop(held);
+        });
+        let t0 = std::time::Instant::now();
+        let got = acquire_lock_waiting(&base, std::time::Duration::from_secs(10)).unwrap();
+        assert!(
+            matches!(got, LockResult::Held(_)),
+            "the new instance must get the lock"
+        );
+        assert!(
+            t0.elapsed() >= std::time::Duration::from_millis(600),
+            "it waited for the release"
+        );
+        release.join().unwrap();
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_running_instance_is_reported_at_once_and_a_stuck_one_after_the_patience() {
+        let base = tmp("running");
+        ensure_state_dir(&base).unwrap();
+        let _held = match acquire_lock(&base).unwrap() {
+            LockResult::Held(l) => l,
+            LockResult::Busy => panic!("free lock reported busy"),
+        };
+        // Stuck: no serve.json ever appears, so the wait ends after the patience with Busy.
+        let t0 = std::time::Instant::now();
+        let got = acquire_lock_waiting(&base, std::time::Duration::from_millis(400)).unwrap();
+        assert!(matches!(got, LockResult::Busy));
+        assert!(t0.elapsed() >= std::time::Duration::from_millis(350));
+        // Running: serve.json exists, so Busy comes back at once (the caller reuses that instance).
+        write_secret_file(
+            &base.join("serve.json"),
+            &format!("{{\"protocol\":\"{SERVE_PROTOCOL}\",\"port\":1}}"),
+        )
+        .unwrap();
+        let t1 = std::time::Instant::now();
+        let got = acquire_lock_waiting(&base, std::time::Duration::from_secs(30)).unwrap();
+        assert!(matches!(got, LockResult::Busy));
+        assert!(t1.elapsed() < std::time::Duration::from_secs(2));
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
