@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic generator of the profile test set (D89): a synthetic engineering repo, three papers, the frozen gold and 10 questions.
+"""Deterministic generator of the admission test set (D94): a mixed corpus (records, instruction files, references, code, media and other files), the frozen class gold, the reference and record gold and the questions.
 
     python3 -B tools/super-ontology/profiles/gen.py [--out DIR] [--check]
 
@@ -649,18 +649,147 @@ paper(
                 ("Paper", R_BERT, {"cited_by": "papers/medical-qa-contrastive.pdf"})],
 )
 
-# ------------------------------------------------------------------ questions (frozen)
+# ------------------------------------------------------------------ the rest of the mixed corpus (D94)
+import struct, wave, io, zipfile
+
+put("harborq/CLAUDE.md", """# CLAUDE.md
+
+Notes for Claude when it works in this repository.
+
+## Working agreements
+
+- Answer in the language of the question.
+- Never commit secrets or tokens; read them from the environment.
+- Keep changes small and run cargo test -p harborq-core before asking for review.
+- Ask before deleting a file you did not create.
+""")
+put("harborq/ops/sop/deploy-sop.md", """# Deploy SOP
+
+Standard operating procedure for a release of Harbor Queue.
+
+1. Tag the release with git tag -s v0.3.0 and push the tag.
+2. Wait for the CI job named release to finish.
+3. Roll the workers one at a time; never restart all workers at once.
+4. Check the dead letter table is empty before closing the release.
+""")
+put("harborq/CODEOWNERS", "# Owners of Harbor Queue\n*            @platform-team\ncore/        @mira-okafor @daniel-reyes\nweb/         @hana-suzuki\n")
+put("harborq/scripts/deploy.sh", "#!/bin/bash\nset -euo pipefail\n# Roll the workers one at a time.\nfor w in $(cat workers.txt); do\n  ssh \"$w\" systemctl restart harborq-worker\n  sleep 5\ndone\n")
+put("books/queues-in-practice-ch3.md", """---
+type: reference
+---
+# Queues in Practice, Chapter 3: Retries
+
+Priya Raman and Tomas Novak
+
+Published by Example Press, 2024.
+
+## Abstract
+
+This chapter describes retry policies for job queues.
+
+## References
+
+[1] M. Okafor, D. Reyes, H. Suzuki. Sparse Lexical Mixing for Efficient Passage Retrieval. ACL, 2024.
+""")
+put("reports/external-market-report-2026.md", """---
+type: reference
+---
+# External Market Report 2026
+
+Analyst Group Research
+
+## Summary
+
+An external report on the market for job queue software, published in 2026.
+
+## References
+
+[1] Analyst Group. Queue Software Survey. Analyst Group, 2025.
+""")
+
+# Gold of the two reference files added after the paper gold (amendment: they were in the corpus and class gold, their instances were not listed).
+for f, label, name, extra in [
+    ("books/queues-in-practice-ch3.md", "Paper", "Queues in Practice, Chapter 3: Retries", {}),
+    ("books/queues-in-practice-ch3.md", "Person", "Priya Raman", {}),
+    ("books/queues-in-practice-ch3.md", "Person", "Tomas Novak", {}),
+    ("books/queues-in-practice-ch3.md", "Paper", "Sparse Lexical Mixing for Efficient Passage Retrieval", {"cited_by": "books/queues-in-practice-ch3.md"}),
+    ("reports/external-market-report-2026.md", "Paper", "External Market Report 2026", {}),
+    ("reports/external-market-report-2026.md", "Paper", "Queue Software Survey", {"cited_by": "reports/external-market-report-2026.md"}),
+]:
+    gold("paper", f, label, name, **extra)
+
+# records: they enter the ontology through the class templates
+put("records/People/Mira-Okafor.md", "---\ntype: person\nname: Mira Okafor\nrole: Platform Engineer\n---\n# Mira Okafor\n\nRole: Platform Engineer\n")
+put("records/Projects/Harbor-Queue.md", "---\ntype: project\nname: Harbor Queue\nowner: Mira Okafor\nstatus: active\n---\n# Harbor Queue\n\nOwner: Mira Okafor\n\nStatus: active\n")
+put("records/Decisions/D-2027-01-adopt-sqlite.md", "---\ntype: decision\nowner: Mira Okafor\ndate: 2027-01-12\n---\n# D-2027-01 Adopt SQLite as the only storage\n\nDecided by Mira Okafor on 2027-01-12: Harbor Queue stores jobs only in SQLite.\n")
+put("records/meetings/minutes-2027-01-12-launch-sync.md", "---\ntype: meeting\ndate: 2027-01-12\n---\n# Launch sync 2027-01-12\n\nAttendees: Mira Okafor, Daniel Reyes\n\n## Decisions\n\n- Ship Harbor Queue 0.3.0 on 2027-02-01.\n")
+put("records/weekly-report-2027-w03.md", "# Weekly report 2027 week 3\n\nThe team shipped the dead letter table and fixed a worker shutdown race. Next week: release preparation.\n")
+put("records/contracts/supply-agreement.md", "# Supply agreement\n\nThis agreement between Northport Optics and Harbor Supply covers 1,000 units at a total of CNY 480,000, valid until 2027-12-31.\n")
+put("records/finance/budget-2027.csv", "item,amount,owner\nHosting,12000,Mira Okafor\nSupport,8000,Daniel Reyes\n")
+put("records/people-roster.csv", "name,role,team\nMira Okafor,Platform Engineer,Platform\nDaniel Reyes,Engineer,Platform\nHana Suzuki,Designer,Web\n")
+
+# other: archive only
+put("archive/export-2027-01.json", json.dumps({"rows": [{"id": 1, "kind": "send-email"}, {"id": 2, "kind": "resize"}]}) + "\n")
+put("archive/blob.bin", bytes((i * 37 + 11) % 256 for i in range(512)))
+zb = io.BytesIO()
+with zipfile.ZipFile(zb, "w") as z:
+    z.writestr("a.txt", "hello")
+put("archive/backup.zip", zb.getvalue())
+
+# media (lane AL owns what happens to it; here only its class)
+def tiny_png():
+    import zlib
+    raw = b"".join(b"\x00" + b"\xff\x00\x00" * 4 for _ in range(4))
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+put("media/logo.png", tiny_png())
+wb = io.BytesIO()
+with wave.open(wb, "wb") as w:
+    w.setnchannels(1)
+    w.setsampwidth(2)
+    w.setframerate(8000)
+    w.writeframes(b"\x00\x00" * 8000)
+put("media/clip.wav", wb.getvalue())
+
+# ------------------------------------------------------------------ the class of every file (frozen gold)
+CLASS_GOLD = {
+    "harborq/AGENTS.md": "instruction", "harborq/README.md": "instruction", "harborq/CONTRIBUTING.md": "instruction", "harborq/docs/STYLE_GUIDE.md": "instruction",
+    "harborq/docs/adr/0001-use-sqlite-for-storage.md": "instruction", "harborq/docs/adr/0002-retry-with-backoff.md": "instruction",
+    "harborq/CLAUDE.md": "instruction", "harborq/ops/sop/deploy-sop.md": "instruction",
+    "harborq/CODEOWNERS": "code", "harborq/scripts/deploy.sh": "code", "harborq/Cargo.toml": "code", "harborq/pyproject.toml": "code", "harborq/web/package.json": "code",
+    "harborq/core/src/lib.rs": "code", "harborq/core/src/queue.rs": "code", "harborq/core/src/retry.rs": "code", "harborq/core/src/worker.rs": "code",
+    "harborq/tools/export.py": "code", "harborq/tools/report.py": "code", "harborq/web/src/api.ts": "code",
+    "harborq/CHANGELOG.md": "other", "harborq/LICENSE": "other", "harborq/ops/worker.log": "other",
+    "papers/sparse-lexical-mixing.pdf": "reference", "papers/label-efficient-segmentation.pdf": "reference", "papers/medical-qa-contrastive.pdf": "reference",
+    "books/queues-in-practice-ch3.md": "reference", "reports/external-market-report-2026.md": "reference",
+    "records/People/Mira-Okafor.md": "record", "records/Projects/Harbor-Queue.md": "record", "records/Decisions/D-2027-01-adopt-sqlite.md": "record",
+    "records/meetings/minutes-2027-01-12-launch-sync.md": "record", "records/weekly-report-2027-w03.md": "record", "records/contracts/supply-agreement.md": "record",
+    "records/finance/budget-2027.csv": "record", "records/people-roster.csv": "record",
+    "archive/export-2027-01.json": "other", "archive/blob.bin": "other", "archive/backup.zip": "other",
+    "media/logo.png": "media", "media/clip.wav": "media",
+}
+PROFILE_OF = {"record": None, "instruction": "instruction", "reference": "reference", "code": "code", "media": "media", "other": "other"}
+assert set(CLASS_GOLD) == set(FILES), sorted(set(FILES) ^ set(CLASS_GOLD))
+
+# What the records must put into the ontology (each: file, type or label, name): the admitted side of the gate.
+RECORD_GOLD = [
+    ("records/People/Mira-Okafor.md", "Person", "Mira Okafor"),
+    ("records/Projects/Harbor-Queue.md", "Project", "Harbor Queue"),
+    ("records/Projects/Harbor-Queue.md", "Person", "Mira Okafor"),
+    ("records/meetings/minutes-2027-01-12-launch-sync.md", "Person", "Daniel Reyes"),
+    ("records/finance/budget-2027.csv", "Person", "Daniel Reyes"),
+    ("records/people-roster.csv", "Person", "Hana Suzuki"),
+]
+
+# ------------------------------------------------------------------ questions (frozen): answered through the BRIEF 工作约定 section
 QUESTIONS = [
-    ("q01", "instruction", True, "What does AGENTS.md say about running tests?", "Run the unit tests with cargo test -p harborq-core before every commit; the web code must pass pnpm --dir web test", ["harborq/AGENTS.md"]),
+    ("q01", "instruction", True, "What does AGENTS.md say about running tests?", "Run the unit tests with cargo test -p harborq-core before every commit; web code must pass pnpm --dir web test", ["harborq/AGENTS.md"]),
     ("q02", "instruction", True, "Which files must not be edited by hand according to AGENTS.md, and what should be run instead?", "files under core/src/generated/; run make generate", ["harborq/AGENTS.md"]),
-    ("q03", "instruction", True, "Which command formats the Rust code?", "cargo fmt --all", ["harborq/AGENTS.md"]),
-    ("q04", "instruction", True, "What retry policy did the second ADR choose, and how many times is a job retried at most?", "exponential backoff with jitter; 5 times", ["harborq/docs/adr/0002-retry-with-backoff.md"]),
-    ("q05", "instruction", True, "Why does Harbor Queue use SQLite for storage?", "so that deployment is a single file; small services cannot run a separate database", ["harborq/docs/adr/0001-use-sqlite-for-storage.md"]),
-    ("q06", "code", True, "Which function in core/src/retry.rs computes the delay before a retry?", "next_delay", ["harborq/core/src/retry.rs"]),
-    ("q07", "code", True, "Which Python packages does tools/export.py import?", "click; requests; rich", ["harborq/tools/export.py"]),
-    ("q08", "paper", True, "Which datasets does the SpaMix paper evaluate on?", "MS MARCO; Natural Questions", ["papers/sparse-lexical-mixing.pdf"]),
-    ("q09", "paper", True, "Who wrote the paper about label-efficient segmentation of satellite imagery?", "Priya Raman; Tomas Novak", ["papers/label-efficient-segmentation.pdf"]),
-    ("q10", "unanswerable", False, "What does AGENTS.md say about deploying to production?", "", []),
+    ("q03", "instruction", True, "What does CLAUDE.md say about secrets?", "never commit secrets or tokens; read them from the environment", ["harborq/CLAUDE.md"]),
+    ("q04", "instruction", True, "In the deploy SOP, how are the workers rolled?", "one at a time; never restart all workers at once", ["harborq/ops/sop/deploy-sop.md"]),
+    ("q05", "instruction", True, "What does the style guide say about naming queues?", "lowercase kebab-case", ["harborq/docs/STYLE_GUIDE.md"]),
+    ("q06", "unanswerable", False, "What does AGENTS.md say about deploying to production?", "", []),
 ]
 
 
@@ -671,12 +800,26 @@ def main():
     a = ap.parse_args()
     out = Path(a.out)
     gold_files = {}
-    for k, rows in GOLD.items():
-        gold_files[f"gold/{k}.jsonl"] = "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in sorted(rows, key=lambda r: (r["file"], r["label"], r["name"])))
+    classes = [{"file": f, "class": c, "profile": PROFILE_OF[c]} for f, c in sorted(CLASS_GOLD.items())]
+    gold_files["gold/classes.jsonl"] = "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in classes)
+    # References: the instance of each paper and of what it cites, its authors and the two relations.
+    ref_ents, ref_rels = [], []
+    for g in sorted(GOLD["paper"], key=lambda r: (r["file"], r["label"], r["name"])):
+        if g["label"] == "Paper":
+            ref_ents.append({"file": g["file"], "label": "Reference", "name": g["name"]})
+            if "cited_by" in g:
+                ref_rels.append({"file": g["file"], "subject": self_title(g["file"]), "predicate": "cites", "object": g["name"]})
+        elif g["label"] == "Person":
+            ref_ents.append({"file": g["file"], "label": "Person", "name": g["name"]})
+            ref_rels.append({"file": g["file"], "subject": g["name"], "predicate": "authored", "object": self_title(g["file"])})
+    gold_files["gold/reference.jsonl"] = "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in ref_ents)
+    gold_files["gold/reference-relations.jsonl"] = "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in ref_rels)
+    gold_files["gold/records.jsonl"] = "".join(json.dumps({"file": f, "label": l, "name": n}, ensure_ascii=False, sort_keys=True) + "\n" for f, l, n in RECORD_GOLD)
+    gold_files["gold/brief.json"] = json.dumps({"must_include_files": ["harborq/AGENTS.md", "harborq/CLAUDE.md", "harborq/ops/sop/deploy-sop.md", "harborq/docs/STYLE_GUIDE.md"],
+                                                 "must_quote": ["Run the unit tests with cargo test -p harborq-core before every commit"]}, indent=1, sort_keys=True) + "\n"
     gold_files["gold/questions.jsonl"] = "".join(json.dumps({"id": i, "kind": k, "answerable": ans, "question": q, "answer": g, "files": f, "lang": "en"}, ensure_ascii=False, sort_keys=True) + "\n" for i, k, ans, q, g, f in QUESTIONS)
     tree = {f"project/{p}": d for p, d in FILES.items()}
     tree.update({p: d.encode() for p, d in gold_files.items()})
-    readme = (HERE.parent.parent.parent / "testing" / "super-ontology" / "profiles" / "README.md")
     manifest = "".join(f"{hashlib.sha256(d).hexdigest()}  {p}\n" for p, d in sorted(tree.items()))
     if a.check:
         bad = [p for p, d in tree.items() if not (out / p).exists() or (out / p).read_bytes() != d]
@@ -684,12 +827,20 @@ def main():
             bad.append("MANIFEST.sha256")
         print("check:", "0 differences" if not bad else f"{len(bad)} differ: {bad[:5]}")
         sys.exit(1 if bad else 0)
+    import shutil
+    shutil.rmtree(out / "gold", ignore_errors=True)
+    shutil.rmtree(out / "project", ignore_errors=True)
     for p, d in tree.items():
         t = out / p
         t.parent.mkdir(parents=True, exist_ok=True)
         t.write_bytes(d)
     (out / "MANIFEST.sha256").write_text(manifest)
-    print(f"wrote {len(FILES)} files, {sum(len(v) for v in GOLD.values())} gold items, {len(QUESTIONS)} questions")
+    print(f"wrote {len(FILES)} files, {len(classes)} classes, {len(ref_ents)} reference items, {len(ref_rels)} relations, {len(QUESTIONS)} questions")
+
+
+def self_title(path):
+    return {"papers/sparse-lexical-mixing.pdf": T1, "papers/label-efficient-segmentation.pdf": T2, "papers/medical-qa-contrastive.pdf": T3,
+            "books/queues-in-practice-ch3.md": "Queues in Practice, Chapter 3: Retries", "reports/external-market-report-2026.md": "External Market Report 2026"}[path]
 
 
 if __name__ == "__main__":

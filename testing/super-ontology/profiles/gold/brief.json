@@ -1,0 +1,11 @@
+{
+ "must_include_files": [
+  "harborq/AGENTS.md",
+  "harborq/CLAUDE.md",
+  "harborq/ops/sop/deploy-sop.md",
+  "harborq/docs/STYLE_GUIDE.md"
+ ],
+ "must_quote": [
+  "Run the unit tests with cargo test -p harborq-core before every commit"
+ ]
+}
