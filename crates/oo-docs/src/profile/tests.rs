@@ -357,3 +357,46 @@ fn trait_methods_and_metric_suffixes() {
     assert_eq!(names(&x, METRIC), vec!["MRR", "Recall"]);
     assert_eq!(names(&x, METHOD), vec!["MedCL"]);
 }
+
+#[test]
+fn a_paper_the_way_the_parser_breaks_it_into_blocks() {
+    // Wrapped title lines, a split reference and a paragraph cut by the page width, as a PDF parser delivers them.
+    let ir = md(
+        "Label-Efficient\n\nSegmentation of Satellite\n\nImagery\n\nPriya Raman, Tomas Novak\n\narXiv preprint 2024. arXiv:2403.01882\n\n# Abstract\n\nPixel labels are expensive. This paper introduces GeoSeg-Lite, a model. We use the SpaceNet 7 dataset and the xView2\n\nbenchmark and report mIoU and F1.\n\n1 Introduction\n\nSome text here.\n\n# References\n\n[1] O. Ronneberger, P. Fischer. U-Net: Convolutional Networks for Biomedical Image Segmentation. MICCAI, 2015.\n\n[2] A. Kirillov, E. Mintun, N. Ravi.\n\nSegment Anything. ICCV, 2023.\n",
+    );
+    assert_eq!(classify("p.pdf", &ir).profile, Profile::Paper);
+    let x = extraction("p.pdf", &ir);
+    let papers = names(&x, super::PAPER);
+    assert!(
+        papers.contains(&"Label-Efficient Segmentation of Satellite Imagery".to_owned()),
+        "{papers:?}"
+    );
+    assert!(
+        papers.contains(&"Segment Anything".to_owned()),
+        "{papers:?}"
+    );
+    assert!(papers.iter().any(|p| p.starts_with("U-Net")), "{papers:?}");
+    let people: Vec<String> = x
+        .entities
+        .iter()
+        .filter(|e| e.entity.ty == EntityType::Person)
+        .map(|e| e.entity.name.clone())
+        .collect();
+    assert_eq!(people.len(), 2, "{people:?}");
+    assert_eq!(names(&x, DATASET), vec!["SpaceNet 7", "xView2"]);
+    assert_eq!(names(&x, METRIC), vec!["F1", "mIoU"]);
+    assert_eq!(names(&x, VENUE), vec!["arXiv"]);
+    assert_eq!(names(&x, METHOD), vec!["GeoSeg-Lite"]);
+}
+
+#[test]
+fn a_chinese_paper_names_its_method_datasets_and_metrics() {
+    let ir = md(
+        "# 基于对比学习的中文医疗问答检索\n\n李明华、周雅婷、陈思远\n\nEMNLP 2023。doi:10.5555/emnlp.2023.0452\n\n## 摘要\n\n我们提出了MedCL方法。实验在CMedQA数据集和webMedQA数据集上进行，指标为F1和MRR。On the xView2 benchmark we win.\n\n## 参考文献\n\n[1] V. Karpukhin, B. Oguz. Dense Passage Retrieval for Open-Domain Question Answering. EMNLP, 2020.\n",
+    );
+    let x = extraction("p.pdf", &ir);
+    assert_eq!(names(&x, METHOD), vec!["MedCL"]);
+    assert_eq!(names(&x, DATASET), vec!["CMedQA", "webMedQA", "xView2"]);
+    assert_eq!(names(&x, METRIC), vec!["F1", "MRR"]);
+    assert_eq!(names(&x, VENUE), vec!["EMNLP"]);
+}

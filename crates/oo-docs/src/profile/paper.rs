@@ -43,37 +43,6 @@ fn is_heading_like(b: &Block, words: &[&str]) -> bool {
             .any(|w| t == *w || t.ends_with(&format!(" {w}")) && t.chars().count() <= 20)
 }
 
-fn title_of(ir: &DocIr) -> Option<(String, usize)> {
-    let body = |b: &Block| {
-        !matches!(
-            b.kind,
-            BlockKind::PageHeader | BlockKind::PageFooter | BlockKind::Frontmatter
-        ) && !b.text.trim().is_empty()
-    };
-    ir.blocks
-        .iter()
-        .position(|b| b.kind == BlockKind::Heading && b.level == Some(1) && body(b))
-        .or_else(|| {
-            ir.blocks
-                .iter()
-                .position(|b| b.kind == BlockKind::Heading && body(b))
-        })
-        .or_else(|| ir.blocks.iter().position(body))
-        .map(|i| {
-            (
-                ir.blocks[i]
-                    .text
-                    .lines()
-                    .next()
-                    .unwrap_or("")
-                    .trim()
-                    .to_owned(),
-                i,
-            )
-        })
-        .filter(|(t, _)| t.chars().count() >= 4)
-}
-
 const NOT_NAME: &[&str] = &[
     "university",
     "institute",
@@ -144,18 +113,6 @@ fn split_authors(line: &str) -> Vec<String> {
     s.split(',').filter_map(person_name).collect()
 }
 
-fn find_authors(ir: &DocIr, title_idx: usize, abstract_idx: usize) -> Option<usize> {
-    (title_idx + 1..abstract_idx.min(title_idx + 6)).find(|&i| {
-        let b = &ir.blocks[i];
-        let n = split_authors(&b.text).len();
-        let items = b.text.matches(',').count()
-            + b.text.matches(" and ").count()
-            + b.text.matches('、').count()
-            + 1;
-        n >= 1 && n * 2 >= items.min(8) && b.text.chars().count() <= 400
-    })
-}
-
 const VENUES: &[&str] = &[
     "NeurIPS", "ICML", "ICLR", "ACL", "EMNLP", "NAACL", "COLING", "CVPR", "ICCV", "ECCV", "AAAI",
     "IJCAI", "KDD", "WWW", "SIGIR", "SIGMOD", "VLDB", "OSDI", "SOSP", "NSDI", "USENIX", "ICSE",
@@ -189,7 +146,7 @@ fn find_venue(blocks: &[Block], limit: usize) -> Option<(String, Option<String>,
                     && (lower(line).contains("proceedings")
                         || lower(line).contains("published")
                         || lower(line).contains("conference")
-                        || line.trim().chars().count() <= 40
+                        || line.trim().chars().count() <= 80
                         || lower(line).contains("journal"))
                 {
                     return Some(((*v).to_owned(), year_in(line), i));
@@ -293,7 +250,7 @@ fn methods_in(text: &str) -> Vec<String> {
             for suffix in ["方法", "模型", "框架", "算法", "网络"] {
                 if let Some(j) = tail.find(suffix) {
                     let head = tail[..j]
-                        .trim_start_matches(['一', '种', '个', '新', '的'])
+                        .trim_start_matches(['了', '一', '种', '个', '新', '的'])
                         .trim();
                     let name = head
                         .rsplit(['，', '、', '。', '的'])
@@ -385,6 +342,21 @@ const DATA_WORDS: &[&str] = &[
     "testbed",
 ];
 const DATA_STOP: &[&str] = &[
+    "on",
+    "in",
+    "at",
+    "for",
+    "to",
+    "of",
+    "with",
+    "using",
+    "from",
+    "by",
+    "as",
+    "we",
+    "our",
+    "its",
+    "their",
     "the",
     "a",
     "an",
@@ -435,66 +407,51 @@ fn datasets_in(text: &str) -> Vec<String> {
             }
         }
     }
-    // "<Name> dataset" / "<A>, <B> and <C> benchmarks"
+    // "<Name> dataset" / "<A>, <B> and <C> benchmarks": names are the runs of name-like tokens before the word.
     let tokens: Vec<&str> = text.split_whitespace().collect();
+    let namey = |tok: &str| {
+        !tok.is_empty()
+            && tok
+                .chars()
+                .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '+'))
+            && tok.chars().any(|c| c.is_uppercase() || c.is_ascii_digit())
+            && !DATA_STOP.contains(&lower(tok).as_str())
+    };
     for (i, t) in tokens.iter().enumerate() {
         let word = lower(t.trim_matches(|c: char| !c.is_alphanumeric()));
         if !DATA_WORDS.contains(&word.as_str()) || i == 0 {
             continue;
         }
-        let mut names: Vec<String> = Vec::new();
+        let mut names: Vec<Vec<String>> = Vec::new();
+        let mut cur: Vec<String> = Vec::new();
         let mut j = i;
-        let mut expect_name = true;
         while j > 0 && names.len() < 4 {
             j -= 1;
             let raw = tokens[j];
             let tok =
                 raw.trim_matches(|c: char| matches!(c, ',' | '.' | ';' | ':' | '(' | ')' | '"'));
             let tl = lower(tok);
-            if tl == "and" || tl == "or" || tl == "the" && !expect_name {
-                expect_name = true;
+            if matches!(tl.as_str(), "and" | "or" | "the" | "a" | "an") {
+                if !cur.is_empty() {
+                    names.push(std::mem::take(&mut cur));
+                }
                 continue;
             }
-            let namey = tok
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_uppercase() || c.is_ascii_digit())
-                && !DATA_STOP.contains(&tl.as_str())
-                && tok.chars().count() >= 2
-                && tok
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '+'));
-            if namey && expect_name {
-                names.push(tok.to_owned());
-                expect_name = raw.ends_with(',');
-                if !expect_name
-                    && !(j > 0 && matches!(lower(tokens[j - 1]).as_str(), "and")
-                        || raw.ends_with(','))
-                {
-                    // a multi word name: keep extending only through capitalised words directly before
-                    let prev = j.checked_sub(1).map(|k| tokens[k]).unwrap_or("");
-                    let pt =
-                        prev.trim_matches(|c: char| matches!(c, ',' | '.' | ';' | ':' | '(' | ')'));
-                    if pt.chars().next().is_some_and(char::is_uppercase)
-                        && !DATA_STOP.contains(&lower(pt).as_str())
-                        && !prev.ends_with(['.', ','])
-                        && !pt.is_empty()
-                    {
-                        // join "Common Crawl" style names
-                        let joined = format!("{pt} {}", names.pop().unwrap_or_default());
-                        names.push(joined);
-                        j -= 1;
-                    }
-                }
-                if !expect_name && !(j > 0 && lower(tokens[j - 1].trim_matches(',')) == "and") {
-                    break;
-                }
+            if raw.ends_with(',') && !cur.is_empty() {
+                names.push(std::mem::take(&mut cur));
+            }
+            if namey(tok) {
+                cur.insert(0, tok.to_owned());
             } else {
                 break;
             }
         }
+        if !cur.is_empty() {
+            names.push(cur);
+        }
         for n in names.into_iter().rev() {
-            if !out.contains(&n) {
+            let n = n.join(" ");
+            if n.chars().any(char::is_uppercase) && !out.contains(&n) {
                 out.push(n);
             }
         }
@@ -549,8 +506,9 @@ const METRICS: &[(&str, &str)] = &[
 
 fn metrics_in(text: &str) -> Vec<&'static str> {
     let mut out = Vec::new();
+    // ASCII words only: `F1和MRR` is two metrics in a Chinese sentence.
     let words: Vec<&str> = text
-        .split(|c: char| !(c.is_alphanumeric() || c == '-' || c == '@'))
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '@'))
         .filter(|w| !w.is_empty())
         .map(|w| w.split('@').next().unwrap_or(w))
         .collect();
@@ -607,6 +565,21 @@ pub fn reference_title(entry: &str) -> Option<String> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .collect();
+    // The title is the segment before the one that names the venue or the year (`NAACL, 2019`, `arXiv ...`, `In Proc ...`).
+    let venue_seg = segs.iter().enumerate().skip(2).find(|(_, s)| {
+        year_in(s).is_some()
+            || lower(s).starts_with("in ")
+            || lower(s).starts_with("arxiv")
+            || lower(s).starts_with("doi")
+            || s.split(|c: char| !c.is_alphanumeric())
+                .any(|w| VENUES.contains(&w))
+    });
+    if let Some((v, _)) = venue_seg {
+        let t = segs[v - 1];
+        if t.split_whitespace().count() >= 2 || t.chars().count() >= 8 {
+            return Some(clip(t.trim_end_matches('.'), 200));
+        }
+    }
     for (i, s) in segs.iter().enumerate() {
         if i == 0 {
             continue; // authors
@@ -671,28 +644,176 @@ fn mention(
     });
 }
 
-pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
-    let doc = EntityRef::new(EntityType::Document, path);
-    let Some((title, title_idx)) = title_of(ir) else {
-        return;
-    };
-    let title_ev = EvidenceRef::from_block(&ir.blocks[title_idx]);
-    let paper = thing(PAPER, clip(&title, 200));
-    col.entity(&paper, Some(&title_ev));
+/// A venue or identifier line of the front matter: not part of the author list.
+fn front_noise(text: &str) -> bool {
+    let l = lower(text);
+    l.contains("proceedings")
+        || l.contains("arxiv")
+        || l.contains("doi")
+        || l.contains("preprint")
+        || l.contains("journal")
+        || l.contains("conference")
+        || l.contains("university")
+        || l.contains('@')
+        || text
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|w| VENUES.contains(&w))
+}
 
-    let abstract_idx = ir.blocks.iter().take(80).position(|b| {
-        let t = lower(b.text.trim());
-        t.starts_with("abstract") || t.starts_with("摘要")
-    });
-    let refs_idx = ir
+fn terminal(text: &str) -> bool {
+    text.trim_end()
+        .ends_with(['.', '。', '!', '?', '！', '？', ':', '：', ';', '；'])
+}
+
+/// `1 Introduction`, `2.1 Method`, `1 引言`: a numbered heading that the parser delivered as a paragraph.
+fn numbered_heading(text: &str) -> bool {
+    let t = text.trim();
+    let digits = t
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.')
+        .count();
+    digits > 0 && t[digits..].starts_with(' ') && t.chars().count() <= 60 && !terminal(t)
+}
+
+/// The parts of a paper the way the parser delivered them: title and authors, the body after the abstract with wrapped
+/// paragraphs joined, and the references with wrapped entries joined. Each carries the first block it came from.
+struct Parts {
+    title: String,
+    title_block: usize,
+    authors: Option<usize>,
+    front: Vec<usize>,
+    body: Vec<(String, usize)>,
+    refs: Vec<(String, usize)>,
+    has_refs: bool,
+}
+
+fn parts(ir: &DocIr) -> Option<Parts> {
+    let vis: Vec<usize> = ir
         .blocks
         .iter()
-        .position(|b| is_heading_like(b, REF_HEADINGS));
-    let body_end = refs_idx.unwrap_or(ir.blocks.len());
+        .enumerate()
+        .filter(|(_, b)| {
+            !matches!(
+                b.kind,
+                BlockKind::PageHeader | BlockKind::PageFooter | BlockKind::Frontmatter
+            ) && !b.text.trim().is_empty()
+        })
+        .map(|(i, _)| i)
+        .collect();
+    let at = |k: usize| &ir.blocks[vis[k]];
+    let abstract_k = vis.iter().take(80).position(|&i| {
+        let t = lower(ir.blocks[i].text.trim());
+        (t.starts_with("abstract") || t.starts_with("摘要"))
+            && ir.blocks[i].text.trim().chars().count() <= 60
+            || t.starts_with("abstract") && ir.blocks[i].text.trim().chars().count() > 60
+    });
+    let refs_k = vis
+        .iter()
+        .position(|&i| is_heading_like(&ir.blocks[i], REF_HEADINGS));
+    let region_end = abstract_k.unwrap_or(vis.len().min(8));
+    if region_end == 0 {
+        return None;
+    }
+    let region: Vec<usize> = (0..region_end).collect();
+    // A first level heading that is not the abstract is the title; else the lines before the authors.
+    let first = at(0);
+    let (title, title_block, authors, front);
+    if first.kind == BlockKind::Heading && first.level == Some(1) && abstract_k != Some(0) {
+        title = first.text.lines().next().unwrap_or("").trim().to_owned();
+        title_block = vis[0];
+        authors = region
+            .iter()
+            .skip(1)
+            .find(|&&k| !front_noise(&at(k).text) && !split_authors(&at(k).text).is_empty())
+            .map(|&k| vis[k]);
+        front = region.iter().map(|&k| vis[k]).collect::<Vec<_>>();
+    } else {
+        let a = region
+            .iter()
+            .skip(1)
+            .rev()
+            .find(|&&k| {
+                !front_noise(&at(k).text)
+                    && !numbered_heading(&at(k).text)
+                    && !split_authors(&at(k).text).is_empty()
+                    && at(k).text.chars().count() <= 400
+            })
+            .copied();
+        let title_end = a.unwrap_or(1.min(region_end));
+        title = region[..title_end.max(1)]
+            .iter()
+            .take(6)
+            .map(|&k| at(k).text.lines().next().unwrap_or("").trim().to_owned())
+            .collect::<Vec<_>>()
+            .join(" ");
+        title_block = vis[0];
+        authors = a.map(|k| vis[k]);
+        front = region.iter().map(|&k| vis[k]).collect();
+    }
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    if title.chars().count() < 4 {
+        return None;
+    }
+    // Body: abstract to the references, paragraphs that the page width broke joined again.
+    let body_range = abstract_k.unwrap_or(region_end)..refs_k.unwrap_or(vis.len());
+    let mut body: Vec<(String, usize)> = Vec::new();
+    let mut open = false;
+    for k in body_range {
+        let b = at(k);
+        let heading = b.kind == BlockKind::Heading || numbered_heading(&b.text);
+        let joinable = matches!(b.kind, BlockKind::Paragraph | BlockKind::ListItem) && !heading;
+        if open
+            && joinable
+            && let Some(last) = body.last_mut()
+        {
+            last.0.push(' ');
+            last.0.push_str(b.text.trim());
+        } else {
+            body.push((b.text.trim().to_owned(), vis[k]));
+        }
+        open = joinable && !body.last().is_some_and(|l| terminal(&l.0));
+    }
+    // References: entries start at `[n]` or `n.`; a line that does not start one continues the entry before it.
+    let mut refs: Vec<(String, usize)> = Vec::new();
+    if let Some(r) = refs_k {
+        for (k, _) in vis.iter().enumerate().skip(r + 1) {
+            let b = at(k);
+            if b.kind == BlockKind::Heading && !is_heading_like(b, REF_HEADINGS) && !refs.is_empty()
+            {
+                break;
+            }
+            for line in split_refs(&b.text) {
+                let starts = line.starts_with('[')
+                    || line.chars().next().is_some_and(|c| c.is_ascii_digit());
+                if !starts && let Some(last) = refs.last_mut() {
+                    last.0.push(' ');
+                    last.0.push_str(&line);
+                } else {
+                    refs.push((line, vis[k]));
+                }
+            }
+        }
+    }
+    Some(Parts {
+        title,
+        title_block,
+        authors,
+        front,
+        body,
+        refs,
+        has_refs: refs_k.is_some(),
+    })
+}
+
+pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
+    let doc = EntityRef::new(EntityType::Document, path);
+    let Some(p) = parts(ir) else { return };
+    let title_ev = EvidenceRef::from_block(&ir.blocks[p.title_block]);
+    let paper = thing(PAPER, clip(&p.title, 200));
+    col.entity(&paper, Some(&title_ev));
 
     // Authors
-    let upto = abstract_idx.unwrap_or((title_idx + 6).min(ir.blocks.len()));
-    if let Some(i) = find_authors(ir, title_idx, upto) {
+    if let Some(i) = p.authors {
         let ev = EvidenceRef::from_block(&ir.blocks[i]);
         for name in split_authors(&ir.blocks[i].text)
             .into_iter()
@@ -703,17 +824,17 @@ pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
             mention(col, &doc, person, "paper.author", &ev);
         }
     }
-    // Venue and year, DOI and arXiv id of the paper itself (first page region)
-    let head = body_end.min(24);
-    let venue = find_venue(&ir.blocks, head);
+    // Venue and year, DOI and arXiv id of the paper itself (the front matter)
+    let front: Vec<Block> = p.front.iter().map(|&i| ir.blocks[i].clone()).collect();
+    let venue = find_venue(&front, front.len());
     let mut year = venue.as_ref().and_then(|v| v.1.clone());
-    if let Some((v, _, i)) = &venue {
-        let ev = EvidenceRef::from_block(&ir.blocks[*i]);
+    if let Some((v, _, k)) = &venue {
+        let ev = EvidenceRef::from_block(&front[*k]);
         let ve = thing(VENUE, v.clone());
         col.entity(&ve, Some(&ev));
         mention(col, &doc, ve, "paper.venue", &ev);
     }
-    for b in ir.blocks.iter().take(head) {
+    for b in &front {
         let ev = EvidenceRef::from_block(b);
         if let Some(doi) = doi_in(&b.text) {
             attr(col, &paper, "doi", &doi, "paper.id", BP, &ev);
@@ -726,7 +847,7 @@ pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
         }
     }
     if year.is_none() {
-        year = ir.blocks.iter().take(head).find_map(|b| {
+        year = front.iter().find_map(|b| {
             (b.text.chars().count() < 160)
                 .then(|| year_in(&b.text))
                 .flatten()
@@ -740,27 +861,20 @@ pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
     let mut methods: Vec<(String, usize)> = Vec::new();
     let mut datasets: Vec<(String, usize)> = Vec::new();
     let mut metrics: Vec<(&str, usize)> = Vec::new();
-    let start = abstract_idx.unwrap_or(title_idx + 1);
-    for (i, b) in ir.blocks.iter().enumerate().take(body_end).skip(start) {
-        if matches!(
-            b.kind,
-            BlockKind::PageHeader | BlockKind::PageFooter | BlockKind::Footnote
-        ) {
-            continue;
-        }
-        for m in methods_in(&b.text) {
+    for (text, block) in &p.body {
+        for m in methods_in(text) {
             if !methods.iter().any(|(x, _)| *x == m) {
-                methods.push((m, i));
+                methods.push((m, *block));
             }
         }
-        for d in datasets_in(&b.text) {
+        for d in datasets_in(text) {
             if !datasets.iter().any(|(x, _)| *x == d) {
-                datasets.push((d, i));
+                datasets.push((d, *block));
             }
         }
-        for m in metrics_in(&b.text) {
+        for m in metrics_in(text) {
             if !metrics.iter().any(|(x, _)| *x == m) {
-                metrics.push((m, i));
+                metrics.push((m, *block));
             }
         }
     }
@@ -787,36 +901,26 @@ pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
     mention(col, &doc, paper.clone(), "paper.self", &title_ev);
 
     // Cites: every reference after the heading.
-    if let Some(r) = refs_idx {
-        let mut n = 0;
-        for b in ir.blocks.iter().skip(r + 1) {
-            if matches!(b.kind, BlockKind::Heading)
-                && n > 0
-                && !b.text.trim().is_empty()
-                && !is_heading_like(b, REF_HEADINGS)
-            {
-                break;
-            }
-            let ev = EvidenceRef::from_block(b);
-            for entry in split_refs(&b.text) {
-                if n >= MAX_REFS {
-                    return;
-                }
-                let doi = doi_in(&entry);
-                let name =
-                    reference_title(&entry).or_else(|| doi.as_ref().map(|d| format!("doi:{d}")));
-                let Some(name) = name else { continue };
-                let cited = thing(PAPER, clip(&name, 200));
-                if cited == paper {
-                    continue;
-                }
-                n += 1;
-                col.entity(&cited, Some(&ev));
-                if let Some(d) = doi {
-                    attr(col, &cited, "doi", &d, "paper.cites", BP, &ev);
-                }
-                mention(col, &doc, cited, "paper.cites", &ev);
-            }
+    let _ = p.has_refs;
+    for (n, (entry, block)) in p.refs.iter().enumerate() {
+        if n >= MAX_REFS {
+            break;
         }
+        let ev = EvidenceRef::from_block(&ir.blocks[*block]);
+        let doi = doi_in(entry);
+        let Some(name) =
+            reference_title(entry).or_else(|| doi.as_ref().map(|d| format!("doi:{d}")))
+        else {
+            continue;
+        };
+        let cited = thing(PAPER, clip(&name, 200));
+        if cited == paper {
+            continue;
+        }
+        col.entity(&cited, Some(&ev));
+        if let Some(d) = doi {
+            attr(col, &cited, "doi", &d, "paper.cites", BP, &ev);
+        }
+        mention(col, &doc, cited, "paper.cites", &ev);
     }
 }
