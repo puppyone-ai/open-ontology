@@ -113,6 +113,9 @@ pub const KNOWN_TOOLS: &[&str] = &[
 ];
 
 const RULE_SECTION_WORDS: &[&str] = &[
+    "naming",
+    "format",
+    "lint",
     "rule",
     "convention",
     "guideline",
@@ -433,7 +436,36 @@ pub fn path_token(raw: &str, quoted: bool) -> Option<String> {
         .trim_matches('/')
         .split('/')
         .all(|s| s.chars().count() >= 2 || s == "." || s == "~");
-    let ok = if quoted {
+    // A bare file name in running text (`CHANGELOG.md`), only for extensions that are not also a product name (Node.js).
+    let bare_file = !quoted
+        && slashes == 0
+        && !t.starts_with('.')
+        && ext.as_deref().is_some_and(|e| {
+            matches!(
+                e,
+                "md" | "mdc"
+                    | "toml"
+                    | "json"
+                    | "yaml"
+                    | "yml"
+                    | "lock"
+                    | "txt"
+                    | "cfg"
+                    | "ini"
+                    | "sh"
+                    | "sql"
+                    | "rs"
+                    | "py"
+                    | "ts"
+                    | "tsx"
+                    | "go"
+                    | "proto"
+            )
+        })
+        && t.chars().next().is_some_and(char::is_alphanumeric);
+    let ok = if bare_file {
+        true
+    } else if quoted {
         (slashes >= 1 && segs_ok && !t.starts_with('/')
             || t.starts_with("~/")
             || t.starts_with('/') && slashes >= 2)
@@ -505,8 +537,9 @@ fn note_path(
 /// Words that can be a tool name or an ordinary word: they count only as the head of a command in a code block or a
 /// code span, never as a bare word of prose.
 const AMBIGUOUS_TOOLS: &[&str] = &[
-    "go", "make", "task", "just", "pod", "bundle", "az", "nx", "oo", "uv", "sh", "swift", "gh",
-    "node", "java", "php", "ruby", "turbo", "vite", "black", "nextest", "husky", "jest", "helm",
+    "python", "deno", "bun", "rust", "go", "make", "task", "just", "pod", "bundle", "az", "nx",
+    "oo", "uv", "sh", "swift", "gh", "node", "java", "php", "ruby", "turbo", "vite", "black",
+    "nextest", "husky", "jest", "helm",
 ];
 /// Tools whose first argument is a subcommand.
 const SUBCOMMAND_TOOLS: &[&str] = &[
@@ -554,6 +587,10 @@ const PROSE_STOP: &[&str] = &[
 ];
 
 fn arg_like(tok: &str) -> bool {
+    // A version number (`3.11`) is not an argument.
+    if tok.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return false;
+    }
     tok.starts_with('-')
         || tok.contains('/')
         || tok.contains('=')
@@ -571,7 +608,15 @@ pub fn prose_commands(text: &str) -> Vec<String> {
             toks[i].trim_matches(|c: char| matches!(c, ',' | ';' | ':' | '(' | ')' | '"' | '\''));
         let hl = lower(head);
         i += 1;
-        if !KNOWN_TOOLS.contains(&hl.as_str()) || AMBIGUOUS_TOOLS.contains(&hl.as_str()) {
+        // `run make generate`: an ordinary word is a tool when a verb says so.
+        let after_verb = i >= 2
+            && matches!(
+                lower(toks[i - 2].trim_matches(|c: char| !c.is_alphanumeric())).as_str(),
+                "run" | "runs" | "running" | "execute" | "invoke" | "call"
+            );
+        if !KNOWN_TOOLS.contains(&hl.as_str())
+            || (AMBIGUOUS_TOOLS.contains(&hl.as_str()) && !after_verb)
+        {
             continue;
         }
         let mut cmd = vec![hl.clone()];
@@ -691,7 +736,48 @@ fn mentions_of(text: &str) -> Mentions {
     m
 }
 
-pub(crate) fn extract(_path: &str, ir: &DocIr, col: &mut Collector) {
+/// A style guide, conventions or guidelines document: what its lists state is a rule unless the section is background.
+fn ruleset_doc(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path).to_lowercase();
+    let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
+    [
+        "style",
+        "convention",
+        "guideline",
+        "standards",
+        "规范",
+        "约定",
+        "守则",
+    ]
+    .iter()
+    .any(|k| stem.contains(k))
+}
+
+const BACKGROUND_WORDS: &[&str] = &[
+    "background",
+    "history",
+    "overview",
+    "about",
+    "why",
+    "introduction",
+    "context",
+    "changelog",
+    "notes",
+    "背景",
+    "历史",
+    "简介",
+    "概述",
+];
+
+fn is_background(hpath: &[String]) -> bool {
+    hpath.last().is_some_and(|h| {
+        let l = lower(h);
+        BACKGROUND_WORDS.iter().any(|w| l.contains(w))
+    })
+}
+
+pub(crate) fn extract(path: &str, ir: &DocIr, col: &mut Collector) {
+    let ruleset = ruleset_doc(path);
     let mut seen = Seen {
         commands: Vec::new(),
         paths: Vec::new(),
@@ -743,7 +829,7 @@ pub(crate) fn extract(_path: &str, ir: &DocIr, col: &mut Collector) {
         if text.is_empty() {
             continue;
         }
-        let in_rules = is_rule_section(&b.hpath);
+        let in_rules = is_rule_section(&b.hpath) || (ruleset && !is_background(&b.hpath));
         let candidates: Vec<String> = if b.kind == BlockKind::ListItem && in_rules {
             vec![first_item_text(&text)]
         } else {
@@ -761,7 +847,12 @@ pub(crate) fn extract(_path: &str, ir: &DocIr, col: &mut Collector) {
                 continue;
             }
             // A bare command or a path list is not a rule.
-            if command_line(&s).is_some() && !s.contains(". ") && !has_cue(&s) {
+            if command_line(&s).is_some_and(|c| {
+                !AMBIGUOUS_TOOLS.contains(&tool_of(&c).unwrap_or_default().as_str())
+            }) && s.split_whitespace().count() <= 8
+                && !s.contains(". ")
+                && !has_cue(&s)
+            {
                 continue;
             }
             let name = clip(&s, RULE_NAME_CHARS);

@@ -34,9 +34,15 @@ fn profiles_by_path_and_format() {
         Profile::Instruction
     );
     assert_eq!(p("docs/STYLE_GUIDE.md", Some("md")), Profile::Instruction);
-    assert_eq!(p("docs/decisions/0007-queue-limits.md", Some("md")), Profile::Instruction);
+    assert_eq!(
+        p("docs/decisions/0007-queue-limits.md", Some("md")),
+        Profile::Instruction
+    );
     // The Decisions folder of a business Drive is not an ADR tree.
-    assert_eq!(p("Decisions/D-2026-01-weekly.md", Some("md")), Profile::Business);
+    assert_eq!(
+        p("Decisions/D-2026-01-weekly.md", Some("md")),
+        Profile::Business
+    );
     assert_eq!(p("CONTRIBUTING.md", Some("md")), Profile::Instruction);
     assert_eq!(p("src/main.rs", Some("txt")), Profile::Code);
     assert_eq!(p("web/app.tsx", Some("txt")), Profile::Code);
@@ -301,4 +307,53 @@ fn text_without_structure_has_no_entities() {
 #[test]
 fn every_label_is_registered() {
     assert!(is_profile_label("Rule") && is_profile_label("Metric") && !is_profile_label("Amount"));
+}
+
+#[test]
+fn a_style_guide_states_rules_in_every_list_but_the_background() {
+    let ir = md(
+        "# Style guide\n\n## Formatting\n\n- Rust code is formatted by rustfmt with the default settings.\n- Python code follows black with a line length of 100.\n\n## Background\n\n- The guide was written in 2025.\n",
+    );
+    let x = extraction("docs/STYLE_GUIDE.md", &ir);
+    let rules = names(&x, RULE);
+    assert_eq!(rules.len(), 2, "{rules:?}");
+    // `Python code follows black` is a sentence, not the command `python`; a version is not an argument.
+    let commands = names(&x, COMMAND);
+    assert!(commands.is_empty(), "{commands:?}");
+}
+
+#[test]
+fn commands_are_found_in_running_text_and_a_verb_makes_an_ordinary_word_a_tool() {
+    let ir = md(
+        "# Notes\n\n- Run make generate after changing the schema.\n- Do not run cargo test -p harborq-core on CI without --locked.\n- Node.js 22 is required, see CHANGELOG.md.\n",
+    );
+    let x = extraction("AGENTS.md", &ir);
+    let commands = names(&x, COMMAND);
+    assert!(
+        commands.contains(&"make generate".to_owned()),
+        "{commands:?}"
+    );
+    assert!(
+        commands.contains(&"cargo test -p harborq-core".to_owned()),
+        "{commands:?}"
+    );
+    assert!(names(&x, PATH).contains(&"CHANGELOG.md".to_owned()));
+    assert!(
+        !names(&x, PATH).iter().any(|p| p.starts_with("Node")),
+        "{:?}",
+        names(&x, PATH)
+    );
+}
+
+#[test]
+fn trait_methods_and_metric_suffixes() {
+    let ir = txt("pub trait Store {\n    fn load(&self, id: u64) -> Option<String>;\n}\n");
+    let x = extraction("lib.rs", &ir);
+    assert_eq!(names(&x, FUNCTION), vec!["lib.rs::Store::load"]);
+    let ir = md(
+        "# A Paper Title Here\n\nAda Lovelace\n\n## Abstract\n\nWe report MRR@10 and Recall@100 and we propose MedCL, a method.\n\n## References\n\n[1] B. Author. Some Reference Title Here. ACL, 2020.\n",
+    );
+    let x = extraction("p.md", &ir);
+    assert_eq!(names(&x, METRIC), vec!["MRR", "Recall"]);
+    assert_eq!(names(&x, METHOD), vec!["MedCL"]);
 }

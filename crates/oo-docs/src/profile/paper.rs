@@ -300,7 +300,16 @@ fn methods_in(text: &str) -> Vec<String> {
                         .next()
                         .unwrap_or(head)
                         .trim();
-                    let n = format!("{name}{suffix}");
+                    // A Latin name (MedCL) is the method itself; a Chinese descriptor keeps its suffix.
+                    let n = if !name.is_empty()
+                        && name
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '+'))
+                    {
+                        name.to_owned()
+                    } else {
+                        format!("{name}{suffix}")
+                    };
                     if (2..=24).contains(&name.chars().count()) && !out.contains(&n) {
                         out.push(n);
                     }
@@ -543,6 +552,7 @@ fn metrics_in(text: &str) -> Vec<&'static str> {
     let words: Vec<&str> = text
         .split(|c: char| !(c.is_alphanumeric() || c == '-' || c == '@'))
         .filter(|w| !w.is_empty())
+        .map(|w| w.split('@').next().unwrap_or(w))
         .collect();
     let lt = lower(text);
     for &(k, canon) in METRICS {

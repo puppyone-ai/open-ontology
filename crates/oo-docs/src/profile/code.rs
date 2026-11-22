@@ -277,7 +277,7 @@ fn rust_outline(root: Node<'_>, src: &str, out: &mut Outline, prefix: &str, dept
             }
         };
         match n.kind() {
-            "function_item" => {
+            "function_item" | "function_signature_item" => {
                 if let Some(name) = field_text(n, "name", src) {
                     push_symbol(out, FUNCTION, &qual(name), l);
                 }
