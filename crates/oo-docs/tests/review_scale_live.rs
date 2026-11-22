@@ -20,7 +20,7 @@ use common::fx::Fx;
 fn files(n: usize) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     for i in 0..n {
-        let dir = format!("d{:03}/s{:02}", i % 100, (i / 100) % 10);
+        let dir = format!("d{:03}/s{:02}/t{}", i % 100, (i / 100) % 10, i / 1000);
         let (p, s) = match i % 10 {
             0 => (
                 format!("Projects/{dir}/p{i}.md"),
@@ -71,7 +71,11 @@ fn files(n: usize) -> Vec<(String, String)> {
     for k in 0..copies {
         let (p, s) = out[(k * 7) % n].clone();
         out.push((
-            format!("copies/c{:03}/{}", k % 40, p.rsplit('/').next().unwrap()),
+            format!(
+                "copies/c{:03}/{k}-{}",
+                k % 40,
+                p.rsplit('/').next().unwrap()
+            ),
             s,
         ));
     }
