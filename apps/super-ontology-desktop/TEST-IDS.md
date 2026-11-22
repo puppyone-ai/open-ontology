@@ -137,6 +137,8 @@ Rules:
 | `fact-list` `fact-row` **(T1)** | fact timeline | row: `data-predicate`, `data-state` |
 | `evidence-link` **(T1)** | one-step jump to the source anchor | `data-file` |
 | `review-list` `review-row` | items waiting for confirmation | |
+| `speaker-group` `speaker-group-open` `speaker-row` `speaker-play` `speaker-clip` `speaker-clip-play` `speaker-clip-text` `speaker-open-at` `speaker-no-clips` `speaker-confirm-candidate` `speaker-name` `speaker-confirm-typed` `speaker-none` | Review of one recording's speakers (D74 as revised) | group: `data-active`; row: `data-speaker` (`S1`...), `data-playing`; clip: `data-start`, `data-now` |
+| `review-pane` `media-pane` `media-element` `media-play` `media-seek` `media-time` `media-transcript` `media-utterance` `media-class` `media-dialog` `media-unavailable` `media-failed` `file-media` | the media preview (review pane, file panel, evidence dialog) | pane: `data-kind`, `data-playing`; utterance: `data-start`, `aria-current`; class: `data-class` = `conversation` `non_conversation` `unsure` |
 | `review-accept` `review-reject` | decide the focused item | |
 | `constraint-list` `conflict-row` | conflicts | |
 

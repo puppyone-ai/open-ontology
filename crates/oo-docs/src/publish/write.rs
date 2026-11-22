@@ -94,6 +94,12 @@ pub async fn index_document_with(
     } else {
         Vec::new()
     };
+    // A recording is classified before speakers are told apart (D74): the stored class, or the rules' own.
+    let media = if super::media_profile::is_media(doc.ir) {
+        Some(super::media_profile::resolve(conn, doc.ir, doc.path).await?)
+    } else {
+        None
+    };
     let extraction = extract_in(
         doc.path,
         doc.ir,
@@ -101,6 +107,7 @@ pub async fn index_document_with(
             paths: siblings,
             profile,
             markers: &markers,
+            media,
         },
     );
     index_extraction(conn, doc, &extraction).await

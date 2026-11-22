@@ -223,6 +223,25 @@ pub async fn detail(app: &AppState, fid: &str, q: &Query) -> Result<Response<Bod
         }
         None => Value::Null,
     };
+    // What kind of recording this is (1.14): `{class, kind, source, speakers}`; only audio and video have one.
+    if summary["parse"].is_object()
+        && let Some(b3) = head.b3.as_deref()
+        && let Some(m) = crate::publish::media_profile::load(&mut conn, b3).await?
+    {
+        let speakers = u64::try_from(sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'speaker_identity' AND subject->>'b3' = $1 AND status = 'pending'",
+        )
+        .bind(b3)
+        .fetch_one(&mut *conn)
+        .await?)
+        .unwrap_or(0);
+        summary["parse"]["media"] = json!({
+            "class": m.class.as_str(),
+            "kind": m.kind,
+            "source": m.source,
+            "speakers_to_name": speakers,
+        });
+    }
     // No model is configured in this build: extraction is rules only.
     summary["llm"] = json!({ "status": "skipped_not_configured", "calls": 0, "cache_hits": 0 });
 

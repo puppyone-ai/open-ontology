@@ -1206,7 +1206,7 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 #### 5.1.1 准入：文件类别与处理（D94）
 
-不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0156，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
+不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0159，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
 
 用户可改单个文件或目录（含其下全部）的类别：`GET`/`PUT /v1/docs/drives/{id}/profile-overrides`、`oo docs profile ls|set|clear`、App 的文件详情与文件夹操作；文件自己的设置压过目录的，近的目录压过远的；改后受影响文件按新类别重新抽取（状态经 `outdated` 回到 `published`）。
 
@@ -2629,6 +2629,7 @@ IR 输出：每个说话人连续的一段话为一个 `utterance` 块，`anchor
 - 所有映射都进待确认种类 `speaker_identity`；确认后写 overlay，`S1` 发言中的事实主语按确认结果解析。
 - 身份未确认的说话人：其发言产生的事实保持 `draft`，不自动发布，BRIEF 中不出现。
 - **已由 D98（2026-11-22）修订**：先判定媒体类别，只有会议、访谈、讲座、语音备忘录做说话人分离；说话人以“《某会议》的说话人 A/B/C”占位实体照常发布事实，命名后重新解析并改挂；不再因未确认而保持 `draft`。
+- 类型对象（D93、D98，实现于 lane AL）：每个媒体文件进入本体为一个 `Recording` 实体（实体名为文件路径，别名为标题；属性 `attr.media_class` = `conversation` 或 `media_asset`、`attr.duration_ms`）。会议、访谈、讲座、语音备忘录（`media_class = conversation`，细分 `kind` 为 `conversation`、`lecture`、`voice_memo`）另有 `Meeting` 实体（名为“《标题》 · 哈希前缀”），关系 `recorded_in`（Meeting → Recording）与 `has_participant`（Meeting → Person，主语为占位说话人，命名后经合并改挂到具名 Person）；宣传片、剪辑视频、电影、音乐为媒体资产：只有 `Recording` 及其属性，不读音轨内容、不产生其他事实。`EntityType` 增 `Recording`、`Meeting`；关系增 `recorded_in`、`has_participant`（fact.predicate 的 CHECK 与 DOC-G1 域/值域同步，迁移 0157）。占位说话人实体名为“《标题》的说话人 A · 哈希前缀”（界面隐去后缀并按语言显示）。
 - 不做声纹库，不跨录音比对（D63）。
 
 ### 17.5 视频（D75）

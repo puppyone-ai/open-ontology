@@ -7,7 +7,38 @@ export function stubBridgeSource(scenario) {
     const snapshot = (status) => ({ revision: 1, status, reason: null, code: status === "crashed" ? "SO_SERVE_START_TIMEOUT" : null, logPath: status === "crashed" ? "/Users/example/Library/Logs/Super Ontology/super-ontology-serve.log" : null, preflight: null, health: status === "healthy" ? { events_head: 0 } : null, restarts: { count: 0, nextAttemptAt: null }, ownedByDesktop: true, keepEngineOnQuit: false, startedAt: now, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 }, mode: "local", remote: null });
     const drive = (id, name, files, extra = {}) => ({ id, name, backend: "fs", config: { root: "/Users/example/" + name }, status: "active", revision: 1, counts: { published: files }, files_total: files, bytes_total: files * 2048, pending_review: 0, created_at: now, freshness: { state: "up_to_date" }, ...extra });
     const entity = (n, name, type, facts) => ({ id: "00000000-0000-4000-8000-0000000001" + String(n).padStart(2, "0"), key: name.toLowerCase().replace(/ /g, "-"), type, name, counts: { facts } });
-    const drives = scenario.engine === "starting" ? [] : [drive("00000000-0000-4000-8000-000000000001", "My files", 3), drive("00000000-0000-4000-8000-000000000002", "Team docs", 12), ...(scenario.cloud ? [drive("00000000-0000-4000-8000-000000000003", "Archive bucket", 40, { backend: "s3", config: { bucket: "archive" } })] : [])];
+    // Speakers to name (scenario.speakers): one conversation with two speakers, its transcript and a short tone to play (a data URL, no file).
+    const AUDIO = "00000000-0000-4000-8000-0000000004a1";
+    const tone = () => {
+      const rate = 4000; const seconds = 32; const samples = new Int16Array(rate * seconds);
+      for (let i = 0; i < samples.length; i += 1) samples[i] = Math.round(Math.sin((2 * Math.PI * (330 + 110 * Math.floor(i / (rate * 4) % 2)) * i) / rate) * 2000);
+      const bytes = new Uint8Array(44 + samples.length * 2); const view = new DataView(bytes.buffer);
+      const text = (at, value) => { for (let k = 0; k < value.length; k += 1) view.setUint8(at + k, value.charCodeAt(k)); };
+      text(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); text(8, "WAVEfmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); text(36, "data"); view.setUint32(40, samples.length * 2, true);
+      new Int16Array(bytes.buffer, 44).set(samples);
+      let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte);
+      return "data:audio/wav;base64," + window.btoa(binary);
+    };
+    const speakerItem = (n, speaker, letter, candidates) => ({ id: "00000000-0000-4000-8000-0000000005b" + n, kind: "speaker_identity", status: "pending", reason_code: "speaker_unconfirmed", drive_id: "00000000-0000-4000-8000-000000000001", revision: 1, created_at: now,
+      source: { file_id: AUDIO, path: "launch-sync-2027-01-12.m4a" }, subject: { b3: "ab".repeat(32), speaker, letter, placeholder: "Speaker " + letter + " · abababab", candidates } });
+    const block = (n, speaker, from, to, text) => ({ id: "blk_" + n, ordinal: n, kind: "utterance", text, hpath: [], anchor: { kind: "media", t_start_ms: from * 1000, t_end_ms: to * 1000, speaker }, flags: [] });
+    const talk = [block(1, "S1", 0, 7, "Good morning everyone. This is the launch sync, and I am Daniel Ortiz."), block(2, "S2", 8, 16, "Thanks Daniel. Lens yield from the current supplier is seventy one percent."), block(3, "S1", 17, 24, "Understood. What is the threshold we agreed for the launch?"), block(4, "S2", 25, 32, "Eighty five percent. We will ask Hengding for a new quote this week.")];
+    const mediaFile = { id: AUDIO, drive_id: "00000000-0000-4000-8000-000000000001", path: "launch-sync-2027-01-12.m4a", name: "launch-sync-2027-01-12.m4a", size: 512000, state: "published", format: "audio", state_since: now, retryable: false, pending_review: 2, modified_at: now };
+    const speakerAnswer = (channel, request) => {
+      switch (channel) {
+        case "review-list": return { items: [speakerItem(1, "S1", "A", [{ name: "Daniel Ortiz", source: "self_intro", quote: "I am Daniel Ortiz", block_id: "blk_1" }]), speakerItem(2, "S2", "B", [])], next_cursor: null };
+        case "file-detail": return { id: AUDIO, drive_id: "00000000-0000-4000-8000-000000000001", path: "launch-sync-2027-01-12.m4a", name: "launch-sync-2027-01-12.m4a", size: 512000, state: "published", format: "audio", state_since: now, retryable: false, pending_review: 2, modified_at: now,
+          parse: { parser_id: "media", parser_version: "1", block_count: 4, warnings: [], media: { class: scenario.mediaClass ?? "conversation", kind: scenario.mediaClass === "non_conversation" ? "promo" : "conversation", source: "rules", speakers_to_name: 2 } }, entities: [], facts: [] };
+        case "drive-tree": return { dirs: [], files: { items: [mediaFile], next_cursor: null, as_of_seq: 1 } };
+        case "file-blocks": return { items: talk, next_cursor: null, as_of_seq: 1 };
+        case "file-preview-url": return { url: tone(), expiresAt: "2026-11-12T10:10:00Z" };
+        case "files-list": return { as_of_seq: 1, items: [{ id: AUDIO, drive_id: "00000000-0000-4000-8000-000000000001", path: "launch-sync-2027-01-12.m4a", name: "launch-sync-2027-01-12.m4a", size: 512000, state: "published", format: "audio", state_since: now, retryable: false, pending_review: 2, modified_at: now }], next_cursor: null };
+        case "entities-search": return { items: [{ id: "00000000-0000-4000-8000-000000000199", key: "daniel-ortiz", type: "Person", name: "Daniel Ortiz", counts: { facts: 3 } }, { id: "00000000-0000-4000-8000-000000000198", key: "priya-raman", type: "Person", name: "Priya Raman", counts: { facts: 2 } }], next_cursor: null };
+        default: return undefined;
+      }
+    };
+    const drives = scenario.speakers ? [drive("00000000-0000-4000-8000-000000000001", "Meetings", 1, { pending_review: 2 })] : scenario.engine === "starting" ? [] : [drive("00000000-0000-4000-8000-000000000001", "My files", 3), drive("00000000-0000-4000-8000-000000000002", "Team docs", 12), ...(scenario.cloud ? [drive("00000000-0000-4000-8000-000000000003", "Archive bucket", 40, { backend: "s3", config: { bucket: "archive" } })] : [])];
     const entities = [entity(1, "Dana Lee", "Person", 4), entity(2, "Project Alpha", "Project", 5), entity(3, "Harbor feed", "Topic", 2), entity(4, "Projects/alpha.md", "Document", 3)];
     const empty = { items: [], next_cursor: null };
     const cli = (data, extra = {}) => ({ ok: true, exit: 0, data, error: null, cli: "oo command --json", ...extra });
@@ -26,6 +57,7 @@ export function stubBridgeSource(scenario) {
     const JOB_UP = "00000000-0000-4000-8000-0000000000a1"; const JOB_BUILD = "00000000-0000-4000-8000-0000000000a2"; const JOB_RESUME = "00000000-0000-4000-8000-0000000000a3";
     let buildStarted = false;
     const answer = (channel, request) => {
+      if (scenario.speakers) { const mine = speakerAnswer(channel, request); if (mine !== undefined) return mine; }
       switch (channel) {
         case "cli-job-start": buildStarted = buildStarted || request.action === "build"; return { jobId: request.action === "up" ? JOB_UP : JOB_BUILD, cli: "oo " + request.action + " --config stack.yaml --yes --json" };
         case "cli-job-read": {

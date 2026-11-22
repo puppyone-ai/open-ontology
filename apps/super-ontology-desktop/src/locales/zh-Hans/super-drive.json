@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "请先登录云端",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "云端暂不支持此操作",
   "errors.SO_INTERNAL": "发生了意外问题",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "磁盘剩余空间不足，放不下这次拖入的内容。请先腾出空间，或改为关联文件夹而不是复制。"
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "磁盘剩余空间不足，放不下这次拖入的内容。请先腾出空间，或改为关联文件夹而不是复制。",
+  "entity.type.Recording": "录音",
+  "entity.type.Meeting": "会议"
 }

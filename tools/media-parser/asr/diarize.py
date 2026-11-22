@@ -129,6 +129,66 @@ def cluster(vectors, threshold=0.55, num_speakers=None, run_similarity=0.9):
     return np.asarray([label_of_run[r] for r in run_of], dtype=int)
 
 
+SPECTRAL_SIGMA = 0.25
+SPECTRAL_KMAX = 5
+STRAY_SHARE = 0.15
+STRAY_WINDOWS = 2
+SPECTRAL_MIN_WINDOWS = 6
+# One voice: its windows are alike (mean pairwise cosine 0.75-0.78 on single-voice development files, at most 0.63 with two voices).
+SINGLE_VOICE_SIMILARITY = 0.70
+
+
+def _spectral_count(c, sigma=SPECTRAL_SIGMA, kmax=SPECTRAL_KMAX):
+    """Number of speakers from the eigengap of the normalised Laplacian of a cosine affinity (1..kmax)."""
+    n = len(c)
+    cn = c / np.maximum(np.linalg.norm(c, axis=1, keepdims=True), 1e-9)
+    a = np.exp(-(1.0 - cn @ cn.T) / sigma)
+    np.fill_diagonal(a, 0.0)
+    d = np.maximum(a.sum(axis=1), 1e-12)
+    lap = np.eye(n) - a / np.sqrt(np.outer(d, d))
+    w = np.sort(np.linalg.eigvalsh(lap))[: kmax + 1]
+    return int(np.argmax(np.diff(w)[:kmax])) + 1
+
+
+def _merge_strays(labels, c, share=STRAY_SHARE, windows=STRAY_WINDOWS):
+    """A cluster of at most `windows` windows and under `share` of them all is a clustering stray, not a speaker: it joins the nearest cluster."""
+    labels = np.asarray(labels).copy()
+    cn = c / np.maximum(np.linalg.norm(c, axis=1, keepdims=True), 1e-9)
+    n = len(labels)
+    while True:
+        counts = {k: int((labels == k).sum()) for k in sorted(set(labels.tolist()))}
+        small = [k for k, m in counts.items() if m < share * n and m <= windows]
+        if not small or len(counts) == 1:
+            return labels
+        k = min(small, key=lambda x: (counts[x], x))
+        cents = {j: cn[labels == j].mean(axis=0) for j in counts if j != k}
+        mine = cn[labels == k].mean(axis=0)
+        near = max(sorted(cents), key=lambda j: float(mine @ cents[j]) / (np.linalg.norm(mine) * np.linalg.norm(cents[j]) + 1e-9))
+        labels[labels == k] = near
+
+
+def cluster_auto(vectors, threshold=0.55):
+    """Cluster labels without a speaker count (D98 re-tuned, lane AL).
+
+    The embeddings are centred on their mean over the file, which removes what every voice shares (the synthesis or the channel) and lets
+    the speakers stand apart; the count is the eigengap of a spectral graph (at most `SPECTRAL_KMAX`), the clusters come from the same
+    agglomerative step as before, and a cluster of at most `STRAY_WINDOWS` windows (under `STRAY_SHARE` of them) is merged into its nearest. A file with fewer than
+    `SPECTRAL_MIN_WINDOWS` windows keeps the plain threshold clustering. Deterministic. Tuned on synthetic development meetings
+    (`tools/super-ontology/media_class/tune_clustering.py`).
+    """
+    v = np.asarray(vectors, dtype=np.float64)
+    if len(v) < SPECTRAL_MIN_WINDOWS:
+        return cluster(v, threshold)
+    vn = v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-9)
+    sim = vn @ vn.T
+    if float((sim.sum() - len(v)) / (len(v) * (len(v) - 1))) >= SINGLE_VOICE_SIMILARITY:
+        return np.zeros(len(v), dtype=int)
+    c = v - v.mean(axis=0, keepdims=True)
+    k = _spectral_count(c)
+    labels = np.zeros(len(v), dtype=int) if k == 1 else cluster(c, 9.9, num_speakers=k)
+    return _merge_strays(labels, c)
+
+
 def relabel_by_first_appearance(labels, order_keys):
     """Map raw cluster ids to `S1..Sk` by the earliest `order_keys` (start time) of their members."""
     first = {}

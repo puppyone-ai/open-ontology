@@ -15,7 +15,7 @@ use sqlx::{Connection, Executor, Row};
 #[test]
 fn compiled_files_have_stable_shape() {
     let list = migrations();
-    assert_eq!(list.len(), 16);
+    assert_eq!(list.len(), 17);
     let mut seen = std::collections::HashSet::new();
     for (m, min) in list.iter().zip(SCHEMA_MIN) {
         assert_eq!(m.version, min);
@@ -108,7 +108,7 @@ async fn empty_db_install_then_readiness() {
     .await
     .unwrap();
     let extra = usize::from(has_vector(&mut admin).await);
-    assert_eq!(rows.len(), 16 + extra);
+    assert_eq!(rows.len(), 17 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
@@ -118,7 +118,7 @@ async fn empty_db_install_then_readiness() {
             .fetch_one(&mut admin)
             .await
             .unwrap();
-    assert_eq!(tables, 42 + i64::try_from(extra).unwrap());
+    assert_eq!(tables, 43 + i64::try_from(extra).unwrap());
 
     // The runtime principal can verify readiness without installing.
     let mut rt = connect_runtime("oo_docs_it_empty").await;
@@ -247,7 +247,7 @@ async fn missing_prerequisite_raises_oo002_and_runs_nothing() {
         .fetch_one(&mut admin)
         .await
         .unwrap();
-    assert_eq!(n, 15 + i64::from(has_vector(&mut admin).await));
+    assert_eq!(n, 16 + i64::from(has_vector(&mut admin).await));
     match verify_readiness(&mut admin).await {
         Err(ReadinessError::Incomplete { missing }) => assert_eq!(missing, "docs-sources-jobs/1"),
         other => panic!("{other:?}"),
@@ -428,19 +428,30 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .execute("INSERT INTO _oo_docs.drive (id, name, backend, config, max_files) VALUES ('00000000-0000-4000-8000-0000000000a1', 'old', 'fs', '{}', 10000), ('00000000-0000-4000-8000-0000000000a2', 'custom', 'fs', '{}', 500)")
         .await
         .unwrap();
-    // The state 0153 leaves has no 0156 either: no profile column, no 0156 row.
+    // The state 0153 leaves has neither the media class table (0157) nor the profile column (0159).
+    admin
+        .execute("DROP TABLE _oo_docs.media_profile")
+        .await
+        .unwrap();
     admin
         .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile")
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-drive-scale/1', 'docs-file-profile/1')",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-drive-scale/1', 'docs-media-profile/1', 'docs-file-profile/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
         InstallOutcome::Applied(versions) => {
-            assert_eq!(versions, vec!["docs-drive-scale/1", "docs-file-profile/1"])
+            assert_eq!(
+                versions,
+                vec![
+                    "docs-drive-scale/1",
+                    "docs-media-profile/1",
+                    "docs-file-profile/1"
+                ]
+            )
         }
         other => panic!("{other:?}"),
     }
@@ -467,17 +478,60 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
     drop_db(db).await;
 }
 
-/// A database at 0154 upgrades to 0156 in place: the nullable `profile` column exists with its CHECK, rows that were there before
-/// keep a NULL profile, and the column takes only the eight profiles.
+/// A database at 0154 upgrades to 0157 in place: the recording class table appears and takes a row per blob.
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
-async fn a_database_at_0154_upgrades_to_0156_with_the_file_profile_column() {
+async fn a_database_at_0154_upgrades_to_0157_with_the_media_profile_table() {
     let _g = CLUSTER_LOCK.lock().await;
-    let db = "oo_docs_it_upgrade_0156";
+    let db = "oo_docs_it_upgrade_0157";
     installed_db(db).await;
     let mut admin = connect(db).await;
     admin
-        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile")
+        .execute("DROP TABLE _oo_docs.media_profile")
+        .await
+        .unwrap();
+    tamper(
+        &mut admin,
+        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-media-profile/1'",
+    )
+    .await;
+    match install(&mut admin).await.expect("upgrade") {
+        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-media-profile/1"]),
+        other => panic!("{other:?}"),
+    }
+    admin
+        .execute(sqlx::AssertSqlSafe(format!(
+            "INSERT INTO _oo_docs.media_profile (b3, class, kind, confidence_bp, source) \
+             VALUES ('{}', 'conversation', 'conversation', 9000, 'rules')",
+            "a".repeat(64)
+        )))
+        .await
+        .expect("a row per blob");
+    assert!(
+        admin
+            .execute("INSERT INTO _oo_docs.media_profile (b3, class, kind, confidence_bp, source) VALUES ('x', 'meeting', 'k', 1, 'rules')")
+            .await
+            .is_err(),
+        "the class is closed"
+    );
+    drop_db(db).await;
+}
+
+/// A database at 0157 upgrades to 0159 in place: the nullable `profile` and `profile_reason` columns and the override table exist, rows that were there
+/// before keep a NULL profile, the column takes only the eight profiles and the predicate check knows `cites` and `authored`.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_database_at_0157_upgrades_to_0159_with_the_file_class() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_it_upgrade_0159";
+    installed_db(db).await;
+    let mut admin = connect(db).await;
+    admin
+        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile, DROP COLUMN profile_reason")
+        .await
+        .unwrap();
+    admin
+        .execute("DROP TABLE _oo_docs.profile_override")
         .await
         .unwrap();
     tamper(
@@ -505,5 +559,19 @@ async fn a_database_at_0154_upgrades_to_0156_with_the_file_profile_column() {
     .await
     .unwrap();
     assert_eq!(check, 1);
+    admin
+        .execute("INSERT INTO _oo_docs.profile_override (drive_id, scope, path, profile) SELECT id, 'dir', 'notes', 'instruction' FROM _oo_docs.drive LIMIT 0")
+        .await
+        .expect("the override table exists");
+    let cites: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_constraint WHERE conname = 'fact_predicate_check' AND pg_get_constraintdef(oid) LIKE '%cites%' AND pg_get_constraintdef(oid) LIKE '%has_participant%'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert_eq!(
+        cites, 1,
+        "the check keeps the media relations and adds cites and authored"
+    );
     drop_db(db).await;
 }

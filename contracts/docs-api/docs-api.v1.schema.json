@@ -202,7 +202,9 @@
         "Topic",
         "Event",
         "Term",
-        "Thing"
+        "Thing",
+        "Recording",
+        "Meeting"
       ],
       "examples": [
         "Person"
@@ -1076,6 +1078,32 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            },
+            "media": {
+              "type": "object",
+              "description": "Audio and video only (1.14, D74 revision): what kind of recording this is, decided before speakers are told apart. `class` is `conversation` (a meeting, an interview, a call, a lecture, a voice memo: transcribed, speakers are told apart and a `speaker_identity` item per speaker may wait for a name), `non_conversation` (a media asset: a promo, an edited video, a film, music: one typed Recording object, no speakers, no facts from its sound) or `unsure`. `kind` says why (`conversation`, `lecture`, `voice_memo`, `promo`, `music_or_ambient`, `edited_video`, `undecided`); `source` is `rules` or `model`; `speakers_to_name` counts the pending `speaker_identity` items of this recording.",
+              "properties": {
+                "class": {
+                  "enum": [
+                    "conversation",
+                    "non_conversation",
+                    "unsure"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "rules",
+                    "model"
+                  ]
+                },
+                "speakers_to_name": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             }
           }
@@ -6285,7 +6313,7 @@
         "path",
         "profile"
       ],
-      "description": "Body of `PUT /v1/docs/drives/{id}/profile-overrides` (1.14): set the choice, or remove it with `profile: null`.",
+      "description": "Body of `PUT /v1/docs/drives/{id}/profile-overrides` (1.15): set the choice, or remove it with `profile: null`.",
       "properties": {
         "scope": {
           "type": "string",
@@ -7063,7 +7091,7 @@
       "response": "ProfileOverrideList",
       "idempotency_key": false,
       "if_match": false,
-      "since": "1.14"
+      "since": "1.15"
     },
     {
       "method": "PUT",
@@ -7072,7 +7100,7 @@
       "response": "ProfileOverrideResult",
       "idempotency_key": false,
       "if_match": false,
-      "since": "1.14"
+      "since": "1.15"
     }
   ]
 }

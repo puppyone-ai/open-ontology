@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDisplayName } from "../../hooks/useDisplayName";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, EmptyState, Notice, Select, Skeleton } from "@open-ontology/design-system";
 import { Network, Search } from "lucide-react";
@@ -12,6 +13,7 @@ import { isEngineReady } from "../../model/superDriveStateModel";
 
 export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
   const { t } = useLocalization();
+  const shown = useDisplayName();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const version = useSuperDriveSelector(selectOntologyVersion);
   const [query, setQuery] = useState("");
@@ -48,9 +50,9 @@ export function EntityList({ onOpen }: { onOpen: (key: string) => void }) {
         <Card className="so-list" data-testid="entity-list">
           {items.map((entity) => (
             <button key={entity.id} type="button" className="so-list-row" onClick={() => onOpen(entity.key)} data-testid="entity-row" data-name={entity.name} data-type={entity.type}>
-              <span className="so-list-lead so-weak" aria-hidden="true">{entity.name.slice(0, 1).toUpperCase()}</span>
+              <span className="so-list-lead so-weak" aria-hidden="true">{shown(entity.name).slice(0, 1).toUpperCase()}</span>
               <span className="so-list-text">
-                <span className="so-list-title so-truncate">{entity.name}</span>
+                <span className="so-list-title so-truncate">{shown(entity.name)}</span>
                 <span className="so-list-sub so-truncate">{t(`super-drive.entity.type.${entity.type}`)}{entity.matched_alias ? ` · ${t("app.ontology.alias", { alias: entity.matched_alias })}` : ""}</span>
               </span>
               <span className="so-weak">{t("app.ontology.facts", { count: entity.counts?.facts ?? 0 })}</span>

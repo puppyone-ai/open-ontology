@@ -76,7 +76,7 @@ export type EngineBlock = {
 /** `files/{fid}` with its optional includes; the summary fields come first. */
 export type EngineFileDetail = EngineFileSummary & {
   versions?: { id: string; b3: string; created_at: string; superseded_at: string | null }[];
-  parse?: { parser_id?: string; parser_version?: string; block_count?: number; page_count?: number | null; warnings?: string[] } | null;
+  parse?: { parser_id?: string; parser_version?: string; block_count?: number; page_count?: number | null; warnings?: string[]; media?: { class: "conversation" | "non_conversation" | "unsure"; kind: string; source: string; speakers_to_name: number } } | null;
   llm?: { status?: string; calls?: number; cache_hits?: number } | null;
   history?: { seq: number; from?: string | null; to: string; code?: string | null; attempt?: number | null; at: string }[];
 };

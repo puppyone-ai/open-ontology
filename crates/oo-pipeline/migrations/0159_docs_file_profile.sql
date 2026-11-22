@@ -1,7 +1,7 @@
 -- docs-file-profile/1 phase expand
--- Run by oo_docs::store::install as oo_docs_owner after docs-drive-scale/1, inside the installer
+-- Run by oo_docs::store::install as oo_docs_owner after docs-media-profile/1, inside the installer
 -- transaction. No BEGIN or COMMIT here; the installer inserts the schema_migrations row.
--- D89: every file has a profile (what kind of document it is) that decides how it is read. The column is nullable: a
+-- D94: every file has a profile (its class) that decides whether and how it enters the ontology. The column is nullable: a
 -- row that was never extracted shows the profile the API derives from its path and format. Nothing is rewritten.
 
 SET LOCAL search_path = pg_catalog;
@@ -11,8 +11,8 @@ BEGIN
   IF current_user IS DISTINCT FROM 'oo_docs_owner' THEN
     RAISE EXCEPTION 'docs migration must run as the owner' USING ERRCODE = 'OO013';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM _oo_docs.schema_migrations WHERE version = 'docs-drive-scale/1') THEN
-    RAISE EXCEPTION 'docs-drive-scale/1 is not installed' USING ERRCODE = 'OO002';
+  IF NOT EXISTS (SELECT 1 FROM _oo_docs.schema_migrations WHERE version = 'docs-media-profile/1') THEN
+    RAISE EXCEPTION 'docs-media-profile/1 is not installed' USING ERRCODE = 'OO002';
   END IF;
 END
 $guard$;
@@ -39,5 +39,5 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON _oo_docs.profile_override TO oo_docs_run
 -- D94: two relations of a reference (`cites`, `authored`) join the core ones.
 ALTER TABLE _oo_docs.fact DROP CONSTRAINT fact_predicate_check;
 ALTER TABLE _oo_docs.fact ADD CONSTRAINT fact_predicate_check CHECK (
-  predicate ~ '^(owns|member_of|decides|supersedes|rejects|mentions|about|tried_and_failed|cites|authored|attr\.[a-z_]{1,40})$'
+  predicate ~ '^(owns|member_of|decides|supersedes|rejects|mentions|about|tried_and_failed|has_participant|recorded_in|cites|authored|attr\.[a-z_]{1,40})$'
 );

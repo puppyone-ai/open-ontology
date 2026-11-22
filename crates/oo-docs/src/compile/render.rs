@@ -104,6 +104,8 @@ pub fn predicate_cn(p: &Predicate) -> String {
         Predicate::Mentions => "提及".into(),
         Predicate::Cites => "引用了".into(),
         Predicate::Authored => "撰写了".into(),
+        Predicate::HasParticipant => "参会人".into(),
+        Predicate::RecordedIn => "录制于".into(),
         Predicate::Attr(a) => format!("{}为", attr_cn(a)),
     }
 }
@@ -121,6 +123,8 @@ fn attr_cn(name: &str) -> &str {
         "venue" => "出处",
         "year" => "年份",
         "doi" => "DOI",
+        "media_class" => "媒体类别",
+        "duration_ms" => "时长（毫秒）",
         other => other,
     }
 }

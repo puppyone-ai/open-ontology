@@ -1,0 +1,73 @@
+{
+ "duration_ms": 34064,
+ "speakers": [
+  "S1",
+  "S2",
+  "S3"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 10,
+   "t_end_ms": 5090,
+   "text": "Good morning everyone,let's start the weekly project meeting with last week's progress.The prototype is",
+   "word_start": 0,
+   "word_end": 17
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 5090,
+   "t_end_ms": 11420,
+   "text": "finished and internal testing starts on Monday,we need three people.Who will set up the test",
+   "word_start": 18,
+   "word_end": 36
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 11420,
+   "t_end_ms": 14490,
+   "text": "environment and is the budget still fire?I will",
+   "word_start": 37,
+   "word_end": 46
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 14490,
+   "t_end_ms": 20520,
+   "text": "set up the environment and the budget is enough,no extra money is needed.One",
+   "word_start": 47,
+   "word_end": 63
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 20520,
+   "t_end_ms": 25660,
+   "text": "more point,the supplier quote is confirmed and delivery takes 21 days.Great,then",
+   "word_start": 64,
+   "word_end": 80
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 25660,
+   "t_end_ms": 28750,
+   "text": "we send the test plan to everyone before Friday.",
+   "word_start": 81,
+   "word_end": 90
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 29206,
+   "t_end_ms": 33406,
+   "text": "understood,I will send it Thursday evening and we meet again next Tuesday.",
+   "word_start": 91,
+   "word_end": 105
+  }
+ ]
+}

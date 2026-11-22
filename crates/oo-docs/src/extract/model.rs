@@ -19,11 +19,15 @@ pub enum EntityType {
     Event,
     Term,
     Thing,
+    /// A recording or a media asset (D98): title, duration and class; the object a transcript belongs to.
+    Recording,
+    /// A meeting, interview or lecture held in a recording (D98).
+    Meeting,
 }
 
 impl EntityType {
     /// All types in declaration order.
-    pub const ALL: [EntityType; 9] = [
+    pub const ALL: [EntityType; 11] = [
         Self::Person,
         Self::Organization,
         Self::Project,
@@ -33,6 +37,8 @@ impl EntityType {
         Self::Event,
         Self::Term,
         Self::Thing,
+        Self::Recording,
+        Self::Meeting,
     ];
 
     /// `entity.type` column value.
@@ -47,6 +53,8 @@ impl EntityType {
             Self::Event => "Event",
             Self::Term => "Term",
             Self::Thing => "Thing",
+            Self::Recording => "Recording",
+            Self::Meeting => "Meeting",
         }
     }
 
@@ -62,6 +70,8 @@ impl EntityType {
             Self::Event => "event",
             Self::Term => "term",
             Self::Thing => "thing",
+            Self::Recording => "recording",
+            Self::Meeting => "meeting",
         }
     }
 
@@ -86,6 +96,10 @@ pub enum Predicate {
     Cites,
     /// A person wrote a reference (D94, the reference's own authors only).
     Authored,
+    /// A meeting has a participant (a Person, a placeholder speaker until named; D98).
+    HasParticipant,
+    /// A meeting was recorded in a recording (D98).
+    RecordedIn,
     /// `attr.<name>`, name `[a-z_]{1,40}`.
     Attr(String),
 }
@@ -104,6 +118,8 @@ impl Predicate {
             Self::TriedAndFailed => "tried_and_failed".into(),
             Self::Cites => "cites".into(),
             Self::Authored => "authored".into(),
+            Self::HasParticipant => "has_participant".into(),
+            Self::RecordedIn => "recorded_in".into(),
             Self::Attr(a) => format!("attr.{a}"),
         }
     }
@@ -122,6 +138,8 @@ impl Predicate {
             "tried_and_failed" => Self::TriedAndFailed,
             "cites" => Self::Cites,
             "authored" => Self::Authored,
+            "has_participant" => Self::HasParticipant,
+            "recorded_in" => Self::RecordedIn,
             other => {
                 let attr = other.strip_prefix("attr.")?;
                 let ok = (1..=40).contains(&attr.len())

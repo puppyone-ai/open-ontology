@@ -69,10 +69,12 @@ pub const VERSION_LINK_RULES: &str = "docs-link-rules/1";
 pub const VERSION_SEARCH_INDEX: &str = "docs-search-index/1";
 /// `docs-drive-scale/1`: no 10,000 file cap per Drive, and an index of jobs by file.
 pub const VERSION_DRIVE_SCALE: &str = "docs-drive-scale/1";
-/// `docs-file-profile/1`: `file.profile`, the document profile that decides how a file is read (D89).
+/// `docs-media-profile/1`: the class of a recording (conversation or not), decided before speakers are told apart.
+pub const VERSION_MEDIA_PROFILE: &str = "docs-media-profile/1";
+/// `docs-file-profile/1`: `file.profile`, the class of a file (D94) that decides whether and how it enters the ontology.
 pub const VERSION_FILE_PROFILE: &str = "docs-file-profile/1";
 
-const MIGRATIONS: [Migration; 16] = [
+const MIGRATIONS: [Migration; 17] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -149,9 +151,14 @@ const MIGRATIONS: [Migration; 16] = [
         sql: include_str!("../../../oo-pipeline/migrations/0154_docs_drive_scale.sql"),
     },
     Migration {
+        version: VERSION_MEDIA_PROFILE,
+        file: "0157_docs_media_profile.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0157_docs_media_profile.sql"),
+    },
+    Migration {
         version: VERSION_FILE_PROFILE,
-        file: "0156_docs_file_profile.sql",
-        sql: include_str!("../../../oo-pipeline/migrations/0156_docs_file_profile.sql"),
+        file: "0159_docs_file_profile.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0159_docs_file_profile.sql"),
     },
 ];
 
@@ -167,7 +174,7 @@ pub const VECTORS: Migration = Migration {
 };
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 16] = [
+pub const SCHEMA_MIN: [&str; 17] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -183,6 +190,7 @@ pub const SCHEMA_MIN: [&str; 16] = [
     VERSION_LINK_RULES,
     VERSION_SEARCH_INDEX,
     VERSION_DRIVE_SCALE,
+    VERSION_MEDIA_PROFILE,
     VERSION_FILE_PROFILE,
 ];
 

@@ -1,0 +1,72 @@
+{
+ "duration_ms": 38948,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 10,
+   "t_end_ms": 4480,
+   "text": "大家好我们开始今天的项目周会先看一下上周",
+   "word_start": 0,
+   "word_end": 19
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 4480,
+   "t_end_ms": 11888,
+   "text": "的进度好的现在行李已经晚成下周一开始内部测试需要三位同事参与测",
+   "word_start": 20,
+   "word_end": 50
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 11888,
+   "t_end_ms": 16468,
+   "text": "试环境谁来推荐预算方面还有没有问",
+   "word_start": 51,
+   "word_end": 66
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 16468,
+   "t_end_ms": 22508,
+   "text": "题环境我来推建十四万够用不需要追加那",
+   "word_start": 67,
+   "word_end": 84
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 22508,
+   "t_end_ms": 27198,
+   "text": "我补充一点供应商的报价已经确认交付周期是二十一天",
+   "word_start": 85,
+   "word_end": 108
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 28210,
+   "t_end_ms": 33690,
+   "text": "很好那就定在周五最前把测试计划发给所有人收到",
+   "word_start": 109,
+   "word_end": 130
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 33690,
+   "t_end_ms": 37990,
+   "text": "我周四晚上发出来下周二再开一次晚会同步",
+   "word_start": 131,
+   "word_end": 149
+  }
+ ]
+}

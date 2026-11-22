@@ -1,14 +1,16 @@
-//! Rules for audio and video IR (10 17.4, D74, board B-S10-08): who is speaking, and what a speaker says about
-//! what they own. Pure and deterministic.
+//! Rules for audio and video IR (10 17.4, D74 as revised 2026-11-21, board B-S10-08): who is speaking, and what a
+//! speaker says about what they own. Pure and deterministic.
 //!
-//! Speaker labels (`S1`, `S2`) are file-local and carry no identity, and extraction never waits for a person to
-//! name them. A statement such as "我负责星火计划" is recorded for a provisional Person, `Speaker 1 · <blob
-//! prefix>`, whose facts stay drafts (D74): the publisher holds them until a person confirms who `S1` is
-//! (`review::speaker`), when the provisional Person is merged into the named one. What the transcript or the roster
-//! says (`resolved`: "我是邵婉清", "I am Tianyou Jiang", the one attendee nobody else claims) is a candidate on the
-//! review item, never a confirmation. No voiceprint is stored or compared.
+//! Only a recording classified as a conversation (`media_class`) has speakers told apart; the transcript of any
+//! other recording is extracted like text and no sentence is attributed to a voice. Speaker labels (`S1`, `S2`) are
+//! file-local and carry no identity, and nothing waits for a person to name them: a statement such as "我负责星火计划" is
+//! recorded for a placeholder Person, `Speaker A · <blob prefix>` (the app shows "Speaker A" in the person's language), and
+//! published like any other fact. When a person names the speaker later (`review::speaker`), the placeholder is merged
+//! into the named Person and the facts are re-attributed. What the transcript or the roster says (`resolved`:
+//! "我是邵婉清", "I am Tianyou Jiang", the one attendee nobody else claims) is a candidate on the review item, one
+//! click for the person, never a confirmation. No voiceprint is stored or compared.
 //!
-//! Candidates for "who is S1" come in three layers, all of which end in a `speaker_identity` review item:
+//! Candidates for "who is speaker A" come in three layers, all of which end in a `speaker_identity` review item:
 //! 1. `media.attendees`: meeting metadata, the attendee names in the file name (`参会：甲、乙`) or in a minutes
 //!    file with the same stem (`参会人：甲、乙`); a set of names, not a mapping;
 //! 2. self introductions and being called by name (`我是小王`, `小王你说一下`), here by pattern; the LLM
@@ -23,11 +25,11 @@ use super::kv;
 use super::{Ctx, EvidenceRef};
 use crate::extract::model::{EntityRef, EntityType, Predicate};
 
-/// Prefix of the provisional Person name of one speaker.
+/// Prefix of the placeholder Person name of one speaker.
 pub const PLACEHOLDER_PREFIX: &str = "Speaker ";
-/// The prefix before 2026-11-20, still recognised so that a Person made then is not taken for a real name.
+/// The prefix of an earlier form, still recognised so that a Person made then is not taken for a real name.
 const OLD_PLACEHOLDER_PREFIX: &str = "说话人 ";
-/// Confidence of a statement made by a speaker whose identity is still unknown (held until the speaker is confirmed).
+/// Confidence of a statement made by a speaker whose identity is not named yet.
 const STATEMENT_BP: u16 = 9000;
 
 /// Where a candidate name came from.
@@ -67,22 +69,48 @@ pub struct SpeakerCandidate {
     pub quote: Option<String>,
 }
 
-/// `Speaker 1 · 1a2b3c4d`: unique per file, merged into the named Person once the speaker is confirmed.
-pub fn placeholder_name(blob_b3: &str, speaker: &str) -> String {
-    let label = speaker
+/// `S1` is `A`, `S2` is `B`, ... `S27` is `AA`: the letter a person sees for a file-local label.
+pub fn speaker_letter(speaker: &str) -> String {
+    let n = speaker
         .strip_prefix('S')
-        .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or(speaker);
+        .and_then(|d| d.parse::<u32>().ok())
+        .filter(|n| *n >= 1);
+    let Some(mut n) = n else {
+        return speaker.to_owned();
+    };
+    let mut out = Vec::new();
+    while n > 0 {
+        n -= 1;
+        out.push(char::from(b'A' + (n % 26) as u8));
+        n /= 26;
+    }
+    out.iter().rev().collect()
+}
+
+/// The meeting's title: the file name without its folder and extension, at most 40 characters.
+pub fn meeting_title(path: &str) -> String {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+    stem.chars().take(40).collect()
+}
+
+/// `《周会》的说话人 A · 1a2b3c4d` (D98): the placeholder entity of one speaker of one meeting. The blob prefix makes it unique per
+/// recording; the app shows it without that part and in the person's language. Merged into the named Person when the
+/// speaker is named.
+pub fn placeholder_name(blob_b3: &str, speaker: &str, title: &str) -> String {
     format!(
-        "{PLACEHOLDER_PREFIX}{label} · {}",
+        "《{title}》的说话人 {} · {}",
+        speaker_letter(speaker),
         blob_b3.get(..8).unwrap_or(blob_b3)
     )
 }
 
-/// True for a placeholder name.
+/// True for a placeholder name (this form, and the forms before D98).
 pub fn is_placeholder(name: &str) -> bool {
-    (name.starts_with(PLACEHOLDER_PREFIX) || name.starts_with(OLD_PLACEHOLDER_PREFIX))
-        && name.contains(" · ")
+    name.contains(" · ")
+        && (name.starts_with(PLACEHOLDER_PREFIX)
+            || name.starts_with(OLD_PLACEHOLDER_PREFIX)
+            || (name.starts_with('《') && name.contains("》的说话人 ")))
 }
 
 /// The speaker label of a block, if it is an utterance.
@@ -347,14 +375,21 @@ pub fn resolved(
     out
 }
 
-/// `media.statement`: "我负责X" in an utterance becomes `owns(<placeholder of the speaker>, X)` with the utterance as
-/// evidence. The subject is the provisional Person; the publisher holds the fact until the speaker is confirmed.
-pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
-    if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
+/// `media.statement`: "我负责X" in an utterance of a conversation becomes `owns(<placeholder of the speaker>, X)` with
+/// the utterance as evidence. The subject is the placeholder Person and the fact publishes like any other; naming the
+/// speaker later moves it to the named Person. A recording that is not a conversation has nobody to attribute to.
+pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, class: super::media_class::MediaClass) {
+    if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) || !class.identifies_speakers() {
         return;
     }
+    let title = meeting_title(&ctx.doc.name);
+    let voices = super::media_class::voices(ir);
     for b in &ir.blocks {
         let Some(spk) = speaker_of(b) else { continue };
+        // A label that speaks for a moment is a clustering stray: nobody is asked about it, so nothing is made for it.
+        if !voices.iter().any(|v| v == spk) {
+            continue;
+        }
         let ev = EvidenceRef::from_block(b);
         for sentence in b.text.split(['。', '！', '？', '.', '\n']) {
             let Some(rest) = after(sentence.trim(), &["我负责", "我来负责"]) else {
@@ -365,7 +400,10 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
             if thing.is_empty() || thing.chars().count() > 40 {
                 continue;
             }
-            let subject = EntityRef::new(EntityType::Person, placeholder_name(&ir.blob_b3, spk));
+            let subject = EntityRef::new(
+                EntityType::Person,
+                placeholder_name(&ir.blob_b3, spk, &title),
+            );
             let object = EntityRef::new(EntityType::Project, thing);
             ctx.fact(
                 &subject,
@@ -379,6 +417,87 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr) {
                 &ev,
             );
         }
+    }
+}
+
+/// The typed objects of a recording (D93, D98): a `Recording` with its class and duration; for a transcribed one also a `Meeting` held in it,
+/// with its participants (the placeholder speakers, merged into the named Persons later). Evidence is the first block of the file.
+pub(super) fn typed_objects(
+    ctx: &mut Ctx<'_>,
+    ir: &DocIr,
+    class: super::media_class::MediaClass,
+    path: &str,
+) {
+    let Some(first) = ir.blocks.first() else {
+        return;
+    };
+    let ev = EvidenceRef::from_block(first);
+    let title = meeting_title(path);
+    let recording = EntityRef::new(EntityType::Recording, path.to_owned());
+    ctx.col.entity(&recording, Some(&ev));
+    ctx.col
+        .alias(&recording, &title, 10000, "media.recording", &ev);
+    let class_text = if class.identifies_speakers() {
+        "conversation"
+    } else {
+        "media_asset"
+    };
+    ctx.fact(
+        &recording,
+        Predicate::Attr("media_class".into()),
+        None,
+        Some(serde_json::json!({"text": class_text})),
+        None,
+        None,
+        9500,
+        "media.recording",
+        &ev,
+    );
+    if let Some(ms) = ir.meta.duration_ms {
+        ctx.fact(
+            &recording,
+            Predicate::Attr("duration_ms".into()),
+            None,
+            Some(serde_json::json!({"text": ms.to_string()})),
+            None,
+            None,
+            9500,
+            "media.recording",
+            &ev,
+        );
+    }
+    if !class.identifies_speakers() {
+        return;
+    }
+    let short = ir.blob_b3.get(..8).unwrap_or(&ir.blob_b3);
+    let meeting = EntityRef::new(EntityType::Meeting, format!("《{title}》 · {short}"));
+    ctx.fact(
+        &meeting,
+        Predicate::RecordedIn,
+        Some(recording),
+        None,
+        None,
+        None,
+        9500,
+        "media.meeting",
+        &ev,
+    );
+    for spk in super::media_class::voices(ir) {
+        let person = EntityRef::new(
+            EntityType::Person,
+            placeholder_name(&ir.blob_b3, &spk, &title),
+        );
+        ctx.fact(
+            &meeting,
+            Predicate::HasParticipant,
+            Some(person),
+            None,
+            None,
+            None,
+            9500,
+            "media.meeting",
+            &ev,
+        );
     }
 }
 
@@ -473,10 +592,13 @@ mod tests {
 
     #[test]
     fn placeholder_names_are_per_file_and_recognisable() {
-        let a = placeholder_name(&"a".repeat(64), "S1");
-        let b = placeholder_name(&"b".repeat(64), "S1");
+        let a = placeholder_name(&"a".repeat(64), "S1", "周会");
+        let b = placeholder_name(&"b".repeat(64), "S1", "周会");
         assert_ne!(a, b);
-        assert!(a.starts_with("Speaker 1 · "), "{a}");
+        assert!(a.starts_with("《周会》的说话人 A · "), "{a}");
+        assert!(
+            placeholder_name(&"a".repeat(64), "S28", "周会").starts_with("《周会》的说话人 AB · ")
+        );
         assert!(is_placeholder(&a) && !is_placeholder("林川"));
         assert!(
             is_placeholder("说话人 S1 · 0123abcd"),
