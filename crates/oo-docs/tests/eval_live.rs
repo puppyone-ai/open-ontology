@@ -284,6 +284,46 @@ type FactState = (
     Option<String>,
 );
 
+/// D90/D91 evidence for the person reading the run: every entity with the origins of its live evidence, and every
+/// review item (`entities-all.jsonl`, `review-items.jsonl`).
+async fn diagnostics(s: &Stack, out: &std::path::Path) {
+    let ents: Vec<(String, String, String, Vec<String>, i64)> = sqlx::query_as(
+        "SELECT e.type, e.canonical_name, e.status, \
+                COALESCE(ARRAY(SELECT DISTINCT ev.origin FROM _oo_docs.evidence ev \
+                                WHERE ev.target_kind = 'entity' AND ev.target_id = e.id AND ev.withdrawn_at IS NULL ORDER BY 1), '{}'), \
+                (SELECT count(*) FROM _oo_docs.fact f WHERE f.subject_id = e.id OR f.object_id = e.id) \
+           FROM _oo_docs.entity e ORDER BY e.type, e.canonical_name",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = ents
+        .iter()
+        .map(|r| json!({"type": r.0, "name": r.1, "status": r.2, "origins": r.3, "facts": r.4}).to_string())
+        .collect();
+    std::fs::write(out.join("entities-all.jsonl"), lines.join("\n")).unwrap();
+    // Facts behind the items, so a person reading the run sees what each question is about.
+    let items: Vec<(String, String, String, String)> = sqlx::query_as(
+        "SELECT r.kind, r.status, r.reason_code, \
+                (r.subject || COALESCE(jsonb_build_object('fact', jsonb_build_object('predicate', f.predicate, 'origin', f.origin, \
+                    'bp', f.confidence_bp, 'subject', s.type || ':' || s.canonical_name, 'object', COALESCE(o.type || ':' || o.canonical_name, ''))), '{}'::jsonb) \
+                 || COALESCE(jsonb_build_object('entities', (SELECT jsonb_agg(e.type || ':' || e.canonical_name) FROM _oo_docs.entity e \
+                      WHERE e.key = ANY(ARRAY(SELECT jsonb_array_elements_text(r.subject->'entity_keys'))))), '{}'::jsonb))::text \
+           FROM _oo_docs.review_item r \
+           LEFT JOIN _oo_docs.fact f ON r.subject ? 'fact_id' AND f.id::text = r.subject->>'fact_id' \
+           LEFT JOIN _oo_docs.entity s ON s.id = f.subject_id LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+          ORDER BY r.kind, r.reason_code, r.created_at",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = items
+        .iter()
+        .map(|r| json!({"kind": r.0, "status": r.1, "reason": r.2, "subject": serde_json::from_str::<Value>(&r.3).unwrap_or(Value::Null)}).to_string())
+        .collect();
+    std::fs::write(out.join("review-items.jsonl"), lines.join("\n")).unwrap();
+}
+
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT, OO_EVAL_OUT and docker (oo-docs-parser:dev)"]
 async fn the_whole_golden_set_through_the_real_pipeline() {
@@ -422,6 +462,7 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
     std::fs::create_dir_all(&out).unwrap();
     let (e, f) = export(&s, &out.join("predictions"), false).await;
     let (pe, pf) = export(&s, &out.join("predictions-published"), true).await;
+    diagnostics(&s, &out).await;
     let usage = s.call("GET", "/v1/docs/usage", None).await.json();
     let jobs: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT kind, state, count(*) FROM _oo_docs.job WHERE kind IN ('extract_llm', 'extract_rules') GROUP BY 1, 2 ORDER BY 1, 2",
