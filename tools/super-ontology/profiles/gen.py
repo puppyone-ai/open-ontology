@@ -502,6 +502,78 @@ for d in ["react", "zod", "vitest", "eslint"]:
     gold("code", "harborq/web/package.json", "Dependency", d)
 
 # ------------------------------------------------------------------ papers
+GAP = 34  # points between two blocks: the parser's layout step only splits blocks that are visibly apart
+
+
+def write_pdf(d):
+    """tools/super-ontology/golden/writers.py write_pdf with a wider gap between blocks, a size per block kind and lines that fit even when the parser's
+    font substitute advances one em per glyph (the Linux sidecar does; no line is wider than the page then)."""
+    pages = [[]]
+    y = W.PH - W.MTOP
+    for b in d["blocks"]:
+        size, lead = (18, 28) if b[0] == "h1" else ((14, 22) if b[0] == "h2" else (11, 18))
+        lines, cur = [], ""
+        for word in b[1].replace("\n", " ").split(" "):
+            trial = (cur + " " + word).strip() if cur else word
+            if len(trial) * size > W.MAXW and cur:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = trial
+        lines.append(cur)
+        # CJK text has no spaces: cut at the width
+        fixed = []
+        for ln in lines:
+            while len(ln) * size > W.MAXW:
+                k = int(W.MAXW // size)
+                fixed.append(ln[:k])
+                ln = ln[k:]
+            fixed.append(ln)
+        need = len(fixed) * lead
+        if y - need < W.MBOT:
+            pages.append([])
+            y = W.PH - W.MTOP
+        for text in fixed:
+            y -= lead
+            pages[-1].append((y, size, text))
+        y -= GAP
+    objs = {}
+    nump = len(pages)
+    first = 7
+    kids = " ".join(f"{first + 2 * i} 0 R" for i in range(nump))
+    objs[1] = b"<< /Type /Catalog /Pages 2 0 R >>"
+    objs[2] = f"<< /Type /Pages /Kids [{kids}] /Count {nump} >>".encode()
+    objs[3] = b"<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [4 0 R] /ToUnicode 6 0 R >>"
+    objs[4] = (b"<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 2 >> "
+               b"/FontDescriptor 5 0 R /DW 1000 >>")
+    objs[5] = (b"<< /Type /FontDescriptor /FontName /STSong-Light /Flags 6 /FontBBox [-25 -254 1000 880] /ItalicAngle 0 "
+               b"/Ascent 880 /Descent -120 /CapHeight 880 /StemV 93 >>")
+    cmap = (b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def "
+            b"/CMapName /Adobe-Identity-UCS def /CMapType 2 def 1 begincodespacerange <0000> <FFFF> endcodespacerange "
+            b"1 beginbfrange <0000> <FFFF> <0000> endbfrange endcmap CMapName currentdict /CMap defineresource pop end end")
+    objs[6] = b"<< /Length %d >>\nstream\n" % len(cmap) + cmap + b"\nendstream"
+    for i, pg in enumerate(pages):
+        ops = ["BT"]
+        for (yy, size, text) in pg:
+            hexs = "".join("%04X" % ord(c) for c in text)
+            ops.append(f"/F1 {size} Tf 1 0 0 1 {W.MX} {yy:.2f} Tm <{hexs}> Tj")
+        ops.append("ET")
+        stream = "\n".join(ops).encode("ascii")
+        objs[first + 2 * i] = (f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {W.PW} {W.PH}] /Resources << /Font << /F1 3 0 R >> >> /Contents {first + 2 * i + 1} 0 R >>").encode()
+        objs[first + 2 * i + 1] = b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream"
+    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offs = {}
+    for n in sorted(objs):
+        offs[n] = len(out)
+        out += b"%d 0 obj\n" % n + objs[n] + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    for n in sorted(objs):
+        out += b"%010d 00000 n \n" % offs[n]
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    return bytes(out)
+
+
 def paper(path, title, authors, venue_line, abstract, body, refs, extra_lines=(), zh=False, gold_items=()):
     blocks = [("h1", title, "title"), ("p", authors, "authors"), ("p", venue_line, "venue")]
     blocks += [("p", x, "front") for x in extra_lines]
@@ -514,22 +586,9 @@ def paper(path, title, authors, venue_line, abstract, body, refs, extra_lines=()
     for r in refs:
         blocks.append(("p", r, "ref"))
     d = {"title": title, "blocks": blocks, "fm": {}, "created": "2027-01-12"}
-    data, _ = W.write_pdf(d)
-    data = narrow_latin(data)
-    put(path, data)
+    put(path, write_pdf(d))
     for label, name, *rest in gold_items:
         gold("paper", path, label, name, **(rest[0] if rest else {}))
-
-
-def narrow_latin(pdf):
-    import re
-    body = pdf[:pdf.index(b"xref\n0 ")].replace(b"/DW 1000 >>", b"/DW 1000 /W [ 1 95 500 ] >>")
-    offs = {int(m.group(1)): m.start() + 1 for m in re.finditer(rb"\n(\d+) 0 obj\n", body)}
-    out = bytearray(body)
-    x = len(out)
-    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(offs) + 1) + b"".join(b"%010d 00000 n \n" % offs[n] for n in sorted(offs))
-    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(offs) + 1, x)
-    return bytes(out)
 
 
 T1 = "Sparse Lexical Mixing for Efficient Passage Retrieval"
