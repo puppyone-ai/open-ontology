@@ -387,6 +387,10 @@
 | SO-F-S22-26 | D94 | merged | feat/super-ontology (车道 AK 并入) | 437a687cc → 437a687cc | — | — | Update the file panel snapshots for the class line and the class select |
 | SO-F-S22-80 | D85 | merged | feat/super-ontology (车道 AN 并入) | afa282cc3 → afa282cc3 | — | — | Test the drive watcher by wake-ups and scheduled delays, not CPU share or elapsed time |
 | SO-F-S22-81 | D85 | merged | feat/super-ontology (车道 AN 并入) | 4df89a275 → 4df89a275 | — | — | Arm the real watcher tests with an in-order barrier before they change anything |
+| SO-F-S22-60 | D93 | merged | feat/super-ontology (车道 AM 并入) | 0ed162e60 → 0ed162e60 | — | — | Bridge the structure layer to the app: read, induce, decide and the ontology YAML |
+| SO-F-S22-61 | D93 | merged | feat/super-ontology (车道 AM 并入) | 091eb3a0a → 091eb3a0a | — | — | Show the structure layer in the Ontology view: a Structure tab, the class panel on the atlas, the YAML in Files |
+| SO-F-S22-62 | D93 | merged | feat/super-ontology (车道 AM 并入) | 08bd13deb → 08bd13deb | — | — | Test the Structure tab in Chinese and German |
+| SO-F-S22-63 | D93 | merged | feat/super-ontology (车道 AM 并入) | 55320a64f → 55320a64f | — | — | Show the version type of a structure property, and score completeness on the held-out corpus |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
@@ -447,6 +451,20 @@
 | SO-B-S22-84 | D85 | merged | feat/super-ontology (车道 AN 并入) | ed05612a3 → ed05612a3 | — | — | Teach the live suite runner the profiles run and the model-only target |
 | SO-B-S22-85 | D85 | merged | feat/super-ontology (车道 AN 并入) | a36429109 → a36429109 | — | — | Do not hold a partial file back for an alias candidate that nothing will decide |
 | SO-B-S22-86 | D85 | merged | feat/super-ontology (车道 AN 并入) | a6ee14c32 → a6ee14c32 | — | — | Track the admission corpus log that the root ignore rule dropped |
+| SO-B-S22-89 | D85 | merged | feat/super-ontology (车道 AN 并入，协调者台账) | a080f0b5b → a080f0b5b | — | — | Ledger rows for lane AN |
+| SO-B-S22-60 | D93 | merged | feat/super-ontology (车道 AM 并入) | 143442470 → 4b47f60fe | — | — | Add eight frozen questions to the structure corpus, for the secondary Ask measure |
+| SO-B-S22-61 | D93 | merged | feat/super-ontology (车道 AM 并入) | da6769700 → da6769700 | — | — | Induce the structure layer of the record files like the columns of a table |
+| SO-B-S22-62 | D93 | merged | feat/super-ontology (车道 AM 并入) | 577dcc840 → 577dcc840 | — | — | Read a record file of a structured class against its template, also with the model |
+| SO-B-S22-63 | D93 | merged | feat/super-ontology (车道 AM 并入) | 0941d6513 → 0941d6513 | — | — | Serve the structure layer: classes, decisions and the ontology YAML of both sides |
+| SO-B-S22-64 | D93 | merged | feat/super-ontology (车道 AM 并入) | 981b55b26 → 981b55b26 | — | — | Let a decision about the structure pass the reprocess gate and propose recurring fields |
+| SO-B-S22-65 | D93 | merged | feat/super-ontology (车道 AM 并入) | f16c73181 → f16c73181 | — | — | Measure the structure layer through the real engine, before and after a person confirms it |
+| SO-B-S22-66 | D93 | merged | feat/super-ontology (车道 AM 并入) | e2002f008 → e2002f008 | — | — | Let the L4 evaluation confirm the induced structure, and add the ontology-quality gate |
+| SO-B-S22-67 | D93 | merged | feat/super-ontology (车道 AM 并入) | 61472740d → 61472740d | — | — | Link document properties to database tables by their values, and check the merged ontology |
+| SO-B-S22-68 | D93 | merged | feat/super-ontology (车道 AM 并入) | 83424deaa → 83424deaa | — | — | Add oo docs structure: list, induce, decide and print the ontology YAML |
+| SO-B-S22-69 | D93 | merged | feat/super-ontology (车道 AM 并入) | c9c829171 → c9c829171 | — | — | Follow migration 0160 in the install tests |
+| SO-B-S22-70 | D93 | merged | feat/super-ontology (车道 AM 并入) | c90d1c395 → c90d1c395 | — | — | Add a held-out structure corpus and freeze its gold |
+| SO-B-S22-71 | D93 | merged | feat/super-ontology (车道 AM 并入) | ddbd40b0e → ddbd40b0e | — | — | Score the held-out corpus: members per class, labels, types and relations |
+| SO-B-S22-72 | D93 | merged | feat/super-ontology (车道 AM 并入) | 5c8faa841 → 5c8faa841 | — | — | Align field labels across languages into one class, and read level codes and versions |
 
 ## 签收
 
