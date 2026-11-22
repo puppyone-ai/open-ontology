@@ -1176,7 +1176,9 @@ impl ExtractHandler {
             Err(_) => Vec::new(),
         };
         let mut class = crate::profile::classify_with(&s.path, ir, &overrides);
+        // `OO_DOCS_CLASSIFY_MODEL=0` switches the model's say off (the rules' default stands), for measuring.
         if !class.decided
+            && !std::env::var("OO_DOCS_CLASSIFY_MODEL").is_ok_and(|v| v == "0")
             && llm_wanted(&self.pool, &self.model, &s.drive_id).await
             && let Some(port) = self.model.port()
         {

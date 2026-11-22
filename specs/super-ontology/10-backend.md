@@ -1206,7 +1206,7 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 #### 5.1.1 准入：文件类别与处理（D94）
 
-不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0159，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
+不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认；这一次调用与其他模型调用一样计入 Drive 的每日上限与用量，环境变量 `OO_DOCS_CLASSIFY_MODEL=0` 可关闭，供测量用）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0159，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
 
 用户可改单个文件或目录（含其下全部）的类别：`GET`/`PUT /v1/docs/drives/{id}/profile-overrides`、`oo docs profile ls|set|clear`、App 的文件详情与文件夹操作；文件自己的设置压过目录的，近的目录压过远的；改后受影响文件按新类别重新抽取（状态经 `outdated` 回到 `published`）。
 
