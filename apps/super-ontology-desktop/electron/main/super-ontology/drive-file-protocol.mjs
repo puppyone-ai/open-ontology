@@ -18,6 +18,10 @@ const CONTENT_TYPES = Object.freeze({
   // Never text/html or svg: a Drive file must not run as a page.
   md: "text/plain; charset=utf-8", markdown: "text/plain; charset=utf-8", txt: "text/plain; charset=utf-8", csv: "text/plain; charset=utf-8",
   json: "application/json", html: "text/plain; charset=utf-8", htm: "text/plain; charset=utf-8", svg: "text/plain; charset=utf-8",
+  // Recordings play in the renderer's own `<audio>` and `<video>` (Chromium decodes wav, mp3, AAC in m4a and H.264 in mp4 natively); the
+  // type is what makes the element pick a decoder, and it is a media type, never one a page could run as.
+  wav: "audio/wav", mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", flac: "audio/flac", ogg: "audio/ogg", opus: "audio/ogg; codecs=opus",
+  mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", webm: "video/webm",
 });
 
 /** Capability tokens: unguessable, short lived, each bound to one file of one Drive root. */
