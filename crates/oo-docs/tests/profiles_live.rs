@@ -125,10 +125,14 @@ async fn the_profile_set_through_the_real_pipeline() {
     std::fs::create_dir_all(&out).unwrap();
     let secs = t0.elapsed().as_secs_f64();
 
-    // Every file settles; a file with nothing structured in it is published, not failed.
+    // Every file settles; a file with nothing structured in it is published, not failed. With the model on, a paper may wait `indexed` for the
+    // person who reviews what the model proposed (that is the model's, not the profile's).
     let bad: Vec<_> = st
         .iter()
-        .filter(|(_, (state, _))| !matches!(state.as_str(), "published" | "extract_partial"))
+        .filter(|(path, (state, _))| {
+            !(matches!(state.as_str(), "published" | "extract_partial")
+                || with_model && state == "indexed" && path.starts_with("papers/"))
+        })
         .collect();
     assert!(bad.is_empty(), "files that did not publish: {bad:?}");
 
@@ -249,10 +253,11 @@ async fn the_profile_set_through_the_real_pipeline() {
         ));
     }
     std::fs::write(out.join("entities.jsonl"), lines).unwrap();
-    // A Thing of a profile label is never queued for promotion.
+    // A Thing of a profile label is never queued for promotion (a label the model made up may be).
     let promos: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'type_promotion'",
+        "SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'type_promotion' AND subject->>'label' = ANY($1::text[])",
     )
+    .bind(oo_docs::profile::LABELS.iter().map(|l| (*l).to_owned()).collect::<Vec<_>>())
     .fetch_one(&s.pool)
     .await
     .unwrap();
