@@ -103,7 +103,10 @@ pub async fn index_gated(
     .bind(&removed_only)
     .fetch_all(&mut *tx)
     .await?;
-    let diff = ReprocessDiff::of(&prior_keys, &now_keys, &share_used);
+    let mut diff = ReprocessDiff::of(&prior_keys, &now_keys, &share_used);
+    // D93: what a confirmed structure adds (its slots) or takes out (literal facts it has no slot for) is the person's
+    // decision already; it does not count against the gate.
+    crate::structure::store::explain_diff(&mut tx, doc.version_id, &mut diff).await?;
     match diff.g10() {
         Ok(()) => {
             tx.commit().await?;

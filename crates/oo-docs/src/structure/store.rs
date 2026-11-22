@@ -256,7 +256,7 @@ pub async fn induce_drive(
     let rows: Vec<FileRow<'_>> = files.iter().map(|(_, p, o)| (p.as_str(), o)).collect();
     let fresh = induce(&rows, &lex);
     let (old_version, old) = load(&mut tx, drive_id).await?;
-    let (classes, proposals) = reconcile(&old, fresh.classes);
+    let (classes, proposals) = reconcile(&old, fresh.classes.clone(), &fresh.candidates);
     let changed = classes != old;
     let mut version = old_version;
     // The class of every file (the keys of the induction follow the reconciled classes).
@@ -584,4 +584,46 @@ pub async fn template_for(
     };
     let classes = load_confirmed(conn, drive_id).await?;
     Ok(class_for(&obs, &classes).cloned())
+}
+
+/// D93: take what the structure explains out of a reprocess diff (DOC-G10 gates unexplained change only): the facts a
+/// template made (`structure.slot`), the literal facts a confirmed class has no slot for, and the facts the link, anchor and model
+/// passes write after the gate has looked (they come back). Facts a live Share uses stay.
+pub async fn explain_diff(
+    conn: &mut PgConnection,
+    version_id: &str,
+    diff: &mut crate::publish::gates::ReprocessDiff,
+) -> Result<(), StoreError> {
+    let structured: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file_version fv JOIN _oo_docs.structure_member m ON m.file_id = fv.file_id \
+           JOIN _oo_docs.structure_class c ON c.drive_id = m.drive_id AND c.class_key = m.class_key AND c.status = 'confirmed' \
+          WHERE fv.id = $1::uuid)",
+    )
+    .bind(version_id)
+    .fetch_one(&mut *conn)
+    .await?;
+    if !structured {
+        return Ok(());
+    }
+    if !diff.added.is_empty() {
+        let slot: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT fact_key FROM _oo_docs.fact WHERE fact_key = ANY($1::text[]) AND rule_id = 'structure.slot'",
+        )
+        .bind(&diff.added)
+        .fetch_all(&mut *conn)
+        .await?;
+        diff.added.retain(|k| !slot.contains(k));
+    }
+    if !diff.removed.is_empty() {
+        let literal: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT fact_key FROM _oo_docs.fact WHERE fact_key = ANY($1::text[]) \
+               AND (predicate LIKE 'attr.%' OR rule_id IN ('doc.link', 'doc.anchor') OR origin = 'llm') AND NOT (fact_key = ANY($2::text[]))",
+        )
+        .bind(&diff.removed)
+        .bind(&diff.share_used_removed)
+        .fetch_all(&mut *conn)
+        .await?;
+        diff.removed.retain(|k| !literal.contains(k));
+    }
+    Ok(())
 }

@@ -275,8 +275,8 @@ fn reconcile_keeps_decisions_and_proposes_new_properties_of_a_confirmed_class() 
         })
         .collect();
     let rows: Vec<_> = docs.iter().map(|(p, o)| (p.as_str(), o)).collect();
-    let fresh = induce(&rows, &Lexicon::new()).classes;
-    let (merged, proposals) = reconcile(&old, fresh);
+    let induced = induce(&rows, &Lexicon::new());
+    let (merged, proposals) = reconcile(&old, induced.classes, &induced.candidates);
     let c = merged
         .iter()
         .find(|c| c.class_key == "meeting_minutes")

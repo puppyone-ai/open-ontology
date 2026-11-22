@@ -337,6 +337,10 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
         (ValueType::Project, "Project"),
         (ValueType::Organization, "Organization"),
     ] {
+        // Any phrase can be an organization (a department, a category): only a field that says so names one by its values.
+        if vt == ValueType::Organization && hint != Some(ValueType::Organization) {
+            continue;
+        }
         let r = resolved_for(ty);
         if r >= 0.6 && best.is_none_or(|(_, b)| r > b) {
             best = Some((vt, r));

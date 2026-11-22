@@ -14,6 +14,8 @@ use crate::resolve::normalize::norm;
 const JOIN: f64 = 0.5;
 /// Share of the items of a property that name records of another class before it is a relation.
 const RELATION_MIN: f64 = 0.6;
+/// Share of the files from which a recurring field is a candidate property of a class.
+const CANDIDATE_COVERAGE: f64 = 0.1;
 const EXAMPLES: usize = 4;
 /// Distinct values kept per property, for resolving it against the database side.
 const SAMPLE: usize = 40;
@@ -29,6 +31,9 @@ pub struct Induced {
     pub unclustered: Vec<String>,
     /// File path to class key.
     pub membership: BTreeMap<String, String>,
+    /// Fields that recur in at least [`super::PROPOSE_FILES`] files of a class without reaching its coverage threshold: what a
+    /// confirmed class may propose as a new property (type promotion).
+    pub candidates: BTreeMap<String, Vec<Property>>,
 }
 
 fn keyset(o: &FileObs) -> BTreeSet<String> {
@@ -457,6 +462,16 @@ pub fn induce(rows: &[FileRow<'_>], lexicon: &Lexicon) -> Induced {
             if props.is_empty() {
                 continue;
             }
+            let own: BTreeSet<String> = props.iter().flat_map(|p| p.keys.clone()).collect();
+            let extra: Vec<Property> = agg
+                .iter()
+                .filter(|(k, a)| {
+                    !own.contains(*k)
+                        && a.files_with >= super::PROPOSE_FILES
+                        && a.files_with as f64 / nfiles as f64 >= CANDIDATE_COVERAGE
+                })
+                .map(|(k, a)| build_property(k, a, nfiles, lexicon, None))
+                .collect();
             props.sort_by(|a, b| {
                 b.coverage
                     .partial_cmp(&a.coverage)
@@ -521,6 +536,9 @@ pub fn induce(rows: &[FileRow<'_>], lexicon: &Lexicon) -> Induced {
                     .membership
                     .insert(rows[*i].0.to_owned(), class_key.clone());
                 clustered.insert(*i);
+            }
+            if !extra.is_empty() {
+                result.candidates.insert(class_key.clone(), extra);
             }
             result.classes.push(ClassStructure {
                 class_key,
@@ -692,6 +710,7 @@ fn class_sig(c: &ClassStructure) -> BTreeSet<String> {
 pub fn reconcile(
     old: &[ClassStructure],
     fresh: Vec<ClassStructure>,
+    candidates: &BTreeMap<String, Vec<Property>>,
 ) -> (Vec<ClassStructure>, Vec<Proposal>) {
     let mut out: Vec<ClassStructure> = Vec::new();
     let mut proposals: Vec<Proposal> = Vec::new();
@@ -780,6 +799,29 @@ pub fn reconcile(
             }
         }
         let _ = renamed_key;
+        // A field that recurs without reaching the coverage of a property is a proposal in a confirmed class.
+        if o.status == Status::Confirmed {
+            for cand in candidates
+                .get(&n.class_key)
+                .into_iter()
+                .flatten()
+                .chain(candidates.get(&o.class_key).into_iter().flatten())
+            {
+                let known = props
+                    .iter()
+                    .any(|p| p.slug == cand.slug || p.keys.iter().any(|k| cand.keys.contains(k)));
+                if !known {
+                    proposals.push(Proposal {
+                        class_key: o.class_key.clone(),
+                        slug: cand.slug.clone(),
+                        name: cand.name.clone(),
+                        files: cand.files_with,
+                        examples: cand.examples.clone(),
+                    });
+                    props.push(cand.clone());
+                }
+            }
+        }
         n.properties = props;
         out.push(n);
     }
