@@ -193,8 +193,8 @@ mod tests {
     #[test]
     fn an_edit_of_the_system_text_comes_with_a_new_prompt_version() {
         const PINNED: (&str, &str) = (
-            "extract/4",
-            "7d61930330049cc754aa56135e87ddc60290bf6f6b85e16e9c4cd778b7203157",
+            "extract/5",
+            "9f33a5fda11271da35b66a2fc742e535b2a357026bb196d457323ad9d4308a2f",
         );
         assert_eq!(prompt_version(&[]), PINNED.0);
         let hash = blake3::hash(SYSTEM.as_bytes()).to_hex().to_string();
