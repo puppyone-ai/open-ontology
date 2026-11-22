@@ -310,13 +310,14 @@ pub async fn extract_llm(
     for k in &keys {
         h.update(k.as_bytes());
     }
-    let (mut x, quality) =
-        crate::extract::quality::gate(col.finish(input.path), input.ir, &input.known);
-    stats.quality = quality;
+    // The gate reads `llm` to tell the model's output from the rules', so it is set first.
+    let mut x = col.finish(input.path);
     x.llm = Some(LlmMeta {
         prompt_version: version,
         extraction_key: h.finalize().to_hex().to_string(),
     });
+    let (x, quality) = crate::extract::quality::gate(x, input.ir, &input.known);
+    stats.quality = quality;
     Ok((x, stats))
 }
 
