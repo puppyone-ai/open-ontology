@@ -2611,12 +2611,12 @@ async fn publish_due(conn: &mut sqlx::PgConnection) -> Result<u32, crate::store:
     // A file whose rules are done and whose model call is still to come: its rules facts publish now. The key is its
     // own, so a later publish in the same window (the file moved on to `indexed`) is never taken for this one.
     let early: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \\
-                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \\
-                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \\
-                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \\
-                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \\
-                                           AND j.created_at >= x.updated_at \\
+        "SELECT EXISTS (SELECT 1 FROM _oo_docs.file f \
+                         JOIN _oo_docs.job x ON x.kind = 'extract_rules' AND x.file_id = f.id \
+                                            AND x.version_id = f.current_version_id AND x.state = 'succeeded' \
+                        WHERE f.state = 'extracting' AND f.deleted_at IS NULL \
+                          AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j WHERE j.kind = 'publish' \
+                                           AND j.created_at >= x.updated_at \
                                            AND j.state IN ('queued', 'running', 'succeeded')))",
     )
     .fetch_one(&mut *conn)
