@@ -126,6 +126,11 @@ fn utterance(b: &Block) -> Option<(u64, u64, &str)> {
     }
 }
 
+/// True when the file name alone says a media asset (a promo, a trailer, a film, music): there is no point transcribing it.
+pub fn is_asset_name(path: &str) -> bool {
+    name_hint(path) == "non_conversation"
+}
+
 fn name_hint(path: &str) -> &'static str {
     let name = path.rsplit('/').next().unwrap_or(path).to_lowercase();
     let has = |words: &[&str]| words.iter().any(|w| name.contains(w));
@@ -579,6 +584,20 @@ mod tests {
         assert_eq!(near("周会.m4a").class, MediaClass::Conversation);
         assert_eq!(near("trailer.m4a").class, MediaClass::NonConversation);
         assert_eq!(near("x.m4a").class, MediaClass::Unsure);
+    }
+
+    #[test]
+    fn only_a_name_that_says_asset_skips_the_transcription() {
+        assert!(is_asset_name("素材/星火宣传片.mp4") && is_asset_name("trailer-final.mov"));
+        assert!(!is_asset_name("会议/周会.m4a") && !is_asset_name("x.wav"));
+        let p = classify(
+            &ir(DocFormat::Video, 60_000, vec![scene(0, 0, 60_000)]),
+            "宣传片.mp4",
+        );
+        assert_eq!(
+            (p.class, p.kind),
+            (MediaClass::NonConversation, "edited_video")
+        );
     }
 
     #[test]

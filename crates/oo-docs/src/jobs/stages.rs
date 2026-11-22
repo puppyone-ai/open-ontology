@@ -666,6 +666,7 @@ impl<F: SourceFactory> ParseHandler<F> {
             external_ffmpeg: rt.external_ffmpeg.clone(),
             host_decode_dir: None,
             num_speakers: None,
+            media_asset: crate::extract::rules::media_class::is_asset_name(&s.path),
         };
         let handle = tokio::runtime::Handle::current();
         let pool = self.pool.clone();

@@ -545,6 +545,42 @@ async fn a_promo_has_no_speakers_and_asks_nobody() {
     fx.finish(db).await;
 }
 
+/// What the sidecar returns for a file it was told is a media asset (or that has no speech): no utterance, one scene over the file.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_skipped_media_asset_is_one_recording_and_nothing_else() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_asset_skipped";
+    let mut fx = Fx::new(db).await;
+    let path = "素材/发布会预告片.mp4";
+    let rec = recording(
+        "e",
+        90_000,
+        json!([{"kind": "scene", "t_start_ms": 0, "t_end_ms": 90_000, "text": "media asset"}]),
+    );
+    let planted = fx.plant_normalized(path, rec, 1000).await;
+    fx.index_planted(path, &planted).await;
+    fx.publish().await;
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Recording'")
+            .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.media_profile WHERE class = 'non_conversation'")
+            .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact WHERE predicate NOT LIKE 'attr.%' AND predicate <> 'mentions'"
+        )
+        .await,
+        0
+    );
+    fx.finish(db).await;
+}
+
 struct Says(&'static str);
 
 impl oo_docs::extract::llm::egress::LlmPort for Says {

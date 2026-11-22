@@ -2,8 +2,7 @@
  "duration_ms": 40137,
  "speakers": [
   "S1",
-  "S2",
-  "S3"
+  "S2"
  ],
  "items": [
   {
@@ -19,18 +18,9 @@
    "kind": "utterance",
    "speaker": "S2",
    "t_start_ms": 6818,
-   "t_end_ms": 16510,
-   "text": "已经完成下周一开始内部测试需要三位同事参与测试环境谁来搭建预算方面还有没有",
-   "word_start": 29,
-   "word_end": 65
-  },
-  {
-   "kind": "utterance",
-   "speaker": "S3",
-   "t_start_ms": 16510,
    "t_end_ms": 18080,
-   "text": "问题",
-   "word_start": 66,
+   "text": "已经完成下周一开始内部测试需要三位同事参与测试环境谁来搭建预算方面还有没有问题",
+   "word_start": 29,
    "word_end": 67
   },
   {
@@ -44,29 +34,11 @@
   },
   {
    "kind": "utterance",
-   "speaker": "S3",
-   "t_start_ms": 22810,
-   "t_end_ms": 23650,
-   "text": "充一点儿",
-   "word_start": 86,
-   "word_end": 89
-  },
-  {
-   "kind": "utterance",
    "speaker": "S2",
-   "t_start_ms": 23940,
-   "t_end_ms": 32746,
-   "text": "供应十二人报价已经确认交付周期是二十一天很好那就进入在周五之前把此计计划给",
-   "word_start": 90,
-   "word_end": 126
-  },
-  {
-   "kind": "utterance",
-   "speaker": "S3",
-   "t_start_ms": 32746,
+   "t_start_ms": 22810,
    "t_end_ms": 34006,
-   "text": "所",
-   "word_start": 127,
+   "text": "充一点儿供应十二人报价已经确认交付周期是二十一天很好那就进入在周五之前把此计计划给所",
+   "word_start": 86,
    "word_end": 127
   },
   {

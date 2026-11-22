@@ -3,8 +3,7 @@
  "speakers": [
   "S1",
   "S2",
-  "S3",
-  "S4"
+  "S3"
  ],
  "items": [
   {
@@ -20,23 +19,14 @@
    "kind": "utterance",
    "speaker": "S2",
    "t_start_ms": 5230,
-   "t_end_ms": 10460,
-   "text": "prototype is finished an internal testing starts on monday we need three people",
-   "word_start": 14,
-   "word_end": 26
-  },
-  {
-   "kind": "utterance",
-   "speaker": "S3",
-   "t_start_ms": 11156,
    "t_end_ms": 11576,
-   "text": "i",
-   "word_start": 27,
+   "text": "prototype is finished an internal testing starts on monday we need three people i",
+   "word_start": 14,
    "word_end": 27
   },
   {
    "kind": "utterance",
-   "speaker": "S4",
+   "speaker": "S3",
    "t_start_ms": 11576,
    "t_end_ms": 14296,
    "text": "will set up the environment",
@@ -56,23 +46,14 @@
    "kind": "utterance",
    "speaker": "S2",
    "t_start_ms": 20806,
-   "t_end_ms": 24508,
-   "text": "point the supply quote is confirmed and delivery takes twenty one days",
-   "word_start": 44,
-   "word_end": 55
-  },
-  {
-   "kind": "utterance",
-   "speaker": "S3",
-   "t_start_ms": 24508,
    "t_end_ms": 24778,
-   "text": "great",
-   "word_start": 56,
+   "text": "point the supply quote is confirmed and delivery takes twenty one days great",
+   "word_start": 44,
    "word_end": 56
   },
   {
    "kind": "utterance",
-   "speaker": "S4",
+   "speaker": "S3",
    "t_start_ms": 25438,
    "t_end_ms": 28748,
    "text": "then we send the test plan to everyone before writer",

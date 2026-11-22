@@ -14,8 +14,7 @@ use sha2::{Digest, Sha256};
 
 use super::{IrFragment, IrWarning, RawBlock};
 
-const PROFILE: &str =
-    "media/1;vad=silero;chunk=30s;align=300s;diarization=cluster;frames=1fps;dedupe=dhash16;pts=ms";
+const PROFILE: &str = "media/1;vad=silero;chunk=30s;align=300s;diarization=spectral-centred/1;skip=asset+nospeech;frames=1fps;dedupe=dhash16;pts=ms";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MediaError {

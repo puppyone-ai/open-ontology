@@ -50,6 +50,8 @@ pub struct MediaOptions {
     pub host_decode_dir: Option<String>,
     /// Number of speakers when the meeting metadata says so.
     pub num_speakers: Option<u32>,
+    /// The file name already says media asset (a promo, a trailer, music): the sidecar skips transcription and speaker separation.
+    pub media_asset: bool,
 }
 
 impl MediaOptions {
@@ -66,6 +68,9 @@ impl MediaOptions {
         }
         if let Some(n) = self.num_speakers {
             o.insert("num_speakers".into(), json!(n));
+        }
+        if self.media_asset {
+            o.insert("media_asset".into(), json!(true));
         }
         Value::Object(o)
     }
@@ -461,10 +466,11 @@ mod tests {
             external_ffmpeg: Some("/usr/bin/ffmpeg".into()),
             host_decode_dir: None,
             num_speakers: Some(3),
+            media_asset: true,
         };
         assert_eq!(
             o.to_json(),
-            json!({"hotwords": ["a"], "external_ffmpeg": "/usr/bin/ffmpeg", "num_speakers": 3})
+            json!({"hotwords": ["a"], "external_ffmpeg": "/usr/bin/ffmpeg", "num_speakers": 3, "media_asset": true})
         );
     }
 }
