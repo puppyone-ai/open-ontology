@@ -86,7 +86,7 @@ export type SubjectView =
   | { kind: "type"; label: string; instances: number; files: number; examples: string[] }
   | { kind: "constraint"; entityKey: string; factIds: string[]; constraint: string }
   | { kind: "reprocess"; prior: number; added: number; removed: number; shareUsedRemoved: number }
-  | { kind: "speaker"; speaker: string; placeholder: string; candidates: { name: string; source: string; quote: string; blockId: string }[]; blobHash: string }
+  | { kind: "speaker"; speaker: string; letter: string; placeholder: string; candidates: { name: string; source: string; quote: string; blockId: string }[]; blobHash: string }
   | { kind: "suggestion"; suggestionId: string; shareId: string; suggestionKind: string }
   | { kind: "raw" };
 
@@ -121,7 +121,7 @@ export function subjectView(item: Pick<ReviewItem, "kind" | "subject">): Subject
       return { kind: "reprocess", prior: count(subject.prior), added: count(subject.added), removed: count(subject.removed), shareUsedRemoved: count(subject.share_used_removed) };
     case "speaker_identity":
       return {
-        kind: "speaker", speaker: text(subject.speaker), placeholder: text(subject.placeholder), blobHash: text(subject.b3),
+        kind: "speaker", speaker: text(subject.speaker), letter: text(subject.letter), placeholder: text(subject.placeholder), blobHash: text(subject.b3),
         candidates: (Array.isArray(subject.candidates) ? subject.candidates : []).filter(isRecord).map((candidate) => ({ name: text(candidate.name), source: text(candidate.source), quote: text(candidate.quote), blockId: text(candidate.block_id) })).filter((candidate) => candidate.name !== ""),
       };
     case "suggestion":

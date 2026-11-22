@@ -234,7 +234,7 @@ describe("the not-connected list", () => {
       "r.docx": "Waiting for your review",
       "bad.xlsx": "Could not be read (PARSE_XLSX_CORRUPT)",
       "lone.md": "Found 6 things, none appear elsewhere",
-      "call.m4a": "Waiting for speaker confirmation (2)",
+      "call.m4a": "Speakers not named yet (2)",
     });
     fireEvent.click(screen.getByTestId("atlas-speaker-review"));
     expect(onReview).toHaveBeenCalledTimes(1);
