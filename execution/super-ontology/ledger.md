@@ -372,6 +372,13 @@
 | SO-F-S21-44 | D86 | merged | feat/super-ontology (车道 AI 并入) | d2b6e8c8b → d2b6e8c8b | — | — | Watch a linked code folder by the same rules as the engine and the copy |
 | SO-F-S21-45 | D86 | merged | feat/super-ontology (车道 AI 并入) | 366d44eac → 366d44eac | — | — | Add the off-screen T1 runs for a code project drop and its timings |
 | SO-F-S21-49 | D86 | merged | feat/super-ontology (车道 AI 并入，协调者台账) | ff4a03dbd → ff4a03dbd | — | — | Ledger rows for lane AI |
+| SO-F-S22-40 | D98 | merged | feat/super-ontology (车道 AL 并入) | d7d88b194 → d7d88b194 | — | — | Serve recordings with their media type so the native player can start anywhere |
+| SO-F-S22-41 | D98 | merged | feat/super-ontology (车道 AL 并入) | 48d281167 → 48d281167 | — | — | Add a media preview with a synced transcript and a recording class badge |
+| SO-F-S22-42 | D98 | merged | feat/super-ontology (车道 AL 并入) | d2f85ed1a → d2f85ed1a | — | — | Name the speakers of a recording in Review beside a player, without blocking anything |
+| SO-F-S22-43 | D98 | merged | feat/super-ontology (车道 AL 并入) | 8e9d09a66 → 8e9d09a66 | — | — | Play a recording from the file panel and from an evidence mark at the right second |
+| SO-F-S22-44 | D98 | merged | feat/super-ontology (车道 AL 并入) | eaca499e4 → eaca499e4 | — | — | Let the page's own policy admit recordings served by the capability protocol |
+| SO-F-S22-45 | D98 | merged | feat/super-ontology (车道 AL 并入) | 65d49d4fc → 65d49d4fc | — | — | Cover the speaker flow in visual baselines and an off-screen end-to-end run |
+| SO-F-S22-46 | D98 | merged | feat/super-ontology (车道 AL 并入) | 3bc87c021 → 3bc87c021 | — | — | Show unnamed speakers as the speaker of their meeting and list the ones to name on the file |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
@@ -388,6 +395,22 @@
 | SO-B-S21-42 | D86 | merged | feat/super-ontology (车道 AI 并入) | ed5189e44 → ed5189e44 | — | — | Hash a file after loading its own row, not every row of its Drive |
 | SO-B-S21-43 | D86 | merged | feat/super-ontology (车道 AI 并入) | 9cbdbd340 → 9cbdbd340 | — | — | Anchor merge proposals on the published keys, one branch for each end |
 | SO-B-S21-44 | D86 | merged | feat/super-ontology (车道 AI 并入) | 5aec02ccd → 5aec02ccd | — | — | Lift the per-Drive file cap and index jobs by file |
+| SO-B-S22-40 | D98 | merged | feat/super-ontology (车道 AL 并入) | d57b4142b → d57b4142b | — | — | Classify a recording as a conversation or not before its speakers are told apart |
+| SO-B-S22-41 | D98 | merged | feat/super-ontology (车道 AL 并入) | 25ed0fd5c → 25ed0fd5c | — | — | Publish a conversation under placeholder speakers and re-attribute when they are named |
+| SO-B-S22-42 | D98 | merged | feat/super-ontology (车道 AL 并入) | 506f12453 → 506f12453 | — | — | Report the class of a recording on the file detail and record docs-api 1.14 |
+| SO-B-S22-43 | D98 | merged | feat/super-ontology (车道 AL 并入) | 9498b8d45 → 9498b8d45 | — | — | Ask the model about a recording whose voices were merged and ignore stray speaker labels |
+| SO-B-S22-44 | D98 | merged | feat/super-ontology (车道 AL 并入) | 4cf5db47f → 4cf5db47f | — | — | Test the recording class on real pipeline output of synthetic speech and music |
+| SO-B-S22-45 | D98 | merged | feat/super-ontology (车道 AL 并入) | d027ed859 → d027ed859 | — | — | Measure the acceptance audio by class, speaker items and naming through the engine |
+| SO-B-S22-47 | D98 | merged | feat/super-ontology (车道 AL 并入) | 2054093a0 → 2054093a0 | — | — | Type a recording, its meeting and its participants, and read nothing from a media asset |
+| SO-B-S22-48 | D98 | merged | feat/super-ontology (车道 AL 并入) | 5d35c3a02 → 5d35c3a02 | — | — | Name a speaker's placeholder after its meeting and move the meeting's participant to the named Person |
+| SO-B-S22-49 | D98 | merged | feat/super-ontology (车道 AL 并入) | 029361168 → 029361168 | — | — | Record the Recording and Meeting types and the media classes in docs-api 1.14 and spec 17.4 |
+| SO-B-S22-46 | D98 | merged | feat/super-ontology (车道 AL 并入) | 1af2bcf2c → 1af2bcf2c | — | — | WIP: paused by owner (media classes and speakers) |
+| SO-B-S22-50 | D98 | merged | feat/super-ontology (车道 AL 并入) | 68e27b3e0 → 68e27b3e0 | — | — | Keep speaker naming out of the review counts and re-validate the class on eight synthetic meetings |
+| SO-B-S22-51 | D98 | merged | feat/super-ontology (车道 AL 并入) | 2eabdcd9a → 2eabdcd9a | — | — | Count speakers by the eigengap of centred embeddings and skip transcription of music and assets |
+| SO-B-S22-52 | D98 | merged | feat/super-ontology (车道 AL 并入) | 2bc2600ca → 2bc2600ca | — | — | Tell the sidecar a file name says media asset and refresh the held-out meetings with the new clustering |
+| SO-B-S22-53 | D98 | merged | feat/super-ontology (车道 AL 并入) | c1a2ebbd6 → c1a2ebbd6 | — | — | Run the class decision against the real model on the recorded transcripts |
+| SO-B-S22-54 | D98 | merged | feat/super-ontology (车道 AL 并入) | f8bd5a48e → f8bd5a48e | — | — | Route each audio chunk to the right recognizer by its spoken language |
+| SO-B-S22-55 | D98 | merged | feat/super-ontology (车道 AL 并入) | 33768f008 → 33768f008 | — | — | Re-record the acceptance calls and the held-out meetings with the language-routed transcripts |
 
 ## 签收
 
