@@ -1180,19 +1180,56 @@ impl ExtractHandler {
             && llm_wanted(&self.pool, &self.model, &s.drive_id).await
             && let Some(port) = self.model.port()
         {
-            {
-                let asked = tokio::time::timeout(
+            // The call counts against the Drive's daily limit like every model call (D19).
+            let daily: Option<i32> = sqlx::query_scalar(
+                "SELECT llm_daily_calls FROM _oo_docs.drive WHERE id = $1::uuid",
+            )
+            .bind(&s.drive_id)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten();
+            let granted = match (daily, self.pool.acquire().await) {
+                (Some(daily), Ok(mut c)) => matches!(
+                    crate::extract::llm::usage::reserve(&mut c, &s.drive_id, daily).await,
+                    Ok(crate::extract::llm::usage::Reserve::Granted { .. })
+                ),
+                _ => false,
+            };
+            let asked = if granted {
+                tokio::time::timeout(
                     std::time::Duration::from_secs(30),
                     crate::profile::classify_by_model(port.as_ref(), &s.path, ir),
                 )
+                .await
+                .ok()
+                .flatten()
+            } else {
+                None
+            };
+            if let Ok(mut c) = self.pool.acquire().await
+                && granted
+            {
+                let _ = crate::extract::llm::usage::record(
+                    &mut c,
+                    &s.drive_id,
+                    if asked.is_some() {
+                        crate::extract::llm::usage::Outcome::Completed {
+                            tokens_in: 0,
+                            tokens_out: 0,
+                        }
+                    } else {
+                        crate::extract::llm::usage::Outcome::Failed
+                    },
+                )
                 .await;
-                if let Ok(Some(profile)) = asked {
-                    class = crate::profile::Classified {
-                        profile,
-                        reason: "model",
-                        decided: true,
-                    };
-                }
+            }
+            if let Some(profile) = asked {
+                class = crate::profile::Classified {
+                    profile,
+                    reason: "model",
+                    decided: true,
+                };
             }
         }
         if let Ok(mut c) = self.pool.acquire().await {

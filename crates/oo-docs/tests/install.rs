@@ -118,7 +118,7 @@ async fn empty_db_install_then_readiness() {
             .fetch_one(&mut admin)
             .await
             .unwrap();
-    assert_eq!(tables, 43 + i64::try_from(extra).unwrap());
+    assert_eq!(tables, 44 + i64::try_from(extra).unwrap());
 
     // The runtime principal can verify readiness without installing.
     let mut rt = connect_runtime("oo_docs_it_empty").await;
@@ -434,7 +434,11 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .await
         .unwrap();
     admin
-        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile")
+        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile, DROP COLUMN profile_reason")
+        .await
+        .unwrap();
+    admin
+        .execute("DROP TABLE _oo_docs.profile_override")
         .await
         .unwrap();
     tamper(
@@ -486,17 +490,29 @@ async fn a_database_at_0154_upgrades_to_0157_with_the_media_profile_table() {
     let db = "oo_docs_it_upgrade_0157";
     installed_db(db).await;
     let mut admin = connect(db).await;
+    // 0159 needs 0157: it comes off first.
+    admin
+        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile, DROP COLUMN profile_reason")
+        .await
+        .unwrap();
+    admin
+        .execute("DROP TABLE _oo_docs.profile_override")
+        .await
+        .unwrap();
     admin
         .execute("DROP TABLE _oo_docs.media_profile")
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-media-profile/1'",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-media-profile/1', 'docs-file-profile/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
-        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-media-profile/1"]),
+        InstallOutcome::Applied(versions) => assert_eq!(
+            versions,
+            vec!["docs-media-profile/1", "docs-file-profile/1"]
+        ),
         other => panic!("{other:?}"),
     }
     admin
