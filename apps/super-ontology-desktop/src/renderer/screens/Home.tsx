@@ -10,7 +10,7 @@ import { useSuperDriveActions, useSuperDriveSelector } from "../model/SuperDrive
 import { selectActivity, selectDrives, selectOntologyVersion, selectPendingReviewTotal } from "../model/superDriveSelectors";
 import { isEngineReady, presentEngine } from "../model/superDriveStateModel";
 import { agentApi } from "../model/agentApi";
-import { useUnlinked, visibleReport } from "../model/unlinked";
+import { useUnlinked } from "../model/unlinked";
 import { ActorTag } from "./shared/ActorTag";
 import { useDriveLabel } from "./shared/driveLabel";
 import { CliDataBanner } from "./home/CliDataBanner";
@@ -49,7 +49,7 @@ export function Home() {
   const versions = useLoad(() => ontologyApi.ontologyVersions({ limit: 6 }), [ready, version], { enabled: ready });
   const tokens = useLoad(() => agentApi.list(), [ready], { enabled: ready });
   const unlinked = useUnlinked(`${version}|${files}`, { enabled: ready && files > 0 });
-  const unlinkedFiles = visibleReport(unlinked.report, false)?.files.length ?? 0;
+  const unlinkedFiles = unlinked.report?.files.length ?? 0;
   const facts = versions.value?.items.reduce((sum, v) => sum + (v.facts_added ?? 0) - (v.facts_retracted ?? 0), 0) ?? 0;
   const entityCount = entities.value ? `${formatNumber(entities.value.items.length)}${entities.value.next_cursor ? "+" : ""}` : "–";
   const presented = presentEngine(engine);

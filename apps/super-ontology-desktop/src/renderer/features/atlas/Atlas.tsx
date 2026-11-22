@@ -7,7 +7,7 @@ import { superDriveApi } from "../../model/superDriveApi";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { isEngineReady } from "../../model/superDriveStateModel";
 import { selectDrives, selectOntologyVersion } from "../../model/superDriveSelectors";
-import { useUnlinked, visibleReport, isIndexedOnly } from "../../model/unlinked";
+import { useUnlinked } from "../../model/unlinked";
 import { applyUnlinked, UNLINKED_GROUP_ID, unlinkedCount } from "./unlinked";
 import { atlasSource } from "./atlasApi";
 import { diffAtlas, loadAtlas, type AtlasSource } from "./adapter";
@@ -68,10 +68,7 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
   const version = useSuperDriveSelector(selectOntologyVersion);
   const files = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d === b[i])).reduce((sum, d) => sum + (d.files_total ?? 0), 0);
   const unlinked = useUnlinked(`${version}|${files}`, { enabled: ready });
-  const [showIndexed, setShowIndexed] = useState(false);
-  const fullReport = unlinked.report;
-  const indexedOnly = fullReport?.files.filter((file) => isIndexedOnly(file.reason)).length ?? 0;
-  const report = useMemo(() => visibleReport(fullReport, showIndexed), [fullReport, showIndexed]);
+  const report = unlinked.report;
   const reportRef = useRef(report);
   reportRef.current = report;
   const arranged = useMemo(() => applyUnlinked(live, report), [live, report]);
@@ -171,12 +168,9 @@ export function Atlas({ onOpenEntity, source = atlasSource, subscribe = superDri
           <Search size={16} strokeWidth={1.5} className="so-search-icon so-icon" aria-hidden="true" />
           <input className="so-input" type="search" data-testid="atlas-search" value={query} onChange={(event) => search(event.target.value)} placeholder={t("app.atlas.search")} aria-label={t("app.atlas.search")} />
         </form>
-        {(unlinkedTotal > 0 || onlyUnlinked || indexedOnly > 0) && (
+        {(unlinkedTotal > 0 || onlyUnlinked) && (
           <Button size="compact" variant={onlyUnlinked ? "secondary" : "ghost"} icon={Unlink} aria-pressed={onlyUnlinked} data-testid="atlas-unlinked-filter" data-count={unlinkedTotal}
             onClick={() => { setOnlyUnlinked(!onlyUnlinked); if (!onlyUnlinked) { setView("list"); setMatches([]); } }}>{t("app.atlas.unlinked.filter", { count: unlinkedTotal })}</Button>
-        )}
-        {onlyUnlinked && (indexedOnly > 0 || showIndexed) && (
-          <Button size="compact" variant={showIndexed ? "secondary" : "ghost"} aria-pressed={showIndexed} data-testid="atlas-indexed-filter" data-count={indexedOnly} onClick={() => setShowIndexed(!showIndexed)}>{t("app.atlas.unlinked.indexed")}</Button>
         )}
         {view === "graph" && query.trim() !== "" && <span className="so-weak so-atlas-matches" role="status" data-testid="atlas-matches">{t("app.atlas.matches", { count: matches.length })}</span>}
         <span className="so-atlas-spacer" />

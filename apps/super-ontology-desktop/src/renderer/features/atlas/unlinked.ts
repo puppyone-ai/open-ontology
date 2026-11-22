@@ -9,7 +9,7 @@ export const GROUP_ENTRY_PREFIX = "f:group:";
 /** More files than this with one reason become one entry with a count; a few stay as rows. */
 export const GROUP_ROWS_MAX = 8;
 const FORMATS_NAMED = 3;
-const GROUPED: readonly GroupedKind[] = ["unsupported", "processing", "indexed_only", "review", "parse_failed", "too_large", "encrypted"];
+const GROUPED: readonly GroupedKind[] = ["unsupported", "processing", "no_entities", "review", "parse_failed", "too_large", "encrypted"];
 
 /**
  * Moves what is not connected into one side group (25 section 7.3): isolated entities (type view) and files with a reason (both views).
