@@ -1099,7 +1099,7 @@ fn check_term_or_topic(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
 }
 
 fn verdict(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
-    let typed = verdict_by_type(m, c)?;
+    verdict_by_type(m, c)?;
     let known = c.known.contains(&(m.entity.ty, norm(&m.entity.name)));
     if !c.structural
         && m.entity.ty != EntityType::Document
@@ -1108,7 +1108,7 @@ fn verdict(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
     {
         return Err(Reason::MentionOnly);
     }
-    Ok(typed)
+    Ok(())
 }
 
 fn verdict_by_type(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {

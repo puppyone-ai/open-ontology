@@ -74,9 +74,11 @@ def main():
         addr = json.loads((out / "engine.json").read_text())["addr"]
         base = f"http://{addr}"
         token = (out / "token").read_text().strip()
+        drives = get(base, token, "/v1/docs/drives")
+        did = (drives.get("items") or drives.get("drives"))[0]["id"]
         files, cursor = [], None
         while True:
-            page = get(base, token, "/v1/docs/files?limit=200&recursive=true" + (f"&cursor={cursor}" if cursor else ""))
+            page = get(base, token, f"/v1/docs/drives/{did}/files?limit=200&recursive=true" + (f"&cursor={cursor}" if cursor else ""))
             files += page.get("items", [])
             cursor = page.get("next_cursor")
             if not cursor:
