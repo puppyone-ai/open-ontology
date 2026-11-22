@@ -3,6 +3,10 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, DefinitionList, IconButton, Notice, Skeleton, StatusDot } from "@open-ontology/design-system";
 import { RotateCw, X } from "lucide-react";
 import { ErrorText } from "../shared/ErrorText";
+import { MediaClassBadge, MediaPreview } from "../../features/media/MediaPreview";
+import { useMediaController } from "../../features/media/useMediaController";
+import { useMediaSource } from "../../features/media/useMediaSource";
+import { mediaKindOf, speakerLetter } from "../../model/details/mediaModel";
 import { useFileDetail } from "../../model/details/useFileDetail";
 import { formatBytes } from "../../model/format";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
@@ -18,6 +22,7 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   const { detail, error, loading } = useFileDetail(fileId);
   const [retrying, setRetrying] = useState(false);
   const view = record ? fileView(record) : null;
+  const isMedia = record ? mediaKindOf(typeof record.format === "string" ? record.format : null, record.path) !== null : false;
   const retry = async () => { setRetrying(true); await actions.retryFiles([fileId]); setRetrying(false); };
 
   return (
@@ -37,6 +42,7 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
           ...(record.format ? [{ label: t("app.sources.panel.format"), value: record.format }] : []),
         ]} />
       )}
+      {isMedia && <MediaSection fileId={fileId} />}
       {loading && !detail && <Skeleton height={12} />}
       {detail && (() => {
         const entities = (detail as unknown as { entities?: Array<{ id: string; name: string }> }).entities ?? [];
@@ -48,5 +54,23 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
         ) : null;
       })()}
     </Card>
+  );
+}
+
+/** A recording in the file panel: what the engine took it for, and the player with its transcript. */
+function MediaSection({ fileId }: { fileId: string }) {
+  const { t } = useLocalization();
+  const controller = useMediaController();
+  const source = useMediaSource(fileId);
+  const info = source.state === "ready" ? source.info : null;
+  return (
+    <div className="so-stack" data-testid="file-media">
+      <div className="so-row">
+        <h3 className="so-list-title so-grow">{t("app.media.preview.title")}</h3>
+        <MediaClassBadge info={info} />
+      </div>
+      {info?.class === "non_conversation" && <p className="so-weak">{t("app.media.noSpeakersNote")}</p>}
+      <MediaPreview source={source} controller={controller} compact speakerText={(label) => t("app.speaker.name", { letter: speakerLetter(label) })} />
+    </div>
   );
 }
