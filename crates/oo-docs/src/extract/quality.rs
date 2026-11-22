@@ -3,7 +3,7 @@
 //! A Decision is a proposition: someone decided something about something, and the sentence says so. A single
 //! generic word is no Decision, Event or Person, and a Term or Topic of one or two words belongs in the ontology
 //! only when the text defines it or keeps coming back to it. What fails the gate is dropped: it is not an entity, not
-//! a fact and not a review item (D90, D92: the product is the ontology, not a text index), and the run counts it
+//! a fact and not a review item (D90, D96: the product is the ontology; a mention is not an entity), and the run counts it
 //! ([`QualityStats`], shown in the stage detail of the file). The sentence stays reachable through the evidence
 //! anchors of the facts that really are in the ontology.
 //!
@@ -54,6 +54,8 @@ pub enum Reason {
     NoEvidenceSentence,
     /// Not the shape of a name of that type.
     BadShape,
+    /// D96: a model entity with no relation, no attribute, no identity and not known to the Drive is a mention.
+    MentionOnly,
     /// A short Term or Topic that is neither defined nor referenced often.
     Unsupported,
 }
@@ -67,6 +69,7 @@ impl Reason {
             Self::NoActor => "no_actor",
             Self::NoEvidenceSentence => "no_evidence_sentence",
             Self::BadShape => "bad_shape",
+            Self::MentionOnly => "mention_only",
             Self::Unsupported => "not_defined_or_repeated",
         }
     }
@@ -907,6 +910,8 @@ struct Ctx<'a> {
     defined_by_rule: BTreeSet<EntityRef>,
     /// The extraction is the rules' (not the model's).
     structural: bool,
+    /// Entities that are an end of a fact or carry an identity attribute.
+    placed: BTreeSet<EntityRef>,
     _x: std::marker::PhantomData<&'a Extraction>,
 }
 
@@ -946,6 +951,12 @@ fn ctx<'a>(x: &'a Extraction, ir: &DocIr, known: &[String]) -> Ctx<'a> {
         known: parse_known(known),
         defined_by_rule,
         structural: x.llm.is_none(),
+        placed: x
+            .facts
+            .iter()
+            .flat_map(|f| std::iter::once(f.subject.clone()).chain(f.object.clone()))
+            .chain(x.identities.iter().map(|i| i.entity.clone()))
+            .collect(),
         _x: std::marker::PhantomData,
     }
 }
@@ -1061,6 +1072,14 @@ fn check_term_or_topic(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
     {
         return Ok(());
     }
+    // D96: the model's Term exists only from an explicit definition (a rule's tried or rejected item is a structural position).
+    if m.entity.ty == EntityType::Term && !c.structural {
+        return if c.text.defines(&name) {
+            Ok(())
+        } else {
+            Err(Reason::Unsupported)
+        };
+    }
     // A name of one or two Latin words, or three CJK characters, is a word until the text shows it is a term.
     let short = cjk_count(&name) <= 3
         && latin_words(&name).len() <= 2
@@ -1080,6 +1099,19 @@ fn check_term_or_topic(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
 }
 
 fn verdict(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
+    let typed = verdict_by_type(m, c)?;
+    let known = c.known.contains(&(m.entity.ty, norm(&m.entity.name)));
+    if !c.structural
+        && m.entity.ty != EntityType::Document
+        && !known
+        && !c.placed.contains(&m.entity)
+    {
+        return Err(Reason::MentionOnly);
+    }
+    Ok(typed)
+}
+
+fn verdict_by_type(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
     match m.entity.ty {
         EntityType::Decision => check_decision(m, c),
         EntityType::Person => check_person(m, c.structural),

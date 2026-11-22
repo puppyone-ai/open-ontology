@@ -148,7 +148,10 @@ async fn the_queue_of_a_big_folder_holds_only_real_questions() {
         if p.contains("copies/") || p.contains("moved/") {
             continue;
         }
-        planted += fx.llm_topic_facts(p, 3, 5000 + (i as i32 % 6) * 500).await.len();
+        planted += fx
+            .llm_topic_facts(p, 3, 5000 + (i as i32 % 6) * 500)
+            .await
+            .len();
     }
     // Quality gate: bare words from list items under a decisions heading.
     let t = Instant::now();

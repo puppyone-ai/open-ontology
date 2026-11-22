@@ -80,8 +80,16 @@ pub fn classify(
     if asserted || origin == Origin::Human {
         return (bp, Class::Eligible);
     }
+    // D97: a supersession no rule certifies is asked only when a Share uses the fact it would end; else a candidate.
     if predicate == "supersedes" && !certain_supersedes(rule_id, origin) {
-        return (bp, Class::Queue("supersede_candidate"));
+        return (
+            bp,
+            if signals.share_used {
+                Class::Queue("supersede_candidate")
+            } else {
+                Class::Hold
+            },
+        );
     }
     let class = match disposition(bp, th.auto_publish_bp, th.queue_min_bp) {
         Disposition::Auto => Class::Eligible,
@@ -91,7 +99,8 @@ pub fn classify(
         // nothing contradicts stay candidates on the entity page and are never queued. Two owners of one project
         // are also asked by the integrity constraints (D57).
         Disposition::Queue => {
-            let relation = !matches!(predicate, "about" | "mentions") && !predicate.starts_with("attr.");
+            let relation =
+                !matches!(predicate, "about" | "mentions") && !predicate.starts_with("attr.");
             if relation && signals.conflicted {
                 Class::Queue("low_confidence")
             } else if relation && signals.verified && bp >= VERIFIED_MIN_BP {
@@ -150,6 +159,9 @@ pub async fn classify_drafts(
                       THEN ((sj.type <> 'Document' AND {file_s}) OR (f.object_id IS NOT NULL AND {file_o})) \
                       ELSE ({once_s} OR (f.object_id IS NOT NULL AND {once_o})) END) AS single_entity, \
                 COALESCE(f.rule_id = 'llm.verified', false) AS verified, \
+                (f.predicate = 'supersedes' AND EXISTS (SELECT 1 FROM _oo_docs.share_fact_use u \
+                    JOIN _oo_docs.share sh ON sh.id = u.share_id JOIN _oo_docs.fact x ON x.id = u.fact_id \
+                   WHERE sh.status IN ('active', 'drifted') AND f.object_id IN (x.subject_id, x.object_id))) AS share_used, \
                 (f.predicate IN ('owns', 'decides') AND f.object_id IS NOT NULL AND EXISTS ( \
                     SELECT 1 FROM _oo_docs.fact g WHERE g.id <> f.id AND g.predicate = f.predicate \
                        AND g.object_id = f.object_id AND g.subject_id <> f.subject_id \
@@ -182,6 +194,7 @@ pub async fn classify_drafts(
             object_is_thing: r.try_get("object_thing")?,
             verified: r.try_get("verified")?,
             conflicted: r.try_get("conflicted")?,
+            share_used: r.try_get("share_used")?,
         };
         let predicate: String = r.try_get("predicate")?;
         let rule_id: Option<String> = r.try_get("rule_id")?;
@@ -403,14 +416,29 @@ mod tests {
     }
 
     #[test]
-    fn uncertain_supersedes_is_always_queued() {
+    fn uncertain_supersedes_is_asked_only_when_a_share_uses_it() {
         for (o, r) in [
             (Origin::Llm, None),
             (Origin::Suggest, None),
             (Origin::Rule, Some("name.version")),
         ] {
+            assert_eq!(run(o, r, "supersedes", 9900, false, false).1, Class::Hold);
+            let used = Signals {
+                share_used: true,
+                ..Signals::default()
+            };
             assert_eq!(
-                run(o, r, "supersedes", 9900, false, false).1,
+                classify(
+                    o,
+                    r,
+                    "supersedes",
+                    9900,
+                    used,
+                    false,
+                    false,
+                    Thresholds::default()
+                )
+                .1,
                 Class::Queue("supersede_candidate")
             );
         }
@@ -467,12 +495,25 @@ mod tests {
     }
 
     fn with(signals: Signals, pred: &str, base: i32) -> Class {
-        classify(Origin::Llm, Some("llm.verified"), pred, base, signals, false, false, Thresholds::default()).1
+        classify(
+            Origin::Llm,
+            Some("llm.verified"),
+            pred,
+            base,
+            signals,
+            false,
+            false,
+            Thresholds::default(),
+        )
+        .1
     }
 
     #[test]
     fn a_verified_relation_publishes_and_only_a_clash_is_asked() {
-        let v = Signals { verified: true, ..Signals::default() };
+        let v = Signals {
+            verified: true,
+            ..Signals::default()
+        };
         assert_eq!(with(v, "owns", 7000), Class::Eligible);
         assert_eq!(with(v, "decides", 7500), Class::Eligible);
         // Verified but below the floor, or only a topic: a candidate on the entity page, not a question.
@@ -481,9 +522,22 @@ mod tests {
         assert_eq!(with(Signals::default(), "about", 7500), Class::Hold);
         assert_eq!(with(Signals::default(), "owns", 7500), Class::Hold);
         // Another claim for the same thing: asked, verified or not; a topical link never is.
-        let clash = Signals { conflicted: true, ..Signals::default() };
+        let clash = Signals {
+            conflicted: true,
+            ..Signals::default()
+        };
         assert_eq!(with(clash, "decides", 7500), Class::Queue("low_confidence"));
-        assert_eq!(with(Signals { verified: true, ..clash }, "owns", 7500), Class::Queue("low_confidence"));
+        assert_eq!(
+            with(
+                Signals {
+                    verified: true,
+                    ..clash
+                },
+                "owns",
+                7500
+            ),
+            Class::Queue("low_confidence")
+        );
         assert_eq!(with(clash, "about", 7500), Class::Hold);
     }
 }

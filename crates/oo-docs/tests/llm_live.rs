@@ -216,15 +216,15 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
         2
     );
 
-    // Publishing: the 8500 owns is automatic, the 7000 one waits, supersedes is never automatic.
+    // Publishing (D91, D97): the verified 8500 owns publishes, the 7000 one stays a candidate, supersedes is never automatic; no question is asked.
     let PublishOutcome::Published(_) = r.fx.publish().await else {
         panic!("v1")
     };
     assert_eq!(r.fx.text("SELECT predicate || '/' || status FROM _oo_docs.fact WHERE origin = 'llm' ORDER BY predicate, confidence_bp").await,
-        ["owns/draft", "owns/draft", "supersedes/draft"]);
+        ["owns/draft", "owns/published", "supersedes/draft"]);
     assert_eq!(
         r.fx.text("SELECT reason_code FROM _oo_docs.review_item WHERE kind = 'low_confidence_fact' ORDER BY reason_code").await,
-        ["low_confidence", "low_confidence", "supersede_candidate"]
+        Vec::<String>::new()
     );
     r.fx.finish(db).await;
 }

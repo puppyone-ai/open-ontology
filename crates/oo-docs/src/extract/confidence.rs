@@ -48,6 +48,8 @@ pub struct Signals {
     /// Another live fact claims the same thing for someone else (a second owner or decider of the same object
     /// over an overlapping time).
     pub conflicted: bool,
+    /// A supersession whose old object has facts a live Share uses (D97).
+    pub share_used: bool,
 }
 
 /// Base score with the adjustments applied.
