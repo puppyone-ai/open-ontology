@@ -160,7 +160,10 @@ pub async fn classify_drafts(
     let sql = format!(
         "SELECT f.id::text AS id, f.fact_key, f.predicate, f.origin, f.rule_id, f.confidence_bp, \
                 COALESCE(o.type = 'Thing', false) AS object_thing, \
-                COALESCE(o.type IN ('Project', 'Organization'), false) AS object_proper, \
+                COALESCE(o.type IN ('Project', 'Organization') AND EXISTS (SELECT 1 FROM _oo_docs.fact rf \
+                    WHERE rf.origin = 'rule' AND rf.status IN ('draft', 'published') \
+                      AND (rf.subject_id = o.id OR rf.object_id = o.id) \
+                      AND rf.rule_id NOT IN ('doc.entity', 'doc.link', 'doc.anchor')), false) AS object_proper, \
                 GREATEST((SELECT count(DISTINCT e.version_id) FROM _oo_docs.evidence e \
                            WHERE e.target_kind = 'fact' AND e.target_id = f.id \
                              AND e.withdrawn_at IS NULL) - 1, 0) AS extra_versions, \
