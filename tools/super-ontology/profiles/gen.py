@@ -733,7 +733,8 @@ put("archive/export-2027-01.json", json.dumps({"rows": [{"id": 1, "kind": "send-
 put("archive/blob.bin", bytes((i * 37 + 11) % 256 for i in range(512)))
 zb = io.BytesIO()
 with zipfile.ZipFile(zb, "w") as z:
-    z.writestr("a.txt", "hello")
+    zi = zipfile.ZipInfo("a.txt", date_time=(2027, 1, 1, 0, 0, 0))
+    z.writestr(zi, "hello")
 put("archive/backup.zip", zb.getvalue())
 
 # media (lane AL owns what happens to it; here only its class)
