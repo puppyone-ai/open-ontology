@@ -42,6 +42,7 @@ def main():
     ap.add_argument("--model-key-file")
     ap.add_argument("--model-id")
     ap.add_argument("--workers", default="4")
+    ap.add_argument("--wait-file", help="after scoring keep the engine up until this file exists (debugging the Ask harness)")
     ap.add_argument("--ask-oo", help="oo binary: also run the acceptance questions through the CLI agent baseline (secondary, D95)")
     a = ap.parse_args()
     repo = Path(a.repo)
@@ -103,6 +104,10 @@ def main():
             sc = subprocess.run([sys.executable, "-B", str(repo / "tools/super-ontology/acceptance/score_ask.py"), "--ask-results", str(out / "ask/ask-results.json"),
                                  "--questions", str(repo / "testing/super-ontology/acceptance/gold/questions.jsonl"), "--out", str(out / "score-ask.json")], capture_output=True, text=True)
             print(sc.stdout[-1500:] or sc.stderr[-800:])
+        if a.wait_file:
+            (out / "base-url").write_text(base)
+            while not Path(a.wait_file).exists():
+                time.sleep(3)
     finally:
         flag.write_text("release")
         if proc:

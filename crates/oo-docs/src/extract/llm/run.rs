@@ -98,6 +98,9 @@ pub struct LlmInput<'a> {
     pub ir: &'a DocIr,
     /// Entities the Drive already knows, `Type:name` (at most 50 are sent).
     pub known: Vec<Known>,
+    /// Terms and Things the Drive's rules define (`Type:name`): a glossary entry, a rejected or tried alternative. They
+    /// do not go into the prompt; the quality gate (D96) takes them as defined.
+    pub defined: Vec<Known>,
     /// Open types a person promoted (`review::promotion::constrained_types`); they constrain the prompt and are
     /// part of the prompt version.
     pub types: Vec<ConstrainedType>,
@@ -316,7 +319,8 @@ pub async fn extract_llm(
         prompt_version: version,
         extraction_key: h.finalize().to_hex().to_string(),
     });
-    let (x, quality) = crate::extract::quality::gate(x, input.ir, &input.known);
+    let admitted: Vec<Known> = input.known.iter().chain(&input.defined).cloned().collect();
+    let (x, quality) = crate::extract::quality::gate(x, input.ir, &admitted);
     stats.quality = quality;
     Ok((x, stats))
 }

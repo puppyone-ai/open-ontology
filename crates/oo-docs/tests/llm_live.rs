@@ -129,6 +129,7 @@ impl Rig {
             title: "星图项目",
             ir: &self.ir,
             known: vec![],
+            defined: vec![],
             calls_used: used,
         };
         extract_llm(&mut self.fx.rt, &self.fx.cas, &self.port, limits, &input)

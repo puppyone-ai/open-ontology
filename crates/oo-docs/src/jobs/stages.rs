@@ -1507,6 +1507,20 @@ async fn known_entities(pool: &PgPool, version_id: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// `Term:name` of the Terms a rule put in the ontology (a glossary entry, a rejected or tried alternative): defined
+/// by a structural position, so the model's mention of one needs no definition of its own (D96).
+async fn defined_terms(pool: &PgPool) -> Vec<String> {
+    sqlx::query_scalar::<_, String>(
+        "SELECT DISTINCT 'Term:' || e.canonical_name FROM _oo_docs.entity e \
+          WHERE e.type = 'Term' AND e.status = 'active' \
+            AND EXISTS (SELECT 1 FROM _oo_docs.fact f WHERE f.origin = 'rule' AND (f.subject_id = e.id OR f.object_id = e.id) \
+                          AND f.rule_id IN ('dir.terms', 'md.headings')) LIMIT 2000",
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+}
+
 impl JobHandler for ExtractLlmHandler {
     fn run(&self, ctx: JobCtx) -> HandlerFuture<'_> {
         Box::pin(async move {
@@ -1573,6 +1587,7 @@ impl JobHandler for ExtractLlmHandler {
                     title: &title,
                     ir: &ir,
                     known,
+                    defined: defined_terms(&self.pool).await,
                     calls_used,
                     types,
                 };
