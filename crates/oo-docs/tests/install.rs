@@ -15,7 +15,7 @@ use sqlx::{Connection, Executor, Row};
 #[test]
 fn compiled_files_have_stable_shape() {
     let list = migrations();
-    assert_eq!(list.len(), 15);
+    assert_eq!(list.len(), 16);
     let mut seen = std::collections::HashSet::new();
     for (m, min) in list.iter().zip(SCHEMA_MIN) {
         assert_eq!(m.version, min);
@@ -108,7 +108,7 @@ async fn empty_db_install_then_readiness() {
     .await
     .unwrap();
     let extra = usize::from(has_vector(&mut admin).await);
-    assert_eq!(rows.len(), 15 + extra);
+    assert_eq!(rows.len(), 16 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
@@ -247,7 +247,7 @@ async fn missing_prerequisite_raises_oo002_and_runs_nothing() {
         .fetch_one(&mut admin)
         .await
         .unwrap();
-    assert_eq!(n, 14 + i64::from(has_vector(&mut admin).await));
+    assert_eq!(n, 15 + i64::from(has_vector(&mut admin).await));
     match verify_readiness(&mut admin).await {
         Err(ReadinessError::Incomplete { missing }) => assert_eq!(missing, "docs-sources-jobs/1"),
         other => panic!("{other:?}"),
@@ -457,5 +457,46 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .execute("UPDATE _oo_docs.drive SET max_files = 5000000 WHERE name = 'custom'")
         .await
         .expect("the new bound allows a larger cap");
+    drop_db(db).await;
+}
+
+/// A database at 0154 upgrades to 0156 in place: the nullable `profile` column exists with its CHECK, rows that were there before
+/// keep a NULL profile, and the column takes only the eight profiles.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_database_at_0154_upgrades_to_0156_with_the_file_profile_column() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_it_upgrade_0156";
+    installed_db(db).await;
+    let mut admin = connect(db).await;
+    admin
+        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile")
+        .await
+        .unwrap();
+    tamper(
+        &mut admin,
+        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-file-profile/1'",
+    )
+    .await;
+    match install(&mut admin).await.expect("upgrade") {
+        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-file-profile/1"]),
+        other => panic!("{other:?}"),
+    }
+    let nullable: String = sqlx::query_scalar(
+        "SELECT is_nullable FROM information_schema.columns \
+          WHERE table_schema = '_oo_docs' AND table_name = 'file' AND column_name = 'profile'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert_eq!(nullable, "YES");
+    let check: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid \
+          WHERE t.relname = 'file' AND c.contype = 'c' AND pg_get_constraintdef(c.oid) LIKE '%instruction%'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert_eq!(check, 1);
     drop_db(db).await;
 }

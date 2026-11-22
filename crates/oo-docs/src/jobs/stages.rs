@@ -1250,6 +1250,11 @@ impl JobHandler for ExtractHandler {
             if ctx.should_stop() {
                 return Outcome::Cancelled;
             }
+            // D89: the profile of the file, stored for the file list and decisive for the model supplement.
+            let profile = crate::profile::classify(&s.path, &ir).profile;
+            if let Ok(mut c) = self.pool.acquire().await {
+                let _ = crate::profile::store(&mut c, &s.file_id, profile).await;
+            }
             // Same blocks as the previous version: nothing to extract, the
             // evidence moves (D53).
             let reused = match super::reuse::reusable_version(
@@ -1302,8 +1307,9 @@ impl JobHandler for ExtractHandler {
             // A model that is up and a Drive that uses it: the file waits in
             // `extracting` for the `extract_llm` job, which adds its facts and
             // moves the file on. Same blocks as before (reused) need no model.
-            let with_llm =
-                reused.is_none() && llm_wanted(&self.pool, &self.model, &s.drive_id).await;
+            let with_llm = reused.is_none()
+                && profile.uses_model()
+                && llm_wanted(&self.pool, &self.model, &s.drive_id).await;
             let mut tx = match begin_stage(&self.pool).await {
                 Ok(t) => t,
                 Err(e) => return db_fail(e),

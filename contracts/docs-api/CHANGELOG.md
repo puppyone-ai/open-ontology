@@ -203,3 +203,12 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `x-data`): `db.source_changed` `{name, action: added|removed|initialized, stack}` and `db.pipeline_changed` `{command: up|down|build|init, ok,
   stack, profile?, published?}`; `stack` is an absolute path, `published` is true only when `oo build` ended complete with a published
   publication. No new error code. Additive.
+
+## 1.14 (lane AK, document profiles, D89)
+
+- `FileSummary.profile` (optional string enum `business|meeting|table|instruction|code|paper|media|other`): what kind of document the file is. The engine
+  stores it when the file is extracted (`_oo_docs.file.profile`, migration 0156) and derives it from the path and blob format for a file that was never
+  extracted, so every row carries one. The profile decides what is read: code and instruction documents are read by parsers and rules only (no model),
+  papers by the paper rules, the rest as before. `file-detail` returns it in `file`. Clients show an unknown value as unknown. No new error code. Additive.
+- Entities of the profile extractors are `Thing` with the labels `Rule`, `Command`, `Tool`, `Path`, `Function`, `Class`, `Type`, `Dependency`, `Package`,
+  `Paper`, `Venue`, `Method`, `Dataset`, `Metric` (spec 10 section 5.1.1); they are never proposed as type promotions.

@@ -826,6 +826,20 @@
             "null"
           ]
         },
+        "profile": {
+          "description": "D89: what kind of document the file is, which decides how it is read. Derived from the path and format until the file is extracted, then stored. Clients show an unknown value as unknown.",
+          "type": "string",
+          "enum": [
+            "business",
+            "meeting",
+            "table",
+            "instruction",
+            "code",
+            "paper",
+            "media",
+            "other"
+          ]
+        },
         "state": {
           "$ref": "#/$defs/FileState"
         },
