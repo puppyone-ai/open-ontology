@@ -94,6 +94,8 @@ pub struct BlockText {
     pub block_id: String,
     pub ordinal: u32,
     pub text: String,
+    /// Where the block is in its file (for the 工作约定 section of BRIEF, which quotes whole blocks); `None` when not known.
+    pub anchor: Option<Anchor>,
 }
 
 /// What was held back by the scope.

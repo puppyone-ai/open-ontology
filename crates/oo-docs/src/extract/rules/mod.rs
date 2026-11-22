@@ -38,6 +38,7 @@ use self::kv::Field;
 use super::model::{
     Collector, EntityRef, EntityType, EvidenceRef, Extraction, FactMention, Predicate,
 };
+use crate::profile::{Class, Profile};
 
 /// Version tag stored with every rule fact.
 pub const RULESET_VERSION: &str = "rules/1";
@@ -298,6 +299,10 @@ fn clip(s: &str, max: usize) -> String {
 pub struct Siblings<'a> {
     /// Drive-relative NFC paths of live files (any directory).
     pub paths: &'a [String],
+    /// The profile stored on the file (the user's override and the model's say are in it); `None`: classify here.
+    pub profile: Option<Profile>,
+    /// Paths of the project marker files of the Drive (manifests, AGENTS.md, CODEOWNERS), for the project of a file.
+    pub markers: &'a [String],
     /// What the Drive already decided about a recording (a model's or a person's verdict stored for its blob);
     /// `None` leaves it to the rules' own classification.
     pub media: Option<media_class::MediaClass>,
@@ -380,6 +385,17 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         ir
     };
     let blocks = &ir.blocks;
+    // D89: the profile decides what is read. Code and unknown text have no prose to read.
+    let class = match siblings.profile {
+        Some(profile) => crate::profile::Classified {
+            profile,
+            reason: "stored",
+            decided: true,
+        },
+        None => crate::profile::classify(&path, ir),
+    };
+    // D94: only records (and media) are read for entities by the core rules; instruction, reference, code and other files are not.
+    let structured = !matches!(class.profile.class(), Class::Record | Class::Media);
     // Evidence anchors: heading (level 1 first), frontmatter block.
     let h1 = blocks
         .iter()
@@ -401,7 +417,7 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         .map_or_else(|| anchor_ev.clone(), EvidenceRef::from_block);
     let is_text = matches!(ir.format, DocFormat::Md | DocFormat::Txt);
     // md.kv and md.headings read paragraphs and lists of every prose format.
-    let is_prose = !matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx);
+    let is_prose = !matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx) && !structured;
     let fm_map = ir.meta.frontmatter.clone().unwrap_or_default();
     let fm_fields = if is_text {
         frontmatter::fields(&fm_map)
@@ -458,7 +474,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     );
 
     // dir.* / fm.type: the entity the file stands for.
-    let kind: Option<Kind> = if is_text || info.dir != Dir::None {
+    let kind: Option<Kind> = if structured {
+        None
+    } else if is_text || info.dir != Dir::None {
         dirs::classify(
             &info,
             fm_value(Field::Type)
@@ -678,6 +696,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
 
     ctx.block_date = None;
 
+    // The profile extractors (instruction, code, paper): `Thing` candidates registered by the profile.
+    crate::profile::apply(&class, &path, ir, siblings.markers, &mut ctx.col);
+
     // dir.terms: definition lists and two column tables.
     if info.dir == Dir::Terms {
         terms(&mut ctx, blocks);
@@ -687,12 +708,18 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         tables::apply(&mut ctx, blocks);
     }
     // doc.meta, pptx.title, name.version, text.email.
-    doc_meta(&mut ctx, ir, &anchor_ev);
+    if !structured {
+        doc_meta(&mut ctx, ir, &anchor_ev);
+    }
     if ir.format == DocFormat::Pptx {
         pptx_title(&mut ctx, blocks);
     }
-    name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
-    text_email(&mut ctx, blocks);
+    if !structured {
+        name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
+    }
+    if !structured {
+        text_email(&mut ctx, blocks);
+    }
     // What speakers say about what they own (the subject is a provisional Person until the speaker is confirmed).
     if let Some(class) = media_class {
         media::apply(&mut ctx, ir, class);

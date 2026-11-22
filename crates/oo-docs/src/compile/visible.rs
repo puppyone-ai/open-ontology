@@ -94,6 +94,8 @@ pub struct VisibleGraph {
     aliases: BTreeMap<String, Vec<VisibleAlias>>,
     by_entity: BTreeMap<String, Vec<usize>>,
     blocks: BTreeMap<String, Vec<(u32, String, String)>>,
+    /// The anchor of each block of `blocks`, same order.
+    block_anchors: BTreeMap<String, Vec<Option<Anchor>>>,
     blocked: BlockedCounts,
     conflicts: Vec<VisibleConflict>,
 }
@@ -255,11 +257,13 @@ impl VisibleGraph {
                 by_entity.entry(o.clone()).or_default().push(i);
             }
         }
+        let mut block_anchors: BTreeMap<String, Vec<Option<Anchor>>> = BTreeMap::new();
         let blocks = blocks
             .into_iter()
             .filter(|(vid, _)| path_of.contains_key(vid.as_str()))
             .map(|(vid, mut v)| {
                 v.sort_by(|a, b| (a.ordinal, &a.block_id).cmp(&(b.ordinal, &b.block_id)));
+                block_anchors.insert(vid.clone(), v.iter().map(|b| b.anchor.clone()).collect());
                 (
                     vid,
                     v.into_iter()
@@ -323,6 +327,7 @@ impl VisibleGraph {
                 aliases: vis_aliases,
                 by_entity,
                 blocks,
+                block_anchors,
                 blocked: BlockedCounts {
                     facts: blocked.facts,
                     entities: blocked.entities,
@@ -404,6 +409,22 @@ impl VisibleGraph {
             .map(|(_, _, t)| t.as_str())
             .collect();
         Ok(parts.join("\n\n"))
+    }
+
+    /// The blocks of an in-scope file version with their anchors, in file order: `(block id, text, anchor)`. Only blocks whose
+    /// anchor is known are returned.
+    pub(crate) fn file_blocks(&self, version_id: &str) -> Vec<(&str, &str, &Anchor)> {
+        let (Some(blocks), Some(anchors)) = (
+            self.blocks.get(version_id),
+            self.block_anchors.get(version_id),
+        ) else {
+            return Vec::new();
+        };
+        blocks
+            .iter()
+            .zip(anchors)
+            .filter_map(|((_, id, text), a)| Some((id.as_str(), text.as_str(), a.as_ref()?)))
+            .collect()
     }
 
     /// Text of one in-scope block (vector scoring).

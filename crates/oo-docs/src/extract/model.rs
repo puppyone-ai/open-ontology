@@ -92,6 +92,10 @@ pub enum Predicate {
     Mentions,
     About,
     TriedAndFailed,
+    /// A reference cites another (D94).
+    Cites,
+    /// A person wrote a reference (D94, the reference's own authors only).
+    Authored,
     /// A meeting has a participant (a Person, a placeholder speaker until named; D98).
     HasParticipant,
     /// A meeting was recorded in a recording (D98).
@@ -112,6 +116,8 @@ impl Predicate {
             Self::Mentions => "mentions".into(),
             Self::About => "about".into(),
             Self::TriedAndFailed => "tried_and_failed".into(),
+            Self::Cites => "cites".into(),
+            Self::Authored => "authored".into(),
             Self::HasParticipant => "has_participant".into(),
             Self::RecordedIn => "recorded_in".into(),
             Self::Attr(a) => format!("attr.{a}"),
@@ -130,6 +136,8 @@ impl Predicate {
             "mentions" => Self::Mentions,
             "about" => Self::About,
             "tried_and_failed" => Self::TriedAndFailed,
+            "cites" => Self::Cites,
+            "authored" => Self::Authored,
             "has_participant" => Self::HasParticipant,
             "recorded_in" => Self::RecordedIn,
             other => {

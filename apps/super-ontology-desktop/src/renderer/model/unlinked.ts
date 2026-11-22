@@ -3,6 +3,7 @@ import { useLocalization } from "@open-ontology/design-system/localization";
 import type { EngineFileDetail, EngineFileSummary } from "../../shared/super-ontology/bridge";
 import { invoke, type ApiResult } from "./bridgeInvoke";
 import { pool } from "../features/atlas/adapter";
+import { classOf, reasonOf } from "./profile";
 
 /**
  * "Not connected" (25 section 7.3): which files or things have nothing to do with the rest, and the plain reason why. A file is
@@ -13,7 +14,10 @@ import { pool } from "../features/atlas/adapter";
  * The reason is data; the sentence comes from the catalogs (`useUnlinkedText`).
  */
 export type UnlinkedReason =
+  /** A record file that produced no entities. */
   | { kind: "no_entities" }
+  /** A file the ontology does not take entities from by its class (D94): not a problem and never "not connected"; only the file row and detail say so. */
+  | { kind: "not_admitted"; class: "instruction" | "code" | "other"; reason: string | null }
   | { kind: "unsupported"; format: string }
   /** Many files with the same reason (a code folder: unsupported formats, still processing, no entities) shown as one entry with a count instead of one row each. `detail` names the biggest formats of unsupported files. */
   | { kind: "group"; of: GroupedKind; count: number; detail?: string }
@@ -33,12 +37,22 @@ export type UnlinkedReason =
 export type GroupedKind = "unsupported" | "processing" | "no_entities" | "review" | "parse_failed" | "too_large" | "encrypted";
 export type FileFacts = { entities: number; connected: boolean };
 /** The fields of a file summary this module reads. */
-export type FileLike = { id?: string; drive_id?: string; state: string; state_code?: unknown; path: string; format?: unknown; pending_review?: unknown };
+export type FileLike = { id?: string; drive_id?: string; state: string; state_code?: unknown; path: string; format?: unknown; pending_review?: unknown; class?: unknown; profile?: unknown; profile_reason?: unknown };
 
 const pending = (file: FileLike): boolean => typeof file.pending_review === "number" && file.pending_review > 0;
 const PROCESSING = new Set(["stored", "queued", "parsing", "parsed", "extracting", "indexed"]);
 const READY = new Set(["published", "extract_partial"]);
 const IGNORED = new Set(["deleted", "superseded", "duplicate", "outdated"]);
+
+/** Only when the engine said something about the file: an older engine that sends neither `class` nor `profile` leaves every file in. */
+const admissionKnown = (file: FileLike): boolean => typeof file.class === "string" || typeof file.profile === "string";
+
+/** The not-admitted reason of a file whose class keeps it out of the ontology (instruction, code, other), else `null`. Media and records are not covered. */
+export function admission(file: FileLike): Extract<UnlinkedReason, { kind: "not_admitted" }> | null {
+  if (!admissionKnown(file)) return null;
+  const cls = classOf(file);
+  return cls === "instruction" || cls === "code" || cls === "other" ? { kind: "not_admitted", class: cls, reason: reasonOf(file) } : null;
+}
 
 /** The extension of a path in lower case, without the dot: the name of the format when the engine gives none. */
 export const formatOf = (file: Pick<FileLike, "path" | "format">): string => {
@@ -63,8 +77,11 @@ export function fileReason(file: FileLike, facts: FileFacts | null, speakers = 0
   if (file.state === "indexed" && pending(file)) return { kind: "review" };
   if (PROCESSING.has(file.state)) return { kind: "processing" };
   if (!READY.has(file.state)) return null;
+  const outside = admission(file);
+  if (outside) return outside;
   if (facts === null) return pending(file) ? { kind: "review" } : null;
-  if (facts.entities === 0) return pending(file) ? { kind: "review" } : { kind: "no_entities" };
+  // A reference file is one Reference instance (D94): its normal state, never "no entities".
+  if (facts.entities === 0) return pending(file) ? { kind: "review" } : classOf(file) === "reference" && admissionKnown(file) ? null : { kind: "no_entities" };
   return facts.connected ? null : { kind: "no_relations", count: facts.entities };
 }
 
@@ -124,7 +141,8 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
   }
   const linkedPaths = await source.linkedFilePaths().catch(() => new Set<string>());
   const speakers = await (source.speakerPending?.() ?? Promise.resolve(new Map<string, number>())).catch(() => new Map<string, number>());
-  const ready = all.filter((file) => READY.has(file.state));
+  // Files outside the ontology by class are not read and never counted as unconnected (D94).
+  const ready = all.filter((file) => READY.has(file.state) && !admission(file));
   const toRead = ready.slice(0, maxFiles);
   limited = ready.length > toRead.length;
   const entitiesOf = new Map<string, EntityRefLike[]>();
@@ -169,7 +187,7 @@ export async function analyzeUnlinked(source: UnlinkedSource, options: AnalyzeOp
     // Cut short: what other files hold is not known, so a ready file is never called unconnected on that evidence.
     const shared = !keys || limited || fileEntities.size < 2 || linkedFile(file.id) || [...keys].some((key) => (holders.get(key)?.size ?? 0) > 1 || islandReaches(find(key)));
     const reason = fileReason(file, keys ? { entities: keys.size, connected: shared } : null, speakers.get(file.id) ?? 0);
-    if (reason) files.push({ fileId: file.id, driveId: file.drive_id, path: file.path, name: file.path.slice(file.path.lastIndexOf("/") + 1), reason });
+    if (reason && reason.kind !== "not_admitted") files.push({ fileId: file.id, driveId: file.drive_id, path: file.path, name: file.path.slice(file.path.lastIndexOf("/") + 1), reason });
   }
   const entities: UnlinkedEntity[] = [];
   if (!limited && fileEntities.size > 1) for (const [key, refs] of entitiesOf) {
@@ -278,6 +296,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
       case "parse_failed": return t("app.unlinked.reason.parse_failed", { code: reason.code });
       case "no_relations": return t("app.unlinked.reason.no_relations", { count: reason.count });
       case "speaker": return t("app.unlinked.reason.speaker", { count: reason.count });
+      case "not_admitted": return t(`app.unlinked.reason.not_admitted.${reason.class}`);
       case "entity": return reason.file ? t("app.unlinked.reason.entity_in", { file: reason.file }) : t("app.unlinked.reason.entity");
       default: return t(`app.unlinked.reason.${reason.kind}`);
     }
@@ -286,6 +305,7 @@ export function useUnlinkedText(): (reason: UnlinkedReason) => string {
 
 /** The reason a file row shows: the report's when the file was read, else what its own state says (unsupported, still processing, ...). */
 export function reasonForRow(file: FileLike & { id: string }, report: UnlinkedReport | null): UnlinkedReason | null {
+  if (READY.has(file.state)) { const outside = admission(file); if (outside) return outside; }
   if (report) {
     const found = report.files.find((entry) => entry.fileId === file.id);
     if (found) return found.reason;

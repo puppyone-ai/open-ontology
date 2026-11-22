@@ -218,3 +218,14 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   `has_participant` its speakers); `fact.predicate` gains `recorded_in` and `has_participant`. Speaker placeholders are Person entities named
   `《<meeting>》的说话人 A` (with a blob suffix that clients hide). `non_conversation` recordings are media assets: a Recording and nothing read from their sound.
 - D97/D98: pending `speaker_identity` items no longer count in `File.pending_review`, `Drive.pending_review`, the freshness state or `review.changed` counts; they stay listable (`GET /review?kind=speaker_identity`) and decidable, and `FileDetail.parse.media.speakers_to_name` says how many wait.
+
+## 1.15 (lane AK, admission by file class, D94)
+
+- `FileSummary.profile` (optional enum `business|meeting|table|instruction|code|reference|media|other`), `FileSummary.profile_reason` (`frontmatter|name|dir|ext|format|content|default|model|user`) and
+  `FileSummary.class` (`record|instruction|reference|code|media|other`, derived from the profile): what kind of file it is and why. The class decides whether and how it enters the
+  ontology: a record goes in through the class templates; an instruction file puts no entity in and is attached as a working convention (its text goes into the BRIEF section 工作约定);
+  a reference becomes one Reference instance with `cites` and `authored`; code only gives structure (project, CODEOWNERS owners); media follows D98; other is archived and found by name. A file that
+  does not enter the ontology is in a normal state. The engine stores the profile when the file is extracted (`_oo_docs.file.profile`, migration 0159) and derives it from the path and format before.
+- `GET` and `PUT /v1/docs/drives/{id}/profile-overrides` (`ProfileOverride`, `ProfileOverridePut`, `ProfileOverrideResult`): a person's choice of the class of a file or a directory. `PUT` with
+  `profile: null` removes the choice; the files covered are reclassified (reason `user`) and extracted again. No new error code. Additive.
+- Fact predicates `cites` (Thing to Thing) and `authored` (Person to Thing) join the core relations (DB check widened in 0159); both are written by the reference class only.

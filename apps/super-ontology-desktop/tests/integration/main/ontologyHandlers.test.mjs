@@ -272,3 +272,26 @@ describe("atlas channels (D88)", () => {
     expect(parseSuperOntologyRequest("ontology-schema", { limit: 100, cursor: "t100" })).toEqual({ limit: 100, cursor: "t100" });
   });
 });
+
+describe("file class overrides (D94)", () => {
+  const drive = "00000000-0000-4000-8000-0000000000d1";
+  it("lists a Drive's overrides and sets one with the engine's body shape", async () => {
+    const { handlers, calls } = make({ responses: { profileOverridesList: { value: { items: [{ scope: "dir", path: "src", profile: "code", class: "code" }] } }, profileOverridesPut: { value: { affected: 4 } } } });
+    expect((await handlers["profile-overrides-list"]({ driveId: drive })).items).toHaveLength(1);
+    expect(await handlers["profile-override-set"]({ driveId: drive, scope: "dir", path: "src", profile: "code" })).toEqual({ affected: 4 });
+    expect(calls.find(([name]) => name === "profileOverridesPut")[1]).toMatchObject({ params: { id: drive }, body: { scope: "dir", path: "src", profile: "code" } });
+    expect(ROUTES.profileOverridesList.method).toBe("GET");
+    expect(ROUTES.profileOverridesPut.method).toBe("PUT");
+  });
+  it("rejects an answer without a count", async () => {
+    const { handlers } = make({ responses: { profileOverridesPut: { value: {} } } });
+    await expect(handlers["profile-override-set"]({ driveId: drive, scope: "file", path: "a.md", profile: null })).rejects.toMatchObject({ code: "SO_RESPONSE_INVALID" });
+  });
+  it("validates the request: a known profile or null, a scope, a Drive-relative path", () => {
+    expect(parseSuperOntologyRequest("profile-override-set", { driveId: drive, scope: "file", path: "a/b.md", profile: null })).toEqual({ driveId: drive, scope: "file", path: "a/b.md", profile: null });
+    expect(parseSuperOntologyRequest("profile-override-set", { driveId: drive, scope: "dir", path: "src", profile: "reference" }).profile).toBe("reference");
+    for (const bad of [{ profile: "paper" }, { profile: undefined }, { scope: "drive" }, { path: "../x" }, { path: "/abs" }, { extra: 1 }]) expect(() => parseSuperOntologyRequest("profile-override-set", { driveId: drive, scope: "file", path: "a.md", profile: "code", ...bad })).toThrow();
+    expect(() => parseSuperOntologyRequest("profile-overrides-list", {})).toThrow();
+    expect(parseSuperOntologyRequest("profile-overrides-list", { driveId: drive })).toEqual({ driveId: drive });
+  });
+});

@@ -110,6 +110,7 @@ async fn load_blocks(
                             block_id: b.id.clone(),
                             ordinal: b.ordinal,
                             text: b.text.clone(),
+                            anchor: Some(b.anchor.clone()),
                         })
                         .collect(),
                 );

@@ -128,6 +128,7 @@ fn reader(g: &Graph) -> MemoryReader {
                 block_id: format!("bf{i}"),
                 ordinal: u32::try_from(i).unwrap(),
                 text: "Quoted text without names.".into(),
+                anchor: None,
             });
         }
         for i in 0..6 {
@@ -135,6 +136,7 @@ fn reader(g: &Graph) -> MemoryReader {
                 block_id: format!("ba{i}"),
                 ordinal: 10 + u32::try_from(i).unwrap(),
                 text: "Quoted text without names.".into(),
+                anchor: None,
             });
         }
         r.blocks.insert(vid(f), blocks);
