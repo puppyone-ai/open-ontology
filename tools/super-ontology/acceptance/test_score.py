@@ -74,6 +74,23 @@ class UnlinkedScoring(unittest.TestCase):
         self.assertEqual(summary["correct"], 4)
         self.assertEqual({r["file"]: r["mapped"] for r in rows}["misc/r.docx"], "unrelated_content")
 
+    def test_d94_and_d98_states_map_onto_the_gold_reasons_without_changing_the_gold(self):
+        gold = [{"file": "misc/recipe.docx", "kind": "unrelated_content"}, {"file": "misc/empty.txt", "kind": "empty_file"}]
+        run = {"files": {"project/misc/recipe.docx": {"state": "published", "detail": {"size": 9, "class": "other"}},
+                         "project/misc/empty.txt": {"state": "published", "detail": {"size": 0, "class": "other"}}}}
+        # Neither file is in the Not connected list: a class that is not admitted shows "not in the ontology" on its own row.
+        summary, rows = score.score_unlinked(gold, run, [], {})
+        self.assertEqual(summary["correct"], 2)
+        self.assertEqual({r["file"]: r["app_reason"] for r in rows}, {"misc/recipe.docx": "not_admitted:other", "misc/empty.txt": "not_admitted:other"})
+
+    def test_not_admitted_and_speaker_states_are_not_false_alarms(self):
+        run = {"files": {"project/code/a.py": {"state": "published", "detail": {"class": "code"}},
+                         "project/meetings/audio/call.wav": {"state": "published", "detail": {"class": "media"}},
+                         "project/notes/x.md": {"state": "published", "detail": {"class": "record"}}}}
+        ui = {"meetings/audio/call.wav": "speaker", "notes/x.md": "no_entities"}
+        alarms = score.false_alarms([], run, [], ui)
+        self.assertEqual([a["file"] for a in alarms], ["notes/x.md"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -139,7 +139,27 @@ def score_relations(world, gold, texts):
 
 
 APP_TO_GOLD = {"unsupported": "unsupported_format", "parse_failed": "corrupt_file", "no_entities": "empty_file", "no_relations": "unrelated_content", "entity": "unrelated_content",
-               "connected": "linked_to_project", "review": "waiting_review", "processing": "still_processing"}
+               "connected": "linked_to_project", "review": "waiting_review", "processing": "still_processing",
+               # D94 / D98 (the vocabulary above predates them; the gold is unchanged, only how the app's states map onto it):
+               #   not_admitted:other, not_admitted:code  -> unrelated_content   the file is not in the ontology and shares nothing with the project
+               #                                              (the same meaning as "parsed but shares no entity with the project"; the gold's wording
+               #                                              assumes the file was parsed into entities, D94 never does that: reported as a mismatch)
+               #   not_admitted:other with size 0          -> empty_file          (see score_unlinked: the file's size decides, as for no_entities)
+               #   not_admitted:instruction                -> linked_to_project   an instruction file hangs on its project as a working agreement
+               #   speaker (waiting for speaker names)     -> linked_to_project   the recording's content is in the ontology under placeholders;
+               #                                              naming is optional (D97) and is neither a review nor a false alarm
+               "not_admitted:other": "unrelated_content", "not_admitted:code": "unrelated_content", "not_admitted:instruction": "linked_to_project",
+               "speaker": "linked_to_project"}
+
+
+def app_reason(ui, path, rec):
+    """What the owner sees for one file: the Not connected view's reason, or, for a file the view does not list, its admission class (D94):
+    instruction, code and other files carry a "not in the ontology" reason on their own row and are not in the list."""
+    reason = ui.get(path)
+    if reason is not None:
+        return reason
+    cls = rec.get("detail", {}).get("class")
+    return f"not_admitted:{cls}" if cls in ("instruction", "code", "other") else "connected"
 
 
 def engine_reason(file_rec, world, path, size):
@@ -165,13 +185,15 @@ def score_unlinked(gold, run, world, ui):
         rec = run["files"].get(key, {})
         reason = None
         if ui is not None:
-            reason = ui.get(path, "connected")  # a file the Not connected view does not list is shown as connected
+            reason = app_reason(ui, path, rec)  # a file the Not connected view does not list is connected, or not admitted by its class (D94)
         else:
             reason = engine_reason(rec, world, path, rec.get("detail", {}).get("size"))
         mapped = APP_TO_GOLD.get(reason)
         # An empty file and a file with no entities show the same app reason; the gold says which one the file is by its size.
         if reason == "no_entities" and rec.get("detail", {}).get("size", 1) != 0:
             mapped = "unrelated_content"
+        if reason == "not_admitted:other" and rec.get("detail", {}).get("size", 1) == 0:
+            mapped = "empty_file"
         ok = mapped == g["kind"]
         right += ok
         rows.append({"file": path, "gold": g["kind"], "app_reason": reason, "mapped": mapped, "correct": ok, "state": rec.get("state"), "size": rec.get("detail", {}).get("size")})
@@ -185,8 +207,9 @@ def false_alarms(gold_unlinked, run, world, ui):
         path = key.split("project/", 1)[-1]
         if path in unrelated:
             continue
-        reason = (ui or {}).get(path) if ui is not None else engine_reason(rec, world, path, None)
-        if reason not in (None, "connected", "processing"):
+        reason = app_reason(ui, path, rec) if ui is not None else engine_reason(rec, world, path, None)
+        # Not admitted by class (D94) and waiting for speaker names (D98) are states by design, not a project file wrongly flagged.
+        if reason not in (None, "connected", "processing", "speaker") and not str(reason).startswith("not_admitted:"):
             out.append({"file": path, "reason": reason})
     return out
 
