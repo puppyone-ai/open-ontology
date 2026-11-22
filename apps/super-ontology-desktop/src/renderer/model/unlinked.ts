@@ -13,7 +13,7 @@ import { pool } from "../features/atlas/adapter";
  * The reason is data; the sentence comes from the catalogs (`useUnlinkedText`).
  */
 export type UnlinkedReason =
-  | { kind: "no_entities" }
+  | { kind: "indexed_only" }
   | { kind: "unsupported"; format: string }
   /** Many files with the same reason (a code folder: unsupported formats, still processing, no entities) shown as one entry with a count instead of one row each. `detail` names the biggest formats of unsupported files. */
   | { kind: "group"; of: GroupedKind; count: number; detail?: string }
@@ -30,7 +30,17 @@ export type UnlinkedReason =
   | { kind: "entity"; file?: string };
 
 /** The reasons that can hold thousands of files at once; above a few they are shown as one entry each. */
-export type GroupedKind = "unsupported" | "processing" | "no_entities" | "review" | "parse_failed" | "too_large" | "encrypted";
+export type GroupedKind = "unsupported" | "processing" | "indexed_only" | "review" | "parse_failed" | "too_large" | "encrypted";
+/**
+ * A file that is indexed and searchable but holds nothing structured (a plain note, a code file with no rules): not a problem, so it is
+ * kept out of "Not connected" unless the person asks for it. The reason stays in the report; the views filter it.
+ */
+export const isIndexedOnly = (reason: UnlinkedReason): boolean => reason.kind === "indexed_only" || (reason.kind === "group" && reason.of === "indexed_only");
+/** The report as a view shows it: without the indexed-only files unless `includeIndexed`. */
+export function visibleReport(report: UnlinkedReport | null, includeIndexed: boolean): UnlinkedReport | null {
+  if (!report || includeIndexed) return report;
+  return { ...report, files: report.files.filter((file) => !isIndexedOnly(file.reason)) };
+}
 export type FileFacts = { entities: number; connected: boolean };
 /** The fields of a file summary this module reads. */
 export type FileLike = { id?: string; drive_id?: string; state: string; state_code?: unknown; path: string; format?: unknown; pending_review?: unknown };
@@ -64,7 +74,7 @@ export function fileReason(file: FileLike, facts: FileFacts | null, speakers = 0
   if (PROCESSING.has(file.state)) return { kind: "processing" };
   if (!READY.has(file.state)) return null;
   if (facts === null) return pending(file) ? { kind: "review" } : null;
-  if (facts.entities === 0) return pending(file) ? { kind: "review" } : { kind: "no_entities" };
+  if (facts.entities === 0) return pending(file) ? { kind: "review" } : { kind: "indexed_only" };
   return facts.connected ? null : { kind: "no_relations", count: facts.entities };
 }
 

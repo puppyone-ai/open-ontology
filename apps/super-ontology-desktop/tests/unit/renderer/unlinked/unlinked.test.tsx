@@ -29,7 +29,7 @@ describe("why a file is not connected", () => {
   it("a ready file needs to have been read: no entities, waiting for review, or entities none of which appear in another file", () => {
     expect(fileReason(file({}), null)).toBeNull();
     expect(fileReason(file({ pending_review: 2 }), null)).toEqual({ kind: "review" });
-    expect(fileReason(file({}), { entities: 0, connected: false })).toEqual({ kind: "no_entities" });
+    expect(fileReason(file({}), { entities: 0, connected: false })).toEqual({ kind: "indexed_only" });
     expect(fileReason(file({ pending_review: 1 }), { entities: 0, connected: false })).toEqual({ kind: "review" });
     expect(fileReason(file({}), { entities: 3, connected: false })).toEqual({ kind: "no_relations", count: 3 });
     expect(fileReason(file({}), { entities: 3, connected: true })).toBeNull();
@@ -74,7 +74,7 @@ describe("reading the files", () => {
       },
     ));
     const byId = Object.fromEntries(report.files.map((x) => [x.fileId, x.reason]));
-    expect(byId).toEqual({ c: { kind: "no_entities" }, d: { kind: "unsupported", format: "psd" }, e: { kind: "processing" }, g: { kind: "no_relations", count: 1 }, h: { kind: "no_relations", count: 2 } });
+    expect(byId).toEqual({ c: { kind: "indexed_only" }, d: { kind: "unsupported", format: "psd" }, e: { kind: "processing" }, g: { kind: "no_relations", count: 1 }, h: { kind: "no_relations", count: 2 } });
     // Islands that touch one file only: the lone entity and the recipe pair (with the file named); ann and proj reach two files.
     expect(report.entities.map((x) => x.key).sort()).toEqual(["FLOUR", "LONELY", "TART"].map((k) => k.toLowerCase()));
     expect(report.entities.find((x) => x.key === "lonely")).toMatchObject({ fileIds: ["g"], fileNames: ["g.md"] });
@@ -103,7 +103,7 @@ describe("reading the files", () => {
   it("the Document entity the engine names after every file does not count as an entity found", async () => {
     const doc = (name: string) => ({ key: name, name, type: "Document" });
     const report = await analyzeUnlinked(source([f("a"), f("b", { state: "unsupported", format: "unknown", path: "x/plan.dwg" })], { a: { entities: [doc("docs/a.md")], facts: [] } }));
-    expect(report.files.map((x) => [x.fileId, x.reason])).toEqual([["a", { kind: "no_entities" }], ["b", { kind: "unsupported", format: "dwg" }]]);
+    expect(report.files.map((x) => [x.fileId, x.reason])).toEqual([["a", { kind: "indexed_only" }], ["b", { kind: "unsupported", format: "dwg" }]]);
     expect(report.entities).toEqual([]);
   });
 
@@ -164,13 +164,13 @@ describe("the not-connected group of the atlas", () => {
     const formats = ["ts", "ts", "ts", "py", "py", "rs"];
     const unsupported = Array.from({ length: 28_000 }, (_, index) => ({ fileId: `u${index}`, driveId: "d1", path: `src/f${index}.${formats[index % formats.length]}`, name: `f${index}.${formats[index % formats.length]}`, reason: { kind: "unsupported" as const, format: formats[index % formats.length]! } }));
     const processing = Array.from({ length: 20_000 }, (_, index) => ({ fileId: `p${index}`, driveId: "d1", path: `src/p${index}.md`, name: `p${index}.md`, reason: { kind: "processing" as const } }));
-    const odd = { fileId: "m1", driveId: "d1", path: "docs/none.md", name: "none.md", reason: { kind: "no_entities" as const } };
+    const odd = { fileId: "m1", driveId: "d1", path: "docs/none.md", name: "none.md", reason: { kind: "indexed_only" as const } };
     const out = applyUnlinked(base(), report({ files: [...unsupported, ...processing, odd] }));
     const side = out.members.filter((m) => m.group === UNLINKED_GROUP_ID);
     expect(side).toHaveLength(3);
     expect(side.find((m) => m.id === `${GROUP_ENTRY_PREFIX}unsupported`)).toMatchObject({ reason: { kind: "group", of: "unsupported", count: 28_000, detail: "ts ×14001, py ×9333, rs ×4666" } });
     expect(side.find((m) => m.id === `${GROUP_ENTRY_PREFIX}processing`)).toMatchObject({ reason: { kind: "group", of: "processing", count: 20_000 } });
-    expect(side.find((m) => m.id === "f:m1")?.reason).toEqual({ kind: "no_entities" });
+    expect(side.find((m) => m.id === "f:m1")?.reason).toEqual({ kind: "indexed_only" });
     expect(unlinkedCount(out)).toBe(48_001);
   });
   it("keeps a few files of one reason as rows", () => {
@@ -186,7 +186,7 @@ describe("the not-connected group of the atlas", () => {
   });
   it("in the source view a listed file is moved, not duplicated", () => {
     const source: AtlasData = { groups: [{ id: "g:drive:d1", kind: "drive", label: "Docs", tone: "ink", source: "folder" }], members: [{ id: "f:f9", group: "g:drive:d1", label: "scan.psd", ref: { kind: "file", fileId: "f9", path: "docs/scan.psd" }, weight: 0, born: null }], links: [], versions: [], partial: [] };
-    const out = applyUnlinked(source, report({ files: [{ fileId: "f9", driveId: "d1", path: "docs/scan.psd", name: "scan.psd", reason: { kind: "no_entities" } }] }));
+    const out = applyUnlinked(source, report({ files: [{ fileId: "f9", driveId: "d1", path: "docs/scan.psd", name: "scan.psd", reason: { kind: "indexed_only" } }] }));
     expect(out.members).toHaveLength(1);
     expect(out.members[0]!.group).toBe(UNLINKED_GROUP_ID);
   });
@@ -200,7 +200,7 @@ describe("the not-connected list", () => {
     ...applyUnlinked(base(), report({
       entities: [{ key: "solo", name: "Solo", type: "Topic", fileIds: ["f1"], fileNames: ["notes.md"] }],
       files: [
-        { fileId: "f1", driveId: "d", path: "a/none.md", name: "none.md", reason: { kind: "no_entities" } },
+        { fileId: "f1", driveId: "d", path: "a/none.md", name: "none.md", reason: { kind: "indexed_only" } },
         { fileId: "f2", driveId: "d", path: "a/x.psd", name: "x.psd", reason: { kind: "unsupported", format: "psd" } },
         { fileId: "f3", driveId: "d", path: "a/p.pdf", name: "p.pdf", reason: { kind: "processing" } },
         { fileId: "f4", driveId: "d", path: "a/r.docx", name: "r.docx", reason: { kind: "review" } },
@@ -228,7 +228,7 @@ describe("the not-connected list", () => {
     const reasons = Object.fromEntries(rows.map((row) => [row.getAttribute("data-name"), within(row).getByTestId("atlas-reason").textContent]));
     expect(reasons).toEqual({
       "Solo": "Only appears in notes.md",
-      "none.md": "No entities found in this file",
+      "none.md": "Indexed, searchable",
       "x.psd": "Format not supported: psd",
       "p.pdf": "Still processing",
       "r.docx": "Waiting for your review",

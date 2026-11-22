@@ -13,7 +13,8 @@ import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isUploadActive } from "../../model/queue/uploadQueue";
 import { statesOfGroups, type FileFilterGroup } from "../../model/superDriveStateModel";
 import { driveKindLabelId } from "../Sources";
-import { reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
+import { isIndexedOnly, reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
+import { profileOf, useProfileText } from "../../model/profile";
 import { selectFileActors, selectOntologyVersion } from "../../model/superDriveSelectors";
 import { ActorTag } from "../shared/ActorTag";
 import { useDriveLabel } from "../shared/driveLabel";
@@ -45,6 +46,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const folderFilter = useMemo(() => ({ ...(filter === "all" ? {} : { states: statesOfGroups(GROUPS[filter]) }), ...(query.trim() ? { q: query.trim(), recursive: true } : {}) }), [filter, query]);
   const { page, files, initialLoading, loadMore, reload } = useDriveFolderPages(drive.id, path, folderFilter);
   const unlinkedText = useUnlinkedText();
+  const profileText = useProfileText();
   const app = useApp();
   const version = useSuperDriveSelector(selectOntologyVersion);
   const actors = useSuperDriveSelector(selectFileActors);
@@ -136,7 +138,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
                   const reason = reasonForRow({ ...file, id: file.id }, unlinked.report);
                   return (
                     <tr key={file.id} data-selectable aria-selected={selected === file.id} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(file.id); } }} onClick={() => setSelected(file.id)} data-testid="file-row" data-name={file.name ?? file.path} data-state={file.state}>
-                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip><ActorTag actor={actors[file.id]} /></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}><Unlink size={12} strokeWidth={1.5} aria-hidden="true" />{unlinkedText(reason)}{reason.kind === "speaker" && <> <Button size="compact" variant="ghost" data-testid="file-speaker-review" onClick={(e) => { e.stopPropagation(); app.go("ontology", { ontology: "review" }); }}>{t("app.unlinked.speaker.action")}</Button></>}</span>}</td>
+                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip><ActorTag actor={actors[file.id]} /><span className="so-chip so-weak" data-testid="file-profile" data-profile={profileOf(file)}>{profileText(file)}</span></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}>{!isIndexedOnly(reason) && <Unlink size={12} strokeWidth={1.5} aria-hidden="true" />}{unlinkedText(reason)}{reason.kind === "speaker" && <> <Button size="compact" variant="ghost" data-testid="file-speaker-review" onClick={(e) => { e.stopPropagation(); app.go("ontology", { ontology: "review" }); }}>{t("app.unlinked.speaker.action")}</Button></>}</span>}</td>
                       <td><span className="so-row"><StatusDot tone={TONE[view.tone]} label={label} pulse={view.busy} />{view.reviewCount > 0 && <Badge tone="warning">{formatNumber(view.reviewCount)}</Badge>}</span></td>
                       <td data-numeric className="so-muted">{formatBytes(file.size, t$)}</td>
                       <td className="so-muted so-truncate">{file.modified_at ? formatDate(new Date(file.modified_at), { dateStyle: "medium" }) : ""}</td>

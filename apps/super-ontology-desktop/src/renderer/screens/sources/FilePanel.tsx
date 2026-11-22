@@ -6,6 +6,8 @@ import { ErrorText } from "../shared/ErrorText";
 import { useFileDetail } from "../../model/details/useFileDetail";
 import { formatBytes } from "../../model/format";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
+import { fileReason, useUnlinkedText } from "../../model/unlinked";
+import { useProfileText } from "../../model/profile";
 import { fileView, TONE, useFileStateText } from "./fileView";
 
 /** What the engine made of one file: state and why, size, and the entities it contributed to. Retry is offered when it can help. */
@@ -14,6 +16,8 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   const { t, formatDate } = t$;
   const actions = useSuperDriveActions();
   const stateText = useFileStateText();
+  const profileText = useProfileText();
+  const reasonText = useUnlinkedText();
   const record = useSuperDriveSelector((s) => s.files[fileId] ?? null);
   const { detail, error, loading } = useFileDetail(fileId);
   const [retrying, setRetrying] = useState(false);
@@ -34,9 +38,15 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
           { label: t("app.sources.panel.path"), value: <span className="so-mono">{record.path}</span> },
           { label: t("app.sources.col.size"), value: formatBytes(record.size, t$) || "–" },
           { label: t("app.sources.col.modified"), value: record.modified_at ? formatDate(new Date(record.modified_at), { dateStyle: "medium", timeStyle: "short" }) : "–" },
+          { label: t("app.sources.panel.profile"), value: <span data-testid="file-detail-profile">{profileText(record)}</span> },
           ...(record.format ? [{ label: t("app.sources.panel.format"), value: record.format }] : []),
         ]} />
       )}
+      {detail && (() => {
+        const held = (detail as unknown as { entities?: unknown[] }).entities ?? [];
+        const reason = fileReason(record ?? detail, { entities: held.length, connected: true });
+        return reason?.kind === "indexed_only" ? <p className="so-weak" data-testid="file-indexed-only">{reasonText(reason)}</p> : null;
+      })()}
       {loading && !detail && <Skeleton height={12} />}
       {detail && (() => {
         const entities = (detail as unknown as { entities?: Array<{ id: string; name: string }> }).entities ?? [];
