@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "Melden Sie sich zuerst bei der Cloud an",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Die Cloud bietet diese Aktion noch nicht an",
   "errors.SO_INTERNAL": "Etwas Unerwartetes ist schiefgelaufen",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Nicht genug freier Speicherplatz für diesen Drop. Schaffe Platz oder verknüpfe den Ordner, statt ihn zu kopieren."
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Nicht genug freier Speicherplatz für diesen Drop. Schaffe Platz oder verknüpfe den Ordner, statt ihn zu kopieren.",
+  "entity.type.Recording": "Aufnahme",
+  "entity.type.Meeting": "Besprechung"
 }

@@ -145,3 +145,75 @@ def test_utterance_text_low_confidence_and_long_split():
     out = build_utterances(many, ["S1"] * 1200)
     assert len(out) >= 2 and all(len(x["text"]) <= 2000 for x in out) and out[0]["low_text_confidence"]
     assert out[0]["word_end"] + 1 == out[1]["word_start"]
+
+
+def _blobs(rng, centres, sizes, noise=0.05):
+    return np.vstack([rng.normal(c, noise, (n, len(c))) for c, n in zip(centres, sizes)])
+
+
+def test_cluster_auto_counts_speakers_from_the_embeddings_and_keeps_one_voice_whole():
+    rng = np.random.default_rng(7)
+    base = np.array([0.1, 0.1, 0.1, 0.1])  # what every voice shares: the centring removes it
+    for k in (1, 2, 3):
+        centres = [base + np.eye(4)[i] for i in range(k)]
+        v = _blobs(rng, centres, [14] * k, noise=0.03)
+        labels = dz.cluster_auto(v)
+        assert len(set(labels)) == k and list(labels) == list(dz.cluster_auto(v)), k
+    short = _blobs(rng, [base, base + np.eye(4)[0]], [2, 2])
+    assert len(dz.cluster_auto(short)) == 4, "fewer windows than the minimum keep the threshold clustering"
+
+
+def test_a_two_window_cluster_is_a_stray_but_a_short_speaker_is_not():
+    rng = np.random.default_rng(3)
+    v = _blobs(rng, [np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])], [20, 20, 2], noise=0.02)
+    assert len(set(dz.cluster_auto(v))) == 2
+    v = _blobs(rng, [np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])], [20, 20, 4], noise=0.02)
+    assert len(set(dz.cluster_auto(v))) == 3
+
+
+def test_music_and_assets_skip_the_expensive_stages(tone, tmp_path):
+    wav = tmp_path / "m.wav"
+    tone["synth"]([("A", 4000), ("B", 4000)], wav)
+    asset = make(tone, tmp_path, "asset", media_asset=True).run(wav)
+    assert asset["skipped"] == "media_asset" and asset["utterances"] == [] and asset["speakers"] == []
+    assert tone["engine"].calls == 0, "no ASR for an asset"
+    quiet = tmp_path / "q.wav"
+    tone["synth"]([("A", 400)], quiet, gap_ms=0, tail_ms=6000)
+    res = make(tone, tmp_path, "quiet").run(quiet)
+    assert res["skipped"] == "no_speech" and res["utterances"] == []
+    spoken = make(tone, tmp_path, "spoken").run(wav)
+    assert spoken["skipped"] is None and spoken["speakers"]
+
+
+class _Zh:
+    revision, params = "zh/1", {}
+
+    def transcribe(self, x, hotwords=()):
+        return [{"text": "中文", "start_ms": 0, "end_ms": 100, "conf": 0.9}]
+
+
+class _Whisper:
+    name = "whisper-base"
+
+    def __init__(self, lang, text):
+        self.lang, self.said = lang, text
+
+    def language(self, x):
+        return self.lang
+
+    def text(self, x):
+        return self.said
+
+
+def test_chunks_in_another_language_go_to_whisper_and_chinese_stays_with_paraformer():
+    from asr.multilingual import MultilingualAsr, words_of
+
+    one_s = np.full(16_000, 0.2, dtype=np.float32)
+    zh = MultilingualAsr(_Zh(), _Whisper("zh", "ignored")).transcribe(one_s)
+    assert [w["text"] for w in zh] == ["中文"]
+    en = MultilingualAsr(_Zh(), _Whisper("en", "Hello, this is the Q3 review.")).transcribe(one_s)
+    assert [w["text"] for w in en] == ["Hello", ",", "this", "is", "the", "Q3", "review", "."]
+    assert en[0]["start_ms"] < en[-1]["end_ms"] <= 1000 and all(w["conf"] < 0.9 for w in en)
+    assert words_of("会议 about 预算 2027") == ["会", "议", "about", "预", "算", "2027"], "mixed text keeps Chinese per character"
+    short = MultilingualAsr(_Zh(), _Whisper("en", "x")).transcribe(one_s[:4000])
+    assert [w["text"] for w in short] == ["中文"], "under half a second is not worth identifying"

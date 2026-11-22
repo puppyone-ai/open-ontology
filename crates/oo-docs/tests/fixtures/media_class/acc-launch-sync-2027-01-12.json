@@ -1,0 +1,45 @@
+{
+ "duration_ms": 40983,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 0,
+   "t_end_ms": 9600,
+   "text": "This is the RORNP-7 launch site on January 12th,2027.Daniel orders,where are we on Lent-Eield?Lent-Eield from the",
+   "word_start": 0,
+   "word_end": 23
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 9600,
+   "t_end_ms": 20620,
+   "text": "current supplier is 71%.The threshold is 85%.Mindyland goo decided this morning to move the launch from March 4th to March 18th.",
+   "word_start": 24,
+   "word_end": 49
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 20620,
+   "t_end_ms": 34556,
+   "text": "Understood.This is Pre-Arraignment.Marketing will move the present bargo to March 16th and I will tell Young Familiar today Young Familiar shoots the launch video on February 10th.Rupping by will send",
+   "word_start": 50,
+   "word_end": 85
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 34556,
+   "t_end_ms": 40436,
+   "text": "a signed memo tomorrow.We will also ask Hating of Tolicronics for a quote.",
+   "word_start": 86,
+   "word_end": 101
+  }
+ ]
+}

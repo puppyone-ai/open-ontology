@@ -192,6 +192,8 @@ fn domain_range(p: &Predicate) -> Option<(&'static [T], &'static [T])> {
                 T::Person,
             ],
         ),
+        Predicate::HasParticipant => (&[T::Meeting], &[T::Person]),
+        Predicate::RecordedIn => (&[T::Meeting], &[T::Recording]),
         Predicate::Attr(_) => return None,
     })
 }

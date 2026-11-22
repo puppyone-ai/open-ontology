@@ -71,8 +71,20 @@ pub async fn index_document_with(
     doc: &DocumentInput<'_>,
     siblings: &[String],
 ) -> Result<IndexSummary, StoreError> {
-    let (extraction, quality) =
-        extract_with_quality(doc.path, doc.ir, &Siblings { paths: siblings });
+    // A recording is classified before speakers are told apart (D74): the stored class, or the rules' own.
+    let media = if super::media_profile::is_media(doc.ir) {
+        Some(super::media_profile::resolve(conn, doc.ir, doc.path).await?)
+    } else {
+        None
+    };
+    let (extraction, quality) = extract_with_quality(
+        doc.path,
+        doc.ir,
+        &Siblings {
+            paths: siblings,
+            media,
+        },
+    );
     let mut summary = index_extraction(conn, doc, &extraction).await?;
     summary.quality = quality;
     Ok(summary)
