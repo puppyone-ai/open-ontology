@@ -149,7 +149,16 @@ async fn snapshot(
         .iter()
         .filter(|p| !members.contains(*p))
         .collect();
-    let doc = json!({"classes": schema["classes"], "unclustered": unclustered, "coverage": schema["coverage"], "version": schema["version"], "induced": schema["induced"]});
+    let member_rows: Vec<(String, String)> = sqlx::query_as("SELECT m.class_key, f.path FROM _oo_docs.structure_member m JOIN _oo_docs.file f ON f.id = m.file_id WHERE m.drive_id = $1::uuid ORDER BY 1, 2")
+        .bind(drive_id)
+        .fetch_all(&s.pool)
+        .await
+        .unwrap();
+    let mut members = serde_json::Map::new();
+    for (k, p) in member_rows {
+        members.entry(k).or_insert_with(|| json!([])).as_array_mut().unwrap().push(json!(p));
+    }
+    let doc = json!({"members": members, "classes": schema["classes"], "unclustered": unclustered, "coverage": schema["coverage"], "version": schema["version"], "induced": schema["induced"]});
     std::fs::write(
         out.join(format!("structure-{tag}.json")),
         serde_json::to_string_pretty(&doc).unwrap(),
