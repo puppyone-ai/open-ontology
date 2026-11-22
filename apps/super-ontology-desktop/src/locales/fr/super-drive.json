@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "Connectez-vous d’abord au cloud",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "Le cloud ne propose pas encore cette action",
   "errors.SO_INTERNAL": "Un problème inattendu s’est produit",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Pas assez d’espace disque libre pour ce dépôt. Libérez de l’espace ou liez le dossier au lieu de le copier."
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Pas assez d’espace disque libre pour ce dépôt. Libérez de l’espace ou liez le dossier au lieu de le copier.",
+  "entity.type.Recording": "Enregistrement",
+  "entity.type.Meeting": "Réunion"
 }

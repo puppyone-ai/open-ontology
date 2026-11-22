@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "先にクラウドにサインインしてください",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "クラウドではこの操作をまだ利用できません",
   "errors.SO_INTERNAL": "予期しない問題が発生しました",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "このドロップに必要なディスクの空き容量が足りません。空きを作るか、コピーせずにフォルダをリンクしてください。"
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "このドロップに必要なディスクの空き容量が足りません。空きを作るか、コピーせずにフォルダをリンクしてください。",
+  "entity.type.Recording": "録音",
+  "entity.type.Meeting": "会議"
 }

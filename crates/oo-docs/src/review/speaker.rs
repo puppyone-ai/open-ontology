@@ -1,14 +1,15 @@
-//! Speaker identity (10 17.4, D74, board B-S10-08): `speaker_identity` review items and what a decision does.
+//! Speaker identity (10 17.4, D74 as revised 2026-11-21, board B-S10-08): `speaker_identity` review items and what a
+//! decision does.
 //!
-//! Three layers feed the queue (`extract::rules::media`): attendee names from meeting metadata, self
-//! introductions and name calls, and the person who decides here. A label (`S1`) means nothing outside its file.
-//! Extraction never waits for them, but nothing is auto-confirmed (D74). What a speaker's statements produced belongs
-//! to a provisional Person (`Speaker 1 · <blob prefix>`) and stays draft ([`HELD_SQL`] is the condition the
-//! publisher's classifier uses): not published, not in the BRIEF. The rest of the file proceeds. What the transcript
-//! or the roster says ("我是小王", "I am Wanqing", the one attendee left) is only a candidate on the
-//! `speaker_identity` item; confirming merges the provisional Person into the named one, so the facts are
-//! re-attributed and judged like any other draft (a later re-extraction keeps the choice, [`apply_confirmed`]).
-//! Nothing about a voice is stored: no voiceprint, no embedding, no comparison across recordings.
+//! Only a recording classified as a conversation (`extract::rules::media_class`) has speakers; any other recording
+//! has none and creates no item. For a conversation nothing waits for a person: what a speaker said belongs to a
+//! placeholder Person (`Speaker A · <blob prefix>`) and publishes like any other fact. Three layers feed the queue
+//! (`extract::rules::media`): attendee names from meeting metadata, self introductions and name calls, and the
+//! person who names the speaker here, whenever they get to it. What the transcript or the roster says ("我是小王",
+//! "I am Wanqing", the one attendee left) is only a candidate on the item, one click, never confirmed by itself.
+//! Naming the speaker merges the placeholder into the named Person, so the facts are re-attributed (a later
+//! re-extraction keeps the choice, [`apply_confirmed`]). Nothing about a voice is stored: no voiceprint, no
+//! embedding, no comparison across recordings.
 
 use oo_core::docir::DocIr;
 use serde_json::{Value, json};
@@ -25,12 +26,15 @@ use crate::store::StoreError;
 pub const KIND: &str = "speaker_identity";
 /// `review_item.reason_code` of an unconfirmed speaker.
 pub const REASON: &str = "speaker_unconfirmed";
-/// `DOCS_REVIEW_SPEAKER_UNCONFIRMED`: a person tried to accept a fact whose speaker is still unknown.
+/// `DOCS_REVIEW_SPEAKER_UNCONFIRMED`: no longer produced (D74 revision: an unnamed speaker does not hold a fact);
+/// the code stays in the contract so that older clients keep a message for it.
 pub const CODE_UNCONFIRMED: &str = "DOCS_REVIEW_SPEAKER_UNCONFIRMED";
 
-/// SQL condition on the alias `s` (the fact's subject entity): the subject is a speaker placeholder.
-pub const HELD_SQL: &str = "(s.type = 'Person' AND s.canonical_name LIKE '% · %' \
-     AND (s.canonical_name LIKE 'Speaker %' OR s.canonical_name LIKE '说话人 S%'))";
+/// SQL condition on the alias `s` (the fact's subject entity): the subject is a speaker placeholder. Facts of a
+/// placeholder publish like any other; this only tells them apart (for the app and for a person's own count).
+pub const PLACEHOLDER_SQL: &str = "(s.type = 'Person' AND s.canonical_name LIKE '% · %' \
+     AND (s.canonical_name LIKE 'Speaker %' OR s.canonical_name LIKE '说话人 %' \
+          OR s.canonical_name LIKE '《%》的说话人 %'))";
 
 /// Overlay `speaker_map` binds: one speaker of one recording (by blob hash, so a renamed copy shares it).
 pub fn binds(blob_b3: &str, speaker: &str) -> String {
@@ -47,6 +51,7 @@ fn candidate_json(c: &SpeakerCandidate) -> Value {
 /// The `subject` of the review item of one speaker: the attendee set and the candidates pointing at this label.
 pub fn subject(
     ir: &DocIr,
+    title: &str,
     speaker: &str,
     attendees: &[SpeakerCandidate],
     intros: &[SpeakerCandidate],
@@ -60,13 +65,16 @@ pub fn subject(
     json!({
         "b3": ir.blob_b3,
         "speaker": speaker,
-        "placeholder": media::placeholder_name(&ir.blob_b3, speaker),
+        "placeholder": media::placeholder_name(&ir.blob_b3, speaker, title),
+        "letter": media::speaker_letter(speaker),
+        "title": title,
         "candidates": cands,
     })
 }
 
-/// Queue one `speaker_identity` item per speaker label of `ir` that has no confirmed mapping.
-/// Returns how many items were added.
+/// Queue one `speaker_identity` item per speaker label of `ir` that has no confirmed mapping, when the recording is a
+/// conversation; a recording that is not one has no speakers to name, and an item queued before it was reclassified is
+/// withdrawn. Returns how many items were added.
 pub async fn propose(
     conn: &mut PgConnection,
     version_id: &str,
@@ -74,6 +82,13 @@ pub async fn propose(
     path: &str,
     minutes: Option<&str>,
 ) -> Result<u32, StoreError> {
+    let conversation = crate::publish::media_profile::load(conn, &ir.blob_b3)
+        .await?
+        .is_some_and(|p| p.class.identifies_speakers());
+    if !conversation {
+        retire(conn, &ir.blob_b3).await?;
+        return Ok(0);
+    }
     let attendees = media::attendees(path, minutes);
     let mut intros = media::introductions(ir);
     // The one attendee nobody else claims is a candidate for the one label left (never confirmed by itself).
@@ -92,7 +107,8 @@ pub async fn propose(
         }
     }
     let mut added = 0;
-    for spk in media::speakers(ir) {
+    let voices = crate::extract::rules::media_class::voices(ir);
+    for spk in voices {
         let confirmed: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM _oo_docs.overlay_current \
               WHERE kind = 'speaker_map' AND binds = $1 AND status = 'active')",
@@ -113,7 +129,7 @@ pub async fn propose(
              ON CONFLICT (dedupe_key) DO NOTHING",
         )
         .bind(format!("speaker_identity:{}:{spk}", ir.blob_b3))
-        .bind(subject(ir, &spk, &attendees, &intros).to_string())
+        .bind(subject(ir, &media::meeting_title(path), &spk, &attendees, &intros).to_string())
         .bind(version_id)
         .bind(REASON)
         .execute(&mut *conn)
@@ -123,12 +139,29 @@ pub async fn propose(
     Ok(added)
 }
 
+/// Withdraw the pending speaker items of a recording that is not a conversation (any more).
+pub async fn retire(conn: &mut PgConnection, b3: &str) -> Result<u64, StoreError> {
+    let done = sqlx::query(
+        "UPDATE _oo_docs.review_item SET status = 'superseded', decided_at = clock_timestamp(), \
+                decided_by = 'engine', revision = revision + 1 \
+          WHERE kind = 'speaker_identity' AND status = 'pending' AND subject->>'b3' = $1",
+    )
+    .bind(b3)
+    .execute(&mut *conn)
+    .await?;
+    Ok(done.rows_affected())
+}
+
 /// A recording that is extracted again (a parser bump, a prompt cycle) gets a fresh placeholder Person
 /// for every label, because the one that was merged is gone. A label a person has already confirmed
 /// (overlay `speaker_map`) must not fall back to a placeholder: merge the new placeholder into the
-/// mapped Person at once, so the statements are judged like any other draft and the file is not held
-/// back by speakers that nobody has to decide again. Returns how many placeholders were merged.
-pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32, StoreError> {
+/// mapped Person at once, so the statements belong to the person already named and nobody is asked again. Returns how many placeholders were merged.
+pub async fn apply_confirmed(
+    conn: &mut PgConnection,
+    ir: &DocIr,
+    path: &str,
+) -> Result<u32, StoreError> {
+    let title = media::meeting_title(path);
     let mut merged = 0;
     for spk in media::speakers(ir) {
         let mapped: Option<String> = sqlx::query_scalar(
@@ -143,7 +176,7 @@ pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32,
         let placeholder: Option<String> = sqlx::query_scalar(
             "SELECT key FROM _oo_docs.entity WHERE type = 'Person' AND canonical_name = $1 AND status = 'active'",
         )
-        .bind(media::placeholder_name(&ir.blob_b3, &spk))
+        .bind(media::placeholder_name(&ir.blob_b3, &spk, &title))
         .fetch_optional(&mut *conn)
         .await?;
         let Some(from) = placeholder.filter(|f| *f != person_key) else {
@@ -156,7 +189,7 @@ pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32,
                 merged += 1;
             }
             Err(MergeError::Store(e)) => return Err(e),
-            // An identity conflict: the statements stay held and a person looks.
+            // An identity conflict: the statements stay with the placeholder and a person looks.
             Err(_) => sp.rollback().await?,
         }
     }
@@ -223,7 +256,7 @@ pub async fn confirm(
     let placeholder: Option<String> = sqlx::query_scalar(
         "SELECT key FROM _oo_docs.entity WHERE type = 'Person' AND canonical_name = $1 AND status = 'active'",
     )
-    .bind(media::placeholder_name(b3, spk))
+    .bind(item_subject.get("placeholder").and_then(Value::as_str).unwrap_or(""))
     .fetch_optional(&mut *conn)
     .await?;
     let mut merged = false;
@@ -298,6 +331,7 @@ mod tests {
         };
         let v = subject(
             &ir,
+            "周会",
             "S1",
             &[att],
             &[intro("S1", "小王"), intro("S2", "小李")],
@@ -314,11 +348,12 @@ mod tests {
     }
 
     #[test]
-    fn a_provisional_speaker_is_held_by_name_and_a_real_person_is_not() {
-        assert!(HELD_SQL.contains("Speaker %") && HELD_SQL.contains("说话人 S%"));
+    fn a_placeholder_speaker_is_known_by_name_and_a_real_person_is_not() {
+        assert!(PLACEHOLDER_SQL.contains("Speaker %") && PLACEHOLDER_SQL.contains("的说话人 %"));
         assert!(media::is_placeholder(&media::placeholder_name(
             &"d".repeat(64),
-            "S3"
+            "S3",
+            "周会"
         )));
         assert!(!media::is_placeholder("Speaker Lee"));
     }

@@ -102,6 +102,8 @@ pub fn predicate_cn(p: &Predicate) -> String {
         Predicate::Supersedes => "取代了".into(),
         Predicate::About => "关于".into(),
         Predicate::Mentions => "提及".into(),
+        Predicate::HasParticipant => "参会人".into(),
+        Predicate::RecordedIn => "录制于".into(),
         Predicate::Attr(a) => format!("{}为", attr_cn(a)),
     }
 }
@@ -113,6 +115,8 @@ fn attr_cn(name: &str) -> &str {
         "author" => "作者",
         "created" => "创建时间",
         "definition" => "定义",
+        "media_class" => "媒体类别",
+        "duration_ms" => "时长（毫秒）",
         other => other,
     }
 }

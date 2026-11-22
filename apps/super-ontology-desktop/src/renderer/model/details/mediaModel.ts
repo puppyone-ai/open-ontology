@@ -88,3 +88,90 @@ export function utteranceAt(utterances: readonly Utterance[], seconds: number): 
   }
   return best;
 }
+
+/** `S1` is `A`, `S2` is `B`, ... `S27` is `AA`: the letter a person sees for a file-local speaker label (the engine uses the same rule). */
+export function speakerLetter(label: string): string {
+  const match = /^S(\d+)$/u.exec(label);
+  let n = match ? Number(match[1]) : 0;
+  if (n < 1) return label;
+  let out = "";
+  while (n > 0) { n -= 1; out = String.fromCharCode(65 + (n % 26)) + out; n = Math.floor(n / 26); }
+  return out;
+}
+
+/** `《周会》的说话人 A · 1a2b3c4d` (D98), `Speaker A · 1a2b3c4d` and the older `说话人 S1 · …`: the placeholder Person of one speaker, without the part that makes it unique per file. */
+const PLACEHOLDER = /^(?:Speaker|说话人) (\S+) · [0-9a-f]{4,}$/u;
+const MEETING_PLACEHOLDER = /^《(.+)》的说话人 (\S+) · [0-9a-f]{4,}$/u;
+const MEETING_NAME = /^(《.+》) · [0-9a-f]{8}$/u;
+const letterOf = (raw: string) => (/^S\d+$/u.test(raw) ? speakerLetter(raw) : /^\d+$/u.test(raw) ? speakerLetter(`S${raw}`) : raw);
+
+/** The letter and meeting title of a placeholder Person's name (`《周会》的说话人 A · 1a2b3c4d` gives `A` and `周会`); `null` for a real name. */
+export function placeholderInfo(name: string): { letter: string; title: string | null } | null {
+  const trimmed = name.trim();
+  const meeting = MEETING_PLACEHOLDER.exec(trimmed);
+  if (meeting) return { letter: letterOf(meeting[2]), title: meeting[1] };
+  const plain = PLACEHOLDER.exec(trimmed);
+  return plain ? { letter: letterOf(plain[1]), title: null } : null;
+}
+
+/** The letter of a placeholder Person's name; `null` for a real name. */
+export function placeholderLetter(name: string): string | null {
+  return placeholderInfo(name)?.letter ?? null;
+}
+
+/** An entity name as a person reads it: a speaker placeholder shows in the person's language ("《周会》的说话人 A"), a meeting loses its uniqueness suffix, anything else is unchanged. */
+export function displayName(name: string, speakerText: (letter: string, title: string | null) => string): string {
+  const info = placeholderInfo(name);
+  if (info) return speakerText(info.letter, info.title);
+  const meeting = MEETING_NAME.exec(name.trim());
+  return meeting ? meeting[1] : name;
+}
+
+export type Clip = { id: string; speaker: string; startMs: number; endMs: number; text: string; lowConfidence: boolean };
+
+const MERGE_GAP_MS = 1500;
+const CLIP_MIN_MS = 5000;
+const CLIP_MAX_MS = 10_000;
+const CLIP_APART_MS = 5000;
+
+/**
+ * Where to listen to one speaker: the longest clean stretches of what they say, each 5 to 10 seconds (2 to 3 of them). Neighbouring
+ * utterances of the same speaker that follow each other within 1.5 s count as one stretch; a longer one is cut to its first 10 s and the
+ * text is cut in the same proportion (the engine gives no word times here, so the cut is approximate). Clips of low-confidence
+ * text come last, and two clips start at least 5 s apart. A short recording gives what it has, possibly one clip.
+ */
+export function representativeClips(utterances: readonly Utterance[], speaker: string, count = 3): Clip[] {
+  const stretches: Clip[] = [];
+  let open: Clip | undefined;
+  for (const utterance of utterances) {
+    if (utterance.speaker !== speaker) { if (open) stretches.push(open); open = undefined; continue; }
+    const previous: Clip | undefined = open;
+    if (previous && utterance.startMs - previous.endMs <= MERGE_GAP_MS) {
+      open = { ...previous, endMs: Math.max(previous.endMs, utterance.endMs), text: `${previous.text} ${utterance.text}`.trim(), lowConfidence: previous.lowConfidence || utterance.lowConfidence };
+    } else {
+      if (previous) stretches.push(previous);
+      open = { id: utterance.id, speaker, startMs: utterance.startMs, endMs: utterance.endMs, text: utterance.text, lowConfidence: utterance.lowConfidence };
+    }
+  }
+  if (open) stretches.push(open);
+  const cut = (clip: Clip): Clip => {
+    const length = clip.endMs - clip.startMs;
+    if (length <= CLIP_MAX_MS) return clip;
+    const keep = Math.max(1, Math.round(clip.text.length * (CLIP_MAX_MS / length)));
+    return { ...clip, endMs: clip.startMs + CLIP_MAX_MS, text: clip.text.slice(0, keep).trim() };
+  };
+  const score = (clip: Clip) => Math.min(clip.endMs - clip.startMs, CLIP_MAX_MS) + (clip.endMs - clip.startMs >= CLIP_MIN_MS ? 100_000 : 0) - (clip.lowConfidence ? 1_000_000 : 0);
+  const picked: Clip[] = [];
+  for (const clip of [...stretches].filter((entry) => entry.endMs - entry.startMs >= 800).sort((a, b) => score(b) - score(a) || a.startMs - b.startMs)) {
+    if (picked.length === count) break;
+    if (picked.some((other) => Math.abs(other.startMs - clip.startMs) < CLIP_APART_MS)) continue;
+    picked.push(cut(clip));
+  }
+  return picked.sort((a, b) => a.startMs - b.startMs);
+}
+
+/** A `#t=` mark of an evidence anchor (`t=00:12:31-00:12:48@S1`, or the whole `[src:…#t=…]`) as the second it starts at; `null` when the anchor is not a time. */
+export function anchorSeconds(anchor: string): number | null {
+  const match = /(?:^|#)t=([0-9:]+)/u.exec(anchor);
+  return match ? parseClock(match[1]) : null;
+}

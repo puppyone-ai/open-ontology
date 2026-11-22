@@ -12,6 +12,7 @@ pub mod constraints;
 pub mod debounce;
 pub mod gates;
 pub mod hashes;
+pub mod media_profile;
 pub mod projection;
 pub mod projector;
 pub mod reprocess;

@@ -44,6 +44,17 @@ describe("drive file protocol", () => {
     });
   });
 
+  it("serves a recording with its media type and byte ranges, so the player can start anywhere", async () => {
+    for (const [name, type] of [["a.wav", "audio/wav"], ["a.m4a", "audio/mp4"], ["a.mp3", "audio/mpeg"], ["a.mp4", "video/mp4"], ["a.mov", "video/quicktime"], ["a.webm", "video/webm"]]) {
+      await writeFile(path.join(root, "docs", name), "RIFF....WAVEdata0123456789");
+      const response = await get(issue(`docs/${name}`), name, { headers: { Range: "bytes=12-15" } });
+      expect(response.status).toBe(206);
+      expect(response.headers.get("content-type")).toBe(type);
+      expect(response.headers.get("content-range")).toBe("bytes 12-15/26");
+      expect(await response.text()).toBe("data");
+    }
+  });
+
   it("answers Range requests: closed, open, suffix, and 416 for the unsatisfiable or multiple ones", async () => {
     const token = issue();
     const closed = await get(token, "a.md", { headers: { Range: "bytes=2-4" } });

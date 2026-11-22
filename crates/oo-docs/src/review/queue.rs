@@ -118,7 +118,6 @@ pub async fn classify_drafts(
     };
     let (once_s, once_o) = (once("f.subject_id"), once("f.object_id"));
     let (file_s, file_o) = (one_file("f.subject_id"), one_file("f.object_id"));
-    let held_speaker = crate::review::speaker::HELD_SQL;
     let held_reprocess = crate::publish::reprocess::HELD_SQL;
     let sql = format!(
         "SELECT f.id::text AS id, f.fact_key, f.predicate, f.origin, f.rule_id, f.confidence_bp, \
@@ -132,8 +131,7 @@ pub async fn classify_drafts(
                 (CASE WHEN f.origin = 'llm' \
                       THEN ((sj.type <> 'Document' AND {file_s}) OR (f.object_id IS NOT NULL AND {file_o})) \
                       ELSE ({once_s} OR (f.object_id IS NOT NULL AND {once_o})) END) AS single_entity, \
-                (EXISTS (SELECT 1 FROM _oo_docs.entity s WHERE s.id = f.subject_id AND {held_speaker}) \
-                 OR {held_reprocess}) AS speaker_held, \
+                {held_reprocess} AS speaker_held, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
                          AND v.kind = 'fact_assert' AND v.status = 'active') AS asserted, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
@@ -169,7 +167,8 @@ pub async fn classify_drafts(
             r.try_get("rejected")?,
             th,
         );
-        // A statement of a speaker nobody has confirmed yet stays a draft (D74, 17.4).
+        // A new extraction that DOC-G10 holds for a person stays a draft; a speaker nobody has named does not hold a
+        // fact (D74 as revised): the placeholder is the subject and the fact publishes.
         let class = if r.try_get::<bool, _>("speaker_held")? && class != Class::Rejected {
             Class::Hold
         } else {
@@ -283,13 +282,15 @@ pub async fn enqueue(conn: &mut PgConnection, th: Thresholds) -> Result<EnqueueR
     })
 }
 
-/// `file.pending_review` = pending items of the file (what the tree shows).
+/// `file.pending_review` = pending items of the file (what the tree shows). Naming a speaker is not a review (D97, D98): those items
+/// wait in the file's own list and never count here.
 pub async fn refresh_pending_counts(conn: &mut PgConnection) -> Result<(), StoreError> {
     sqlx::query(
         "UPDATE _oo_docs.file f SET pending_review = c.n \
            FROM (SELECT f2.id, \
                         (SELECT count(*) FROM _oo_docs.review_item r \
-                          WHERE r.source_file_id = f2.id AND r.status = 'pending')::int AS n \
+                          WHERE r.source_file_id = f2.id AND r.status = 'pending' \
+                             AND r.kind <> 'speaker_identity')::int AS n \
                    FROM _oo_docs.file f2) c \
           WHERE f.id = c.id AND f.pending_review <> c.n",
     )

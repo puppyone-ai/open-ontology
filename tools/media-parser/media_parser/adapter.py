@@ -93,12 +93,12 @@ def parse_task(path, fmt, opts, max_response, job_dir, sha):
             else:
                 ff.decode_audio(path, wav, dec["ffmpeg"])
         vad, engine, embedder, models = load_engines(opts)
-        utterances, speakers = [], []
+        utterances, speakers, skipped = [], [], None
         if has_audio:
             from asr.pipeline import Pipeline
 
             pipe = Pipeline(vad, engine, embedder, job / "chunks", job / "emb", hotwords=opts.get("hotwords") or (),
-                            num_speakers=opts.get("num_speakers"),
+                            num_speakers=opts.get("num_speakers"), media_asset=bool(opts.get("media_asset")),
                             on_chunk=lambda done, tot, i, n, reused: write_progress(job, done, total_ms, "asr"))
             try:
                 res = pipe.run(wav, offset_ms=info["start_ms"])
@@ -107,7 +107,11 @@ def parse_task(path, fmt, opts, max_response, job_dir, sha):
             except Exception as e:  # noqa: BLE001
                 raise with_details(ASR_FAILED, "speech recognition failed", error=type(e).__name__) from None
             utterances, speakers = res["utterances"], res["speakers"]
+            skipped = res.get("skipped")
         items = [{"kind": "utterance", **u} for u in utterances]
+        if skipped:
+            # Not transcribed (a media asset, or no speech): one scene covering the file is the anchor of the Recording's facts.
+            items.append({"kind": "scene", "t_start_ms": info["start_ms"], "t_end_ms": info["start_ms"] + info["duration_ms"], "text": "media asset"})
         key_frames = 0
         if has_video:
             write_progress(job, 0, total_ms, "video")
@@ -122,7 +126,7 @@ def parse_task(path, fmt, opts, max_response, job_dir, sha):
             "duration_ms": info["duration_ms"], "start_ms": info["start_ms"],
             "width": next((s["width"] for s in info["streams"] if s["type"] == "video" and s["width"] and not s["attached_pic"]), None),
             "height": next((s["height"] for s in info["streams"] if s["type"] == "video" and s["height"] and not s["attached_pic"]), None),
-            "speakers": speakers, "key_frames": key_frames, "decode": dec["kind"], "items": items,
+            "speakers": speakers, "skipped": skipped, "key_frames": key_frames, "decode": dec["kind"], "items": items,
             "profile": {"tier": "cpu", "isa": _isa(), "models": models}, "warnings": warnings,
         }
         body = json.dumps(out, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()

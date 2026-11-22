@@ -200,6 +200,50 @@ const server = http.createServer((request, response) => {
     request.on("end", () => send(201, { id: "00000000-0000-4000-8000-0000000000e1", pack_id: "00000000-0000-4000-8000-0000000000c1", pack_digest: "a".repeat(64), drive_id: docs.drives?.[0]?.id ?? "00000000-0000-4000-8000-0000000000d1", scope: [""], role: "suggester", budget: 800, version: 1, state: "active", created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(), revision: 1 }));
     return;
   }
+  // The review queue a scenario seeded (`docs.review`: { items }): the list, and the decision. Naming a speaker (`speaker_identity`, `edit.name`) merges the
+  // placeholder Person of that speaker into the named one, the way the engine does: the facts follow, the placeholder is gone.
+  if (docs?.review) {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const save = () => fs.writeFileSync(path.join(stateDir, "fake-docs.json"), JSON.stringify(docs));
+    if (request.method === "GET" && url.pathname === "/v1/docs/review") {
+      const kind = url.searchParams.get("kind");
+      const status = url.searchParams.get("status");
+      const items = docs.review.items.filter((item) => (!kind || item.kind === kind) && (!status || item.status === status));
+      send(200, { items, next_cursor: null, as_of_seq: docs.as_of_seq ?? 1 });
+      return;
+    }
+    if (request.method === "POST" && url.pathname === "/v1/docs/review:decide") {
+      let raw = "";
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        const body = JSON.parse(raw || "{}");
+        fs.appendFileSync(path.join(stateDir, "fake-decisions.jsonl"), `${JSON.stringify(body)}\n`);
+        const results = (body.items ?? []).map((decision) => {
+          const item = docs.review.items.find((entry) => entry.id === decision.id);
+          if (!item || item.status !== "pending") return { id: decision.id, status: "not_found" };
+          item.status = decision.decision === "accept" ? "accepted" : "rejected";
+          item.revision += 1;
+          const name = decision.edit?.name;
+          if (item.kind === "speaker_identity" && decision.decision === "accept" && typeof name === "string") {
+            const from = docs.entities.find((entity) => entity.name === item.subject.placeholder);
+            let into = docs.entities.find((entity) => entity.type === "Person" && entity.name === name);
+            if (!into) { into = { id: `00000000-0000-4000-8000-0000000007${String(docs.entities.length).padStart(2, "0")}`, key: name.toLowerCase().replace(/ /gu, "-"), type: "Person", name, counts: { facts: 0 }, facts: [], aliases: [] }; docs.entities.push(into); }
+            if (from) {
+              for (const fact of from.facts ?? []) into.facts = [...(into.facts ?? []), { ...fact, subject: { id: into.id, key: into.key, type: "Person", name } }];
+              into.counts = { facts: (into.facts ?? []).length };
+              docs.entities = docs.entities.filter((entity) => entity !== from);
+            }
+          }
+          return { id: decision.id, status: "ok" };
+        });
+        save();
+        send(200, { results });
+      });
+      return;
+    }
+  }
+  const blocksRoute = docs && request.method === "GET" ? new URL(request.url ?? "/", "http://127.0.0.1").pathname.match(/^\/v1\/docs\/files\/([^/]+)\/blocks$/u) : null;
+  if (blocksRoute && docs.blocks?.[blocksRoute[1]]) { send(200, { items: docs.blocks[blocksRoute[1]], next_cursor: null, as_of_seq: 1 }); return; }
   if (docs?.suggestions) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const find = (id) => docs.suggestions.find((item) => item.id === id);
@@ -233,7 +277,7 @@ const server = http.createServer((request, response) => {
   if (docs && request.method === "GET") {
     const detail = request.url?.match(/^\/v1\/docs\/files\/([^/?]+)/u);
     const found = detail ? (docs.files ?? []).find((file) => file.id === detail[1]) : null;
-    if (found) { send(200, { ...found, parse: null, llm: null, versions: [], history: docs.history?.[found.id] ?? [] }); return; }
+    if (found) { send(200, { ...found, parse: found.parse ?? null, llm: null, versions: [], history: docs.history?.[found.id] ?? [] }); return; }
   }
   if (request.url?.startsWith("/v1/docs/drives") && request.method === "GET") {
     send(200, { items: [], next_cursor: null, as_of_seq: 0 });

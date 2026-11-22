@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "Entre na nuvem primeiro",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "A nuvem ainda não oferece esta ação",
   "errors.SO_INTERNAL": "Ocorreu um problema inesperado",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Não há espaço livre suficiente no disco para este lote. Libere espaço ou vincule a pasta em vez de copiá-la."
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Não há espaço livre suficiente no disco para este lote. Libere espaço ou vincule a pasta em vez de copiá-la.",
+  "entity.type.Recording": "Gravação",
+  "entity.type.Meeting": "Reunião"
 }
