@@ -183,3 +183,37 @@ def test_music_and_assets_skip_the_expensive_stages(tone, tmp_path):
     assert res["skipped"] == "no_speech" and res["utterances"] == []
     spoken = make(tone, tmp_path, "spoken").run(wav)
     assert spoken["skipped"] is None and spoken["speakers"]
+
+
+class _Zh:
+    revision, params = "zh/1", {}
+
+    def transcribe(self, x, hotwords=()):
+        return [{"text": "中文", "start_ms": 0, "end_ms": 100, "conf": 0.9}]
+
+
+class _Whisper:
+    name = "whisper-base"
+
+    def __init__(self, lang, text):
+        self.lang, self.said = lang, text
+
+    def language(self, x):
+        return self.lang
+
+    def text(self, x):
+        return self.said
+
+
+def test_chunks_in_another_language_go_to_whisper_and_chinese_stays_with_paraformer():
+    from asr.multilingual import MultilingualAsr, words_of
+
+    one_s = np.full(16_000, 0.2, dtype=np.float32)
+    zh = MultilingualAsr(_Zh(), _Whisper("zh", "ignored")).transcribe(one_s)
+    assert [w["text"] for w in zh] == ["中文"]
+    en = MultilingualAsr(_Zh(), _Whisper("en", "Hello, this is the Q3 review.")).transcribe(one_s)
+    assert [w["text"] for w in en] == ["Hello", ",", "this", "is", "the", "Q3", "review", "."]
+    assert en[0]["start_ms"] < en[-1]["end_ms"] <= 1000 and all(w["conf"] < 0.9 for w in en)
+    assert words_of("会议 about 预算 2027") == ["会", "议", "about", "预", "算", "2027"], "mixed text keeps Chinese per character"
+    short = MultilingualAsr(_Zh(), _Whisper("en", "x")).transcribe(one_s[:4000])
+    assert [w["text"] for w in short] == ["中文"], "under half a second is not worth identifying"

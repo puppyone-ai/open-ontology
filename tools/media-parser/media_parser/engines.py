@@ -30,5 +30,11 @@ def load(opts):
     from asr.vad import SileroVad
 
     d = Path(MODELS_DIR)
-    return (SileroVad(d / "silero-vad" / "silero_vad.onnx"), ParaformerOnnx(d / "paraformer-zh"),
-            CampEmbedder(d / "campplus" / "campplus.onnx"), lock_models())
+    asr = ParaformerOnnx(d / "paraformer-zh")
+    whisper_dir = d / "whisper-base"
+    if whisper_dir.is_dir():
+        # Chunks that are not Chinese go to Whisper (D98 follow-up); without its files Paraformer takes everything.
+        from asr.multilingual import MultilingualAsr, Whisper
+
+        asr = MultilingualAsr(asr, Whisper(whisper_dir))
+    return (SileroVad(d / "silero-vad" / "silero_vad.onnx"), asr, CampEmbedder(d / "campplus" / "campplus.onnx"), lock_models())
