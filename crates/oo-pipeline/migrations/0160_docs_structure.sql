@@ -63,5 +63,13 @@ CREATE TABLE _oo_docs.structure_version (
   PRIMARY KEY (drive_id, n)
 );
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON _oo_docs.structure_observation, _oo_docs.structure_class,
+-- How a field label that the dictionary does not know is read (a concept or a shared name), asked of the model once.
+CREATE TABLE _oo_docs.structure_alignment (
+  key text PRIMARY KEY CHECK (char_length(key) BETWEEN 1 AND 80),
+  target text NOT NULL CHECK (target ~ '^[a-z_]{2,40}$'),
+  source text NOT NULL CHECK (source IN ('model')),
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON _oo_docs.structure_alignment, _oo_docs.structure_observation, _oo_docs.structure_class,
   _oo_docs.structure_member, _oo_docs.structure_version TO oo_docs_runtime;

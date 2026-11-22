@@ -240,3 +240,4 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   that appears later in a confirmed class is a proposal, queued as a `type_promotion` item whose subject has a `structure` object (reason `structure_property`).
 - `GET /v1/docs/drives/{id}/structure/yaml[?database=0]` (`StructureYaml`): the ontology YAML of both sides. With an Agent DB bound it holds the tables, columns, keys and foreign keys of the database and the cross-links where a
   document property names rows of a table through a link rule. Migration 0160 (`docs-structure/1`). No new error code. Additive.
+- Structure properties: `value_type` `version` (`v1.2.3`, `2.0`) and `aliases` (the other labels a property is written with: another language or spelling; the field labels of zh and en files of one kind of record align into one class, by the built-in dictionary and, for unknown labels, a cached model alignment, `structure_alignment` in 0160). Additive.

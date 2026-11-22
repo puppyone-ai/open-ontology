@@ -6432,6 +6432,7 @@
             "email",
             "url",
             "id",
+            "version",
             "person",
             "project",
             "organization",
@@ -6525,6 +6526,12 @@
         },
         "edited": {
           "type": "boolean"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "examples": [

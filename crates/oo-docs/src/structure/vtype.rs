@@ -184,6 +184,31 @@ fn number_core(s: &str) -> Option<String> {
     })
 }
 
+/// `v1.2.3`, `2.0.1`, `1.4`, with an optional pre-release or build suffix.
+fn is_version(s: &str) -> bool {
+    let t = s.trim().trim_start_matches(['v', 'V']);
+    let core = t.split(['-', '+']).next().unwrap_or("");
+    let parts: Vec<&str> = core.split('.').collect();
+    (2..=4).contains(&parts.len())
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// A short level code such as `sev1`, `P0`, `L2`, `Tier-3`.
+fn level_code(s: &str) -> bool {
+    let b = s.trim().as_bytes();
+    let letters = b.iter().take_while(|c| c.is_ascii_alphabetic()).count();
+    let rest = &b[letters..];
+    (1..=5).contains(&letters)
+        && !rest.is_empty()
+        && rest.len() <= 3
+        && rest
+            .iter()
+            .enumerate()
+            .all(|(i, c)| c.is_ascii_digit() || (i == 0 && *c == b'-'))
+}
+
 fn is_percent(s: &str) -> bool {
     let t: String = s.nfkc().collect();
     t.trim()
@@ -293,6 +318,14 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
     if share(&whole, is_percent) >= AGREE {
         return single(ValueType::Percent);
     }
+    if share(&whole, is_version) >= AGREE
+        && (key == "version"
+            || whole
+                .iter()
+                .all(|w| w.starts_with(['v', 'V']) || w.matches('.').count() >= 2))
+    {
+        return single(ValueType::Version);
+    }
     let cores: Vec<Option<String>> = whole.iter().map(|s| number_core(s)).collect();
     let numeric = cores.iter().filter(|c| c.is_some()).count() as f64 / cores.len() as f64;
     if numeric >= AGREE {
@@ -376,14 +409,16 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
     }
     let max_chars = whole.iter().map(|w| w.chars().count()).max().unwrap_or(0);
     // A category is a label: it has no digits (`12个月` is a quantity), it repeats, and the body of a section is prose, not a label.
-    let has_digit = whole.iter().any(|w| w.chars().any(|c| c.is_ascii_digit()));
+    let has_digit = whole.iter().any(|w| w.chars().any(|c| c.is_ascii_digit()))
+        && !whole.iter().all(|w| level_code(w));
     let repeats = counts.values().any(|n| *n >= 2);
     if allow_enum
         && !has_digit
         && repeats
         && whole.len() >= ENUM_MIN_VALUES
         && counts.len() <= ENUM_MAX_DISTINCT
-        && counts.len() as f64 / whole.len() as f64 <= ENUM_MAX_RATIO
+        && (counts.len() as f64 / whole.len() as f64 <= ENUM_MAX_RATIO
+            || whole.iter().all(|w| level_code(w)))
         && max_chars <= ENUM_MAX_CHARS
     {
         let mut by: Vec<(&str, usize)> = counts.into_iter().collect();

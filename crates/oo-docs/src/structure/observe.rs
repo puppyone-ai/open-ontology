@@ -191,7 +191,15 @@ pub const CONCEPTS: &[(&str, &[&str])] = &[
     ("week", &["周次", "周", "week", "week of", "reporting week"]),
     (
         "name",
-        &["姓名", "名字", "名称", "name", "full name", "employee"],
+        &[
+            "姓名",
+            "名字",
+            "名称",
+            "员工",
+            "name",
+            "full name",
+            "employee",
+        ],
     ),
     (
         "role",
@@ -357,6 +365,45 @@ pub const CONCEPTS: &[(&str, &[&str])] = &[
             "payment",
             "payment terms",
         ],
+    ),
+    ("impact", &["影响", "影响范围", "impact"]),
+    ("root_cause", &["根因", "根本原因", "root cause", "cause"]),
+    ("severity", &["严重程度", "严重等级", "severity"]),
+    (
+        "reported",
+        &["报告日期", "上报日期", "reported", "reported on"],
+    ),
+    ("reporter", &["报告人", "上报人", "reporter"]),
+    ("service", &["服务", "所属服务", "service"]),
+    (
+        "contact",
+        &["对接人", "联系人", "contact", "contact person"],
+    ),
+    ("outcome", &["结果", "outcome", "result"]),
+    ("duration", &["时长", "通话时长", "duration"]),
+    ("approved", &["已审批", "审批", "approved"]),
+    (
+        "receipt",
+        &[
+            "票据号",
+            "票据",
+            "发票号",
+            "receipt",
+            "receipt no",
+            "invoice no",
+        ],
+    ),
+    ("version", &["版本", "版本号", "version"]),
+    (
+        "released",
+        &["发布日期", "发布时间", "released", "release date"],
+    ),
+    ("features", &["新功能", "功能", "features", "new features"]),
+    ("fixes", &["修复", "缺陷修复", "fixes", "bug fixes"]),
+    ("known_issues", &["已知问题", "known issues"]),
+    (
+        "fix",
+        &["处置", "处理措施", "fix", "remediation", "resolution"],
     ),
     (
         "notes",

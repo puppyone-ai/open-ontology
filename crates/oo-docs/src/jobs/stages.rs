@@ -1699,6 +1699,8 @@ pub struct PublishHandler {
     scanned: std::sync::Mutex<HashMap<String, Arc<Vec<crate::extract::anchors::Found>>>>,
     /// File version -> hash of the shared values it was last linked to (`doc.anchor`).
     anchored: std::sync::Mutex<HashMap<String, String>>,
+    /// D93: aligns field labels the dictionary does not know.
+    model: Arc<ModelRuntime>,
 }
 
 fn lexicon_digest(lex: &[crate::extract::links::LexEntry]) -> String {
@@ -1845,6 +1847,7 @@ impl PublishHandler {
             linked: std::sync::Mutex::new(HashMap::new()),
             scanned: std::sync::Mutex::new(HashMap::new()),
             anchored: std::sync::Mutex::new(HashMap::new()),
+            model: ModelRuntime::disabled(),
         }
     }
 
@@ -1986,6 +1989,13 @@ impl JobHandler for PublishHandler {
                 .await
                 .unwrap_or_default();
                 for d in drives {
+                    if !std::env::var("OO_DOCS_STRUCTURE_ALIGN_MODEL").is_ok_and(|v| v == "0")
+                        && llm_wanted(&self.pool, &self.model, &d).await
+                        && let Some(port) = self.model.port()
+                    {
+                        let _ =
+                            crate::structure::store::align_unknown(&mut c, &d, port.as_ref()).await;
+                    }
                     let _ = crate::structure::store::induce_drive(&mut c, &d).await;
                 }
             }
@@ -2114,7 +2124,7 @@ pub fn handlers_with_runtime<F: SourceFactory>(
         Arc::new(Contended(ExtractLlmHandler {
             pool: pool.clone(),
             cas: cas.clone(),
-            model,
+            model: model.clone(),
         })),
     );
     map.insert(
@@ -2125,6 +2135,7 @@ pub fn handlers_with_runtime<F: SourceFactory>(
             linked: std::sync::Mutex::new(HashMap::new()),
             scanned: std::sync::Mutex::new(HashMap::new()),
             anchored: std::sync::Mutex::new(HashMap::new()),
+            model,
         })),
     );
     map

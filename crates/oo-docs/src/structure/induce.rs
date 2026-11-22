@@ -334,6 +334,16 @@ fn build_property(
             }
         }
     }
+    let aliases: Vec<String> = {
+        let mut v: Vec<String> = Vec::new();
+        for l in &a.labels {
+            let l = l.trim();
+            if l != name && !l.is_empty() && !v.iter().any(|x| x == l) {
+                v.push(l.to_owned());
+            }
+        }
+        v
+    };
     let rows_total = a.values.len().max(1);
     Property {
         slug: slug_of(key),
@@ -350,6 +360,7 @@ fn build_property(
             .round()
             / 1000.0,
         required: coverage >= REQUIRED_COVERAGE,
+        aliases,
         examples: ex,
         sample_values: sample,
         enum_values,
@@ -600,7 +611,10 @@ pub fn induce(rows: &[FileRow<'_>], lexicon: &Lexicon) -> Induced {
             continue;
         }
         let own = result.classes[ci].class_key.clone();
-        let is_identity_col = result.classes[ci].shape == Shape::Table
+        let is_identity_col = matches!(
+            result.classes[ci].kind.as_str(),
+            "people_table" | "project_table"
+        ) && result.classes[ci].shape == Shape::Table
             && result.classes[ci].properties[pi].keys[0] == identity_key(&result.classes[ci].kind);
         if is_identity_col {
             continue;

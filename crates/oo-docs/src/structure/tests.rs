@@ -24,6 +24,9 @@ fn keys_fold_language_and_spelling() {
     assert_eq!(canon_key("2. Action items"), "actions");
     assert_eq!(canon_key("预算（万元）"), "budget");
     assert_eq!(canon_key("参会人 / Attendees"), "attendees");
+    assert_eq!(canon_key("对接人"), canon_key("Contact"));
+    assert_eq!(canon_key("根因"), canon_key("Root cause"));
+    assert_eq!(canon_key("新功能"), canon_key("Features"));
     assert_eq!(slug_of("attendees"), "attendees");
     assert!(slug_of("入职日期x").starts_with("f_"));
     assert_eq!(slug_of("hire"), "hire");
@@ -51,6 +54,19 @@ fn values_decide_the_type() {
     assert_eq!(t("x", &["a@b.com", "c@d.org"]), ValueType::Email);
     assert_eq!(t("x", &["https://a.com/x", "http://b.org"]), ValueType::Url);
     assert_eq!(t("x", &["E1001", "E1002", "E1003"]), ValueType::Id);
+    assert_eq!(
+        t("version", &["v1.2.0", "v1.3.1", "v2.0.0"]),
+        ValueType::Version
+    );
+    assert_eq!(t("x", &["1.2.3", "2.0.1"]), ValueType::Version);
+    assert_eq!(
+        t("x", &["sev1", "sev2", "sev2", "sev3", "sev3", "sev3"]),
+        ValueType::Enum
+    );
+    assert_eq!(
+        t("x", &["P0", "P1", "P1", "P2", "P2", "P3"]),
+        ValueType::Enum
+    );
     assert_eq!(
         t("owner", &["陈子墨", "周若溪", "吴启明"]),
         ValueType::Person

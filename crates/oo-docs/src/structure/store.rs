@@ -252,7 +252,8 @@ pub async fn induce_drive(
         .bind(drive_id)
         .execute(&mut *tx)
         .await?;
-    let (record_files, files) = observed(&mut tx, drive_id).await?;
+    let (record_files, mut files) = observed(&mut tx, drive_id).await?;
+    super::align::apply(&mut files, &super::align::load(&mut tx).await?);
     let lex = lexicon(&mut tx).await?;
     let rows: Vec<FileRow<'_>> = files.iter().map(|(_, p, o)| (p.as_str(), o)).collect();
     let fresh = induce(&rows, &lex);
@@ -618,7 +619,7 @@ pub async fn explain_diff(
     if !diff.removed.is_empty() {
         let literal: Vec<String> = sqlx::query_scalar(
             "SELECT DISTINCT fact_key FROM _oo_docs.fact WHERE fact_key = ANY($1::text[]) \
-               AND (predicate LIKE 'attr.%' OR rule_id IN ('doc.link', 'doc.anchor') OR origin = 'llm') AND NOT (fact_key = ANY($2::text[]))",
+               AND (predicate LIKE 'attr.%' OR rule_id IN ('doc.link', 'doc.about', 'doc.anchor') OR origin = 'llm') AND NOT (fact_key = ANY($2::text[]))",
         )
         .bind(&diff.removed)
         .bind(&diff.share_used_removed)
@@ -627,4 +628,57 @@ pub async fn explain_diff(
         diff.removed.retain(|k| !literal.contains(k));
     }
     Ok(())
+}
+
+/// D93: labels the dictionary does not know are aligned by the model once (cached), before the next induction. Without a model, or when
+/// the Drive's call limit is reached, the labels keep their own keys.
+pub async fn align_unknown(
+    conn: &mut PgConnection,
+    drive_id: &str,
+    port: &dyn crate::extract::llm::egress::LlmPort,
+) -> Result<u32, sqlx::Error> {
+    let (_, files) = observed(conn, drive_id).await?;
+    let known = super::align::load(conn).await?;
+    let items = super::align::unknown(&files, &known);
+    if items.is_empty() {
+        return Ok(0);
+    }
+    let daily: Option<i32> =
+        sqlx::query_scalar("SELECT llm_daily_calls FROM _oo_docs.drive WHERE id = $1::uuid")
+            .bind(drive_id)
+            .fetch_optional(&mut *conn)
+            .await?;
+    let Some(daily) = daily else { return Ok(0) };
+    let granted = matches!(
+        crate::extract::llm::usage::reserve(&mut *conn, drive_id, daily).await,
+        Ok(crate::extract::llm::usage::Reserve::Granted { .. })
+    );
+    if !granted {
+        return Ok(0);
+    }
+    let answer = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        super::align::ask(port, &items),
+    )
+    .await
+    .ok()
+    .flatten();
+    let _ = crate::extract::llm::usage::record(
+        &mut *conn,
+        drive_id,
+        if answer.is_some() {
+            crate::extract::llm::usage::Outcome::Completed {
+                tokens_in: 0,
+                tokens_out: 0,
+            }
+        } else {
+            crate::extract::llm::usage::Outcome::Failed
+        },
+    )
+    .await;
+    let Some(map) = answer else { return Ok(0) };
+    super::align::store(conn, &map)
+        .await
+        .map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+    Ok(map.len() as u32)
 }

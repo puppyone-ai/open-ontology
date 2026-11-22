@@ -16,6 +16,7 @@
 //!
 //! Pure parts first: nothing here reads a database until [`store`].
 
+pub mod align;
 pub mod dbside;
 pub mod induce;
 pub mod observe;
@@ -108,6 +109,8 @@ pub enum ValueType {
     Email,
     Url,
     Id,
+    /// A release or format version (`v1.2.3`, `2.0`).
+    Version,
     Person,
     Project,
     Organization,
@@ -117,7 +120,7 @@ pub enum ValueType {
 }
 
 impl ValueType {
-    pub const ALL: [ValueType; 13] = [
+    pub const ALL: [ValueType; 14] = [
         Self::Date,
         Self::Amount,
         Self::Number,
@@ -125,6 +128,7 @@ impl ValueType {
         Self::Email,
         Self::Url,
         Self::Id,
+        Self::Version,
         Self::Person,
         Self::Project,
         Self::Organization,
@@ -141,6 +145,7 @@ impl ValueType {
             Self::Email => "email",
             Self::Url => "url",
             Self::Id => "id",
+            Self::Version => "version",
             Self::Person => "person",
             Self::Project => "project",
             Self::Organization => "organization",
@@ -214,6 +219,9 @@ pub struct Property {
     /// Share of non-empty values among the records that carry the field.
     pub fill: f64,
     pub required: bool,
+    /// The other labels the property is written with (another language, another spelling).
+    #[serde(default)]
+    pub aliases: Vec<String>,
     pub examples: Vec<String>,
     /// Up to 40 distinct values, to resolve the property against entities and database rows.
     #[serde(default)]

@@ -156,7 +156,12 @@ async fn snapshot(
         .unwrap();
     let mut members = serde_json::Map::new();
     for (k, p) in member_rows {
-        members.entry(k).or_insert_with(|| json!([])).as_array_mut().unwrap().push(json!(p));
+        members
+            .entry(k)
+            .or_insert_with(|| json!([]))
+            .as_array_mut()
+            .unwrap()
+            .push(json!(p));
     }
     let doc = json!({"members": members, "classes": schema["classes"], "unclustered": unclustered, "coverage": schema["coverage"], "version": schema["version"], "induced": schema["induced"]});
     std::fs::write(
@@ -524,7 +529,14 @@ async fn the_structure_layer_through_the_real_pipeline() {
         .filter(|(_, (state, _))| {
             !matches!(
                 state.as_str(),
-                "published" | "extract_partial" | "unsupported" | "duplicate" | "indexed"
+                "published"
+                    | "extract_partial"
+                    | "unsupported"
+                    | "duplicate"
+                    | "indexed"
+                    | "parse_failed"
+                    | "encrypted"
+                    | "too_large"
             )
         })
         .collect();
