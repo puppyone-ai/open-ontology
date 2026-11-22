@@ -391,6 +391,15 @@
 | SO-F-S22-61 | D93 | merged | feat/super-ontology (车道 AM 并入) | 091eb3a0a → 091eb3a0a | — | — | Show the structure layer in the Ontology view: a Structure tab, the class panel on the atlas, the YAML in Files |
 | SO-F-S22-62 | D93 | merged | feat/super-ontology (车道 AM 并入) | 08bd13deb → 08bd13deb | — | — | Test the Structure tab in Chinese and German |
 | SO-F-S22-63 | D93 | merged | feat/super-ontology (车道 AM 并入) | 55320a64f → 55320a64f | — | — | Show the version type of a structure property, and score completeness on the held-out corpus |
+| SO-F-S23-01 | D85 | merged | feat/super-ontology (车道 AE6 并入) | 52e13ccdc → 52e13ccdc | — | — | Update the FM5 replay of not-certain supersessions to D97 |
+| SO-F-S23-02 | D85 | merged | feat/super-ontology (车道 AE6 并入) | a2a421207 → a2a421207 | — | — | Expect the type_precision key in the fixed docs report schema |
+| SO-F-S23-03 | D85 | merged | feat/super-ontology (车道 AE6 并入) | 0b9d39604 → 0b9d39604 | — | — | Count the structure_alignment table in the install tests |
+| SO-F-S23-04 | D85 | merged | feat/super-ontology (车道 AE6 并入) | e51e07cf8 → e51e07cf8 | — | — | Pin sherpa-onnx and the Whisper base weights for the media-parser image |
+| SO-F-S23-05 | D85 | merged | feat/super-ontology (车道 AE6 并入) | 970e1dd80 → 970e1dd80 | — | — | Lock the engine and media-parser images of the convergence build |
+| SO-F-S23-06 | D85 | merged | feat/super-ontology (车道 AE6 并入) | f24063cbd → f24063cbd | — | — | Do not let a pending speaker item hold a file that has nothing left to publish |
+| SO-F-S23-07 | D85 | merged | feat/super-ontology (车道 AE6 并入) | 4b1dde302 → 4b1dde302 | — | — | Follow the shared engine and the streaming upload in the packaged-app acceptance run |
+| SO-F-S23-08 | D85 | merged | feat/super-ontology (车道 AE6 并入) | ad2fd5e60 → ad2fd5e60 | — | — | Lock the engine image with the speaker-aware settle step |
+| SO-F-S23-09 | D85 | merged | feat/super-ontology (车道 AE6 并入) | dded08ad3 → dded08ad3 | — | — | Record the S22 convergence evidence |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
