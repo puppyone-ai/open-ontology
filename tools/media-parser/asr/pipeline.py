@@ -22,6 +22,8 @@ SAMPLE_RATE = 16_000
 MAX_UTTERANCE_CHARS = 2000
 UTTERANCE_GAP_MS = 3000
 LOW_CONFIDENCE = 0.8
+NO_SPEECH_MS = 3000
+NO_SPEECH_RATIO_BP = 800
 SENTENCE_END = "。！？；!?;\n"
 
 
@@ -117,12 +119,13 @@ def build_utterances(words, speakers, offset_ms=0):
 
 class Pipeline:
     def __init__(self, vad, engine, embedder, cache_dir, emb_dir, hotwords=(), num_speakers=None,
-                 cluster_threshold=0.55, on_chunk=None):
+                 cluster_threshold=0.55, on_chunk=None, media_asset=False):
         self.vad, self.engine, self.embedder = vad, engine, embedder
         self.cache = ChunkCache(cache_dir)
         self.emb = dz.EmbeddingStore(emb_dir)
         self.hotwords = list(hotwords)
         self.num_speakers = num_speakers
+        self.media_asset = media_asset
         self.cluster_threshold = cluster_threshold
         self.on_chunk = on_chunk or (lambda done_ms, total_ms, i, n, reused: None)
         self.stats = {"chunks": 0, "reused": 0, "computed": 0}
@@ -135,6 +138,13 @@ class Pipeline:
         total_ms = int(len(pcm) * 1000 / SAMPLE_RATE)
         probs = list(self.vad.probs(_f32(pcm)))
         segs = ck.speech_segments(probs, total_ms=total_ms)
+        # D98: music, ambient sound and what the engine already knows to be a media asset are not transcribed or told apart.
+        speech_ms = sum(e - s for s, e in segs)
+        reason = "media_asset" if self.media_asset else (
+            "no_speech" if speech_ms < NO_SPEECH_MS or speech_ms * 10_000 < NO_SPEECH_RATIO_BP * max(total_ms, 1) else None)
+        if reason:
+            return {"audio_ms": total_ms, "start_ms": offset_ms, "speakers": [], "utterances": [], "word_count": 0, "chunks": 0,
+                    "speech_ms": speech_ms, "skipped": reason}
         chunk_list = ck.make_chunks(segs, probs)
         all_words, win_spans, win_vecs = [], [], []
         for i, (s, e) in enumerate(chunk_list):
@@ -164,7 +174,9 @@ class Pipeline:
             self.stats["chunks"] += 1
             self.on_chunk(e, total_ms, i, len(chunk_list), was_cached)
         if win_vecs:
-            raw_labels = dz.cluster(np.stack(win_vecs), self.cluster_threshold, self.num_speakers)
+            stacked = np.stack(win_vecs)
+            raw_labels = (dz.cluster(stacked, self.cluster_threshold, self.num_speakers) if self.num_speakers
+                          else dz.cluster_auto(stacked, self.cluster_threshold))
             win_labels = dz.relabel_by_first_appearance(raw_labels, [s for s, _ in win_spans])
         else:
             win_labels = []
@@ -173,4 +185,5 @@ class Pipeline:
         labels = sorted({u["speaker"] for u in utterances}, key=lambda s: int(s[1:]))
         self.emb.delete()  # speaker features never outlive the file (D63, D73)
         return {"audio_ms": total_ms, "start_ms": offset_ms, "speakers": labels,
-                "utterances": utterances, "word_count": len(all_words), "chunks": len(chunk_list)}
+                "utterances": utterances, "word_count": len(all_words), "chunks": len(chunk_list),
+                "speech_ms": speech_ms, "skipped": None}
