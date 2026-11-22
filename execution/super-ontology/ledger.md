@@ -385,6 +385,8 @@
 | SO-F-S22-24 | D94 | merged | feat/super-ontology (车道 AK 并入) | 3f956e16b → 3f956e16b | — | — | Keep files outside the ontology out of Not connected |
 | SO-F-S22-25 | D94 | merged | feat/super-ontology (车道 AK 并入) | 5c225b5fc → 5c225b5fc | — | — | Let people set the class of a file or a folder |
 | SO-F-S22-26 | D94 | merged | feat/super-ontology (车道 AK 并入) | 437a687cc → 437a687cc | — | — | Update the file panel snapshots for the class line and the class select |
+| SO-F-S22-80 | D85 | merged | feat/super-ontology (车道 AN 并入) | afa282cc3 → afa282cc3 | — | — | Test the drive watcher by wake-ups and scheduled delays, not CPU share or elapsed time |
+| SO-F-S22-81 | D85 | merged | feat/super-ontology (车道 AN 并入) | 4df89a275 → 4df89a275 | — | — | Arm the real watcher tests with an in-order barrier before they change anything |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
@@ -438,6 +440,13 @@
 | SO-B-S22-38 | D94 | merged | feat/super-ontology (车道 AK 并入) | 1f6291c39 → 1f6291c39 | — | — | Score admission: class accuracy, zero entities from non-records, BRIEF |
 | SO-B-S22-39 | D94 | merged | feat/super-ontology (车道 AK 并入) | aa67c62da → aa67c62da | — | — | Describe the admission corpus and let a model made record settle indexed |
 | SO-B-S22-59 | D98 | merged | feat/super-ontology (车道 AL 并入，协调者台账) | 52beef535 → 52beef535 | — | — | Ledger rows for lane AL |
+| SO-B-S22-80 | D85 | merged | feat/super-ontology (车道 AN 并入) | 8d74bd26e → 8d74bd26e | — | — | Fix the early publish query: a continued SQL line ended in two backslashes |
+| SO-B-S22-81 | D85 | merged | feat/super-ontology (车道 AN 并入) | 3c0fd80f9 → 3c0fd80f9 | — | — | Pin the extraction prompt version to its system text and re-pin the recorded keys |
+| SO-B-S22-82 | D85 | merged | feat/super-ontology (车道 AN 并入) | b4609d475 → b4609d475 | — | — | Name the commit timestamp precondition of the event order test |
+| SO-B-S22-83 | D85 | merged | feat/super-ontology (车道 AN 并入) | 32f64e845 → 32f64e845 | — | — | Give each document the share conformance test adds a date of its own |
+| SO-B-S22-84 | D85 | merged | feat/super-ontology (车道 AN 并入) | ed05612a3 → ed05612a3 | — | — | Teach the live suite runner the profiles run and the model-only target |
+| SO-B-S22-85 | D85 | merged | feat/super-ontology (车道 AN 并入) | a36429109 → a36429109 | — | — | Do not hold a partial file back for an alias candidate that nothing will decide |
+| SO-B-S22-86 | D85 | merged | feat/super-ontology (车道 AN 并入) | a6ee14c32 → a6ee14c32 | — | — | Track the admission corpus log that the root ignore rule dropped |
 
 ## 签收
 
