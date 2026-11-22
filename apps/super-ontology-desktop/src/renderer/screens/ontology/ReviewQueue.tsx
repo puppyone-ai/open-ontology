@@ -5,7 +5,7 @@ import { Check, ListChecks, X } from "lucide-react";
 import { ErrorText } from "../shared/ErrorText";
 import { useDisplayName } from "../../hooks/useDisplayName";
 import { SpeakerReviewGroup } from "./SpeakerReviewGroup";
-import { MediaPreview } from "../../features/media/MediaPreview";
+import { MediaClassBadge, MediaPreview } from "../../features/media/MediaPreview";
 import { useMediaController } from "../../features/media/useMediaController";
 import { useMediaSource } from "../../features/media/useMediaSource";
 import { representativeClips, speakerLetter } from "../../model/details/mediaModel";
@@ -114,7 +114,10 @@ export function ReviewQueue() {
           </Card>
           {groups.size > 0 && (
             <aside className="so-review-pane" aria-label={t("app.media.preview.title")} data-testid="review-pane">
-              <Card className="so-form"><MediaPreview source={source} controller={controller} speakerText={speakerText} /></Card>
+              <Card className="so-form">
+                <div className="so-row"><h3 className="so-list-title so-grow so-truncate" title={active?.fileName}>{active?.fileName}</h3><MediaClassBadge info={source.state === "ready" ? source.info : null} /></div>
+                <MediaPreview source={source} controller={controller} speakerText={speakerText} />
+              </Card>
             </aside>
           )}
         </div>
