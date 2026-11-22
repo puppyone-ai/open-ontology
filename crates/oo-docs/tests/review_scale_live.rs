@@ -55,6 +55,20 @@ fn files(n: usize) -> Vec<(String, String)> {
                 format!("{dir}/README.md"),
                 format!("# README {i}\n\nHow to build the part {i} of the repository.\n"),
             ),
+            4 => (
+                format!("{dir}/AGENTS.md"),
+                format!(
+                    "# Agent instructions {i}\n\nRun `make test` before a commit. Keep rollback scripts in `ops/`. Part {i}.\n"
+                ),
+            ),
+            5 => (
+                format!("Design/{dir}/note-{i}.md"),
+                format!(
+                    "# Design note {i}\n\nOwner: Member {}\n\n## Decisions\n\n- Rollback\n- Prepare\n- Consistency\n- Member {} decided to move queue {i} to LISTEN/NOTIFY.\n",
+                    i % 60,
+                    i % 60
+                ),
+            ),
             _ => (
                 format!("Notes/{dir}/n{i:05}.md"),
                 format!(
@@ -65,6 +79,14 @@ fn files(n: usize) -> Vec<(String, String)> {
             ),
         };
         out.push((p, s));
+    }
+    // Moves: the same file under another directory.
+    for k in 0..(n * 3 / 100) {
+        let (p, s) = out[(k * 13 + 5) % n].clone();
+        out.push((
+            format!("moved-dir/m{}/{k}-{}", k % 50, p.replace('/', "_")),
+            s,
+        ));
     }
     // 6 percent copies in other folders, 4 percent renames of earlier files: the same bytes under another path.
     let copies = n * 6 / 100;
