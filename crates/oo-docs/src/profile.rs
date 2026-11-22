@@ -260,9 +260,20 @@ fn instruction_name(path: &str) -> bool {
         && dirs.iter().any(|d| {
             matches!(
                 d.as_str(),
-                "adr" | "adrs" | "decisions" | "architecture-decisions" | "rfcs" | "rfc"
+                "adr" | "adrs" | "architecture-decisions" | "rfcs" | "rfc"
             )
         })
+    {
+        return true;
+    }
+    // `docs/decisions/0007-title.md`: a numbered record inside a documentation tree. A `Decisions/` folder of a
+    // business Drive is not one.
+    if textual
+        && dirs.iter().any(|d| d == "decisions")
+        && dirs
+            .iter()
+            .any(|d| matches!(d.as_str(), "docs" | "doc" | "documentation"))
+        && name.chars().take_while(char::is_ascii_digit).count() >= 3
     {
         return true;
     }

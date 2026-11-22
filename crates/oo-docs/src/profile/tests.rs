@@ -34,6 +34,9 @@ fn profiles_by_path_and_format() {
         Profile::Instruction
     );
     assert_eq!(p("docs/STYLE_GUIDE.md", Some("md")), Profile::Instruction);
+    assert_eq!(p("docs/decisions/0007-queue-limits.md", Some("md")), Profile::Instruction);
+    // The Decisions folder of a business Drive is not an ADR tree.
+    assert_eq!(p("Decisions/D-2026-01-weekly.md", Some("md")), Profile::Business);
     assert_eq!(p("CONTRIBUTING.md", Some("md")), Profile::Instruction);
     assert_eq!(p("src/main.rs", Some("txt")), Profile::Code);
     assert_eq!(p("web/app.tsx", Some("txt")), Profile::Code);
