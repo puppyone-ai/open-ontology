@@ -54,6 +54,7 @@ pub mod lifecycle;
 pub mod links;
 pub mod metrics;
 pub mod packs;
+pub mod profiles;
 pub mod progress;
 pub mod refs;
 pub mod routes_correct;
@@ -857,6 +858,10 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
                 Method::PATCH => drives::patch(app, last, req).await,
                 _ => drives::delete(app, last, req).await,
             }
+        }
+        ["v1", "docs", "drives", id, "profile-overrides"] => {
+            method_allowed(req, &["GET", "PUT"])?;
+            profiles::handle(app, id, req).await
         }
         ["v1", "docs", "drives", id, "files"] => {
             method_allowed(req, &["GET"])?;

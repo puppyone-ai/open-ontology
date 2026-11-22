@@ -128,7 +128,7 @@ impl FileQuery {
 const SUMMARY: &str = "jsonb_strip_nulls(jsonb_build_object(\
     'id', f.id::text, 'drive_id', f.drive_id::text, 'path', f.path, \
     'name', regexp_replace(f.path, '^.*/', ''), 'size', f.fp_size, 'format', b.format, \
-    'state', f.state, \
+    'state', f.state, 'profile', f.profile, 'profile_reason', f.profile_reason, \
     'state_since', to_char(f.state_since AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), \
     'state_code', f.state_code, 'retryable', f.retryable, 'blocked_reason', f.blocked_reason, \
     'progress', f.progress, 'pending_review', f.pending_review, \
@@ -168,7 +168,31 @@ pub async fn summaries(
         out.insert(id, serde_json::from_str(&j).unwrap_or(Value::Null));
     }
     attach_latency(conn, out.values_mut()).await?;
+    fill_profile(out.values_mut());
     Ok(out)
+}
+
+/// A summary whose file was never extracted has no stored profile: derive it from the path and the blob format (D89).
+pub fn fill_profile<'a>(items: impl Iterator<Item = &'a mut Value>) {
+    for v in items {
+        if let Some(p) = v
+            .get("profile")
+            .and_then(Value::as_str)
+            .and_then(crate::profile::Profile::parse)
+        {
+            v["class"] = json!(p.class().as_str());
+            continue;
+        }
+        let Some(path) = v.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        let class = crate::profile::classify_path(path, v.get("format").and_then(Value::as_str));
+        v["profile"] = json!(class.profile.as_str());
+        if v.get("profile_reason").is_none() {
+            v["profile_reason"] = json!(class.reason);
+        }
+        v["class"] = json!(class.profile.class().as_str());
+    }
 }
 
 /// Adds `latency_ms` (G13) to `FileSummary` objects, one history query for all.
@@ -252,6 +276,7 @@ pub async fn list_files(conn: &mut PgConnection, q: &FileQuery) -> Result<Value,
         last = Some((r.try_get("k")?, r.try_get("id")?));
     }
     attach_latency(conn, items.iter_mut()).await?;
+    fill_profile(items.iter_mut());
     let next = if rows.len() as i64 > q.limit {
         last.map(|(k, i)| cursor::encode(&[json!(k), json!(i)], &filters))
     } else {

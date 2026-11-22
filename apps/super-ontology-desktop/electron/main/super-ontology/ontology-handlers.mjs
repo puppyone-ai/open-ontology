@@ -210,6 +210,17 @@ export function createOntologyHandlers({ client, grants, revealPath = () => {}, 
       return ensure(value, (v) => isObject(v) && Array.isArray(v.tables) && Array.isArray(v.relationships));
     },
 
+    "profile-overrides-list": async ({ driveId }) => {
+      const { value } = await call("profileOverridesList", { params: { id: driveId } });
+      return ensure(value, (v) => isObject(v) && Array.isArray(v.items));
+    },
+
+    /** The engine reclassifies the file or every file under the folder and extracts them again; `affected` says how many. */
+    "profile-override-set": async ({ driveId, scope, path: overridePath, profile }) => {
+      const { value } = await call("profileOverridesPut", { params: { id: driveId }, body: { scope, path: overridePath, profile } });
+      return ensure(value, (v) => isObject(v) && Number.isInteger(v.affected));
+    },
+
     "ontology-versions": async ({ limit, cursor }) => {
       const { value } = await call("ontologyVersions", { query: { limit, cursor } });
       return ensure(value, isPage);

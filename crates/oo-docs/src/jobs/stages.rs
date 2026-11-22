@@ -1166,6 +1166,80 @@ async fn withdraw_superseded(
 }
 
 impl ExtractHandler {
+    /// D94: the class of the file. The user's override first, then the rules; the model only when the rules cannot decide and the
+    /// Drive uses the model. The result is stored on the file with the reason.
+    async fn classify_file(&self, s: &Subject, ir: &DocIr) -> crate::profile::Profile {
+        let overrides = match self.pool.acquire().await {
+            Ok(mut c) => crate::profile::load_overrides(&mut c, &s.drive_id)
+                .await
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        let mut class = crate::profile::classify_with(&s.path, ir, &overrides);
+        // `OO_DOCS_CLASSIFY_MODEL=0` switches the model's say off (the rules' default stands), for measuring.
+        if !class.decided
+            && !std::env::var("OO_DOCS_CLASSIFY_MODEL").is_ok_and(|v| v == "0")
+            && llm_wanted(&self.pool, &self.model, &s.drive_id).await
+            && let Some(port) = self.model.port()
+        {
+            // The call counts against the Drive's daily limit like every model call (D19).
+            let daily: Option<i32> = sqlx::query_scalar(
+                "SELECT llm_daily_calls FROM _oo_docs.drive WHERE id = $1::uuid",
+            )
+            .bind(&s.drive_id)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten();
+            let granted = match (daily, self.pool.acquire().await) {
+                (Some(daily), Ok(mut c)) => matches!(
+                    crate::extract::llm::usage::reserve(&mut c, &s.drive_id, daily).await,
+                    Ok(crate::extract::llm::usage::Reserve::Granted { .. })
+                ),
+                _ => false,
+            };
+            let asked = if granted {
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    crate::profile::classify_by_model(port.as_ref(), &s.path, ir),
+                )
+                .await
+                .ok()
+                .flatten()
+            } else {
+                None
+            };
+            if let Ok(mut c) = self.pool.acquire().await
+                && granted
+            {
+                let _ = crate::extract::llm::usage::record(
+                    &mut c,
+                    &s.drive_id,
+                    if asked.is_some() {
+                        crate::extract::llm::usage::Outcome::Completed {
+                            tokens_in: 0,
+                            tokens_out: 0,
+                        }
+                    } else {
+                        crate::extract::llm::usage::Outcome::Failed
+                    },
+                )
+                .await;
+            }
+            if let Some(profile) = asked {
+                class = crate::profile::Classified {
+                    profile,
+                    reason: "model",
+                    decided: true,
+                };
+            }
+        }
+        if let Ok(mut c) = self.pool.acquire().await {
+            let _ = crate::profile::store(&mut c, &s.file_id, &class).await;
+        }
+        class.profile
+    }
+
     /// Text of the minutes file with the same stem next to a recording (`周会.m4a` and `周会.md`), when it has
     /// been parsed: the attendee list there is layer 1 of the speaker identity (D74).
     async fn sibling_minutes(&self, s: &Subject) -> Option<String> {
@@ -1251,6 +1325,8 @@ impl JobHandler for ExtractHandler {
             if ctx.should_stop() {
                 return Outcome::Cancelled;
             }
+            // D89: the profile of the file, stored for the file list and decisive for the model supplement.
+            let profile = self.classify_file(&s, &ir).await;
             // Same blocks as the previous version: nothing to extract, the
             // evidence moves (D53).
             let reused = match super::reuse::reusable_version(
@@ -1321,8 +1397,9 @@ impl JobHandler for ExtractHandler {
             // A model that is up and a Drive that uses it: the file waits in
             // `extracting` for the `extract_llm` job, which adds its facts and
             // moves the file on. Same blocks as before (reused) need no model.
-            let with_llm =
-                reused.is_none() && llm_wanted(&self.pool, &self.model, &s.drive_id).await;
+            let with_llm = reused.is_none()
+                && profile.uses_model()
+                && llm_wanted(&self.pool, &self.model, &s.drive_id).await;
             let mut tx = match begin_stage(&self.pool).await {
                 Ok(t) => t,
                 Err(e) => return db_fail(e),
@@ -1649,6 +1726,7 @@ impl PublishHandler {
             "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
               WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND (f.profile IS NULL OR f.profile IN ('business', 'meeting', 'table', 'media')) \
                 AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
               ORDER BY fv.path_at_version, fv.id LIMIT 5000",
         )
@@ -1727,6 +1805,7 @@ impl PublishHandler {
             "SELECT fv.id::text, fv.b3, fv.path_at_version FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
               WHERE f.state IN ('indexed', 'published', 'extract_partial') \
+                AND (f.profile IS NULL OR f.profile IN ('business', 'meeting', 'table', 'media')) \
                 AND f.deleted_at IS NULL AND fv.superseded_at IS NULL AND fv.deleted_at IS NULL \
               ORDER BY fv.path_at_version, fv.id LIMIT 5000",
         )

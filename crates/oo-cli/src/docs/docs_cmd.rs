@@ -2,7 +2,7 @@
 //! control API through `oo serve` (D80, 30 §7.2).
 //!
 //! ```text
-//! oo docs drive add|ls|show|rm|sync      oo docs files ls|show|retry
+//! oo docs drive add|ls|show|rm|sync      oo docs files ls|show|retry      oo docs profile ls|set|clear
 //! oo docs review ls|decide|accept-source oo docs entity search|show|correct|merge|split
 //! oo docs share ls|show|revoke|refresh   oo docs usage | health
 //! ```
@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use super::client::{CliError, Daemon, exit};
 
-pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s] [--no-start]   (`-` reads stdin; no --drive uses the managed folder `My files`; starts `oo serve` itself when none runs unless --no-start)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]\n  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)\n  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify\n  oo docs versions | constraints\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  oo docs runtime install|status   (the Docker-free parser environment under the state dir)\n  (all take --json and --state-dir <dir>)\n";
+pub const HELP: &str = "Usage:\n  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s] [--no-start]   (`-` reads stdin; no --drive uses the managed folder `My files`; starts `oo serve` itself when none runs unless --no-start)\n  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)\n  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]\n  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]\n  oo docs profile ls --drive <drive> | set --drive <drive> [--dir] <path> <business|meeting|table|instruction|code|reference|media|other> | clear --drive <drive> [--dir] <path>   (the class of a file or a directory; D94)\n  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)\n  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify\n  oo docs versions | constraints\n  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]\n  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>\n  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...\n  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>\n  oo docs usage | health\n  oo docs runtime install|status   (the Docker-free parser environment under the state dir)\n  (all take --json and --state-dir <dir>)\n";
 
 /// Common flags and the leftover positional arguments.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -349,6 +349,7 @@ pub fn run(rest: &[String]) -> u8 {
             ("files", "ls") => files_ls(&d, &p).await,
             ("files", "show") => files_show(&d, &p).await,
             ("files", "retry") => files_retry(&d, &p).await,
+            ("profile", "ls" | "set" | "clear") => profile_cmd(&d, &p, sub).await,
             ("suggestion", "ls") => suggestion_ls(&d, &p).await,
             ("suggestion", "digest") => suggestion_digest(&d, &p).await,
             ("suggestion", "show") => suggestion_show(&d, &p, false).await,
@@ -592,6 +593,57 @@ async fn files_retry(d: &Daemon, p: &Parsed) -> Result<(), CliError> {
         .collect::<Vec<_>>()
         .join("\n");
     out(p, "oo.docs-retry/v1", v, human);
+    Ok(())
+}
+
+// --------------------------------------------------------------- profile ---
+
+/// `oo docs profile ls|set|clear`: a person's choice of the class of a file or of a directory (D94).
+async fn profile_cmd(d: &Daemon, p: &Parsed, sub: &str) -> Result<(), CliError> {
+    let drive = drive_id(
+        d,
+        p.opt("--drive").ok_or_else(|| bad("--drive is required"))?,
+    )
+    .await?;
+    let route = format!("/v1/docs/drives/{drive}/profile-overrides");
+    if sub == "ls" {
+        let v = d.get_json(&route).await?;
+        let human = v["items"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|o| {
+                format!(
+                    "{:<5} {:<12} {}",
+                    o["scope"].as_str().unwrap_or(""),
+                    o["profile"].as_str().unwrap_or(""),
+                    o["path"].as_str().unwrap_or("")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        out(p, "oo.docs-profile-overrides/v1", v, human);
+        return Ok(());
+    }
+    let path = p.pos.first().ok_or_else(|| bad("expected <path>"))?;
+    let scope = if p.has("--dir") { "dir" } else { "file" };
+    let profile = if sub == "set" {
+        let name = p.pos.get(1).ok_or_else(|| bad("expected <profile>"))?;
+        json!(name)
+    } else {
+        Value::Null
+    };
+    let v = d
+        .put_json(
+            &route,
+            &json!({"scope": scope, "path": path, "profile": profile}),
+        )
+        .await?;
+    let human = format!(
+        "{} file(s) reclassified",
+        v["affected"].as_u64().unwrap_or(0)
+    );
+    out(p, "oo.docs-profile-override/v1", v, human);
     Ok(())
 }
 

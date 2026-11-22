@@ -1,0 +1,9 @@
+[project]
+name = "harborq-tools"
+version = "0.3.0"
+dependencies = [
+  "click>=8",
+  "requests",
+  "rich",
+  "pandas",
+]

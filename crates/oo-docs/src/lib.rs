@@ -38,6 +38,7 @@ pub mod normalize;
 pub mod obs;
 pub mod parse;
 pub mod policy;
+pub mod profile;
 pub mod publish;
 pub mod resolve;
 pub mod review;

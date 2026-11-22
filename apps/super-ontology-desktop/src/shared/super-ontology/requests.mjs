@@ -147,6 +147,8 @@ export const field = Object.freeze({
     return patch;
   },
   optional: (validate) => ({ optional: true, validate }),
+  /** The value or an explicit `null` (a required field that may be cleared). */
+  nullable: (validate) => (value) => (value === null ? null : validate(value)),
 });
 
 /**

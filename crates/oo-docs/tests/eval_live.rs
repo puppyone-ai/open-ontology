@@ -354,10 +354,14 @@ async fn the_whole_golden_set_through_the_real_pipeline() {
         .unwrap();
     }
     // The engine runs with a cleared environment: pass on the knobs of a measuring run (the model timeout and the latency log).
-    let pass: Vec<(String, String)> = ["OO_DOCS_MODEL_TIMEOUT_SECS", "OO_DOCS_MODEL_LATENCY_LOG"]
-        .iter()
-        .filter_map(|k| std::env::var(k).ok().map(|v| ((*k).to_owned(), v)))
-        .collect();
+    let pass: Vec<(String, String)> = [
+        "OO_DOCS_MODEL_TIMEOUT_SECS",
+        "OO_DOCS_MODEL_LATENCY_LOG",
+        "OO_DOCS_CLASSIFY_MODEL",
+    ]
+    .iter()
+    .filter_map(|k| std::env::var(k).ok().map(|v| ((*k).to_owned(), v)))
+    .collect();
     let mut env: Vec<(&str, &str)> = vec![("OO_DOCS_MODEL_EGRESS", script_s.as_str())];
     env.extend(pass.iter().map(|(k, v)| (k.as_str(), v.as_str())));
     s.spawn_engine(&env);

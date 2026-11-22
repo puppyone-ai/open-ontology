@@ -54,6 +54,9 @@ const rawRoutes = {
   // Ontology atlas (D88): doc to table links (docs-api 1.6) and the database schema (1.12: tables, columns, relationships); both read, neither writes.
   linksList: route("GET", "/v1/docs/links"),
   ontologySchema: route("GET", "/v1/ontology/schema"),
+  // File class overrides (D94, docs-api 1.14): the person's choice of class for a file or a folder.
+  profileOverridesList: route("GET", "/v1/docs/drives/{id}/profile-overrides", { params: { id: UUID } }),
+  profileOverridesPut: route("PUT", "/v1/docs/drives/{id}/profile-overrides", { params: { id: UUID } }),
   factCorrect: route("POST", "/v1/docs/facts/{id}:correct", { params: { id: UUID }, idempotent: true, ifMatch: true }),
   entitiesMerge: route("POST", "/v1/docs/entities:merge", { idempotent: true, ifMatch: true }),
   entitySplit: route("POST", "/v1/docs/entities/{eid}:split", { params: { eid: KEY }, idempotent: true, ifMatch: true }),

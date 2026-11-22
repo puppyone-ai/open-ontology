@@ -741,6 +741,13 @@ impl Frame<'_> {
             }
             body.extend(lines);
         }
+        // 工作约定 appears only when the scope holds instruction files (D94).
+        let conv = self.convention_lines(cites);
+        if !conv.is_empty() {
+            body.push(String::new());
+            body.push("## 工作约定".into());
+            body.extend(conv);
+        }
         let b = self.g.blocked();
         body.push(String::new());
         body.push("## 已拦截".into());
@@ -771,6 +778,76 @@ impl Frame<'_> {
             );
         }
         md_file(self.basis, "BRIEF.md", &body)
+    }
+
+    /// 工作约定 (D94): the original text of the instruction files in scope (AGENTS.md, CLAUDE.md, README, SOPs, style guides),
+    /// block by block with its source: the files written for an Agent (AGENTS.md, CLAUDE.md, SOPs) first, then the rest, shortest
+    /// path first. Only files of the shared scope are here (the visible graph holds nothing else); the section is capped at 20
+    /// percent of the budget and says which file was cut.
+    fn convention_lines(&self, cites: &mut Cites) -> Vec<String> {
+        let cap = u64::from(self.p.budget) * 20 / 100;
+        let mut files: Vec<&super::reader::SnapshotFile> = self
+            .g
+            .snapshot()
+            .iter()
+            .filter(|f| {
+                crate::profile::classify_path(&f.path, None).profile
+                    == crate::profile::Profile::Instruction
+            })
+            .collect();
+        // Written for an Agent first (AGENTS.md, CLAUDE.md, SOPs), the README and ADRs last.
+        let tier = |p: &str| -> u8 {
+            let name = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
+            if matches!(
+                name.as_str(),
+                "agents.md" | "claude.md" | "gemini.md" | ".cursorrules"
+            ) || name.contains("sop")
+                || p.contains("/sop/")
+            {
+                0
+            } else if name.starts_with("readme") || p.contains("/adr/") {
+                2
+            } else {
+                1
+            }
+        };
+        files.sort_by(|a, b| {
+            (tier(&a.path), a.path.matches('/').count(), &a.path).cmp(&(
+                tier(&b.path),
+                b.path.matches('/').count(),
+                &b.path,
+            ))
+        });
+        let mut out = Vec::new();
+        let mut used = 0u64;
+        'files: for f in files {
+            let blocks = self.g.file_blocks(&f.version_id);
+            if blocks.is_empty() {
+                continue;
+            }
+            out.push(format!("### {}", f.path));
+            for (block_id, text, anchor) in blocks {
+                let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                if text.is_empty() {
+                    continue;
+                }
+                let line = format!("- {text} {}", super::source::tag(&f.path, anchor));
+                let t = tokens::count(&line);
+                if used + t > cap {
+                    out.push(format!("（{} 其余内容超出本节预算，见原文。）", f.path));
+                    continue 'files;
+                }
+                used += t;
+                out.push(line);
+                cites.add(&VisibleEvidence {
+                    path: f.path.clone(),
+                    version_id: f.version_id.clone(),
+                    block_id: block_id.to_owned(),
+                    anchor: anchor.clone(),
+                });
+            }
+        }
+        out
     }
 
     fn tokens_at(&self, entries: &[Entry], used: u64) -> u64 {

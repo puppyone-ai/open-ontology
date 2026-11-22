@@ -13,7 +13,7 @@ export const ONTOLOGY_CHANNELS = Object.freeze([
   "shares-list", "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save",
   "fact-correct", "entity-merge", "entity-split", "constraints-list", "media-decode", "media-decode-cancel",
-  "atlas-links", "ontology-schema",
+  "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set",
 ]);
 
 /** Channels of this module whose request must carry an `operationId`. */
@@ -141,6 +141,12 @@ export function createOntologyRequestFields(field) {
     /** Ontology atlas (D88): the document to table links, and the database schema (tables, columns, relationships; docs-api 1.12), paged. */
     "atlas-links": Object.freeze({}),
     "ontology-schema": Object.freeze({ limit: field.optional(field.int(1, 100)), cursor: field.optional(field.cursor) }),
+    /** File class overrides (D94, docs-api 1.14): the list of a Drive, and one choice for a file or a folder (`profile: null` removes it). */
+    "profile-overrides-list": Object.freeze({ driveId: field.uuid }),
+    "profile-override-set": Object.freeze({
+      driveId: field.uuid, scope: field.enum(["file", "dir"]), path: field.drivePath,
+      profile: field.nullable(field.enum(["business", "meeting", "table", "instruction", "code", "reference", "media", "other"])),
+    }),
     "media-decode": Object.freeze({ fileId: field.uuid }),
     "media-decode-cancel": Object.freeze({ fileId: field.uuid }),
   });

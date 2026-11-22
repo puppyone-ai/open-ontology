@@ -1204,6 +1204,27 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 规则只建核心类型；规则从不建 `Thing`。人名提及的识别规则只用于结构化位置（frontmatter、表格列、kv 行、目录名），正文中的自由人名交给 LLM（无模型时不抽正文人名，这是“不配模型也能用”的代价，评测报告单列）。
 
+#### 5.1.1 准入：文件类别与处理（D94）
+
+不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认；这一次调用与其他模型调用一样计入 Drive 的每日上限与用量，环境变量 `OO_DOCS_CLASSIFY_MODEL=0` 可关闭，供测量用）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0159，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
+
+用户可改单个文件或目录（含其下全部）的类别：`GET`/`PUT /v1/docs/drives/{id}/profile-overrides`、`oo docs profile ls|set|clear`、App 的文件详情与文件夹操作；文件自己的设置压过目录的，近的目录压过远的；改后受影响文件按新类别重新抽取（状态经 `outdated` 回到 `published`）。
+
+| 类别 | 画像（`profile`） | 例 | 进入本体的方式 |
+|---|---|---|---|
+| 记录类 `record` | `business`、`meeting`、`table` | 会议纪要、决策记录、周报、人员表、项目表、合同 | 按类别模板抽取（§5.1 规则，模型补抽照旧） |
+| 指令类 `instruction` | `instruction` | AGENTS.md、CLAUDE.md、README、CONTRIBUTING、SOP、规范、ADR | **不抽任何实体**，也不跑 §5.1 的散文规则与链接遍。文件作为“指令/工作约定”挂到所在项目或目录：它自己的 Document 上 `attr.class=instruction`、`attr.scope=<所在项目目录>`，并有一条对同名已有 `Project` 的绑定提示（不新建）。项目目录 = 含清单文件（Cargo.toml、package.json、pyproject.toml、go.mod、pom.xml、build.gradle、AGENTS.md、CLAUDE.md、CODEOWNERS）的最近目录。共享给 Agent 时，原文进入 BRIEF 的“工作约定”一节（见下） |
+| 参考类 `reference` | `reference` | 论文、书、文献、外部报告 | 只建**一个**“文献”实例 `Thing{label=Reference}`：标题（实体名）、`attr.year`、`attr.venue`、`attr.doi`、`attr.arxiv`；`authored`（Person → Reference，只用于该文献自己的作者）；`cites`（Reference → Reference，对其参考文献列表里的每条）。被引文献是同一 label 的实例，标题相同则同一实体，所以引用把两个文件连起来。不抽正文实体、不抽被引文献的作者 |
+| 代码 `code` | `code` | 源码、清单、锁文件、CODEOWNERS | 不抽内容；只记结构信息：`attr.class=code`、`attr.scope=<所在项目目录>`，CODEOWNERS 另有 `attr.owners`（其中列出的负责人，原样） |
+| 媒体 `media` | `media` | 录音、视频、图片 | 见 D98 与 §17 |
+| 其他 `other` | `other` | 二进制、素材、数据导出、日志、许可证、更新日志 | 只存档（只有 Document），按文件名可检索 |
+
+“不进入本体”是正常状态：文件仍是 `published`，界面显示类别与原因（例如“代码文件，不进入本体”），不显示“文件中没有找到实体”。指令类、代码类、其他类、参考类文件不跑模型补抽，也不参与链接遍与金额日期锚点遍；只有记录类与媒体类跑。
+
+两个关系 `cites` 与 `authored` 加入核心关系（D15 的补充，D94 批准；DB 的 `fact.predicate` 检查在 0156 放宽），只由参考类写出；`DOC-G1` 域/值域：`cites` Thing → Thing，`authored` Person → Thing。其余核心类型与关系不变；`Reference` 在 `profile::LABELS` 登记，不进入类型升格提议。
+
+**BRIEF 的“工作约定”一节**：范围内的指令类文件的原文，按块、每块带 `[src:路径#位置]`；先给写给 Agent 的（AGENTS.md、CLAUDE.md、SOP），再是其余，同级按路径深浅；本节上限为预算的 20%，超出的文件注明“其余内容超出本节预算，见原文”；范围外的文件不会出现（可见性与泄漏守卫同其余章节）。范围内没有指令类文件时，整节省略。
+
 ### 5.2 LLM 补抽
 
 #### 5.2.1 批次切分

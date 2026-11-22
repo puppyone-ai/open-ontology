@@ -156,7 +156,12 @@ async fn a_model_drive_gets_the_models_facts_after_the_rules_and_publishes() {
             "published"
         ]
     );
-    assert_eq!(port.calls.load(Ordering::SeqCst), 2, "one call per section");
+    // One call per section, and one to class the file: no rule decides a plain note (D94), so the model is asked once.
+    assert_eq!(
+        port.calls.load(Ordering::SeqCst),
+        3,
+        "one call per section and one to class the file"
+    );
     assert!(
         count(
             &e,
