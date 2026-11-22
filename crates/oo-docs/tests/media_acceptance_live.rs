@@ -79,7 +79,7 @@ async fn counts(fx: &mut Fx) -> (i64, i64, i64, i64) {
         )
         .await;
     let placeholders = fx
-        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE status = 'active' AND canonical_name LIKE 'Speaker %'")
+        .scalar("SELECT count(*) FROM _oo_docs.entity WHERE status = 'active' AND canonical_name LIKE '《%》的说话人 %'")
         .await;
     let items = fx
         .scalar("SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'speaker_identity' AND status = 'pending'")

@@ -100,7 +100,7 @@ async fn an_unnamed_speaker_publishes_under_a_placeholder_and_naming_re_attribut
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker A · %' AND f.status = 'published'"
+              WHERE f.predicate = 'owns' AND s.canonical_name LIKE '《%》的说话人 A · %' AND f.status = 'published'"
         )
         .await,
         1,
@@ -118,7 +118,7 @@ async fn an_unnamed_speaker_publishes_under_a_placeholder_and_naming_re_attribut
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity o ON o.id = f.object_id \
-              WHERE f.predicate = 'mentions' AND o.canonical_name LIKE 'Speaker %'"
+              WHERE f.predicate = 'mentions' AND o.canonical_name LIKE '《%》的说话人 %'"
         )
         .await,
         0
@@ -128,6 +128,30 @@ async fn an_unnamed_speaker_publishes_under_a_placeholder_and_naming_re_attribut
             .await,
         1,
         "the file is published with its speakers still unnamed"
+    );
+    // The typed objects (D93, D98): a Recording, a Meeting recorded in it, and its two participants.
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Recording'")
+            .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity m ON m.id = f.subject_id \
+              WHERE m.type = 'Meeting' AND f.predicate = 'recorded_in' AND f.status = 'published'"
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity p ON p.id = f.object_id \
+              WHERE f.predicate = 'has_participant' AND f.status = 'published' \
+                AND p.canonical_name LIKE '《%》的说话人 %'"
+        )
+        .await,
+        2,
+        "the participants are the placeholder speakers"
     );
 
     // The S1 item carries the self introduction and the attendee names as candidates.
@@ -196,11 +220,20 @@ async fn an_unnamed_speaker_publishes_under_a_placeholder_and_naming_re_attribut
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker A · %'"
+              WHERE f.predicate = 'owns' AND s.canonical_name LIKE '《%》的说话人 A · %'"
         )
         .await,
         0,
         "nothing is left on the placeholder"
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity p ON p.id = f.object_id \
+              WHERE f.predicate = 'has_participant' AND f.status = 'published' AND p.canonical_name = '小王'"
+        )
+        .await,
+        1,
+        "the meeting's participant became the named Person"
     );
     assert_eq!(
         fx.scalar(
@@ -289,7 +322,8 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
 
     // The parser is bumped and the recording is extracted again. A new placeholder row for the confirmed label S1
     // appears (the first one was merged away): it is merged into 小王 at once, nothing of S1 is held.
-    let ph = oo_docs::extract::rules::media::placeholder_name(&planted.b3, "S1");
+    let ph =
+        oo_docs::extract::rules::media::placeholder_name(&planted.b3, "S1", "周会 参会=小王、小李");
     let k1 = oo_docs::resolve::normalize::entity_key(
         oo_docs::extract::model::EntityType::Person,
         None,
@@ -301,7 +335,7 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
          VALUES (gen_random_uuid(), '{k1}', 'Person', '{ph}', lower('{ph}'))"
     ))
     .await;
-    let merged = oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir)
+    let merged = oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir, path)
         .await
         .unwrap();
     assert_eq!(
@@ -322,7 +356,7 @@ async fn a_reprocessed_recording_keeps_its_confirmed_speaker_and_returns_to_publ
     );
     // And once more: nothing left to merge.
     assert_eq!(
-        oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir)
+        oo_docs::review::speaker::apply_confirmed(&mut fx.rt, &planted.ir, path)
             .await
             .unwrap(),
         0
@@ -461,14 +495,16 @@ async fn a_promo_has_no_speakers_and_asks_nobody() {
     );
     assert_eq!(
         fx.scalar(
-            "SELECT count(*) FROM _oo_docs.media_profile WHERE class = 'non_conversation' AND kind = 'monologue'"
+            "SELECT count(*) FROM _oo_docs.media_profile WHERE class = 'non_conversation' AND kind = 'promo'"
         )
         .await,
         1
     );
     assert_eq!(
-        fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE canonical_name LIKE 'Speaker %'")
-            .await,
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.entity WHERE canonical_name LIKE '《%》的说话人 %'"
+        )
+        .await,
         0,
         "no placeholder person is made"
     );
@@ -477,6 +513,25 @@ async fn a_promo_has_no_speakers_and_asks_nobody() {
             .await,
         0,
         "no sentence is attributed to a voice"
+    );
+    // A media asset is one typed object: a Recording with its class and duration, and no other fact from its sound.
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Recording'")
+            .await,
+        1
+    );
+    assert_eq!(
+        fx.scalar(
+            "SELECT count(*) FROM _oo_docs.fact WHERE predicate NOT LIKE 'attr.%' AND predicate <> 'mentions'"
+        )
+        .await,
+        0,
+        "nothing but properties and the document's own mentions"
+    );
+    assert_eq!(
+        fx.scalar("SELECT count(*) FROM _oo_docs.entity WHERE type = 'Meeting'")
+            .await,
+        0
     );
     fx.finish(db).await;
 }
@@ -578,7 +633,7 @@ async fn an_undecided_recording_is_settled_by_the_model_once() {
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND s.canonical_name LIKE 'Speaker A · %'"
+              WHERE f.predicate = 'owns' AND s.canonical_name LIKE '《%》的说话人 A · %'"
         )
         .await,
         1
@@ -652,7 +707,7 @@ async fn not_anyone_known_keeps_the_placeholder_and_its_facts() {
     assert_eq!(
         fx.scalar(
             "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-              WHERE f.predicate = 'owns' AND f.status = 'published' AND s.canonical_name LIKE 'Speaker A · %'"
+              WHERE f.predicate = 'owns' AND f.status = 'published' AND s.canonical_name LIKE '《%》的说话人 A · %'"
         )
         .await,
         1
@@ -679,7 +734,7 @@ async fn file_state(fx: &mut Fx) -> String {
 async fn held(fx: &mut Fx) -> i64 {
     fx.scalar(
         "SELECT count(*) FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id \
-          WHERE f.predicate = 'owns' AND f.status = 'draft' AND s.canonical_name LIKE 'Speaker A · %'",
+          WHERE f.predicate = 'owns' AND f.status = 'draft' AND s.canonical_name LIKE '《%》的说话人 A · %'",
     )
     .await
 }

@@ -33,7 +33,8 @@ pub const CODE_UNCONFIRMED: &str = "DOCS_REVIEW_SPEAKER_UNCONFIRMED";
 /// SQL condition on the alias `s` (the fact's subject entity): the subject is a speaker placeholder. Facts of a
 /// placeholder publish like any other; this only tells them apart (for the app and for a person's own count).
 pub const PLACEHOLDER_SQL: &str = "(s.type = 'Person' AND s.canonical_name LIKE '% · %' \
-     AND (s.canonical_name LIKE 'Speaker %' OR s.canonical_name LIKE '说话人 %'))";
+     AND (s.canonical_name LIKE 'Speaker %' OR s.canonical_name LIKE '说话人 %' \
+          OR s.canonical_name LIKE '《%》的说话人 %'))";
 
 /// Overlay `speaker_map` binds: one speaker of one recording (by blob hash, so a renamed copy shares it).
 pub fn binds(blob_b3: &str, speaker: &str) -> String {
@@ -50,6 +51,7 @@ fn candidate_json(c: &SpeakerCandidate) -> Value {
 /// The `subject` of the review item of one speaker: the attendee set and the candidates pointing at this label.
 pub fn subject(
     ir: &DocIr,
+    title: &str,
     speaker: &str,
     attendees: &[SpeakerCandidate],
     intros: &[SpeakerCandidate],
@@ -63,8 +65,9 @@ pub fn subject(
     json!({
         "b3": ir.blob_b3,
         "speaker": speaker,
-        "placeholder": media::placeholder_name(&ir.blob_b3, speaker),
+        "placeholder": media::placeholder_name(&ir.blob_b3, speaker, title),
         "letter": media::speaker_letter(speaker),
+        "title": title,
         "candidates": cands,
     })
 }
@@ -126,7 +129,7 @@ pub async fn propose(
              ON CONFLICT (dedupe_key) DO NOTHING",
         )
         .bind(format!("speaker_identity:{}:{spk}", ir.blob_b3))
-        .bind(subject(ir, &spk, &attendees, &intros).to_string())
+        .bind(subject(ir, &media::meeting_title(path), &spk, &attendees, &intros).to_string())
         .bind(version_id)
         .bind(REASON)
         .execute(&mut *conn)
@@ -153,7 +156,12 @@ pub async fn retire(conn: &mut PgConnection, b3: &str) -> Result<u64, StoreError
 /// for every label, because the one that was merged is gone. A label a person has already confirmed
 /// (overlay `speaker_map`) must not fall back to a placeholder: merge the new placeholder into the
 /// mapped Person at once, so the statements belong to the person already named and nobody is asked again. Returns how many placeholders were merged.
-pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32, StoreError> {
+pub async fn apply_confirmed(
+    conn: &mut PgConnection,
+    ir: &DocIr,
+    path: &str,
+) -> Result<u32, StoreError> {
+    let title = media::meeting_title(path);
     let mut merged = 0;
     for spk in media::speakers(ir) {
         let mapped: Option<String> = sqlx::query_scalar(
@@ -168,7 +176,7 @@ pub async fn apply_confirmed(conn: &mut PgConnection, ir: &DocIr) -> Result<u32,
         let placeholder: Option<String> = sqlx::query_scalar(
             "SELECT key FROM _oo_docs.entity WHERE type = 'Person' AND canonical_name = $1 AND status = 'active'",
         )
-        .bind(media::placeholder_name(&ir.blob_b3, &spk))
+        .bind(media::placeholder_name(&ir.blob_b3, &spk, &title))
         .fetch_optional(&mut *conn)
         .await?;
         let Some(from) = placeholder.filter(|f| *f != person_key) else {
@@ -248,7 +256,7 @@ pub async fn confirm(
     let placeholder: Option<String> = sqlx::query_scalar(
         "SELECT key FROM _oo_docs.entity WHERE type = 'Person' AND canonical_name = $1 AND status = 'active'",
     )
-    .bind(media::placeholder_name(b3, spk))
+    .bind(item_subject.get("placeholder").and_then(Value::as_str).unwrap_or(""))
     .fetch_optional(&mut *conn)
     .await?;
     let mut merged = false;
@@ -323,6 +331,7 @@ mod tests {
         };
         let v = subject(
             &ir,
+            "周会",
             "S1",
             &[att],
             &[intro("S1", "小王"), intro("S2", "小李")],
@@ -340,10 +349,11 @@ mod tests {
 
     #[test]
     fn a_placeholder_speaker_is_known_by_name_and_a_real_person_is_not() {
-        assert!(PLACEHOLDER_SQL.contains("Speaker %") && PLACEHOLDER_SQL.contains("说话人 %"));
+        assert!(PLACEHOLDER_SQL.contains("Speaker %") && PLACEHOLDER_SQL.contains("的说话人 %"));
         assert!(media::is_placeholder(&media::placeholder_name(
             &"d".repeat(64),
-            "S3"
+            "S3",
+            "周会"
         )));
         assert!(!media::is_placeholder("Speaker Lee"));
     }

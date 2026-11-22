@@ -1283,7 +1283,9 @@ impl JobHandler for ExtractHandler {
                 // (D74 as revised, 17.4); a recording that is not a conversation has none.
                 if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
                     // Labels a person confirmed earlier keep their Person (reprocess, A8).
-                    if let Err(e) = crate::review::speaker::apply_confirmed(&mut conn, &ir).await {
+                    if let Err(e) =
+                        crate::review::speaker::apply_confirmed(&mut conn, &ir, &s.path).await
+                    {
                         return db_fail(e);
                     }
                     let minutes = self.sibling_minutes(&s).await;
@@ -1506,7 +1508,9 @@ impl JobHandler for ExtractLlmHandler {
                     if let Err(e) = crate::publish::write::index_document(&mut conn, &doc).await {
                         return db_fail(e);
                     }
-                    if let Err(e) = crate::review::speaker::apply_confirmed(&mut conn, &ir).await {
+                    if let Err(e) =
+                        crate::review::speaker::apply_confirmed(&mut conn, &ir, &s.path).await
+                    {
                         return db_fail(e);
                     }
                     if let Err(e) = crate::review::speaker::propose(
