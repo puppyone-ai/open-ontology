@@ -428,13 +428,20 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .execute("INSERT INTO _oo_docs.drive (id, name, backend, config, max_files) VALUES ('00000000-0000-4000-8000-0000000000a1', 'old', 'fs', '{}', 10000), ('00000000-0000-4000-8000-0000000000a2', 'custom', 'fs', '{}', 500)")
         .await
         .unwrap();
+    // The state 0153 leaves has no 0156 either: no profile column, no 0156 row.
+    admin
+        .execute("ALTER TABLE _oo_docs.file DROP COLUMN profile")
+        .await
+        .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-drive-scale/1'",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-drive-scale/1', 'docs-file-profile/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
-        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-drive-scale/1"]),
+        InstallOutcome::Applied(versions) => {
+            assert_eq!(versions, vec!["docs-drive-scale/1", "docs-file-profile/1"])
+        }
         other => panic!("{other:?}"),
     }
     let caps: Vec<(String, i32)> =
