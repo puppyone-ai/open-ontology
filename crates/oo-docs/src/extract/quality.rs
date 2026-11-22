@@ -1102,7 +1102,14 @@ fn check_term_or_topic(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
 fn verdict(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
     verdict_by_type(m, c)?;
     let known = c.known.contains(&(m.entity.ty, norm(&m.entity.name)));
+    // A person, organisation or project is a proper name: whether it stands in two files is counted across the
+    // Drive (the resolver), not here, so the single-file gate leaves them to their shape check.
+    let proper = matches!(
+        m.entity.ty,
+        EntityType::Person | EntityType::Organization | EntityType::Project
+    );
     if !c.structural
+        && !proper
         && m.entity.ty != EntityType::Document
         && !known
         && !c.placed.contains(&m.entity)
