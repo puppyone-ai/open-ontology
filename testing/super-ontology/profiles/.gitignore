@@ -1,0 +1,2 @@
+# The admission corpus keeps its log: a log is one of the file kinds it measures (the root rule ignores *.log).
+!project/**/*.log

@@ -21,6 +21,50 @@ function fakeWatch() {
   return { watch, handles };
 }
 
+/**
+ * The real `fs.watch` and real timers, observed: how many OS watchers were opened, how many events reached the watcher, and the waits it
+ * scheduled. What these tests assert is counts and scheduled delays, never elapsed time or CPU share, so a loaded machine cannot change the
+ * verdict: the waits below are only ceilings that stop a hung run.
+ */
+function observedReal() {
+  const seen = { handles: 0, events: [], timeouts: [], pending: new Set() };
+  const watch = (root, options, listener) => {
+    seen.handles += 1;
+    return fs.watch(root, options, (type, filename) => { seen.events.push(filename === null ? null : String(filename)); listener(type, filename); });
+  };
+  const timers = {
+    setTimeout: (callback, wait) => {
+      seen.timeouts.push(wait);
+      const timer = setTimeout(() => { seen.pending.delete(timer); callback(); }, wait);
+      seen.pending.add(timer);
+      return timer;
+    },
+    clearTimeout: (timer) => { seen.pending.delete(timer); clearTimeout(timer); },
+    now: () => Date.now(),
+  };
+  return { seen, watch, timers };
+}
+const until = async (condition, ceilingMs = 20_000) => {
+  for (let waited = 0; waited < ceilingMs && !condition(); waited += 25) await new Promise((resolve) => { setTimeout(resolve, 25); });
+  return condition();
+};
+
+/**
+ * Barrier on the real watcher: a hidden file (ignored by the watcher, so it causes no timer and no request) is written until its event reaches
+ * the listener. Before that the OS stream may not be live yet, which on a loaded machine loses a change made right after `refresh`; after it,
+ * every event for an earlier change has been delivered, because one stream delivers in order. Then the debounce timers that those earlier events
+ * started are waited out. No elapsed time is asserted: the loop only ends when the event arrives.
+ */
+async function settled(real, root) {
+  for (let probe = 0; probe < 400; probe += 1) {
+    const name = `.barrier-${probe}`;
+    fs.writeFileSync(path.join(root, name), "x");
+    if (await until(() => real.seen.events.includes(name), 250)) break;
+  }
+  expect(await until(() => real.seen.pending.size === 0)).toBe(true);
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+}
+
 describe("path rules", () => {
   it("skips what the engine skips: hidden, lock, partial, junk and dependency folders, at any depth", () => {
     for (const ignored of [".DS_Store", "a/.git/HEAD", "~$report.docx", ".~lock.sheet.ods#", "dl.crdownload", "x.part", "x.tmp", "Thumbs.db", "desktop.ini", "node_modules/a/b.js", "src/__pycache__/m.pyc", ".so-upload-1.part", "dir/.hidden/file.md"]) expect(isIgnoredPath(ignored), ignored).toBe(true);
@@ -250,58 +294,73 @@ describe("the watcher on the real file system", () => {
   beforeEach(() => { root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sd-watch-"))); });
   afterEach(() => { watcher?.dispose(); fs.rmSync(root, { recursive: true, force: true }); });
 
-  it("sends a targeted sync for a file put into a sub-folder, within a second, and none for a hidden one", async () => {
+  it("sends a targeted sync for a file put into a sub-folder after one debounce, and none for a hidden one", async () => {
     const sent = [];
     const client = { request: vi.fn(async (_name, options) => { sent.push(options.body); return { value: {}, replayed: false }; }) };
-    watcher = createDriveWatcher({ client, logger: { debug() {} }, readDrives: async () => [drive(DRIVE, root)] });
+    const real = observedReal();
+    watcher = createDriveWatcher({ client, logger: { debug() {} }, watch: real.watch, timers: real.timers, readDrives: async () => [drive(DRIVE, root)] });
     await watcher.refresh();
     expect(watcher.watching()).toEqual([DRIVE]);
+    await settled(real, root);
     fs.mkdirSync(path.join(root, "notes"));
-    await new Promise((resolve) => { setTimeout(resolve, 400); });
+    // The folder's own event has been seen and answered; only then is the change under test made.
+    await settled(real, root);
     sent.length = 0;
+    real.seen.timeouts.length = 0;
     fs.writeFileSync(path.join(root, ".hidden"), "x");
     fs.writeFileSync(path.join(root, "notes", "plan.md"), "# plan");
-    const started = Date.now();
-    while (!sent.some((body) => body.paths?.includes("notes/plan.md")) && Date.now() - started < 3_000) await new Promise((resolve) => { setTimeout(resolve, 50); });
-    expect(sent.some((body) => body.paths?.includes("notes/plan.md"))).toBe(true);
-    expect(Date.now() - started).toBeLessThan(1_500);
+    expect(await until(() => sent.some((body) => body.paths?.includes("notes/plan.md")))).toBe(true);
+    // "Within a second" is the delay the watcher schedules, not how fast this machine ran it.
+    expect(real.seen.timeouts.length).toBeGreaterThan(0);
+    expect(Math.max(...real.seen.timeouts)).toBeLessThanOrEqual(WATCH_DEBOUNCE_MS);
+    expect(WATCH_DEBOUNCE_MS).toBeLessThan(1_000);
     expect(sent.flatMap((body) => body.paths ?? []).some((entry) => entry.includes(".hidden"))).toBe(false);
   });
 
-  it("deleting and renaming a file on disk each send a full sync within a second", async () => {
+  it("deleting and renaming a file on disk each send a full sync after one debounce", async () => {
     fs.writeFileSync(path.join(root, "a.md"), "a\n");
     fs.writeFileSync(path.join(root, "b.md"), "b\n");
     const sent = [];
     const client = { request: vi.fn(async (_name, options) => { sent.push(options.body); return { value: {}, replayed: false }; }) };
-    watcher = createDriveWatcher({ client, logger: { debug() {} }, readDrives: async () => [drive(DRIVE, root)] });
+    const real = observedReal();
+    watcher = createDriveWatcher({ client, logger: { debug() {} }, watch: real.watch, timers: real.timers, readDrives: async () => [drive(DRIVE, root)] });
     await watcher.refresh();
-    const waitFor = async (count) => { for (let waited = 0; waited < 1500 && sent.length < count; waited += 25) await new Promise((resolve) => { setTimeout(resolve, 25); }); };
+    await settled(real, root);
+    real.seen.timeouts.length = 0;
+    sent.length = 0;
     fs.rmSync(path.join(root, "a.md"));
-    await waitFor(1);
+    expect(await until(() => sent.length >= 1)).toBe(true);
     expect(sent[0]).toEqual({});
     fs.renameSync(path.join(root, "b.md"), path.join(root, "c.md"));
-    await waitFor(2);
+    expect(await until(() => sent.length >= 2)).toBe(true);
     expect(sent[1]).toEqual({});
+    expect(Math.max(...real.seen.timeouts)).toBeLessThanOrEqual(WATCH_DEBOUNCE_MS);
   });
 
-  it("a Drive of 10,000 files costs the main process under 5% CPU while nothing changes", async () => {
+  it("a Drive of 10,000 files is one OS watcher and costs no wake-ups while nothing changes", async () => {
     for (let folder = 0; folder < 100; folder += 1) {
       fs.mkdirSync(path.join(root, `d${folder}`));
       for (let file = 0; file < 100; file += 1) fs.writeFileSync(path.join(root, `d${folder}`, `f${file}.md`), "x");
     }
-    const client = { request: vi.fn(async () => ({ value: {}, replayed: false })) };
-    watcher = createDriveWatcher({ client, logger: { debug() {} }, readDrives: async () => [drive(DRIVE, root)] });
+    const sent = [];
+    const client = { request: vi.fn(async (_name, options) => { sent.push(options.body); return { value: {}, replayed: false }; }) };
+    const real = observedReal();
+    watcher = createDriveWatcher({ client, logger: { debug() {} }, watch: real.watch, timers: real.timers, readDrives: async () => [drive(DRIVE, root)] });
     await watcher.refresh();
-    await new Promise((resolve) => { setTimeout(resolve, 600); });
+    // Cost does not grow with the tree: one recursive watcher, not one per file or folder.
+    expect(real.seen.handles).toBe(1);
+    // Settle without a guessed sleep: what the tree's creation left in the stream is delivered and answered before the barrier returns.
+    await settled(real, root);
     client.request.mockClear();
-    const before = process.cpuUsage();
-    const started = process.hrtime.bigint();
+    real.seen.events.length = 0;
+    real.seen.timeouts.length = 0;
+    // Idle window: the property is that the watcher is woken by nothing (no event, no timer, no request); how much CPU a wake-up costs is the machine's business.
     await new Promise((resolve) => { setTimeout(resolve, 2_000); });
-    const usage = process.cpuUsage(before);
-    const wallMicroseconds = Number(process.hrtime.bigint() - started) / 1_000;
-    expect((usage.user + usage.system) / wallMicroseconds).toBeLessThan(0.05);
+    expect(real.seen.events).toEqual([]);
+    expect(real.seen.timeouts).toEqual([]);
     expect(client.request).not.toHaveBeenCalled();
-  }, 30_000);
+    expect(real.seen.handles).toBe(1);
+  }, 60_000);
 
   it("is released when the Drive is removed from the list", async () => {
     const client = { request: vi.fn(async () => ({ value: {}, replayed: false })) };

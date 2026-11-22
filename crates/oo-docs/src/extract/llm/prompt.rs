@@ -187,6 +187,24 @@ mod tests {
         assert!(SYSTEM.contains("必须逐字使用已知实体的写法"));
     }
 
+    /// The cache key hashes the whole system text, so an edit already invalidates every cached reply; the version is what the usage
+    /// API, the `llm_cache` rows and the recorded fixtures name. This pins the pair: editing the prompt fails here until the version is
+    /// bumped and the pair re-pinned together, so a reworded rule can never keep an old version name.
+    #[test]
+    fn an_edit_of_the_system_text_comes_with_a_new_prompt_version() {
+        const PINNED: (&str, &str) = (
+            "extract/4",
+            "7d61930330049cc754aa56135e87ddc60290bf6f6b85e16e9c4cd778b7203157",
+        );
+        assert_eq!(prompt_version(&[]), PINNED.0);
+        let hash = blake3::hash(SYSTEM.as_bytes()).to_hex().to_string();
+        assert_eq!(
+            hash, PINNED.1,
+            "the system text changed: bump `prompt_version` (extract/N), then pin the new version and hash here and re-record \
+             the keys in tests/fixtures/llm/replies.json (`OO_DOCS_PRINT_KEYS=1`, see its README)"
+        );
+    }
+
     #[test]
     fn request_shape_and_key_are_stable() {
         let ir = parse_markdown("# T\n\n## 甲\n\n陈子墨负责星图\n".as_bytes())

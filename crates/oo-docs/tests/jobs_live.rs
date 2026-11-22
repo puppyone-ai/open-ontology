@@ -3,6 +3,9 @@
 //! `oo_docs_runtime`; the superuser connection only plants fixtures and ages
 //! leases.
 //!
+//! The Postgres must run with `-c track_commit_timestamp=on` (the event order test compares `seq` with the commit order; the setting
+//! needs a server restart, so a test cannot switch it on: `tools/oo-test/super_ontology_live_suites.py` starts its container with it).
+//!
 //! `OO_DOCS_TEST_PG_PORT=<port> cargo test -p oo-docs --locked --test jobs_live -- --ignored`
 
 mod common;
@@ -788,6 +791,15 @@ async fn concurrent_claimers_never_share_a_job() {
 async fn event_seq_is_gap_free_under_concurrent_appenders() {
     let _g = CLUSTER_LOCK.lock().await;
     installed_db("oo_docs_jl_events").await;
+    // The precondition of the commit order check at the end, named before 1,600 appends are spent on it.
+    let setting: String = sqlx::query_scalar("SHOW track_commit_timestamp")
+        .fetch_one(&mut connect("oo_docs_jl_events").await)
+        .await
+        .unwrap();
+    assert_eq!(
+        setting, "on",
+        "start the test Postgres with `-c track_commit_timestamp=on` (a restart setting; see the header of this file)"
+    );
     let pool = pool_runtime("oo_docs_jl_events", 8).await;
     const WRITERS: usize = 8;
     const EACH: usize = 200;
