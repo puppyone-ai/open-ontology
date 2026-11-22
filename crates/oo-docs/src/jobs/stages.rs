@@ -1279,7 +1279,8 @@ impl JobHandler for ExtractHandler {
                 if let Err(e) = crate::publish::reprocess::index_gated(&mut conn, &doc).await {
                     return db_fail(e);
                 }
-                // Who is S1? One `speaker_identity` item per speaker label (D74, 17.4).
+                // Who is speaker A? One `speaker_identity` item per speaker label of a conversation, never blocking
+                // (D74 as revised, 17.4); a recording that is not a conversation has none.
                 if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
                     // Labels a person confirmed earlier keep their Person (reprocess, A8).
                     if let Err(e) = crate::review::speaker::apply_confirmed(&mut conn, &ir).await {
@@ -1494,6 +1495,32 @@ impl JobHandler for ExtractLlmHandler {
                     path: &s.path,
                     ir: &ir,
                 };
+                // A recording the rules could not place (D74 revision): the model reads its text once. A conversation is
+                // then extracted again with its speakers and asked about; anything else stays as the rules left it.
+                if crate::publish::media_profile::is_media(&ir)
+                    && let Ok(Some(class)) =
+                        crate::publish::media_profile::ask_model(&mut conn, &*port, &ir, &title)
+                            .await
+                    && class.identifies_speakers()
+                {
+                    if let Err(e) = crate::publish::write::index_document(&mut conn, &doc).await {
+                        return db_fail(e);
+                    }
+                    if let Err(e) = crate::review::speaker::apply_confirmed(&mut conn, &ir).await {
+                        return db_fail(e);
+                    }
+                    if let Err(e) = crate::review::speaker::propose(
+                        &mut conn,
+                        &s.version_id,
+                        &ir,
+                        &s.path,
+                        None,
+                    )
+                    .await
+                    {
+                        return db_fail(e);
+                    }
+                }
                 if let Err(e) = index_extraction(&mut conn, &doc, &x).await {
                     return db_fail(e);
                 }
@@ -1733,9 +1760,8 @@ impl PublishHandler {
         // (the batches that worked stand); one from a failed rules job has no
         // drafts and stays where it is. A draft that waits for a person in the
         // review queue does not hold the file back (`pending_review` counts it, 4.2); neither does a
-        // statement of a speaker nobody confirmed yet (a `speaker_identity` item waits for a person), nor a
-        // fact of a new extraction that DOC-G10 holds (a `reprocess_diff` item waits): a recording whose
-        // statements are all held must still reach `published` (A8).
+        // fact of a new extraction that DOC-G10 holds (a `reprocess_diff` item waits). A speaker nobody has named does
+        // not hold anything (D74 as revised): the statements publish under the placeholder.
         let rows: Vec<(String, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT f.id::text, fv.id::text, f.state FROM _oo_docs.file f \
                JOIN _oo_docs.file_version fv ON fv.id = f.current_version_id \
@@ -1748,7 +1774,7 @@ impl PublishHandler {
                                   JOIN _oo_docs.entity s ON s.id = ft.subject_id \
                                  WHERE e.target_kind = 'fact' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND ft.status = 'draft' \
-                                   AND NOT {held} AND NOT {held_reprocess} \
+                                   AND NOT {held_reprocess} \
                                    AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
                                                     WHERE r.status = 'pending' \
                                                       AND r.subject->>'fact_id' = ft.id::text)) \
@@ -1757,7 +1783,6 @@ impl PublishHandler {
                                  WHERE e.target_kind = 'alias' AND e.version_id = fv.id \
                                    AND e.withdrawn_at IS NULL AND a.status = 'draft') \
               ORDER BY 1 LIMIT 500",
-            held = crate::review::speaker::HELD_SQL,
             // A new extraction that DOC-G10 holds for a person: the old extraction stays live, so the file is
             // published (the reprocess_diff item is what waits).
             held_reprocess = crate::publish::reprocess::HELD_SQL.replace("f.fact_key", "ft.fact_key"),
