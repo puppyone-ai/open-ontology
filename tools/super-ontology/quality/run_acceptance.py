@@ -97,6 +97,7 @@ def main():
             rq = urllib.request.Request(base + "/v1/docs/agent-tokens", data=body, method="POST", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "OO-Docs-Api-Min": "1.0"})
             tok = json.loads(urllib.request.urlopen(rq, timeout=30).read())["token"]
             (out / "agent.token").write_text(tok)
+            os.chmod(out / "agent.token", 0o600)
             q = subprocess.run([sys.executable, "-B", str(repo / "tools/super-ontology/acceptance/agent_baseline.py"), "--oo", a.ask_oo, "--endpoint", base, "--token-file", str(out / "agent.token"),
                                 "--out", str(out / "ask"), "--model", a.model_id or "cb/gpt-6.2-sol", "--model-endpoint-file", a.model_endpoint_file, "--model-key-file", a.model_key_file],
                                capture_output=True, text=True, timeout=3000)
