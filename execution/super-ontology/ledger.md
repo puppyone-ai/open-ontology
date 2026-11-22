@@ -400,6 +400,12 @@
 | SO-F-S23-07 | D85 | merged | feat/super-ontology (车道 AE6 并入) | 4b1dde302 → 4b1dde302 | — | — | Follow the shared engine and the streaming upload in the packaged-app acceptance run |
 | SO-F-S23-08 | D85 | merged | feat/super-ontology (车道 AE6 并入) | ad2fd5e60 → ad2fd5e60 | — | — | Lock the engine image with the speaker-aware settle step |
 | SO-F-S23-09 | D85 | merged | feat/super-ontology (车道 AE6 并入) | dded08ad3 → dded08ad3 | — | — | Record the S22 convergence evidence |
+| SO-F-S23-10 | D85 | merged | feat/super-ontology (车道 AE7 并入) | be82ebe20 → be82ebe20 | — | — | Wait for a dying oo serve instead of reporting another instance starting |
+| SO-F-S23-11 | D85 | merged | feat/super-ontology (车道 AE7 并入) | 163265d13 → 163265d13 | — | — | Make the 10k-file watcher idle test event-driven |
+| SO-F-S23-12 | D85 | merged | feat/super-ontology (车道 AE7 并入) | 8ad0c2544 → 8ad0c2544 | — | — | Map the D94 and D98 app states onto the unlinked gold's reasons |
+| SO-F-S23-13 | D85 | merged | feat/super-ontology (车道 AE7 并入) | 6d88ff9c6 → 6d88ff9c6 | — | — | Regenerate the media-parser SBOM for the Whisper and sherpa-onnx image and pass the licence gate |
+| SO-F-S23-14 | D85 | merged | feat/super-ontology (车道 AE7 并入) | d825d6fa0 → d825d6fa0 | — | — | Pin the media-parser image with the regenerated SBOM |
+| SO-F-S23-15 | D85 | merged | feat/super-ontology (车道 AE7 并入) | 69e902067 → 69e902067 | — | — | Add the AE7 follow-up results to the convergence evidence |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
