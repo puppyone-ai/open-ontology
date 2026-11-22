@@ -56,7 +56,8 @@
       "super-drive:audit.filter.drive": "Drive",
       "super-drive:audit.column.drive": "Drive",
       "super-drive:engine.folder.logs": "Logs",
-      "native:native.menu.zoom": "Zoom"
+      "native:native.menu.zoom": "Zoom",
+      "app:structure.type.url": "Link"
     },
     "fr": {
       "app:nav.sources": "Sources",
@@ -118,7 +119,13 @@
       "super-drive:audit.column.drive": "Drive",
       "native:native.menu.services": "Services",
       "native:native.menu.zoom": "Zoom",
-      "app:ask.sources": "Sources"
+      "app:ask.sources": "Sources",
+      "app:ontology.tab.structure": "Structure",
+      "app:structure.col.type": "Type",
+      "app:structure.col.actions": "Actions",
+      "app:structure.source.section": "Section",
+      "app:structure.type.date": "Date",
+      "app:files.group.structure": "Structure"
     },
     "de": {
       "app:status.engine": "Engine: {state}",
@@ -164,7 +171,11 @@
       "super-drive:audit.filter.agent": "Agent",
       "super-drive:audit.column.agent": "Agent",
       "super-drive:audit.column.drive": "Drive",
-      "super-drive:engine.statusLabel": "Status"
+      "super-drive:engine.statusLabel": "Status",
+      "app:structure.rename.label": "Name",
+      "app:structure.type.url": "Link",
+      "app:structure.type.person": "Person",
+      "app:structure.type.text": "Text"
     },
     "ja": {
       "super-drive:browser.driveSwitcher": "Drive",

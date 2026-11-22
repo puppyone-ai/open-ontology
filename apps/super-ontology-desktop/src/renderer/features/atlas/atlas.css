@@ -68,3 +68,15 @@
   .so-atlas-caption { margin: 0; padding: 0 var(--so-space-2) var(--so-space-2) calc(var(--so-space-2) + 16px + var(--so-space-2) + 10px + var(--so-space-2)); font-size: var(--so-text-sm); }
   .so-atlas-list-group[data-tone="stone"] .so-atlas-list-head { color: var(--so-text-2); }
 }
+
+@layer so-app {
+  /* The class structure of the record files (D93), top right, away from the inspector. */
+  .so-atlas-structure { position: absolute; top: var(--so-space-3); inset-inline-end: var(--so-space-3); display: grid; gap: var(--so-space-2); width: 248px; padding: var(--so-space-3); border: 1px solid var(--so-line); border-radius: var(--so-radius-card); background: var(--so-panel); box-shadow: var(--so-shadow-menu); }
+  .so-atlas-structure .so-button { justify-self: start; }
+  .so-atlas-structure-list { display: grid; gap: var(--so-space-2); margin: 0; padding: 0; list-style: none; }
+  .so-atlas-structure-item { display: grid; gap: 2px; min-width: 0; }
+  .so-atlas-structure-count { margin-inline-start: auto; font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .so-atlas-structure-links { color: var(--so-accent); font-size: var(--so-text-xs); padding-inline-start: 14px; }
+  .so-atlas-structure-dot { flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--so-line-strong); }
+  .so-atlas-structure-dot[data-status="confirmed"] { background: var(--so-accent); }
+}

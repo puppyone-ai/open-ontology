@@ -56,6 +56,47 @@ export function stubBridgeSource(scenario) {
     const job = (id, action, state, build, error = null) => ({ jobId: id, action, state, exit: state === "succeeded" ? 0 : state === "running" ? null : 1, error, cli: "oo " + action + " --config stack.yaml --yes --json", startedAt: 0, offset: 0, next: 0, lines: [], build, gateway: state === "succeeded" && action === "build" ? true : null });
     const JOB_UP = "00000000-0000-4000-8000-0000000000a1"; const JOB_BUILD = "00000000-0000-4000-8000-0000000000a2"; const JOB_RESUME = "00000000-0000-4000-8000-0000000000a3";
     let buildStarted = false;
+    // ---- the structure layer fixture (D93)
+    const DRIVE_ONE = "00000000-0000-4000-8000-000000000001";
+    const prop = (slug, name, source, value_type, coverage, files_with, examples, extra = {}) => ({ slug, name, keys: [slug], source, value_type, multi: false, files_with, coverage, fill: 1, required: coverage >= 0.9, examples, sample_values: examples, enum_values: [], relation: null, status: "proposed", edited: false, ...extra });
+    let structure = {
+      protocol: "oo.docs.structure/v1", version: 4,
+      coverage: { record_files: 66, in_class: 62, confirmed: 14, share_in_class: 0.939, share_confirmed: 0.212 },
+      classes: [
+        { class_key: "meeting_minutes", label: "meeting_minutes", kind: "meeting_minutes", shape: "document", status: "proposed", version: 4, files: 18, rows: 18, sample_paths: ["meetings/atlas/2026-04-01-kickoff.md"], signature: ["attendees", "date", "decisions"], properties: [
+          prop("date", "Date", "frontmatter", "date", 1, 18, ["2026-04-01", "2026-04-08"]),
+          prop("attendees", "Attendees", "section", "person", 1, 18, ["Daniel Kim", "Karen Wu", "Ralph Evans"], { multi: true, relation: { target: "people_table", target_kind: "class", resolved: 1, predicate: "mentions" } }),
+          prop("project", "Project", "frontmatter", "project", 0.94, 17, ["Atlas", "Beacon"], { relation: { target: "project_table", target_kind: "class", resolved: 1, predicate: "about" } }),
+          prop("decisions", "Decisions", "section", "text", 1, 18, ["Adopt canary releases starting at ten percent"], { multi: true }),
+          prop("actions", "Action items", "section", "text", 0.89, 16, ["Circulate the requirement list", "Update the risk register"], { multi: true }),
+          prop("agenda", "Agenda", "section", "text", 0.83, 15, ["Review open items"], { multi: true }),
+        ] },
+        { class_key: "people_table", label: "people_table", kind: "people_table", shape: "table", status: "confirmed", version: 3, files: 2, rows: 22, sample_paths: ["people/team-roster.csv"], signature: ["name", "role", "email"], properties: [
+          prop("name", "Name", "column", "person", 1, 2, ["Daniel Kim", "Karen Wu"], { status: "confirmed" }),
+          prop("role", "Role", "column", "enum", 1, 2, ["Engineer", "Designer", "Product Manager"], { status: "confirmed", enum_values: ["Engineer", "Designer", "Product Manager", "Operations"] }),
+          prop("email", "Email", "column", "email", 1, 2, ["daniel.kim@example.com"], { status: "confirmed" }),
+          prop("employee_id", "Employee ID", "column", "id", 1, 2, ["E2001", "E2002"], { status: "confirmed" }),
+        ] },
+        { class_key: "contract", label: "contract", kind: "contract", shape: "document", status: "proposed", version: 4, files: 12, rows: 12, sample_paths: ["contracts/CT-2026-011.md"], signature: ["contract_no", "party_a", "amount"], properties: [
+          prop("contract_no", "Contract no", "line", "id", 1, 12, ["CT-2026-011", "CT-2026-012"]),
+          prop("party_b", "Party B", "line", "organization", 1, 12, ["Northwind Logistics", "Bluegate Energy"]),
+          prop("amount", "Amount", "line", "amount", 1, 12, ["$120,000", "USD 86,500"]),
+          prop("term", "Term", "line", "text", 1, 12, ["12 months", "24 months"]),
+        ] },
+      ],
+    };
+    const structureYaml = "protocol: oo.docs.structure/v1\nstructure_version: 4\nsources: [documents]\ntypes:\n  - name: meeting_minutes\n    layer: structure\n    origin: documents\n    properties:\n      - name: attendees\n        type: person\n        relation: {target: people_table, kind: class}\nrelations: []\n";
+    const structureOf = (driveId) => (driveId === DRIVE_ONE ? structure : { protocol: "oo.docs.structure/v1", version: 0, classes: [], coverage: { record_files: 0, in_class: 0, confirmed: 0, share_in_class: 0, share_confirmed: 0 } });
+    const decideStructure = (request) => {
+      const cls = structure.classes.find((c) => c.class_key === request.classKey); if (!cls) return structure;
+      const p = request.property ? cls.properties.find((x) => x.slug === request.property) : null;
+      if (request.op === "accept") { if (p) p.status = "confirmed"; else { cls.status = "confirmed"; for (const x of cls.properties) if (x.status === "proposed") x.status = "confirmed"; structure.coverage.confirmed += cls.files; structure.coverage.share_confirmed = Math.round(structure.coverage.confirmed / 66 * 1000) / 1000; } }
+      if (request.op === "reject") { if (p) p.status = "rejected"; else cls.status = "rejected"; }
+      if (request.op === "rename") { if (p) { p.name = request.name; p.edited = true; } else cls.label = request.name; }
+      if (request.op === "merge") { const into = cls.properties.find((x) => x.slug === request.into); if (p && into) { into.keys = [...into.keys, ...p.keys]; cls.properties = cls.properties.filter((x) => x !== p); } }
+      structure = { ...structure, version: structure.version + 1 };
+      return structure;
+    };
     const answer = (channel, request) => {
       if (scenario.speakers) { const mine = speakerAnswer(channel, request); if (mine !== undefined) return mine; }
       switch (channel) {
@@ -84,6 +125,10 @@ export function stubBridgeSource(scenario) {
           default: return cli({ query_id: "q_1", columns: [{ name: "id", type: "integer" }, { name: "name", type: "text" }, { name: "email", type: "text" }, { name: "balance", type: "numeric" }], rows, returned_rows: rows.length, truncated: false, duration_ms: 12, warnings: [] }, { cli: "oo query --max-rows 500 --json --gateway https://gateway.example.test --token-file /t -- 'select * from public.customers'" });
         }
         case "cli-diagnostics": return { platform: { os: "darwin", arch: "arm64", node: "24", app: "0.1.0" }, paths: { stackFile: "/stack.yaml", stackExists: true, secretsDir: "/secrets", dataDir: "/data" }, oo: { path: "/usr/local/bin/oo" }, version: cli({ name: "oo", version: "0.2.1" }), check: cli({ ok: true }), runtime: cli({ installed: true }), serve: cli({ running: true }) };
+        // The structure layer (D93): three classes for the first Drive (one confirmed, two proposed), none for the others; a decision changes them.
+        case "structure-read": case "structure-induce": return structureOf(request.driveId);
+        case "structure-decide": return decideStructure(request);
+        case "structure-yaml": return { protocol: "oo.docs.structure/v1", version: 4, sources: ["documents"], agent_db: "unbound", text: request.driveId === DRIVE_ONE ? structureYaml : "protocol: oo.docs.structure/v1\nstructure_version: 0\nsources: [documents]\ntypes: []\nrelations: []\n" };
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
         case "drives-list": return drives;
