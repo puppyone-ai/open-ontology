@@ -259,7 +259,7 @@ pub async fn load_ir_index(
 /// A file reaches `published` when a version publishes a fact or alias that cites it. A file whose model output was only
 /// alias candidates (the spec: a model alias is a draft candidate, 6 step 6, and has no review item) or facts below the
 /// queue floor cites nothing that can publish, so it stayed `indexed` for ever with no review item to explain it. Such a
-/// file settles: no pending review item cites it and no eligible draft of its current version is still unpublished
+/// file settles: no pending review item cites it (naming a speaker is not a review, D97: it never holds a file) and no eligible draft of its current version is still unpublished
 /// (an eligible draft that a gate blocked, or a statement of an unconfirmed speaker, keeps it waiting).
 async fn settle_candidates(
     tx: &mut sqlx::PgConnection,
@@ -269,7 +269,8 @@ async fn settle_candidates(
         "SELECT f.id::text, f.current_version_id::text FROM _oo_docs.file f \
           WHERE f.state = 'indexed' AND f.deleted_at IS NULL AND f.current_version_id IS NOT NULL \
             AND NOT EXISTS (SELECT 1 FROM _oo_docs.review_item r \
-                             WHERE r.source_file_id = f.id AND r.status = 'pending') \
+                             WHERE r.source_file_id = f.id AND r.status = 'pending' \
+                               AND r.kind <> 'speaker_identity') \
             AND NOT EXISTS (SELECT 1 FROM _oo_docs.job j \
                              WHERE j.file_id = f.id AND j.version_id = f.current_version_id \
                                AND j.kind IN ('extract_rules', 'extract_llm') \

@@ -716,6 +716,16 @@ async fn a_file_with_only_alias_drafts_left_settles_as_published() {
     .await
     .unwrap();
     assert_eq!(before, "indexed");
+    // Naming a speaker is not a review (D97): a pending speaker_identity item of the file must not hold it.
+    sqlx::query(
+        "INSERT INTO _oo_docs.review_item (id, kind, dedupe_key, drive_id, source_file_id, source_version_id, subject, reason_code) \
+         SELECT gen_random_uuid(), 'speaker_identity', 'speaker:settle-test', $1::uuid, id, current_version_id, '{}'::jsonb, 'speaker_unconfirmed' \
+           FROM _oo_docs.file WHERE path = 'notes/meeting-cadence.md'",
+    )
+    .bind(DRIVE)
+    .execute(&mut fx.admin)
+    .await
+    .unwrap();
     let _ = fx.publish().await;
     let after: String = sqlx::query_scalar(
         "SELECT state FROM _oo_docs.file WHERE path = 'notes/meeting-cadence.md'",
