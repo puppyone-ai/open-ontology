@@ -811,7 +811,7 @@ pub async fn classify_by_model(
         .collect();
     let req = crate::extract::llm::prompt::ChatRequest {
         model: port.model().to_owned(),
-        system: "Classify a file for an ontology. Answer with exactly one word: record (meeting minutes, decisions, reports, people or project tables, contracts), instruction (agent or engineering instructions, README, SOP, working conventions), reference (paper, book, external report), code, media, other (archive, data export, material).".to_owned(),
+        system: "Classify a file for an ontology. Answer with exactly one word: record (anything that names people, owners, dates, figures or decisions about a team's own work: meeting minutes, decisions, plans, test plans, specifications of a product the team builds, reports, chat or message logs, people or project tables, contracts), instruction (only instructions to an agent or an engineer: AGENTS.md, README, SOP, style or naming conventions), reference (paper, book, external report), code, media, other (only material unrelated to the team's work, archives and raw data dumps).".to_owned(),
         user: format!("File name: {path}\n\nStart of the text:\n{head}"),
     };
     let reply = port.complete(&req).await.ok()?;
