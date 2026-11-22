@@ -379,6 +379,12 @@
 | SO-F-S22-44 | D98 | merged | feat/super-ontology (车道 AL 并入) | eaca499e4 → eaca499e4 | — | — | Let the page's own policy admit recordings served by the capability protocol |
 | SO-F-S22-45 | D98 | merged | feat/super-ontology (车道 AL 并入) | 65d49d4fc → 65d49d4fc | — | — | Cover the speaker flow in visual baselines and an off-screen end-to-end run |
 | SO-F-S22-46 | D98 | merged | feat/super-ontology (车道 AL 并入) | 3bc87c021 → 3bc87c021 | — | — | Show unnamed speakers as the speaker of their meeting and list the ones to name on the file |
+| SO-F-S22-20 | D94 | merged | feat/super-ontology (车道 AK 并入) | c1198e318 → c1198e318 | — | — | Add the document profile to file summaries and a label for it |
+| SO-F-S22-21 | D94 | merged | feat/super-ontology (车道 AK 并入) | 11202793e → 11202793e | — | — | Show the file profile and treat indexed-only files as fine |
+| SO-F-S22-23 | D94 | merged | feat/super-ontology (车道 AK 并入) | 2da4b3455 → 2da4b3455 | — | — | Add file class and reason to the profile model and rename paper to reference |
+| SO-F-S22-24 | D94 | merged | feat/super-ontology (车道 AK 并入) | 3f956e16b → 3f956e16b | — | — | Keep files outside the ontology out of Not connected |
+| SO-F-S22-25 | D94 | merged | feat/super-ontology (车道 AK 并入) | 5c225b5fc → 5c225b5fc | — | — | Let people set the class of a file or a folder |
+| SO-F-S22-26 | D94 | merged | feat/super-ontology (车道 AK 并入) | 437a687cc → 437a687cc | — | — | Update the file panel snapshots for the class line and the class select |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ac408d725 → c30c203d2 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 43e47007a → 43e47007a | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | cef94147a → 445d2700b | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
@@ -411,6 +417,27 @@
 | SO-B-S22-53 | D98 | merged | feat/super-ontology (车道 AL 并入) | c1a2ebbd6 → c1a2ebbd6 | — | — | Run the class decision against the real model on the recorded transcripts |
 | SO-B-S22-54 | D98 | merged | feat/super-ontology (车道 AL 并入) | f8bd5a48e → f8bd5a48e | — | — | Route each audio chunk to the right recognizer by its spoken language |
 | SO-B-S22-55 | D98 | merged | feat/super-ontology (车道 AL 并入) | 33768f008 → 33768f008 | — | — | Re-record the acceptance calls and the held-out meetings with the language-routed transcripts |
+| SO-B-S22-20 | D94 | merged | feat/super-ontology (车道 AK 并入) | a5514fa8c → a5514fa8c | — | — | Add the tree-sitter parsers for the code profile |
+| SO-B-S22-21 | D94 | merged | feat/super-ontology (车道 AK 并入) | 085df0899 → 085df0899 | — | — | Read documents by profile: instruction docs, code and papers |
+| SO-B-S22-22 | D94 | merged | feat/super-ontology (车道 AK 并入) | 80d55c0ed → 80d55c0ed | — | — | Store the profile on the file and serve it in the file list |
+| SO-B-S22-23 | D94 | merged | feat/super-ontology (车道 AK 并入) | 03b0c459f → 03b0c459f | — | — | Keep the Decisions folder of a business Drive out of the instruction profile |
+| SO-B-S22-24 | D94 | merged | feat/super-ontology (车道 AK 并入) | 75a567de8 → 75a567de8 | — | — | Add the profile test set: a synthetic repo, three papers and the frozen gold |
+| SO-B-S22-25 | D94 | merged | feat/super-ontology (车道 AK 并入) | b78fab2ef → b78fab2ef | — | — | Read style guides, bare file names and prose commands; list trait methods |
+| SO-B-S22-26 | D94 | merged | feat/super-ontology (车道 AK 并入) | ca3c0045c → ca3c0045c | — | — | Add the offline dump and the scorer of the profile measurement |
+| SO-B-S22-27 | D94 | merged | feat/super-ontology (车道 AK 并入) | c3aab38d6 → c3aab38d6 | — | — | Read a paper as the PDF parser breaks it into blocks |
+| SO-B-S22-28 | D94 | merged | feat/super-ontology (车道 AK 并入) | a1bdece5f → a1bdece5f | — | — | Write the test papers with gaps the parser's layout step can split |
+| SO-B-S22-29 | D94 | merged | feat/super-ontology (车道 AK 并入) | 5f7da6f06 → 5f7da6f06 | — | — | Add the live run of the profile set and the headless Ask on it |
+| SO-B-S22-30 | D94 | merged | feat/super-ontology (车道 AK 并入) | 0340c7f69 → 0340c7f69 | — | — | Let a paper wait for review with the model on and check promotions by label |
+| SO-B-S22-31 | D94 | merged | feat/super-ontology (车道 AK 并入) | cf807a84f → cf807a84f | — | — | Put the 0153 upgrade test back to the state 0153 leaves |
+| SO-B-S22-32 | D94 | merged | feat/super-ontology (车道 AK 并入) | 2c000ec95 → 2c000ec95 | — | — | WIP: paused by owner |
+| SO-B-S22-33 | D94 | merged | feat/super-ontology (车道 AK 并入) | 9f7fe9d79 → 9f7fe9d79 | — | — | Admit files by class: instruction, code and reference read for structure only |
+| SO-B-S22-34 | D94 | merged | feat/super-ontology (车道 AK 并入) | 4c423e35d → 4c423e35d | — | — | Serve the class of a file and let a person overrule it |
+| SO-B-S22-35 | D94 | merged | feat/super-ontology (车道 AK 并入) | 149b98dd6 → 149b98dd6 | — | — | Put the instruction files in the BRIEF as working conventions |
+| SO-B-S22-36 | D94 | merged | feat/super-ontology (车道 AK 并入) | db59e2d3d → db59e2d3d | — | — | Add oo docs profile to set the class of a file or a directory |
+| SO-B-S22-37 | D94 | merged | feat/super-ontology (车道 AK 并入) | 777048100 → 777048100 | — | — | Replace the profile test set by a mixed corpus with frozen class gold |
+| SO-B-S22-38 | D94 | merged | feat/super-ontology (车道 AK 并入) | 1f6291c39 → 1f6291c39 | — | — | Score admission: class accuracy, zero entities from non-records, BRIEF |
+| SO-B-S22-39 | D94 | merged | feat/super-ontology (车道 AK 并入) | aa67c62da → aa67c62da | — | — | Describe the admission corpus and let a model made record settle indexed |
+| SO-B-S22-59 | D98 | merged | feat/super-ontology (车道 AL 并入，协调者台账) | 52beef535 → 52beef535 | — | — | Ledger rows for lane AL |
 
 ## 签收
 
