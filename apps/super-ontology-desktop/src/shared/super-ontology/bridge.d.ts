@@ -55,8 +55,12 @@ export type PickPathValue = { grantId: string; displayPath: string } | { cancell
 export type EngineDrive = { id: string; name: string; backend: string; status: string; revision: number; [key: string]: unknown };
 export type EnginePage<T> = { items: T[]; next_cursor: string | null; as_of_seq: number };
 /** `profile` is the document profile that decides extraction (docs-api FileSummary.profile); older engines omit it and newer ones may add values, so read it with `profileOf`. */
-export type EngineFileProfile = "business" | "meeting" | "table" | "instruction" | "code" | "paper" | "media" | "other";
-export type EngineFileSummary = { id: string; drive_id: string; path: string; state: string; profile?: EngineFileProfile | (string & {}); [key: string]: unknown };
+export type EngineFileProfile = "business" | "meeting" | "table" | "instruction" | "code" | "reference" | "media" | "other";
+/** `class` is what the ontology does with the file (D94); `profile_reason` is why the engine chose the profile. Newer engines may add values: read them with `classOf` and `reasonOf`. */
+export type EngineFileClass = "record" | "instruction" | "reference" | "code" | "media" | "other";
+export type EngineProfileReason = "frontmatter" | "name" | "dir" | "ext" | "format" | "content" | "default" | "model" | "user";
+export type EngineProfileOverride = { scope: "file" | "dir"; path: string; profile: EngineFileProfile; class?: EngineFileClass };
+export type EngineFileSummary = { id: string; drive_id: string; path: string; state: string; profile?: EngineFileProfile | (string & {}); profile_reason?: EngineProfileReason | (string & {}); class?: EngineFileClass | (string & {}); [key: string]: unknown };
 export type EngineTree = { dirs: { path: string; files: number; counts: Record<string, number> }[]; files: EnginePage<EngineFileSummary> };
 /** A parsed block (oo.doc-ir/v1 block plus the `src` provenance label); anchors differ per format. */
 export type EngineAnchor =
@@ -329,6 +333,9 @@ export type SuperOntologyChannelMap = {
   /** Ontology atlas (D88). `atlas-links`: doc entity to table row links; `ontology-schema`: the database schema (tables, columns, relationships, document links; `GET /v1/ontology/schema`, docs-api 1.12), one page. */
   "atlas-links": { request: { operationId?: string }; value: EngineDocument };
   "ontology-schema": { request: { limit?: number; cursor?: string; operationId?: string }; value: EngineDocument };
+  /** File class overrides (D94, docs-api 1.14). `profile: null` removes the choice; `affected` is how many files were reclassified and sent through extraction again. */
+  "profile-overrides-list": { request: { driveId: string; operationId?: string }; value: { items: EngineProfileOverride[] } };
+  "profile-override-set": { request: { driveId: string; scope: "file" | "dir"; path: string; profile: EngineFileProfile | null; operationId?: string }; value: { affected: number } };
   "constraints-list": { request: { limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
   /** Ontology › Ask: a question answered from the data by a bounded read-only tool loop; steps arrive on `ask-progress`. */
   "ask-run": { request: { askId: string; question: string; history?: { question: string; answer: string }[]; operationId?: string }; value: AskOutcome };
