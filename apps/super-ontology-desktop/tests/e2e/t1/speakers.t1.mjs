@@ -7,8 +7,8 @@ import { runScenario } from "../harness/session.mjs";
 
 const DRIVE = "00000000-0000-4000-8000-0000000000d1";
 const FILE = "00000000-0000-4000-8000-0000000000f1";
-const PLACE_A = "Speaker A · abababab";
-const PLACE_B = "Speaker B · abababab";
+const PLACE_A = "《launch-sync》的说话人 A · abababab";
+const PLACE_B = "《launch-sync》的说话人 B · abababab";
 
 /** A mono 16 bit wav of a slowly changing tone, long enough for a few clips. */
 function tone(seconds) {
@@ -38,7 +38,7 @@ runScenario({ name: "speakers", title: "Speakers: listen, then name", engine: "f
   const evidence = { id: "00000000-0000-4000-8000-000000000b01", file_id: FILE, path: "meetings/launch-sync.wav", block_id: "blk_3", anchor: { kind: "media", t_start_ms: 17000, t_end_ms: 24000, speaker: "S1" }, src: "[src:meetings/launch-sync.wav#t=00:00:17-00:00:24@S1]", quote: "I will own Project Spark.", origin: "rule" };
   const fact = { id: "00000000-0000-4000-8000-000000000c01", fact_key: "c".repeat(64), subject: A, predicate: "owns", object: spark, confidence_bp: 9000, origin: "rule", status: "published", recorded_at: now, evidence: [evidence] };
   const item = (n, speaker, letter, candidates) => ({ id: `00000000-0000-4000-8000-000000000d0${n}`, kind: "speaker_identity", status: "pending", reason_code: "speaker_unconfirmed", drive_id: DRIVE, revision: 1, created_at: now,
-    source: { file_id: FILE, path: "meetings/launch-sync.wav" }, subject: { b3: "ab".repeat(32), speaker, letter, placeholder: `Speaker ${letter} · abababab`, candidates } });
+    source: { file_id: FILE, path: "meetings/launch-sync.wav" }, subject: { b3: "ab".repeat(32), speaker, letter, placeholder: `《launch-sync》的说话人 ${letter} · abababab`, title: "launch-sync", candidates } });
   await s.fakeDocs({
     as_of_seq: 1,
     drives: [{ id: DRIVE, name: "Meetings", backend: "fs", config: { root: folder }, status: "active", revision: 1, counts: { published: 1 }, files_total: 1, bytes_total: 640000, pending_review: 2, created_at: now, model_enabled: false, freshness: { state: "waiting_review" } }],
@@ -60,7 +60,7 @@ runScenario({ name: "speakers", title: "Speakers: listen, then name", engine: "f
   await s.waitFor("entity-list");
   const placeholders = await s.attrs("entity-row", "data-name");
   s.check("the unnamed speakers are in the ontology under their placeholders", placeholders.includes(PLACE_A) && placeholders.includes(PLACE_B), placeholders.join(" | "));
-  s.check("an unnamed speaker is shown as Speaker A, not as the stored name", (await s.evaluate("[...document.querySelectorAll('[data-testid=\"entity-row\"]')].some((row) => /^Speaker A$/u.test(row.querySelector('.so-list-title')?.textContent ?? ''))")) === true);
+  s.check("an unnamed speaker is shown as Speaker A of the meeting, not as the stored name", (await s.evaluate("[...document.querySelectorAll('[data-testid=\"entity-row\"]')].some((row) => /^Speaker A of “launch-sync”$/u.test(row.querySelector('.so-list-title')?.textContent ?? ''))")) === true);
 
   // Review: Speaker A and Speaker B with a play button each, the clip texts and the pane.
   await s.click("ontology-tab-review");
@@ -97,7 +97,7 @@ runScenario({ name: "speakers", title: "Speakers: listen, then name", engine: "f
   s.check("the app sent the name as an accepted speaker item", decisions.some((d) => d.items?.[0]?.decision === "accept" && d.items[0].edit?.name === "Daniel Ortiz"), JSON.stringify(decisions).slice(0, 200));
   await s.click("ontology-tab-entities");
   await s.waitFor("entity-list");
-  await s.until("![...document.querySelectorAll('[data-testid=\"entity-row\"]')].some((row) => row.getAttribute('data-name') === 'Speaker A · abababab')", "the placeholder merged away", { timeoutMs: 20_000 });
+  await s.until("![...document.querySelectorAll('[data-testid=\"entity-row\"]')].some((row) => row.getAttribute('data-name') === '《launch-sync》的说话人 A · abababab')", "the placeholder merged away", { timeoutMs: 20_000 });
   await s.click("entity-row", { "data-name": "Daniel Ortiz" });
   await s.waitFor("screen-entity", { "data-name": "Daniel Ortiz" });
   await s.waitFor("fact-row");

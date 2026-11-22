@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorSeconds, displayName, placeholderLetter, representativeClips, speakerLetter, type Utterance } from "../../../../src/renderer/model/details/mediaModel";
+import { anchorSeconds, displayName, placeholderInfo, placeholderLetter, representativeClips, speakerLetter, type Utterance } from "../../../../src/renderer/model/details/mediaModel";
 
 let n = 0;
 const utt = (speaker: string, startS: number, endS: number, text = "words", lowConfidence = false): Utterance => ({ id: `u${n++}`, startMs: startS * 1000, endMs: endS * 1000, speaker, text, lowConfidence, src: null });
@@ -14,10 +14,15 @@ describe("speaker letters", () => {
     expect(placeholderLetter("Speaker AB · 1a2b3c4d")).toBe("AB");
     expect(placeholderLetter("Speaker 2 · 1a2b3c4d")).toBe("B");
     expect(placeholderLetter("说话人 S3 · 1a2b3c4d")).toBe("C");
+    expect(placeholderLetter("《周会》的说话人 B · 1a2b3c4d")).toBe("B");
+    expect(placeholderInfo("《周会》的说话人 AB · 1a2b3c4d")).toEqual({ letter: "AB", title: "周会" });
     expect(placeholderLetter("Speaker Lee")).toBeNull();
     expect(placeholderLetter("林川")).toBeNull();
-    expect(displayName("Speaker B · 0123abcd", (letter) => `说话人 ${letter}`)).toBe("说话人 B");
-    expect(displayName("林川", (letter) => `说话人 ${letter}`)).toBe("林川");
+    const text = (letter: string, title: string | null) => (title ? `《${title}》的说话人 ${letter}` : `说话人 ${letter}`);
+    expect(displayName("Speaker B · 0123abcd", text)).toBe("说话人 B");
+    expect(displayName("《周会》的说话人 B · 0123abcd", text)).toBe("《周会》的说话人 B");
+    expect(displayName("《周会》 · 0123abcd", text)).toBe("《周会》");
+    expect(displayName("林川", text)).toBe("林川");
   });
 });
 

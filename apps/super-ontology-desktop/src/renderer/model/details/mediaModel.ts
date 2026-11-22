@@ -99,19 +99,32 @@ export function speakerLetter(label: string): string {
   return out;
 }
 
-/** `Speaker A · 1a2b3c4d` (or the older `说话人 S1 · …`): the placeholder Person of one speaker, without the part that makes it unique per file. */
+/** `《周会》的说话人 A · 1a2b3c4d` (D98), `Speaker A · 1a2b3c4d` and the older `说话人 S1 · …`: the placeholder Person of one speaker, without the part that makes it unique per file. */
 const PLACEHOLDER = /^(?:Speaker|说话人) (\S+) · [0-9a-f]{4,}$/u;
-/** The letter of a placeholder Person's name (`Speaker A · 1a2b3c4d` gives `A`; an old `S1` gives `A` too); `null` for a real name. */
-export function placeholderLetter(name: string): string | null {
-  const match = PLACEHOLDER.exec(name.trim());
-  if (!match) return null;
-  return /^S\d+$/u.test(match[1]) ? speakerLetter(match[1]) : /^\d+$/u.test(match[1]) ? speakerLetter(`S${match[1]}`) : match[1];
+const MEETING_PLACEHOLDER = /^《(.+)》的说话人 (\S+) · [0-9a-f]{4,}$/u;
+const MEETING_NAME = /^(《.+》) · [0-9a-f]{8}$/u;
+const letterOf = (raw: string) => (/^S\d+$/u.test(raw) ? speakerLetter(raw) : /^\d+$/u.test(raw) ? speakerLetter(`S${raw}`) : raw);
+
+/** The letter and meeting title of a placeholder Person's name (`《周会》的说话人 A · 1a2b3c4d` gives `A` and `周会`); `null` for a real name. */
+export function placeholderInfo(name: string): { letter: string; title: string | null } | null {
+  const trimmed = name.trim();
+  const meeting = MEETING_PLACEHOLDER.exec(trimmed);
+  if (meeting) return { letter: letterOf(meeting[2]), title: meeting[1] };
+  const plain = PLACEHOLDER.exec(trimmed);
+  return plain ? { letter: letterOf(plain[1]), title: null } : null;
 }
 
-/** An entity name as a person reads it: a speaker placeholder shows in the person's language ("说话人 A"), anything else is unchanged. */
-export function displayName(name: string, speakerText: (letter: string) => string): string {
-  const letter = placeholderLetter(name);
-  return letter === null ? name : speakerText(letter);
+/** The letter of a placeholder Person's name; `null` for a real name. */
+export function placeholderLetter(name: string): string | null {
+  return placeholderInfo(name)?.letter ?? null;
+}
+
+/** An entity name as a person reads it: a speaker placeholder shows in the person's language ("《周会》的说话人 A"), a meeting loses its uniqueness suffix, anything else is unchanged. */
+export function displayName(name: string, speakerText: (letter: string, title: string | null) => string): string {
+  const info = placeholderInfo(name);
+  if (info) return speakerText(info.letter, info.title);
+  const meeting = MEETING_NAME.exec(name.trim());
+  return meeting ? meeting[1] : name;
 }
 
 export type Clip = { id: string; speaker: string; startMs: number; endMs: number; text: string; lowConfidence: boolean };

@@ -29,7 +29,7 @@ export function stubBridgeSource(scenario) {
       switch (channel) {
         case "review-list": return { items: [speakerItem(1, "S1", "A", [{ name: "Daniel Ortiz", source: "self_intro", quote: "I am Daniel Ortiz", block_id: "blk_1" }]), speakerItem(2, "S2", "B", [])], next_cursor: null };
         case "file-detail": return { id: AUDIO, drive_id: "00000000-0000-4000-8000-000000000001", path: "launch-sync-2027-01-12.m4a", name: "launch-sync-2027-01-12.m4a", size: 512000, state: "published", format: "audio", state_since: now, retryable: false, pending_review: 2, modified_at: now,
-          parse: { parser_id: "media", parser_version: "1", block_count: 4, warnings: [], media: { class: scenario.mediaClass ?? "conversation", kind: scenario.mediaClass === "non_conversation" ? "monologue" : "conversation", source: "rules", speakers_to_name: 2 } }, entities: [], facts: [] };
+          parse: { parser_id: "media", parser_version: "1", block_count: 4, warnings: [], media: { class: scenario.mediaClass ?? "conversation", kind: scenario.mediaClass === "non_conversation" ? "promo" : "conversation", source: "rules", speakers_to_name: 2 } }, entities: [], facts: [] };
         case "drive-tree": return { dirs: [], files: { items: [mediaFile], next_cursor: null, as_of_seq: 1 } };
         case "file-blocks": return { items: talk, next_cursor: null, as_of_seq: 1 };
         case "file-preview-url": return { url: tone(), expiresAt: "2026-11-12T10:10:00Z" };

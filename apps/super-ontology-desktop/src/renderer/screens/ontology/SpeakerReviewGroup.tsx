@@ -19,7 +19,8 @@ function SpeakerRow({ item, busy, onDecide, source, controller, active, names, o
   const view = subjectView(item);
   const [typed, setTyped] = useState("");
   if (view.kind !== "speaker") return null;
-  const label = t("app.speaker.name", { letter: view.letter || speakerLetter(view.speaker) });
+  const letter = view.letter || speakerLetter(view.speaker);
+  const label = view.title ? t("app.speaker.ofMeeting", { letter, title: view.title }) : t("app.speaker.name", { letter });
   const candidates = [...new Map(view.candidates.map((candidate) => [candidate.name, candidate])).values()].slice(0, 3);
   const clips = source.state === "ready" && active ? representativeClips(source.utterances, view.speaker) : [];
   const playing = controller.playing && controller.owner === view.speaker;
@@ -95,7 +96,7 @@ export function SpeakerReviewGroup({ items, fileName, driveName, busy, onDecide,
       <header className="so-speaker-group-head">
         <button type="button" className="so-speaker-group-title" onClick={() => onActivate()} aria-pressed={active} data-testid="speaker-group-open">
           <span className="so-list-title so-truncate">{t("app.review.speaker.title", { name: fileName })}</span>
-          <span className="so-list-sub so-truncate">{t("app.review.speaker.sub")} · {driveName}</span>
+          <span className="so-list-sub so-truncate">{driveName ? `${t("app.review.speaker.sub")} · ${driveName}` : t("app.review.speaker.sub")}</span>
         </button>
       </header>
       {items.map((item) => <SpeakerRow key={item.id} item={item} busy={busy} onDecide={onDecide} source={source} controller={controller} active={active} names={names} onListen={(speaker) => onActivate(speaker)} />)}

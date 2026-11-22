@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Button, Card, DefinitionList, IconButton, Notice, Skeleton, StatusDot } from "@open-ontology/design-system";
 import { RotateCw, X } from "lucide-react";
@@ -7,6 +7,9 @@ import { MediaClassBadge, MediaPreview } from "../../features/media/MediaPreview
 import { useMediaController } from "../../features/media/useMediaController";
 import { useMediaSource } from "../../features/media/useMediaSource";
 import { mediaKindOf, speakerLetter } from "../../model/details/mediaModel";
+import { SpeakerReviewGroup } from "../ontology/SpeakerReviewGroup";
+import { invoke } from "../../model/bridgeInvoke";
+import type { ReviewItem } from "../../../shared/super-ontology/docs-api.generated";
 import { useFileDetail } from "../../model/details/useFileDetail";
 import { formatBytes } from "../../model/format";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
@@ -42,7 +45,7 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
           ...(record.format ? [{ label: t("app.sources.panel.format"), value: record.format }] : []),
         ]} />
       )}
-      {isMedia && <MediaSection fileId={fileId} />}
+      {isMedia && record && <MediaSection fileId={fileId} driveId={record.drive_id} />}
       {loading && !detail && <Skeleton height={12} />}
       {detail && (() => {
         const entities = (detail as unknown as { entities?: Array<{ id: string; name: string }> }).entities ?? [];
@@ -57,12 +60,30 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   );
 }
 
-/** A recording in the file panel: what the engine took it for, and the player with its transcript. */
-function MediaSection({ fileId }: { fileId: string }) {
+/**
+ * A recording in the file panel: what the engine took it for, the player with its transcript and, for a transcribed recording, the speakers
+ * that can be named (D97, D98): nothing waits for it, so it is a list on the file and not an item of the review queue.
+ */
+function MediaSection({ fileId, driveId }: { fileId: string; driveId: string }) {
   const { t } = useLocalization();
+  const actions = useSuperDriveActions();
   const controller = useMediaController();
   const source = useMediaSource(fileId);
   const info = source.state === "ready" ? source.info : null;
+  const [toName, setToName] = useState<ReviewItem[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    const result = await invoke("review-list", { driveId, kind: "speaker_identity", status: "pending", limit: 50 });
+    if (result.ok) setToName((result.value.items as unknown as ReviewItem[]).filter((item) => item.source?.file_id === fileId));
+  }, [driveId, fileId]);
+  useEffect(() => { void load(); }, [load]);
+  const decide = async (item: ReviewItem, decision: "accept" | "reject", edit?: { name: string }) => {
+    setBusy(item.id);
+    await actions.decideReviewItems({ driveId, items: [{ id: item.id, revision: item.revision, decision, ...(edit ? { edit } : {}) }] });
+    setBusy(null);
+    await load();
+  };
+  const name = (source.state === "ready" ? source.name : "");
   return (
     <div className="so-stack" data-testid="file-media">
       <div className="so-row">
@@ -71,6 +92,13 @@ function MediaSection({ fileId }: { fileId: string }) {
       </div>
       {info?.class === "non_conversation" && <p className="so-weak">{t("app.media.noSpeakersNote")}</p>}
       <MediaPreview source={source} controller={controller} compact speakerText={(label) => t("app.speaker.name", { letter: speakerLetter(label) })} />
+      {toName.length > 0 && (
+        <div className="so-stack" data-testid="speakers-to-name">
+          <h3 className="so-list-title">{t("app.review.speaker.toName", { count: toName.length })}</h3>
+          <p className="so-weak">{t("app.review.speaker.toNameSub")}</p>
+          <SpeakerReviewGroup items={toName} fileName={name} driveName="" busy={busy} onDecide={decide} source={source} controller={controller} active onActivate={() => undefined} />
+        </div>
+      )}
     </div>
   );
 }

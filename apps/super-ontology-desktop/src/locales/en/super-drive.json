@@ -1171,5 +1171,7 @@
   "errors.SO_CLOUD_SESSION_REQUIRED": "Sign in to the cloud first",
   "errors.SO_CLOUD_ROUTE_UNAVAILABLE": "The cloud doesn't offer this action yet",
   "errors.SO_INTERNAL": "Something unexpected went wrong",
-  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Not enough free disk space for this drop. Free up space, or link the folder instead of copying it."
+  "errors.SO_UPLOAD_NOT_ENOUGH_SPACE": "Not enough free disk space for this drop. Free up space, or link the folder instead of copying it.",
+  "entity.type.Recording": "Recording",
+  "entity.type.Meeting": "Meeting"
 }
