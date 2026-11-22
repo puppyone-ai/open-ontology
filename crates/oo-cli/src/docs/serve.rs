@@ -195,6 +195,16 @@ fn status(args: &ServeArgs, state: &Path) -> u8 {
 
 fn stop(state: &Path) -> u8 {
     let Some(v) = secrets::read_serve_json(state).filter(|_| secrets::is_running(state)) else {
+        // No serve.json but the lock held: an instance is already shutting down (or starting). Wait until it has let go, so that
+        // "stopped" means the next start can take the lock.
+        if secrets::is_running(state) {
+            for _ in 0..900 {
+                if !secrets::is_running(state) {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
         println!("oo serve is not running");
         return exit::OK;
     };
@@ -280,7 +290,8 @@ fn stop_helper_children() {
 }
 
 fn start(args: &ServeArgs, state: &Path) -> u8 {
-    let _lock = match secrets::acquire_lock(state) {
+    // A start right after a stop waits for the old instance to exit (about 20 s for a compose runtime) instead of failing.
+    let _lock = match secrets::acquire_lock_waiting(state, Duration::from_secs(60)) {
         Ok(LockResult::Held(l)) => l,
         Ok(LockResult::Busy) => {
             // Already running: print its serve.json so the caller reuses it.
