@@ -282,9 +282,23 @@ async fn fm6_drift_delivery_check_codes_and_immutable_pack() {
     e.finish().await;
 }
 
+/// One more decision document, published. Its date is its own: since `doc.anchor` (D16) a date or an amount that two documents state
+/// becomes a `Thing` both mention, and the publish job writes those mentions in a version of its own. A test that adds several documents
+/// with one date would see that second version, and the share model counts one version per publish. The anchor pass has its own tests
+/// (`anchors_live`); this one is about the share lifecycle, so the documents must not share a value.
 async fn publish_extra(_e: &TestEngine, fx: &mut Fx, path: &str) {
-    let src = "---\ntype: decision\nstatus: confirmed\ndate: 2026-11-01\nowner: 林远舟\n---\n\n# 决定：新的决定\n\n林远舟决定采用新方案。\n";
-    fx.index_md(path, src).await;
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let date = format!(
+        "{}-{:02}-{:02}",
+        2040 + n / 336,
+        1 + (n / 28) % 12,
+        1 + n % 28
+    );
+    let src = format!(
+        "---\ntype: decision\nstatus: confirmed\ndate: {date}\nowner: 林远舟\n---\n\n# 决定：新的决定\n\n林远舟决定采用新方案。\n"
+    );
+    fx.index_md(path, &src).await;
     publish_now(fx).await;
 }
 
