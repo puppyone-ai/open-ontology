@@ -532,6 +532,32 @@ impl Fx {
         ids
     }
 
+    /// A live Share uses every fact there is now (D97: a supersession is asked only when a Share uses what it ends).
+    pub async fn share_uses_every_fact(&mut self) {
+        let (pack, share) = (uuid(), uuid());
+        for sql in [
+            format!(
+                "INSERT INTO _oo_docs.context_pack (id, version_n, drive_id, scope_sha256, params_sha256, compiler, \
+                   pack_digest, snapshot_sha256, manifest, tokens_brief, trimmed, blocked_facts, blocked_entities) \
+                 VALUES ('{pack}', 1, '{DRIVE}', 's', 'p', 'c', '{h}', 's', '{{}}', 1, '{{}}', 0, 0)",
+                h = "a".repeat(64)
+            ),
+            format!(
+                "INSERT INTO _oo_docs.share (id, pack_id, drive_id, scope, role, budget, status, grantor, mount_ref, expires_at) \
+                 VALUES ('{share}', '{pack}', '{DRIVE}', '[]', 'viewer', 1000, 'active', 'owner', 'm', now() + interval '1 day')"
+            ),
+            format!(
+                "INSERT INTO _oo_docs.share_fact_use (share_id, fact_id, section, precision) \
+                 SELECT '{share}', id, 'all', 'full' FROM _oo_docs.fact"
+            ),
+        ] {
+            sqlx::query(sqlx::AssertSqlSafe(sql))
+                .execute(&mut self.admin)
+                .await
+                .unwrap();
+        }
+    }
+
     pub async fn finish(self, db: &str) {
         let Fx { dir, admin, rt, .. } = self;
         drop(rt);
