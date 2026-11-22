@@ -207,10 +207,13 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 ## 1.14 (lane AL, D74 revision: speakers never block, recordings are classified first)
 
 - `FileDetail.parse.media` (optional object, audio and video only): `{class, kind, source, speakers_to_name}`. `class` is `conversation`,
-  `non_conversation` or `unsure`; `kind` says why (`conversation`, `monologue`, `lecture`, `music_or_ambient`, `edited_video`, `undecided`);
+  `non_conversation` or `unsure`; `kind` says why (`conversation`, `lecture`, `voice_memo`, `promo`, `music_or_ambient`, `edited_video`, `undecided`);
   `source` is `rules` or `model`. Only a conversation has speakers told apart; any other recording publishes its transcript facts with no
   speaker attribution and queues no `speaker_identity` item. Additive.
 - `speaker_identity` items (`ReviewKind`, unchanged) now exist only for conversations, and their subject carries `letter` (`A`, `B`, ...)
   next to `b3`, `speaker`, `placeholder` and `candidates`. An unnamed speaker no longer holds anything: facts publish under the placeholder Person
   `Speaker A · <blob prefix>` and move to the named Person when the item is accepted (`edit.name`). `DOCS_REVIEW_SPEAKER_UNCONFIRMED` is no longer
   produced (the code stays for older clients). Rejecting an item ("not anyone known") keeps the placeholder and its published facts.
+- D98: `EntityType` gains `Recording` (a recording or media asset: attributes `media_class`, `duration_ms`) and `Meeting` (held in a recording, `recorded_in` it,
+  `has_participant` its speakers); `fact.predicate` gains `recorded_in` and `has_participant`. Speaker placeholders are Person entities named
+  `《<meeting>》的说话人 A` (with a blob suffix that clients hide). `non_conversation` recordings are media assets: a Recording and nothing read from their sound.
