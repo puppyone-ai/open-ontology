@@ -1,0 +1,422 @@
+{
+ "summary": {
+  "gold": 25,
+  "found": 21,
+  "recall": 0.84,
+  "lenient_found": 21,
+  "lenient_recall": 0.84,
+  "by_kind": {
+   "same_person": "strict 9/9, lenient 9/9",
+   "vendor": "strict 4/4, lenient 4/4",
+   "product": "strict 1/1, lenient 1/1",
+   "decision": "strict 3/3, lenient 3/3",
+   "figure": "strict 2/4, lenient 2/4",
+   "date": "strict 2/4, lenient 2/4"
+  },
+  "mean_file_coverage": 0.716,
+  "shown_links": 248,
+  "supported_links": 246,
+  "precision": 0.992,
+  "leaks_into_unrelated_files": [],
+  "unsupported_links": [
+   {
+    "entity": "Marketing",
+    "file": "meetings/audio/launch-sync-2027-01-12.wav"
+   },
+   {
+    "entity": "极光 NP-7",
+    "file": "images/screenshot-task-tracker.png"
+   }
+  ]
+ },
+ "rows": [
+  {
+   "id": "r01",
+   "kind": "same_person",
+   "label": "顾明远 / Mingyuan Gu across files",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "Mingyuan Gu",
+   "cited": 10,
+   "gold_files": 10,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r02",
+   "kind": "same_person",
+   "label": "白若冰 / Ruobing Bai across files",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "Ruobing Bai",
+   "cited": 8,
+   "gold_files": 8,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r03",
+   "kind": "same_person",
+   "label": "普丽娅·拉曼 / Priya Raman across files",
+   "found": true,
+   "coverage": 0.89,
+   "entity": "Priya Raman",
+   "cited": 8,
+   "gold_files": 9,
+   "missing": [
+    "images/screenshot-task-tracker.png"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.89
+  },
+  {
+   "id": "r04",
+   "kind": "same_person",
+   "label": "丹尼尔·奥尔蒂斯 / Daniel Ortiz across files",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "Daniel Ortiz",
+   "cited": 5,
+   "gold_files": 5,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r05",
+   "kind": "same_person",
+   "label": "邵婉清 / Wanqing Shao across files",
+   "found": true,
+   "coverage": 0.8,
+   "entity": "邵婉清",
+   "cited": 4,
+   "gold_files": 5,
+   "missing": [
+    "reports/launch-readiness-report-2027-02-20.pdf"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.8
+  },
+  {
+   "id": "r06",
+   "kind": "same_person",
+   "label": "蒋天佑 / Tianyou Jiang across files",
+   "found": true,
+   "coverage": 0.83,
+   "entity": "蒋天佑",
+   "cited": 5,
+   "gold_files": 6,
+   "missing": [
+    "meetings/audio/supplier-call-2027-01-16.wav"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.83
+  },
+  {
+   "id": "r07",
+   "kind": "same_person",
+   "label": "汉娜·科尔 / Hannah Cole across files",
+   "found": true,
+   "coverage": 0.67,
+   "entity": "Hannah Cole",
+   "cited": 2,
+   "gold_files": 3,
+   "missing": [
+    "contracts/hengding-lens-supply-contract.pdf"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.67
+  },
+  {
+   "id": "r08",
+   "kind": "same_person",
+   "label": "柯子骞 / Ziqian Ke across files",
+   "found": true,
+   "coverage": 0.83,
+   "entity": "Ziqian Ke",
+   "cited": 5,
+   "gold_files": 6,
+   "missing": [
+    "images/screenshot-task-tracker.png"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.83
+  },
+  {
+   "id": "r09",
+   "kind": "same_person",
+   "label": "毛晓岚 / Xiaolan Mao across files",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "Xiaolan Mao",
+   "cited": 2,
+   "gold_files": 2,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r10",
+   "kind": "vendor",
+   "label": "Hengding Optoelectronics / 恒鼎光电 across files",
+   "found": true,
+   "coverage": 0.73,
+   "entity": "Hengding Optoelectronics",
+   "cited": 8,
+   "gold_files": 11,
+   "missing": [
+    "decks/vendor-review.pptx",
+    "finance/launch-budget-2027.xlsx",
+    "meetings/audio/supplier-call-2027-01-16.wav"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.82
+  },
+  {
+   "id": "r11",
+   "kind": "vendor",
+   "label": "Yunfan Media / 云帆传播",
+   "found": true,
+   "coverage": 0.86,
+   "entity": "Yunfan Media",
+   "cited": 6,
+   "gold_files": 7,
+   "missing": [
+    "meetings/audio/launch-sync-2027-01-12.wav"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r12",
+   "kind": "vendor",
+   "label": "Meridian Packaging / 子午线包装",
+   "found": true,
+   "coverage": 0.75,
+   "entity": "Meridian Packaging",
+   "cited": 3,
+   "gold_files": 4,
+   "missing": [
+    "decks/vendor-review.pptx"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r13",
+   "kind": "vendor",
+   "label": "Suda Express / 速达快运",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "Suda Express",
+   "cited": 7,
+   "gold_files": 7,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r14",
+   "kind": "product",
+   "label": "Aurora NP-7 / 极光 NP-7",
+   "found": true,
+   "coverage": 0.64,
+   "entity": "极光 NP-7",
+   "cited": 7,
+   "gold_files": 11,
+   "missing": [
+    "meetings/audio/budget-call-2027-01-26.m4a",
+    "meetings/audio/launch-sync-2027-01-12.wav",
+    "memos/launch-delay-memo-signed.pdf",
+    "reports/launch-readiness-report-2027-02-20.pdf"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.73
+  },
+  {
+   "id": "r15",
+   "kind": "decision",
+   "label": "Decision to move the launch from 2027-03-04 to 2027-03-18",
+   "found": true,
+   "coverage": 0.75,
+   "entity": "2027-03-18",
+   "cited": 6,
+   "gold_files": 8,
+   "missing": [
+    "meetings/audio/launch-sync-2027-01-12.wav",
+    "meetings/audio/readiness-call-2027-02-02.m4a"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.75
+  },
+  {
+   "id": "r16",
+   "kind": "decision",
+   "label": "Decision to select Hengding as primary lens supplier",
+   "found": true,
+   "coverage": 0.6,
+   "entity": "Hengding Optoelectronics",
+   "cited": 3,
+   "gold_files": 5,
+   "missing": [
+    "decks/vendor-review.pptx",
+    "meetings/audio/supplier-call-2027-01-16.wav"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.8
+  },
+  {
+   "id": "r17",
+   "kind": "decision",
+   "label": "Decision to move CNY 80,000 from print to video",
+   "found": true,
+   "coverage": 0.6,
+   "entity": "80,000",
+   "cited": 3,
+   "gold_files": 5,
+   "missing": [
+    "finance/launch-budget-2027.xlsx",
+    "meetings/audio/budget-call-2027-01-26.m4a"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  },
+  {
+   "id": "r18",
+   "kind": "figure",
+   "label": "Total launch budget 6,850,000",
+   "found": false,
+   "coverage": 0.4,
+   "entity": "6,850,000",
+   "cited": 2,
+   "gold_files": 5,
+   "missing": [
+    "finance/launch-budget-2027.xlsx",
+    "meetings/audio/budget-call-2027-01-26.m4a",
+    "memos/launch-delay-memo-signed.pdf"
+   ],
+   "lenient_found": false,
+   "lenient_coverage": 0.4
+  },
+  {
+   "id": "r19",
+   "kind": "figure",
+   "label": "Marketing budget 1,420,000",
+   "found": true,
+   "coverage": 0.6,
+   "entity": "1,420,000",
+   "cited": 3,
+   "gold_files": 5,
+   "missing": [
+    "finance/launch-budget-2027.xlsx",
+    "meetings/audio/budget-call-2027-01-26.m4a"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.6
+  },
+  {
+   "id": "r20",
+   "kind": "figure",
+   "label": "Hengding contract value 2,480,000",
+   "found": true,
+   "coverage": 0.62,
+   "entity": "2,480,000",
+   "cited": 5,
+   "gold_files": 8,
+   "missing": [
+    "finance/launch-budget-2027.xlsx",
+    "finance/vendor-list.xlsx",
+    "meetings/audio/budget-call-2027-01-26.m4a"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.62
+  },
+  {
+   "id": "r21",
+   "kind": "date",
+   "label": "Press embargo 2027-03-16",
+   "found": true,
+   "coverage": 0.75,
+   "entity": "2027-03-16",
+   "cited": 6,
+   "gold_files": 8,
+   "missing": [
+    "images/whiteboard-launch-timeline.png",
+    "meetings/audio/launch-sync-2027-01-12.wav"
+   ],
+   "lenient_found": true,
+   "lenient_coverage": 0.75
+  },
+  {
+   "id": "r22",
+   "kind": "date",
+   "label": "QA go/no-go 2027-03-05",
+   "found": false,
+   "coverage": 0.57,
+   "entity": "2027-03-05",
+   "cited": 4,
+   "gold_files": 7,
+   "missing": [
+    "images/whiteboard-launch-timeline.png",
+    "meetings/audio/readiness-call-2027-02-02.m4a",
+    "reports/launch-readiness-report-2027-02-20.pdf"
+   ],
+   "lenient_found": false,
+   "lenient_coverage": 0.57
+  },
+  {
+   "id": "r23",
+   "kind": "figure",
+   "label": "Lens yield 71 percent rising to 88 percent against an 85 percent threshold",
+   "found": false,
+   "coverage": 0.0,
+   "entity": null,
+   "cited": 0,
+   "gold_files": 8,
+   "missing": [
+    "contracts/hengding-lens-supply-contract.pdf",
+    "meetings/audio/launch-sync-2027-01-12.wav",
+    "meetings/audio/readiness-call-2027-02-02.m4a",
+    "meetings/minutes-2027-01-12-launch-sync.docx",
+    "meetings/minutes-2027-02-02-readiness.docx",
+    "memos/launch-delay-memo-signed.pdf",
+    "reports/launch-readiness-report-2027-02-20.pdf",
+    "specs/np7-test-plan.docx"
+   ],
+   "lenient_found": false,
+   "lenient_coverage": 0.12
+  },
+  {
+   "id": "r24",
+   "kind": "date",
+   "label": "Launch video shoot 2027-02-10",
+   "found": false,
+   "coverage": 0.0,
+   "entity": null,
+   "cited": 0,
+   "gold_files": 3,
+   "missing": [
+    "decks/aurora-launch-plan.pptx",
+    "images/screenshot-task-tracker.png",
+    "meetings/audio/launch-sync-2027-01-12.wav"
+   ],
+   "lenient_found": false,
+   "lenient_coverage": 0.0
+  },
+  {
+   "id": "r25",
+   "kind": "date",
+   "label": "Air freight arrival 2027-03-10",
+   "found": true,
+   "coverage": 1.0,
+   "entity": "2027-03-10",
+   "cited": 3,
+   "gold_files": 3,
+   "missing": [],
+   "lenient_found": true,
+   "lenient_coverage": 1.0
+  }
+ ]
+}

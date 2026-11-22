@@ -1,0 +1,21 @@
+# The media-parser image with the Whisper base weights and sherpa-onnx (D98, lane AL), as one layer on the image built by Dockerfile
+# (the full build also compiles FFmpeg and OpenCV and needs the campplus export, so the layer is how a tree change reaches the image):
+#   mkdir tools/media-parser/models-local && cp <the three Whisper files, see models.lock.json> tools/media-parser/models-local/
+#   docker build -f tools/media-parser/Dockerfile.asr-layer --build-context dp=tools/doc-parser --label oo.lane=<lane> \
+#     --build-arg OO_LANE=<lane> -t oo-docs-media-parser:dev-asr tools/media-parser
+ARG BASE=oo-docs-media-parser:dev
+FROM ${BASE}
+ARG OO_LANE=super-ontology-asr
+LABEL oo.lane=$OO_LANE
+USER root
+COPY requirements.lock /tmp/requirements.lock
+# Only the sherpa-onnx pair is missing from the venv; everything else in the lock is already installed at the locked version.
+RUN /opt/venv/bin/pip install --no-deps --require-hashes --no-cache-dir -r /tmp/requirements.lock && rm /tmp/requirements.lock \
+ && /opt/venv/bin/python -c "import sherpa_onnx"
+COPY models-local/base-encoder.int8.onnx models-local/base-decoder.int8.onnx models-local/base-tokens.txt /opt/models/whisper-base/
+COPY models.lock.json /opt/app/models.lock.json
+COPY --from=dp doc_parser /opt/app/doc_parser
+COPY media_parser /opt/app/media_parser
+COPY asr /opt/app/asr
+COPY video /opt/app/video
+USER 10001:10001

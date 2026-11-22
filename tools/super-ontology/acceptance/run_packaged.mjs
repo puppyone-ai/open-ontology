@@ -79,7 +79,8 @@ const my = await call("my-files-ensure", { operationId: crypto.randomUUID() });
 const drive = my.value;
 note("my-files", { ok: my.ok, id: drive?.id, error: my.error?.code });
 run.driveId = drive?.id;
-const stateDir = path.join(profile, "engine", "state");
+// Since lane AH the app shares the CLI's engine: the state folder is the CLI's own (under HOME), not <profile>/engine/state.
+const stateDir = opt("--state-dir") ?? path.join(home, ".local", "state", "open-ontology", "docs");
 const ooBin = path.join(appPath, "Contents/Resources/oo/oo");
 const oo = async (...a) => {
   try { const r = await execFileP(ooBin, [...a, "--state-dir", stateDir, "--json"], { env: { ...env }, timeout: 120_000, maxBuffer: 1 << 24 }); return { ok: true, out: r.stdout }; }
@@ -95,7 +96,9 @@ const t0 = Date.now();
 const started = await call("upload-start", { driveId: drive.id, folder: "", paths: [project] });
 note("upload-start", { ok: started.ok, items: started.value?.items?.length, skipped: started.value?.skipped, error: started.error?.code });
 if (!started.ok) await finish(4);
-run.uploadItems = started.value.items.map((i) => i.relative);
+// `upload-start` answers at once (lane AI) and the walk reports through `upload-progress`: the number of files to wait for is what the folder holds.
+const walk = async (dir) => (await Promise.all((await fs.readdir(dir, { withFileTypes: true })).map((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)])))).flat();
+run.uploadItems = started.value.items ? started.value.items.map((i) => i.relative) : (await walk(project)).map((f) => path.relative(path.dirname(project), f));
 const deadline = Date.now() + Number(opt("--timeout-min", "40")) * 60_000;
 const TERMINAL = new Set(["published", "unsupported", "parse_failed", "extract_failed", "encrypted", "too_large", "duplicate", "failed", "quarantined", "extract_partial"]);
 let settled = false;

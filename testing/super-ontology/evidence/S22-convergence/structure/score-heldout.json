@@ -1,0 +1,51 @@
+{
+ "classes": {
+  "calls": {
+   "class": "calls",
+   "purity": 1.0,
+   "recall_of_members": 14
+  },
+  "expenses": {
+   "class": "finance",
+   "purity": 1.0,
+   "recall_of_members": 4
+  },
+  "incidents": {
+   "class": "incidents",
+   "purity": 1.0,
+   "recall_of_members": 16
+  },
+  "releases": {
+   "class": "releases",
+   "purity": 1.0,
+   "recall_of_members": 14
+  },
+  "staff": {
+   "class": "people_table",
+   "purity": 1.0,
+   "recall_of_members": 2
+  }
+ },
+ "wrong": [
+  "incidents.service: project (gold enum)",
+  "releases.version: version (gold id)"
+ ],
+ "missing": [],
+ "completeness": {
+  "calls": 1.0,
+  "expenses": 1.0,
+  "incidents": 1.0,
+  "releases": 1.0,
+  "staff": 1.0
+ },
+ "completeness_min": 1.0,
+ "classes_found": 5,
+ "classes_gold": 5,
+ "property_recall": 1.0,
+ "type_accuracy": 0.917,
+ "relation_recall": 1.0,
+ "relation_precision": 1.0,
+ "coverage_confirmed": 0.909,
+ "coverage_in_class": 0.909,
+ "pass": true
+}

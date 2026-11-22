@@ -147,6 +147,7 @@ fn docs_report_is_deterministic_and_has_fixed_schema() {
             "entities",
             "facts",
             "by_format",
+            "type_precision",
             "provenance",
             "supersede",
             "conflicts",

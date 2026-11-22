@@ -68,17 +68,34 @@ fn model_supersession_slots_are_queued_exactly_when_not_certain() {
                     1 => 6000,
                     _ => 3000,
                 };
+                // D97: the model's not-certain supersession is asked when a live Share uses the fact it ends; with no Share it is a
+                // candidate (Hold) and never published either.
+                let used = Signals {
+                    share_used: true,
+                    ..Signals::default()
+                };
                 let (_, class) = classify(
                     origin(og),
                     rule_id,
                     "supersedes",
                     bp,
-                    Signals::default(),
+                    used,
                     false,
                     false,
                     Thresholds::default(),
                 );
                 if !model_certain {
+                    let (_, unused) = classify(
+                        origin(og),
+                        rule_id,
+                        "supersedes",
+                        bp,
+                        Signals::default(),
+                        false,
+                        false,
+                        Thresholds::default(),
+                    );
+                    assert_eq!(unused, Class::Hold, "{name} slot {idx} without a Share");
                     assert_eq!(
                         class,
                         Class::Queue("supersede_candidate"),
