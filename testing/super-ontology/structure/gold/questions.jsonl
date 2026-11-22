@@ -1,0 +1,8 @@
+{"answer": "周若溪", "answerable": true, "files": ["meetings/星河/2026-03-01-启动会.md"], "id": "q01", "kind": "meeting", "lang": "zh", "question": "星河项目的启动会谁是主持人？"}
+{"answer": "灰度发布", "answerable": true, "files": ["meetings/星河/2026-03-01-启动会.md"], "id": "q02", "kind": "meeting", "lang": "zh", "question": "2026-03-01 的星河启动会决定了什么？"}
+{"answer": "明石能源股份公司;30万", "answerable": true, "files": ["contracts/CT-2026-003.md"], "id": "q03", "kind": "contract", "lang": "zh", "question": "合同 CT-2026-003 的乙方是谁，合同金额是多少？"}
+{"answer": "周若溪;80万", "answerable": true, "files": ["projects/项目一览.csv"], "id": "q04", "kind": "table", "lang": "en", "question": "Who owns the project 北辰, and what is its budget?"}
+{"answer": "proposed", "answerable": true, "files": ["decisions/DEC-013-harbor.md"], "id": "q05", "kind": "decision", "lang": "en", "question": "What is the status of decision DEC-013?"}
+{"answer": "CT-2026-012;24", "answerable": true, "files": ["contracts/CT-2026-012.md"], "id": "q06", "kind": "contract", "lang": "en", "question": "Which contract does Bluegate Energy have, and how long is its term?"}
+{"answer": "平台部", "answerable": true, "files": ["people/团队名册.csv"], "id": "q07", "kind": "table", "lang": "zh", "question": "吴启明在哪个部门？"}
+{"answer": "", "answerable": false, "files": [], "id": "q08", "kind": "unanswerable", "lang": "en", "question": "What is the budget of the 2027 renewal of the 远山 project?"}

@@ -177,6 +177,17 @@ def noise():
     put("notes/todo-someday.md", "# Someday\n\n- learn to sail\n- fix the shelf\n")
 
 
+QUESTIONS = [
+    {"id": "q01", "kind": "meeting", "lang": "zh", "question": "星河项目的启动会谁是主持人？", "answer": "周若溪", "answerable": True, "files": ["meetings/星河/2026-03-01-启动会.md"]},
+    {"id": "q02", "kind": "meeting", "lang": "zh", "question": "2026-03-01 的星河启动会决定了什么？", "answer": "灰度发布", "answerable": True, "files": ["meetings/星河/2026-03-01-启动会.md"]},
+    {"id": "q03", "kind": "contract", "lang": "zh", "question": "合同 CT-2026-003 的乙方是谁，合同金额是多少？", "answer": "明石能源股份公司;30万", "answerable": True, "files": ["contracts/CT-2026-003.md"]},
+    {"id": "q04", "kind": "table", "lang": "en", "question": "Who owns the project 北辰, and what is its budget?", "answer": "周若溪;80万", "answerable": True, "files": ["projects/项目一览.csv"]},
+    {"id": "q05", "kind": "decision", "lang": "en", "question": "What is the status of decision DEC-013?", "answer": "proposed", "answerable": True, "files": ["decisions/DEC-013-harbor.md"]},
+    {"id": "q06", "kind": "contract", "lang": "en", "question": "Which contract does Bluegate Energy have, and how long is its term?", "answer": "CT-2026-012;24", "answerable": True, "files": ["contracts/CT-2026-012.md"]},
+    {"id": "q07", "kind": "table", "lang": "zh", "question": "吴启明在哪个部门？", "answer": "平台部", "answerable": True, "files": ["people/团队名册.csv"]},
+    {"id": "q08", "kind": "unanswerable", "lang": "en", "question": "What is the budget of the 2027 renewal of the 远山 project?", "answer": "", "answerable": False, "files": []},
+]
+
 GOLD = {
     "version": "structure-gold/1",
     "amendments": "After the first scoring two annotations were corrected with the evidence of the files: project_table has a column named 项目/Project (concept project), not name; every contract has a payment section (付款条款/Payment) that the annotation lacked. Type and relation gold untouched.",
@@ -219,8 +230,10 @@ def write(out):
     g = out / "gold"
     g.mkdir(parents=True, exist_ok=True)
     (g / "structure.json").write_text(json.dumps(GOLD, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    (g / "questions.jsonl").write_text("".join(json.dumps(q, ensure_ascii=False, sort_keys=True) + "\n" for q in QUESTIONS), encoding="utf-8")
     manifest = "".join(f"{hashlib.sha256(t.encode()).hexdigest()}  project/{p}\n" for p, t in sorted(FILES.items()))
     manifest += f"{hashlib.sha256((g / 'structure.json').read_bytes()).hexdigest()}  gold/structure.json\n"
+    manifest += f"{hashlib.sha256((g / 'questions.jsonl').read_bytes()).hexdigest()}  gold/questions.jsonl\n"
     (out / "MANIFEST.sha256").write_text(manifest, encoding="utf-8")
 
 
