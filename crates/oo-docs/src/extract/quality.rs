@@ -1073,7 +1073,7 @@ fn check_term_or_topic(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
         return Ok(());
     }
     // D96: the model's Term exists only from an explicit definition (a rule's tried or rejected item is a structural position).
-    if m.entity.ty == EntityType::Term && !c.structural {
+    if matches!(m.entity.ty, EntityType::Term | EntityType::Thing) && !c.structural {
         return if c.text.defines(&name) {
             Ok(())
         } else {
@@ -1116,7 +1116,7 @@ fn verdict_by_type(m: &EntityMention, c: &Ctx<'_>) -> Result<(), Reason> {
         EntityType::Decision => check_decision(m, c),
         EntityType::Person => check_person(m, c.structural),
         EntityType::Event => check_event(m),
-        EntityType::Term | EntityType::Topic => check_term_or_topic(m, c),
+        EntityType::Term | EntityType::Topic | EntityType::Thing => check_term_or_topic(m, c),
         _ => Ok(()),
     }
 }
