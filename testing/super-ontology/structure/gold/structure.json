@@ -1,0 +1,168 @@
+{
+ "classes": {
+  "contract": {
+   "files": 12,
+   "properties": {
+    "amount": {
+     "type": "amount"
+    },
+    "contract_no": {
+     "type": "id"
+    },
+    "party_a": {
+     "type": "organization"
+    },
+    "party_b": {
+     "type": "organization"
+    },
+    "start_date": {
+     "type": "date"
+    },
+    "term": {
+     "type": "text"
+    }
+   },
+   "shape": "document"
+  },
+  "decision_log": {
+   "files": 14,
+   "properties": {
+    "alternatives": {
+     "type": "text"
+    },
+    "date": {
+     "type": "date"
+    },
+    "decided_by": {
+     "relation": "people_table",
+     "type": "person"
+    },
+    "decisions": {
+     "type": "text"
+    },
+    "project": {
+     "relation": "project_table",
+     "type": "project"
+    },
+    "rationale": {
+     "type": "text"
+    },
+    "status": {
+     "type": "enum"
+    }
+   },
+   "shape": "document"
+  },
+  "meeting_minutes": {
+   "files": 18,
+   "properties": {
+    "actions": {
+     "type": "text"
+    },
+    "agenda": {
+     "type": "text"
+    },
+    "attendees": {
+     "relation": "people_table",
+     "type": "person"
+    },
+    "date": {
+     "type": "date"
+    },
+    "decisions": {
+     "type": "text"
+    },
+    "directory": {
+     "relation": "project_table",
+     "type": "project"
+    },
+    "host": {
+     "relation": "people_table",
+     "type": "person"
+    },
+    "project": {
+     "relation": "project_table",
+     "type": "project"
+    }
+   },
+   "shape": "document"
+  },
+  "people_table": {
+   "files": 2,
+   "properties": {
+    "department": {
+     "type": "enum"
+    },
+    "email": {
+     "type": "email"
+    },
+    "employee_id": {
+     "type": "id"
+    },
+    "name": {
+     "type": "person"
+    },
+    "role": {
+     "type": "enum"
+    },
+    "start_date": {
+     "type": "date"
+    }
+   },
+   "shape": "table"
+  },
+  "project_table": {
+   "files": 2,
+   "properties": {
+    "budget": {
+     "type": "amount"
+    },
+    "deadline": {
+     "type": "date"
+    },
+    "name": {
+     "type": "project"
+    },
+    "owner": {
+     "relation": "people_table",
+     "type": "person"
+    },
+    "status": {
+     "type": "enum"
+    }
+   },
+   "shape": "table"
+  },
+  "weekly_report": {
+   "files": 14,
+   "properties": {
+    "author": {
+     "relation": "people_table",
+     "type": "person"
+    },
+    "next_week": {
+     "type": "text"
+    },
+    "risks": {
+     "type": "text"
+    },
+    "this_week": {
+     "type": "text"
+    },
+    "week": {
+     "type": "text"
+    }
+   },
+   "shape": "document"
+  }
+ },
+ "note": "Frozen before the first run. Property names are concept slugs; `type` is the value type; `relation` is the kind of the class the values name. text and long_text count as one type.",
+ "record_files": 66,
+ "unclustered": [
+  "notes/ideas.md",
+  "notes/todo-someday.md",
+  "notes/杂记.md",
+  "notes/读书笔记.md"
+ ],
+ "version": "structure-gold/1"
+}
