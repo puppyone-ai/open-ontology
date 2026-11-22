@@ -18,4 +18,26 @@ END
 $guard$;
 
 ALTER TABLE _oo_docs.file ADD COLUMN profile text
-  CHECK (profile IN ('business', 'meeting', 'table', 'instruction', 'code', 'paper', 'media', 'other'));
+  CHECK (profile IN ('business', 'meeting', 'table', 'instruction', 'code', 'reference', 'media', 'other'));
+-- Why the file has that profile: a rule (frontmatter, name, extension, directory, format), its content, the model, or the user.
+ALTER TABLE _oo_docs.file ADD COLUMN profile_reason text
+  CHECK (profile_reason IN ('frontmatter', 'name', 'dir', 'ext', 'format', 'content', 'default', 'model', 'user'));
+
+-- A person's choice of the class of one file or of a directory and everything below it (D94). A file's own choice wins over a
+-- directory's, the nearest directory over a farther one.
+CREATE TABLE _oo_docs.profile_override (
+  drive_id uuid NOT NULL REFERENCES _oo_docs.drive (id),
+  scope text NOT NULL CHECK (scope IN ('file', 'dir')),
+  path text NOT NULL CHECK (char_length(path) <= 1024),
+  profile text NOT NULL
+    CHECK (profile IN ('business', 'meeting', 'table', 'instruction', 'code', 'reference', 'media', 'other')),
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY (drive_id, scope, path)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON _oo_docs.profile_override TO oo_docs_runtime;
+
+-- D94: two relations of a reference (`cites`, `authored`) join the core ones.
+ALTER TABLE _oo_docs.fact DROP CONSTRAINT fact_predicate_check;
+ALTER TABLE _oo_docs.fact ADD CONSTRAINT fact_predicate_check CHECK (
+  predicate ~ '^(owns|member_of|decides|supersedes|rejects|mentions|about|tried_and_failed|cites|authored|attr\.[a-z_]{1,40})$'
+);

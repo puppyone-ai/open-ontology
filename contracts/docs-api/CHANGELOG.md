@@ -204,11 +204,13 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
   stack, profile?, published?}`; `stack` is an absolute path, `published` is true only when `oo build` ended complete with a published
   publication. No new error code. Additive.
 
-## 1.14 (lane AK, document profiles, D89)
+## 1.14 (lane AK, admission by file class, D94)
 
-- `FileSummary.profile` (optional string enum `business|meeting|table|instruction|code|paper|media|other`): what kind of document the file is. The engine
-  stores it when the file is extracted (`_oo_docs.file.profile`, migration 0156) and derives it from the path and blob format for a file that was never
-  extracted, so every row carries one. The profile decides what is read: code and instruction documents are read by parsers and rules only (no model),
-  papers by the paper rules, the rest as before. `file-detail` returns it in `file`. Clients show an unknown value as unknown. No new error code. Additive.
-- Entities of the profile extractors are `Thing` with the labels `Rule`, `Command`, `Tool`, `Path`, `Function`, `Class`, `Type`, `Dependency`, `Package`,
-  `Paper`, `Venue`, `Method`, `Dataset`, `Metric` (spec 10 section 5.1.1); they are never proposed as type promotions.
+- `FileSummary.profile` (optional enum `business|meeting|table|instruction|code|reference|media|other`), `FileSummary.profile_reason` (`frontmatter|name|dir|ext|format|content|default|model|user`) and
+  `FileSummary.class` (`record|instruction|reference|code|media|other`, derived from the profile): what kind of file it is and why. The class decides whether and how it enters the
+  ontology: a record goes in through the class templates; an instruction file puts no entity in and is attached as a working convention (its text goes into the BRIEF section 工作约定);
+  a reference becomes one Reference instance with `cites` and `authored`; code only gives structure (project, CODEOWNERS owners); media follows D98; other is archived and found by name. A file that
+  does not enter the ontology is in a normal state. The engine stores the profile when the file is extracted (`_oo_docs.file.profile`, migration 0156) and derives it from the path and format before.
+- `GET` and `PUT /v1/docs/drives/{id}/profile-overrides` (`ProfileOverride`, `ProfileOverridePut`, `ProfileOverrideResult`): a person's choice of the class of a file or a directory. `PUT` with
+  `profile: null` removes the choice; the files covered are reclassified (reason `user`) and extracted again. No new error code. Additive.
+- Fact predicates `cites` (Thing to Thing) and `authored` (Person to Thing) join the core relations (DB check widened in 0156); both are written by the reference class only.

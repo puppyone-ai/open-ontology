@@ -827,7 +827,7 @@
           ]
         },
         "profile": {
-          "description": "D89: what kind of document the file is, which decides how it is read. Derived from the path and format until the file is extracted, then stored. Clients show an unknown value as unknown.",
+          "description": "D94: what kind of file this is, which decides whether and how it enters the ontology. Derived from the path and format until the file is extracted, then stored. Clients show an unknown value as unknown.",
           "type": "string",
           "enum": [
             "business",
@@ -835,7 +835,7 @@
             "table",
             "instruction",
             "code",
-            "paper",
+            "reference",
             "media",
             "other"
           ]
@@ -929,6 +929,33 @@
             "type": "integer",
             "minimum": 0
           }
+        },
+        "profile_reason": {
+          "description": "Why the file has that profile: `frontmatter`, `name`, `dir`, `ext`, `format`, `content` (a rule), `default` (no rule decided), `model`, or `user` (a person chose it).",
+          "type": "string",
+          "enum": [
+            "frontmatter",
+            "name",
+            "dir",
+            "ext",
+            "format",
+            "content",
+            "default",
+            "model",
+            "user"
+          ]
+        },
+        "class": {
+          "description": "D94 admission class of the profile: `record` (business, meeting, table: enters the ontology through the class templates), `instruction` (attached as a working convention, no entities), `reference` (one Reference instance), `code` (structure only), `media`, `other` (archive only).",
+          "type": "string",
+          "enum": [
+            "record",
+            "instruction",
+            "reference",
+            "code",
+            "media",
+            "other"
+          ]
         }
       },
       "examples": [
@@ -6168,6 +6195,160 @@
           "seq": 42
         }
       ]
+    },
+    "ProfileOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path",
+        "profile"
+      ],
+      "description": "A person's choice of the class of one file (`scope` file) or of a directory and everything below it (`dir`). A file's own choice wins over a directory's, the nearest directory over a farther one.",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "file",
+            "dir"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "business",
+            "meeting",
+            "table",
+            "instruction",
+            "code",
+            "reference",
+            "media",
+            "other"
+          ]
+        },
+        "class": {
+          "type": "string",
+          "enum": [
+            "record",
+            "instruction",
+            "reference",
+            "code",
+            "media",
+            "other"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "scope": "dir",
+          "path": "notes/sop",
+          "profile": "instruction",
+          "class": "instruction"
+        }
+      ]
+    },
+    "ProfileOverrideList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProfileOverride"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "scope": "file",
+              "path": "notes/plan.md",
+              "profile": "business",
+              "class": "record"
+            }
+          ]
+        }
+      ]
+    },
+    "ProfileOverridePut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path",
+        "profile"
+      ],
+      "description": "Body of `PUT /v1/docs/drives/{id}/profile-overrides` (1.14): set the choice, or remove it with `profile: null`.",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "file",
+            "dir"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "profile": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "business",
+                "meeting",
+                "table",
+                "instruction",
+                "code",
+                "reference",
+                "media",
+                "other"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "examples": [
+        {
+          "scope": "dir",
+          "path": "notes/sop",
+          "profile": "instruction"
+        },
+        {
+          "scope": "file",
+          "path": "notes/plan.md",
+          "profile": null
+        }
+      ]
+    },
+    "ProfileOverrideResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected"
+      ],
+      "description": "How many files were reclassified and sent through extraction again.",
+      "properties": {
+        "affected": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "affected": 3
+        }
+      ]
     }
   },
   "title": "Super Ontology Docs Control API",
@@ -6874,6 +7055,24 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.12"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/profile-overrides",
+      "request": null,
+      "response": "ProfileOverrideList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.14"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/drives/{id}/profile-overrides",
+      "request": "ProfileOverridePut",
+      "response": "ProfileOverrideResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.14"
     }
   ]
 }
