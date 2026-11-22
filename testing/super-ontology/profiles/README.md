@@ -1,14 +1,17 @@
-# Profile test set (lane AK, D89)
+# Admission test set (lane AK, D94)
 
-A synthetic engineering repository (Harbor Queue: AGENTS.md, README, CONTRIBUTING, a style guide, two ADRs, a CHANGELOG, Rust, Python and TypeScript code,
-three package manifests) and three research papers (text layer PDFs, two in English and one in Chinese, with abstracts, DOI or arXiv ids and references that
-cite each other). All content is synthetic.
+A mixed corpus of 41 synthetic files: records (minutes, a decision, a weekly report, people and project files, a contract, csv tables), instruction files
+(AGENTS.md, CLAUDE.md, README, CONTRIBUTING, a style guide, two ADRs, a deploy SOP), five references (three PDF papers, a book chapter, an external
+report), code (Rust, Python, TypeScript, shell, manifests, CODEOWNERS), media (a png, a wav) and archive files (a log, a licence, a changelog, json, zip, binary).
+All content is synthetic.
 
-* `project/`: the folder to drop into My files (`harborq/` and `papers/`).
-* `gold/instruction.jsonl`, `gold/code.jsonl`, `gold/paper.jsonl`: the expected `Rule`, `Command`, `Tool`, `Path`; `Function`, `Class`, `Type`, `Dependency`,
-  `Package`; `Paper`, `Person`, `Venue`, `Method`, `Dataset`, `Metric` per file. Written down in the generator next to the text they describe and frozen before
-  the first run: they are not edited after a result.
-* `gold/questions.jsonl`: 10 questions (5 on instruction documents, 2 on code, 2 on papers, 1 unanswerable) for Ask, scored by
-  `tools/super-ontology/acceptance/score_ask.py`.
+* `project/`: the folder to drop into My files.
+* `gold/classes.jsonl`: the class (and profile) of every file. `gold/reference.jsonl`, `gold/reference-relations.jsonl`: the Reference instances, authors, `cites`
+  and `authored` of the five references. `gold/records.jsonl`: record entities that must enter. `gold/brief.json`: the instruction files and the quote the BRIEF section
+  工作约定 must hold. `gold/questions.jsonl`: six questions answered from the BRIEF.
+* The D89 entity gold (rules, commands, symbols, methods, datasets) is retired by D94 (instruction and code files put no entity in; a reference gives one instance).
+  Gold amendment: the book chapter and the external report were added to the corpus after the paper gold and their reference items were listed after the first scoring
+  (precision 0.778 / 0.818 before, 1.0 after), because the annotation lacked them.
 
-`python3 -B tools/super-ontology/profiles/gen.py` rewrites it (`--check` compares). Score a run with `tools/super-ontology/profiles/score.py`.
+`python3 -B tools/super-ontology/profiles/gen.py` rewrites it (`--check` compares). `tools/super-ontology/profiles/run_live.py` runs it through the real pipeline and
+`score.py` scores it (hard gates: no entity from instruction, code and other files, a reference only gives Reference and Person, the BRIEF holds the instruction files).

@@ -273,7 +273,7 @@ async fn the_profile_set_through_the_real_pipeline() {
         .call(
             "POST",
             "/v1/docs/context-packs:compile",
-            Some(&json!({"drive_id": drive_id, "task": "What does AGENTS.md say about running tests?", "budget": 12000})),
+            Some(&json!({"drive_id": drive_id, "task": "What does AGENTS.md say about running tests?", "budget": 12000, "wait_ms": 0})),
         )
         .await;
     assert!(
@@ -355,7 +355,13 @@ async fn the_profile_set_through_the_real_pipeline() {
             "harborq/tools/report.py",
         ]
         .iter()
-        .all(|p| st.get(*p).is_some_and(|(state, _)| state == "published"));
+        .all(|p| {
+            // A file made a record goes through the model too when it is on, and may then wait `indexed` for review.
+            st.get(*p).is_some_and(|(state, _)| {
+                state == "published"
+                    || with_model && state == "indexed" && p.ends_with("CHANGELOG.md")
+            })
+        });
         let now = s
             .call(
                 "GET",
