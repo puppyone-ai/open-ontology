@@ -1341,6 +1341,7 @@ impl JobHandler for ExtractHandler {
                 Ok(r) => r,
                 Err(e) => return db_fail(e),
             };
+            let mut quality_detail: Option<serde_json::Value> = None;
             if reused.is_none() {
                 let mut conn = match self.pool.acquire().await {
                     Ok(c) => c,
@@ -1353,8 +1354,22 @@ impl JobHandler for ExtractHandler {
                     ir: &ir,
                 };
                 // A first extraction, or a reprocess that passes DOC-G10 or waits for a person (D23).
-                if let Err(e) = crate::publish::reprocess::index_gated(&mut conn, &doc).await {
-                    return db_fail(e);
+                match crate::publish::reprocess::index_gated(&mut conn, &doc).await {
+                    Ok(r) => {
+                        let q = match r {
+                            crate::publish::reprocess::Reprocess::Fresh(s)
+                            | crate::publish::reprocess::Reprocess::Applied {
+                                summary: s, ..
+                            }
+                            | crate::publish::reprocess::Reprocess::Held { summary: s, .. } => {
+                                s.quality
+                            }
+                        };
+                        if !q.is_empty() {
+                            quality_detail = Some(serde_json::json!({"quality": q.to_json()}));
+                        }
+                    }
+                    Err(e) => return db_fail(e),
                 }
                 // Who is speaker A? One `speaker_identity` item per speaker label of a conversation, never blocking
                 // (D74 as revised, 17.4); a recording that is not a conversation has none.
@@ -1416,7 +1431,8 @@ impl JobHandler for ExtractHandler {
                 withdraw_superseded(&mut tx, &s).await?;
                 let detail = reused
                     .as_ref()
-                    .map(|p| format!("{{\"reused_from\":\"{p}\",\"by\":\"block_ids\"}}"));
+                    .map(|p| format!("{{\"reused_from\":\"{p}\",\"by\":\"block_ids\"}}"))
+                    .or_else(|| quality_detail.as_ref().map(ToString::to_string));
                 match state::transition_in_tx(
                     &mut tx,
                     &Transition {
@@ -1491,6 +1507,20 @@ async fn known_entities(pool: &PgPool, version_id: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// `Term:name` of the Terms a rule put in the ontology (a glossary entry, a rejected or tried alternative): defined
+/// by a structural position, so the model's mention of one needs no definition of its own (D96).
+async fn defined_terms(pool: &PgPool) -> Vec<String> {
+    sqlx::query_scalar::<_, String>(
+        "SELECT DISTINCT 'Term:' || e.canonical_name FROM _oo_docs.entity e \
+          WHERE e.type = 'Term' AND e.status = 'active' \
+            AND EXISTS (SELECT 1 FROM _oo_docs.fact f WHERE f.origin = 'rule' AND (f.subject_id = e.id OR f.object_id = e.id) \
+                          AND f.rule_id IN ('dir.terms', 'md.headings')) LIMIT 2000",
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+}
+
 impl JobHandler for ExtractLlmHandler {
     fn run(&self, ctx: JobCtx) -> HandlerFuture<'_> {
         Box::pin(async move {
@@ -1561,6 +1591,7 @@ impl JobHandler for ExtractLlmHandler {
                     title: &title,
                     ir: &ir,
                     known,
+                    defined: defined_terms(&self.pool).await,
                     calls_used,
                     types,
                     template: class
@@ -1629,6 +1660,7 @@ impl JobHandler for ExtractLlmHandler {
                     "llm": "done", "batches": stats.batches, "calls": stats.calls,
                     "cache_hits": stats.cache_hits, "failed_batches": stats.failed_batches,
                     "schema_invalid": stats.schema_invalid,
+                    "quality": stats.quality.to_json(),
                     "limit": if stats.file_limited { "DOCS_EXTRACT_LLM_LIMIT_FILE" }
                         else if stats.drive_limited { "DOCS_EXTRACT_LLM_LIMIT_DRIVE" }
                         else { "" },

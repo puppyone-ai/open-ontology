@@ -125,6 +125,7 @@ pub fn evaluate(golden: &Path, predictions: &Path) -> Result<Report, String> {
     Ok(Report {
         golden: counts(&gold),
         predictions: counts(&pred),
+        type_check: em.type_check,
         entity_cov: Coverage {
             covered: em.covered,
             predicted: pred.entities.len(),

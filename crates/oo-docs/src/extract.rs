@@ -12,6 +12,7 @@ pub mod confidence;
 pub mod links;
 pub mod llm;
 pub mod model;
+pub mod quality;
 pub mod rules;
 
 #[cfg(test)]

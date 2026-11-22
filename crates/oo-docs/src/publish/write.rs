@@ -15,7 +15,7 @@ use oo_core::docir::DocIr;
 use sqlx::{Connection, PgConnection};
 
 use crate::extract::model::EvidenceRef;
-use crate::extract::rules::{Siblings, extract_in};
+use crate::extract::rules::{Siblings, extract_with_quality};
 use crate::resolve::exact::{Resolved, resolve_extraction};
 use crate::resolve::merge::{MergeError, merge_entities};
 use crate::resolve::pg::{
@@ -49,6 +49,8 @@ pub struct IndexSummary {
     pub identity_merges: u32,
     /// `entity_merge` review items queued (5.4 step 6, refused identity merges).
     pub merge_proposals: u32,
+    /// What the entity quality gate left out (D90): counted, never a review item.
+    pub quality: crate::extract::quality::QualityStats,
     /// The file version repeats the assertions of an earlier version of the
     /// same file (early cutoff, 16.1).
     pub early_cutoff: bool,
@@ -100,7 +102,7 @@ pub async fn index_document_with(
     } else {
         None
     };
-    let extraction = extract_in(
+    let (extraction, quality) = extract_with_quality(
         doc.path,
         doc.ir,
         &Siblings {
@@ -121,7 +123,9 @@ pub async fn index_document_with(
         extraction,
     )
     .await?;
-    index_extraction(conn, doc, &extraction).await
+    let mut summary = index_extraction(conn, doc, &extraction).await?;
+    summary.quality = quality;
+    Ok(summary)
 }
 
 /// `doc.link`: mentions and `about` links of this file version to the entities the
@@ -263,7 +267,9 @@ async fn post_resolve(
         }
     }
     let keys: Vec<String> = resolved.entities.iter().map(|e| e.key.clone()).collect();
-    summary.merge_proposals += propose_merges(conn, &keys, doc.version_id).await?;
+    let merges = propose_merges(conn, &keys, doc.version_id).await?;
+    summary.merge_proposals += merges.queued;
+    summary.identity_merges += merges.merged;
     Ok(())
 }
 
@@ -439,7 +445,8 @@ async fn store_resolved(
                 .bind(f.valid_to.as_deref())
                 .bind(f.valid_precision)
                 .bind(i32::from(f.confidence_bp))
-                .bind(if src.origin == "rule" {
+                // A rule's id, or the program's mark on a model statement whose quote it verified (D91).
+                .bind(if src.origin == "rule" || f.rule_id == "llm.verified" {
                     Some(f.rule_id)
                 } else {
                     None

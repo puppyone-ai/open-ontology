@@ -42,6 +42,17 @@ pub struct Signals {
     pub new_single_entity: bool,
     /// The object is a `Thing`.
     pub object_is_thing: bool,
+    /// The model's statement, checked by the program: the quote names both ends and the model did not say `low`
+    /// (rule id `llm.verified`). D91: such a statement needs no person unless another claim contradicts it.
+    pub verified: bool,
+    /// Another live fact claims the same thing for someone else (a second owner or decider of the same object
+    /// over an overlapping time).
+    pub conflicted: bool,
+    /// A supersession whose old object has facts a live Share uses (D97).
+    pub share_used: bool,
+    /// The object is a Project or an Organization that a rule has placed (a directory, a frontmatter field, a table row): a
+    /// proper name, so a verified `about` link to it is a statement.
+    pub object_proper: bool,
 }
 
 /// Base score with the adjustments applied.

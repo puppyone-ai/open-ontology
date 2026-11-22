@@ -9,8 +9,8 @@
 //! * `claim`: one lists the other's name as an alias (a model alias, a one-way claim);
 //! * `pinyin`: people only, the Latin name is the pinyin of the Chinese one ([`super::pinyin`]).
 //!
-//! Merge when `roster`, `mutual`, or `claim` together with `pinyin`. A `claim` alone or `pinyin` alone is only a review
-//! candidate (`entity_merge`, reason `cross_language`). A name that has more than one candidate partner is never merged
+//! Merge when there is any of the four and the pair is unique (D97: an alias that is exactly the other entity's name, or
+//! the exact pinyin of a name nobody else shares, is settled by the program). A name that has more than one candidate partner is never merged
 //! (two people can share a pinyin): every pair of it becomes a review candidate. A contradicting identity (another
 //! e-mail) refuses the merge and the pair goes to review as well. Provenance stays: the merge keeps the facts' and aliases'
 //! originals ([`super::merge`]) and the redirect names reason `merge`.
@@ -125,7 +125,10 @@ pub fn decide(cands: &[Cand]) -> Vec<Decision> {
         let ambiguous = partners[&i].len() > 1 || partners[&j].len() > 1;
         let (kind, why) = if ambiguous {
             (Kind::Review, "ambiguous")
-        } else if matches!(why, "roster" | "mutual" | "claim+pinyin") {
+        } else if matches!(
+            why,
+            "roster" | "mutual" | "claim+pinyin" | "claim" | "pinyin"
+        ) {
             (Kind::Merge, why)
         } else {
             (Kind::Review, why)
@@ -311,7 +314,7 @@ mod tests {
     }
 
     #[test]
-    fn a_one_way_model_claim_alone_is_only_a_candidate() {
+    fn a_one_way_claim_naming_the_other_entity_exactly_merges() {
         let c = vec![
             cand(
                 "p:zh",
@@ -322,7 +325,7 @@ mod tests {
             ),
             cand("p:en", "Person", "Someone Else", 2, vec![]),
         ];
-        assert_eq!(decide(&c)[0].kind, Kind::Review);
+        assert_eq!(decide(&c)[0].kind, Kind::Merge);
     }
 
     #[test]
@@ -344,13 +347,13 @@ mod tests {
     }
 
     #[test]
-    fn the_pinyin_alone_never_merges() {
+    fn the_exact_pinyin_of_a_unique_pair_merges() {
         let c = vec![
             cand("p:zh", "Person", "白若冰", 2, vec![]),
             cand("p:en", "Person", "Ruobing Bai", 2, vec![]),
         ];
         let d = decide(&c);
-        assert_eq!((d[0].kind, d[0].why), (Kind::Review, "pinyin"));
+        assert_eq!((d[0].kind, d[0].why), (Kind::Merge, "pinyin"));
     }
 
     #[test]

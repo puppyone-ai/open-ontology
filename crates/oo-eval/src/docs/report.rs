@@ -36,6 +36,8 @@ pub struct Report {
     pub entities: Vec<Outcome>,
     pub facts: Vec<Outcome>,
     pub entity_cov: Coverage,
+    /// Type precision inputs: `(identity matched, type matches)` (30 section 4).
+    pub type_check: (usize, usize),
     pub fact_cov: Coverage,
     pub supersede: SupersedeScore,
     pub redteam: Redteam,
@@ -166,7 +168,7 @@ pub fn to_json(r: &Report) -> String {
             "\"entities\":{{\"overall\":{},\"by_type\":{}}},",
             "\"facts\":{{\"overall\":{},\"by_predicate\":{}}},",
             "\"by_format\":{},",
-            "\"provenance\":{{\"facts\":{},\"entities\":{}}},",
+            "\"type_precision\":{{\"identity_matched\":{},\"type_correct\":{},\"precision\":{}}},\"provenance\":{{\"facts\":{},\"entities\":{}}},",
             "\"supersede\":{{\"gold\":{},\"predicted\":{},\"correct\":{},\"precision\":{},\"recall\":{},\"f1\":{}}},",
             "\"conflicts\":{{\"gold\":{},\"predicted\":{},\"detected\":{},\"recall\":{}}},",
             "\"redteam\":{{\"canary_hits\":{},\"forbidden_name_hits\":{},\"total_hits\":{},\"canaries\":{},\"forbidden_names\":{},\"files_scanned\":{}}}}}\n"
@@ -181,6 +183,13 @@ pub fn to_json(r: &Report) -> String {
         metric_json(&c.fact_overall),
         obj(&p),
         obj(&f),
+        r.type_check.0,
+        r.type_check.1,
+        f4(if r.type_check.0 == 0 {
+            0.0
+        } else {
+            r.type_check.1 as f64 / r.type_check.0 as f64
+        }),
         cov_json(&r.fact_cov),
         cov_json(&r.entity_cov),
         s.gold,
@@ -258,7 +267,10 @@ pub fn to_markdown(r: &Report) -> String {
         }
     };
     o.push_str(&format!(
-        "## 出处覆盖率\n\n- 事实：{}/{} = {}\n- 实体：{}/{} = {}\n\n",
+        "## 类型精确率\n\n- 身份对上的预测实体中类型也对：{}/{} = {}\n\n## 出处覆盖率\n\n- 事实：{}/{} = {}\n- 实体：{}/{} = {}\n\n",
+        r.type_check.1,
+        r.type_check.0,
+        f4(if r.type_check.0 == 0 { 0.0 } else { r.type_check.1 as f64 / r.type_check.0 as f64 }),
         r.fact_cov.covered,
         r.fact_cov.predicted,
         f4(pc(&r.fact_cov)),

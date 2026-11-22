@@ -132,6 +132,7 @@ impl Rig {
             title: "星图项目",
             ir: &self.ir,
             known: vec![],
+            defined: vec![],
             calls_used: used,
             template: None,
         };
@@ -168,16 +169,16 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
     assert!(
         x.facts
             .iter()
-            .all(|f| f.rule_id == "llm" && !f.evidence.is_empty())
+            .all(|f| f.rule_id.starts_with("llm") && !f.evidence.is_empty())
     );
     let llm = x.llm.clone().unwrap();
-    assert_eq!(llm.prompt_version, "extract/4");
+    assert_eq!(llm.prompt_version, "extract/5");
     assert_eq!(llm.extraction_key.len(), 64);
     r.store(&x).await;
     // Drafts with origin llm, confidence by word, provenance columns set.
     assert_eq!(
         r.fx.text("SELECT predicate || '/' || confidence_bp || '/' || prompt_version FROM _oo_docs.fact WHERE origin = 'llm' ORDER BY predicate, confidence_bp").await,
-        ["owns/7000/extract/4", "owns/8500/extract/4", "supersedes/8500/extract/4"]
+        ["owns/7000/extract/5", "owns/8500/extract/5", "supersedes/8500/extract/5"]
     );
     assert!(
         r.fx.scalar("SELECT count(*) FROM _oo_docs.evidence WHERE origin = 'llm'")
@@ -220,15 +221,15 @@ async fn recorded_replies_become_llm_drafts_and_the_cache_pays_once() {
         2
     );
 
-    // Publishing: the 8500 owns is automatic, the 7000 one waits, supersedes is never automatic.
+    // Publishing (D91, D97): the verified 8500 owns publishes, the 7000 one stays a candidate, supersedes is never automatic; no question is asked.
     let PublishOutcome::Published(_) = r.fx.publish().await else {
         panic!("v1")
     };
     assert_eq!(r.fx.text("SELECT predicate || '/' || status FROM _oo_docs.fact WHERE origin = 'llm' ORDER BY predicate, confidence_bp").await,
-        ["owns/draft", "owns/draft", "supersedes/draft"]);
+        ["owns/draft", "owns/published", "supersedes/draft"]);
     assert_eq!(
         r.fx.text("SELECT reason_code FROM _oo_docs.review_item WHERE kind = 'low_confidence_fact' ORDER BY reason_code").await,
-        ["low_confidence", "low_confidence", "supersede_candidate"]
+        Vec::<String>::new()
     );
     r.fx.finish(db).await;
 }

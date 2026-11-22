@@ -170,9 +170,9 @@ fn kv_lines_and_owner_sentences_on_projects() {
 
 #[test]
 fn rejected_and_tried_alternatives_are_terms() {
-    let src = "---\ntype: decision\n---\n# 决定：采购\n\n被否决方案：自建小模型，准确率只有六成。\n\n## 已尝试\n\n- 微调开源模型：效果差\n\n## 不做\n\n- 自研引擎\n";
+    let src = "---\ntype: decision\n---\n# 决定：采购外部模型服务\n\n被否决方案：自建小模型，准确率只有六成。\n\n## 已尝试\n\n- 微调开源模型：效果差\n\n## 不做\n\n- 自研引擎\n";
     let x = fx("Decisions/x.md", src);
-    let d = e(EntityType::Decision, "采购");
+    let d = e(EntityType::Decision, "采购外部模型服务");
     let term = |n: &str| e(EntityType::Term, n);
     assert!(has_fact(&x, &d, &Predicate::Rejects, &term("自建小模型")).is_some());
     assert!(has_fact(&x, &d, &Predicate::TriedAndFailed, &term("微调开源模型")).is_some());
@@ -255,11 +255,14 @@ fn frontmatter_aliases_and_project_links() {
         .map(|a| a.alias.as_str())
         .collect();
     assert!(names.contains(&"Starmap") && names.contains(&"星图看板"));
-    let x = fx("Decisions/d.md", "---\nproject: 星图\n---\n# 决定：X\n");
+    let x = fx(
+        "Decisions/d.md",
+        "---\nproject: 星图\n---\n# 决定：采用星图方案\n",
+    );
     assert!(
         has_fact(
             &x,
-            &e(EntityType::Decision, "X"),
+            &e(EntityType::Decision, "采用星图方案"),
             &Predicate::About,
             &e(EntityType::Project, "星图")
         )

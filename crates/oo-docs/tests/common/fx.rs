@@ -319,15 +319,148 @@ impl Fx {
         }
     }
 
-    /// `n` LLM facts `Document about Topic` of the file at `path`, each with its
-    /// own topic and the evidence of the document's first block. Returns the
-    /// fact ids.
+    /// `n` LLM facts `Organization decides Decision` of the file at `path` (an organisation `<prefix>负责人`), each with
+    /// its own decision and the evidence of the document's first block. Another organisation (`<prefix>对立`) decides
+    /// each of the decisions by a rule: the facts contradict, which is what D91 asks about when their score is in
+    /// the middle band. Returns the ids of the model's facts.
     pub async fn llm_facts(&mut self, path: &str, n: usize, bp: i32) -> Vec<String> {
         self.llm_facts_named(path, "议题", n, bp).await
     }
 
-    /// [`Self::llm_facts`] with topics named `<prefix>NNN`.
+    /// [`Self::llm_facts`] with decisions named `<prefix>NNN`.
     pub async fn llm_facts_named(
+        &mut self,
+        path: &str,
+        prefix: &str,
+        n: usize,
+        bp: i32,
+    ) -> Vec<String> {
+        use oo_docs::extract::model::EntityType;
+        use oo_docs::resolve::normalize::{entity_key, fact_key, norm};
+        let doc_id: String = sqlx::query_scalar(
+            "SELECT id::text FROM _oo_docs.entity WHERE type = 'Document' AND canonical_name = $1",
+        )
+        .bind(path)
+        .fetch_one(&mut self.admin)
+        .await
+        .unwrap();
+        let ev: (String, String, String, String, String) = sqlx::query_as(
+            "SELECT ev.version_id::text, ev.b3, ev.block_id, ev.anchor::text, ev.quote_b3 \
+               FROM _oo_docs.evidence ev WHERE ev.target_kind = 'entity' AND ev.target_id = $1::uuid \
+              ORDER BY ev.block_id LIMIT 1",
+        )
+        .bind(&doc_id)
+        .fetch_one(&mut self.admin)
+        .await
+        .unwrap();
+        let who = format!("{prefix}负责人");
+        let skey = entity_key(EntityType::Organization, None, &norm(&who), None);
+        sqlx::query(
+            "INSERT INTO _oo_docs.entity (id, key, type, canonical_name, norm_name) \
+             VALUES (gen_random_uuid(), $1, 'Organization', $2, $3) ON CONFLICT (key) DO NOTHING",
+        )
+        .bind(&skey)
+        .bind(&who)
+        .bind(norm(&who))
+        .execute(&mut self.admin)
+        .await
+        .unwrap();
+        let other = format!("{prefix}对立");
+        let okey = entity_key(EntityType::Organization, None, &norm(&other), None);
+        sqlx::query(
+            "INSERT INTO _oo_docs.entity (id, key, type, canonical_name, norm_name) \
+             VALUES (gen_random_uuid(), $1, 'Organization', $2, $3) ON CONFLICT (key) DO NOTHING",
+        )
+        .bind(&okey)
+        .bind(&other)
+        .bind(norm(&other))
+        .execute(&mut self.admin)
+        .await
+        .unwrap();
+        let mut ids = Vec::new();
+        for i in 0..n {
+            let name = format!("{prefix}{i:03}");
+            let tkey = entity_key(EntityType::Decision, None, &norm(&name), None);
+            sqlx::query(
+                "INSERT INTO _oo_docs.entity (id, key, type, canonical_name, norm_name) \
+                 VALUES (gen_random_uuid(), $1, 'Decision', $2, $3) ON CONFLICT (key) DO NOTHING",
+            )
+            .bind(&tkey)
+            .bind(&name)
+            .bind(norm(&name))
+            .execute(&mut self.admin)
+            .await
+            .unwrap();
+            let fkey = fact_key(&skey, "decides", Some(&tkey), None, None);
+            let fid: String = sqlx::query_scalar(
+                "INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, \
+                    object_id, original_object_id, confidence_bp, origin, status) \
+                 SELECT gen_random_uuid(), $1, s.id, s.id, 'decides', t.id, t.id, $3, 'llm', 'draft' \
+                   FROM _oo_docs.entity t, _oo_docs.entity s WHERE t.key = $4 AND s.key = $2 RETURNING id::text",
+            )
+            .bind(&fkey)
+            .bind(&skey)
+            .bind(bp)
+            .bind(&tkey)
+            .fetch_one(&mut self.admin)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, block_id, anchor, \
+                                                quote_b3, origin) \
+                 VALUES (gen_random_uuid(), 'fact', $1::uuid, $2::uuid, $3, $4, $5::jsonb, $6, 'llm')",
+            )
+            .bind(&fid)
+            .bind(&ev.0)
+            .bind(&ev.1)
+            .bind(&ev.2)
+            .bind(&ev.3)
+            .bind(&ev.4)
+            .execute(&mut self.admin)
+            .await
+            .unwrap();
+            // The rule's claim for the same decision by someone else, with the same evidence.
+            let rkey = fact_key(&okey, "decides", Some(&tkey), None, None);
+            let rid: String = sqlx::query_scalar(
+                "INSERT INTO _oo_docs.fact (id, fact_key, subject_id, original_subject_id, predicate, \
+                    object_id, original_object_id, confidence_bp, origin, rule_id, status) \
+                 SELECT gen_random_uuid(), $1, s.id, s.id, 'decides', t.id, t.id, 9800, 'rule', 'fm.fields', 'draft' \
+                   FROM _oo_docs.entity t, _oo_docs.entity s WHERE t.key = $3 AND s.key = $2 RETURNING id::text",
+            )
+            .bind(&rkey)
+            .bind(&okey)
+            .bind(&tkey)
+            .fetch_one(&mut self.admin)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO _oo_docs.evidence (id, target_kind, target_id, version_id, b3, block_id, anchor, \
+                                                quote_b3, origin) \
+                 VALUES (gen_random_uuid(), 'fact', $1::uuid, $2::uuid, $3, $4, $5::jsonb, $6, 'rule')",
+            )
+            .bind(&rid)
+            .bind(&ev.0)
+            .bind(&ev.1)
+            .bind(&ev.2)
+            .bind(&ev.3)
+            .bind(&ev.4)
+            .execute(&mut self.admin)
+            .await
+            .unwrap();
+            ids.push(fid);
+        }
+        ids
+    }
+
+    /// `n` LLM facts `Document about Topic` of the file at `path`, each with its
+    /// own topic (a topical link: D91 holds it as a candidate, never asks) and the evidence of the document's first block. Returns the
+    /// fact ids.
+    pub async fn llm_topic_facts(&mut self, path: &str, n: usize, bp: i32) -> Vec<String> {
+        self.llm_topic_facts_named(path, "议题", n, bp).await
+    }
+
+    /// [`Self::llm_topic_facts`] with topics named `<prefix>NNN`.
+    pub async fn llm_topic_facts_named(
         &mut self,
         path: &str,
         prefix: &str,
@@ -397,6 +530,32 @@ impl Fx {
             ids.push(fid);
         }
         ids
+    }
+
+    /// A live Share uses every fact there is now (D97: a supersession is asked only when a Share uses what it ends).
+    pub async fn share_uses_every_fact(&mut self) {
+        let (pack, share) = (uuid(), uuid());
+        for sql in [
+            format!(
+                "INSERT INTO _oo_docs.context_pack (id, version_n, drive_id, scope_sha256, params_sha256, compiler, \
+                   pack_digest, snapshot_sha256, manifest, tokens_brief, trimmed, blocked_facts, blocked_entities) \
+                 VALUES ('{pack}', 1, '{DRIVE}', 's', 'p', 'c', '{h}', 's', '{{}}', 1, '{{}}', 0, 0)",
+                h = "a".repeat(64)
+            ),
+            format!(
+                "INSERT INTO _oo_docs.share (id, pack_id, drive_id, scope, role, budget, status, grantor, mount_ref, expires_at) \
+                 VALUES ('{share}', '{pack}', '{DRIVE}', '[]', 'viewer', 1000, 'active', 'owner', 'm', now() + interval '1 day')"
+            ),
+            format!(
+                "INSERT INTO _oo_docs.share_fact_use (share_id, fact_id, section, precision) \
+                 SELECT '{share}', id, 'all', 'full' FROM _oo_docs.fact"
+            ),
+        ] {
+            sqlx::query(sqlx::AssertSqlSafe(sql))
+                .execute(&mut self.admin)
+                .await
+                .unwrap();
+        }
     }
 
     pub async fn finish(self, db: &str) {

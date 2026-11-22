@@ -98,6 +98,9 @@ pub struct LlmInput<'a> {
     pub ir: &'a DocIr,
     /// Entities the Drive already knows, `Type:name` (at most 50 are sent).
     pub known: Vec<Known>,
+    /// Terms and Things the Drive's rules define (`Type:name`): a glossary entry, a rejected or tried alternative. They
+    /// do not go into the prompt; the quality gate (D96) takes them as defined.
+    pub defined: Vec<Known>,
     /// Open types a person promoted (`review::promotion::constrained_types`); they constrain the prompt and are
     /// part of the prompt version.
     pub types: Vec<ConstrainedType>,
@@ -117,6 +120,8 @@ pub struct RunStats {
     pub schema_invalid: u32,
     pub failed_batches: u32,
     pub dropped: Dropped,
+    /// What the entity quality gate (D90) left out of the model's output.
+    pub quality: crate::extract::quality::QualityStats,
     /// The file's own cap stopped the model (`DOCS_EXTRACT_LLM_LIMIT_FILE`).
     pub file_limited: bool,
     /// The Drive's daily cap stopped the model (`DOCS_EXTRACT_LLM_LIMIT_DRIVE`).
@@ -318,11 +323,15 @@ pub async fn extract_llm(
     for k in &keys {
         h.update(k.as_bytes());
     }
+    // The gate reads `llm` to tell the model's output from the rules', so it is set first.
     let mut x = col.finish(input.path);
     x.llm = Some(LlmMeta {
         prompt_version: version,
         extraction_key: h.finalize().to_hex().to_string(),
     });
+    let admitted: Vec<Known> = input.known.iter().chain(&input.defined).cloned().collect();
+    let (x, quality) = crate::extract::quality::gate(x, input.ir, &admitted);
+    stats.quality = quality;
     Ok((x, stats))
 }
 

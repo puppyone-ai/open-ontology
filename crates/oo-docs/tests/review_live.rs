@@ -196,7 +196,10 @@ async fn reject_edit_and_overlays_survive_re_extraction() {
     let db = "oo_docs_rev_overlay";
     let mut fx = Fx::new(db).await;
     // name.version only proposes: queued as supersede_candidate.
-    fx.index_md("Proposals/方案.md", "# 方案\n\n内容\n").await;
+    fx.index_md("Proposals/方案.md", "# 方案\n\n负责人：陈子墨\n")
+        .await;
+    fx.publish().await;
+    fx.share_uses_every_fact().await;
     fx.index_md("Proposals/方案-v2.md", "# 方案\n\n内容\n")
         .await;
     fx.publish().await;
