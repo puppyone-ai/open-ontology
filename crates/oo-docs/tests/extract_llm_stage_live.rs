@@ -404,9 +404,9 @@ async fn the_model_configuration_takes_references_and_never_a_key() {
 #[tokio::test]
 #[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
 async fn a_file_whose_only_facts_wait_for_a_person_is_still_published() {
-    // The rules find nothing in this file; the model's two facts are held for
-    // review (a new entity pair lands under the threshold). The file must not
-    // stay `indexed` for ever: pending_review counts them (10 4.2).
+    // The rules find nothing in this file; the model's fact is a guess that waits as a candidate (a new entity
+    // pair lands under the threshold; D91: nothing contradicts it, so no question is asked either). The file must
+    // not stay `indexed` for ever.
     let reply = json!({
         "entities": [
             {"id": "e1", "type": "Person", "name": "韩立", "block_id": "{{BLOCK:韩立}}", "quote": "韩立负责灯塔", "confidence": "medium"},
@@ -442,14 +442,14 @@ async fn a_file_whose_only_facts_wait_for_a_person_is_still_published() {
         .await,
         1
     );
-    assert!(
+    assert_eq!(
         count(
             &e,
             "SELECT count(*) FROM _oo_docs.review_item WHERE status = 'pending'"
         )
-        .await
-            >= 1,
-        "the held fact waits for a person"
+        .await,
+        0,
+        "a held guess nothing contradicts is not a question (D91)"
     );
     e.finish().await;
 }

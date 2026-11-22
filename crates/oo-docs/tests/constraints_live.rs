@@ -160,7 +160,7 @@ async fn rule_certain_supersession_is_not_a_violation_and_decisions_have_one_sta
         fx.index_md(
             path,
             &format!(
-                "---\ntype: decision\ndate: 2026-03-01\nstatus: {status}\n---\n\n# 定价\n\n内容\n"
+                "---\ntype: decision\ndate: 2026-03-01\nstatus: {status}\n---\n\n# 定价采用阶梯方案\n\n内容\n"
             ),
         )
         .await;

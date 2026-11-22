@@ -395,7 +395,8 @@ async fn store_resolved(
                 .bind(f.valid_to.as_deref())
                 .bind(f.valid_precision)
                 .bind(i32::from(f.confidence_bp))
-                .bind(if src.origin == "rule" {
+                // A rule's id, or the program's mark on a model statement whose quote it verified (D91).
+                .bind(if src.origin == "rule" || f.rule_id == "llm.verified" {
                     Some(f.rule_id)
                 } else {
                     None

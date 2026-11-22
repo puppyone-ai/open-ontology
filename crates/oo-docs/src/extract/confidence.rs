@@ -45,7 +45,8 @@ pub struct Signals {
     /// The model's statement, checked by the program: the quote names both ends and the model did not say `low`
     /// (rule id `llm.verified`). D91: such a statement needs no person unless another claim contradicts it.
     pub verified: bool,
-    /// Another live fact makes the opposite claim (a second owner of the same thing).
+    /// Another live fact claims the same thing for someone else (a second owner or decider of the same object
+    /// over an overlapping time).
     pub conflicted: bool,
 }
 

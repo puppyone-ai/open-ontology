@@ -85,15 +85,16 @@ pub fn classify(
     }
     let class = match disposition(bp, th.auto_publish_bp, th.queue_min_bp) {
         Disposition::Auto => Class::Eligible,
-        // D91: a question for a person only when the answer changes what the Drive says. A statement whose
-        // quote the program verified publishes; a topical link (`about`, `mentions`) or an unverified guess
-        // stays a candidate on the entity page; two claims that contradict each other are asked.
+        // D91: a question for a person only when the answer changes what the Drive says. A relation another fact
+        // contradicts (a second owner or decider of the same thing) is asked, with both claims; a relation whose
+        // quote the program verified publishes; a topical link (`about`, `mentions`), a property and a guess
+        // nothing contradicts stay candidates on the entity page and are never queued. Two owners of one project
+        // are also asked by the integrity constraints (D57).
         Disposition::Queue => {
-            let relation =
-                !matches!(predicate, "about" | "mentions") && !predicate.starts_with("attr.");
-            if signals.conflicted && origin != Origin::Rule {
-                Class::Queue("claim_conflict")
-            } else if signals.verified && relation && bp >= VERIFIED_MIN_BP {
+            let relation = !matches!(predicate, "about" | "mentions") && !predicate.starts_with("attr.");
+            if relation && signals.conflicted {
+                Class::Queue("low_confidence")
+            } else if relation && signals.verified && bp >= VERIFIED_MIN_BP {
                 Class::Eligible
             } else {
                 Class::Hold
@@ -148,12 +149,13 @@ pub async fn classify_drafts(
                 (CASE WHEN f.origin = 'llm' \
                       THEN ((sj.type <> 'Document' AND {file_s}) OR (f.object_id IS NOT NULL AND {file_o})) \
                       ELSE ({once_s} OR (f.object_id IS NOT NULL AND {once_o})) END) AS single_entity, \
-                (f.rule_id = 'llm.verified') AS verified, \
-                (f.predicate = 'owns' AND f.object_id IS NOT NULL AND EXISTS ( \
+                COALESCE(f.rule_id = 'llm.verified', false) AS verified, \
+                (f.predicate IN ('owns', 'decides') AND f.object_id IS NOT NULL AND EXISTS ( \
                     SELECT 1 FROM _oo_docs.fact g WHERE g.id <> f.id AND g.predicate = f.predicate \
                        AND g.object_id = f.object_id AND g.subject_id <> f.subject_id \
-                       AND g.status IN ('draft', 'published') AND g.valid_to IS NULL AND f.valid_to IS NULL \
-                       AND COALESCE(g.valid_from, f.valid_from) IS NOT DISTINCT FROM COALESCE(f.valid_from, g.valid_from))) AS conflicted, \
+                       AND g.status IN ('draft', 'published') \
+                       AND (g.valid_to IS NULL OR f.valid_from IS NULL OR g.valid_to > f.valid_from) \
+                       AND (f.valid_to IS NULL OR g.valid_from IS NULL OR f.valid_to > g.valid_from))) AS conflicted, \
                 (EXISTS (SELECT 1 FROM _oo_docs.entity s WHERE s.id = f.subject_id AND {held_speaker}) \
                  OR {held_reprocess}) AS speaker_held, \
                 EXISTS (SELECT 1 FROM _oo_docs.overlay_current v WHERE v.binds = f.fact_key \
@@ -356,7 +358,7 @@ mod tests {
             run(Origin::Llm, None, "owns", 8500, false, false).1,
             Class::Eligible
         );
-        // D91: an unverified guess in the band is a candidate on the entity page, not a question.
+        // D91: a guess nothing contradicts is a candidate, not a question.
         assert_eq!(
             run(Origin::Llm, None, "owns", 7000, false, false).1,
             Class::Hold
@@ -465,37 +467,23 @@ mod tests {
     }
 
     fn with(signals: Signals, pred: &str, base: i32) -> Class {
-        classify(
-            Origin::Llm,
-            Some("llm.verified"),
-            pred,
-            base,
-            signals,
-            false,
-            false,
-            Thresholds::default(),
-        )
-        .1
+        classify(Origin::Llm, Some("llm.verified"), pred, base, signals, false, false, Thresholds::default()).1
     }
 
     #[test]
-    fn a_verified_statement_publishes_a_topical_link_and_a_clash_do_not() {
-        let v = Signals {
-            verified: true,
-            ..Signals::default()
-        };
+    fn a_verified_relation_publishes_and_only_a_clash_is_asked() {
+        let v = Signals { verified: true, ..Signals::default() };
         assert_eq!(with(v, "owns", 7000), Class::Eligible);
         assert_eq!(with(v, "decides", 7500), Class::Eligible);
-        // Below the verified floor, or only a topic: held, not asked.
+        // Verified but below the floor, or only a topic: a candidate on the entity page, not a question.
         assert_eq!(with(v, "owns", 6500), Class::Hold);
         assert_eq!(with(v, "about", 7500), Class::Hold);
+        assert_eq!(with(Signals::default(), "about", 7500), Class::Hold);
         assert_eq!(with(Signals::default(), "owns", 7500), Class::Hold);
-        // Two owners of one thing: asked, with both claims.
-        let clash = Signals {
-            verified: true,
-            conflicted: true,
-            ..Signals::default()
-        };
-        assert_eq!(with(clash, "owns", 7500), Class::Queue("claim_conflict"));
+        // Another claim for the same thing: asked, verified or not; a topical link never is.
+        let clash = Signals { conflicted: true, ..Signals::default() };
+        assert_eq!(with(clash, "decides", 7500), Class::Queue("low_confidence"));
+        assert_eq!(with(Signals { verified: true, ..clash }, "owns", 7500), Class::Queue("low_confidence"));
+        assert_eq!(with(clash, "about", 7500), Class::Hold);
     }
 }
