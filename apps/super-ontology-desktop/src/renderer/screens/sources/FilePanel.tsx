@@ -6,8 +6,10 @@ import { ErrorText } from "../shared/ErrorText";
 import { useFileDetail } from "../../model/details/useFileDetail";
 import { formatBytes } from "../../model/format";
 import { useSuperDriveActions, useSuperDriveSelector } from "../../model/SuperDriveProvider";
-import { fileReason, useUnlinkedText } from "../../model/unlinked";
-import { useProfileText } from "../../model/profile";
+import type { SuperDriveError } from "../../model/superDriveErrors";
+import { profileOf, reasonOf, useClassText, useProfileText } from "../../model/profile";
+import { setProfileOverride } from "../../model/profileOverride";
+import { AUTO_PROFILE, ProfileSelect } from "./ProfileSelect";
 import { fileView, TONE, useFileStateText } from "./fileView";
 
 /** What the engine made of one file: state and why, size, and the entities it contributed to. Retry is offered when it can help. */
@@ -17,10 +19,20 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
   const actions = useSuperDriveActions();
   const stateText = useFileStateText();
   const profileText = useProfileText();
-  const reasonText = useUnlinkedText();
+  const classText = useClassText();
   const record = useSuperDriveSelector((s) => s.files[fileId] ?? null);
   const { detail, error, loading } = useFileDetail(fileId);
   const [retrying, setRetrying] = useState(false);
+  const [classifying, setClassifying] = useState(false);
+  const [classError, setClassError] = useState<SuperDriveError | null>(null);
+  /** The engine reclassifies the file and extracts it again (it goes outdated and back); the record follows by events. */
+  const classify = async (profile: Parameters<typeof setProfileOverride>[0]["profile"]) => {
+    if (!record) return;
+    setClassifying(true); setClassError(null);
+    const result = await setProfileOverride({ driveId: record.drive_id, scope: "file", path: record.path, profile });
+    if (!result.ok) setClassError(result.error);
+    setClassifying(false);
+  };
   const view = record ? fileView(record) : null;
   const retry = async () => { setRetrying(true); await actions.retryFiles([fileId]); setRetrying(false); };
 
@@ -39,14 +51,17 @@ export function FilePanel({ fileId, onClose }: { fileId: string; onClose: () => 
           { label: t("app.sources.col.size"), value: formatBytes(record.size, t$) || "–" },
           { label: t("app.sources.col.modified"), value: record.modified_at ? formatDate(new Date(record.modified_at), { dateStyle: "medium", timeStyle: "short" }) : "–" },
           { label: t("app.sources.panel.profile"), value: <span data-testid="file-detail-profile">{profileText(record)}</span> },
+          { label: t("app.sources.panel.class"), value: <span data-testid="file-detail-class">{classText.name(record)}</span> },
           ...(record.format ? [{ label: t("app.sources.panel.format"), value: record.format }] : []),
         ]} />
       )}
-      {detail && (() => {
-        const held = (detail as unknown as { entities?: unknown[] }).entities ?? [];
-        const reason = fileReason(record ?? detail, { entities: held.length, connected: true });
-        return reason?.kind === "indexed_only" ? <p className="so-weak" data-testid="file-indexed-only">{reasonText(reason)}</p> : null;
-      })()}
+      {record && (
+        <div className="so-stack">
+          <p className="so-weak" data-testid="file-class-line">{classText.line(record)}</p>
+          <ProfileSelect label={t("app.sources.override.label")} value={reasonOf(record) === "user" ? profileOf(record) : AUTO_PROFILE} disabled={classifying} testId="file-profile-select" onChange={(profile) => { void classify(profile); }} />
+          {classError && <Notice tone="danger" title={t("app.sources.override.failed")}><ErrorText error={classError} /></Notice>}
+        </div>
+      )}
       {loading && !detail && <Skeleton height={12} />}
       {detail && (() => {
         const entities = (detail as unknown as { entities?: Array<{ id: string; name: string }> }).entities ?? [];

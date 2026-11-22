@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
 import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, Notice, PageHeader, ProgressBar, Segmented, Skeleton, StatusDot, Tooltip } from "@open-ontology/design-system";
-import { ArrowLeft, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2, Unlink } from "lucide-react";
+import { ArrowLeft, Tags, ChevronRight, File as FileIcon, FileUp, Folder, MoreHorizontal, RefreshCw, Search, Trash2, Unlink } from "lucide-react";
 import { ErrorText } from "../shared/ErrorText";
 import { useApp } from "../../hooks/useApp";
 import { useDriveFolderPages } from "../../model/browser/useDriveFolderPages";
@@ -13,8 +13,11 @@ import type { SuperDriveError } from "../../model/superDriveErrors";
 import { isUploadActive } from "../../model/queue/uploadQueue";
 import { statesOfGroups, type FileFilterGroup } from "../../model/superDriveStateModel";
 import { driveKindLabelId } from "../Sources";
-import { isIndexedOnly, reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
-import { profileOf, useProfileText } from "../../model/profile";
+import { reasonForRow, useUnlinked, useUnlinkedText } from "../../model/unlinked";
+import { classOf, useClassText } from "../../model/profile";
+import { setProfileOverride } from "../../model/profileOverride";
+import type { FileProfile } from "../../model/profile";
+import { AUTO_PROFILE, ProfileSelect } from "./ProfileSelect";
 import { selectFileActors, selectOntologyVersion } from "../../model/superDriveSelectors";
 import { ActorTag } from "../shared/ActorTag";
 import { useDriveLabel } from "../shared/driveLabel";
@@ -46,7 +49,10 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const folderFilter = useMemo(() => ({ ...(filter === "all" ? {} : { states: statesOfGroups(GROUPS[filter]) }), ...(query.trim() ? { q: query.trim(), recursive: true } : {}) }), [filter, query]);
   const { page, files, initialLoading, loadMore, reload } = useDriveFolderPages(drive.id, path, folderFilter);
   const unlinkedText = useUnlinkedText();
-  const profileText = useProfileText();
+  const classText = useClassText();
+  const [classing, setClassing] = useState(false);
+  const [classBusy, setClassBusy] = useState(false);
+  const [folderProfile, setFolderProfile] = useState<FileProfile | typeof AUTO_PROFILE | "">("");
   const app = useApp();
   const version = useSuperDriveSelector(selectOntologyVersion);
   const actors = useSuperDriveSelector(selectFileActors);
@@ -56,6 +62,16 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
   const failed = useSuperDriveSelector((s) => s.drives.byId[drive.id]?.counts?.parse_failed ?? 0) as number;
   const segments = path ? path.split("/") : [];
   const fresh = drive.freshness?.state;
+
+  /** The engine reclassifies every file under the folder and extracts them again; the list follows by events and is reloaded now. */
+  const applyFolder = async () => {
+    if (folderProfile === "") return;
+    setClassBusy(true);
+    const result = await setProfileOverride({ driveId: drive.id, scope: "dir", path, profile: folderProfile === AUTO_PROFILE ? null : folderProfile });
+    setClassBusy(false);
+    setClassing(false);
+    if (result.ok) reload(); else setError(result.error);
+  };
 
   const sync = async () => {
     setSyncing(true); setError(null);
@@ -83,6 +99,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
             const picked = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; if (picked.length > 0) void getUploadQueue().enqueueFiles(drive.id, path, picked); }} /><Button variant="primary" icon={FileUp} onClick={() => pickFiles.current?.click()}>{t("app.sources.upload")}</Button></>}
           <IconButton ref={menuAnchor} icon={MoreHorizontal} label={t("app.sources.more")} variant="secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} />
           <Menu anchor={menuAnchor} open={menu} onClose={() => setMenu(false)} ariaLabel={t("app.sources.more")} placement="bottom-end">
+            <MenuItem icon={Tags} label={t("app.sources.override.folder")} closeMenu={() => setMenu(false)} onSelect={() => { setFolderProfile(""); setClassing(true); }} />
             <MenuItem icon={Trash2} tone="danger" label={t("app.sources.remove")} closeMenu={() => setMenu(false)} onSelect={() => setRemoving(true)} />
           </Menu>
         </>} />
@@ -138,7 +155,7 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
                   const reason = reasonForRow({ ...file, id: file.id }, unlinked.report);
                   return (
                     <tr key={file.id} data-selectable aria-selected={selected === file.id} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(file.id); } }} onClick={() => setSelected(file.id)} data-testid="file-row" data-name={file.name ?? file.path} data-state={file.state}>
-                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip><ActorTag actor={actors[file.id]} /><span className="so-chip so-weak" data-testid="file-profile" data-profile={profileOf(file)}>{profileText(file)}</span></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}>{!isIndexedOnly(reason) && <Unlink size={12} strokeWidth={1.5} aria-hidden="true" />}{unlinkedText(reason)}{reason.kind === "speaker" && <> <Button size="compact" variant="ghost" data-testid="file-speaker-review" onClick={(e) => { e.stopPropagation(); app.go("ontology", { ontology: "review" }); }}>{t("app.unlinked.speaker.action")}</Button></>}</span>}</td>
+                      <td><span className="so-row"><FileIcon size={16} strokeWidth={1.5} className="so-icon so-weak" aria-hidden="true" /><Tooltip label={file.path}><span className="so-truncate so-grow">{file.name ?? file.path}</span></Tooltip><ActorTag actor={actors[file.id]} /><span className="so-chip so-weak" data-testid="file-profile" data-class={classOf(file)}>{classText.name(file)}</span></span>{reason && <span className="so-file-reason so-weak so-truncate" data-testid="file-unlinked-reason" data-reason={reason.kind}>{reason.kind !== "not_admitted" && <Unlink size={12} strokeWidth={1.5} aria-hidden="true" />}{unlinkedText(reason)}{reason.kind === "speaker" && <> <Button size="compact" variant="ghost" data-testid="file-speaker-review" onClick={(e) => { e.stopPropagation(); app.go("ontology", { ontology: "review" }); }}>{t("app.unlinked.speaker.action")}</Button></>}</span>}</td>
                       <td><span className="so-row"><StatusDot tone={TONE[view.tone]} label={label} pulse={view.busy} />{view.reviewCount > 0 && <Badge tone="warning">{formatNumber(view.reviewCount)}</Badge>}</span></td>
                       <td data-numeric className="so-muted">{formatBytes(file.size, t$)}</td>
                       <td className="so-muted so-truncate">{file.modified_at ? formatDate(new Date(file.modified_at), { dateStyle: "medium" }) : ""}</td>
@@ -153,6 +170,12 @@ export function SourceDetail({ drive, initial = null, onBack }: { drive: Drive; 
         {selected && <FilePanel fileId={selected} onClose={() => setSelected(null)} />}
       </div>
 
+      {classing && (
+        <Dialog size="sm" title={t("app.sources.override.folder.title", { name: path ? path.slice(path.lastIndexOf("/") + 1) : label(drive.name) })} description={t("app.sources.override.folder.body")} onClose={() => setClassing(false)} closeLabel={t("app.common.close")}
+          footer={<><Button variant="ghost" onClick={() => setClassing(false)}>{t("app.common.cancel")}</Button><Button variant="primary" loading={classBusy} disabled={folderProfile === ""} data-testid="folder-profile-apply" onClick={() => { void applyFolder(); }}>{t("app.sources.override.apply")}</Button></>}>
+          <ProfileSelect label={t("app.sources.override.label")} value={folderProfile} testId="folder-profile-select" onChange={(profile) => setFolderProfile(profile ?? AUTO_PROFILE)} />
+        </Dialog>
+      )}
       {removing && (
         <Dialog size="sm" title={t("app.sources.remove.title", { name: drive.name })} description={readOnly ? t("app.sources.remove.body.cloud") : t("app.sources.remove.body.folder")} onClose={() => setRemoving(false)} closeLabel={t("app.common.close")}
           footer={<><Button variant="ghost" onClick={() => setRemoving(false)}>{t("app.common.cancel")}</Button><Button variant="danger" icon={Trash2} onClick={() => { void remove(); }}>{t("app.sources.remove.confirm")}</Button></>} />
