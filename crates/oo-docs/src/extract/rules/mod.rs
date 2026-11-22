@@ -37,6 +37,7 @@ use self::kv::Field;
 use super::model::{
     Collector, EntityRef, EntityType, EvidenceRef, Extraction, FactMention, Predicate,
 };
+use crate::profile::Profile;
 
 /// Version tag stored with every rule fact.
 pub const RULESET_VERSION: &str = "rules/1";
@@ -356,6 +357,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     let path = nfc(path);
     let info: PathInfo = dirs::path_info(&path);
     let blocks = &ir.blocks;
+    // D89: the profile decides what is read. Code and unknown text have no prose to read.
+    let class = crate::profile::classify(&path, ir);
+    let structured = matches!(class.profile, Profile::Code | Profile::Other);
     // Evidence anchors: heading (level 1 first), frontmatter block.
     let h1 = blocks
         .iter()
@@ -377,7 +381,7 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         .map_or_else(|| anchor_ev.clone(), EvidenceRef::from_block);
     let is_text = matches!(ir.format, DocFormat::Md | DocFormat::Txt);
     // md.kv and md.headings read paragraphs and lists of every prose format.
-    let is_prose = !matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx);
+    let is_prose = !matches!(ir.format, DocFormat::Csv | DocFormat::Xlsx) && !structured;
     let fm_map = ir.meta.frontmatter.clone().unwrap_or_default();
     let fm_fields = if is_text {
         frontmatter::fields(&fm_map)
@@ -434,7 +438,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     );
 
     // dir.* / fm.type: the entity the file stands for.
-    let kind: Option<Kind> = if is_text || info.dir != Dir::None {
+    let kind: Option<Kind> = if structured {
+        None
+    } else if is_text || info.dir != Dir::None {
         dirs::classify(
             &info,
             fm_value(Field::Type)
@@ -654,6 +660,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
 
     ctx.block_date = None;
 
+    // The profile extractors (instruction, code, paper): `Thing` candidates registered by the profile.
+    crate::profile::apply(&class, &path, ir, &mut ctx.col);
+
     // dir.terms: definition lists and two column tables.
     if info.dir == Dir::Terms {
         terms(&mut ctx, blocks);
@@ -668,7 +677,9 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
         pptx_title(&mut ctx, blocks);
     }
     name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
-    text_email(&mut ctx, blocks);
+    if !structured {
+        text_email(&mut ctx, blocks);
+    }
     // What speakers say about what they own (the subject is a provisional Person until the speaker is confirmed).
     media::apply(&mut ctx, ir);
 
