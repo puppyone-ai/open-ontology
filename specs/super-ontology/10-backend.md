@@ -1204,32 +1204,26 @@ S4 的兼容性测试把“未确认”逐项变成证据；`compat.rs` 以能�
 
 规则只建核心类型；规则从不建 `Thing`。人名提及的识别规则只用于结构化位置（frontmatter、表格列、kv 行、目录名），正文中的自由人名交给 LLM（无模型时不抽正文人名，这是“不配模型也能用”的代价，评测报告单列）。
 
-#### 5.1.1 文档画像与画像类型集（D89）
+#### 5.1.1 准入：文件类别与处理（D94）
 
-每个文件先判定**画像**，画像决定读法。判定是确定性的，不问模型：路径与文件名约定（`AGENTS.md`、`CLAUDE.md`、`README*`、`CONTRIBUTING*`、`docs/adr/`、风格指南、`meetings/`）、扩展名与已知清单文件名、blob 格式、以及对正文的结构判断（摘要加参考文献或 DOI/arXiv 号判为科研文献；与会人名单判为会议）。画像存于 `_oo_docs.file.profile`（迁移 0156，可空；未抽取过的文件由 API 按路径与格式推出）并出现在 `FileSummary.profile`。
+不是所有文件都进入本体。每个文件先分类，类别决定它是否进入本体、进入多少。**分类先规则、后模型**，顺序固定：用户对该文件或所在目录的设置 → frontmatter（`type:`）→ 文件名 → 扩展名 → 所在目录 → blob 格式 → 内容结构（摘要加参考文献或 DOI/arXiv 号判为文献；与会人名单判为会议）。规则判不了（落到默认的“业务文档”）才交模型一次（名称加正文开头，答六类之一；模型未配置或失败则维持默认）。判定存于 `_oo_docs.file.profile` 与 `profile_reason`（迁移 0156，可空；未抽取过的文件由 API 按路径与格式推出），出现在 `FileSummary.profile`、`profile_reason`、`class`。
 
-| 画像 | `profile` 值 | 读法 |
-|---|---|---|
-| 业务文档 | `business` | §5.1 核心规则与 §5.2 模型补抽（不变） |
-| 会议与访谈 | `meeting` | 同上 |
-| 表格 | `table` | 表格规则（不变） |
-| Agent/工程指令文档 | `instruction` | `profile.rule` 等，下表；不调用模型 |
-| 代码 | `code` | 语法树，下表；不调用模型；不跑散文规则 |
-| 科研文献 | `paper` | 论文规则，下表；模型补抽照常 |
-| 媒体素材 | `media` | 媒体规则（不变） |
-| 其他 | `other` | 只有 Document，不抽实体；仍被索引、可检索 |
+用户可改单个文件或目录（含其下全部）的类别：`GET`/`PUT /v1/docs/drives/{id}/profile-overrides`、`oo docs profile ls|set|clear`、App 的文件详情与文件夹操作；文件自己的设置压过目录的，近的目录压过远的；改后受影响文件按新类别重新抽取（状态经 `outdated` 回到 `published`）。
 
-画像抽取器只建**登记的开放类型**：`Thing{label}`，label 取下表（共 14 个，代码里的 `profile::LABELS`）。登记的 label 不受 §5.1 “规则从不建 `Thing`” 的限制，也不进入类型升格提议（D16 的 ≥5 实例、≥3 文件阈值对它们不适用）；`Thing` 的存储、resolve 与 DOC-G1 不变。关系仍只用核心谓词；规则与符号之间的指向用 `attr.*`（值类型 `text`），不新增谓词。
-
-| 画像 | label 与实体名 | 事实 | 证据 |
+| 类别 | 画像（`profile`） | 例 | 进入本体的方式 |
 |---|---|---|---|
-| `instruction` | `Rule`（一条规则一个条目，名为规则原文的第一句，≤160 字）、`Command`（命令行）、`Tool`（命令的程序名与行文中提到的工具名，小写）、`Path`（行文中的路径，去掉前导 `./` 与结尾 `/`） | `Rule` 的 `attr.uses_tool`、`attr.runs_command`、`attr.applies_to_path`（该规则自己的文字，或紧随其后的代码块里提到的）；文档对每个条目 `mentions`（`doc.entity`） | 规则所在的块（列表项或段落）；命令取代码块或句子所在块 |
-| `code` | `Function`、`Class`、`Type`（struct、enum、trait、interface、type）、`Dependency`（包名，源码导入与清单共用同一实体）、`Package`（清单声明的包）、`Path`（文件所在目录）；符号名为 `文件路径::限定名` | `Package` 的 `attr.depends_on`、`attr.version` | 声明所在的块 |
-| `paper` | `Paper`（标题；自己与被引用的论文同名同实体）、`Person`（作者）、`Venue`、`Method`、`Dataset`、`Metric` | `Paper` 的 `attr.doi`、`attr.arxiv`、`attr.year`；文档对被引论文的 `mentions` 带规则 `paper.cites`，对自己的带 `paper.self` | 作者行、摘要句、参考文献条目所在的块 |
+| 记录类 `record` | `business`、`meeting`、`table` | 会议纪要、决策记录、周报、人员表、项目表、合同 | 按类别模板抽取（§5.1 规则，模型补抽照旧） |
+| 指令类 `instruction` | `instruction` | AGENTS.md、CLAUDE.md、README、CONTRIBUTING、SOP、规范、ADR | **不抽任何实体**，也不跑 §5.1 的散文规则与链接遍。文件作为“指令/工作约定”挂到所在项目或目录：它自己的 Document 上 `attr.class=instruction`、`attr.scope=<所在项目目录>`，并有一条对同名已有 `Project` 的绑定提示（不新建）。项目目录 = 含清单文件（Cargo.toml、package.json、pyproject.toml、go.mod、pom.xml、build.gradle、AGENTS.md、CLAUDE.md、CODEOWNERS）的最近目录。共享给 Agent 时，原文进入 BRIEF 的“工作约定”一节（见下） |
+| 参考类 `reference` | `reference` | 论文、书、文献、外部报告 | 只建**一个**“文献”实例 `Thing{label=Reference}`：标题（实体名）、`attr.year`、`attr.venue`、`attr.doi`、`attr.arxiv`；`authored`（Person → Reference，只用于该文献自己的作者）；`cites`（Reference → Reference，对其参考文献列表里的每条）。被引文献是同一 label 的实例，标题相同则同一实体，所以引用把两个文件连起来。不抽正文实体、不抽被引文献的作者 |
+| 代码 `code` | `code` | 源码、清单、锁文件、CODEOWNERS | 不抽内容；只记结构信息：`attr.class=code`、`attr.scope=<所在项目目录>`，CODEOWNERS 另有 `attr.owners`（其中列出的负责人，原样） |
+| 媒体 `media` | `media` | 录音、视频、图片 | 见 D98 与 §17 |
+| 其他 `other` | `other` | 二进制、素材、数据导出、日志、许可证、更新日志 | 只存档（只有 Document），按文件名可检索 |
 
-代码语言（语法解析器）：Rust、Python、JavaScript、TypeScript/TSX、Go（tree-sitter，MIT，供应链记录见 `supply-chain/tree-sitter-audit.json`）；其他语言与清单之外的文件只得到 `Path`。界限：单个源文件 > 1.5 MB 只索引不解析；每文件最多 40 个符号、40 个导入；清单依赖最多 150；每份指令文档最多 200 条规则、60 条命令、40 个路径；每篇论文最多 200 条引用。不逐行抽事实。
+“不进入本体”是正常状态：文件仍是 `published`，界面显示类别与原因（例如“代码文件，不进入本体”），不显示“文件中没有找到实体”。指令类、代码类、其他类、参考类文件不跑模型补抽，也不参与链接遍与金额日期锚点遍；只有记录类与媒体类跑。
 
-“没有结构化对象”不是失败：文件状态仍是 `published`，界面写“已索引，可检索”，Ask 与知识检索照常引用它的块（D89）。
+两个关系 `cites` 与 `authored` 加入核心关系（D15 的补充，D94 批准；DB 的 `fact.predicate` 检查在 0156 放宽），只由参考类写出；`DOC-G1` 域/值域：`cites` Thing → Thing，`authored` Person → Thing。其余核心类型与关系不变；`Reference` 在 `profile::LABELS` 登记，不进入类型升格提议。
+
+**BRIEF 的“工作约定”一节**：范围内的指令类文件的原文，按块、每块带 `[src:路径#位置]`；先给写给 Agent 的（AGENTS.md、CLAUDE.md、SOP），再是其余，同级按路径深浅；本节上限为预算的 20%，超出的文件注明“其余内容超出本节预算，见原文”；范围外的文件不会出现（可见性与泄漏守卫同其余章节）。范围内没有指令类文件时，整节省略。
 
 ### 5.2 LLM 补抽
 
