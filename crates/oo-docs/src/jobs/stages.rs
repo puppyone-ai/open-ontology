@@ -1551,6 +1551,10 @@ impl JobHandler for ExtractLlmHandler {
                 let types = crate::review::promotion::constrained_types(&mut conn)
                     .await
                     .unwrap_or_default();
+                // D93: a record file of a class with a confirmed structure is read against its slots only.
+                let class = crate::structure::store::template_for(&mut conn, &s.drive_id, &ir)
+                    .await
+                    .unwrap_or(None);
                 let input = LlmInput {
                     drive_id: &s.drive_id,
                     path: &s.path,
@@ -1559,16 +1563,22 @@ impl JobHandler for ExtractLlmHandler {
                     known,
                     calls_used,
                     types,
+                    template: class
+                        .as_ref()
+                        .map(crate::structure::template::prompt_section),
                 };
                 let limits = Limits {
                     daily,
                     ..Limits::default()
                 };
-                let (x, stats) =
+                let (mut x, stats) =
                     match extract_llm(&mut conn, &self.cas, &*port, limits, &input).await {
                         Ok(r) => r,
                         Err(e) => return db_fail(e),
                     };
+                if let Some(c) = &class {
+                    crate::structure::template::constrain_llm(&mut x, c);
+                }
                 let doc = DocumentInput {
                     version_id: &s.version_id,
                     b3: &s.b3,
@@ -1969,6 +1979,17 @@ impl JobHandler for PublishHandler {
                 let _ = crate::review::overlay::sweep_orphans(&mut c).await;
                 // Open types that reached the thresholds become `type_promotion` items (D16).
                 let _ = crate::review::promotion::propose(&mut c).await;
+                // D93: the structure layer follows the files (a change is a schema version; new properties of a
+                // confirmed class are proposals).
+                let drives: Vec<String> = sqlx::query_scalar(
+                    "SELECT id::text FROM _oo_docs.drive WHERE status = 'active'",
+                )
+                .fetch_all(&mut *c)
+                .await
+                .unwrap_or_default();
+                for d in drives {
+                    let _ = crate::structure::store::induce_drive(&mut c, &d).await;
+                }
             }
             let n = match n {
                 Some(n) => Some(n),

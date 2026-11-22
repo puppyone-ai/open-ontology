@@ -103,6 +103,9 @@ pub struct LlmInput<'a> {
     pub types: Vec<ConstrainedType>,
     /// Calls this file version already used (from the checkpoint).
     pub calls_used: u32,
+    /// D93: the slots of the confirmed structure of the file's class (`structure::template::prompt_section`); the
+    /// model fills only these.
+    pub template: Option<String>,
 }
 
 /// What the run did.
@@ -181,7 +184,13 @@ pub async fn extract_llm(
     };
     'batches: for batch in batches(input.ir) {
         stats.batches += 1;
-        let key = cache_key(&model, &input.known, &input.types, &batch);
+        let key = cache_key(
+            &model,
+            &input.known,
+            &input.types,
+            input.template.as_deref(),
+            &batch,
+        );
         let ids: BTreeSet<&str> = batch.blocks.iter().map(|b| b.id.as_str()).collect();
         // 1. cache
         if let Some((b3, outcome)) = cache_get(conn, &key).await? {
@@ -207,6 +216,7 @@ pub async fn extract_llm(
             &format,
             &input.known,
             &input.types,
+            input.template.as_deref(),
             &batch,
         );
         let mut parsed: Option<LlmOutput> = None;
