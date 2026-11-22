@@ -32,15 +32,15 @@
     "note": "docs-engine runtime image: oo-docs-engine built from this repository by deploy/docs/Dockerfile.engine on the python base digest above",
     "platforms": {
       "linux/arm64": {
-        "image": "sha256:35c90e6b71acd950952fc6562692f913348d3268639674299506c86d96922935",
-        "tag": "oo-docs-engine:dev-ae5",
-        "size_bytes": 288836336,
+        "image": "sha256:0d9e99be1b5be8a7c92b4d6becd783beb042ab323156d47c0fd7bd06b00ef028",
+        "tag": "oo-docs-engine:dev-ae6",
+        "size_bytes": 292197132,
         "dockerfile_sha256": "4ffa0f4862d76630dfa5e903463a2fb8b0f8bf294547d2679324c5f2dabea20d",
         "cargo_lock_sha256": "5ad8011d317bfea61e6e84e6489c1d7cfa7e526567b5e8a98c4ff52bcd096465",
-        "lane": "super-ontology-ae5",
-        "built": "2026-11-21",
-        "built_from": "so/AE5-final at 589c16d4e (feat/super-ontology ff4a03dbd); engine with migration 0154 (no per-Drive file cap, job_file index), drive-scale fixes and the new ignore rules",
-        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae5 --build-arg OO_LANE=super-ontology-ae5 -t oo-docs-engine:dev-ae5 ."
+        "lane": "super-ontology-ae6",
+        "built": "2026-11-22",
+        "built_from": "so/AE6-final at feat/super-ontology 36df993e8 plus two test fixes; engine with the structure layer (0160), file classes (0159), media class and placeholder speakers (0157), D96/D97 eligibility and minimal review, language-routed media parser interface",
+        "build_note": "docker build -f deploy/docs/Dockerfile.engine --label oo.lane=super-ontology-ae6 --build-arg OO_LANE=super-ontology-ae6 -t oo-docs-engine:dev-ae6 ."
       },
       "linux/amd64": null
     }
@@ -60,18 +60,20 @@
     "adapter_version": "2"
   },
   "media_parser": {
-    "image": "sha256:9709aa9a11f6f49194ff9b8dc1b354e539e64f66d87d47175132f4397e138919",
-    "tag": "oo-docs-media-parser:dev",
-    "size_bytes": 1151980041,
+    "image": "sha256:2673270301251b21b2d0c1581f30a789c3b4b5d534d57bac5942d887bd6b67f3",
+    "tag": "oo-docs-media-parser:dev-asr",
+    "size_bytes": 1476352628,
     "platform": "linux/arm64",
-    "lane": "super-ontology-bint",
+    "lane": "super-ontology-ae6",
     "dockerfile_sha256": "cfbf65675cfbfc3689a273b1b669b30e8bcac472cc2d776733df6da30a5bc310",
-    "requirements_lock_sha256": "482ee1cde8cb994d63a3001a5f3b526f49b331fe7868a1f4b77340ed6cbe14cb",
-    "models_lock_sha256": "004e9921aa5b2f9182412288098dbf5ac979672166afcc712c6fa5f698bf7265",
+    "requirements_lock_sha256": "49ef650e2209e463b2c6520907cc8fba46c40c79dd5e74b3f26c6dcb6a601ee8",
+    "models_lock_sha256": "b8d31db33a73910948d511f26a81aa5bd95ca932cc1421f781970cddaa9976bf",
     "ffmpeg": "9.0.2 own LGPL decode-only build, source sha256 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
     "sbom": "testing/super-ontology/evidence/L6/sbom-media-parser.json",
     "sbom_gate": "pass (reviews: tools/ocr-parser/license-reviews.json)",
-    "note": "dev = the day-one image plus one layer with media_parser/, video/ and asr/ copied from the tree (asr/pipeline.py gained the cached-chunk flag fix after the dev-be2 layer); the image's *.py files match tools/media-parser byte for byte"
+    "note": "oo-docs-media-parser:dev plus one layer (tools/media-parser/Dockerfile.asr-layer): sherpa-onnx and sherpa-onnx-core from requirements.lock (--require-hashes), the Whisper base weights in /opt/models/whisper-base, and media_parser/, asr/, video/, doc_parser/ and models.lock.json copied from the tree at 36df993e8 (spectral diarization, pre-parse skip, language routing). The full Dockerfile build also compiles FFmpeg and OpenCV and needs the campplus export, so it was not rerun. The SBOM of L6 was not regenerated for the two new wheels (follow-up).",
+    "layer_dockerfile_sha256": "9b8891799267b9df813c2a2c95ddb6c867f7d5ee0390216c0618eaf8ea18084e",
+    "asr": "Paraformer-zh plus Whisper base (MIT, sherpa-onnx int8 export, weights pinned by sha256 in models.lock.json) routed by language per chunk; sherpa-onnx 2.0.1 (Apache-2.0), hashes in requirements.lock; review: supply-chain/media-asr-model-reviews.json"
   },
   "docs_db_vectors": {
     "image": "sha256:69e200637d00744f889cb619d4a3cc9b233086d011131604c3d17cbf8905a97b",
