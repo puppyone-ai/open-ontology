@@ -23,6 +23,7 @@ pub mod frontmatter;
 pub mod headings;
 pub mod kv;
 pub mod media;
+pub mod media_class;
 pub mod tables;
 pub mod text;
 
@@ -297,6 +298,9 @@ fn clip(s: &str, max: usize) -> String {
 pub struct Siblings<'a> {
     /// Drive-relative NFC paths of live files (any directory).
     pub paths: &'a [String],
+    /// What the Drive already decided about a recording (a model's or a person's verdict stored for its blob);
+    /// `None` leaves it to the rules' own classification.
+    pub media: Option<media_class::MediaClass>,
 }
 
 /// The default `valid_from` of the facts of one file, with its precision:
@@ -670,7 +674,10 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
     text_email(&mut ctx, blocks);
     // What speakers say about what they own (the subject is a provisional Person until the speaker is confirmed).
-    media::apply(&mut ctx, ir);
+    let media_class = siblings
+        .media
+        .unwrap_or_else(|| media_class::classify(ir, &path).class);
+    media::apply(&mut ctx, ir, media_class);
 
     // doc.entity: the Document mentions every other entity found in the file. A
     // Decision is a record the document states or defines, not a name it mentions.

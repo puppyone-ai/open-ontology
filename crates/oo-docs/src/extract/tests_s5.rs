@@ -266,7 +266,14 @@ fn name_version_proposes_supersession_of_the_older_sibling() {
         "Proposals/星图方案-v2.md".to_owned(),
         "Other/星图方案.md".to_owned(),
     ];
-    let x = extract_in("Proposals/星图方案-v3.md", &ir, &Siblings { paths: &sibs });
+    let x = extract_in(
+        "Proposals/星图方案-v3.md",
+        &ir,
+        &Siblings {
+            paths: &sibs,
+            ..Siblings::default()
+        },
+    );
     let doc = e(EntityType::Document, "Proposals/星图方案-v3.md");
     let old = e(EntityType::Document, "Proposals/星图方案-v2.md");
     let f = fact(&x, &doc, &Predicate::Supersedes, &old).expect("supersedes v2");
@@ -279,7 +286,14 @@ fn name_version_proposes_supersession_of_the_older_sibling() {
             .all(|f| f.predicate != Predicate::Supersedes)
     );
     // The unmarked file never supersedes anything.
-    let base = extract_in("Proposals/星图方案.md", &ir, &Siblings { paths: &sibs });
+    let base = extract_in(
+        "Proposals/星图方案.md",
+        &ir,
+        &Siblings {
+            paths: &sibs,
+            ..Siblings::default()
+        },
+    );
     assert!(
         base.facts
             .iter()
