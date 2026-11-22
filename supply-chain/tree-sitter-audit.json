@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "plan": "SO-B-S22-20",
+  "exception": null,
+  "packages": [
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter",
+      "version": "0.26.13",
+      "official_source": "https://crates.io/crates/tree-sitter/0.26.13",
+      "repository": "https://github.com/tree-sitter/tree-sitter",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2026-08-23T09:07:27Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-0.26.13/LICENSE",
+          "sha256": "c5cfb43042b6b72045f4ba997834d0a7786d2793d91680868b5815b39f14fc78"
+        }
+      ],
+      "digest": "sha256:17ebdd3a5a7e28a1890b876fdbd0c3c0fe0a6336cffaa104f11b9f720c9daa29",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": true
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-rust",
+      "version": "0.24.2",
+      "official_source": "https://crates.io/crates/tree-sitter-rust/0.24.2",
+      "repository": "https://github.com/tree-sitter/tree-sitter-rust",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2026-03-27T21:08:58Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-rust-0.24.2/LICENSE",
+          "sha256": "31d5b6f4243d5c7c6e1c4ebbbb9f6407bd1457a08bcc4f706521710341acba36"
+        }
+      ],
+      "digest": "sha256:439e577dbe07423ec2582ac62c7531120dbfccfa6e5f92406f93dd271a120e45",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-python",
+      "version": "0.23.6",
+      "official_source": "https://crates.io/crates/tree-sitter-python/0.23.6",
+      "repository": "https://github.com/tree-sitter/tree-sitter-python",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2024-12-22T23:06:44Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-python-0.23.6/LICENSE",
+          "sha256": "d724405ce238a22c0d35769c5a36b386ad5958192efe8bbb304fb2896254575f"
+        }
+      ],
+      "digest": "sha256:3d065aaa27f3aaceaf60c1f0e0ac09e1cb9eb8ed28e7bcdaa52129cffc7f4b04",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-javascript",
+      "version": "0.23.1",
+      "official_source": "https://crates.io/crates/tree-sitter-javascript/0.23.1",
+      "repository": "https://github.com/tree-sitter/tree-sitter-javascript",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2024-11-10T05:38:58Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-javascript-0.23.1/LICENSE",
+          "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1"
+        }
+      ],
+      "digest": "sha256:bf40bf599e0416c16c125c3cec10ee5ddc7d1bb8b0c60fa5c4de249ad34dc1b1",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "official_source": "https://crates.io/crates/tree-sitter-typescript/0.23.2",
+      "repository": "https://github.com/tree-sitter/tree-sitter-typescript",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2024-11-11T02:33:46Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-typescript-0.23.2/LICENSE",
+          "sha256": "49bf33cf78ef5897e4e161ce1517df7de1ae5042a65b6bcfd44401e0fc606559"
+        }
+      ],
+      "digest": "sha256:6c5f76ed8d947a75cc446d5fccd8b602ebf0cde64ccf2ffa434d873d7a575eff",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-go",
+      "version": "0.25.0",
+      "official_source": "https://crates.io/crates/tree-sitter-go/0.25.0",
+      "repository": "https://github.com/tree-sitter/tree-sitter-go",
+      "manifests": [
+        "crates/oo-docs/Cargo.toml"
+      ],
+      "publication_date": "2025-08-29T06:18:13Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-go-0.25.0/LICENSE",
+          "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1"
+        }
+      ],
+      "digest": "sha256:c8560a4d2f835cc0d4d2c2e03cbd0dde2f6114b43bc491164238d333e28b16ea",
+      "features_enabled": [],
+      "native_build": true,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "tree-sitter-language",
+      "version": "0.1.9",
+      "official_source": "https://crates.io/crates/tree-sitter-language/0.1.9",
+      "repository": "https://github.com/tree-sitter/tree-sitter",
+      "manifests": [
+        "via tree-sitter (crates/oo-docs/Cargo.toml)"
+      ],
+      "publication_date": "2026-10-08T17:44:16Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT",
+      "license_evidence": [
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/tree-sitter-language-0.1.9/LICENSE",
+          "sha256": "c5cfb43042b6b72045f4ba997834d0a7786d2793d91680868b5815b39f14fc78"
+        }
+      ],
+      "digest": "sha256:d0af592be68c579aa78a16846bd19422978c3c52e438523d45ff5d1bff1f9d4a",
+      "features_enabled": [],
+      "native_build": false,
+      "relied_on_license": "MIT",
+      "dual_license_choice": null,
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    },
+    {
+      "ecosystem": "crates.io",
+      "name": "streaming-iterator",
+      "version": "0.1.9",
+      "official_source": "https://crates.io/crates/streaming-iterator/0.1.9",
+      "repository": "https://github.com/sdroege/streaming-iterator",
+      "manifests": [
+        "via tree-sitter (crates/oo-docs/Cargo.toml)"
+      ],
+      "publication_date": "2023-01-06T01:30:08Z",
+      "adoption_date": "2026-11-21T22:00:00Z",
+      "seven_day_rule": "pass",
+      "msrv": "compiled on the workspace toolchain; workspace rust-version is not raised",
+      "license_spdx": "MIT OR Apache-2.0",
+      "license_evidence": [
+        {
+          "spdx": "Apache-2.0",
+          "source": "supply-chain/licenses/super-ontology-ak/streaming-iterator-0.1.9/LICENSE-APACHE",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "spdx": "MIT",
+          "source": "supply-chain/licenses/super-ontology-ak/streaming-iterator-0.1.9/LICENSE-MIT",
+          "sha256": "34cb64162194d52a8412e96d8693ebf43a67d019c6b5bd76da3bb377ba7507aa"
+        }
+      ],
+      "digest": "sha256:2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520",
+      "features_enabled": [],
+      "native_build": false,
+      "relied_on_license": "MIT",
+      "dual_license_choice": "MIT",
+      "license_obligations": [
+        {
+          "spdx": "MIT",
+          "obligations": [
+            "Retain the copyright and permission notice in copies or substantial portions."
+          ]
+        }
+      ],
+      "prohibited_license": false,
+      "weak_copyleft_review": null,
+      "default_features_disabled": false
+    }
+  ],
+  "notes": "D89 code profile: syntax parsers for symbol, import and dependency extraction. tree-sitter is the C runtime (built by cc, already locked); the five grammar crates carry a generated parser each. All MIT; the python, javascript and typescript crates ship no LICENSE file in the .crate, so the evidence is the upstream repository file at the release tag (same text). tree-sitter default features are off (no wasm). New locked packages: the eight above; regex, serde_json and cc were already locked. Not-parsed input is bounded by the caller (1.5 MB per source file, 40 symbols and 40 imports per file).",
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "cargo-audit 0.22.2 on the exact Cargo.lock of this change; cargo-deny 0.20.2 (ci/deny.toml: bans, licenses, sources) ok",
+    "evidence": "supply-chain/evidence/so-ak/cargo-audit.json",
+    "disposition": "no-known-advisories",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": [],
+  "scope": "Direct dependencies of oo-docs: tree-sitter =0.26.13, tree-sitter-rust =0.24.2, tree-sitter-python =0.23.6, tree-sitter-javascript =0.23.1, tree-sitter-typescript =0.23.2, tree-sitter-go =0.25.0. Each was published at least 7*86400 seconds before the adoption time; each digest equals the Cargo.lock checksum."
+}
