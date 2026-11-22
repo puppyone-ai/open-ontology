@@ -55,7 +55,7 @@ fn a_promo_read_by_one_voice_is_not_a_conversation_with_or_without_music() {
         let p = profile(f, "素材/星火宣传.wav");
         assert_eq!(
             (p.class, p.kind),
-            (MediaClass::NonConversation, "monologue"),
+            (MediaClass::NonConversation, "promo"),
             "{f}: {p:?}"
         );
         assert_eq!(p.signals.voices, 1);

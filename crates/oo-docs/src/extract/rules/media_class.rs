@@ -99,7 +99,7 @@ pub struct Signals {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MediaProfile {
     pub class: MediaClass,
-    /// `conversation`, `monologue`, `lecture`, `music_or_ambient`, `edited_video`, `undecided`.
+    /// `conversation`, `lecture`, `voice_memo`, `promo`, `music_or_ambient`, `edited_video`, `undecided`.
     pub kind: &'static str,
     pub confidence_bp: u16,
     pub signals: Signals,
@@ -128,30 +128,8 @@ fn utterance(b: &Block) -> Option<(u64, u64, &str)> {
 
 fn name_hint(path: &str) -> &'static str {
     let name = path.rsplit('/').next().unwrap_or(path).to_lowercase();
-    const CONVERSATION: &[&str] = &[
-        "会议",
-        "访谈",
-        "采访",
-        "通话",
-        "电话",
-        "对话",
-        "例会",
-        "周会",
-        "晨会",
-        "评审",
-        "面试",
-        "播客",
-        "纪要",
-        "meeting",
-        "interview",
-        "call",
-        "podcast",
-        "standup",
-        "sync",
-        "review",
-        "参会",
-    ];
-    const OTHER: &[&str] = &[
+    let has = |words: &[&str]| words.iter().any(|w| name.contains(w));
+    if has(&[
         "宣传",
         "广告",
         "片头",
@@ -177,11 +155,38 @@ fn name_hint(path: &str) -> &'static str {
         "music",
         "ambient",
         "demo reel",
-    ];
-    if CONVERSATION.iter().any(|w| name.contains(w)) {
-        "conversation"
-    } else if OTHER.iter().any(|w| name.contains(w)) {
+    ]) {
         "non_conversation"
+    } else if has(&[
+        "讲座", "课程", "授课", "演讲", "lecture", "keynote", "webinar", "course",
+    ]) {
+        "lecture"
+    } else if has(&["备忘", "语音", "memo", "voice note", "voicenote"]) {
+        "memo"
+    } else if has(&[
+        "会议",
+        "访谈",
+        "采访",
+        "通话",
+        "电话",
+        "对话",
+        "例会",
+        "周会",
+        "晨会",
+        "评审",
+        "面试",
+        "播客",
+        "纪要",
+        "meeting",
+        "interview",
+        "call",
+        "podcast",
+        "standup",
+        "sync",
+        "review",
+        "参会",
+    ]) {
+        "conversation"
     } else {
         "none"
     }
@@ -319,13 +324,16 @@ pub fn decide(s: &Signals) -> MediaProfile {
         {
             return mk(Unsure, "undecided", 4000);
         }
-        let kind = if s.speech_ms >= LECTURE_MS {
-            "lecture"
-        } else {
-            "monologue"
-        };
+        // D98: a lecture or a voice memo is transcribed (one speaker); a promo read, a narration over pictures or music
+        // is a media asset and nothing is extracted from it.
         let conf = if s.top_share_bp >= 9000 { 9000 } else { 7500 };
-        return mk(NonConversation, kind, conf);
+        return match s.name_hint {
+            "non_conversation" => mk(NonConversation, "promo", conf),
+            "lecture" => mk(Conversation, "lecture", conf),
+            "memo" => mk(Conversation, "voice_memo", conf),
+            _ if s.speech_ms >= LECTURE_MS => mk(Conversation, "lecture", conf),
+            _ => mk(NonConversation, "promo", conf),
+        };
     }
     let minutes_x100 = s.duration_ms * 100 / 60_000;
     let cuts_per_min = (u64::from(s.scenes) * 100)
@@ -345,12 +353,12 @@ pub fn decide(s: &Signals) -> MediaProfile {
     }
     // Voices that hardly answer each other: two narrators, a presenter and a clip.
     if u64::from(s.turns) < 2 && s.speech_ms >= 20_000 {
-        return mk(NonConversation, "monologue", 7000);
+        return mk(NonConversation, "promo", 7000);
     }
     // The name decides a close call, but only weakly.
     match s.name_hint {
         "conversation" if u64::from(s.turns) >= 2 => mk(Conversation, "conversation", 6500),
-        "non_conversation" => mk(NonConversation, "monologue", 6500),
+        "non_conversation" => mk(NonConversation, "promo", 6500),
         _ => mk(Unsure, "undecided", 4000),
     }
 }
@@ -477,20 +485,33 @@ mod tests {
     }
 
     #[test]
-    fn one_voice_is_not_a_conversation() {
+    fn one_voice_is_a_promo_unless_it_is_a_lecture_or_a_memo() {
         let p = classify(
             &ir(DocFormat::Audio, 30_000, vec![utt(0, "S1", 0, 28_000)]),
             "a.m4a",
         );
-        assert_eq!(
-            (p.class, p.kind),
-            (MediaClass::NonConversation, "monologue")
-        );
+        assert_eq!((p.class, p.kind), (MediaClass::NonConversation, "promo"));
         let long = classify(
             &ir(DocFormat::Audio, 600_000, vec![utt(0, "S1", 0, 590_000)]),
             "课程.m4a",
         );
-        assert_eq!(long.kind, "lecture");
+        assert_eq!(
+            (long.class, long.kind),
+            (MediaClass::Conversation, "lecture")
+        );
+        let memo = classify(
+            &ir(DocFormat::Audio, 40_000, vec![utt(0, "S1", 0, 38_000)]),
+            "语音备忘 0412.m4a",
+        );
+        assert_eq!(
+            (memo.class, memo.kind),
+            (MediaClass::Conversation, "voice_memo")
+        );
+        let ad = classify(
+            &ir(DocFormat::Audio, 600_000, vec![utt(0, "S1", 0, 590_000)]),
+            "宣传片.m4a",
+        );
+        assert_eq!((ad.class, ad.kind), (MediaClass::NonConversation, "promo"));
     }
 
     #[test]

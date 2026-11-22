@@ -134,7 +134,7 @@ pub async fn ask_model(
     let kind = if class == MediaClass::Conversation {
         "conversation"
     } else {
-        "monologue"
+        "promo"
     };
     store(conn, &ir.blob_b3, class, kind, 7000, "model", &s.signals).await?;
     Ok(Some(class))

@@ -1,7 +1,7 @@
 -- docs-media-profile/1 phase expand
 -- Run by oo_docs::store::install as oo_docs_owner after docs-drive-scale/1, inside the installer
 -- transaction. No BEGIN or COMMIT here; the installer inserts the schema_migrations row.
--- D74 revision (2026-11-21): a recording is classified before speakers are told apart. One row per blob
+-- D74 revision (2026-11-21, D98 2026-11-22): a recording is classified before speakers are told apart. One row per blob
 -- (the same audio under any name shares it): the class, why, the signals the decision used, and who decided
 -- (the rules, or the model when the rules were unsure).
 
@@ -29,3 +29,11 @@ CREATE TABLE _oo_docs.media_profile (
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON _oo_docs.media_profile TO oo_docs_runtime;
+
+-- D98 (D93 structure layer): a recording is a typed object, a meeting is held in it and has participants.
+ALTER TABLE _oo_docs.entity DROP CONSTRAINT entity_type_check;
+ALTER TABLE _oo_docs.entity ADD CONSTRAINT entity_type_check CHECK (type IN
+  ('Person','Organization','Project','Decision','Document','Topic','Event','Term','Thing','Recording','Meeting'));
+ALTER TABLE _oo_docs.fact DROP CONSTRAINT fact_predicate_check;
+ALTER TABLE _oo_docs.fact ADD CONSTRAINT fact_predicate_check CHECK
+  (predicate ~ '^(owns|member_of|decides|supersedes|rejects|mentions|about|tried_and_failed|has_participant|recorded_in|attr\.[a-z_]{1,40})$');

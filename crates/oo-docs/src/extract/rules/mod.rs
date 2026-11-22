@@ -359,6 +359,26 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
 pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction {
     let path = nfc(path);
     let info: PathInfo = dirs::path_info(&path);
+    // D98: a recording is classified first. Meetings, interviews, lectures and voice memos are transcribed and their statements
+    // extracted; a promo, an edited video, a film or music is a media asset: one typed object with title, duration and class and
+    // nothing read from its sound track.
+    let media_class = matches!(ir.format, DocFormat::Audio | DocFormat::Video).then(|| {
+        siblings
+            .media
+            .unwrap_or_else(|| media_class::classify(ir, &path).class)
+    });
+    let asset_ir;
+    let ir = if media_class.is_some_and(|c| !c.identifies_speakers()) {
+        let mut shadow = ir.clone();
+        shadow.blocks.truncate(1);
+        for b in &mut shadow.blocks {
+            b.text.clear();
+        }
+        asset_ir = shadow;
+        &asset_ir
+    } else {
+        ir
+    };
     let blocks = &ir.blocks;
     // Evidence anchors: heading (level 1 first), frontmatter block.
     let h1 = blocks
@@ -674,10 +694,10 @@ pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction
     name_version(&mut ctx, &info, &path, siblings, &anchor_ev);
     text_email(&mut ctx, blocks);
     // What speakers say about what they own (the subject is a provisional Person until the speaker is confirmed).
-    let media_class = siblings
-        .media
-        .unwrap_or_else(|| media_class::classify(ir, &path).class);
-    media::apply(&mut ctx, ir, media_class);
+    if let Some(class) = media_class {
+        media::apply(&mut ctx, ir, class);
+        media::typed_objects(&mut ctx, ir, class, &path);
+    }
 
     // doc.entity: the Document mentions every other entity found in the file. A
     // Decision is a record the document states or defines, not a name it mentions.

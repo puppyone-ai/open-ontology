@@ -87,19 +87,30 @@ pub fn speaker_letter(speaker: &str) -> String {
     out.iter().rev().collect()
 }
 
-/// `Speaker A · 1a2b3c4d`: unique per file, merged into the named Person once the speaker is named.
-pub fn placeholder_name(blob_b3: &str, speaker: &str) -> String {
+/// The meeting's title: the file name without its folder and extension, at most 40 characters.
+pub fn meeting_title(path: &str) -> String {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+    stem.chars().take(40).collect()
+}
+
+/// `《周会》的说话人 A · 1a2b3c4d` (D98): the placeholder entity of one speaker of one meeting. The blob prefix makes it unique per
+/// recording; the app shows it without that part and in the person's language. Merged into the named Person when the
+/// speaker is named.
+pub fn placeholder_name(blob_b3: &str, speaker: &str, title: &str) -> String {
     format!(
-        "{PLACEHOLDER_PREFIX}{} · {}",
+        "《{title}》的说话人 {} · {}",
         speaker_letter(speaker),
         blob_b3.get(..8).unwrap_or(blob_b3)
     )
 }
 
-/// True for a placeholder name.
+/// True for a placeholder name (this form, and the forms before D98).
 pub fn is_placeholder(name: &str) -> bool {
-    (name.starts_with(PLACEHOLDER_PREFIX) || name.starts_with(OLD_PLACEHOLDER_PREFIX))
-        && name.contains(" · ")
+    name.contains(" · ")
+        && (name.starts_with(PLACEHOLDER_PREFIX)
+            || name.starts_with(OLD_PLACEHOLDER_PREFIX)
+            || (name.starts_with('《') && name.contains("》的说话人 ")))
 }
 
 /// The speaker label of a block, if it is an utterance.
@@ -371,6 +382,7 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, class: super::media_class::Me
     if !matches!(ir.format, DocFormat::Audio | DocFormat::Video) || !class.identifies_speakers() {
         return;
     }
+    let title = meeting_title(&ctx.doc.name);
     let voices = super::media_class::voices(ir);
     for b in &ir.blocks {
         let Some(spk) = speaker_of(b) else { continue };
@@ -388,7 +400,10 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, class: super::media_class::Me
             if thing.is_empty() || thing.chars().count() > 40 {
                 continue;
             }
-            let subject = EntityRef::new(EntityType::Person, placeholder_name(&ir.blob_b3, spk));
+            let subject = EntityRef::new(
+                EntityType::Person,
+                placeholder_name(&ir.blob_b3, spk, &title),
+            );
             let object = EntityRef::new(EntityType::Project, thing);
             ctx.fact(
                 &subject,
@@ -402,6 +417,87 @@ pub(super) fn apply(ctx: &mut Ctx<'_>, ir: &DocIr, class: super::media_class::Me
                 &ev,
             );
         }
+    }
+}
+
+/// The typed objects of a recording (D93, D98): a `Recording` with its class and duration; for a transcribed one also a `Meeting` held in it,
+/// with its participants (the placeholder speakers, merged into the named Persons later). Evidence is the first block of the file.
+pub(super) fn typed_objects(
+    ctx: &mut Ctx<'_>,
+    ir: &DocIr,
+    class: super::media_class::MediaClass,
+    path: &str,
+) {
+    let Some(first) = ir.blocks.first() else {
+        return;
+    };
+    let ev = EvidenceRef::from_block(first);
+    let title = meeting_title(path);
+    let recording = EntityRef::new(EntityType::Recording, path.to_owned());
+    ctx.col.entity(&recording, Some(&ev));
+    ctx.col
+        .alias(&recording, &title, 10000, "media.recording", &ev);
+    let class_text = if class.identifies_speakers() {
+        "conversation"
+    } else {
+        "media_asset"
+    };
+    ctx.fact(
+        &recording,
+        Predicate::Attr("media_class".into()),
+        None,
+        Some(serde_json::json!({"text": class_text})),
+        None,
+        None,
+        9500,
+        "media.recording",
+        &ev,
+    );
+    if let Some(ms) = ir.meta.duration_ms {
+        ctx.fact(
+            &recording,
+            Predicate::Attr("duration_ms".into()),
+            None,
+            Some(serde_json::json!({"text": ms.to_string()})),
+            None,
+            None,
+            9500,
+            "media.recording",
+            &ev,
+        );
+    }
+    if !class.identifies_speakers() {
+        return;
+    }
+    let short = ir.blob_b3.get(..8).unwrap_or(&ir.blob_b3);
+    let meeting = EntityRef::new(EntityType::Meeting, format!("《{title}》 · {short}"));
+    ctx.fact(
+        &meeting,
+        Predicate::RecordedIn,
+        Some(recording),
+        None,
+        None,
+        None,
+        9500,
+        "media.meeting",
+        &ev,
+    );
+    for spk in super::media_class::voices(ir) {
+        let person = EntityRef::new(
+            EntityType::Person,
+            placeholder_name(&ir.blob_b3, &spk, &title),
+        );
+        ctx.fact(
+            &meeting,
+            Predicate::HasParticipant,
+            Some(person),
+            None,
+            None,
+            None,
+            9500,
+            "media.meeting",
+            &ev,
+        );
     }
 }
 
@@ -496,11 +592,13 @@ mod tests {
 
     #[test]
     fn placeholder_names_are_per_file_and_recognisable() {
-        let a = placeholder_name(&"a".repeat(64), "S1");
-        let b = placeholder_name(&"b".repeat(64), "S1");
+        let a = placeholder_name(&"a".repeat(64), "S1", "周会");
+        let b = placeholder_name(&"b".repeat(64), "S1", "周会");
         assert_ne!(a, b);
-        assert!(a.starts_with("Speaker A · "), "{a}");
-        assert!(placeholder_name(&"a".repeat(64), "S28").starts_with("Speaker AB · "));
+        assert!(a.starts_with("《周会》的说话人 A · "), "{a}");
+        assert!(
+            placeholder_name(&"a".repeat(64), "S28", "周会").starts_with("《周会》的说话人 AB · ")
+        );
         assert!(is_placeholder(&a) && !is_placeholder("林川"));
         assert!(
             is_placeholder("说话人 S1 · 0123abcd"),
