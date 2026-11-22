@@ -15,7 +15,7 @@ use oo_core::docir::DocIr;
 use sqlx::{Connection, PgConnection};
 
 use crate::extract::model::EvidenceRef;
-use crate::extract::rules::{Siblings, extract_in};
+use crate::extract::rules::{Siblings, extract_with_quality};
 use crate::resolve::exact::{Resolved, resolve_extraction};
 use crate::resolve::merge::{MergeError, merge_entities};
 use crate::resolve::pg::{
@@ -49,6 +49,8 @@ pub struct IndexSummary {
     pub identity_merges: u32,
     /// `entity_merge` review items queued (5.4 step 6, refused identity merges).
     pub merge_proposals: u32,
+    /// What the entity quality gate left out (D90): counted, never a review item.
+    pub quality: crate::extract::quality::QualityStats,
     /// The file version repeats the assertions of an earlier version of the
     /// same file (early cutoff, 16.1).
     pub early_cutoff: bool,
@@ -69,8 +71,11 @@ pub async fn index_document_with(
     doc: &DocumentInput<'_>,
     siblings: &[String],
 ) -> Result<IndexSummary, StoreError> {
-    let extraction = extract_in(doc.path, doc.ir, &Siblings { paths: siblings });
-    index_extraction(conn, doc, &extraction).await
+    let (extraction, quality) =
+        extract_with_quality(doc.path, doc.ir, &Siblings { paths: siblings });
+    let mut summary = index_extraction(conn, doc, &extraction).await?;
+    summary.quality = quality;
+    Ok(summary)
 }
 
 /// `doc.link`: mentions and `about` links of this file version to the entities the

@@ -39,7 +39,7 @@ use super::model::{
 };
 
 /// Version tag stored with every rule fact.
-pub const RULESET_VERSION: &str = "rules/1";
+pub const RULESET_VERSION: &str = "rules/2";
 
 const MAX_NAME_CHARS: usize = 120;
 
@@ -353,6 +353,20 @@ pub fn extract(path: &str, ir: &DocIr) -> Extraction {
 /// [`extract`] with the sibling files, which `name.version` needs to find an
 /// older version of the same document.
 pub fn extract_in(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction {
+    extract_with_quality(path, ir, siblings).0
+}
+
+/// [`extract_in`] with what the entity quality gate (D90) dropped, for the diagnostics of the file.
+pub fn extract_with_quality(
+    path: &str,
+    ir: &DocIr,
+    siblings: &Siblings<'_>,
+) -> (Extraction, super::quality::QualityStats) {
+    super::quality::gate(extract_ungated(path, ir, siblings), ir, &[])
+}
+
+/// What the rules find before the quality gate.
+pub fn extract_ungated(path: &str, ir: &DocIr, siblings: &Siblings<'_>) -> Extraction {
     let path = nfc(path);
     let info: PathInfo = dirs::path_info(&path);
     let blocks = &ir.blocks;

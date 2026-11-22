@@ -114,6 +114,8 @@ pub struct RunStats {
     pub schema_invalid: u32,
     pub failed_batches: u32,
     pub dropped: Dropped,
+    /// What the entity quality gate (D90) left out of the model's output.
+    pub quality: crate::extract::quality::QualityStats,
     /// The file's own cap stopped the model (`DOCS_EXTRACT_LLM_LIMIT_FILE`).
     pub file_limited: bool,
     /// The Drive's daily cap stopped the model (`DOCS_EXTRACT_LLM_LIMIT_DRIVE`).
@@ -308,7 +310,9 @@ pub async fn extract_llm(
     for k in &keys {
         h.update(k.as_bytes());
     }
-    let mut x = col.finish(input.path);
+    let (mut x, quality) =
+        crate::extract::quality::gate(col.finish(input.path), input.ir, &input.known);
+    stats.quality = quality;
     x.llm = Some(LlmMeta {
         prompt_version: version,
         extraction_key: h.finalize().to_hex().to_string(),

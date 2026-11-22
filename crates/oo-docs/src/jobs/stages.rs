@@ -1264,6 +1264,7 @@ impl JobHandler for ExtractHandler {
                 Ok(r) => r,
                 Err(e) => return db_fail(e),
             };
+            let mut quality_detail: Option<serde_json::Value> = None;
             if reused.is_none() {
                 let mut conn = match self.pool.acquire().await {
                     Ok(c) => c,
@@ -1276,8 +1277,22 @@ impl JobHandler for ExtractHandler {
                     ir: &ir,
                 };
                 // A first extraction, or a reprocess that passes DOC-G10 or waits for a person (D23).
-                if let Err(e) = crate::publish::reprocess::index_gated(&mut conn, &doc).await {
-                    return db_fail(e);
+                match crate::publish::reprocess::index_gated(&mut conn, &doc).await {
+                    Ok(r) => {
+                        let q = match r {
+                            crate::publish::reprocess::Reprocess::Fresh(s)
+                            | crate::publish::reprocess::Reprocess::Applied {
+                                summary: s, ..
+                            }
+                            | crate::publish::reprocess::Reprocess::Held { summary: s, .. } => {
+                                s.quality
+                            }
+                        };
+                        if !q.is_empty() {
+                            quality_detail = Some(serde_json::json!({"quality": q.to_json()}));
+                        }
+                    }
+                    Err(e) => return db_fail(e),
                 }
                 // Who is S1? One `speaker_identity` item per speaker label (D74, 17.4).
                 if matches!(ir.format, DocFormat::Audio | DocFormat::Video) {
@@ -1335,7 +1350,8 @@ impl JobHandler for ExtractHandler {
                 withdraw_superseded(&mut tx, &s).await?;
                 let detail = reused
                     .as_ref()
-                    .map(|p| format!("{{\"reused_from\":\"{p}\",\"by\":\"block_ids\"}}"));
+                    .map(|p| format!("{{\"reused_from\":\"{p}\",\"by\":\"block_ids\"}}"))
+                    .or_else(|| quality_detail.as_ref().map(ToString::to_string));
                 match state::transition_in_tx(
                     &mut tx,
                     &Transition {
@@ -1510,6 +1526,7 @@ impl JobHandler for ExtractLlmHandler {
                     "llm": "done", "batches": stats.batches, "calls": stats.calls,
                     "cache_hits": stats.cache_hits, "failed_batches": stats.failed_batches,
                     "schema_invalid": stats.schema_invalid,
+                    "quality": stats.quality.to_json(),
                     "limit": if stats.file_limited { "DOCS_EXTRACT_LLM_LIMIT_FILE" }
                         else if stats.drive_limited { "DOCS_EXTRACT_LLM_LIMIT_DRIVE" }
                         else { "" },

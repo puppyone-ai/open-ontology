@@ -89,7 +89,32 @@ pub async fn index_gated(
     .await?;
     let summary = index_document(&mut tx, doc).await?;
     let now_rows = live_fact_evidence(&mut tx, doc.version_id).await?;
-    let (prior_keys, now_keys) = (distinct_keys(&prior_rows), distinct_keys(&now_rows));
+    let (mut prior_keys, now_keys) = (distinct_keys(&prior_rows), distinct_keys(&now_rows));
+    // D90/D91: facts the quality gate now leaves out (a Decision that is a bare word) are not a change a person
+    // has to judge; they leave with their evidence.
+    if !summary.quality.dropped_names.is_empty() {
+        let gone: Vec<String> = prior_keys
+            .iter()
+            .filter(|k| !now_keys.contains(k))
+            .cloned()
+            .collect();
+        let (tys, names): (Vec<String>, Vec<String>) =
+            summary.quality.dropped_names.iter().cloned().unzip();
+        let explained: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT f.fact_key FROM _oo_docs.fact f \
+               JOIN _oo_docs.entity s ON s.id = f.subject_id \
+               LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+              WHERE f.fact_key = ANY($1::text[]) \
+                AND ((s.type, s.norm_name) IN (SELECT * FROM unnest($2::text[], $3::text[])) \
+                     OR (o.type, o.norm_name) IN (SELECT * FROM unnest($2::text[], $3::text[])))",
+        )
+        .bind(&gone)
+        .bind(&tys)
+        .bind(&names)
+        .fetch_all(&mut *tx)
+        .await?;
+        prior_keys.retain(|k| !explained.contains(k));
+    }
     let removed_only: Vec<String> = prior_keys
         .iter()
         .filter(|k| !now_keys.contains(k))
