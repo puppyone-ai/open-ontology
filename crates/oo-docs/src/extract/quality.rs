@@ -2,9 +2,10 @@
 //!
 //! A Decision is a proposition: someone decided something about something, and the sentence says so. A single
 //! generic word is no Decision, Event or Person, and a Term or Topic of one or two words belongs in the ontology
-//! only when the text defines it or keeps coming back to it. What fails the gate is not an entity and not a review
-//! item: the text stays searchable (the chunk index does not depend on entities) and the run counts it
-//! ([`QualityStats`], shown in the stage detail of the file).
+//! only when the text defines it or keeps coming back to it. What fails the gate is dropped: it is not an entity, not
+//! a fact and not a review item (D90, D92: the product is the ontology, not a text index), and the run counts it
+//! ([`QualityStats`], shown in the stage detail of the file). The sentence stays reachable through the evidence
+//! anchors of the facts that really are in the ontology.
 //!
 //! The gate looks at one file at a time. For the model's output it also reads the entities the Drive already
 //! publishes (`known`), so a name another file has made an entity of is not asked to prove itself again.
