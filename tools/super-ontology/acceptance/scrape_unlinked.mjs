@@ -12,8 +12,7 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const { connectToPage, readDevToolsPort } = await import(path.resolve(here, "../../../apps/super-ontology-desktop/tests/e2e/harness/cdp.mjs"));
 const cdp = await connectToPage(await readDevToolsPort(opt("--profile")), { urlPattern: /^app:/u });
 const click = (id) => cdp.evaluate(`(() => { const e = document.querySelector('[data-testid="${id}"]'); if (!e) return false; e.click(); return true; })()`);
-// D89: a file with no structured objects is "Indexed, searchable" and is listed only under the filter `atlas-indexed-filter`.
-for (const id of ["nav-ontology", "ontology-tab-atlas", "atlas-unlinked-filter", "atlas-indexed-filter", "atlas-view-list"]) {
+for (const id of ["nav-ontology", "ontology-tab-atlas", "atlas-unlinked-filter", "atlas-view-list"]) {
   const ok = await click(id);
   console.error("click", id, ok);
   await sleep(id === "atlas-view-list" ? 2500 : 1500);

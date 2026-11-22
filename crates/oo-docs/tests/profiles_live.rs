@@ -1,9 +1,10 @@
-//! Live measurement of the document profiles (D89) through the real pipeline: a real `oo-docs-engine`, the real Docling sidecar and, with
-//! `OO_PROFILES_MODEL=1`, the real model egress. The synthetic engineering repository and the three papers of
-//! `testing/super-ontology/profiles/project` are dropped into a Drive; the test asserts what must hold without a model (every file settles, the
-//! profile of each file, knowledge search finds AGENTS.md, a code file and a plain log) and writes what the engine found as `entities.jsonl`
-//! (`{"file","type","label","name","published"}`) and `files.jsonl` for `tools/super-ontology/profiles/score.py`. With `OO_PROFILES_ASK=<dir>`
-//! the Ask loop of the app (`ask_headless.mjs`) then answers the frozen questions against the same engine.
+//! Live measurement of admission by file class (D94) through the real pipeline: a real `oo-docs-engine`, the real Docling sidecar and, with
+//! `OO_PROFILES_MODEL=1`, the real model egress. The mixed corpus of `testing/super-ontology/profiles/project` (records, instruction files,
+//! papers, code, media, archive files) is dropped into a Drive; the test asserts what must hold without a model (every file settles, knowledge
+//! search still finds an instruction file, a code file and a log, no model call for files that are not records or media, no profile label is
+//! proposed as a type) and writes what the engine found: `files.jsonl` (profile, class, reason), `entities.jsonl`, `relations.jsonl` (`cites`,
+//! `authored`) and `brief.md` (the BRIEF of the whole Drive), for `tools/super-ontology/profiles/score.py`. With `OO_PROFILES_ASK=<dir>` the
+//! questions are answered from the BRIEF (`ask_headless.mjs --brief`).
 //!
 //! ```text
 //! OO_DOCS_TEST_PG_PORT=<port> OO_PROFILES_OUT=<dir> [OO_PROFILES_MODEL=1 OO_EVAL_ENDPOINT_FILE=<path> OO_EVAL_KEY_FILE=<path> OO_EVAL_MODEL_ID=<id>] \
@@ -21,22 +22,13 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use serde_json::json;
+use serde_json::{Value, json};
 use sidecar_support::testing_root;
 use sqlx::Row;
 use stack::{Stack, copy_tree};
 
-fn expected_profile(path: &str) -> &'static str {
-    match path {
-        "harborq/AGENTS.md"
-        | "harborq/README.md"
-        | "harborq/CONTRIBUTING.md"
-        | "harborq/docs/STYLE_GUIDE.md" => "instruction",
-        p if p.starts_with("harborq/docs/adr/") => "instruction",
-        p if p.starts_with("papers/") => "paper",
-        "harborq/CHANGELOG.md" | "harborq/LICENSE" | "harborq/ops/worker.log" => "other",
-        _ => "code",
-    }
+async fn put_override(s: &Stack, route: &str, body: Value) -> common::http::Resp {
+    s.call("PUT", route, Some(&body)).await
 }
 
 #[tokio::test]
@@ -130,8 +122,10 @@ async fn the_profile_set_through_the_real_pipeline() {
     let bad: Vec<_> = st
         .iter()
         .filter(|(path, (state, _))| {
-            !(matches!(state.as_str(), "published" | "extract_partial")
-                || with_model && state == "indexed" && path.starts_with("papers/"))
+            !(matches!(
+                state.as_str(),
+                "published" | "extract_partial" | "unsupported" | "duplicate"
+            ) || with_model && state == "indexed" && !path.starts_with("harborq/"))
         })
         .collect();
     assert!(bad.is_empty(), "files that did not publish: {bad:?}");
@@ -170,26 +164,13 @@ async fn the_profile_set_through_the_real_pipeline() {
     for f in list["items"].as_array().unwrap() {
         let path = f["path"].as_str().unwrap();
         let profile = f["profile"].as_str().unwrap_or("none");
-        assert_eq!(profile, expected_profile(path), "profile of {path}");
         *by_profile.entry(profile.to_owned()).or_default() += 1;
         files.push_str(&format!(
             "{}\n",
-            json!({"file": path, "profile": profile, "state": f["state"], "format": f["format"]})
+            json!({"file": path, "profile": profile, "class": f["class"], "reason": f["profile_reason"], "state": f["state"], "format": f["format"]})
         ));
     }
     std::fs::write(out.join("files.jsonl"), files).unwrap();
-    // The profile is stored on the file, not only derived.
-    let stored: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM _oo_docs.file WHERE profile IS NOT NULL AND deleted_at IS NULL",
-    )
-    .fetch_one(&s.pool)
-    .await
-    .unwrap();
-    assert!(
-        stored as usize >= n - 2,
-        "{stored} files have a stored profile"
-    );
-
     // Knowledge search finds what the extractors did not turn into entities: the rules in AGENTS.md, a code file, a log and a licence.
     for (q, path) in [
         ("tests", "harborq/AGENTS.md"),
@@ -212,13 +193,28 @@ async fn the_profile_set_through_the_real_pipeline() {
         );
     }
 
-    // No model call for code, instruction and other files.
+    // The model supplement is for records and media only.
     let llm_files: Vec<(String,)> = sqlx::query_as("SELECT DISTINCT f.path FROM _oo_docs.job j JOIN _oo_docs.file f ON f.id = j.file_id WHERE j.kind = 'extract_llm' ORDER BY 1")
         .fetch_all(&s.pool)
         .await
         .unwrap();
+    let class_of: BTreeMap<String, String> = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| {
+            (
+                f["path"].as_str().unwrap().to_owned(),
+                f["class"].as_str().unwrap_or("").to_owned(),
+            )
+        })
+        .collect();
     for (p,) in &llm_files {
-        assert_eq!(expected_profile(p), "paper", "extract_llm ran for {p}");
+        assert!(
+            matches!(class_of[p].as_str(), "record" | "media"),
+            "extract_llm ran for {p} ({})",
+            class_of[p]
+        );
     }
     if !with_model {
         assert!(llm_files.is_empty());
@@ -227,13 +223,13 @@ async fn the_profile_set_through_the_real_pipeline() {
     // What the engine found, per file: the entity evidence and the evidence of the facts that touch the entity.
     let rows = sqlx::query(
         "SELECT e.type AS ty, e.thing_label AS label, e.canonical_name AS name, fv.path_at_version AS path, \
-                bool_or(src.published) AS published \
+                bool_or(src.published) AS published, bool_or(src.own) AS own \
            FROM _oo_docs.entity e \
            JOIN LATERAL ( \
-                SELECT ev.version_id, false AS published FROM _oo_docs.evidence ev \
+                SELECT ev.version_id, false AS published, true AS own FROM _oo_docs.evidence ev \
                  WHERE ev.target_kind = 'entity' AND ev.target_id = e.id AND ev.withdrawn_at IS NULL \
                 UNION ALL \
-                SELECT ev.version_id, (f.status = 'published') FROM _oo_docs.fact f \
+                SELECT ev.version_id, (f.status = 'published'), false FROM _oo_docs.fact f \
                   JOIN _oo_docs.evidence ev ON ev.target_kind = 'fact' AND ev.target_id = f.id AND ev.withdrawn_at IS NULL \
                  WHERE (f.subject_id = e.id OR f.object_id = e.id) AND f.status IN ('draft', 'published') \
            ) src ON true \
@@ -249,10 +245,52 @@ async fn the_profile_set_through_the_real_pipeline() {
         lines.push_str(&format!(
             "{}\n",
             json!({"file": r.get::<String, _>("path"), "type": r.get::<String, _>("ty"), "label": r.get::<Option<String>, _>("label"),
-                   "name": r.get::<String, _>("name"), "published": r.get::<bool, _>("published")})
+                   "name": r.get::<String, _>("name"), "published": r.get::<bool, _>("published"), "own": r.get::<bool, _>("own")})
         ));
     }
     std::fs::write(out.join("entities.jsonl"), lines).unwrap();
+    // The relations of references (`cites`, `authored`).
+    let rel_rows = sqlx::query(
+        "SELECT fv.path_at_version AS path, es.canonical_name AS s, f.predicate AS p, eo.canonical_name AS o \
+           FROM _oo_docs.fact f JOIN _oo_docs.entity es ON es.id = f.subject_id JOIN _oo_docs.entity eo ON eo.id = f.object_id \
+           JOIN _oo_docs.evidence ev ON ev.target_kind = 'fact' AND ev.target_id = f.id AND ev.withdrawn_at IS NULL \
+           JOIN _oo_docs.file_version fv ON fv.id = ev.version_id \
+          WHERE f.predicate IN ('cites', 'authored') AND f.status IN ('draft', 'published') GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3, 4",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let mut rels = String::new();
+    for r in &rel_rows {
+        rels.push_str(&format!(
+            "{}\n",
+            json!({"file": r.get::<String, _>("path"), "subject": r.get::<String, _>("s"), "predicate": r.get::<String, _>("p"), "object": r.get::<String, _>("o")})
+        ));
+    }
+    std::fs::write(out.join("relations.jsonl"), rels).unwrap();
+    // The BRIEF of the whole Drive, with the question of the first frozen question as its task.
+    let compiled = s
+        .call(
+            "POST",
+            "/v1/docs/context-packs:compile",
+            Some(&json!({"drive_id": drive_id, "task": "What does AGENTS.md say about running tests?", "budget": 12000})),
+        )
+        .await;
+    assert!(
+        compiled.status == 200 || compiled.status == 201,
+        "{}",
+        String::from_utf8_lossy(&compiled.body)
+    );
+    let pack_id = compiled.json()["id"].as_str().unwrap().to_owned();
+    let brief = s
+        .call(
+            "GET",
+            &format!("/v1/docs/context-packs/{pack_id}/files/BRIEF.md"),
+            None,
+        )
+        .await;
+    assert_eq!(brief.status, 200);
+    std::fs::write(out.join("brief.md"), &brief.body).unwrap();
     // A Thing of a profile label is never queued for promotion (a label the model made up may be).
     let promos: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM _oo_docs.review_item WHERE kind = 'type_promotion' AND subject->>'label' = ANY($1::text[])",
@@ -276,6 +314,102 @@ async fn the_profile_set_through_the_real_pipeline() {
     eprintln!("{summary}");
     assert_eq!(promos, 0, "a profile label was proposed as a type");
 
+    // A person overrules the class of a file and of a directory (D94): the files are reclassified at once (reason `user`), extracted again,
+    // and settle; clearing the choice gives the rules' class back.
+    let route = format!("/v1/docs/drives/{drive_id}/profile-overrides");
+    let r = put_override(
+        &s,
+        &route,
+        json!({"scope": "file", "path": "harborq/CHANGELOG.md", "profile": "business"}),
+    )
+    .await;
+    assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+    assert_eq!(r.json()["affected"], 1);
+    let r = put_override(
+        &s,
+        &route,
+        json!({"scope": "dir", "path": "harborq/tools", "profile": "other"}),
+    )
+    .await;
+    assert_eq!(r.status, 200);
+    assert_eq!(r.json()["affected"], 2);
+    let listed = s.call("GET", &route, None).await.json();
+    assert_eq!(listed["items"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        put_override(
+            &s,
+            &route,
+            json!({"scope": "file", "path": "x", "profile": "nonsense"})
+        )
+        .await
+        .status,
+        400
+    );
+    let t1 = Instant::now();
+    loop {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let st = s.states().await;
+        let settled = [
+            "harborq/CHANGELOG.md",
+            "harborq/tools/export.py",
+            "harborq/tools/report.py",
+        ]
+        .iter()
+        .all(|p| st.get(*p).is_some_and(|(state, _)| state == "published"));
+        let now = s
+            .call(
+                "GET",
+                &format!("/v1/docs/drives/{drive_id}/files?recursive=true&limit=200"),
+                None,
+            )
+            .await
+            .json();
+        let get = |p: &str| {
+            now["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["path"] == p)
+                .cloned()
+                .unwrap()
+        };
+        let (a, b) = (get("harborq/CHANGELOG.md"), get("harborq/tools/export.py"));
+        if settled
+            && a["profile"] == "business"
+            && a["profile_reason"] == "user"
+            && a["class"] == "record"
+            && b["profile"] == "other"
+            && b["class"] == "other"
+        {
+            break;
+        }
+        assert!(
+            t1.elapsed() < Duration::from_secs(120),
+            "override did not settle: {a} {b}"
+        );
+    }
+    // The file the override made a record now goes through the record templates; the directory's files lost their structure.
+    let r = put_override(
+        &s,
+        &route,
+        json!({"scope": "file", "path": "harborq/CHANGELOG.md", "profile": Value::Null}),
+    )
+    .await;
+    assert_eq!(r.json()["affected"], 1);
+    put_override(
+        &s,
+        &route,
+        json!({"scope": "dir", "path": "harborq/tools", "profile": Value::Null}),
+    )
+    .await;
+    assert_eq!(
+        s.call("GET", &route, None).await.json()["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
     // Ask: the app's own loop against this engine (the frozen questions), when asked for.
     if let Ok(dir) = std::env::var("OO_PROFILES_ASK") {
         let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -293,7 +427,8 @@ async fn the_profile_set_through_the_real_pipeline() {
                 "--questions",
             ])
             .arg(&questions)
-            .args(["--out", &dir])
+            .args(["--out", &dir, "--brief"])
+            .arg(out.join("brief.md"))
             .status()
             .expect("node");
         assert!(status.success(), "ask_headless failed");

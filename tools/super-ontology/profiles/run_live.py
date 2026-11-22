@@ -4,7 +4,7 @@
     OO_TEST_LANE=super-ontology-ak python3 -B tools/super-ontology/profiles/run_live.py --out DIR [--model --endpoint-file F --key-file F --model-id ID] [--ask]
 
 A labelled Postgres container, the real engine and Docling sidecar (the `profiles_live` test), then `score.py` against the frozen gold and, with --ask, the
-app's Ask loop on the 10 frozen questions (needs --model) scored by `acceptance/score_ask.py`. The endpoint and key are only ever passed as paths.
+app's Ask loop on the frozen questions (needs --model) scored by `acceptance/score_ask.py`. The endpoint and key are only ever passed as paths.
 """
 import argparse, json, os, subprocess, sys, time
 from pathlib import Path
@@ -52,7 +52,7 @@ def main():
             ev.log((p.stdout + p.stderr)[-2500:])
             ok = False
         else:
-            q = subprocess.run([sys.executable, "-B", str(HERE / "score.py"), "--pred", str(out / "entities.jsonl"), "--gold", str(GOLD), "--out", str(out / "score.json")],
+            q = subprocess.run([sys.executable, "-B", str(HERE / "score.py"), "--run", str(out), "--gold", str(GOLD), "--out", str(out / "score.json")],
                                capture_output=True, text=True)
             ev.log(q.stdout)
             if a.ask:

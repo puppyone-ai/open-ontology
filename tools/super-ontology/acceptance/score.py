@@ -138,7 +138,7 @@ def score_relations(world, gold, texts):
             "leaks_into_unrelated_files": leaks, "unsupported_links": unsupported[:60]}, rows
 
 
-APP_TO_GOLD = {"unsupported": "unsupported_format", "parse_failed": "corrupt_file", "no_entities": "empty_file", "indexed_only": "empty_file", "no_relations": "unrelated_content", "entity": "unrelated_content",
+APP_TO_GOLD = {"unsupported": "unsupported_format", "parse_failed": "corrupt_file", "no_entities": "empty_file", "no_relations": "unrelated_content", "entity": "unrelated_content",
                "connected": "linked_to_project", "review": "waiting_review", "processing": "still_processing"}
 
 
@@ -153,7 +153,7 @@ def engine_reason(file_rec, world, path, size):
         return "processing"
     mine = [e for e in world if path in e["files"]]
     if not mine:
-        return "indexed_only"  # D89: "Indexed, searchable"; the app lists it under its filter
+        return "no_entities"
     return "connected" if any(len(e["files"]) > 1 for e in mine) else "no_relations"
 
 
@@ -170,7 +170,7 @@ def score_unlinked(gold, run, world, ui):
             reason = engine_reason(rec, world, path, rec.get("detail", {}).get("size"))
         mapped = APP_TO_GOLD.get(reason)
         # An empty file and a file with no entities show the same app reason; the gold says which one the file is by its size.
-        if reason in ("no_entities", "indexed_only") and rec.get("detail", {}).get("size", 1) != 0:
+        if reason == "no_entities" and rec.get("detail", {}).get("size", 1) != 0:
             mapped = "unrelated_content"
         ok = mapped == g["kind"]
         right += ok

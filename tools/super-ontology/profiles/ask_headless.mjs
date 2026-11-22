@@ -3,6 +3,7 @@
 // headless, against a running docs engine (no Electron, no GUI): the loop, its prompt, its tools and its citation rules are the app's. The engine of the
 // test serves `/v1/docs/*` only; the ontology search of the gateway (`/v1/ontology/search`) is answered here from knowledge search, so the `search` tool
 // returns the same blocks `find_text` does and every source is a real file and block of the engine.
+//   node ask_headless.mjs --brief BRIEF.md ...: answers from the BRIEF text only (the ontology path: no search tool, no full text); every claim cites a [src:path#frag] tag of it.
 //   node ask_headless.mjs --base-url http://127.0.0.1:PORT --token T --questions questions.jsonl --out DIR [--only q01,q02] [--parallel 2]
 // The model is the one the engine is configured with (`GET /v1/docs/config/model`); its endpoint and key are read from the `file:` references, in this
 // process only, and never printed.
@@ -18,7 +19,7 @@ const { runAskLoop } = await import(path.join(ask, "ask-loop.mjs"));
 const { createAskTools, createSourceRegistry } = await import(path.join(ask, "ask-tools.mjs"));
 const { createModelClient, readKeyRef } = await import(path.join(ask, "model-client.mjs"));
 
-const base = opt("--base-url");
+const base = opt("--base-url") ?? "http://127.0.0.1:1";
 const token = opt("--token");
 const headers = { Authorization: `Bearer ${token}`, Accept: "application/json", "OO-Docs-Api-Min": "1.0" };
 const get = async (route, signal) => {
@@ -64,6 +65,23 @@ const bound = { chat: ({ system, messages, tools, signal }) => model.chat({ conf
 
 const only = new Set((opt("--only", "") || "").split(",").filter(Boolean));
 const questions = (await fs.readFile(opt("--questions"), "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((q) => only.size === 0 || only.has(q.id));
+if (opt("--brief")) {
+  const brief = await fs.readFile(opt("--brief"), "utf8");
+  const system = "You answer questions about a team's work from the BRIEF below, which is the ontology of their files compiled for you. Answer only from the BRIEF. Cite each claim with the [src:path#fragment] tags exactly as the BRIEF writes them. If the BRIEF does not contain the answer, begin your reply with NOT_IN_DATA: and one sentence. Keep it short.\n\n" + brief;
+  const out = [];
+  for (const q of questions) {
+    const t = Date.now();
+    let text = "";
+    try { text = (await model.chat({ config, key, system, messages: [{ role: "user", text: q.question }], tools: [] })).text; } catch (e) { text = `error:${String(e?.message ?? e).slice(0, 80)}`; }
+    const declined = /^\s*NOT_IN_DATA/iu.test(text);
+    const sources = [...text.matchAll(/\[src:([^\]#]+)(#[^\]]*)?\]/gu)].map((m) => ({ kind: "file", path: decodeURIComponent(m[1]), anchor: m[2] ?? "" }));
+    out.push({ id: q.id, ms: Date.now() - t, ok: true, status: declined ? "unanswerable" : "answered", answer: declined ? "" : text, reason: declined ? text : "", sources: declined ? [] : sources, steps: ["brief"], uncited: sources.length === 0 });
+    console.error(`brief-ask ${q.id} ${declined ? "unanswerable" : "answered"} ${Date.now() - t}ms`);
+  }
+  await fs.mkdir(opt("--out"), { recursive: true });
+  await fs.writeFile(path.join(opt("--out"), "ask-results.json"), JSON.stringify(out, null, 1));
+  process.exit(0);
+}
 const queue = [...questions];
 const results = [];
 const worker = async () => {
