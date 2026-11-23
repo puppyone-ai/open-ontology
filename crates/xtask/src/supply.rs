@@ -191,10 +191,16 @@ const AGE_FLOOR_SECONDS: i64 = 604_800;
 /// or the same version with a different recorded time, still fails. These are
 /// RUSTSEC fixes that mysql_common's binlog decoding (D10) requires; the older
 /// releases carry five advisories. Each waiver is moot once its crate clears
-/// the floor (2026-11-08T14:12Z) and must be removed then.
+/// the floor (zstd 2026-11-08T14:12Z, url 2026-11-27T23:03Z) and must be removed then.
 const AGE_FLOOR_WAIVERS: &[(&str, &str, &str)] = &[
     ("zstd", "0.13.4", "2026-11-01T14:12:07"),
     ("zstd-safe", "7.4.0", "2026-11-01T14:11:59"),
+    // RUSTSEC-2026-0592 (url 2.5.8, stack overflow in `Url::origin()`) is a
+    // vulnerability that cargo-audit never lets through; 2.5.9 is the patched
+    // release and form_urlencoded 1.2.3 is its lockstep dependency. Remove
+    // both after they clear the floor (2026-11-27T23:03Z).
+    ("url", "2.5.9", "2026-11-20T23:03:07"),
+    ("form_urlencoded", "1.2.3", "2026-11-20T23:02:49"),
 ];
 
 fn age_floor_waived(name: &str, version: &str, pubtime: &str) -> bool {
