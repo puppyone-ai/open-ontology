@@ -81,11 +81,12 @@ jobs:
     # that every pair fits 12 minutes on a quiet machine; formal/reviews/FM*.md have the measured times).
     # The 80 section 6 budget is 15 minutes per job. On the shared hosted runners, with the whole matrix
     # running at once, the review_decide pairs measured 13 to 20 minutes (invOrphanQueued took 14 minutes
-    # on a Mac with 8 GB heap and passes with no violation), so the hard stop is 30 minutes. The bound
-    # and the invariants are unchanged.
+    # on a Mac with 8 GB heap and passes with no violation), so the hard stop is 30 minutes. review_decide invOrphanQueued alone
+    # ran past 30 minutes there (14 minutes on a Mac; an equivalent set-membership encoding of the
+    # invariant was measured at 12 minutes, no real gain) and gets 75. The bound and the invariants are unchanged.
     name: formal-verify-fast (${{ matrix.model }} ${{ matrix.invariant }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.model == 'review_decide' && matrix.invariant == 'invOrphanQueued' && 75 || 30 }}
     strategy:
       fail-fast: false
       matrix:
