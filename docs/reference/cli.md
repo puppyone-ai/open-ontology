@@ -72,15 +72,6 @@ Long value options accept --name value or --name=value; boolean flags take no va
 The npm distribution also provides configure, config show and time; see its top-level help.
 This native executable has no saved profile; supply explicit connection flags.
 
-Documents (no database needed; every command takes --json):
-  oo serve [--runtime auto|compose|embedded|host]   Start the local engine (Docker if present, else embedded)
-  oo docs upload <path>... [--drive NAME] [--wait terminal]   Add files; the first upload creates a local folder Drive
-  oo docs wait [--drive NAME]                          Wait until files are published
-  oo source add fs|s3|oss|cos|r2 --name N ...          Register a folder or bucket (credentials by prompt, stdin or env)
-  oo source ls|show|rm|test                            Manage sources
-  oo context mount --to DIR                            Write an agent-ready BRIEF with sources
-  oo docs --help                                       Review, entities, model, usage, audit
-
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
   oo init [--catalog CATALOG.json] [--tables-recommended | --tables all|a.b,c.d]
@@ -365,23 +356,6 @@ Profiles default to ~/.config/open-ontology; OO_CONFIG_DIR selects another priva
 Changing the Gateway requires its own explicit token; credentials are never silently reused.
 ```
 
-## `oo context --help`
-
-```text
-Usage:
-  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text> | --for-file <path>] [--seed <entity-key>]... [--budget <n>] [--role viewer|suggester] [--expires <dur>] [--version <N>] [--group <ticket>] [--refresh-policy manual|at-checkpoint|pinned] [--require-complete] [--wait <dur>] [--strict-budget] [--dry-run] [--json]
-  oo context list [--drive <id|name>] [--status <state>] [--json]
-  oo context status <dir|share-id> [--json]
-  oo context refresh <dir|share-id> | --group <ticket> [--json]
-  oo context revoke <dir|share-id> [--json]
-  oo context check [--dir .context] [--since <seq>] [--json]
-  oo context collect <dir|share-id> [--json]
-  oo docs drive|files|review|entity|share|usage|health ... (see `oo docs --help`)
-  oo serve [--state-dir <dir>] [--port <n>|0] [--runtime auto|compose|embedded|host] [--deploy-dir <dir>] [--keep-engine] [--json]
-  oo serve --status [--json]
-  oo serve --stop
-```
-
 ## `oo describe --help`
 
 ```text
@@ -425,26 +399,6 @@ result. Exit 2 is usage or a non-retryable Gateway refusal. Exit 3 is a
 retryable RATE_LIMITED or OVERLOADED result after the SDK admission policy.
 Exit 4 is authentication or network. Exit 1 is everything else.
 The wire format is JSON. Markdown is rendered locally from that response.
-```
-
-## `oo docs --help`
-
-```text
-Usage:
-  oo docs upload <path>... [--drive <name|id>] [--to <dir>] [--name <file>] [--wait terminal|published|none] [--timeout 120s] [--no-start]   (`-` reads stdin; no --drive uses the managed folder `default`; starts `oo serve` itself when none runs unless --no-start)
-  oo docs wait [--drive <name|id>] [--state terminal|published] [--rev <n>] [--timeout 120s]   (exit 0 settled, 10 some failed, 9 timed out)
-  oo docs drive add --name <n> --root <dir> | ls | show <drive> | rm <drive> | sync <drive> [--deep] [--path <p>]... | tree <drive> [--path <p>] | rebuild <drive> --yes | set <drive> [--name <n>] [--enable-model|--disable-model] [--llm-daily-calls <n>] [--pause|--resume] [--exclude <glob>]... [--clear-exclude] [--auto-publish-bp <n>]
-  oo docs files ls --drive <drive> [--state <s>] | show <file-id> | retry <file-id>... | blocks <file-id> [--page <n>] | content <file-id> [--output <file>]
-  oo docs model show | set --provider openai-compatible|anthropic --base-url <url|env:V|file:/abs> --model <id> (--key-stdin | --key-ref env:V|file:/abs)
-  oo docs audit shares [--drive <d>] [--agent <a>] [--tenant <t>] [--since <ts>] [--until <ts>] | verify
-  oo docs versions | constraints
-  oo docs review ls [--kind <k>] [--status <s>] | decide accept|reject <item-id>... [--winner <fact-id>] [--name <person>] | accept-source <file-id> [--reject]
-  oo docs entity search <text> [--type <T>] | resolve <text> [--type <T>] [--drive <d>] | show <key> [--history] | correct <fact-id> (--mark-wrong | --set <text>) --entity <key> | merge --into <key> <from-key>... | split <key> --groups <json>
-  oo docs suggestion ls [--status <s>] [--day YYYY-MM-DD] | digest [--day YYYY-MM-DD] | show <id> | diff <id> | accept|reject|undo <id>...
-  oo docs share ls | show <share-id> | revoke <share-id|dir> | refresh <share-id|dir>
-  oo docs usage | health
-  oo docs runtime install|status   (the Docker-free parser environment under the state dir)
-  (all take --json and --state-dir <dir>)
 ```
 
 ## `oo doctor --help`
@@ -666,15 +620,6 @@ Flags follow the command. Use -- before a positional argument beginning with '-'
 Long value options accept --name value or --name=value; boolean flags take no value.
 The npm distribution also provides configure, config show and time; see its top-level help.
 This native executable has no saved profile; supply explicit connection flags.
-
-Documents (no database needed; every command takes --json):
-  oo serve [--runtime auto|compose|embedded|host]   Start the local engine (Docker if present, else embedded)
-  oo docs upload <path>... [--drive NAME] [--wait terminal]   Add files; the first upload creates a local folder Drive
-  oo docs wait [--drive NAME]                          Wait until files are published
-  oo source add fs|s3|oss|cos|r2 --name N ...          Register a folder or bucket (credentials by prompt, stdin or env)
-  oo source ls|show|rm|test                            Manage sources
-  oo context mount --to DIR                            Write an agent-ready BRIEF with sources
-  oo docs --help                                       Review, entities, model, usage, audit
 
 Admin commands (source connections remain read-only):
   oo init|up|down|status|doctor [--config stack.yaml] [--yes] [--json]
@@ -1197,23 +1142,6 @@ Output is private reviewed registry + compiled Pack, not authenticated publicati
 selfbuild-budget must be installed beside oo. --yes never approves a review.
 ```
 
-## `oo serve --help`
-
-```text
-Usage:
-  oo context mount [--drive <id|name>] [--scope <path>]... --to <dir> [--for <text> | --for-file <path>] [--seed <entity-key>]... [--budget <n>] [--role viewer|suggester] [--expires <dur>] [--version <N>] [--group <ticket>] [--refresh-policy manual|at-checkpoint|pinned] [--require-complete] [--wait <dur>] [--strict-budget] [--dry-run] [--json]
-  oo context list [--drive <id|name>] [--status <state>] [--json]
-  oo context status <dir|share-id> [--json]
-  oo context refresh <dir|share-id> | --group <ticket> [--json]
-  oo context revoke <dir|share-id> [--json]
-  oo context check [--dir .context] [--since <seq>] [--json]
-  oo context collect <dir|share-id> [--json]
-  oo docs drive|files|review|entity|share|usage|health ... (see `oo docs --help`)
-  oo serve [--state-dir <dir>] [--port <n>|0] [--runtime auto|compose|embedded|host] [--deploy-dir <dir>] [--keep-engine] [--json]
-  oo serve --status [--json]
-  oo serve --stop
-```
-
 ## `oo share-prompt --help`
 
 ```text
@@ -1227,23 +1155,6 @@ oo whoami [--json]
 oo share-prompt --grant-file FILE [--role ROLE] [--agent claude|cursor|codex] [--raw-token]
 Connection: --gateway URL --ca-file FILE --connect-ip IP --interface NAME
 Admin issuance requires --client-pem FILE. Credentials are saved as private file references.
-```
-
-## `oo source --help`
-
-```text
-Usage:
-  oo source add fs --name <n> --root <dir> [--exclude <glob>]...
-  oo source add s3|oss|cos|r2 --name <n> --bucket <b> [--prefix <p>] [--endpoint <url>] [--region <r>] [--path-style] [--account-id <id>] [--internal] [--exclude <glob>]...
-      credentials (one of): a hidden prompt on a terminal | --credentials-stdin (JSON or two lines: key id, secret) | --access-key-id-env <VAR> --secret-access-key-env <VAR> [--session-token-env <VAR>] | --secret-ref env:VAR|file:/abs|NAME (a JSON credential) | --access-key-id-ref <ref> --secret-access-key-ref <ref> [--session-token-ref <ref>] (two references, each the plain value)
-  oo source add postgres|mysql|mariadb|tidb|oceanbase|polardb|opengauss|kingbase|sqlserver|oracle|db2|dm8|clickhouse|doris|starrocks|mongodb|opensearch --name <n> --host <h> [--port <p>] --database <db|service> --user <u> [--config stack.yaml] [--tls-ca-file <pem>|--tls-ca-ref <ref>] [--include <schema.table>]... [--exclude <glob>]...
-      registers the database in stack.yaml (created by `oo init`); every kind needs --include (schema.table; database.collection for mongodb, schema.index for opensearch, optional for oracle) and a trust anchor --tls-ca-* (not oracle/dm8; optional for db2; the analytic, mongodb and opensearch kinds may be plain text only on 127.0.0.1); password (one of): hidden prompt | --password-stdin | --password-env <VAR> | --password-file <abs path> | --password-ref <ref>
-  oo source ls | show <name> | rm <name> [--keep-secret] | test <name>   (ls lists folders, buckets and databases)
-  oo source link ... (document-to-database entity links: `oo source link --help`)
-  (all take --json and --state-dir <dir>; none prompts without a terminal)
-  oo source link add --table <schema.table> --key-col <c> --name-col <c> [--alias-col <c>]... [--entity-type <T>] [--drive <name|id>]
-  oo source link ls [--drive <name|id>] | rm --table <schema.table> [--drive <name|id>] | project [--drive <name|id>] [--no-force]
-  oo source link bind --secret-ref env:VAR|file:/abs|NAME      (the Agent DB the projection writes to)
 ```
 
 ## `oo sql --help`
