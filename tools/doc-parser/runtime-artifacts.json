@@ -23,9 +23,9 @@
       "macosx_arm64": {
         "file": "opencv_python_headless-5.0.0.93-cp313-cp313-macosx_12_0_arm64.whl",
         "sha256": "8da5f445677a37fd6f0164517e3c15e9860a9694f7d08d68c2664bd1e9d36b49",
-        "url": "https://releases.invalid/open-ontology/runtime/opencv_python_headless-5.0.0.93-cp313-cp313-macosx_12_0_arm64.whl",
-        "published": false,
-        "note": "placeholder URL: the owner publishes the wheel and replaces it; until then use OO_DOCS_OPENCV_WHEEL or <state>/artifacts/"
+        "url": "https://github.com/puppyone-ai/open-ontology/releases/download/runtime-opencv-5.0.0.93/opencv_python_headless-5.0.0.93-cp313-cp313-macosx_12_0_arm64.whl",
+        "published": true,
+        "note": "GitHub release runtime-opencv-5.0.0.93 of puppyone-ai/open-ontology; OO_DOCS_OPENCV_WHEEL or <state>/artifacts/ still override it"
       }
     }
   }

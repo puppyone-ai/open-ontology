@@ -195,7 +195,7 @@ pub fn opencv_wheel(state: &Path, say: &dyn Fn(&str)) -> Result<PathBuf, String>
     say("downloading the FFmpeg-free OpenCV wheel");
     let part = dir.join(format!("{file}.partial"));
     curl(url, &part).map_err(|e| {
-        format!("{e}; the wheel is not published yet: put {file} (sha256 {sha}) in {} or set {ENV_OPENCV_WHEEL}=<path>", dir.display())
+        format!("{e}; download failed: put {file} (sha256 {sha}) in {} or set {ENV_OPENCV_WHEEL}=<path>", dir.display())
     })?;
     if let Err(e) = verify(&part, sha) {
         let _ = std::fs::remove_file(&part);
