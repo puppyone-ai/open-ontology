@@ -324,9 +324,11 @@ jobs:
 
   kani-fast:
     # KP harnesses of the changed crates (80 section 6, budget 20 minutes). Kani 0.68.0, formal/TOOLCHAIN.md.
+    # The hosted runner needed 44 minutes in one run and was stopped at 45 in the next (every harness
+    # passed up to the one running), so the hard stop is 90. The harnesses are unchanged.
     name: kani-fast
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
