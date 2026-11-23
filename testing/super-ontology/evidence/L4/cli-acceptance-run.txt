@@ -13,7 +13,7 @@ $ cargo build --locked -p oo-cli --features docs
       Finished `dev` profile [unoptimized + debuginfo] target(s) in 49.87s
 
 ## 1. start the compose runtime
-$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/state --deploy-dir <repo>/deploy/docs
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/state --deploy-dir <repo>/deploy/docs
   {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77"}, "mode": "compose", "port": 56842, "project": "oo-docs-61a6a28ec8b1"}, "pid": 21145, "port": 56859, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T16:06:12Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
 [PASS] 1 oo serve --runtime compose prints its address and the compose project - {"port": 56859}
 $ oo docs health --json  -> exit 0
@@ -22,7 +22,7 @@ $ oo serve --status  -> exit 0
 [PASS] 1 oo serve --status says it is running - oo serve is running (pid 21145, port 56859)
 
 ## 2. register the sample Drive and watch the states
-$ oo docs drive add --name acceptance --root /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/drive --json  -> exit 0
+$ oo docs drive add --name acceptance --root /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/drive --json  -> exit 0
 [PASS] 2 oo docs drive add exits 0 - exit 0
 $ oo docs files ls --drive acceptance --json  -> exit 0
 [PASS] 2 every readable sample file is published or waits for review (md, txt, csv, xlsx, docx, pptx, pdf) - 64s {"encrypted": 1, "indexed": 1, "published": 23, "unsupported": 1}
@@ -84,34 +84,34 @@ $ oo docs drive sync acceptance --path Notes/刚放进去.md --json  -> exit 0
 [PASS] 6 oo docs drive sync --path (targeted) exits 0 - {"added": 0, "changed": 1, "drive_rev": 29, "error_code": null, "finished_at": "2026-11-18T16:07:24.005598Z", "generation": 5, "maybe_deleted": [], "protocol": 
 
 ## 7. mount a context pack
-$ oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json  -> exit 0
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json  -> exit 0
 [PASS] 7 oo context mount exits 0 - exit 0
 [PASS] 7 BRIEF has coverage in its header and every content line has [src: - 5 content lines
 [PASS] 7 BRIEF ends with the blocked section: a count, no names
 $ oo context list --json  -> exit 0
 [PASS] 7 oo context list shows the share active
-[PASS] 7 oo context mount (human output) exits 0 - mounted /private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, B
+[PASS] 7 oo context mount (human output) exits 0 - mounted /private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, B
 
 ## 8. the P21 scenario
-$ oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json  -> exit 0
-$ oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json  -> exit 0
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json  -> exit 0
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json  -> exit 0
 [PASS] 8 two mounts of one task group
-$ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context  -> exit 0
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 0
 [PASS] 8 oo context check in agent-a exits 0 before the correction - exit 0
-$ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context  -> exit 0
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context  -> exit 0
 [PASS] 8 oo context check in agent-b exits 0 before the correction - exit 0
 $ oo docs entity search 开源图表库 --type Decision --json  -> exit 0
 $ oo docs entity show decision:8752aa38cd80070d66db95eb --json  -> exit 0
 $ oo docs entity correct ed65de87-c029-4190-a130-f70c41f06d90 --mark-wrong --reason 决定被推翻 --entity decision:8752aa38cd80070d66db95eb --json  -> exit 0
 [PASS] 8 the decision's fact is marked wrong - exit 0
 [PASS] 8 UPDATES.md of agent-a has the block entry - 0.5s from the correction
-$ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context  -> exit 20
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 20
 [PASS] 8 oo context check exits 20 (do not commit) - exit 20
 $ oo context refresh --group TICKET-P21 --json  -> exit 0
-[PASS] 8 the group refreshes together - {"protocol": "oo.context-refresh/v1", "shares": [{"mounted": true, "old": "0ec2d5d6-67dc-442a-9907-6cb3d67e91e3", "path": "/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context", "share_id": 
-$ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context  -> exit 0
+[PASS] 8 the group refreshes together - {"protocol": "oo.context-refresh/v1", "shares": [{"mounted": true, "old": "0ec2d5d6-67dc-442a-9907-6cb3d67e91e3", "path": "/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context", "share_id": 
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 0
 [PASS] 8 oo context check in agent-a exits 0 after the refresh - exit 0
-$ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context  -> exit 0
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context  -> exit 0
 [PASS] 8 oo context check in agent-b exits 0 after the refresh - exit 0
 [PASS] 8 the Drive's files are unchanged
 
@@ -119,7 +119,7 @@ $ oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context 
 $ oo docs files ls --drive acceptance --state published --json  -> exit 0
 [PASS] 9 SIGTERM: oo serve exits 0 - exit 0
 [PASS] 9 the containers are stopped, not removed - {"doc-parser": "exited", "docs-db": "exited", "docs-engine": "exited"}
-$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/state --deploy-dir <repo>/deploy/docs
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/state --deploy-dir <repo>/deploy/docs
   {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77"}, "mode": "compose", "port": 58149, "project": "oo-docs-61a6a28ec8b1"}, "pid": 58131, "port": 58163, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T16:08:00Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
 $ oo docs drive show acceptance --json  -> exit 0
 [PASS] 9 the Drive survived the restart - exit 0
@@ -130,7 +130,7 @@ $ oo docs share ls --json  -> exit 0
 [PASS] 9 the mounted directories were not touched
 
 ## 10. revoke and remove
-$ oo context revoke /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work --json  -> exit 0
+$ oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --json  -> exit 0
 [PASS] 10 oo context revoke deletes the mount and says so - {"local_removed": true, "notice_code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE", "protocol": "oo.context-revoke/v1", "share_id": "5c0791ad-2cd0-4deb-993a-6bd7af120
 $ oo docs share ls --json  -> exit 0
 [PASS] 10 oo docs share ls shows the revoked share

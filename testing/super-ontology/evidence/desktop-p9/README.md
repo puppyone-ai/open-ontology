@@ -5,7 +5,7 @@
 ## 环境
 
 - Puppyone：分支 `sd/P9-evidence`，基于 `codex/super-drive` `f2ddc8cc`；T1 在该树加一处测试改动（s3 场景的 lane 标签取自环境变量，提交 `23ca7546`）上运行。Node v24.13.0，Electron 41.10.6，原生辅助模块（拖拽、模板、媒体解码）在本机构建。
-- OO：`feat/super-ontology` `406dd0dc6`。`cargo build --locked -p oo-cli --features docs`、`cargo build --locked -p oo-docs --features objectstore-s3 --bin oo-docs-engine`（`CARGO_BUILD_JOBS=6`）。二进制 sha256 见 `packs.md`。
+- OO：`feat/super-ontology` `fad4f5651`。`cargo build --locked -p oo-cli --features docs`、`cargo build --locked -p oo-docs --features objectstore-s3 --bin oo-docs-engine`（`CARGO_BUILD_JOBS=6`）。二进制 sha256 见 `packs.md`。
 - 容器：标签 `oo.lane=super-ontology-p9`（Postgres 用 `SUPER_ONTOLOGY_LANE_LABEL`，compose 栈用 `OO_DOCS_LANE`），同一时刻至多 2 个、顺序运行；运行后查询该标签的容器数为 0。
 - 环境变量：`SUPER_ONTOLOGY_OO_BIN`、`_ENGINE_BIN`、`_GOLDEN`（OO 评测集）、`_MODEL_EGRESS`、`_RECORDED_LLM`（`crates/oo-docs/tests/fixtures/llm`）、`_FIXTURES`、`_S3=1`、`_COMPOSE=1`。模型一律是回放，没有真实密钥或出网。
 

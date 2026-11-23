@@ -1,7 +1,7 @@
 {
   "run_id": "verify-l7-signoff",
   "status": "pass_with_flake",
-  "git_head": "acf198b17d813d30ad55d560338bf80d23f1a912",
+  "git_head": "75c44714bedd2dabd84b93b630d03a70075fa97d",
   "branch": "so/V1-signoff",
   "date": "2026-11-18",
   "signer": "verifier (Haiku 5.5), independent of the executor",

@@ -1,7 +1,7 @@
 {
  "run_id": "verify-signoff",
  "status": "pass_with_recorded_failure_resolved_at_e877ac64d",
- "verifier_head": "5f9061df6",
+ "verifier_head": "7ec049f0b",
  "verifier_branch": "so/V46-signoff",
  "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
  "checks": [
@@ -11,12 +11,12 @@
    "detail": "339 passed, 1 skipped, 57 subtests"
   },
   {
-   "check": "super_ontology_live_suites (53 targets) at 5f9061df6",
+   "check": "super_ontology_live_suites (53 targets) at 7ec049f0b",
    "ok": false,
    "detail": "51 passed, 1 skipped (download needs --with-s3), 1 failed extract_llm_stage_live (timed out waiting for published; rerun also failed)"
   },
   {
-   "check": "extract_llm_stage_live at e877ac64d (fresh detached worktree)",
+   "check": "extract_llm_stage_live at 62e11cd3a (fresh detached worktree)",
    "ok": true,
    "detail": "passed 116s"
   },
@@ -33,7 +33,7 @@
   {
    "check": "super_ontology_cli_acceptance.py (L4 CLI)",
    "ok": true,
-   "detail": "b2386f379 (verifier run v4b-b2386f379): 58/58 checks passed. Earlier run at 5f9061df6 (verifier head of so/V46-signoff, log verify-runs/cli-l4-1.log): 57/58 checks passed; [FAIL] 9 its files are still published - 25 files. Cause: the exact check expected 24 published files while 25 were published before the restart (the count after restart was compared with a fixed 24, not with the pre-restart count). Fixed in 516b239c8, which compares with the pre-restart count."
+   "detail": "2f6a14f29 (verifier run v4b-2f6a14f29): 58/58 checks passed. Earlier run at 7ec049f0b (verifier head of so/V46-signoff, log verify-runs/cli-l4-1.log): 57/58 checks passed; [FAIL] 9 its files are still published - 25 files. Cause: the exact check expected 24 published files while 25 were published before the restart (the count after restart was compared with a fixed 24, not with the pre-restart count). Fixed in f91da8a09, which compares with the pre-restart count."
   },
   {
    "check": "eval golden model off/on",
@@ -90,15 +90,15 @@
   }
  ],
  "findings": [
-  "extract_llm_stage_live fails at 5f9061df6 (fixed by e877ac64d, passed there)",
+  "extract_llm_stage_live fails at 7ec049f0b (fixed by 62e11cd3a, passed there)",
   "download target skipped: needs --with-s3 RustFS/MinIO, not run",
   "no machine-readable last-signed L4 baseline for the regression gate",
-  "CLI acceptance at 5f9061df6 recorded 57/58 (check 9 'its files are still published - 25 files' FAIL, expected 24); the earlier 10/10 entry was wrong and is corrected here. Fixed in 516b239c8; rerun at b2386f379 gives 58/58."
+  "CLI acceptance at 7ec049f0b recorded 57/58 (check 9 'its files are still published - 25 files' FAIL, expected 24); the earlier 10/10 entry was wrong and is corrected here. Fixed in f91da8a09; rerun at 2f6a14f29 gives 58/58."
  ],
   "verify_signoff_runs": [
     {
       "run_id": "v48-stock-L4",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -112,7 +112,7 @@
   "verify_signoff_runs_v48": [
     {
       "run_id": "v48-stock-rerun",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -125,7 +125,7 @@
     },
     {
       "run_id": "v48-vectors-on",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -138,7 +138,7 @@
     },
     {
       "run_id": "v48-conformance-share-x10",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",

@@ -9,7 +9,7 @@
 | 构建源 | Puppyone `sd/P9-evidence` 的 `23ca7546`（`codex/super-drive` `f2ddc8cc` 之上一条测试提交，工作树干净） |
 | DMG（原始产物） | `/Users/redux/puppy-one/puppyone-wt/sd-P9/release/puppyone-0.3.27-acceptance.g23ca7546-arm64.dmg`（构建完成后随工作树清理而删除，交付副本在下面三个包里） |
 | DMG sha256（三个包相同） | `c58862a2f5c52f6dad194d7354432939f7df8999c7ff64cf1a428955931607c9` |
-| 引擎二进制 | `engine/oo` sha256 `ebd5a9f0c245aabea4ece84e0326219dfc10e8f7048a2bf4df6f60236b16706a`、`engine/oo-docs-engine` sha256 `b6f9efd597191818af1fbe622824de14212e560d4afa980b881bae2744e64521`（OO `406dd0dc6`，debug，`--features docs` / `objectstore-s3`） |
+| 引擎二进制 | `engine/oo` sha256 `ebd5a9f0c245aabea4ece84e0326219dfc10e8f7048a2bf4df6f60236b16706a`、`engine/oo-docs-engine` sha256 `b6f9efd597191818af1fbe622824de14212e560d4afa980b881bae2744e64521`（OO `fad4f5651`，debug，`--features docs` / `objectstore-s3`） |
 | 契约 | docs-api 1.9 |
 
 | 包 | 路径 | 内容 |

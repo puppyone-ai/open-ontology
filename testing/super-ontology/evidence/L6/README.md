@@ -1,24 +1,24 @@
 # L6 多模态与演进 · OO 侧签收证据（D80 阶段一）
 
 **签收（协调者，2026-11-18）**：此前暂缓的验收 1 与验收 3 已由独立验证员重跑通过：
-- `result-verify-longruns.json`（@51d413312）：44 个扫描件经引擎全部 `published`，核心类型召回 0.8556（≥ 0.65），ocr-parser 峰值 6854 MiB（上限 10 GiB）；2 小时会议核心类型召回 1.0（≥ 0.6），media-parser 峰值 1399 MiB。
-- `result-verify-longruns-2.json`（@c330f0a7b）：杀进程续跑复用 40 = 中断前完成 40、重算 218，重放逐字节一致，说话人特征目录已删除；`speaker_live` 2/2；图表 0.9412、截图 1.0 字符召回（≥ 0.9，ocr-parser sidecar 测量）；sidecar 扫描子集核心召回 0.8556（77/90）。
+- `result-verify-longruns.json`（@869fe07f3）：44 个扫描件经引擎全部 `published`，核心类型召回 0.8556（≥ 0.65），ocr-parser 峰值 6854 MiB（上限 10 GiB）；2 小时会议核心类型召回 1.0（≥ 0.6），media-parser 峰值 1399 MiB。
+- `result-verify-longruns-2.json`（@57f4d824e）：杀进程续跑复用 40 = 中断前完成 40、重算 218，重放逐字节一致，说话人特征目录已删除；`speaker_live` 2/2；图表 0.9412、截图 1.0 字符召回（≥ 0.9，ocr-parser sidecar 测量）；sidecar 扫描子集核心召回 0.8556（77/90）。
 - 已知差异：执行者的 sidecar 子集召回为 0.9651（83/86），独立重跑为 0.8556，差在 Proposals PDF 的 OCR 几乎为空（与经引擎 pdf 路径缺 7 个方案标题是同一处）；本机缺 Songti 字体，渲染改用 STHeiti。仍高于门槛，原因记为 OCR 线的待查项。
 
-签收版本：OO `feat/super-ontology` @ 4390b2cb4。独立复核运行于 `5f9061df6`（分支 `so/V46-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：状态 pass，L6 CLI 验收 36/36、L6 端到端 28 通过 0 失败。长跑数字（2 小时会议、44 个扫描件）来自执行者在 compose 上的运行（`be2-l6rem-final` 等），独立复核没有重跑这两个长任务。L6 CLI 验收包（30 §7.2 的 owner 验收包）见 `ACCEPTANCE-CLI.md`。macOS 宿主机解码、Desktop 内的 `#t=` 跳转播放、说话人确认界面等 Desktop 部分按 30 §7 在阶段二补齐。
+签收版本：OO `feat/super-ontology` @ a54c40586。独立复核运行于 `7ec049f0b`（分支 `so/V46-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：状态 pass，L6 CLI 验收 36/36、L6 端到端 28 通过 0 失败。长跑数字（2 小时会议、44 个扫描件）来自执行者在 compose 上的运行（`be2-l6rem-final` 等），独立复核没有重跑这两个长任务。L6 CLI 验收包（30 §7.2 的 owner 验收包）见 `ACCEPTANCE-CLI.md`。macOS 宿主机解码、Desktop 内的 `#t=` 跳转播放、说话人确认界面等 Desktop 部分按 30 §7 在阶段二补齐。
 
 ## 独立复核里的发现（如实记录）
 
 - L6 端到端脚本首次运行失败：`python3 -I` 下缺 `pillow`；用 `uv --with pillow` 重跑 28/28。文档中记载的 `/usr/bin/python3` 路径没有在该环境测试 PIL。
 - CLI 验收第 8 项的标签写 p95，实际断言的是最慢文件 ≤ 7 s（实测 `People/林川.md` 2015 ms、`Projects/星火计划.md` 1735 ms）。V2 审计另指出：第 1 项“health”曾允许 `degraded` 通过（现要求 `ok`，复核实测 status ok），第 8 项的编辑到 BRIEF 阈值为 30 s 而不是 D49 的 7 s（口径是 BRIEF 更新而非单文件延迟）。
-- 验证时 `evidence/L6/formal.md` 在 `5f9061df6` 不存在，它在 `d2c857b03` 上；现已在树里，L6 在 D81 下没有新的形式化项。
+- 验证时 `evidence/L6/formal.md` 在 `7ec049f0b` 不存在，它在 `823db4116` 上；现已在树里，L6 在 D81 下没有新的形式化项。
 
 ## 30 §L6 验收（OO 侧口径，30 §7.2）
 
 | # | 验收项 | 结果 | 证据 |
 |---|---|---|---|
 | 1 | 扫描件子集 OCR 后核心类型召回 ≥ 0.65；图表、截图文字字符召回 ≥ 0.9 | 通过：经引擎（compose）44 个文件（56 页图片，源文件均为纯图片 pdf）全部 `published`（1502 s），核心类型召回 0.8605（74/86，Decision 10/10、Person 9/9、Organization 4/4、Project 4/4、Term 5/5、Event 4/5、Topic 4/5、Document 34/44）；ocr-parser 峰值内存 6833 MiB（上限 10 GiB）。12 个缺失：三个速记标签（sidecar 也没认出）、七个方案 pdf 的标题（sidecar 对页面图片得 0.9651，但经引擎的 pdf 路径没有返回，**原因未调查**）、1 个主题和 1 个事件。图表与截图文字 0.9706 是 **sidecar 单独**的数字，不是引擎路径；一份扫描 pdf 与一张 png 把 3 个埋入的词带过整条栈（3/3） | `l6-long-ocr44.json`、`ocr-recall.md`、`l6-e2e-result.json` |
-| 2 | ASR 与说话人分离比测报告已签收，选型与许可判定写入 `supply-chain/` | 通过：报告 `asr-bakeoff.md`（合成 3 人 17 轮 96 s 会议；Qwen3-ASR-0.6B CER 0.0674 但 float32 需 6 GB 超过 4 GiB 上限、bfloat16 慢 10 倍；Paraformer-zh CER 0.1348 需 torch；FireRedASR2 与 pyannote 未评测；`qwen-asr` 包因 GPL 依赖被禁；TTS 非开放 TTS，数据为合成，不含真实录音）。选型与许可判定已写入 `supply-chain/media-asr-model-reviews.json`（`604b41007`）：CPU 默认为 Paraformer-zh 量化 ONNX + 3D-Speaker CAM++ ONNX + silero VAD，合成会议端到端 CER 0.174、DER 0.138；随镜像分发的三项（paraformer-zh、CAM++、silero-vad）许可均为默认可用，并列入 D67 律师门禁；记录的审阅者是工程协调者，**不是法律意见** | `asr-bakeoff.md`、`supply-chain/media-asr-model-reviews.json` |
+| 2 | ASR 与说话人分离比测报告已签收，选型与许可判定写入 `supply-chain/` | 通过：报告 `asr-bakeoff.md`（合成 3 人 17 轮 96 s 会议；Qwen3-ASR-0.6B CER 0.0674 但 float32 需 6 GB 超过 4 GiB 上限、bfloat16 慢 10 倍；Paraformer-zh CER 0.1348 需 torch；FireRedASR2 与 pyannote 未评测；`qwen-asr` 包因 GPL 依赖被禁；TTS 非开放 TTS，数据为合成，不含真实录音）。选型与许可判定已写入 `supply-chain/media-asr-model-reviews.json`（`b5384bfb5`）：CPU 默认为 Paraformer-zh 量化 ONNX + 3D-Speaker CAM++ ONNX + silero VAD，合成会议端到端 CER 0.174、DER 0.138；随镜像分发的三项（paraformer-zh、CAM++、silero-vad）许可均为默认可用，并列入 D67 律师门禁；记录的审阅者是工程协调者，**不是法律意见** | `asr-bakeoff.md`、`supply-chain/media-asr-model-reviews.json` |
 | 3 | 2 小时合成 3 人会议：核心类型召回 ≥ 0.6；确认说话人后事实主语正确；中途杀 `media-parser` 续跑不重做已完成块；同一 ISA 指纹下逐字节可重放；说话人特征文件处理后不存在 | 通过（执行者运行）：把 golden 3 人会议重复 65 遍并埋入 12 段自我介绍，以 Opus/ogg 输入（2 小时 wav 为 230 MB，超过 200 MiB 文件上限，所以不是 wav），580 s `published`，核心类型召回 1.000（golden 会议的 6/6 个名字出现在转写里，样本只有 6 个名字），`media-parser` 峰值 1382 MiB，1064 个转写块；说话人确认前每个标签一条待确认项、没有事实挂在具名 Person 下，确认 S1 后事实主语正确；杀进程续跑复用 40 个块、重算 219 个；回放逐字节相同；说话人特征目录已不存在。**如实记录：12 段埋入的自我介绍 ASR 只听对 5 段、其中 2 段变成 `owns` 事实；ASR 文本没有标点，规则抽取很少匹配“我是X。我负责Y。”（给抽取线的发现）** | `l6-long-meeting.json`、`long-audio.json`、`l6-long-meeting-transcript.txt` |
 | 4 | 合成录屏：每页幻灯片恰好一个关键帧；帧文字召回 ≥ 0.9；`#t=` 出处在 Desktop 能跳转播放 | OO 侧通过：2 页幻灯片、2 个 `frame_text` 块、字符召回 1.00、块带 `t_start_ms`；CLI 里 ref 为 `Meetings/录屏.webm#t=00:00:05-00:00:13`，会议 ref 为 `#t=00:00:00-00:00:05@S1`。样本只有 2 页。Desktop 内跳转播放为**阶段二** | `l6-e2e-result.json`、`cli-acceptance-l6-*` |
 | 5 | macOS 上 H.264/AAC 的 mp4、m4a 经宿主机解码成功；容器内 FFmpeg `-buildconf` 不含 gpl、nonfree；无宿主机解码器且未配外部 FFmpeg 时显示 `DOCS_PARSE_CODEC_UNAVAILABLE` | 容器侧通过：mp4（H.264/AAC）与 m4a 为 `unsupported DOCS_PARSE_CODEC_UNAVAILABLE`，覆盖行 `2/4 个文件已处理；未完成 2 个` 列出两者；`-buildconf` 与无出网证明 `FFMPEG GATE: PASS`。**macOS 宿主机解码为阶段二（F-S10-05），未做** | `l6-docs-media.txt`、`cli-acceptance-l6-run.txt` |

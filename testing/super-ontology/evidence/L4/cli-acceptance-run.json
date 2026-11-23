@@ -1,5 +1,5 @@
 {
- "run_id": "v4b-b2386f379",
+ "run_id": "v4b-2f6a14f29",
  "ok": true,
  "checks": [
   {
@@ -170,7 +170,7 @@
   {
    "check": "7 oo context mount (human output) exits 0",
    "ok": true,
-   "detail": "mounted /private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, B"
+   "detail": "mounted /private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, B"
   },
   {
    "check": "8 two mounts of one task group",
@@ -205,7 +205,7 @@
   {
    "check": "8 the group refreshes together",
    "ok": true,
-   "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\", \"path\": \"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context\", \"share_id\": "
+   "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\", \"path\": \"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context\", \"share_id\": "
   },
   {
    "check": "8 oo context check in agent-a exits 0 after the refresh",
@@ -316,7 +316,7 @@
    "stderr": ""
   },
   {
-   "command": "oo docs drive add --name acceptance --root /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/drive --json",
+   "command": "oo docs drive add --name acceptance --root /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/drive --json",
    "exit": 0,
    "stdout": "{\"backend\":\"fs\",\"bytes_total\":0,\"config\":{\"root\":\"/drives/021443726bb94826\"},\"counts\":{},\"created_at\":\"2026-11-18T16:06:18.049498Z\",\"drive_rev\":0,\"files_total\":0,\"freshness\":{\"as_of\":\"2026-11-18T16:06:18.052387Z\",\"covers_drive_rev\":0,\"ontology_version\":0,\"pending_review\":0,\"processing\":0,\"reason_code\":null,\"state\":\"up_to_date\"},\"id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"acceptance\",\"pending_review\":0,\"protocol\":\"oo.docs-drive/v1\",\"revision\":1,\"status\":\"active\",\"status_code\":null}\n",
    "stderr": ""
@@ -682,55 +682,55 @@
    "stderr": ""
   },
   {
-   "command": "oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json",
+   "command": "oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json",
    "exit": 0,
-   "stdout": "{\"blocked\":{\"entities\":20,\"facts\":102},\"expires_at\":\"2026-11-25T16:07:26.131371Z\",\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"5c0791ad-2cd0-4deb-993a-6bd7af1208fd\",\"tokens\":{\"brief\":545,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stdout": "{\"blocked\":{\"entities\":20,\"facts\":102},\"expires_at\":\"2026-11-25T16:07:26.131371Z\",\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"5c0791ad-2cd0-4deb-993a-6bd7af1208fd\",\"tokens\":{\"brief\":545,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
    "stderr": ""
   },
   {
    "command": "oo context list",
    "exit": 0,
-   "stdout": "5c0791ad-2cd0-4deb-993a-6bd7af1208fd  active    v4  expires 2026-11-25T16:07:26.131371Z  /private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work\n",
+   "stdout": "5c0791ad-2cd0-4deb-993a-6bd7af1208fd  active    v4  expires 2026-11-25T16:07:26.131371Z  /private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work\n",
    "stderr": ""
   },
   {
    "command": "oo context list --json",
    "exit": 0,
-   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":29,\"drive_rev\":30,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:26.131371Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:26.131371Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":false,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"5c0791ad-2cd0-4deb-993a-6bd7af1208fd\",\"mount\":{\"present\":false},\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"pack_id\":\"8cf0c1e1-e6a6-46d4-92c5-584857d5a8de\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work\",\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"Projects\"],\"state\":\"active\",\"task\":\"星图看板用什么图表方案\",\"version\":4}]}\n",
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":29,\"drive_rev\":30,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:26.131371Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:26.131371Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":false,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"5c0791ad-2cd0-4deb-993a-6bd7af1208fd\",\"mount\":{\"present\":false},\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"pack_id\":\"8cf0c1e1-e6a6-46d4-92c5-584857d5a8de\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work\",\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"Projects\"],\"state\":\"active\",\"task\":\"星图看板用什么图表方案\",\"version\":4}]}\n",
    "stderr": ""
   },
   {
-   "command": "oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work-human --scope Decisions --for 星图看板用什么图表方案",
+   "command": "oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human --scope Decisions --for 星图看板用什么图表方案",
    "exit": 0,
-   "stdout": "mounted /private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, BRIEF 428/800 tokens, trimmed 0, blocked 165, expires 2026-11-25T16:07:26.794212Z)\n",
+   "stdout": "mounted /private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, BRIEF 428/800 tokens, trimmed 0, blocked 165, expires 2026-11-25T16:07:26.794212Z)\n",
    "stderr": ""
   },
   {
-   "command": "oo context revoke /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work-human",
+   "command": "oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human",
    "exit": 0,
    "stdout": "revoked 28f924a0-d77f-4dd2-be44-11d0ad6b546b; local mount removed. Content already read cannot be taken back.\n",
    "stderr": ""
   },
   {
-   "command": "oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json",
+   "command": "oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json",
    "exit": 0,
-   "stdout": "{\"blocked\":{\"entities\":20,\"facts\":102},\"expires_at\":\"2026-11-25T16:07:27.253783Z\",\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\",\"tokens\":{\"brief\":545,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stdout": "{\"blocked\":{\"entities\":20,\"facts\":102},\"expires_at\":\"2026-11-25T16:07:27.253783Z\",\"pack_digest\":\"573931a39bbdc4f24b42c34aa4daf48aa418f200a4bc233a2eef3eaad701bbed\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\",\"tokens\":{\"brief\":545,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
    "stderr": ""
   },
   {
-   "command": "oo context mount --to /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json",
+   "command": "oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json",
    "exit": 0,
-   "stdout": "{\"blocked\":{\"entities\":23,\"facts\":125},\"expires_at\":\"2026-11-25T16:07:27.764308Z\",\"pack_digest\":\"ae847b7fe2daf8cc483af508c56fd925e4e15f9e20efb3dc4b15523a3f9b8ff2\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"tokens\":{\"brief\":791,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stdout": "{\"blocked\":{\"entities\":23,\"facts\":125},\"expires_at\":\"2026-11-25T16:07:27.764308Z\",\"pack_digest\":\"ae847b7fe2daf8cc483af508c56fd925e4e15f9e20efb3dc4b15523a3f9b8ff2\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"tokens\":{\"brief\":791,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
    "stderr": ""
   },
   {
-   "command": "oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context",
+   "command": "oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context",
    "exit": 0,
    "stdout": "share 0ec2d5d6-67dc-442a-9907-6cb3d67e91e3: up to date, continue\n",
    "stderr": ""
   },
   {
-   "command": "oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context",
+   "command": "oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context",
    "exit": 0,
    "stdout": "share 0905797f-7c54-4976-b749-84c309f0bf11: up to date, continue\n",
    "stderr": ""
@@ -754,7 +754,7 @@
    "stderr": ""
   },
   {
-   "command": "oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context",
+   "command": "oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context",
    "exit": 20,
    "stdout": "share 0ec2d5d6-67dc-442a-9907-6cb3d67e91e3: BLOCK, a fact you used was withdrawn or conflicts; do not commit, refresh or ask a person\n",
    "stderr": ""
@@ -762,17 +762,17 @@
   {
    "command": "oo context refresh --group TICKET-P21 --json",
    "exit": 0,
-   "stdout": "{\"protocol\":\"oo.context-refresh/v1\",\"shares\":[{\"mounted\":true,\"old\":\"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context\",\"share_id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"version\":5},{\"mounted\":true,\"old\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context\",\"share_id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"version\":5}]}\n",
+   "stdout": "{\"protocol\":\"oo.context-refresh/v1\",\"shares\":[{\"mounted\":true,\"old\":\"0ec2d5d6-67dc-442a-9907-6cb3d67e91e3\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context\",\"share_id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"version\":5},{\"mounted\":true,\"old\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context\",\"share_id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"version\":5}]}\n",
    "stderr": ""
   },
   {
-   "command": "oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a/.context",
+   "command": "oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context",
    "exit": 0,
    "stdout": "share 16098d65-5ea8-448a-ae3e-83771d28fa41: up to date, continue\n",
    "stderr": ""
   },
   {
-   "command": "oo context check --dir /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b/.context",
+   "command": "oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context",
    "exit": 0,
    "stdout": "share aaa30e0a-6578-4585-a494-065f4f1c1406: up to date, continue\n",
    "stderr": ""
@@ -798,11 +798,11 @@
   {
    "command": "oo docs share ls --json",
    "exit": 0,
-   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.767611Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.767611Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"mount\":{\"present\":false},\"pack_digest\":\"eb4fec8deb939f0ede60e99a4f9562d88d58d5c093a24907eaa5894e714d0aad\",\"pack_id\":\"7796508e-b8ff-4d4c-b66f-ffbcc42d453c\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":5},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.764767Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.764767Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"mount\":{\"present\":false},\"pack_digest\":\"882dcd696411f59f5e45a05af240bf2756a6",
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.767611Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.767611Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"mount\":{\"present\":false},\"pack_digest\":\"eb4fec8deb939f0ede60e99a4f9562d88d58d5c093a24907eaa5894e714d0aad\",\"pack_id\":\"7796508e-b8ff-4d4c-b66f-ffbcc42d453c\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":5},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.764767Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.764767Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"mount\":{\"present\":false},\"pack_digest\":\"882dcd696411f59f5e45a05af240bf2756a6",
    "stderr": ""
   },
   {
-   "command": "oo context revoke /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/work --json",
+   "command": "oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --json",
    "exit": 0,
    "stdout": "{\"local_removed\":true,\"notice_code\":\"DOCS_SHARE_READ_CONTENT_IRREVOCABLE\",\"protocol\":\"oo.context-revoke/v1\",\"share_id\":\"5c0791ad-2cd0-4deb-993a-6bd7af1208fd\",\"state\":\"revoked\"}\n",
    "stderr": ""
@@ -810,7 +810,7 @@
   {
    "command": "oo docs share ls --json",
    "exit": 0,
-   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.767611Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.767611Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"mount\":{\"present\":false},\"pack_digest\":\"eb4fec8deb939f0ede60e99a4f9562d88d58d5c093a24907eaa5894e714d0aad\",\"pack_id\":\"7796508e-b8ff-4d4c-b66f-ffbcc42d453c\",\"path\":\"/private/tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":5},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.764767Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.764767Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"mount\":{\"present\":false},\"pack_digest\":\"882dcd696411f59f5e45a05af240bf2756a6",
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.767611Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.767611Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"aaa30e0a-6578-4585-a494-065f4f1c1406\",\"mount\":{\"present\":false},\"pack_digest\":\"eb4fec8deb939f0ede60e99a4f9562d88d58d5c093a24907eaa5894e714d0aad\",\"pack_id\":\"7796508e-b8ff-4d4c-b66f-ffbcc42d453c\",\"path\":\"/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b\",\"refresh_policy\":\"manual\",\"refreshed_from\":\"0905797f-7c54-4976-b749-84c309f0bf11\",\"revision\":1,\"revoked_at\":null,\"role\":\"suggester\",\"scope\":[\"Decisions\",\"People\"],\"state\":\"active\",\"task\":\"林远舟的决定\",\"version\":5},{\"budget\":800,\"coverage\":{\"covered_rev\":31,\"drive_rev\":31,\"failed\":[],\"in_scope\":11,\"pending\":[],\"processed\":11},\"created_at\":\"2026-11-18T16:07:28.764767Z\",\"drive_id\":\"441c0689-20d5-4cb1-a940-26915c623a8e\",\"expires_at\":\"2026-11-25T16:07:28.764767Z\",\"group_id\":\"e434a2e1-5e1d-4389-a5db-901397cd37b7\",\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":true,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"16098d65-5ea8-448a-ae3e-83771d28fa41\",\"mount\":{\"present\":false},\"pack_digest\":\"882dcd696411f59f5e45a05af240bf2756a6",
    "stderr": ""
   },
   {
@@ -820,13 +820,13 @@
    "stderr": ""
   },
   {
-   "command": "oo context revoke /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-a",
+   "command": "oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a",
    "exit": 0,
    "stdout": "revoked 16098d65-5ea8-448a-ae3e-83771d28fa41; local mount removed. Content already read cannot be taken back.\n",
    "stderr": ""
   },
   {
-   "command": "oo context revoke /tmp/oo-cliacc-v4b-b2386f379-tbatmclk/agent-b",
+   "command": "oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b",
    "exit": 0,
    "stdout": "revoked aaa30e0a-6578-4585-a494-065f4f1c1406; local mount removed. Content already read cannot be taken back.\n",
    "stderr": ""

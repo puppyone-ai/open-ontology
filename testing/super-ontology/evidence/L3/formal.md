@@ -10,7 +10,7 @@ built), KP3 and KP4 (no code to prove). The L3 formal gate is therefore PARTIAL,
 ## Status under D81 (2026-11-18, supersedes the PARTIAL status above)
 
 D81 narrows the L3 formal gate to the fast checks of models that exist (80 section 8 as amended). On the final
-models (`evidence/L4/formal.md`, integration `feat/super-ontology` d9b66e6e8): FM2 and FM3 (fs) pass FAST,
+models (`evidence/L4/formal.md`, integration `feat/super-ontology` 724e7915e): FM2 and FM3 (fs) pass FAST,
 `conformance_state` and `conformance_sync` pass, KP7 passes. FM3 for s3 is dropped by D81; the s3 behaviour is
 covered by the L3 acceptance s3 cells. KP3 and KP4 are not done (no Rust code to prove), listed as such.
 L3 formal gate under D81: green.

@@ -1,7 +1,7 @@
 {
   "run_id": "20261118-221736",
   "status": "pass",
-  "git_head": "8f2ad81d8e3548a832848a059f415f5f1a62a289",
+  "git_head": "9e63f3ac56f47610865240870e1b7e1c841ee8d4",
   "binaries_sha256": {
     "oo": "ad18598aef82b1203151dc471e902af7dcd25eac2d7d5e066a2e3eb998d63da5",
     "oo-docs-engine": "d89a753dc5ba2f0b7c951d1858abe04d746000ed81cf38eb19b8c03ec4abd022"

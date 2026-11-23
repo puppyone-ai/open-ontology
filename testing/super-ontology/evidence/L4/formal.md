@@ -13,13 +13,13 @@ Nine defects of S3/S5/S6 code, each found by replaying a model against the real 
 
 | # | Model | Defect | Fix |
 |---|---|---|---|
-| 1 | FM5 | `withdraw_evidence` retracted a fact a person had accepted when its file went away (D22) | 62d4988f5 |
-| 2 | FM5 | `sweep_orphans` queued an orphan item for an overridden assertion and re-orphaned a kept one: overlay orphaned, no item for anybody | 62d4988f5 |
-| 3 | FM5 | declining an orphan left a published fact whose source is gone | 62d4988f5 |
-| 4 | FM5, FM11 | `enqueue` retired pending `supersede_candidate` items the temporal pass still held: a held fact waited for nobody | 62d4988f5 |
-| 5 | FM11 | a `rejects` and a `decides` of one alternative in one run both published | 927c53206 |
-| 6 | FM10 | corrections never counted as pending in `covers_drive_rev`: a task started right after one compiled without it and reported complete | 8b85bf138 |
-| 7 | FM6 | a share joining a task group at the group's older version never got the entries of the versions in between; `check` answered 0 over a retracted fact | f378cbad9 |
+| 1 | FM5 | `withdraw_evidence` retracted a fact a person had accepted when its file went away (D22) | 4f0a702e6 |
+| 2 | FM5 | `sweep_orphans` queued an orphan item for an overridden assertion and re-orphaned a kept one: overlay orphaned, no item for anybody | 4f0a702e6 |
+| 3 | FM5 | declining an orphan left a published fact whose source is gone | 4f0a702e6 |
+| 4 | FM5, FM11 | `enqueue` retired pending `supersede_candidate` items the temporal pass still held: a held fact waited for nobody | 4f0a702e6 |
+| 5 | FM11 | a `rejects` and a `decides` of one alternative in one run both published | 94f21fc1a |
+| 6 | FM10 | corrections never counted as pending in `covers_drive_rev`: a task started right after one compiled without it and reported complete | 2d81854ee |
+| 7 | FM6 | a share joining a task group at the group's older version never got the entries of the versions in between; `check` answered 0 over a retracted fact | c46f77b20 |
 | 8 | FM4 | (finding, no patch) the live stream loop would silently skip purged events for a connected client behind a retention purge; no job purges events yet | review FM4 |
 | 9 | FM2 | (finding, no patch) `state::transition` has no version fence (`version_id` is only logged); the fence is the stage's SQL | review FM2 |
 

@@ -1,6 +1,6 @@
 # L5 Suggest 回流 · OO 侧签收证据（D80 阶段一）
 
-签收版本：OO `feat/super-ontology` @ 4390b2cb4。独立复核运行于 `acf198b17`（分支 `so/V1-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：42 项检查，42 通过、0 失败（L5 验收脚本，加上 `suggest_live`、`review_live`、`correct_api_live` 三个 live 套件）。Desktop 部分（修订模式视图、批量接受界面、`editor` 的文件写入与 Git 自动提交）按 30 §7 在阶段二补齐。
+签收版本：OO `feat/super-ontology` @ a54c40586。独立复核运行于 `75c44714b`（分支 `so/V1-signoff`，2026-11-18，验证员与执行者分离），结果 `result-verify-signoff.json`：42 项检查，42 通过、0 失败（L5 验收脚本，加上 `suggest_live`、`review_live`、`correct_api_live` 三个 live 套件）。Desktop 部分（修订模式视图、批量接受界面、`editor` 的文件写入与 Git 自动提交）按 30 §7 在阶段二补齐。
 
 ## 30 §L5 验收（OO 侧口径，30 §7.2）
 

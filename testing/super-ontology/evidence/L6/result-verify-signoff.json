@@ -1,7 +1,7 @@
 {
  "run_id": "verify-signoff",
  "status": "pass",
- "verifier_head": "5f9061df6",
+ "verifier_head": "7ec049f0b",
  "verifier_branch": "so/V46-signoff",
  "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
  "checks": [
@@ -27,7 +27,7 @@
   }
  ],
  "findings": [
-  "evidence/L6/formal.md is absent at 5f9061df6; it exists on feat/super-ontology d2c857b03 (no new formal item under D81, gate green by reference to evidence/L4/formal.md). Not created here.",
+  "evidence/L6/formal.md is absent at 7ec049f0b; it exists on feat/super-ontology 823db4116 (no new formal item under D81, gate green by reference to evidence/L4/formal.md). Not created here.",
   "super_ontology_cli_acceptance_l6.py check 8 label says p95 but asserts the worst file (max) <= 7 s.",
   "l6 e2e needs the pillow package; /usr/bin/python3 is documented but PIL wasn't tested there."
  ]

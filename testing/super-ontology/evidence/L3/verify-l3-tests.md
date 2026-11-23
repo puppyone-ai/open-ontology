@@ -1,4 +1,4 @@
-# verify-L3: test runs on so/verify-L3 (base feat/super-ontology e82490f57), 2026-11-17
+# verify-L3: test runs on so/verify-L3 (base feat/super-ontology bc11ea3bd), 2026-11-17
 
 Host: local arm64 Docker Desktop. No registry access during this run (docker.io and auth.docker.io unreachable), so no image could be pulled or built.
 
@@ -45,7 +45,7 @@ Host: local arm64 Docker Desktop. No registry access during this run (docker.io 
 | publish_live | rc=0, 5 passed, 0 failed |  |
 | rebuild_live | rc=0, 1 passed, 0 failed |  |
 | refresh_changes_live | rc=0, 1 passed, 0 failed |  |
-| reprocess | rc=101, 3 passed, 1 failed | real assertion failure, reproduced on rerun: reprocess.rs:300 expects 2 queued parse jobs after one pump tick, code gives 1 (REPROCESS_INFLIGHT = 1 in crates/oo-docs/src/jobs/stages.rs:60); test and constant from the same commit f2b604e99 |
+| reprocess | rc=101, 3 passed, 1 failed | real assertion failure, reproduced on rerun: reprocess.rs:300 expects 2 queued parse jobs after one pump tick, code gives 1 (REPROCESS_INFLIGHT = 1 in crates/oo-docs/src/jobs/stages.rs:60); test and constant from the same commit 3872c7186 |
 | resolve_live | rc=0, 5 passed, 0 failed |  |
 | retention_live | rc=0, 1 passed, 0 failed |  |
 | review_api_live | rc=0, 1 passed, 0 failed |  |

@@ -1,7 +1,7 @@
 # Which model extracts by default (lane AD, SO-B-S20)
 
 Same harness as `../README.md` (`tools/oo-test/super_ontology_eval_live.py`, real engine, Docling sidecar, real egress, 8 parallel extractions,
-`OO_DOCS_MODEL_TIMEOUT_SECS=420` for the candidates). The candidate runs use the code of `f44537fd0` (lane U's `extract/4` plus the latency log and
+`OO_DOCS_MODEL_TIMEOUT_SECS=420` for the candidates). The candidate runs use the code of `c62099442` (lane U's `extract/4` plus the latency log and
 the env pass-through); the gemini runs also had the egress limit of 120 calls a minute (`ee3ede843`). Numbers are the published view, precision / recall.
 Latency is the wire time of one call, from the egress client (`latency.json` of each run, `OO_DOCS_MODEL_LATENCY_LOG`). Golden is the tuning set;
 the held-out set was read only through the harness, never its labels.
@@ -26,7 +26,7 @@ Reading:
 * Latency is token bound: grok-4.7-build-fast writes 9,000 tokens per answer (hidden reasoning), gpt-6.2-sol 850, gemini 700. Model ids that answer a one-word prompt in 3 s are not fast on an extraction.
 * Not usable: cb/gpt-6.1-sol (empty content), cx/* (revoked), claude-* (404). ds/deepseek-v4-pro answered an extraction-size prompt in 64 s and ds/deepseek-v4-flash in 16 s; not run on the sets.
 * One discarded run: the first gemini-3.8-flash-low run was throttled by the egress limit of 30 calls a minute (22 of 52 calls `RateLimited`, facts R 0.712). The limit is now 120 and `OO_DOCS_MODEL_RPM` changes it.
-* Reference caveat: the engine under the test harness starts with a cleared environment, so lane U's `OO_DOCS_MODEL_TIMEOUT_SECS=420` may not have reached it (fixed in `f44537fd0`); its grok-4.7 figures may have run at 180 s.
+* Reference caveat: the engine under the test harness starts with a cleared environment, so lane U's `OO_DOCS_MODEL_TIMEOUT_SECS=420` may not have reached it (fixed in `c62099442`); its grok-4.7 figures may have run at 180 s.
 * Timeout default stays 180 s: gpt-6.2-sol p99 is 71 s, max 71 s in 164 calls (2.5 times margin). A reasoning model needs `OO_DOCS_MODEL_TIMEOUT_SECS=420` (grok-4.7-build-fast max 255 s).
 * Concurrency: 8 parallel extractions gave 0 wire errors in every run (no `RateLimited`, no `Unavailable` except one in the final golden run), so the default is 8; `docs.json` `concurrency.extract_llm` accepts 1 to 16.
 

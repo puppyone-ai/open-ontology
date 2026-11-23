@@ -1,6 +1,6 @@
 # S22 convergence (lane AE6)
 
-Tree: so/AE6-final on feat/super-ontology 36df993e8, commits SO-F-S23-01..08 (two test updates, install test, image and media-parser pins, a settle-step fix, the acceptance
+Tree: so/AE6-final on feat/super-ontology d407cd667, commits SO-F-S23-01..08 (two test updates, install test, image and media-parser pins, a settle-step fix, the acceptance
 runner, two lock commits). Model cb/gpt-6.2-sol by file path. Built app: DMG sha256 `34790241dfe2a020444ee5ac479558afe5966607ff0e729ea24fa4f3a4f42aff`, engine image
 `oo-docs-engine:dev-ae6b` (sha256:f1bda026...), media-parser image `oo-docs-media-parser:dev-asr` (sha256:26732703..., Whisper base + sherpa-onnx), OCR and document parser images unchanged.
 Everything ran headless: the app launched hidden (`open -g -j`), isolated HOME, no GUI driving.
@@ -42,7 +42,7 @@ Everything ran headless: the app launched hidden (`open -g -j`), isolated HOME, 
 * L4 numbers are one run per set (the model's recall spread is about .03); fact recall on the holdout is .009 above the gate.
 * The 45-file corpus relations: figures 2/4 and dates 2/4 (numbers written in words are not normalised).
 
-## Follow-up round (lane AE7, Plan SO-F-S23-10..14, tree so/AE7-final on 485bb17a5)
+## Follow-up round (lane AE7, Plan SO-F-S23-10..14, tree so/AE7-final on 2c891414a)
 
 | item | result |
 |---|---|

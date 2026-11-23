@@ -1,6 +1,6 @@
 # L3 读懂文件 · OO 侧签收证据（D80 阶段一）
 
-**签收（协调者，2026-11-18）**：此前缺的 S3 格子已由独立验证员在 owner 批准拉取固定镜像后重跑通过（`so/V3s-signoff` @7a8130ae7）：RustFS、MinIO 的“新增 → 修改 → 重命名 → 删除”各 20/20，`s3_rustfs` 8/8，`download` 3/3，无失败无重试；记录在 `result-verify-signoff.json`。下表中验收 5 的 s3 部分以此为准。
+**签收（协调者，2026-11-18）**：此前缺的 S3 格子已由独立验证员在 owner 批准拉取固定镜像后重跑通过（`so/V3s-signoff` @19f127499）：RustFS、MinIO 的“新增 → 修改 → 重命名 → 删除”各 20/20，`s3_rustfs` 8/8，`download` 3/3，无失败无重试；记录在 `result-verify-signoff.json`。下表中验收 5 的 s3 部分以此为准。
 
 ## 30 §L3 验收（OO 侧口径，30 §7.2）
 
@@ -10,7 +10,7 @@
 | 2 | 故障注入：杀 sidecar、断 PG、对象存储 5xx、写到一半的文件 | 通过：`faults` 9/9（含 PG 重启、sidecar 被杀、sidecar 5xx、半写文件、引擎被杀后租约续跑）；对象存储 5xx/429、变更中读取、坏传输由 `s3_mock` 单元覆盖。注：较早一次复核（`verify-l3-tests.md`）里 PG 重启用例曾挂起，之后用 90 秒截止与端口断言修复，签收复跑 9/9 | `result-verify-signoff.json`、`faults.md` |
 | 3 | 毒丸：最多重试 3 次后隔离，吞吐不受影响 | 通过：毒丸 pdf 在第 2 次崩溃后隔离为 `parse_failed`/`DOCS_PARSE_QUARANTINED`（35.4 s，杀了 2 次 worker）；同库另外 16 个文件 16/16 发布，0 个需要第二次解析作业；隔离之后 sidecar 仍可解析 | `result-verify-signoff.json` |
 | 4 | 幂等：同内容 10 个文件名只解析一次 | 通过：md、pdf、docx、xlsx 各 1 个 `published` + 9 个 `duplicate`，每种内容 1 个解析作业与 1 个解析结果，10 个路径各有等量证据 | `result-verify-signoff.json` |
-| 5 | fs 与 s3 两个后端各跑“新增 → 修改 → 重命名 → 删除” | fs 通过；s3 未独立复核（阻塞）：新增链 `stored→…→published`，修改走 `superseded→stored`，旧证据撤回（0 条有效）新证据 17 条有效，重命名为 `duplicate` 且有 `file.renamed`、没有事实被撤回，删除后证据撤回并撤回无证据的事实（2→7）。s3：**不是本次独立复核运行的**；RustFS 与 MinIO（`pgsty/minio` 分支）各 20/20 的结果来自执行者较早一轮（`s3-life-*.md`），L7 阶段又用本地 MinIO 跑通 `s3_rustfs` 7/7 与 `download` 3/3；独立验证员在 4cee27056 上尝试运行 s3 格子、`download`、`s3_rustfs`：全部 BLOCKED，未运行（镜像不在本机，按主机规则不拉取）。**因此验收 5 的 s3 半边没有独立证据，这是本闭环未签收的原因。**CRC64：RustFS/MinIO 对未带校验上传的对象不回 CRC64，校验路径用进程内 S3 仿真验证 | `result-verify-signoff.json`（fs）、`s3-life-rustfs.md`、`s3-life-minio.md`（执行者运行） |
+| 5 | fs 与 s3 两个后端各跑“新增 → 修改 → 重命名 → 删除” | fs 通过；s3 未独立复核（阻塞）：新增链 `stored→…→published`，修改走 `superseded→stored`，旧证据撤回（0 条有效）新证据 17 条有效，重命名为 `duplicate` 且有 `file.renamed`、没有事实被撤回，删除后证据撤回并撤回无证据的事实（2→7）。s3：**不是本次独立复核运行的**；RustFS 与 MinIO（`pgsty/minio` 分支）各 20/20 的结果来自执行者较早一轮（`s3-life-*.md`），L7 阶段又用本地 MinIO 跑通 `s3_rustfs` 7/7 与 `download` 3/3；独立验证员在 ff1d2ad02 上尝试运行 s3 格子、`download`、`s3_rustfs`：全部 BLOCKED，未运行（镜像不在本机，按主机规则不拉取）。**因此验收 5 的 s3 半边没有独立证据，这是本闭环未签收的原因。**CRC64：RustFS/MinIO 对未带校验上传的对象不回 CRC64，校验路径用进程内 S3 仿真验证 | `result-verify-signoff.json`（fs）、`s3-life-rustfs.md`、`s3-life-minio.md`（执行者运行） |
 | 6 | 1000 份文件冷启动解析 ≤ 30 分钟，内存在 10 分册上限内 | 通过：1000/1000 `published`，冷解析 13.7 分钟（总 824.2 s，72.8 文件/分钟）；峰值内存 docs-engine 54 MiB（上限 1.5 GiB）、doc-parser 1675 MiB（3 GiB）、docs-db 827 MiB（1 GiB）。样本为 1000 个黄金文件变体，共 3.7 MiB、pdf 为一页，内存数字针对该文件组合 | `result-verify-signoff.json`、`bench-cold1000.md`（较早一轮 23.8 分钟，已被取代） |
 | 7 | 前端：每个状态在界面上有呈现，断线重连不丢状态 | 阶段二（Desktop 状态矩阵逐项截图、上传队列、批量重试、“解析结果”标签页、S3 登记表单、大目录虚拟滚动）。OO 侧对应：状态机与枚举契约 `conformance_state`、`contract`、`conformance_jobs` 通过 | `result-verify-signoff.json` |
 | 8 | 自动感知；延迟 D49（2026-11-17 校准：md/txt p95 ≤ 7 s，pdf/docx ≤ 30 s，xlsx ≤ 20 s） | 通过（轮询与 hint 两种模式）：md/txt 6.17 s（n=20，p50 5.67）/ 6.07 s（n=10）；pdf 8.25 / 8.14 s；docx 6.20 / 4.16 s；xlsx 6.19 / 6.02 s。没有 API 调用即可检测直接写入 Drive 目录的文件。测量用的是 1 页 pdf/docx 的黄金文件，真实 20 页文件的 30 s 余量会被消耗。注：原规格 5 s 在默认值（settle 2 s、发布窗口 2 s）下做不到，D49 已校准，旧的 FAIL 记录见下方历史 | `result-verify-signoff.json`、`l3-latency-*.json` |
@@ -45,7 +45,7 @@ tools/oo-test/super_ontology_s3_life.py --store rustfs|minio                    
 
 # L3 sign-off verification (verify-L3), NOT SIGNED OFF on this HEAD
 
-Branch `so/verify-L3` on `feat/super-ontology` e82490f57, 2026-11-17. Details: `verify-l3-tests.md` (same folder).
+Branch `so/verify-L3` on `feat/super-ontology` bc11ea3bd, 2026-11-17. Details: `verify-l3-tests.md` (same folder).
 Result: **the OO-side sign-off is blocked, not passed.** This host could not reach any registry, so the
 locked `docs-engine` image (and therefore the full stack runner, compose check and both S3 cells) could not
 be run. The table below separates what was run on this HEAD from what is carried forward from the earlier run
@@ -75,7 +75,7 @@ FAIL in this README's history no longer applies to the spec, but the 6.1 s measu
 - `--ignored` suites: all pass except the following:
   - `reprocess`: 3/4 pass. The `a_parser_upgrade_marks_files_outdated_and_reprocesses_them_in_small_batches` assertion
     expects 2 queued reprocess jobs (`reprocess.rs:300`), the code gives 1 because `REPROCESS_INFLIGHT = 1`
-    (`crates/oo-docs/src/jobs/stages.rs:60`). Both come from commit f2b604e99 and the spec gives no number
+    (`crates/oo-docs/src/jobs/stages.rs:60`). Both come from commit 3872c7186 and the spec gives no number
     (10 section 11.2 says only "low priority, small batches"). This is a mismatch between test and code;
     not changed here. Needs a development agent or a coordinator decision.
   - `faults`: `postgres_restarted_under_a_running_engine_loses_nothing` hung after `docker restart` of the

@@ -1,7 +1,7 @@
 {
   "run_id": "verify-signoff",
   "status": "fail",
-  "git_head": "e1242d241 (verify branch so/V8-signoff, base; commit recorded in the trailer step)",
+  "git_head": "6c830bf26 (verify branch so/V8-signoff, base; commit recorded in the trailer step)",
   "binaries_sha256": {
     "oo_debug": "fbb8f7c5e8d860d3fe6a0d4f2097677c1c3057f9a129d0166c1b0815b101c098",
     "oo_docs_engine_debug": "bfff7566bf261485c6dc75a12fe6abd968c632d14c7bfb04549c1972ba4cd5bb",
@@ -76,7 +76,7 @@
   "vectors_on_runs": [
     {
       "run_id": "verify-sign-L8-vectors-on",
-      "git_head": "395a3fade",
+      "git_head": "742748eb1",
       "branch": "so/V38-signoff",
       "env": {
         "OO_DOCS_VECTORS": "hashgram/1",
@@ -108,7 +108,7 @@
   "verify_signoff_runs": [
     {
       "run_id": "v48-stock-L8",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -122,7 +122,7 @@
   "verify_signoff_runs_v48": [
     {
       "run_id": "v48-stock-rerun",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -135,7 +135,7 @@
     },
     {
       "run_id": "v48-vectors-on",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",
@@ -148,7 +148,7 @@
     },
     {
       "run_id": "v48-conformance-share-x10",
-      "git_head": "acb32a6b4",
+      "git_head": "069497414",
       "branch": "so/V48-signoff",
       "env": {
         "OO_TEST_LANE": "super-ontology-v48",

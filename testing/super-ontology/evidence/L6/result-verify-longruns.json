@@ -1,7 +1,7 @@
 {
  "run_id": "verify-longruns",
  "status": "partial",
- "verifier_head": "51d413312",
+ "verifier_head": "869fe07f3",
  "verifier_branch": "so/V6L-signoff",
  "checks": [
   {
