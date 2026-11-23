@@ -406,6 +406,7 @@
 | SO-F-S23-13 | D85 | merged | feat/super-ontology (车道 AE7 并入) | de4d296c3 → de4d296c3 | — | — | Regenerate the media-parser SBOM for the Whisper and sherpa-onnx image and pass the licence gate |
 | SO-F-S23-14 | D85 | merged | feat/super-ontology (车道 AE7 并入) | 1429ab061 → 1429ab061 | — | — | Pin the media-parser image with the regenerated SBOM |
 | SO-F-S23-15 | D85 | merged | feat/super-ontology (车道 AE7 并入) | e11473b4f → e11473b4f | — | — | Add the AE7 follow-up results to the convergence evidence |
+| SO-F-S23-16 | D83 | merged | feat/super-ontology | 8e1bbe141 → 8e1bbe141 | — | tools/doc-parser/runtime-artifacts.json | Point the OpenCV runtime pin at the published release asset |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 5c3b92efd → 1745581d1 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 00ea0bc8e → 00ea0bc8e | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ddf16f740 → 7d00afb0f | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
