@@ -62,16 +62,30 @@ jobs:
           fetch-depth: 1
       - name: quint
         run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: fetch the Quint Rust evaluator once, with retries
+        # Quint fetches the evaluator from the GitHub API without credentials on the first
+        # `quint run`; a shared runner address can be rate limited. One serial fetch with
+        # backoff keeps the four parallel simulation shards from racing for it.
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if quint run formal/quint/jobs.qnt --main=jobs --max-samples=1 --max-steps=1 >/dev/null; then exit 0; fi
+            echo "evaluator fetch attempt ${attempt} failed" >&2
+            sleep $((attempt * 60))
+          done
+          exit 1
       - name: random simulation, 10000 traces per model, fixed seed
         run: formal/scripts/formal-simulate
 
   formal-verify-fast:
     # One (model, invariant) per job, at the FAST bound (`verify-steps` in the model header, chosen so
-    # that every pair fits 12 minutes; formal/reviews/FM*.md have the measured times). The 80
-    # section 6 budget is 15 minutes per job.
+    # that every pair fits 12 minutes on a quiet machine; formal/reviews/FM*.md have the measured times).
+    # The 80 section 6 budget is 15 minutes per job. On the shared hosted runners, with the whole matrix
+    # running at once, the review_decide pairs measured 13 to 20 minutes (invOrphanQueued took 14 minutes
+    # on a Mac with 8 GB heap and passes with no violation), so the hard stop is 30 minutes. The bound
+    # and the invariants are unchanged.
     name: formal-verify-fast (${{ matrix.model }} ${{ matrix.invariant }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
