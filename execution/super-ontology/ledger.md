@@ -416,6 +416,7 @@
 | SO-F-S23-31 | D83 | merged | feat/super-ontology | 5d9f4c203 → 5d9f4c203 | — | .github/workflows/docs-images.yml, deploy/docs/docker-bake.hcl, deploy/docs/release_summary.py | Add the docs-images workflow for CI-only publication |
 | SO-F-S23-32 | D83 | merged | feat/super-ontology | 47298a581 → 47298a581 | — | docs/engineering/release.md, docs/engineering/ci.md, specs/super-ontology/10-backend.md, deploy/docs/images.lock.json | Document CI-only publication of the docs runtime images after merge |
 | SO-F-S23-33 | D83 | merged | feat/super-ontology | (this commit) | — | execution/super-ontology/ledger.md | Add the ledger rows for the docs-images workflow |
+| SO-F-S23-34 | D83 | merged | feat/super-ontology | (this commit) | — | crates/xtask/src/supply.rs, supply-chain/url-security-fix-seven-day.json | Remove the temporary age-floor waiver for url 2.5.9 and form_urlencoded 1.2.3 (owner decision); gate-dependencies waits for the 7-day floor, 2026-11-27 |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 5c3b92efd → 1745581d1 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 00ea0bc8e → 00ea0bc8e | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ddf16f740 → 7d00afb0f | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
